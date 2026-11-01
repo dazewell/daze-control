@@ -329,7 +329,12 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
         }
 
         [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static HRESULT OnDeviceRemoved(void* self, char* id) => Ok;
+        private static HRESULT OnDeviceRemoved(void* self, char* id)
+        {
+            // A disconnect wait ends when the device's endpoints are gone, not only inactive.
+            Signal(self);
+            return Ok;
+        }
 
         [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
         private static HRESULT OnDefaultDeviceChanged(void* self, EDataFlow flow, ERole role, char* id) => Ok;

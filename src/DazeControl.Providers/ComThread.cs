@@ -20,6 +20,8 @@ internal static unsafe class ComThread
             var hr = PInvoke.CoInitializeEx(null, COINIT.COINIT_MULTITHREADED);
             try
             {
+                // The token may have fired while the thread started: then no COM side effect at all.
+                cancellationToken.ThrowIfCancellationRequested();
                 result.TrySetResult(work());
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

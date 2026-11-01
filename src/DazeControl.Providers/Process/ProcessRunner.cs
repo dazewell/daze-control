@@ -8,6 +8,9 @@ namespace DazeControl.Providers.Process;
 /// <summary>Starts a program and waits for it; shared by <c>process.run</c> and <c>script.powershell</c>.</summary>
 internal static class ProcessRunner
 {
+    private const int ErrorTail = 4096; // chars of stderr kept for the failure message
+    private static readonly TimeSpan DrainGrace = TimeSpan.FromMilliseconds(500);
+
     /// <summary>Runs to exit; on cancel (timeout, stop) kills the whole tree before rethrowing.</summary>
     public static async Task<(int ExitCode, string LastError)> RunAsync(ProcessStartInfo start, string? stdin, CancellationToken cancellationToken)
     {
@@ -17,23 +20,20 @@ internal static class ProcessRunner
         start.RedirectStandardOutput = true;
         start.RedirectStandardInput = stdin is not null;
         start.StandardErrorEncoding = Encoding.UTF8;
-        start.StandardOutputEncoding = Encoding.UTF8;
 
         using var process = Start(start);
-        var lastError = "";
-        var errorClosed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (e.Data is null)
-                errorClosed.TrySetResult();
-            else if (!string.IsNullOrWhiteSpace(e.Data))
-                lastError = e.Data.Trim();
-        };
-        // Output is drained so a chatty child can't block on a full pipe; nothing reads it yet.
-        process.OutputDataReceived += (_, _) => { };
-        process.BeginErrorReadLine();
-        process.BeginOutputReadLine();
+        // The parent's exit, not EOF on its pipes: a descendant that inherited them may keep them open for hours.
+        var exited = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        process.EnableRaisingEvents = true;
+        process.Exited += (_, _) => exited.TrySetResult();
+        if (process.HasExited)
+            exited.TrySetResult();
 
+        // Fixed-size chunks, never whole lines: a child writing without newlines can't grow the engine's memory.
+        using var drain = new CancellationTokenSource();
+        var output = DiscardAsync(process.StandardOutput.BaseStream, drain.Token);
+        var tail = new StringBuilder();
+        var error = TailAsync(process.StandardError, tail, drain.Token);
         try
         {
             if (stdin is not null)
@@ -41,16 +41,19 @@ internal static class ProcessRunner
                 await process.StandardInput.WriteAsync(stdin.AsMemory(), cancellationToken).ConfigureAwait(false);
                 process.StandardInput.Close();
             }
-            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            await exited.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
             KillTree(process);
+            await drain.CancelAsync().ConfigureAwait(false);
             throw;
         }
-        // The exit can beat the last stderr line; give the reader a moment, never block on a grandchild holding it.
-        await Task.WhenAny(errorClosed.Task, Task.Delay(500, CancellationToken.None)).ConfigureAwait(false);
-        return (process.ExitCode, lastError);
+        // The exit can beat the last stderr line: give the readers a bounded moment, then stop them.
+        await Task.WhenAny(Task.WhenAll(output, error), Task.Delay(DrainGrace, CancellationToken.None)).ConfigureAwait(false);
+        await drain.CancelAsync().ConfigureAwait(false);
+        lock (tail)
+            return (process.ExitCode, LastLine(tail.ToString()));
     }
 
     /// <summary>Starts without waiting (shell execute: documents, shortcuts and URLs work too).</summary>
@@ -59,6 +62,46 @@ internal static class ProcessRunner
         start.UseShellExecute = true;
         using var process = Start(start);
     }
+
+    private static async Task DiscardAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        var buffer = new byte[4096];
+        try
+        {
+            while (await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false) > 0)
+            {
+            }
+        }
+        catch (Exception e) when (e is OperationCanceledException or IOException or ObjectDisposedException)
+        {
+            // Stopped draining, or the pipe went away with the process.
+        }
+    }
+
+    private static async Task TailAsync(StreamReader reader, StringBuilder tail, CancellationToken cancellationToken)
+    {
+        var buffer = new char[1024];
+        try
+        {
+            int read;
+            while ((read = await reader.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false)) > 0)
+            {
+                lock (tail)
+                {
+                    tail.Append(buffer, 0, read);
+                    if (tail.Length > ErrorTail)
+                        tail.Remove(0, tail.Length - ErrorTail);
+                }
+            }
+        }
+        catch (Exception e) when (e is OperationCanceledException or IOException or ObjectDisposedException)
+        {
+            // Stopped draining, or the pipe went away with the process.
+        }
+    }
+
+    private static string LastLine(string text) =>
+        text.Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.Length > 0) ?? "";
 
     private static System.Diagnostics.Process Start(ProcessStartInfo start)
     {
