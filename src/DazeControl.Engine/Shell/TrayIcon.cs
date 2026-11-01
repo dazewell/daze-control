@@ -1,4 +1,7 @@
 using DazeControl.Engine.Diagnostics;
+using DazeControl.Engine.Interop;
+using DazeControl.Runtime.Tray;
+using Microsoft.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Shell;
@@ -7,35 +10,69 @@ using Windows.Win32.UI.WindowsAndMessaging;
 namespace DazeControl.Engine.Shell;
 
 /// <summary>
-/// Notification-area icon with a native menu via <c>Shell_NotifyIcon</c>, ported from the OSD (OSD D-009).
-/// T0.5 spike: generic icon and Exit only; flows, folders, dark menu and icon variants arrive in T3.2.
+/// Notification-area icon with a native menu via <c>Shell_NotifyIcon</c>, ported from the OSD (OSD D-009). The
+/// menu is rendered from <see cref="TrayMenu"/> each time it opens, dark or light like the taskbar; the icon and
+/// tooltip follow <see cref="Update"/>. Message thread only.
 /// </summary>
 internal sealed unsafe class TrayIcon : IDisposable
 {
     private const uint IconId = 1;
     private const uint CallbackMessage = PInvoke.WM_APP + 1;
-    private const uint ExitCommand = 1;
+    private const uint FirstCommand = 1;
 
     private readonly MessageWindow _window;
-    private readonly string _tooltip;
+    private readonly Func<IReadOnlyList<TrayEntry>> _menu;
     private readonly uint _taskbarCreated;
-    private readonly HICON _icon;
+    private readonly Dictionary<TrayGlyphKind, HICON> _icons = [];
+    private TrayGlyphKind _kind = TrayGlyphKind.Idle;
+    private string _tooltip;
     private bool _added;
 
-    public TrayIcon(MessageWindow window, string tooltip)
+    /// <param name="menu">Builds the menu when it opens.</param>
+    public TrayIcon(MessageWindow window, string tooltip, Func<IReadOnlyList<TrayEntry>> menu)
     {
         _window = window;
         _tooltip = tooltip;
+        _menu = menu;
         _taskbarCreated = PInvoke.RegisterWindowMessage("TaskbarCreated");
-        _icon = PInvoke.LoadIcon(HINSTANCE.Null, PInvoke.IDI_APPLICATION); // shared icon: never destroyed
         window.Add(OnMessage);
         _added = Add();
         if (!_added)
             Log.Info("tray: Shell_NotifyIcon(NIM_ADD) failed; waiting for TaskbarCreated");
     }
 
-    /// <summary>Exit chosen in the menu. Raised on the message thread.</summary>
-    public event Action? ExitRequested;
+    /// <summary>A flow was picked. Raised on the message thread.</summary>
+    public event Action<string>? FlowChosen;
+
+    /// <summary>A fixed item was picked. Raised on the message thread.</summary>
+    public event Action<TrayCommand>? CommandChosen;
+
+    /// <summary>Redraws the icon and tooltip if they changed.</summary>
+    public void Update(TrayGlyphKind kind, string tooltip)
+    {
+        if (kind == _kind && tooltip == _tooltip)
+            return;
+        _kind = kind;
+        _tooltip = tooltip;
+        if (!_added)
+            return;
+        var data = Data(NOTIFY_ICON_DATA_FLAGS.NIF_ICON | NOTIFY_ICON_DATA_FLAGS.NIF_TIP | NOTIFY_ICON_DATA_FLAGS.NIF_SHOWTIP);
+        data.szTip = _tooltip;
+        PInvoke.Shell_NotifyIcon(NOTIFY_ICON_MESSAGE.NIM_MODIFY, &data);
+    }
+
+    private HICON Icon(TrayGlyphKind kind)
+    {
+        if (!_icons.TryGetValue(kind, out var icon))
+        {
+            icon = TrayGlyph.Create(kind);
+            if (icon.IsNull)
+                icon = PInvoke.LoadIcon(HINSTANCE.Null, PInvoke.IDI_APPLICATION); // shared icon: never destroyed
+            else
+                _icons[kind] = icon;
+        }
+        return icon;
+    }
 
     private bool Add()
     {
@@ -45,7 +82,7 @@ internal sealed unsafe class TrayIcon : IDisposable
         data.szTip = _tooltip;
         if (!PInvoke.Shell_NotifyIcon(NOTIFY_ICON_MESSAGE.NIM_ADD, &data))
             return false;
-        // Version 4: WM_CONTEXTMENU for right-click and Shift+F10, anchor in wParam.
+        // Version 4: WM_CONTEXTMENU for right-click and Shift+F10, NIN_SELECT for a left click, anchor in wParam.
         data.Anonymous.uVersion = PInvoke.NOTIFYICON_VERSION_4;
         return PInvoke.Shell_NotifyIcon(NOTIFY_ICON_MESSAGE.NIM_SETVERSION, &data);
     }
@@ -65,15 +102,17 @@ internal sealed unsafe class TrayIcon : IDisposable
         hWnd = _window.Handle,
         uID = IconId,
         uFlags = flags,
-        hIcon = _icon,
+        hIcon = Icon(_kind),
     };
 
     private bool OnMessage(uint message, WPARAM wParam, LPARAM lParam)
     {
         if (message == CallbackMessage)
         {
-            // Version 4: LOWORD(lParam) is the event, wParam the anchor in screen coordinates.
-            if ((uint)(lParam.Value & 0xFFFF) == PInvoke.WM_CONTEXTMENU)
+            // Version 4: LOWORD(lParam) is the event, wParam the anchor in screen coordinates. Left click opens
+            // the menu too: the tray has nothing else to show.
+            var notification = (uint)(lParam.Value & 0xFFFF);
+            if (notification == PInvoke.WM_CONTEXTMENU || notification == PInvoke.NIN_SELECT)
                 ShowMenu((short)(wParam.Value & 0xFFFF), (short)((wParam.Value >> 16) & 0xFFFF));
             return true;
         }
@@ -92,13 +131,23 @@ internal sealed unsafe class TrayIcon : IDisposable
         return false;
     }
 
+    private static bool TaskbarIsLight() =>
+        Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+            "SystemUsesLightTheme", 0) is int light && light != 0;
+
     private void ShowMenu(int x, int y)
     {
+        // Win32 menus are light-only unless uxtheme is told otherwise; follow the taskbar's theme (OSD D-009).
+        UndocumentedMethods.SetPreferredAppMode(TaskbarIsLight()
+            ? UndocumentedMethods.PreferredAppMode.ForceLight
+            : UndocumentedMethods.PreferredAppMode.ForceDark);
+        UndocumentedMethods.FlushMenuThemes();
+
         var menu = PInvoke.CreatePopupMenu();
+        var commands = new List<TrayEntry>();
         try
         {
-            fixed (char* exit = "Exit")
-                PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, ExitCommand, exit);
+            Append(menu, _menu(), commands);
             // Required for the menu to close when the user clicks elsewhere (KB135788).
             PInvoke.SetForegroundWindow(_window.Handle);
             var command = PInvoke.TrackPopupMenuEx(menu,
@@ -106,14 +155,73 @@ internal sealed unsafe class TrayIcon : IDisposable
                     | TRACK_POPUP_MENU_FLAGS.TPM_RIGHTBUTTON | TRACK_POPUP_MENU_FLAGS.TPM_BOTTOMALIGN),
                 x, y, _window.Handle, null);
             PInvoke.PostMessage(_window.Handle, PInvoke.WM_NULL, default, default);
-            if (command.Value == ExitCommand)
-                ExitRequested?.Invoke();
+            var index = command.Value - (int)FirstCommand;
+            if (index < 0 || index >= commands.Count)
+                return;
+            switch (commands[index])
+            {
+                case TrayFlowItem flow:
+                    FlowChosen?.Invoke(flow.FlowId);
+                    break;
+                case TrayCommandItem fixedItem:
+                    CommandChosen?.Invoke(fixedItem.Command);
+                    break;
+            }
         }
         finally
         {
-            PInvoke.DestroyMenu(menu);
+            PInvoke.DestroyMenu(menu); // destroys the submenus too
         }
     }
 
-    public void Dispose() => Delete();
+    private static void Append(HMENU menu, IReadOnlyList<TrayEntry> entries, List<TrayEntry> commands)
+    {
+        foreach (var entry in entries)
+        {
+            switch (entry)
+            {
+                case TraySeparator:
+                    PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_SEPARATOR, 0, (PCWSTR)null);
+                    break;
+                case TrayFolder folder:
+                    var submenu = PInvoke.CreatePopupMenu();
+                    Append(submenu, folder.Items, commands);
+                    fixed (char* text = Escape(folder.Text))
+                        PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_POPUP, (nuint)submenu.Value, text);
+                    break;
+                case TrayFlowItem flow:
+                    var id = AddCommand(commands, flow);
+                    // "\t" right-aligns the shortcut (UX §5.6).
+                    var label = Escape(flow.Text) + (flow.Shortcut is null ? "" : "\t" + flow.Shortcut);
+                    fixed (char* text = label)
+                        PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING | (flow.Enabled ? 0 : MENU_ITEM_FLAGS.MF_GRAYED), id, text);
+                    if (flow.Running)
+                        PInvoke.CheckMenuRadioItem(menu, id, id, id, (uint)MENU_ITEM_FLAGS.MF_BYCOMMAND);
+                    break;
+                case TrayCommandItem item:
+                    var flags = MENU_ITEM_FLAGS.MF_STRING | (item.Checked ? MENU_ITEM_FLAGS.MF_CHECKED : 0)
+                        | (item.Enabled ? 0 : MENU_ITEM_FLAGS.MF_GRAYED);
+                    fixed (char* text = item.Text)
+                        PInvoke.AppendMenu(menu, flags, AddCommand(commands, item), text);
+                    break;
+            }
+        }
+    }
+
+    private static uint AddCommand(List<TrayEntry> commands, TrayEntry entry)
+    {
+        commands.Add(entry);
+        return FirstCommand + (uint)commands.Count - 1;
+    }
+
+    /// <summary>A flow named "Tom &amp; Jerry" must not get a mnemonic underline.</summary>
+    private static string Escape(string text) => text.Replace("&", "&&", StringComparison.Ordinal);
+
+    public void Dispose()
+    {
+        Delete();
+        foreach (var icon in _icons.Values)
+            PInvoke.DestroyIcon(icon);
+        _icons.Clear();
+    }
 }

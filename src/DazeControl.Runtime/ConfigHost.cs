@@ -17,6 +17,9 @@ public sealed record FlowState(string FlowId, Flow? Running, ValueList<Problem> 
     /// <summary>The last valid version as written, so a hotkey it yielded comes back once it's free again.</summary>
     public Flow? LastValid { get; init; }
 
+    /// <summary>The version in the file now, errors and all (the tray names a flow that needs fixing by it).</summary>
+    public Flow? Written { get; init; }
+
     /// <summary>The file's version has errors but an older valid one still runs (the editor says so).</summary>
     public bool IsStale => Running is not null && Problems.Any(p => p.Severity == Severity.Error);
 }
@@ -174,7 +177,8 @@ public sealed class ConfigHost : IDisposable
             flows.Add(new FlowState(flow.Id, running, []) { Library = old.Library, LastValid = valid });
         }
         return new ConfigSnapshot(config.Settings, config.Library,
-            new(flows.Select(f => f with { Problems = new(problems.Where(p => p.FlowId == f.FlowId)) })), new(problems));
+            new(flows.Select((f, i) => f with { Written = config.Flows[i], Problems = new(problems.Where(p => p.FlowId == f.FlowId)) })),
+            new(problems));
     }
 
     private static Hotkey? ParseHotkey(string text) => Hotkey.TryParse(text, out var hotkey) ? hotkey : null;

@@ -30,3 +30,13 @@ RegisterHotKey
 UnregisterHotKey
 IsWindow
 TRACK_POPUP_MENU_FLAGS
+CheckMenuRadioItem
+MENU_ITEM_FLAGS
+CreateDIBSection
+CreateBitmap
+CreateIconIndirect
+DestroyIcon
+DeleteObject
+GetSystemMetrics
+BITMAPINFO
+ICONINFO

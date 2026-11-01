@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M3 engine shell (branch feat/m3-engine-shell, no PR yet) — T3.2 tray menu next
-Last green checkpoint: 14a052f "feat(runtime): M2 scheduler, runner, locks, launcher, history and config host (#3)"
-Next action: T3.2: Runtime/Tray/TrayMenu (pure model: flows in YAML order, folders, separators, running mark, "(needs fixing)", fixed tail) + tests; render it in Engine/Shell/TrayIcon; busy/paused icon + tooltip
-Tree state: builds, 267/267 tests green · Uncommitted: none
-Notes for next agent: EngineHost (Engine/EngineHost.cs) is the composition root; MessageWindow.Post marshals to the message thread; HotkeyTable (Runtime/Triggers) already does T3.3's diffing — T3.3 is left to surface failures (tooltip/status) and to check on the desktop.
+Current task: M3 engine shell (branch feat/m3-engine-shell, no PR yet) — T3.4 autostart next
+Last green checkpoint: f76410c "wip(engine): composition root, single instance, rolling log, hotkey table"
+Next action: T3.4: Runtime/Lifecycle/Autostart (port OSD Core/Lifecycle/Autostart.cs, value "DazeControl", tests on a scratch HKCU key); exposed through the pipe op `autostart` in T3.5 and `dctl autostart [on|off]` in T3.6
+Tree state: builds, 285/285 tests green, AOT publish clean · Uncommitted: none
+Notes for next agent: tray + hotkeys checked on the desktop 2026-11-01 (menu, folder, needs-fixing, pause, Exit, Alt+Z run). Busy icon/running bullet unseen on screen: no provider runs long yet (M4).
 
 ---
 
@@ -45,8 +45,8 @@ Notes for next agent: EngineHost (Engine/EngineHost.cs) is the composition root;
 
 ## M3 Engine shell
 - [x] T3.1 Composition root, single instance mutex, Log, global exception handlers (feat/m3-engine-shell).
-- [ ] T3.2 TrayIcon from flows (folders, separators, running mark, Pause hotkeys, Open editor, Exit).
-- [~] T3.3 GlobalHotkey from flows (per-chord failure non-fatal) (feat/m3-engine-shell).
+- [x] T3.2 TrayIcon from flows (folders, separators, running mark, Pause hotkeys, Open editor, Exit) (feat/m3-engine-shell).
+- [x] T3.3 GlobalHotkey from flows (per-chord failure non-fatal) (feat/m3-engine-shell).
 - [ ] T3.4 Autostart.
 - [ ] T3.5 PipeServer + protocol.
 - [ ] T3.6 `dctl` CLI.

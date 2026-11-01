@@ -58,7 +58,11 @@ sandboxed with a stale copy of `%LOCALAPPDATA%` (seen in the OSD repo, 2026-10-2
 Tray (from the OSD build skill, same Shell_NotifyIcon code): the icon window is class `DazeControl.Tray`
 (uID 1); `Shell_NotifyIconGetRect` gives its rect; right-click there for the menu. Pick items with the mouse
 (`SetCursorPos` + `mouse_event`, physical pixels after `SetProcessDpiAwarenessContext(-4)`): a posted
-`WM_CONTEXTMENU` can't take the foreground.
+`WM_CONTEXTMENU` can't take the foreground. On the user's PC the taskbar is vertical (left) and the icon sits
+in the overflow: `Shell_NotifyIconGetRect` then returns the chevron's rect until the overflow is open — left-click
+it, take the rect again, right-click that. To only *look* at the menu, post `WM_APP+1` with
+`lParam = WM_CONTEXTMENU (0x7B)` and the anchor in `wParam`; keys don't reach that menu (no foreground).
+Screenshots: `System.Drawing.Graphics.CopyFromScreen` from Windows PowerShell, then read the PNG (2026-11-01).
 
 ## Verifying changes
 

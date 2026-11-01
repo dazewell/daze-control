@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using DazeControl.Core;
 using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
@@ -5,6 +6,7 @@ using DazeControl.Engine.Diagnostics;
 using DazeControl.Engine.Shell;
 using DazeControl.Runtime;
 using DazeControl.Runtime.Providers;
+using DazeControl.Runtime.Tray;
 using DazeControl.Runtime.Triggers;
 
 namespace DazeControl.Engine;
@@ -37,12 +39,18 @@ internal sealed class EngineHost : IDisposable
     private readonly ConfigHost _config;
     private readonly RunHistory _history;
     private readonly FlowLauncher _launcher;
+    private readonly string _editorPath = Path.Combine(AppContext.BaseDirectory, "DazeControl.Editor.exe");
+
+    // Message thread only.
+    private readonly List<(Guid RunId, string FlowId)> _running = [];
+    private string? _lastProblem;
 
     public EngineHost(EnginePaths paths, IEnumerable<IStepProvider> providers)
     {
         _window = new MessageWindow();
-        _tray = new TrayIcon(_window, AppInfo.ProductName);
-        _tray.ExitRequested += _window.Close;
+        _tray = new TrayIcon(_window, AppInfo.ProductName, BuildMenu);
+        _tray.FlowChosen += flowId => Trigger(flowId, "Tray");
+        _tray.CommandChosen += OnTrayCommand;
         _hotkeys = new GlobalHotkey(_window);
         _hotkeyTable = new HotkeyTable(_hotkeys);
         _hotkeys.Pressed += OnHotkey;
@@ -86,6 +94,75 @@ internal sealed class EngineHost : IDisposable
             Log.Info($"hotkey: {hotkey} for {_hotkeyTable.Wanted[hotkey]}: {why}");
         Log.Info($"config: {snapshot.Flows.Count} flow(s), {snapshot.RunnableFlows.Count()} runnable, "
             + $"{_hotkeyTable.Wanted.Count - _hotkeyTable.Failures.Count} shortcut(s)");
+        UpdateTray();
+    }
+
+    private IReadOnlyList<TrayEntry> BuildMenu() => TrayMenu.Build(_config.Current, new TrayState(
+        _running.Select(r => r.FlowId).ToHashSet(), id => _hotkeyTable.ShortcutOf(id)?.ToString(),
+        _hotkeyTable.Paused, File.Exists(_editorPath)));
+
+    private void OnTrayCommand(TrayCommand command)
+    {
+        switch (command)
+        {
+            case TrayCommand.Exit:
+                _window.Close();
+                break;
+            case TrayCommand.PauseShortcuts:
+                if (_hotkeyTable.Paused)
+                    _hotkeyTable.Resume();
+                else
+                    _hotkeyTable.Pause();
+                Log.Info($"hotkey: shortcuts {(_hotkeyTable.Paused ? "paused" : "resumed")}");
+                UpdateTray();
+                break;
+            case TrayCommand.OpenEditor:
+                OpenEditor();
+                break;
+        }
+    }
+
+    /// <summary>The editor brings its own window to the front (single instance, T6.1).</summary>
+    private void OpenEditor()
+    {
+        try
+        {
+            using var _ = Process.Start(new ProcessStartInfo(_editorPath) { UseShellExecute = false });
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            Log.Error($"editor: {_editorPath} didn't start", e);
+        }
+    }
+
+    private string NameOf(string flowId) =>
+        _config.Current.Flows.FirstOrDefault(f => f.FlowId == flowId) is { } state
+            ? (state.Running ?? state.Written)?.Name ?? flowId
+            : flowId;
+
+    private void UpdateTray()
+    {
+        var kind = _running.Count > 0 ? TrayGlyphKind.Busy : _hotkeyTable.Paused ? TrayGlyphKind.Paused : TrayGlyphKind.Idle;
+        _tray.Update(kind, TrayMenu.Tooltip([.. _running.Select(r => NameOf(r.FlowId)).Distinct()], _hotkeyTable.Paused, _lastProblem));
+    }
+
+    /// <summary>On the message thread.</summary>
+    private void OnRunEventPosted(RunEvent e)
+    {
+        switch (e)
+        {
+            case RunStarted started:
+                _running.Add((started.RunId, started.FlowId));
+                break;
+            case RunFinished finished:
+                _running.RemoveAll(r => r.RunId == finished.RunId);
+                if (finished.Outcome != FlowOutcome.Cancelled)
+                    _lastProblem = TrayMenu.Problem(NameOf(finished.FlowId), finished.Outcome);
+                break;
+            default:
+                return;
+        }
+        UpdateTray();
     }
 
     private void OnHotkey(int id)
@@ -116,9 +193,11 @@ internal sealed class EngineHost : IDisposable
         return run;
     }
 
-    /// <summary>From pool threads (FlowRunner): log only, quick.</summary>
-    private static void OnRunEvent(RunEvent e)
+    /// <summary>From pool threads (FlowRunner): log, then hand the rest to the message thread. Quick.</summary>
+    private void OnRunEvent(RunEvent e)
     {
+        if (e is RunStarted or RunFinished)
+            _window.Post(() => OnRunEventPosted(e));
         switch (e)
         {
             case RunFinished finished:
