@@ -144,6 +144,15 @@ public sealed class RunPopupModelTests
     }
 
     [Fact]
+    public void TheRunsOwnSnapshotWinsOverTheGivenFlow()
+    {
+        var model = new RunPopupModel();
+        var started = new RunStarted(Run, "connect-technics", T0, 3) { Flow = Technics with { Name = "As it runs" } };
+        model.Apply(started, Technics with { Name = "Reloaded", Popup = false }, Settings);
+        Assert.Equal("As it runs", model.Current!.Title);
+    }
+
+    [Fact]
     public void EventsOfUnknownRunsAreIgnored()
     {
         var model = new RunPopupModel();

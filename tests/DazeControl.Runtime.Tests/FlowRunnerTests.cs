@@ -64,6 +64,17 @@ public sealed class FlowRunnerTests : IDisposable
     private static NodeResult Node(RunResult result, string id) => result.Nodes.Single(n => n.NodeId == id);
 
     [Fact]
+    public async Task RunStartedCarriesTheVersionThatRuns()
+    {
+        var events = new List<RunEvent>();
+        var flow = Flow(Step("a"));
+        await new FlowRunner([_provider], _time, events: e => { lock (events) events.Add(e); })
+            .RunAsync(flow, Library.Empty, TestContext.Current.CancellationToken);
+
+        Assert.Same(flow, Assert.Single(events.OfType<RunStarted>()).Flow);
+    }
+
+    [Fact]
     public async Task RunsAChainToSuccess()
     {
         var result = await Run(Flow(Step("a"), Step("b", "after: [a]")));

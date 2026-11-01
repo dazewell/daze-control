@@ -56,7 +56,7 @@ public sealed class FlowRunner
         var runId = Guid.NewGuid();
         var started = _time.GetUtcNow();
         var startedTicks = _time.GetTimestamp();
-        Raise(new RunStarted(runId, flow.Id, started, flow.Nodes.Count));
+        Raise(new RunStarted(runId, flow.Id, started, flow.Nodes.Count) { Flow = flow });
         var reported = new HashSet<string>();
         using var stepsCancel = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var running = new Dictionary<Task<StepRun>, string>();

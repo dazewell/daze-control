@@ -100,5 +100,7 @@ Notes for next agent: version is 0.8.0. Pop-up test config + screenshot scripts 
 - [ ] T10.1 Velopack pack/install/update + release.yml.
 - [ ] T10.2 README.
 - [ ] T10.3 UX acceptance pass against the UX.md checklist (screenshots, light/dark/high contrast, 100–175 %
-  scale, text size).
+  scale, text size). Includes the pop-up in a contrast theme and at 225 % text (not checked live in M5).
+- [ ] T10.5 Pop-up for Narrator: it draws everything itself, so screen readers get only the window title. Raise a
+  UIA notification (or a minimal provider with an invoke for "see what happened") without activating (PR #8 review).
 - [ ] T10.4 Footprint gate + 24 h daily-driver soak (user), then retire scd (user turns off its scheduled task).

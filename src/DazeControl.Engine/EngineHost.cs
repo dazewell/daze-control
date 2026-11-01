@@ -216,9 +216,9 @@ internal sealed class EngineHost : IDisposable
     {
         try
         {
-            var flow = e is RunStarted ? _config.Current.Flows.FirstOrDefault(f => f.FlowId == e.FlowId)?.Running : null;
+            // The run's own snapshot: a reload since it was queued must not rename or silence its pop-up.
             var settings = _config.Current.Settings.Popup;
-            if (_popupModel.Apply(e, flow, settings) && _popupModel.Current is { } view)
+            if (_popupModel.Apply(e, null, settings) && _popupModel.Current is { } view)
                 _popup.Show(view, settings.Position);
         }
         catch (Exception failure)

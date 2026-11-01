@@ -145,8 +145,6 @@ internal sealed unsafe class RunPopup : IDisposable
         // The whole client area is "frame", so the backdrop shows through wherever we draw nothing.
         var margins = new MARGINS { cxLeftWidth = -1, cxRightWidth = -1, cyTopHeight = -1, cyBottomHeight = -1 };
         Cosmetic("frame", PInvoke.DwmExtendFrameIntoClientArea(_hwnd, &margins));
-        var backdrop = DWM_SYSTEMBACKDROP_TYPE.DWMSBT_TRANSIENTWINDOW;
-        Cosmetic("backdrop", PInvoke.DwmSetWindowAttribute(_hwnd, DWMWINDOWATTRIBUTE.DWMWA_SYSTEMBACKDROP_TYPE, &backdrop, sizeof(DWM_SYSTEMBACKDROP_TYPE)));
         var corners = DWM_WINDOW_CORNER_PREFERENCE.DWMWCP_ROUND;
         Cosmetic("corners", PInvoke.DwmSetWindowAttribute(_hwnd, DWMWINDOWATTRIBUTE.DWMWA_WINDOW_CORNER_PREFERENCE, &corners, sizeof(DWM_WINDOW_CORNER_PREFERENCE)));
         ApplyTheme();
@@ -156,6 +154,9 @@ internal sealed unsafe class RunPopup : IDisposable
 
     private void ApplyTheme()
     {
+        // A contrast theme gets a solid system-colour background drawn by Render instead of acrylic (UX §5.3).
+        var backdrop = _theme.HighContrast ? DWM_SYSTEMBACKDROP_TYPE.DWMSBT_NONE : DWM_SYSTEMBACKDROP_TYPE.DWMSBT_TRANSIENTWINDOW;
+        Cosmetic("backdrop", PInvoke.DwmSetWindowAttribute(_hwnd, DWMWINDOWATTRIBUTE.DWMWA_SYSTEMBACKDROP_TYPE, &backdrop, sizeof(DWM_SYSTEMBACKDROP_TYPE)));
         BOOL dark = !_theme.Light;
         Cosmetic("dark mode", PInvoke.DwmSetWindowAttribute(_hwnd, DWMWINDOWATTRIBUTE.DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, (uint)sizeof(BOOL)));
     }
@@ -202,6 +203,7 @@ internal sealed unsafe class RunPopup : IDisposable
             {
                 var pixels = new D2D_SIZE_U { width = (uint)size.Item1, height = (uint)size.Item2 };
                 _target->Resize(&pixels);
+                ((ID2D1RenderTarget*)_target)->SetDpi(_dpi, _dpi); // display scaling may have changed
             }
         }
     }
@@ -322,7 +324,8 @@ internal sealed unsafe class RunPopup : IDisposable
         EnsureFactories();
         var scale = _theme.TextScale;
         var content = WidthDip - 2 * PaddingDip;
-        var status = Text(view.Status, 12 * scale, DWRITE_FONT_WEIGHT.DWRITE_FONT_WEIGHT_NORMAL, content, wrap: false);
+        // Each layout goes into _layouts as soon as it exists: if a later one throws, ReleaseLayouts frees it.
+        var status = _layouts.Status = Text(view.Status, 12 * scale, DWRITE_FONT_WEIGHT.DWRITE_FONT_WEIGHT_NORMAL, content, wrap: false);
         DWRITE_TEXT_METRICS metrics;
         status->GetMetrics(&metrics);
         // The 44-DIP status column (UX §5.6) holds "2 of 3" and "Done"; longer outcomes go to row 3 (Headline).
@@ -333,7 +336,7 @@ internal sealed unsafe class RunPopup : IDisposable
         status->SetTextAlignment(DWRITE_TEXT_ALIGNMENT.DWRITE_TEXT_ALIGNMENT_TRAILING);
 
         var nameWidth = content - GlyphDip - SpacingDip - (statusWidth > 0 ? statusWidth + 8 : 0);
-        var name = Text(view.Title, 14 * scale, DWRITE_FONT_WEIGHT.DWRITE_FONT_WEIGHT_SEMI_BOLD, nameWidth, wrap: false);
+        var name = _layouts.Name = Text(view.Title, 14 * scale, DWRITE_FONT_WEIGHT.DWRITE_FONT_WEIGHT_SEMI_BOLD, nameWidth, wrap: false);
         name->GetMetrics(&metrics);
         var row1 = Math.Max(RowMinDip, (float)Math.Ceiling(metrics.height));
 
@@ -341,12 +344,12 @@ internal sealed unsafe class RunPopup : IDisposable
         float headlineHeight = 0;
         if (view.Headline is { } headlineText)
         {
-            headline = Text(headlineText, 12 * scale, DWRITE_FONT_WEIGHT.DWRITE_FONT_WEIGHT_SEMI_BOLD, content, wrap: true);
+            headline = _layouts.Headline = Text(headlineText, 12 * scale, DWRITE_FONT_WEIGHT.DWRITE_FONT_WEIGHT_SEMI_BOLD, content, wrap: true);
             headline->GetMetrics(&metrics);
             headlineHeight = (float)Math.Ceiling(metrics.height) + HeadlineGapDip;
         }
 
-        var detail = Text(view.Detail, 12 * scale, DWRITE_FONT_WEIGHT.DWRITE_FONT_WEIGHT_NORMAL, content, wrap: true);
+        var detail = _layouts.Detail = Text(view.Detail, 12 * scale, DWRITE_FONT_WEIGHT.DWRITE_FONT_WEIGHT_NORMAL, content, wrap: true);
         detail->GetMetrics(&metrics);
         // At most two lines; the second one ends in "…" when the reason is longer (UX §5.6).
         var line = metrics.lineCount > 0 ? metrics.height / metrics.lineCount : 16 * scale;
@@ -357,12 +360,12 @@ internal sealed unsafe class RunPopup : IDisposable
         float hintHeight = 0;
         if (view.Hint is { } hintText)
         {
-            hint = Text(hintText, 12 * scale, DWRITE_FONT_WEIGHT.DWRITE_FONT_WEIGHT_NORMAL, content, wrap: false);
+            hint = _layouts.Hint = Text(hintText, 12 * scale, DWRITE_FONT_WEIGHT.DWRITE_FONT_WEIGHT_NORMAL, content, wrap: false);
             hint->GetMetrics(&metrics);
             hintHeight = (float)Math.Ceiling(metrics.height);
         }
 
-        var glyph = GlyphText(view.Tone);
+        var glyph = _layouts.Glyph = GlyphText(view.Tone);
         _layouts = new Layouts
         {
             Glyph = glyph, Name = name, Status = status, Headline = headline, Detail = detail, Hint = hint,
@@ -441,7 +444,7 @@ internal sealed unsafe class RunPopup : IDisposable
         var target = (ID2D1RenderTarget*)_target;
         var brush = (ID2D1Brush*)_brush;
         target->BeginDraw();
-        var clear = default(D2D1_COLOR_F); // transparent: the acrylic shows through
+        var clear = _theme.Background; // transparent: the acrylic shows through (solid in a contrast theme)
         target->Clear(&clear);
 
         var x = PaddingDip;
@@ -502,7 +505,10 @@ internal sealed unsafe class RunPopup : IDisposable
 
         var result = target->EndDraw(null, null);
         if (result.Value == RecreateTarget)
-            ReleaseTarget(); // D2DERR_RECREATE_TARGET, device lost (driver update, GPU reset): the next paint makes a new one
+        {
+            ReleaseTarget();
+            PInvoke.InvalidateRect(_hwnd, (RECT?)null, false); // nothing else may paint again soon
+        } // D2DERR_RECREATE_TARGET, device lost (driver update, GPU reset): the next paint makes a new one
         else
             result.ThrowOnFailure();
     }
@@ -543,7 +549,7 @@ internal sealed unsafe class RunPopup : IDisposable
             sink->EndFigure(D2D1_FIGURE_END.D2D1_FIGURE_END_OPEN);
             sink->Close();
             sink->Release();
-            target->DrawGeometry((ID2D1Geometry*)path, brush, 2, null);
+            target->DrawGeometry((ID2D1Geometry*)path, brush, _theme.HighContrast ? 3 : 2, null);
         }
         finally
         {

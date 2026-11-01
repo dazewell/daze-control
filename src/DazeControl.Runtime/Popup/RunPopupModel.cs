@@ -47,13 +47,15 @@ public sealed class RunPopupModel
     public PopupView? Current { get; private set; }
 
     /// <param name="e">Any run event.</param>
-    /// <param name="flow">The definition the run uses (for names); only read on <see cref="RunStarted"/>.</param>
+    /// <param name="flow">The definition the run uses (for names); only read on <see cref="RunStarted"/>, and
+    /// <see cref="RunStarted.Flow"/> wins when set.</param>
     /// <param name="settings">Duration setting, read when the run finishes.</param>
     /// <returns>True when <see cref="Current"/> changed and the pop-up should redraw.</returns>
     public bool Apply(RunEvent e, Flow? flow, PopupSettings settings)
     {
         if (e is RunStarted started)
         {
+            flow = started.Flow ?? flow;
             if (flow is null || !flow.Popup)
                 return false;
             _runs[started.RunId] = new RunTrack(flow, started.NodeCount, started.At);
