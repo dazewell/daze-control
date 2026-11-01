@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M6 Editor foundation — T6.1 (M5 done: PR #8)
-Last green checkpoint: 1f16ad4 "fix(engine): pop-up review — run snapshot, DPI, device loss, contrast theme"
-Next action: sync main, branch feat/m6-editor and start T6.1: WinUI shell (Mica, TitleBar, NavigationView: Flows, Library, Settings, About), unpackaged self-contained (EnableMsixTooling, OSD X-004), single instance + bring to front
-Tree state: builds, 510/510 tests green · Uncommitted: none
-Notes for next agent: version is 0.8.0. Selecting a failed run's pop-up calls EngineHost.OpenEditor() with no arguments; the run page (M9) should take a run id. Narrator support for the pop-up is T10.5. Write files with Write or python, not Bash heredocs with nested quotes.
+Current task: M6 Editor foundation — T6.1–T6.4 (branch feat/m6-editor, no PR yet)
+Last green checkpoint: 1012395 "wip(editor): config session, engine client and page view models"
+Next action: find why the editor shows no window. App ctor runs (InitializeComponent returns) but OnLaunched is never called and the process has no top-level windows at all; it then idles forever. Bisect ShellWindow.xaml next (it is the only big change left untested): swap it for main's version + a stub ctor taking ShellViewModel, run, then put parts back (TitleBar Subtitle x:Bind, ItemsRepeater with x:DataType vm:FlowItemViewModel from the ViewModels assembly, NumberBox/ComboBox TwoWay binds).
+Tree state: builds, VM tests 21/21 green (whole suite not rerun) · Uncommitted: none
+Notes for next agent: ruled out — custom Main (generated Main hangs too), AppInstance.FindOrRegisterForKey (removed; now a named mutex + event), App.xaml card styles (main's App.xaml hangs too), csproj extras, exe path (a copy elsewhere hangs), tool sandbox (dangerouslyDisableSandbox same). main's skeleton editor opens fine. Trace with File.AppendAllText to %TEMP%; dotnet-stack hangs on this process and a comsvcs MiniDump is admin-only — don't retry those. Run the exe with PowerShell Start-Process; kill leftovers first (single instance makes a second start exit silently). Screenshot script idea: GetWindowRect + CopyFromScreen from Windows PowerShell. Still to do after the window shows: screenshots light/dark, engine footprint check, docs (ARCHITECTURE editor section, X-entry for whatever caused this), PR + Copilot.
 
 ---
 
@@ -70,11 +70,11 @@ Notes for next agent: version is 0.8.0. Selecting a failed run's pop-up calls En
 - [x] T5.2 Pop-up with progress/failure summary, position/duration, animation (honour Animation effects) (feat/m5-popup).
 
 ## M6 Editor foundation
-- [ ] T6.1 WinUI shell (Mica, TitleBar, NavigationView: Flows, Library, Settings, About), unpackaged
+- [~] T6.1 WinUI shell (Mica, TitleBar, NavigationView: Flows, Library, Settings, About), unpackaged
   self-contained (`EnableMsixTooling`, OSD X-004), single instance + bring to front.
-- [ ] T6.2 EngineClient (pipe) + "engine not running" state.
-- [ ] T6.3 Config load/autosave (debounced, atomic, backups), external-change InfoBar.
-- [ ] T6.4 Flows list page; Settings + About pages.
+- [~] T6.2 EngineClient (pipe) + "engine not running" state.
+- [~] T6.3 Config load/autosave (debounced, atomic, backups), external-change InfoBar.
+- [~] T6.4 Flows list page; Settings + About pages.
 
 ## M7 Canvas
 - [ ] T7.1 Render nodes/cards/edges from VM, pan/zoom/fit.
