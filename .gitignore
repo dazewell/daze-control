@@ -1,0 +1,27 @@
+# Build output
+bin/
+obj/
+artifacts/
+publish/
+AppPackages/
+BundleArtifacts/
+TestResults/
+probe-out/
+*.binlog
+
+# IDE / user state
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Claude Code local settings (shared settings.json stays tracked)
+.claude/settings.local.json
+
+# Skill-creator eval workspaces
+*-workspace/
+
+# OS
+Thumbs.db
+Desktop.ini
