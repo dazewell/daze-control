@@ -22,9 +22,11 @@ public interface IServices
     ServiceState Query(string name);
 
     /// <exception cref="StepFailedException">No rights (the engine never has admin, D-008), or Windows refused.</exception>
-    void RequestStart(string name);
+    /// <remarks>Checks <paramref name="cancellationToken"/> once the handles are open, right before the request: a
+    /// timed-out step must not change the service after the runner released its lock.</remarks>
+    void RequestStart(string name, CancellationToken cancellationToken);
 
-    void RequestStop(string name);
+    void RequestStop(string name, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -55,9 +57,9 @@ public abstract class ServiceProvider(IServices services, TimeProvider time, boo
             throw new StepFailedException($"\"{name}\" is paused; resume it in Services.");
         cancellationToken.ThrowIfCancellationRequested();
         if (start)
-            services.RequestStart(name);
+            services.RequestStart(name, cancellationToken);
         else
-            services.RequestStop(name);
+            services.RequestStop(name, cancellationToken);
         // The SCM has no awaitable change event short of an APC thread; a run is short, so poll while it lasts.
         while (services.Query(name) != target)
             await Task.Delay(PollEvery, time, cancellationToken).ConfigureAwait(false);
@@ -79,15 +81,17 @@ public sealed unsafe class WindowsServices : IServices
 {
     private const uint ErrorServiceAlreadyRunning = 1056, ErrorServiceNotActive = 1062, ErrorServiceDoesNotExist = 1060, ErrorServiceDisabled = 1058;
 
-    public void RequestStart(string name) => With(name, PInvoke.SERVICE_START, start: true, service =>
+    public void RequestStart(string name, CancellationToken cancellationToken) => With(name, PInvoke.SERVICE_START, start: true, service =>
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!PInvoke.StartService((SC_HANDLE)service.DangerousGetHandle(), 0, null) && Marshal.GetLastPInvokeError() is var error && error != ErrorServiceAlreadyRunning)
             throw Failure(name, error, start: true);
         return true;
     });
 
-    public void RequestStop(string name) => With(name, PInvoke.SERVICE_STOP, start: false, service =>
+    public void RequestStop(string name, CancellationToken cancellationToken) => With(name, PInvoke.SERVICE_STOP, start: false, service =>
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!PInvoke.ControlService(service, PInvoke.SERVICE_CONTROL_STOP, out _) && Marshal.GetLastPInvokeError() is var error
             && error != ErrorServiceNotActive)
             throw Failure(name, error, start: false);

@@ -13,9 +13,9 @@ public class ServiceProviderTests
 
         public List<string> Calls { get; } = [];
 
-        public void RequestStart(string name) => Calls.Add("start " + name);
+        public void RequestStart(string name, CancellationToken cancellationToken) => Calls.Add("start " + name);
 
-        public void RequestStop(string name) => Calls.Add("stop " + name);
+        public void RequestStop(string name, CancellationToken cancellationToken) => Calls.Add("stop " + name);
 
         public ServiceState Query(string name) => states[Math.Min(_queries++, states.Length - 1)];
     }
@@ -87,10 +87,10 @@ public class ServiceProviderTests
         using var identity = WindowsIdentity.GetCurrent();
         if (new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator))
         {
-            new WindowsServices().RequestStart("EventLog");
+            new WindowsServices().RequestStart("EventLog", TestContext.Current.CancellationToken);
             return;
         }
-        var failure = Assert.Throws<StepFailedException>(() => new WindowsServices().RequestStart("EventLog"));
+        var failure = Assert.Throws<StepFailedException>(() => new WindowsServices().RequestStart("EventLog", TestContext.Current.CancellationToken));
         Assert.Equal("Windows only lets an administrator start \"EventLog\", and Daze Control runs without admin rights. "
             + "Set the service to start automatically, or change it in Services yourself.", failure.Message);
         Assert.Equal(ServiceState.Running, new WindowsServices().Query("EventLog"));
@@ -99,4 +99,15 @@ public class ServiceProviderTests
     [Fact]
     public void RealStateIsReadable() =>
         Assert.Equal(ServiceState.Running, new WindowsServices().Query("EventLog"));
+
+    [Fact]
+    public void CancelledRequestSendsNothing()
+    {
+        // The token is checked after the handles open; a cancelled request never reaches StartService. With
+        // query-only rights a user can't open EventLog for start, so this only runs elevated.
+        using var identity = WindowsIdentity.GetCurrent();
+        if (!new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator))
+            return;
+        Assert.Throws<OperationCanceledException>(() => new WindowsServices().RequestStart("EventLog", new CancellationToken(canceled: true)));
+    }
 }
