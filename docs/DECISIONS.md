@@ -259,3 +259,14 @@ Status: accepted
   `Local\` mutex — the bug. Cost accepted: a second interactive session of the same user gets no tray or hotkeys
   (hotkeys are per desktop), and its dctl drives the first session's engine.
 - Revisit if: per-session engines are ever wanted (then per-session pipe, history and log paths too).
+
+## D-029 · 2026-11-01 · Flags live in engine memory; `notify` shows a tray notification until M5
+Status: accepted
+- Decision: `FlagStore` is an in-memory, case-insensitive map shared by all flows; unset = off; an engine
+  restart clears it. `notify` hands its text to `INotifier`; the engine shows it as a tray balloon (NIF_INFO)
+  until the run pop-up (M5) takes over.
+- Why: flags model "mode while I'm at the PC" (gaming, headphones); a reboot resetting them matches that, and
+  it needs no file or write path. A balloon is the cheapest visible output with no new window code.
+- Why not: persisting flags in config/state file — a write path and stale state after a crash; waiting for M5
+  for `notify` — the step would be untestable end to end until then.
+- Revisit if: the user wants a flag to survive a restart (then a small `flags.json` next to history).

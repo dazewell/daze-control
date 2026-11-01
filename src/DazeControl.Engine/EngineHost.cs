@@ -8,6 +8,7 @@ using DazeControl.Ipc;
 using DazeControl.Runtime;
 using DazeControl.Runtime.Control;
 using DazeControl.Runtime.Lifecycle;
+using DazeControl.Providers.Basic;
 using DazeControl.Runtime.Providers;
 using DazeControl.Runtime.Tray;
 using DazeControl.Runtime.Triggers;
@@ -51,7 +52,7 @@ internal sealed class EngineHost : IDisposable
     private readonly List<(Guid RunId, string FlowId)> _running = [];
     private string? _lastProblem;
 
-    public EngineHost(EnginePaths paths, IEnumerable<IStepProvider> providers)
+    public EngineHost(EnginePaths paths, Func<INotifier, IEnumerable<IStepProvider>> providers)
     {
         _window = new MessageWindow();
         _tray = new TrayIcon(_window, AppInfo.ProductName, BuildMenu);
@@ -65,7 +66,7 @@ internal sealed class EngineHost : IDisposable
         if (_history.LoadError is { } loadError)
             Log.Error($"history: {paths.History} not loaded", loadError);
         _history.WriteFailed += e => Log.Error("history: write failed", e);
-        var runner = new FlowRunner(providers, TimeProvider.System, new ResourceLocks(), events: OnRunEvent);
+        var runner = new FlowRunner(providers(new TrayNotifier(_window, _tray)), TimeProvider.System, new ResourceLocks(), events: OnRunEvent);
         _launcher = new FlowLauncher(runner, _history);
         _launcher.RunCompleted += OnRunCompleted;
         _launcher.ListenerFailed += e => Log.Error("run: completion listener", e);

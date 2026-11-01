@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M4 Providers — T4.1 wait, notify, flag (not started; M3 merged as PR #4)
-Last green checkpoint: b64cb42 "fix(m3): self-review of the review fixes" (squash-merged into main as PR #4)
-Next action: branch `feat/m4-basic-steps` from main, read FEATURES/ARCHITECTURE for the wait, notify and flag steps (Core/Catalog descriptors exist), implement the `wait` provider in DazeControl.Providers with a test first, then notify and flag; verify each with `dctl run <flow> --wait`
-Tree state: builds, 364/364 tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: PR #4 left 3 minor items open (see its last comment): a subscriber that isn't reading can use up the exit drain grace, PipeClient's event queue is unbounded, `dctl autostart` hides the config argument. Never end a pipe I/O by disposing the pipe (X-001).
+Current task: M4 Providers — T4.2 process.run, script.powershell (branch feat/m4-basic-steps, no PR yet; T4.1 done)
+Last green checkpoint: 12f0015 "feat(engine): M3 engine shell" (main)
+Next action: add `Providers/Process/ProcessRunProvider` (exe, args, cwd, wait, exitCodes; kill the tree on cancel) with tests in DazeControl.Providers.Tests, register it in `BuiltInProviders.Create`
+Tree state: builds, 369/369 tests green · Uncommitted: none
+Notes for next agent: PR #4 left 3 minor items open (see its last comment). Never end a pipe I/O by disposing the pipe (X-001). Providers read params via `StepParams` (written value, else descriptor default). Plan: PR 1 = T4.1–T4.4, PR 2 = T4.5–T4.9. T4.4 live gate (Connect Technics on Alt+Z) needs the user's headphones: prove with unit tests + dry run, leave the live check to the user.
 
 ---
 
@@ -53,7 +53,7 @@ Notes for next agent: PR #4 left 3 minor items open (see its last comment): a su
 - [x] T3.7 Footprint gate (feat/m3-engine-shell).
 
 ## M4 Providers (each CLI-testable via `dctl run`/`devices`; hardware steps verified on the dev PC)
-- [ ] T4.1 wait, notify, flag.
+- [x] T4.1 wait, notify, flag (branch feat/m4-basic-steps).
 - [ ] T4.2 process.run, script.powershell.
 - [ ] T4.3 audio (port OSD worker + IPolicyConfig; wait for endpoint via notification).
 - [ ] T4.4 bluetooth (port OSD D-023 + disconnect). **Gate: the user's Connect Technics flow works on Alt+Z →
