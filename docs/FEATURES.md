@@ -1,0 +1,52 @@
+# Features
+
+What Daze Control does, stack-independent. Source: the 2026-10-31 plan §2. Status per feature lives in [PLAN.md](PLAN.md).
+
+**F1 Flows (DAG)**
+- Nodes: *step* (one provider operation + params) and *group* (card: members start together; card finishes
+  when all members finish). Edges connect cards/steps only (never into a member of a card).
+- Edge `when`: `success` (default) · `failure` (fallback branch, e.g. buds if headphones fail) · `always`.
+- A node runs when **all** incoming edges are satisfied; if one can never be satisfied it is **Skipped**,
+  and skips propagate (only `always` edges fire from a skipped node).
+- Node failure policy: `stop` (default: cancel the flow) · `skip` (skip what depends on it, other branches
+  go on) · `ignore` ("may fail": counts as done, dependents run). Retries (count, delay), timeout
+  (provider default, overridable). A card fails if a member fails with `stop`/`skip`; its own policy then
+  applies to what follows it. No nested cards.
+- Outcomes: node Succeeded / Failed / FailedIgnored / Skipped / Cancelled; flow Succeeded /
+  PartiallySucceeded / Failed / Cancelled.
+- Flow settings: name, glyph, tray (show, folder, separator), hotkeys, `whenRunning` (ignore / queue /
+  restart), pop-up on/off, enabled.
+- Validation: no cycles, refs exist, params match descriptors, cards hold ≥ 2 members, no edges into members.
+  An invalid flow is disabled with its problems listed; every other flow keeps working.
+
+**F2 Triggers** — v1: global hotkey, tray item, CLI (`dctl run`), editor Run/Test. Later: device events (BT
+connected, display change), schedule, session unlock/resume, app start.
+
+**F3 Providers (step types)** — each declares id, glyph, title, typed params, default timeout, resources it
+locks, idempotency check ("already in state → no-op"), and an optional enumerator for editor pickers.
+- `audio.setDefault` (output/input, roles), `audio.setVolume`/`mute` · `bluetooth.connect`/`disconnect`
+  (audio devices, KS one-shot, no admin) · `display.topology` (Win+P presets), `display.outputs` (only these
+  ports on), `display.layout` (captured CCD layout) · `process.run` (exe, args[], cwd, wait, exit codes,
+  kill tree on timeout) · `script.powershell` · `http.request` (Sunshine API etc., credentials by name) ·
+  `firetv.input`/`firetv.keys`/`firetv.sleep` (adb, connect retries, one chained shell call) ·
+  `service.start`/`stop` (fails clearly without rights) · `wait` · `notify` (pop-up text) ·
+  `flag.set`/`flag.check` (check fails when unmet → combine with `when: failure`).
+
+**F4 Library** — named, reusable resources referenced by steps: audio devices (match text + flow), Bluetooth
+devices (address + name), display layouts/outputs, Fire TV devices + inputs, programs, credentials (secret in
+Windows Credential Manager, only the name in YAML). Each has a Test action.
+
+**F5 Runtime** — DAG scheduler with parallel branches, engine-wide resource locks, timeouts + cancellation
+on every step, retries, run events stream, run history (last 100, persisted), dry run.
+
+**F6 Feedback** — run pop-up (no-activate, acrylic, flow name, progress, failure summary, position/duration
+settings, honours "Animation effects"); tray tooltip/glyph shows the last run's failure.
+
+**F7 Editor** — flows list, DAG canvas, inspector, library, settings, about; autosave; live pickers and Test
+via the engine; live run view and history timeline; undo/redo; accessible outline view. Spec: §5.
+
+**F8 CLI** — `dctl run <flow> [--wait] [--dry-run]`, `list`, `validate [file]`, `status`,
+`devices audio|bluetooth|displays|adb`, `history [flow]`.
+
+**F9 Ops** — per-user install + in-app updates, start with Windows (HKCU Run), single instance, rolling logs
+(7 days), crash capture, no admin, config backups (last 10).

@@ -1,0 +1,126 @@
+# Architecture
+
+How Daze Control is built now. Current state only; the why lives in [DECISIONS.md](DECISIONS.md).
+Rewrite sections when things change (`knowledge-log` skill).
+
+## Overview
+
+```
+ dctl.exe (CLI, AOT console) ──pipe──┐
+ DazeControl.Editor.exe (WinUI 3, on demand) ──pipe (devices, test, run, live events)──┐
+        └─ reads/writes config.yaml (atomic, .bak) ─────────┐                          │
+                                                            ▼                          ▼
+ DazeControl.exe  (engine, Native AOT, resident, no UI framework)
+   message thread: TrayIcon · GlobalHotkey · RunPopup (Win32 + DWM backdrop + D2D/DirectWrite)
+   ConfigHost: FileSystemWatcher (debounced) → YAML → validate → compile → atomic swap (last-good kept)
+   FlowRunner (DAG scheduler) ─► ResourceLocks ─► IStepProvider implementations (lazy COM workers)
+   PipeServer (current-user-only) · RunHistory · Log
+```
+
+## Solution layout
+
+Props conventions copied from the OSD.
+```
+DazeControl.slnx · global.json · Directory.Build.props (TFM net10.0-windows10.0.26100.0, nullable,
+warnings as errors, <Version>) · Directory.Packages.props · dotnet-tools.json (vpk)
+src/DazeControl.Core/        pure, AOT/trim-safe, no interop: Model/ (Flow, Node, StepNode, GroupNode, Edge,
+                             EdgeWhen, FailurePolicy, RetryPolicy, Library*), Yaml/ (DTOs, static context,
+                             mapper), Validation/, Catalog/ (provider descriptors + ParamSpec), Layout/
+                             (layered auto-arrange), Runs/ (outcome + event records)
+src/DazeControl.Runtime/     FlowRunner, Scheduler, ResourceLocks, RunHistory, ConfigHost, TriggerRouter,
+                             IStepProvider/StepContext contracts; TimeProvider everywhere
+src/DazeControl.Providers/   Windows implementations (CsWin32 NativeMethods.txt, [LibraryImport] for
+                             undocumented): Audio, Bluetooth, Display, Process, Script, Http, FireTv,
+                             Service, Wait, Notify, Flag, Credentials
+src/DazeControl.Ipc/         protocol records (source-gen JSON), PipeServer, PipeClient
+src/DazeControl.Engine/      AOT WinExe: Program, Shell/ (TrayIcon, GlobalHotkey, RunPopup), Lifecycle/
+                             (SingleInstance, Autostart), Diagnostics/Log, composition root (hand-written)
+src/DazeControl.Cli/         AOT console exe dctl.exe (pipe client; offline `validate`/`list`)
+src/DazeControl.Editor.ViewModels/  CommunityToolkit.Mvvm VMs, canvas model, undo stack — no WinUI refs
+src/DazeControl.Editor/      WinUI 3 exe: ShellWindow, pages, FlowCanvas control, Inspector, styles
+tests/ Core.Tests · Runtime.Tests · Providers.Tests (pure parts) · Editor.ViewModels.Tests
+spikes/ (throwaway probes) · scripts/ (run, stop, measure, pack, install) · docs/ · .claude/skills/
+```
+
+### Reuse from daze-media-osd
+
+Copy + adapt, cite the OSD D-id in a comment:
+`Core/Tray/TrayIcon.cs` (D-009 Shell_NotifyIcon, dark menu), `Core/Input/GlobalHotkey.cs` + `Hotkey.cs` +
+`App/HotkeyRecorder` (D-020..D-022), `Core/Diagnostics/Log.cs` + `LogRotation.cs` (D-028),
+`Core/Lifecycle/Autostart.cs` (D-015), `Core/Settings/SettingsStore.cs` atomic-write pattern,
+`Core/Audio/CoreAudioService.cs` MTA-worker pattern + `Interop/PolicyConfig.cs` (D-019) + the
+KS one-shot Bluetooth reconnect (D-023, X-005), `Core/Windowing/OverlayWindow.cs` styles (D-008),
+`App/SettingsWindow.xaml` card styles + `AlwaysActiveAcrylicBackdrop` lessons (X-007), Velopack
+`scripts/pack.ps1` + `release.yml` + `UpdateService` (D-029..D-031), `tests/.../TestDoubles.cs`
+(`ManualTime`). From scd: `Modules/Display/CcdApi.cs` + `DisplayOutputsModule` port-switch logic,
+`FireTvModule.BuildSwitchInputShellCommand`, Sunshine sc.exe exit-code idempotency (1056/1062).
+
+## Invariants (hard rules, mirrored in CLAUDE.md)
+
+- Fail-soft: a bad flow / library item / provider init disables only itself; the engine always starts and
+  keeps the last good config on a bad reload. No unobserved task (runner awaits all; global handlers log).
+- Every step has a timeout and honours cancellation; processes are killed (tree) on timeout.
+- Idle = zero: no timers, no polling, no resident COM objects; waits are event-driven
+  (IMMNotificationClient, device state, WM_DISPLAYCHANGE) with a timeout; COM workers start lazily and stop
+  after 60 s idle.
+- Budgets (measured by `scripts/measure.ps1`, gate in M0, M3, M10): engine idle ≤ 15 MB private / ≤ 35 MB
+  working set, 0 ms CPU over 10 idle minutes, back within +2 MB after a run. Editor closed = not running.
+- No admin, no injection, no focus stealing (pop-up never activates; editor activates only when opened).
+- Secrets never in YAML or logs.
+
+## Threading
+
+engine: one STA message thread (tray, hotkeys, pop-up); FlowRunner on the thread pool;
+each COM provider owns one lazy MTA worker (OSD pattern); pipe server async on the pool. Editor: UI thread +
+`DispatcherQueue.TryEnqueue` for pipe events.
+
+## Config
+
+`%APPDATA%\DazeControl\config.yaml`, schema `version: 1`; editor owns the file
+(comments not preserved on editor save — accepted, user hand-edits still load); engine hot-reloads.
+```yaml
+version: 1
+settings: { popup: { position: BottomCenter, seconds: 3 } }
+library:
+  audio:     { technics: { match: "Technics EAH-AZ80", flow: output } }
+  bluetooth: { technics: { address: "B8:20:8E:ED:48:FC", name: "Technics EAH-AZ80" },
+               sony:     { address: "80:99:E7:2A:AB:A1" } }
+flows:
+  connect-technics:
+    name: Connect Technics
+    hotkeys: [Alt+Z]
+    whenRunning: ignore
+    nodes:
+      - { id: bt,  step: bluetooth.connect, with: { device: technics }, timeout: 20s }
+      - { id: out, step: audio.setDefault,  with: { device: technics }, after: [bt] }
+```
+No coordinates: layout is computed (D-020); node order within a column is the order in `nodes`.
+Edges are `after: [id | {id, when}]` on the target node; a card is
+`{ id: g1, group: [hp, buds], after: [...] }` and its members carry no `after`.
+
+## IPC
+
+`\\.\pipe\DazeControl-<user SID>`, `PipeOptions.CurrentUserOnly`, newline-delimited JSON
+(source-gen), `protocol: 1`; request/response by id plus an event stream (run events, config reloaded,
+engine status). Ops: `run`, `cancel`, `test-step`, `validate`, `devices`, `capture-display-layout`,
+`history`, `status`, `subscribe`.
+
+## Adding a provider
+
+1. Add a descriptor in `Core/Catalog/` (id, glyph, title, params as `ParamSpec`, default timeout, resources).
+2. Implement `IStepProvider` in `Providers/<Area>/` (`ValidateAsync`, `IsAlreadyDoneAsync?`, `ExecuteAsync(ctx,
+   params, ct)`, optional `IEnumerator` for pickers); interop behind a small interface with a fake.
+3. Register in the engine composition root. A test asserts every descriptor has exactly one implementation.
+4. Tests: descriptor/param validation, YAML round-trip of a sample node, runner behaviour with the fake.
+No change to Runner, YAML mapper or editor: the inspector renders from `ParamSpec`.
+
+## Footprint (measured by `scripts/measure.ps1`)
+
+Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 idle minutes, back within +2 MB after a run.
+
+| Date | Build | What ran | Private MB | Working set MB | CPU ms (window) |
+|---|---|---|---|---|---|
+
+## Open questions
+
+- none yet
