@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M5 Run pop-up — T5.1 + T5.2 done on feat/m5-popup (PR for M5); merge waits on the user (footprint)
-Last green checkpoint: d90d646 "wip(engine): native acrylic run pop-up (T5.1 spike, T5.2 first cut)"
-Next action: if the user accepts the pop-up's one-off +2.5 MB (ARCHITECTURE → Footprint), raise the "+2 MB after a run" line to fit, finish the M5 PR per repo-workflow §6 and merge; then branch feat/m6-editor and start T6.1
-Tree state: builds, 508/508 tests green · Uncommitted: none
-Notes for next agent: version is 0.8.0. Pop-up test config + screenshot scripts were in the session scratchpad; recreate from D-034 (striped topmost WinForms window behind the pop-up proves the blur). Text size 225 % and Animation effects off were not checked live (both read per show). Write files with Write or python, not Bash heredocs with nested quotes.
+Current task: M5 Run pop-up — T5.1 + T5.2 done, PR #8 (feat/m5-popup) open; merge waits on the user (footprint, GOALS → Waiting on the user)
+Last green checkpoint: 1f16ad4 "fix(engine): pop-up review — run snapshot, DPI, device loss, contrast theme"
+Next action: when the user accepts the pop-up's one-off ~+2.5 MB, change ARCHITECTURE → Footprint "back within +2 MB after a run" to name the pop-up allowance, drop the GOALS item, check CI on PR #8 and `gh pr merge 8 --squash --delete-branch`; then branch feat/m6-editor and start T6.1. If the user wants GDI drawing instead, rewrite Shell/RunPopup's Render without D2D/DWrite and re-measure.
+Tree state: builds, 510/510 tests green · Uncommitted: none
+Notes for next agent: version is 0.8.0. Copilot review 1 of 2 used on PR #8: 6 medium findings, 5 fixed in 1f16ad4, Narrator deferred to T10.5; replies posted, but resolving threads was blocked by the permission classifier (leave them). Pop-up test config + screenshot scripts lived in the session scratchpad; recreate from D-034 (a striped topmost WinForms window behind the pop-up proves the blur). Write files with Write or python, not Bash heredocs with nested quotes.
 
 ---
 
