@@ -111,13 +111,13 @@ public sealed class RunHistoryTests : IDisposable
     {
         var events = new List<RunEvent>();
         var provider = new FakeProvider().On("a", (_, _) => FakeProvider.Fail("no"));
-        var runner = new FlowRunner([provider], Library.Empty, _time, events: e =>
+        var runner = new FlowRunner([provider], _time, events: e =>
         {
             lock (events)
                 events.Add(e);
         });
 
-        var result = await runner.RunAsync(Flow(Step("a", "onFailure: skip"), Step("b", "after: [a]")), TestContext.Current.CancellationToken);
+        var result = await runner.RunAsync(Flow(Step("a", "onFailure: skip"), Step("b", "after: [a]")), Library.Empty, TestContext.Current.CancellationToken);
 
         Assert.IsType<RunStarted>(events[0]);
         Assert.Equal(result.RunId, events[0].RunId);
@@ -131,9 +131,9 @@ public sealed class RunHistoryTests : IDisposable
     public async Task LauncherRecordsFinishedRunsWithTheirTrigger()
     {
         var history = new RunHistory(null);
-        var launcher = new FlowLauncher(() => new FlowRunner([new FakeProvider()], Library.Empty, _time), history);
+        var launcher = new FlowLauncher(new FlowRunner([new FakeProvider()], _time), history);
 
-        await launcher.TriggerAsync(Flow(Step("a")), "Alt+Z");
+        await launcher.TriggerAsync(Flow(Step("a")), Library.Empty, "Alt+Z");
 
         var record = Assert.Single(history.Recent);
         Assert.Equal(("f", "Alt+Z", FlowOutcome.Succeeded), (record.FlowId, record.Trigger, record.Outcome));

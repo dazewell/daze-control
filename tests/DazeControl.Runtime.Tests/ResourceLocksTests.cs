@@ -68,6 +68,19 @@ public class ResourceLocksTests
         var descriptor = ProviderCatalog.Find("bluetooth.connect")!;
         var node = new StepNode("bt", "bluetooth.connect") { With = new([KeyValuePair.Create("device", (ParamValue)"technics")]) };
 
-        Assert.Equal(["bluetooth:technics"], FlowRunner.ResourcesOf(descriptor, node));
+        Assert.Equal(["bluetooth:technics"], FlowRunner.ResourcesOf(descriptor, node, Library.Empty));
+    }
+
+    [Fact]
+    public void TwoKeysForOneBluetoothDeviceShareItsLock()
+    {
+        var descriptor = ProviderCatalog.Find("bluetooth.connect")!;
+        var library = new Library
+        {
+            Bluetooth = [new BluetoothDevice("hp", "b8:20:8e:ed:48:fc"), new BluetoothDevice("technics", "B8:20:8E:ED:48:FC")],
+        };
+        StepNode Node(string device) => new("bt", "bluetooth.connect") { With = new([KeyValuePair.Create("device", (ParamValue)device)]) };
+
+        Assert.Equal(FlowRunner.ResourcesOf(descriptor, Node("hp"), library), FlowRunner.ResourcesOf(descriptor, Node("technics"), library));
     }
 }

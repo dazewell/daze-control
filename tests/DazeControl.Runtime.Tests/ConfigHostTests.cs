@@ -139,7 +139,41 @@ public sealed class ConfigHostTests : IDisposable
         host.Reload();
 
         Assert.True(host.Current.Flows[0].IsStale);
-        Assert.Equal("B8:20:8E:ED:48:FC", Assert.Single(host.Current.Library.Bluetooth).Address);
+        Assert.Equal("B8:20:8E:ED:48:FC", Assert.Single(host.Current.Flows[0].Library.Bluetooth).Address);
+        Assert.Equal("B8-20", Assert.Single(host.Current.Library.Bluetooth).Address); // other flows see the file's
+    }
+
+    [Fact]
+    public void YieldedHotkeyComesBackWhenItIsFreeAgain()
+    {
+        const string BrokenOne = "  one: { hotkeys: [Alt+Z], nodes: [{ id: a, step: nope }] }\n";
+        Write("  one: { hotkeys: [Alt+Z], nodes: [{ id: a, step: notify, with: { text: x } }] }\n");
+        using var host = Host();
+        Write(BrokenOne + "  two: { hotkeys: [Alt+Z], nodes: [{ id: a, step: notify, with: { text: x } }] }\n");
+        host.Reload();
+
+        Write(BrokenOne);
+        host.Reload();
+
+        Assert.Equal(["Alt+Z"], host.Current.Flows[0].Running!.Hotkeys);
+        Assert.DoesNotContain(host.Current.Flows[0].Problems, p => p.Severity == Core.Validation.Severity.Warning);
+    }
+
+    [Fact]
+    public void ThrowingListenerDoesNotStopReloadsOrOtherListeners()
+    {
+        Write(Flow("one"));
+        using var host = Host();
+        var reached = 0;
+        Exception? reported = null;
+        host.Changed += _ => throw new InvalidOperationException("broken");
+        host.Changed += _ => reached++;
+        host.ListenerFailed += e => reported = e;
+
+        host.Reload();
+
+        Assert.Equal(1, reached);
+        Assert.IsType<InvalidOperationException>(reported);
     }
 
     [Fact]

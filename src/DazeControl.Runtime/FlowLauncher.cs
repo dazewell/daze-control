@@ -10,27 +10,35 @@ namespace DazeControl.Runtime;
 /// over once it has wound down. Different flows run in parallel; the queued or restarted run uses the flow
 /// version of the latest trigger.
 /// </summary>
-/// <param name="runner">The runner for the current configuration (ConfigHost swaps it on reload).</param>
+/// <param name="runner">Shared by every flow.</param>
 /// <param name="history">Where finished runs are recorded; null records nothing.</param>
-public sealed class FlowLauncher(Func<FlowRunner> runner, RunHistory? history = null)
+public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
 {
     private readonly Lock _lock = new();
     private readonly Dictionary<string, Slot> _slots = [];
+    private bool _closed;
 
     /// <param name="flow">The flow version to run.</param>
+    /// <param name="library">The library that version was validated with (<c>FlowState.Library</c>); a queued
+    /// run keeps it even if the config reloads before it starts.</param>
     /// <param name="trigger">For the history: "Alt+Z", "Tray", "Command line", "Editor".</param>
-    /// <returns>The run's result; null when the trigger was ignored.</returns>
-    public Task<RunResult?> TriggerAsync(Flow flow, string trigger = "")
+    /// <returns>The run's result; null when the trigger was ignored (or the engine is exiting).</returns>
+    public Task<RunResult?> TriggerAsync(Flow flow, Library library, string trigger = "")
     {
         CancellationTokenSource? toCancel = null;
         Task<RunResult?> task;
+        var request = new Request(flow, library, trigger);
         lock (_lock)
         {
             if (!_slots.TryGetValue(flow.Id, out var slot))
                 _slots[flow.Id] = slot = new Slot();
-            if (slot.Cancel is null)
+            if (_closed)
             {
-                task = Start(slot, flow, trigger, completion: null);
+                task = Task.FromResult<RunResult?>(null);
+            }
+            else if (slot.Cancel is null)
+            {
+                task = Start(slot, request, completion: null);
             }
             else if (flow.WhenRunning == WhenRunning.Ignore)
             {
@@ -40,8 +48,7 @@ public sealed class FlowLauncher(Func<FlowRunner> runner, RunHistory? history = 
             {
                 if (flow.WhenRunning == WhenRunning.Restart)
                     toCancel = slot.Cancel;
-                slot.PendingFlow = flow;
-                slot.PendingTrigger = trigger;
+                slot.PendingRequest = request;
                 slot.Pending ??= new TaskCompletionSource<RunResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
                 task = slot.Pending.Task;
             }
@@ -56,18 +63,22 @@ public sealed class FlowLauncher(Func<FlowRunner> runner, RunHistory? history = 
             return _slots.TryGetValue(flowId, out var slot) && slot.Cancel is not null;
     }
 
-    /// <summary>Cancels every run (queued ones are dropped) and waits until all have wound down: engine exit.</summary>
+    /// <summary>
+    /// Engine exit: cancels every run, drops queued ones, ignores later triggers, and waits until all have wound
+    /// down.
+    /// </summary>
     public async Task CancelAllAsync()
     {
         List<Task> running = [];
         List<CancellationTokenSource> cancels = [];
         lock (_lock)
         {
+            _closed = true;
             foreach (var slot in _slots.Values.Where(s => s.Cancel is not null))
             {
                 slot.Pending?.TrySetResult(null);
                 slot.Pending = null;
-                slot.PendingFlow = null;
+                slot.PendingRequest = null;
                 cancels.Add(slot.Cancel!);
                 running.Add(slot.Current!);
             }
@@ -86,24 +97,25 @@ public sealed class FlowLauncher(Func<FlowRunner> runner, RunHistory? history = 
     }
 
     /// <summary>Under the lock.</summary>
-    private Task<RunResult?> Start(Slot slot, Flow flow, string trigger, TaskCompletionSource<RunResult?>? completion)
+    private Task<RunResult?> Start(Slot slot, Request request, TaskCompletionSource<RunResult?>? completion)
     {
         var cancel = new CancellationTokenSource();
         slot.Cancel = cancel;
-        var current = RunAsync(slot, flow, trigger, cancel, completion);
+        var current = RunAsync(slot, request, cancel, completion);
         slot.Current = current;
         return current;
     }
 
-    private async Task<RunResult?> RunAsync(Slot slot, Flow flow, string trigger, CancellationTokenSource cancel,
+    private async Task<RunResult?> RunAsync(Slot slot, Request request, CancellationTokenSource cancel,
         TaskCompletionSource<RunResult?>? completion)
     {
+        var (flow, library, trigger) = request;
         await Task.Yield(); // the trigger (hotkey on the message thread) returns at once
         RunResult? result = null;
         Exception? failure = null;
         try
         {
-            result = await runner().RunAsync(flow, cancel.Token).ConfigureAwait(false);
+            result = await runner.RunAsync(flow, library, cancel.Token).ConfigureAwait(false);
             history?.Add(new RunRecord(result.RunId, flow.Id, flow.Name, trigger, result.Started, result.Duration,
                 result.Outcome, [.. result.Nodes]));
         }
@@ -122,9 +134,9 @@ public sealed class FlowLauncher(Func<FlowRunner> runner, RunHistory? history = 
             if (slot.Pending is { } next)
             {
                 slot.Pending = null;
-                var nextFlow = slot.PendingFlow!;
-                slot.PendingFlow = null;
-                Start(slot, nextFlow, slot.PendingTrigger ?? "", next);
+                var nextRequest = slot.PendingRequest!;
+                slot.PendingRequest = null;
+                Start(slot, nextRequest, next);
             }
         }
         if (failure is not null)
@@ -146,8 +158,8 @@ public sealed class FlowLauncher(Func<FlowRunner> runner, RunHistory? history = 
 
         public TaskCompletionSource<RunResult?>? Pending { get; set; }
 
-        public Flow? PendingFlow { get; set; }
-
-        public string? PendingTrigger { get; set; }
+        public Request? PendingRequest { get; set; }
     }
+
+    private sealed record Request(Flow Flow, Library Library, string Trigger);
 }

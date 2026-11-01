@@ -27,30 +27,30 @@ public sealed record RunResult(FlowOutcome Outcome, ValueList<NodeResult> Nodes)
 public sealed class FlowRunner
 {
     private readonly Dictionary<string, IStepProvider> _providers;
-    private readonly Library _library;
     private readonly TimeProvider _time;
     private readonly IReadOnlyList<ProviderDescriptor> _catalog;
     private readonly ResourceLocks _locks;
     private readonly Action<RunEvent>? _events;
 
     /// <param name="providers">One per step type the engine can run.</param>
-    /// <param name="library">The configuration's library, handed to each step.</param>
     /// <param name="time">Clock for timeouts and retry delays.</param>
     /// <param name="locks">Shared by every runner in the engine, so locks hold across flows.</param>
     /// <param name="catalog">Step types; the compiled-in catalog by default.</param>
     /// <param name="events">Receives <see cref="RunEvent"/>s from pool threads; must be quick and thread-safe.</param>
-    public FlowRunner(IEnumerable<IStepProvider> providers, Library library, TimeProvider time, ResourceLocks? locks = null,
+    public FlowRunner(IEnumerable<IStepProvider> providers, TimeProvider time, ResourceLocks? locks = null,
         IReadOnlyList<ProviderDescriptor>? catalog = null, Action<RunEvent>? events = null)
     {
         _events = events;
         _locks = locks ?? new ResourceLocks();
         _providers = providers.ToDictionary(p => p.Id);
-        _library = library;
         _time = time;
         _catalog = catalog ?? ProviderCatalog.All;
     }
 
-    public async Task<RunResult> RunAsync(Flow flow, CancellationToken cancellationToken)
+    /// <param name="flow">The version to run.</param>
+    /// <param name="library">The library <paramref name="flow"/> was validated with (<c>FlowState.Library</c>).</param>
+    /// <param name="cancellationToken">Cancels the run.</param>
+    public async Task<RunResult> RunAsync(Flow flow, Library library, CancellationToken cancellationToken)
     {
         var scheduler = new Scheduler(flow);
         var runId = Guid.NewGuid();
@@ -65,7 +65,7 @@ public sealed class FlowRunner
         void Launch(IEnumerable<string> ids)
         {
             foreach (var id in ids)
-                running.Add(RunStepAsync(runId, flow, (StepNode)flow.FindNode(id)!, stepsCancel.Token), id);
+                running.Add(RunStepAsync(runId, flow, library, (StepNode)flow.FindNode(id)!, stepsCancel.Token), id);
         }
 
         NodeResult ResultOf(string id) => results.TryGetValue(id, out var r)
@@ -123,7 +123,7 @@ public sealed class FlowRunner
     private readonly record struct StepRun(StepResult Result, int Attempts, string? Error, TimeSpan Duration);
 
     /// <summary>All attempts of one step. Never throws: every failure becomes a <see cref="StepRun"/>.</summary>
-    private async Task<StepRun> RunStepAsync(Guid runId, Flow flow, StepNode node, CancellationToken flowToken)
+    private async Task<StepRun> RunStepAsync(Guid runId, Flow flow, Library library, StepNode node, CancellationToken flowToken)
     {
         await Task.Yield(); // run on the pool, never inline in the scheduler loop
         var started = _time.GetTimestamp();
@@ -151,7 +151,7 @@ public sealed class FlowRunner
                 return new(StepResult.Failed, attempt - 1, e.Message, _time.GetElapsedTime(started));
             }
             Raise(new NodeStarted(runId, flow.Id, _time.GetUtcNow(), node.Id, attempt));
-            error = await AttemptAsync(provider, new StepContext(flow, node, descriptor, _library, attempt), timeout, flowToken)
+            error = await AttemptAsync(provider, new StepContext(flow, node, descriptor, library, attempt), timeout, flowToken)
                 .ConfigureAwait(false);
             if (error is null)
                 return new(StepResult.Succeeded, attempt, null, _time.GetElapsedTime(started));
@@ -179,14 +179,16 @@ public sealed class FlowRunner
         try
         {
             // Waiting for a lock counts toward the timeout: a step stuck behind another still ends on time.
-            held = await _locks.AcquireAsync(ResourcesOf(context.Descriptor, context.Node), linked.Token).ConfigureAwait(false);
-            linked.Token.ThrowIfCancellationRequested(); // AcquireAsync with no resources doesn't check
+            held = await _locks.AcquireAsync(ResourcesOf(context.Descriptor, context.Node, context.Library), linked.Token)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
             return flowToken.IsCancellationRequested ? "Cancelled." : $"Waited {Duration.Format(timeout)} for another step using the same device.";
         }
         using var release = held;
+        if (linked.IsCancellationRequested) // AcquireAsync with no resources doesn't check
+            return flowToken.IsCancellationRequested ? "Cancelled." : $"Didn't finish within {Duration.Format(timeout)}.";
         // On the pool, so a provider that blocks before returning its task is still bounded by WaitAsync.
         var execution = Task.Run(() => provider.ExecuteAsync(context, linked.Token), CancellationToken.None);
         try
@@ -208,10 +210,21 @@ public sealed class FlowRunner
         }
     }
 
-    /// <summary>The descriptor's lock names with "{param}" replaced by that param's value ("bluetooth:technics").</summary>
-    internal static IEnumerable<string> ResourcesOf(ProviderDescriptor descriptor, StepNode node) =>
+    /// <summary>
+    /// The descriptor's lock names with "{param}" replaced by that param's value ("audio"). A Bluetooth reference
+    /// becomes the device's address, so two library keys for one device share its lock ("bluetooth:B8:20:…").
+    /// </summary>
+    internal static IEnumerable<string> ResourcesOf(ProviderDescriptor descriptor, StepNode node, Library library) =>
         descriptor.Resources.Select(resource => node.With.Aggregate(resource, (name, param) =>
-            param.Value is ScalarParam scalar ? name.Replace("{" + param.Key + "}", scalar.Text, StringComparison.Ordinal) : name));
+            param.Value is ScalarParam scalar
+                ? name.Replace("{" + param.Key + "}", Identity(descriptor.FindParam(param.Key), scalar.Text, library), StringComparison.Ordinal)
+                : name));
+
+    private static string Identity(ParamSpec? spec, string text, Library library) =>
+        spec is { Kind: ParamKind.LibraryRef, Library: LibraryKind.Bluetooth }
+            && library.Bluetooth.FirstOrDefault(d => d.Key == text) is { } device
+            ? device.Address.ToUpperInvariant()
+            : text;
 
     // A provider abandoned on timeout may still fault later; observe it so it never surfaces as unobserved.
     private static void Observe(Task task) =>

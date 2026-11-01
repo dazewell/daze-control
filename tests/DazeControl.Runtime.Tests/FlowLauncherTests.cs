@@ -15,7 +15,7 @@ public sealed class FlowLauncherTests : IDisposable
     {
         // Every run of step "a" waits for the gate (or its cancellation); later runs pass straight through.
         _provider.On("a", (_, token) => _gate.Task.WaitAsync(token));
-        _launcher = new FlowLauncher(() => new FlowRunner([_provider], Library.Empty, _time));
+        _launcher = new FlowLauncher(new FlowRunner([_provider], _time));
     }
 
     public void Dispose() => _time.Dispose();
@@ -27,10 +27,10 @@ public sealed class FlowLauncherTests : IDisposable
     [Fact]
     public async Task IgnoreDropsTriggersWhileRunning()
     {
-        var first = _launcher.TriggerAsync(Gated(WhenRunning.Ignore));
+        var first = _launcher.TriggerAsync(Gated(WhenRunning.Ignore), Library.Empty);
         await _provider.Started("a");
 
-        Assert.Null(await _launcher.TriggerAsync(Gated(WhenRunning.Ignore)));
+        Assert.Null(await _launcher.TriggerAsync(Gated(WhenRunning.Ignore), Library.Empty));
         Assert.True(_launcher.IsRunning("f"));
         _gate.SetResult();
 
@@ -42,11 +42,11 @@ public sealed class FlowLauncherTests : IDisposable
     [Fact]
     public async Task QueueRunsOnceMoreAfterTheCurrentRun()
     {
-        var first = _launcher.TriggerAsync(Gated(WhenRunning.Queue));
+        var first = _launcher.TriggerAsync(Gated(WhenRunning.Queue), Library.Empty);
         await _provider.Started("a");
 
-        var second = _launcher.TriggerAsync(Gated(WhenRunning.Queue));
-        var third = _launcher.TriggerAsync(Gated(WhenRunning.Queue));
+        var second = _launcher.TriggerAsync(Gated(WhenRunning.Queue), Library.Empty);
+        var third = _launcher.TriggerAsync(Gated(WhenRunning.Queue), Library.Empty);
         Assert.Same(second, third);
         _gate.SetResult();
 
@@ -58,10 +58,10 @@ public sealed class FlowLauncherTests : IDisposable
     [Fact]
     public async Task RestartCancelsTheCurrentRunAndStartsOver()
     {
-        var first = _launcher.TriggerAsync(Gated(WhenRunning.Restart));
+        var first = _launcher.TriggerAsync(Gated(WhenRunning.Restart), Library.Empty);
         await _provider.Started("a");
 
-        var second = _launcher.TriggerAsync(Gated(WhenRunning.Restart));
+        var second = _launcher.TriggerAsync(Gated(WhenRunning.Restart), Library.Empty);
         Assert.Equal(FlowOutcome.Cancelled, (await first)!.Outcome);
         _gate.SetResult();
 
@@ -74,8 +74,8 @@ public sealed class FlowLauncherTests : IDisposable
     {
         _gate.SetResult();
 
-        await _launcher.TriggerAsync(Gated(WhenRunning.Ignore));
-        var again = await _launcher.TriggerAsync(Gated(WhenRunning.Ignore));
+        await _launcher.TriggerAsync(Gated(WhenRunning.Ignore), Library.Empty);
+        var again = await _launcher.TriggerAsync(Gated(WhenRunning.Ignore), Library.Empty);
 
         Assert.NotNull(again);
         Assert.Equal(2, Runs);
@@ -84,10 +84,10 @@ public sealed class FlowLauncherTests : IDisposable
     [Fact]
     public async Task DifferentFlowsRunInParallel()
     {
-        var first = _launcher.TriggerAsync(Gated(WhenRunning.Ignore));
+        var first = _launcher.TriggerAsync(Gated(WhenRunning.Ignore), Library.Empty);
         await _provider.Started("a");
 
-        var other = await _launcher.TriggerAsync(Flow(Step("b")) with { Id = "g" });
+        var other = await _launcher.TriggerAsync(Flow(Step("b")) with { Id = "g" }, Library.Empty);
 
         Assert.Equal(FlowOutcome.Succeeded, other!.Outcome);
         _gate.SetResult();
@@ -97,14 +97,52 @@ public sealed class FlowLauncherTests : IDisposable
     [Fact]
     public async Task CancelAllEndsRunsAndDropsQueuedOnes()
     {
-        var first = _launcher.TriggerAsync(Gated(WhenRunning.Queue));
+        var first = _launcher.TriggerAsync(Gated(WhenRunning.Queue), Library.Empty);
         await _provider.Started("a");
-        var queued = _launcher.TriggerAsync(Gated(WhenRunning.Queue));
+        var queued = _launcher.TriggerAsync(Gated(WhenRunning.Queue), Library.Empty);
 
         await _launcher.CancelAllAsync();
 
         Assert.Equal(FlowOutcome.Cancelled, (await first)!.Outcome);
         Assert.Null(await queued);
         Assert.Equal(1, Runs);
+    }
+
+    [Fact]
+    public async Task TriggersDuringAndAfterExitAreIgnored()
+    {
+        var first = _launcher.TriggerAsync(Gated(WhenRunning.Queue), Library.Empty);
+        await _provider.Started("a");
+
+        var exit = _launcher.CancelAllAsync();
+        var during = _launcher.TriggerAsync(Gated(WhenRunning.Queue), Library.Empty);
+        await exit;
+
+        Assert.Null(await during);
+        Assert.Null(await _launcher.TriggerAsync(Gated(WhenRunning.Queue), Library.Empty));
+        Assert.Equal(FlowOutcome.Cancelled, (await first)!.Outcome);
+        Assert.Equal(1, Runs);
+    }
+
+    [Fact]
+    public async Task QueuedRunKeepsTheLibraryOfItsTrigger()
+    {
+        var seen = new List<Library>();
+        _provider.On("a", (context, token) =>
+        {
+            lock (seen)
+                seen.Add(context.Library);
+            return _gate.Task.WaitAsync(token);
+        });
+        var newer = new Library { Bluetooth = [new BluetoothDevice("hp", "B8:20:8E:ED:48:FC")] };
+        var first = _launcher.TriggerAsync(Gated(WhenRunning.Queue), Library.Empty);
+        await _provider.Started("a");
+
+        var queued = _launcher.TriggerAsync(Gated(WhenRunning.Queue), newer);
+        _gate.SetResult();
+        await first;
+        await queued;
+
+        Assert.Equal([Library.Empty, newer], seen);
     }
 }

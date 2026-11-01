@@ -57,7 +57,7 @@ public sealed class FlowRunnerTests : IDisposable
     private Task<RunResult> Run(Flow flow) => RunWith(flow, TestContext.Current.CancellationToken);
 
     private Task<RunResult> RunWith(Flow flow, CancellationToken token) =>
-        new FlowRunner([_provider], Library.Empty, _time).RunAsync(flow, token);
+        new FlowRunner([_provider], _time).RunAsync(flow, Library.Empty, token);
 
     public void Dispose() => _time.Dispose();
 
@@ -262,7 +262,7 @@ public sealed class FlowRunnerTests : IDisposable
     [Fact]
     public async Task UnknownStepTypeFailsItsStep()
     {
-        var result = await new FlowRunner([], Library.Empty, _time).RunAsync(Flow(Step("a", "onFailure: ignore")), TestContext.Current.CancellationToken);
+        var result = await new FlowRunner([], _time).RunAsync(Flow(Step("a", "onFailure: ignore")), Library.Empty, TestContext.Current.CancellationToken);
 
         Assert.Contains("can't run \"notify\"", Node(result, "a").Error, StringComparison.Ordinal);
     }

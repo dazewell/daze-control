@@ -2,10 +2,10 @@
 
 ## Resume
 Current task: M2 review — PR #3 (branch feat/m2-runtime), then T3.1
-Last green checkpoint: 1f8d12a "docs(plan): note PR #3 hand-over in the Resume block"
-Next action: PR #3: Copilot review 1 (13 comments) is addressed; wait for CI, request review 2 (the last in the budget), handle it per repo-workflow section 6, squash-merge, sync main; then T3.1 on feat/m3-engine-shell: Engine/Program single-instance mutex, Log, global handlers; compose ConfigHost + FlowRunner (ResourceLocks, RunHistory at %LOCALAPPDATA%\DazeControl\history.jsonl) + FlowLauncher; hotkeys from ConfigHost.Current.RunnableFlows, re-registered on Changed (marshal to the message thread)
-Tree state: builds, 243/243 tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: PR #3 had 1 of 2 Copilot reviews; handle the rest per repo-workflow §6, then T3.1. M2 (T2.1-T2.6) is complete on feat/m2-runtime. Version 0.3.0. No providers exist yet: T3.x wires with an empty provider list until M4.
+Last green checkpoint: ded87a4 "fix(runtime): bound blocking providers and keep retained flows consistent"
+Next action: PR #3: both Copilot reviews are addressed (budget used); once CI is green, squash-merge and sync main; then T3.1 on feat/m3-engine-shell: Engine/Program single-instance mutex, Log, global handlers; compose ConfigHost + one FlowRunner (ResourceLocks, RunHistory at %LOCALAPPDATA%\DazeControl\history.jsonl) + FlowLauncher; trigger with FlowState.Running + FlowState.Library; hotkeys from ConfigHost.Current.RunnableFlows, re-registered on Changed (marshal to the message thread)
+Tree state: builds, 248/248 tests green, AOT publish clean · Uncommitted: none
+Notes for next agent: PR #3 used its 2 Copilot reviews; merge after green CI, then T3.1. M2 (T2.1-T2.6) is complete on feat/m2-runtime. Version 0.3.0. No providers exist yet: T3.x wires with an empty provider list until M4.
 
 ---
 
