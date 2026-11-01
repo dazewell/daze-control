@@ -270,4 +270,24 @@ public class ConfigYamlTests
 
         Assert.True(load.Config is not null || load.Problems.Count > 0);
     }
+
+    [Theory]
+    [InlineData("not base64!")]
+    [InlineData("AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
+    [InlineData("AAAAAA==")]
+    public void DamagedDisplayLayoutIsDroppedWithAProblem(string ccd)
+    {
+        var load = ConfigYaml.Load($"library: {{ displays: {{ desk: {{ monitors: [m], ccd: '{ccd}' }} }} }}");
+
+        Assert.Empty(load.Config!.Library.Displays);
+        Assert.Equal("library.displays.desk", Assert.Single(load.Problems).Path);
+    }
+
+    [Fact]
+    public void WellFormedLayoutNeedsOneMonitorPerPath()
+    {
+        Assert.True(new DisplayLayout("d", ["m"], "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=").IsWellFormed());
+        Assert.False(new DisplayLayout("d", ["m", "n"], "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=").IsWellFormed());
+        Assert.False(new DisplayLayout("d", [" "], "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=").IsWellFormed());
+    }
 }

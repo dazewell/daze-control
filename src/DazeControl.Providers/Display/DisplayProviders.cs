@@ -20,15 +20,17 @@ public interface IDisplays
     IReadOnlyList<DisplayOutput> Outputs();
 
     /// <summary>The Win+P presets: Windows keeps each preset's layout in its own database.</summary>
-    void SetTopology(DisplayTopology topology);
+    /// <remarks>The writes check <paramref name="cancellationToken"/> last thing before SetDisplayConfig: a stopped or
+    /// timed-out step must not change the screens after the runner released the display lock.</remarks>
+    void SetTopology(DisplayTopology topology, CancellationToken cancellationToken);
 
     /// <summary>Turns on exactly these outputs (by port or monitor name), the rest off; returns the names it didn't find.</summary>
-    IReadOnlyList<string> UseOnly(IReadOnlyList<string> outputs);
+    IReadOnlyList<string> UseOnly(IReadOnlyList<string> outputs, CancellationToken cancellationToken);
 
     /// <summary>The screens as they are now, for <c>display.layout</c>.</summary>
     DisplayLayout CaptureLayout(string key);
 
-    void ApplyLayout(DisplayLayout layout);
+    void ApplyLayout(DisplayLayout layout, CancellationToken cancellationToken);
 }
 
 /// <summary><c>display.topology</c>: PC screen only / duplicate / extend / second screen only.</summary>
@@ -46,7 +48,7 @@ public sealed class DisplayTopologyProvider(IDisplays displays) : IStepProvider
             "external" => DisplayTopology.External,
             var other => throw new StepFailedException($"\"{other}\" isn't a display mode."),
         };
-        displays.SetTopology(topology);
+        displays.SetTopology(topology, cancellationToken);
         return Task.CompletedTask;
     }
 }
@@ -61,7 +63,7 @@ public sealed class DisplayOutputsProvider(IDisplays displays) : IStepProvider
         var wanted = context.TextList("outputs");
         if (wanted.Count == 0)
             throw new StepFailedException("List at least one screen.");
-        var missing = displays.UseOnly(wanted);
+        var missing = displays.UseOnly(wanted, cancellationToken);
         return missing.Count == 0
             ? Task.CompletedTask
             : Task.FromException(new StepFailedException($"Not found: {string.Join(", ", missing)}. Connected: {Known(displays)}."));
@@ -81,7 +83,7 @@ public sealed class DisplayLayoutProvider(IDisplays displays) : IStepProvider
         var key = context.RequiredText("layout");
         var layout = context.Library.Displays.FirstOrDefault(d => d.Key == key)
             ?? throw new StepFailedException($"No screen layout called \"{key}\" in the library.");
-        displays.ApplyLayout(layout);
+        displays.ApplyLayout(layout, cancellationToken);
         return Task.CompletedTask;
     }
 }

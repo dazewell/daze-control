@@ -253,6 +253,9 @@ public sealed class EngineControllerTests : IDisposable
         Assert.Equal("There's no flow called \"nope\".", (await Send(Ops.History, "nope")).Error);
     }
 
+    /// <summary>A well-formed capture of two screens: [2][0], then two zeroed paths.</summary>
+    private const string TwoScreens = "AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
     private sealed class FakeDevices : IDeviceQueries
     {
         public IReadOnlyList<string> Kinds { get; } = ["audio", "displays"];
@@ -262,7 +265,7 @@ public sealed class EngineControllerTests : IDisposable
             : throw new StepFailedException("Can't read the screens.");
 
         public Task<DisplayLayout> CaptureDisplayLayoutAsync(string key, CancellationToken cancellationToken) =>
-            Task.FromResult(new DisplayLayout(key, [@"\?\DISPLAY#DEL1#1", "TV"], "AAAA"));
+            Task.FromResult(new DisplayLayout(key, [@"\?\DISPLAY#DEL1#1", "TV"], TwoScreens));
     }
 
     private EngineController WithDevices() => new(ReadConfig, _launcher, _history, EngineController.CreateDryRunner(_time),
@@ -298,7 +301,7 @@ public sealed class EngineControllerTests : IDisposable
         var load = ConfigYaml.Load(answer.Yaml!);
         Assert.Empty(load.Problems);
         var layout = Assert.Single(load.Config!.Library.Displays);
-        Assert.Equal(new DisplayLayout("desk", [@"\?\DISPLAY#DEL1#1", "TV"], "AAAA"), layout);
+        Assert.Equal(new DisplayLayout("desk", [@"\?\DISPLAY#DEL1#1", "TV"], TwoScreens), layout);
     }
 
     [Fact]

@@ -21,7 +21,7 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
     public IReadOnlyList<DisplayOutput> Outputs() =>
         [.. ByPort(QueryAllPaths()).Select(p => p.Output).OrderBy(o => o.Port, StringComparer.OrdinalIgnoreCase)];
 
-    public void SetTopology(DisplayTopology topology)
+    public void SetTopology(DisplayTopology topology, CancellationToken cancellationToken)
     {
         var flag = topology switch
         {
@@ -30,10 +30,11 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
             DisplayTopology.Extend => SET_DISPLAY_CONFIG_FLAGS.SDC_TOPOLOGY_EXTEND,
             _ => SET_DISPLAY_CONFIG_FLAGS.SDC_TOPOLOGY_EXTERNAL,
         };
+        cancellationToken.ThrowIfCancellationRequested();
         Check(PInvoke.SetDisplayConfig(0, null, 0, null, flag | Apply), "switch the display mode");
     }
 
-    public IReadOnlyList<string> UseOnly(IReadOnlyList<string> outputs)
+    public IReadOnlyList<string> UseOnly(IReadOnlyList<string> outputs, CancellationToken cancellationToken)
     {
         var ports = ByPort(QueryAllPaths());
         var missing = new List<string>();
@@ -60,6 +61,7 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
             return missing; // change nothing when the list can't be honoured in full
 
         var paths = chosen.ToArray();
+        cancellationToken.ThrowIfCancellationRequested();
         fixed (DISPLAYCONFIG_PATH_INFO* first = paths)
         {
             Check(PInvoke.SetDisplayConfig((uint)paths.Length, first, 0, null,
@@ -71,7 +73,7 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
 
     public DisplayLayout CaptureLayout(string key) => CcdLayout.Capture(key);
 
-    public void ApplyLayout(DisplayLayout layout) => CcdLayout.Apply(layout, validateOnly);
+    public void ApplyLayout(DisplayLayout layout, CancellationToken cancellationToken) => CcdLayout.Apply(layout, validateOnly, cancellationToken);
 
     private static void Check(int error, string what)
     {
@@ -79,22 +81,35 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
             throw new StepFailedException($"Windows couldn't {what} (error {error}); the graphics driver may not support that combination.");
     }
 
-    /// <summary>One path per port: the active one, else an available one (as scd chose).</summary>
+    /// <summary>
+    /// One path per port of each adapter: the active one, else an available one (as scd chose). Connector numbers
+    /// count per adapter, so a label two adapters share gets "@2", "@3" on the later adapters ("HDMI-1@2").
+    /// </summary>
     private static List<(DisplayOutput Output, DISPLAYCONFIG_PATH_INFO Path)> ByPort(DISPLAYCONFIG_PATH_INFO[] paths)
     {
         var result = new List<(DisplayOutput Output, DISPLAYCONFIG_PATH_INFO Path)>();
         foreach (var path in paths)
         {
             var output = Describe(path);
-            var index = result.FindIndex(r => r.Output.Port.Equals(output.Port, StringComparison.OrdinalIgnoreCase));
+            var index = result.FindIndex(r => r.Output.Port.Equals(output.Port, StringComparison.OrdinalIgnoreCase)
+                && r.Path.targetInfo.adapterId.Equals(path.targetInfo.adapterId));
             if (index < 0)
                 result.Add((output, path));
             else if ((output.Active && !result[index].Output.Active)
                 || (output.Available && !result[index].Output.Available && !result[index].Output.Active))
                 result[index] = (output, path);
         }
-        return result;
+        var adapters = result.Select(r => r.Path.targetInfo.adapterId).Distinct().ToList();
+        return [.. result.Select(r => (r.Output with
+        {
+            Port = Disambiguate(r.Output.Port, adapters.IndexOf(r.Path.targetInfo.adapterId),
+                result.Where(o => o.Output.Port.Equals(r.Output.Port, StringComparison.OrdinalIgnoreCase))
+                    .Select(o => adapters.IndexOf(o.Path.targetInfo.adapterId)).Min()),
+        }, r.Path))];
     }
+
+    internal static string Disambiguate(string port, int adapter, int firstAdapterWithThatPort) =>
+        adapter == firstAdapterWithThatPort ? port : $"{port}@{adapter + 1}";
 
     private static DISPLAYCONFIG_PATH_INFO[] QueryAllPaths()
     {

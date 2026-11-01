@@ -24,7 +24,28 @@ public sealed record BluetoothDevice(string Key, string Address, string? Name = 
 /// A captured screen layout (D-019): <paramref name="Monitors"/> are the monitors' device paths, in the order of the
 /// paths inside <paramref name="Data"/> (raw CCD paths + modes, base64). Only the engine reads <paramref name="Data"/>.
 /// </summary>
-public sealed record DisplayLayout(string Key, ValueList<string> Monitors, string Data);
+public sealed record DisplayLayout(string Key, ValueList<string> Monitors, string Data)
+{
+    /// <summary>sizeof(DISPLAYCONFIG_PATH_INFO) and sizeof(DISPLAYCONFIG_MODE_INFO) on x64 (a Providers test pins them).</summary>
+    public const int PathSize = 72, ModeSize = 64;
+
+    /// <summary>
+    /// <paramref name="Data"/> is base64 of [path count][mode count] (int32 each), then the paths, then the modes, and
+    /// there is one non-empty monitor per path. Base64 alone isn't enough: a truncated capture still decodes.
+    /// </summary>
+    public bool IsWellFormed()
+    {
+        if (Monitors.Count == 0 || Monitors.Any(string.IsNullOrWhiteSpace))
+            return false;
+        var bytes = new byte[Data.Length];
+        if (!Convert.TryFromBase64String(Data, bytes, out var length) || length < sizeof(int) * 2)
+            return false;
+        var paths = BitConverter.ToInt32(bytes, 0);
+        var modes = BitConverter.ToInt32(bytes, sizeof(int));
+        return paths == Monitors.Count && modes >= 0 && modes <= 4 * paths
+            && length == sizeof(int) * 2 + (long)paths * PathSize + (long)modes * ModeSize;
+    }
+}
 
 /// <summary>More kinds (Fire TV, programs, credentials) arrive with their providers in M4.</summary>
 public sealed record Library

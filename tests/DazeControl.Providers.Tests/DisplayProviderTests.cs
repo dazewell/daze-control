@@ -6,6 +6,9 @@ namespace DazeControl.Providers.Tests;
 
 public class DisplayProviderTests
 {
+    /// <summary>A well-formed capture of one screen: [1][0], then one zeroed path.</summary>
+    private const string OneScreen = "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
     private sealed class FakeDisplays : IDisplays
     {
         public List<string> Calls { get; } = [];
@@ -13,17 +16,17 @@ public class DisplayProviderTests
         public IReadOnlyList<DisplayOutput> Outputs() =>
             [new("HDMI-1", "LG TV", true, false), new("DP-3", "DELL S2722QC", true, true), new("eDP-0", "", true, true)];
 
-        public void SetTopology(DisplayTopology topology) => Calls.Add($"topology {topology}");
+        public void SetTopology(DisplayTopology topology, CancellationToken cancellationToken) => Calls.Add($"topology {topology}");
 
-        public IReadOnlyList<string> UseOnly(IReadOnlyList<string> outputs)
+        public IReadOnlyList<string> UseOnly(IReadOnlyList<string> outputs, CancellationToken cancellationToken)
         {
             Calls.Add($"only {string.Join("+", outputs)}");
             return [.. outputs.Where(o => o == "VGA-9")];
         }
 
-        public DisplayLayout CaptureLayout(string key) => new(key, ["mon"], "AAAA");
+        public DisplayLayout CaptureLayout(string key) => new(key, ["mon"], OneScreen);
 
-        public void ApplyLayout(DisplayLayout layout) => Calls.Add($"layout {layout.Key}");
+        public void ApplyLayout(DisplayLayout layout, CancellationToken cancellationToken) => Calls.Add($"layout {layout.Key}");
     }
 
     [Theory]
@@ -58,7 +61,7 @@ public class DisplayProviderTests
     public void RealOutputsAreListedReadOnly()
     {
         var outputs = new CcdDisplays(validateOnly: true).Outputs();
-        Assert.All(outputs, o => Assert.Matches("^[A-Za-z]+-\\d+$", o.Port));
+        Assert.All(outputs, o => Assert.Matches("^[A-Za-z]+-\\d+(@\\d+)?$", o.Port));
         if (Environment.GetEnvironmentVariable("DAZE_DEV_PC") == "1")
             Assert.Contains(outputs, o => o.Active);
     }
@@ -71,9 +74,9 @@ public class DisplayProviderTests
         var active = displays.Outputs().Where(o => o.Active).Select(o => o.Port).ToList();
         if (active.Count == 0)
             return; // headless CI runner
-        Assert.Empty(displays.UseOnly(active));
+        Assert.Empty(displays.UseOnly(active, TestContext.Current.CancellationToken));
         if (active.Count >= 2)
-            displays.SetTopology(DisplayTopology.Extend);
+            displays.SetTopology(DisplayTopology.Extend, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -82,7 +85,7 @@ public class DisplayProviderTests
         var displays = new FakeDisplays();
         var context = Steps.Context("display.layout", ("layout", "desk")) with
         {
-            Library = new Library { Displays = [new DisplayLayout("desk", ["mon"], "AAAA")] },
+            Library = new Library { Displays = [new DisplayLayout("desk", ["mon"], OneScreen)] },
         };
         await new DisplayLayoutProvider(displays).ExecuteAsync(context, TestContext.Current.CancellationToken);
         Assert.Equal(["layout desk"], displays.Calls);
@@ -92,7 +95,7 @@ public class DisplayProviderTests
     public void DamagedLayoutFailsPlainly()
     {
         var failure = Assert.Throws<StepFailedException>(
-            () => new CcdDisplays(validateOnly: true).ApplyLayout(new DisplayLayout("desk", ["mon"], "not base64!")));
+            () => new CcdDisplays(validateOnly: true).ApplyLayout(new DisplayLayout("desk", ["mon"], "not base64!"), TestContext.Current.CancellationToken));
         Assert.Equal("The layout \"desk\" is damaged; capture it again.", failure.Message);
     }
 
@@ -105,6 +108,34 @@ public class DisplayProviderTests
             return; // headless CI runner
         var layout = displays.CaptureLayout("now");
         Assert.All(layout.Monitors, m => Assert.Contains("DISPLAY#", m, StringComparison.OrdinalIgnoreCase));
-        displays.ApplyLayout(layout);
+        displays.ApplyLayout(layout, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public void CancelledStepWritesNothing()
+    {
+        // The token is checked right before SetDisplayConfig: a stopped step must not switch the screens later.
+        var displays = new CcdDisplays(validateOnly: true);
+        var active = displays.Outputs().Where(o => o.Active).Select(o => o.Port).ToList();
+        if (active.Count == 0)
+            return; // headless CI runner
+        Assert.Throws<OperationCanceledException>(() => displays.UseOnly(active, new CancellationToken(canceled: true)));
+        Assert.Throws<OperationCanceledException>(() => displays.SetTopology(DisplayTopology.Extend, new CancellationToken(canceled: true)));
+        Assert.Throws<OperationCanceledException>(
+            () => displays.ApplyLayout(displays.CaptureLayout("now"), new CancellationToken(canceled: true)));
+    }
+
+    [Theory]
+    [InlineData("HDMI-1", 0, 0, "HDMI-1")]
+    [InlineData("HDMI-1", 1, 0, "HDMI-1@2")]
+    [InlineData("DP-3", 1, 1, "DP-3")]
+    public void SharedPortLabelsAreTellApartByAdapter(string port, int adapter, int first, string expected) =>
+        Assert.Equal(expected, CcdDisplays.Disambiguate(port, adapter, first));
+
+    [Fact]
+    public void CaptureSizesMatchTheNativeStructs()
+    {
+        Assert.Equal(DisplayLayout.PathSize, System.Runtime.CompilerServices.Unsafe.SizeOf<Windows.Win32.Devices.Display.DISPLAYCONFIG_PATH_INFO>());
+        Assert.Equal(DisplayLayout.ModeSize, System.Runtime.CompilerServices.Unsafe.SizeOf<Windows.Win32.Devices.Display.DISPLAYCONFIG_MODE_INFO>());
     }
 }
