@@ -73,13 +73,14 @@ DwmExtendFrameIntoClientArea
 DWMWINDOWATTRIBUTE
 DWM_SYSTEMBACKDROP_TYPE
 DWM_WINDOW_CORNER_PREFERENCE
-D2D1CreateFactory
+D2D1_FACTORY_TYPE
+D2D1_FACTORY_OPTIONS
 ID2D1Factory
 ID2D1HwndRenderTarget
 ID2D1SolidColorBrush
 ID2D1PathGeometry
 ID2D1GeometrySink
-DWriteCreateFactory
+DWRITE_FACTORY_TYPE
 IDWriteFactory
 IDWriteTextFormat
 IDWriteTextLayout

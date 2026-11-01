@@ -104,7 +104,7 @@ Status: accepted
 - Revisit if: a non-.NET client needs a schema (then publish one).
 
 ## D-012 · 2026-10-31 · Run pop-up drawn natively in the engine
-Status: accepted (pending spike T5.1)
+Status: accepted (T5.1 spike passed 2026-11-01 on 26300: real acrylic, no fallback needed; how → D-034)
 - Decision: Win32 window + DWM system backdrop + Direct2D/DirectWrite, no-activate, in the AOT engine.
 - Why: keeps WinUI out of the resident process; looks like the OSD.
 - Why not WinUI in the engine: memory (D-001). Why not toasts: they go to the notification centre and
@@ -319,3 +319,27 @@ Status: accepted
   Why not NotifyServiceStatusChange: needs an alertable thread; a run lasts seconds, idle stays at zero.
 - Revisit if: the user needs a service only an admin can control (Sunshine) — then an opt-in scheduled task.
 
+## D-034 · 2026-11-01 · Pop-up: transient-window backdrop on a layered WS_POPUP, D2D HWND target
+Status: accepted
+- Decision: `Engine/Shell/RunPopup`: `WS_POPUP` + `WS_EX_NOACTIVATE|TOOLWINDOW|TOPMOST|LAYERED` (+`TRANSPARENT`
+  unless the run failed); `DwmExtendFrameIntoClientArea(-1)`, `DWMWA_SYSTEMBACKDROP_TYPE = DWMSBT_TRANSIENTWINDOW`,
+  `DWMWCP_ROUND`, `DWMWA_USE_IMMERSIVE_DARK_MODE` re-applied per show; **software** `ID2D1HwndRenderTarget` (BGRA
+  premultiplied, cleared to transparent, grayscale text AA); layered alpha is the 200/150 ms fade. CsWin32 COM
+  structs, AOT-clean. On hide: layouts, target, factories released and d2d1/DWrite (loaded by `NativeLibrary`, not
+  P/Invoke) freed; the window stays.
+- Why: verified over a striped window in light and dark: blurred acrylic, DWM shadow and border, click-through
+  on success, a click on a failure fires without changing the foreground window.
+- Footprint (T5.2, after 3 runs, 30 s settle): hardware target +13.5 MB private, WS 44.9 MB, 16 ms idle CPU (GPU
+  driver stays loaded); software target +3.8; plus unloading d2d1/DWrite +3.1 (WS 24.4, 0 ms) vs +0.7 for the
+  same flow with `popup: false`. `HeapCompact` after hide: no change.
+- Why not the D-012 fallback (solid layered window): not needed. Why not `UpdateLayeredWindow` + own blur: no
+  system acrylic. Why not DirectComposition: more code for the same result.
+- Revisit if: a Windows build stops drawing the backdrop on layered windows (then drop `WS_EX_LAYERED`, lose
+  click-through and fade), or the footprint after a pop-up breaks the budget.
+
+## D-035 · 2026-11-01 · Long outcomes go to row 3, not the 44-DIP status column
+Status: accepted
+- Decision: the status column holds only "2 of 3" and "Done"; "Done, with a problem", "Didn't finish" and
+  "Stopped" become row 3's first line in the tone colour (semibold), above the reason (UX §5.6 updated).
+- Why: in the column they squeezed the flow name to "Audio to headpho…" (screenshot, T5.2).
+- Revisit if: the editor's run view (M9) settles on another pattern; keep the two alike.

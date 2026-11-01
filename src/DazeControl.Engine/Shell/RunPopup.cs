@@ -39,6 +39,7 @@ internal sealed unsafe class RunPopup : IDisposable
     private HWND _hwnd;
     private ID2D1Factory* _d2d;
     private IDWriteFactory* _dwrite;
+    private nint _d2dModule, _dwriteModule;
     private ID2D1HwndRenderTarget* _target;
     private ID2D1SolidColorBrush* _brush;
     private Layouts _layouts;
@@ -271,7 +272,7 @@ internal sealed unsafe class RunPopup : IDisposable
         PInvoke.ShowWindow(_hwnd, SHOW_WINDOW_CMD.SW_HIDE);
         _visible = false;
         _view = null;
-        // Back to the idle footprint: the D3D device behind the render target is most of the pop-up's memory.
+        // Back to the idle footprint: no factory, target or layout outlives a showing.
         ReleaseGraphics();
     }
 
@@ -284,19 +285,32 @@ internal sealed unsafe class RunPopup : IDisposable
         public float Row1, StatusWidth, HeadlineHeight, DetailHeight, HintHeight, Height;
     }
 
+    /// <summary>
+    /// d2d1 and DWrite are loaded here, not through P/Invoke, so they can be unloaded on hide: P/Invoke keeps a
+    /// library for good, and with it d3d11/dxgi (+3.8 MB private after the first pop-up, measured T5.2).
+    /// </summary>
     private void EnsureFactories()
     {
         if (_d2d is null)
         {
+            _d2dModule = NativeLibrary.Load("d2d1.dll");
+            var create = (delegate* unmanaged[Stdcall]<D2D1_FACTORY_TYPE, Guid*, D2D1_FACTORY_OPTIONS*, void**, HRESULT>)
+                NativeLibrary.GetExport(_d2dModule, "D2D1CreateFactory");
             void* factory;
             var iid = ID2D1Factory.IID_Guid;
-            PInvoke.D2D1CreateFactory(D2D1_FACTORY_TYPE.D2D1_FACTORY_TYPE_SINGLE_THREADED, &iid, null, &factory).ThrowOnFailure();
+            create(D2D1_FACTORY_TYPE.D2D1_FACTORY_TYPE_SINGLE_THREADED, &iid, null, &factory).ThrowOnFailure();
             _d2d = (ID2D1Factory*)factory;
         }
         if (_dwrite is null)
         {
-            PInvoke.DWriteCreateFactory(DWRITE_FACTORY_TYPE.DWRITE_FACTORY_TYPE_SHARED, out IDWriteFactory* factory).ThrowOnFailure();
-            _dwrite = factory;
+            _dwriteModule = NativeLibrary.Load("DWrite.dll");
+            var create = (delegate* unmanaged[Stdcall]<DWRITE_FACTORY_TYPE, Guid*, void**, HRESULT>)
+                NativeLibrary.GetExport(_dwriteModule, "DWriteCreateFactory");
+            void* factory;
+            var iid = IDWriteFactory.IID_Guid;
+            // Isolated: a shared factory registers with the font cache service and keeps DWrite busy after release.
+            create(DWRITE_FACTORY_TYPE.DWRITE_FACTORY_TYPE_ISOLATED, &iid, &factory).ThrowOnFailure();
+            _dwrite = (IDWriteFactory*)factory;
         }
     }
 
@@ -544,7 +558,9 @@ internal sealed unsafe class RunPopup : IDisposable
         EnsureFactories();
         var properties = new D2D1_RENDER_TARGET_PROPERTIES
         {
-            type = D2D1_RENDER_TARGET_TYPE.D2D1_RENDER_TARGET_TYPE_DEFAULT,
+            // Software: a hardware target loads the GPU driver, whose DLLs, heaps and threads stay after release
+            // (+13.5 MB private and idle wake-ups, measured T5.2). A 340×104 pop-up needs no GPU.
+            type = D2D1_RENDER_TARGET_TYPE.D2D1_RENDER_TARGET_TYPE_SOFTWARE,
             pixelFormat = new D2D1_PIXEL_FORMAT { format = DXGI_FORMAT.DXGI_FORMAT_B8G8R8A8_UNORM, alphaMode = D2D1_ALPHA_MODE.D2D1_ALPHA_MODE_PREMULTIPLIED },
         };
         var hwndProperties = new D2D1_HWND_RENDER_TARGET_PROPERTIES
@@ -587,6 +603,16 @@ internal sealed unsafe class RunPopup : IDisposable
         ReleaseTarget();
         Release(ref _d2d);
         Release(ref _dwrite);
+        Unload(ref _d2dModule);
+        Unload(ref _dwriteModule);
+    }
+
+    private static void Unload(ref nint module)
+    {
+        if (module == 0)
+            return;
+        NativeLibrary.Free(module);
+        module = 0;
     }
 
     private static void Release<T>(ref T* pointer) where T : unmanaged

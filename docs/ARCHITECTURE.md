@@ -76,6 +76,10 @@ Engine shell (M3): one hidden top-level window `DazeControl.Tray` (`Engine/Shell
 main STA thread; `TrayIcon` and `GlobalHotkey` add message handlers to it; static `[UnmanagedCallersOnly]`
 WndProc (D-022). Other threads reach it only through `MessageWindow.Post(Action)` (queue + `WM_APP+100`):
 config reloads and RunStarted/RunFinished are posted there; the tray and `HotkeyTable` are touched nowhere else.
+Run pop-up (M5): node and run events are posted to the message thread in order and fed to the pure
+`Runtime/Popup/RunPopupModel` (wording, tone, duration; the run that changed last wins), which `Shell/RunPopup`
+draws (D-034). Its window class `DazeControl.Popup` is made on the first run; D2D/DirectWrite exist only while it
+shows. Selecting a failure opens the editor (the run page comes with M9).
 
 engine: one STA message thread (tray, hotkeys, pop-up); FlowRunner on the thread pool;
 each COM provider owns one lazy MTA worker (OSD pattern); pipe server async on the pool. Editor: UI thread +
@@ -223,6 +227,13 @@ Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 i
 
 | 2026-11-01 | 1fbc856 (M3 engine shell, Release AOT) | user-config, tray + pipe + ConfigHost watcher, 5 threads, exe 6.2 MB | 4.6 | 19.4 | 0 (600 s) |
 | 2026-11-01 | 1fbc856 (same) | after 5 `dctl run connect-technics --wait` (steps fail at once: no providers yet) | 5.1 (+0.5) | 20.2 | 0 (600 s) |
+
+| 2026-11-01 | M5 run pop-up (Release AOT, exe 9.2 MB) | spike-config idle, pop-up never shown, 3 threads | 4.9 | 20.4 | 0 (120 s) |
+| 2026-11-01 | same | after 3 runs of a 3-step flow with `popup: false` | 5.9 (+0.7) | 21.8 | 0 (60 s) |
+| 2026-11-01 | same | after 10 runs with the pop-up (software D2D, d2d1/DWrite unloaded on hide, D-034) | 8.8 (+3.5) | 24.9 | 0 (60 s) |
+
+M5: absolute budget holds; the pop-up's first showing costs ~+2.5 MB private once (flat from 3 to 10 runs), over
+the "+2 MB after a run" line → asked the user (PR for M5).
 
 T0.5 gate passed: no AOT/trim warnings; hotkey press and tray icon checked on the desktop. T3.7 gate passed
 (rows above). The post-run delta covers runner, history and pipe only; re-measure with real providers (M4, M10).
