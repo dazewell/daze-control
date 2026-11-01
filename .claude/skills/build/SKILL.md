@@ -52,7 +52,9 @@ stop and ask the user (CLAUDE.md).
 
 ## Seeing what the engine did
 
-Log: `%LOCALAPPDATA%\DazeControl\logs\` (from T3.1). Read it from PowerShell: the agent's Bash tool may run
+Log: `%LOCALAPPDATA%\DazeControl\logs\engine.log` (daily `engine-yyyy-MM-dd.log` archives). Ask the running
+engine with `artifacts\cli\dctl.exe status | list | history | run <flow> --wait | run <flow> --dry-run`
+(publish `src/DazeControl.Cli` first). `scripts/measure.ps1 -RunFlow <id>` also samples after runs. Read it from PowerShell: the agent's Bash tool may run
 sandboxed with a stale copy of `%LOCALAPPDATA%` (seen in the OSD repo, 2026-10-22).
 
 Tray (from the OSD build skill, same Shell_NotifyIcon code): the icon window is class `DazeControl.Tray`

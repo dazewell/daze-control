@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M3 engine shell (branch feat/m3-engine-shell, no PR yet) — T3.6 dctl next
-Last green checkpoint: 3bfbc6f "wip(engine): tray menu from flows, drawn icon variants, pause shortcuts"
-Next action: T3.6: src/DazeControl.Cli/Program.cs — commands run/list/validate [file]/status/history/cancel/autostart/devices over PipeClient (Protocol.CurrentPipeName); `validate <file>` and `list` without an engine work offline from the YAML; exit codes 0 ok, 1 failed, 2 usage, 3 no engine
-Tree state: builds, 324/324 tests green · Uncommitted: none
-Notes for next agent: pipe ops live in Runtime/Control/EngineController (Runtime now references Ipc); PipeServer/PipeClient in Ipc. Pipe not yet tried against the published engine (do it with dctl in T3.6).
+Current task: M3 engine shell (branch feat/m3-engine-shell, no PR yet) — T3.7 footprint gate
+Last green checkpoint: 3dcbfce "wip(engine): pipe server, protocol and engine controller; autostart"
+Next action: T3.7: `pwsh scripts/measure.ps1 -NoPublish -Config samples/user-config.yaml -IdleSeconds 600 -RunFlow connect-technics` (publish engine + dctl first); paste both rows into ARCHITECTURE → Footprint; then open the M3 PR
+Tree state: builds, 324/324 tests green, AOT publish clean (engine 6.5 MB, dctl 5.7 MB) · Uncommitted: none
+Notes for next agent: dctl checked end to end against the published engine 2026-11-01 (all commands, hot reload, offline list/validate). Version bumped to 0.4.0 in this branch.
 
 ---
 
@@ -49,7 +49,7 @@ Notes for next agent: pipe ops live in Runtime/Control/EngineController (Runtime
 - [x] T3.3 GlobalHotkey from flows (per-chord failure non-fatal) (feat/m3-engine-shell).
 - [x] T3.4 Autostart (feat/m3-engine-shell).
 - [x] T3.5 PipeServer + protocol (feat/m3-engine-shell).
-- [ ] T3.6 `dctl` CLI.
+- [x] T3.6 `dctl` CLI (feat/m3-engine-shell).
 - [ ] T3.7 Footprint gate.
 
 ## M4 Providers (each CLI-testable via `dctl run`/`devices`; hardware steps verified on the dev PC)

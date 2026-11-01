@@ -70,9 +70,10 @@ KS one-shot Bluetooth reconnect (D-023, X-005), `Core/Windowing/OverlayWindow.cs
 
 ## Threading
 
-Engine shell today (T0.5): one hidden top-level window `DazeControl.Tray` (`Engine/Shell/MessageWindow`) on the
+Engine shell (M3): one hidden top-level window `DazeControl.Tray` (`Engine/Shell/MessageWindow`) on the
 main STA thread; `TrayIcon` and `GlobalHotkey` add message handlers to it; static `[UnmanagedCallersOnly]`
-WndProc (D-022).
+WndProc (D-022). Other threads reach it only through `MessageWindow.Post(Action)` (queue + `WM_APP+100`):
+config reloads and RunStarted/RunFinished are posted there; the tray and `HotkeyTable` are touched nowhere else.
 
 engine: one STA message thread (tray, hotkeys, pop-up); FlowRunner on the thread pool;
 each COM provider owns one lazy MTA worker (OSD pattern); pipe server async on the pool. Editor: UI thread +
@@ -149,12 +150,35 @@ empty; a watcher that can't start leaves loading on (warning). It reloads 300 ms
 (`RunnableFlows` = valid and enabled) in reload order; a throwing handler goes to `ListenerFailed`.
 Tests: `FakeProvider` + thread-safe `ManualTime` with `WaitForTimerAsync` (Runtime.Tests).
 
+## Engine shell
+
+`Engine/Program`: rolling log (`engine.log`, `Runtime/Diagnostics/LogRotation`, 7 days), handlers for unhandled
+and unobserved exceptions (log only), `Lifecycle/SingleInstance` (mutex `Local\DazeControl.Engine`; a second
+engine logs and exits 0), then `EngineHost`, the hand-written composition root: ConfigHost
+(`%APPDATA%\DazeControl\config.yaml`, or argv[0]) · RunHistory (`%LOCALAPPDATA%\DazeControl\history.jsonl`) ·
+one FlowRunner + ResourceLocks + FlowLauncher · `Runtime/Control/EngineController` (D-026) · PipeServer · tray ·
+hotkeys. Exit (tray or WM_CLOSE): unregister hotkeys, cancel all runs, close the pipe, ≤ 5 s grace.
+- `Runtime/Triggers/HotkeyTable`: chord → flow from `RunnableFlows`, applied as a diff on each reload (unchanged
+  chords stay registered), first flow wins a chord, a chord that fails (another app) fails alone and is retried
+  on the next reload; Pause unregisters all (not persisted). Failures → `status` ("Alt+Z: Another app uses…").
+- `Runtime/Tray/TrayMenu`: the menu as data (UX §5.6), rendered by `Engine/Shell/TrayIcon` each time it opens
+  (left or right click), dark/light like the taskbar (uxtheme #135/#136). Icon drawn in code by
+  `Shell/TrayGlyph` (idle / busy / paused, D-027); tooltip = running flows, else paused, else the last run's
+  problem. Not yet: per-flow glyph bitmaps in the menu (need M5's glyph-font rendering).
+- `Runtime/Lifecycle/Autostart`: HKCU Run value `DazeControl` → engine exe (OSD port), set through the pipe op.
+
 ## IPC
 
-`\\.\pipe\DazeControl-<user SID>`, `PipeOptions.CurrentUserOnly`, newline-delimited JSON
-(source-gen), `protocol: 1`; request/response by id plus an event stream (run events, config reloaded,
-engine status). Ops: `run`, `cancel`, `test-step`, `validate`, `devices`, `capture-display-layout`,
-`history`, `status`, `subscribe`.
+`\\.\pipe\DazeControl-<user SID>`, `PipeOptions.CurrentUserOnly`, newline-delimited JSON (source-gen
+`Ipc/IpcJson`, camelCase, string enums, nulls omitted), `protocol: 1`. `Ipc/PipeServer`: any number of clients;
+requests on one connection run concurrently, answers carry the request id; after `subscribe` the connection also
+gets events (`PipeMessage.Event`, id 0: runStarted, nodeStarted, nodeFinished, runFinished, configReloaded). A
+client that goes away cancels its waiting requests. `Ipc/PipeClient`: one request at a time.
+Ops (EngineController): `run` (flow id or name; `wait` → the RunRecord; `dryRun` → a runner whose steps do
+nothing, no history), `cancel`, `list`, `status`, `validate`, `history` (flow, limit), `autostart` (enable
+true/false/absent); `devices`, `test-step`, `capture-display-layout` answer "can't do that yet" until M4.
+`dctl` (`src/DazeControl.Cli`): run/cancel/list/validate/status/history/autostart/devices; `validate <file>`
+and, with no engine, `list`/`validate` read the YAML themselves. Exit codes 0 ok, 1 failed, 2 usage, 3 no engine.
 
 ## Adding a provider
 
