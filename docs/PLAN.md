@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T2.1 — scheduler (new branch feat/m2-runtime from main once PR #2 merges)
-Last green checkpoint: da2296a "fix(core): never let config loading throw"
-Next action: Runtime/Scheduler tests first: ready set, all-inputs join, edge when, skip propagation, cards, and D-024 (an outgoing failure edge handles the failure: no stop/skip, fallback runs, success dependents skipped, flow PartiallySucceeded)
-Tree state: builds, 182/182 tests green, CI green on da2296a · Uncommitted: none
-Notes for next agent: BLOCKED: PR #2 passed both Copilot reviews + self-review + CI, but the agent's squash-merge was refused by the Claude Code auto-mode permission classifier ("Merge Without Review"). The user merges it or adds a permission rule for gh pr merge; don't work around it. Then start T2.1 from main. In the first M2 commit, add to repo-workflow SKILL.md section 6: never end a turn just to wait for CI or a Copilot review; run `gh pr checks <n> --watch` (or a polling loop for the review) in the background and act when it exits, since nothing wakes an ended turn overnight.
+Current task: M2 review — PR #3 (branch feat/m2-runtime), then T3.1
+Last green checkpoint: ded87a4 "fix(runtime): bound blocking providers and keep retained flows consistent"
+Next action: PR #3: both Copilot reviews are addressed (budget used); once CI is green, squash-merge and sync main; then T3.1 on feat/m3-engine-shell: Engine/Program single-instance mutex, Log, global handlers; compose ConfigHost + one FlowRunner (ResourceLocks, RunHistory at %LOCALAPPDATA%\DazeControl\history.jsonl) + FlowLauncher; trigger with FlowState.Running + FlowState.Library; hotkeys from ConfigHost.Current.RunnableFlows, re-registered on Changed (marshal to the message thread)
+Tree state: builds, 248/248 tests green, AOT publish clean · Uncommitted: none
+Notes for next agent: PR #3 used its 2 Copilot reviews; merge after green CI, then T3.1. M2 (T2.1-T2.6) is complete on feat/m2-runtime. Version 0.3.0. No providers exist yet: T3.x wires with an empty provider list until M4.
 
 ---
 
@@ -35,13 +35,13 @@ Notes for next agent: BLOCKED: PR #2 passed both Copilot reviews + self-review +
 - [x] T1.5 _(mechanical)_ Hand-convert the user's scd.toml into `samples/user-config.yaml` (Technics flow +
   both Bluetooth devices) — the one-time "import" (PR #2).
 
-## M2 Runtime (pure, fake providers + `ManualTime`)
-- [ ] T2.1 Scheduler: ready set, all-inputs join, edge `when`, skip propagation, cards.
-- [ ] T2.2 Failure policies, retries, timeouts, cancellation.
-- [ ] T2.3 Resource locks.
-- [ ] T2.4 `whenRunning`.
-- [ ] T2.5 Run events + history (last 100) + `history.jsonl`.
-- [ ] T2.6 ConfigHost: load, debounced reload, last valid version per flow (D-021), never-valid flows disabled.
+## M2 Runtime (pure, fake providers + `ManualTime`) ✔ (2026-11-01)
+- [x] T2.1 Scheduler: ready set, all-inputs join, edge `when`, skip propagation, cards (feat/m2-runtime).
+- [x] T2.2 Failure policies, retries, timeouts, cancellation (feat/m2-runtime).
+- [x] T2.3 Resource locks (feat/m2-runtime).
+- [x] T2.4 `whenRunning` (feat/m2-runtime).
+- [x] T2.5 Run events + history (last 100) + `history.jsonl` (feat/m2-runtime).
+- [x] T2.6 ConfigHost: load, debounced reload, last valid version per flow (D-021), never-valid flows disabled (feat/m2-runtime).
 
 ## M3 Engine shell
 - [ ] T3.1 Composition root, single instance mutex, Log, global exception handlers.

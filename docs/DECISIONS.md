@@ -216,3 +216,15 @@ Status: accepted
 - Why not "stop still stops": every fallback would also need "Keep going" set by hand, and forgetting it
   makes the fallback dead. Why not making it a validation error: still a manual step for an obvious intent.
 - Revisit if: users want a failure branch that runs and then still stops the flow.
+
+## D-025 · 2026-11-01 · Policies live in the pure Scheduler; a may-fail failure fires failure edges too
+Status: accepted
+- Decision: `Runtime/Scheduling/Scheduler` is a synchronous state machine (Start / Complete(step, result) →
+  steps to start) that applies edge `when`, joins, skip propagation, cards and the stop/skip/ignore policies
+  (with D-024). Edges fired per outcome: Succeeded → success, always; FailedIgnored → success, failure,
+  always; Failed → failure, always; Skipped → always. The async runner (T2.2) only runs steps, retries and
+  times out.
+- Why: policies decide which edges fire, so they can't sit apart from the graph; a pure core makes every F1
+  rule a fast deterministic test. A "may fail" step that fails did fail, so a repair branch on it should run.
+- Why not failure edges ignoring FailedIgnored: a "fix it" branch would silently never run on a may-fail step.
+- Revisit if: users expect "may fail" to mean "pretend it succeeded" everywhere.

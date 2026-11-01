@@ -14,6 +14,9 @@ public static partial class ConfigValidator
 {
     public const int MaxRetries = 10; // the inspector's "Try again" range (UX 5.4)
 
+    /// <summary>Longest timeout or retry delay; timers can't hold much more than 49 days.</summary>
+    public static readonly TimeSpan MaxDuration = TimeSpan.FromHours(24);
+
     /// <param name="config">The mapped configuration.</param>
     /// <param name="earlier">Problems from loading (<c>ConfigLoad.Problems</c>): flows they reject get no hotkeys.</param>
     /// <param name="catalog">Step types; the compiled-in catalog by default.</param>
@@ -161,10 +164,12 @@ public static partial class ConfigValidator
         private void CheckStep(StepNode step)
         {
             var path = NodePath(step);
-            if (step.Timeout is { } timeout && timeout <= TimeSpan.Zero)
-                Error(path + ".timeout", "Give the step more than 0 s.");
+            if (step.Timeout is { } timeout && (timeout <= TimeSpan.Zero || timeout > MaxDuration))
+                Error(path + ".timeout", "Give the step more than 0 s and at most 24h.");
             if (step.Retry is { } retry && retry.Count is < 0 or > MaxRetries)
                 Error(path + ".retry.count", $"Try again 0 to {MaxRetries} times.");
+            if (step.Retry is { } wait && (wait.Delay < TimeSpan.Zero || wait.Delay > MaxDuration))
+                Error(path + ".retry.delay", "Wait 0 s to 24h between tries.");
             var descriptor = catalog.FirstOrDefault(d => d.Id == step.Step);
             if (descriptor is null)
             {

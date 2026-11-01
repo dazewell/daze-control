@@ -116,6 +116,39 @@ flows that must not run as written. Problems with no flow id (library, settings)
 themselves: a bad library entry is dropped (mapper) or marked broken (validator), so a step that references it
 fails its own flow instead. Hotkeys go only to enabled flows without errors; the later of two clashing flows fails.
 
+## Runtime
+
+`Runtime/Scheduling/Scheduler` (pure, D-025): one per run; `Start()` and `Complete(step, StepResult)` return
+the steps to start next; `IsStopped` tells the runner to cancel what's running; `Outcomes` per node and
+`Result` (`Outcomes.Summarize`). Units are steps outside cards and cards; a card hands out all its members at
+once.
+`Runtime/FlowRunner.RunAsync(flow, library, ct)` (one runner per engine) drives it: each step runs on the pool through its `IStepProvider`
+(`Runtime/Providers`) with `1 + retry.count` attempts `retry.delay` apart, each with a timeout (node's, else the
+descriptor's) on the injected `TimeProvider`. `WaitAsync` ends an attempt on time even if a provider ignores
+its token (the abandoned task is observed). A stopped or cancelled flow cancels the running steps; the runner
+awaits them all. Returns `RunResult` (flow outcome + `NodeResult` per node: attempts, error text, duration).
+`ResourceLocks` (one per engine, shared by all runners): around each attempt the runner takes the descriptor's
+`Resources` with `{param}` filled in (a Bluetooth ref becomes the device's address, so aliases share a lock), in ordinal order (no deadlocks). Waiting counts
+toward the attempt's timeout. The lock is let go when the attempt ends, even if a timed-out provider is
+still running in the background.
+`FlowLauncher.TriggerAsync(flow, library)` is the one entry for triggers: one slot per flow id applies `whenRunning`
+(ignore → null result; queue → one coalesced run afterwards; restart → cancel, wait for it to wind down, run the
+latest version, each with the library captured at its trigger). `CancelAllAsync` drops queued runs, ignores
+later triggers and awaits running ones (engine exit).
+Events (`Core/Runs/RunEvents`): the runner raises RunStarted, NodeStarted (per attempt), NodeFinished (every
+node, skipped and cancelled too) and RunFinished through an `Action<RunEvent>` sink; a throwing listener is
+ignored. `RunHistory` keeps the last 100 `RunRecord`s and appends them to `history.jsonl` (STJ source-gen
+`HistoryJson`, camelCase, string enums), skipping corrupt lines. Once the file holds 200 lines it is rewritten
+atomically back to the last 100. The launcher records each finished run with its trigger text.
+`ConfigHost` owns config.yaml: load → validate → per flow the file's version if valid, else the last valid
+one (D-021, `FlowState.IsStale`), else disabled. Each `FlowState` carries the `Library` its version was validated
+with (runs get that one) and `LastValid` as written; a retained version runs without any hotkey a current flow
+took (warning) and gets it back once it's free. An unreadable file changes only the problems; a missing file is
+empty; a watcher that can't start leaves loading on (warning). It reloads 300 ms after the last change
+(`IFileChangeSource`, FileSystemWatcher on the folder) and raises `Changed` with a `ConfigSnapshot`
+(`RunnableFlows` = valid and enabled) in reload order; a throwing handler goes to `ListenerFailed`.
+Tests: `FakeProvider` + thread-safe `ManualTime` with `WaitForTimerAsync` (Runtime.Tests).
+
 ## IPC
 
 `\\.\pipe\DazeControl-<user SID>`, `PipeOptions.CurrentUserOnly`, newline-delimited JSON

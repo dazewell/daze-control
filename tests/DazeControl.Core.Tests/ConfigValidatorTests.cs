@@ -159,7 +159,9 @@ public class ConfigValidatorTests
     [InlineData("{ id: a, step: process.run, with: { path: \"\" } }", "flows.f.nodes.a.with.path", "can't be empty")]
     [InlineData("{ id: a, step: http.request, with: { url: x, headers: [a] } }", "flows.f.nodes.a.with.headers", "name: value")]
     [InlineData("{ id: a, step: notify, with: { text: x }, timeout: 0s }", "flows.f.nodes.a.timeout", "more than 0")]
+    [InlineData("{ id: a, step: notify, with: { text: x }, timeout: 1200h }", "flows.f.nodes.a.timeout", "at most 24h")]
     [InlineData("{ id: a, step: notify, with: { text: x }, retry: { count: 11 } }", "flows.f.nodes.a.retry.count", "0 to 10")]
+    [InlineData("{ id: a, step: notify, with: { text: x }, retry: { count: 1, delay: 25h } }", "flows.f.nodes.a.retry.delay", "24h")]
     public void ParamsAndTimingAreCheckedAgainstTheCatalog(string node, string path, string message)
     {
         var problem = Single(ValidateNodes(node), path);
