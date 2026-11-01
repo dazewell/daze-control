@@ -8,6 +8,7 @@ using DazeControl.Ipc;
 using DazeControl.Runtime;
 using DazeControl.Runtime.Control;
 using DazeControl.Runtime.Lifecycle;
+using DazeControl.Runtime.Popup;
 using DazeControl.Providers.Basic;
 using DazeControl.Runtime.Providers;
 using DazeControl.Runtime.Tray;
@@ -40,6 +41,8 @@ internal sealed class EngineHost : IDisposable
     private readonly MessageWindow _window;
     private readonly TrayIcon _tray;
     private readonly GlobalHotkey _hotkeys;
+    private readonly RunPopup _popup = new();
+    private readonly RunPopupModel _popupModel = new();
     private readonly HotkeyTable _hotkeyTable;
     private readonly ConfigHost _config;
     private readonly RunHistory _history;
@@ -61,6 +64,8 @@ internal sealed class EngineHost : IDisposable
         _hotkeys = new GlobalHotkey(_window);
         _hotkeyTable = new HotkeyTable(_hotkeys);
         _hotkeys.Pressed += OnHotkey;
+        // The run page arrives with M9; until then selecting a failure opens the editor.
+        _popup.Selected += view => OpenEditor();
 
         _history = new RunHistory(paths.History);
         if (_history.LoadError is { } loadError)
@@ -203,6 +208,23 @@ internal sealed class EngineHost : IDisposable
                 return;
         }
         UpdateTray();
+        ShowPopup(e);
+    }
+
+    /// <summary>On the message thread, in run-event order. A pop-up failure never touches the run (fail-soft).</summary>
+    private void ShowPopup(RunEvent e)
+    {
+        try
+        {
+            var flow = e is RunStarted ? _config.Current.Flows.FirstOrDefault(f => f.FlowId == e.FlowId)?.Running : null;
+            var settings = _config.Current.Settings.Popup;
+            if (_popupModel.Apply(e, flow, settings) && _popupModel.Current is { } view)
+                _popup.Show(view, settings.Position);
+        }
+        catch (Exception failure)
+        {
+            Log.Error("popup: not shown", failure);
+        }
     }
 
     private void OnHotkey(int id)
@@ -225,8 +247,15 @@ internal sealed class EngineHost : IDisposable
             case RunStarted:
                 _window.Post(() => OnRunEventPosted(e));
                 break;
+            case NodeStarted:
+                _window.Post(() => ShowPopup(e));
+                break;
             case NodeFinished { Result: { Outcome: not NodeOutcome.Succeeded } result } node:
                 Log.Info($"run: {node.FlowId}/{result.NodeId} {result.Outcome}{(result.Error is null ? "" : ": " + result.Error)}");
+                _window.Post(() => ShowPopup(e));
+                break;
+            case NodeFinished:
+                _window.Post(() => ShowPopup(e));
                 break;
         }
         _pipe?.Broadcast(PipeEvent.From(e));
@@ -243,6 +272,7 @@ internal sealed class EngineHost : IDisposable
     public void Dispose()
     {
         _hotkeys.Dispose();
+        _popup.Dispose();
         _tray.Dispose();
         _window.Dispose();
     }
