@@ -289,7 +289,8 @@ Status: accepted
 - Decision: `http.request`'s `credential: sunshine` reads the generic credential `DazeControl:sunshine`
   (`CredRead`); with a user name it becomes Basic auth, without one the secret is a Bearer token. Users save it
   with `cmdkey /generic:DazeControl:sunshine /user:admin /pass` (the editor writes it later). Errors name the
-  host and status only, never the secret. TLS is checked as usual; no "trust any certificate" switch.
+  host and status code only (never the secret or the server's reason text). TLS is checked as usual; no "trust any
+  certificate" switch. A sign-in goes only over https:// or to loopback. No cookies, no redirects (one request).
 - Why: the prefix keeps a flow from reaching the PC's other saved passwords; cmdkey needs no admin and no UI.
 - Why not raw target names: any config could send any saved credential to any URL. Why not a skip-TLS
   option now: nothing in the user's config needs it yet (scd's sunshine section was unused).
@@ -308,8 +309,9 @@ Status: accepted
 
 ## D-033 · 2026-11-01 · Services through the SCM without admin; no elevation path
 Status: accepted
-- Decision: `service.start`/`stop` open the service with only start/stop + query rights; already in that state
-  = success; otherwise request it and poll the state every 250 ms until there (the step timeout ends it).
+- Decision: `service.start`/`stop` read the state first (query rights only); a pending start/stop is waited out;
+  already in that state = success; only then open with start/stop rights, request it and poll every 250 ms
+  until there (the step timeout ends it). Lock `service:<NAME>` upper-cased (SCM names ignore case).
   Access denied fails at once: "Windows only lets an administrator start …".
 - Why: D-008 (no admin). Most services refuse non-admin start/stop; a few (and ones whose ACL the user changed,
   e.g. with `sc sdset`) allow it, and those work.

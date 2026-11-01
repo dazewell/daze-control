@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using DazeControl.Core.Model;
@@ -24,8 +25,15 @@ public sealed class HttpRequestProvider(HttpMessageHandler handler, ICredentialS
     // One client for the engine's life: sockets are pooled, and an idle connection closes after a minute (D-009).
     private readonly HttpClient _client = new(handler, disposeHandler: false) { Timeout = Timeout.InfiniteTimeSpan };
 
+    /// <summary>
+    /// No cookies (a sign-in's session cookie would ride along on other flows' requests) and no redirects (one
+    /// request, and a 3xx to a login page must not count as success).
+    /// </summary>
     public HttpRequestProvider(ICredentialStore credentials)
-        : this(new SocketsHttpHandler { PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1) }, credentials)
+        : this(new SocketsHttpHandler
+        {
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1), UseCookies = false, AllowAutoRedirect = false,
+        }, credentials)
     {
     }
 
@@ -41,25 +49,35 @@ public sealed class HttpRequestProvider(HttpMessageHandler handler, ICredentialS
         var method = context.Text("method") ?? "GET";
         using var request = new HttpRequestMessage(new HttpMethod(method), uri);
 
-        string? contentType = null;
+        var body = context.Text("body") is { Length: > 0 } text ? text : null;
+        if (body is not null)
+        {
+            request.Content = new StringContent(body, Encoding.UTF8);
+            request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(GuessType(body));
+        }
         if (context.Node.With.TryGetValue("headers", out var headers) && headers is MapParam map)
         {
             foreach (var (header, value) in map.Entries)
             {
-                var text = value.ToString();
-                if (header.Equals("Content-Type", StringComparison.OrdinalIgnoreCase))
-                    contentType = text;
-                else if (!request.Headers.TryAddWithoutValidation(header, text))
+                // Content-Type, Content-Language, … belong to the body's headers (an empty body when there's none).
+                if (header.StartsWith("Content-", StringComparison.OrdinalIgnoreCase))
+                {
+                    request.Content ??= new ByteArrayContent([]);
+                    request.Content.Headers.Remove(header);
+                    if (!request.Content.Headers.TryAddWithoutValidation(header, value.ToString()))
+                        throw new StepFailedException($"\"{header}\" can't be sent as a header.");
+                }
+                else if (!request.Headers.TryAddWithoutValidation(header, value.ToString()))
+                {
                     throw new StepFailedException($"\"{header}\" can't be sent as a header.");
+                }
             }
-        }
-        if (context.Text("body") is { Length: > 0 } body)
-        {
-            request.Content = new StringContent(body, Encoding.UTF8);
-            request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType ?? GuessType(body));
         }
         if (context.Text("credential") is { Length: > 0 } name)
         {
+            // Basic is only base64 and a token goes as is: over plain http anyone on the network could read them.
+            if (uri.Scheme == "http" && !uri.IsLoopback)
+                throw new StepFailedException($"A saved sign-in is only sent over https:// (or to this PC); {uri.Host} uses http://.");
             var credential = credentials.Read(name)
                 ?? throw new StepFailedException($"No saved sign-in called \"{name}\". Save it in Windows Credential Manager "
                     + $"as a generic credential named {WindowsCredentials.TargetPrefix}{name}.");
@@ -81,9 +99,13 @@ public sealed class HttpRequestProvider(HttpMessageHandler handler, ICredentialS
         using (response)
         {
             if (!response.IsSuccessStatusCode)
-                throw new StepFailedException($"{uri.Host} answered {(int)response.StatusCode} {response.ReasonPhrase}.");
+                // Never the server's reason phrase: it is untrusted text that could echo the token into the log.
+                throw new StepFailedException($"{uri.Host} answered {(int)response.StatusCode}{StatusName(response.StatusCode)}.");
         }
     }
+
+    private static string StatusName(HttpStatusCode code) =>
+        Enum.IsDefined(code) ? " " + code : "";
 
     private static string GuessType(string body) =>
         body.TrimStart() is ['{', ..] or ['[', ..] ? "application/json; charset=utf-8" : "text/plain; charset=utf-8";

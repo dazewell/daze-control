@@ -218,14 +218,16 @@ public sealed class FlowRunner
         descriptor.Resources.Select(resource => node.With.Aggregate(resource, (name, param) =>
             param.Value is ScalarParam scalar
                 ? name.Replace("{" + param.Key + "}", Identity(descriptor.FindParam(param.Key), scalar.Text, library), StringComparison.Ordinal)
-                : name));
+                : name))
+            // Service names are case-insensitive: "Spooler" and "spooler" are one service, so one lock.
+            .Select(name => name.StartsWith("service:", StringComparison.Ordinal) ? name.ToUpperInvariant() : name);
 
     private static string Identity(ParamSpec? spec, string text, Library library) => spec switch
     {
         { Kind: ParamKind.LibraryRef, Library: LibraryKind.Bluetooth }
             when library.Bluetooth.FirstOrDefault(d => d.Key == text) is { } device => device.Address.ToUpperInvariant(),
         { Kind: ParamKind.LibraryRef, Library: LibraryKind.FireTv }
-            when library.FireTv.FirstOrDefault(d => d.Key == text) is { } tv => tv.Address.ToUpperInvariant(),
+            when library.FireTv.FirstOrDefault(d => d.Key == text) is { } tv => tv.Serial.ToUpperInvariant(),
         _ => text,
     };
 

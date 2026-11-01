@@ -11,20 +11,20 @@ public enum ServiceState
     Stopped,
     Pending,
     Running,
+    Paused,
 }
 
 /// <summary>The Service Control Manager behind a seam (D-033).</summary>
 public interface IServices
 {
-    /// <summary>Opens the service with the rights to <paramref name="start"/> (or stop) it and reads its state.</summary>
-    /// <exception cref="StepFailedException">No such service, or no rights (the engine never has admin, D-008).</exception>
-    ServiceState Open(string name, bool start);
+    /// <summary>Read-only: any user may read most services' state.</summary>
+    /// <exception cref="StepFailedException">No such service.</exception>
+    ServiceState Query(string name);
 
+    /// <exception cref="StepFailedException">No rights (the engine never has admin, D-008), or Windows refused.</exception>
     void RequestStart(string name);
 
     void RequestStop(string name);
-
-    ServiceState Query(string name);
 }
 
 /// <summary>
@@ -42,8 +42,17 @@ public abstract class ServiceProvider(IServices services, TimeProvider time, boo
     {
         var name = context.RequiredText("name");
         var target = start ? ServiceState.Running : ServiceState.Stopped;
-        if (services.Open(name, start) == target)
+        // A start or stop already under way is waited out, not asked for again (the SCM would refuse a second one).
+        var state = services.Query(name);
+        while (state == ServiceState.Pending)
+        {
+            await Task.Delay(PollEvery, time, cancellationToken).ConfigureAwait(false);
+            state = services.Query(name);
+        }
+        if (state == target)
             return;
+        if (state == ServiceState.Paused && start)
+            throw new StepFailedException($"\"{name}\" is paused; resume it in Services.");
         cancellationToken.ThrowIfCancellationRequested();
         if (start)
             services.RequestStart(name);
@@ -70,9 +79,6 @@ public sealed unsafe class WindowsServices : IServices
 {
     private const uint ErrorServiceAlreadyRunning = 1056, ErrorServiceNotActive = 1062, ErrorServiceDoesNotExist = 1060, ErrorServiceDisabled = 1058;
 
-    public ServiceState Open(string name, bool start) =>
-        With(name, start ? PInvoke.SERVICE_START : PInvoke.SERVICE_STOP, start, State);
-
     public void RequestStart(string name) => With(name, PInvoke.SERVICE_START, start: true, service =>
     {
         if (!PInvoke.StartService((SC_HANDLE)service.DangerousGetHandle(), 0, null) && Marshal.GetLastPInvokeError() is var error && error != ErrorServiceAlreadyRunning)
@@ -98,6 +104,7 @@ public sealed unsafe class WindowsServices : IServices
         {
             SERVICE_STATUS_CURRENT_STATE.SERVICE_RUNNING => ServiceState.Running,
             SERVICE_STATUS_CURRENT_STATE.SERVICE_STOPPED => ServiceState.Stopped,
+            SERVICE_STATUS_CURRENT_STATE.SERVICE_PAUSED => ServiceState.Paused,
             _ => ServiceState.Pending,
         };
     }

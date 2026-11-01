@@ -53,7 +53,11 @@ public sealed record DisplayLayout(string Key, ValueList<string> Monitors, strin
 /// "192.168.1.50:5555"; <paramref name="Adb"/> is adb.exe's path, null = on PATH. Each input is the D-pad moves
 /// ("up"/"down") from where the TV's input list opens to that input.
 /// </summary>
-public sealed record FireTvDevice(string Key, string Address, ValueDictionary<ValueList<string>> Inputs, string? Adb = null);
+public sealed record FireTvDevice(string Key, string Address, ValueDictionary<ValueList<string>> Inputs, string? Adb = null)
+{
+    /// <summary>adb's name for it, "host:port"; 5555 is the port Fire TV's network debugging uses. Also its lock.</summary>
+    public string Serial => Address.Contains(':', StringComparison.Ordinal) ? Address : Address + ":5555";
+}
 
 /// <summary>Credentials live in Windows Credential Manager, referenced by name only (D-014, D-031).</summary>
 public sealed record Library

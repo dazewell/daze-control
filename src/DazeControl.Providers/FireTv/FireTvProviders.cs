@@ -46,14 +46,13 @@ public sealed class FireTvRemote(IAdb adb, TimeProvider time)
     private const int ConnectAttempts = 3;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
 
-    /// <summary>adb names a network device "host:port"; 5555 is the port Fire TV's network debugging uses.</summary>
-    public static string Serial(FireTvDevice device) => device.Address.Contains(':', StringComparison.Ordinal) ? device.Address : device.Address + ":5555";
-
     public async Task ShellAsync(FireTvDevice device, IReadOnlyList<string> commands, CancellationToken cancellationToken)
     {
         var exe = device.Adb ?? DefaultAdb;
-        var serial = Serial(device);
+        var serial = device.Serial;
         await ConnectAsync(exe, serial, cancellationToken).ConfigureAwait(false);
+        // The timeout may have fired while connect drained its output: the lock is gone, so send no keys.
+        cancellationToken.ThrowIfCancellationRequested();
         var result = await adb.RunAsync(exe, ["-s", serial, "shell", string.Join(" && ", commands)], cancellationToken).ConfigureAwait(false);
         if (result.ExitCode != 0)
             throw new StepFailedException($"The Fire TV refused the keys: {Reason(result)}");

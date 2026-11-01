@@ -21,7 +21,7 @@ public sealed class HttpProviderTests : IDisposable
         {
             Request = request;
             Body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
-            return new HttpResponseMessage(Status) { ReasonPhrase = Status.ToString() };
+            return new HttpResponseMessage(Status) { ReasonPhrase = "token abc" }; // a server may echo anything here
         }
     }
 
@@ -166,5 +166,42 @@ public sealed class HttpProviderTests : IDisposable
         process.StandardOutput.ReadToEnd();
         process.WaitForExit();
         Assert.Equal(0, process.ExitCode);
+    }
+
+    [Fact]
+    public async Task SignInIsNeverSentOverPlainHttpToAnotherHost()
+    {
+        var failure = await Assert.ThrowsAsync<StepFailedException>(() => Run(("url", "http://example.test/x"), ("credential", "sunshine")));
+        Assert.Equal("A saved sign-in is only sent over https:// (or to this PC); example.test uses http://.", failure.Message);
+        Assert.Null(_handler.Request);
+
+        await Run(("url", "http://127.0.0.1:47990/x"), ("credential", "sunshine"));
+        Assert.NotNull(_handler.Request!.Headers.Authorization);
+    }
+
+    [Fact]
+    public async Task ServerReasonPhraseNeverReachesTheError()
+    {
+        _handler.Status = (HttpStatusCode)599;
+        var failure = await Assert.ThrowsAsync<StepFailedException>(() => Run(("url", "https://localhost/x")));
+        Assert.Equal("localhost answered 599.", failure.Message);
+    }
+
+    [Fact]
+    public async Task ContentHeadersGoOnTheBodyEvenWithoutOne()
+    {
+        var headers = new MapParam(new ValueDictionary<ParamValue>(
+        [
+            KeyValuePair.Create("Content-Language", (ParamValue)"de"),
+            KeyValuePair.Create("Content-Type", (ParamValue)"application/x-thing"),
+        ]));
+        var context = Steps.Context("http.request", ("url", "https://example.test/x"), ("method", "POST"));
+        var node = (StepNode)context.Node;
+        context = context with { Node = node with { With = new ValueDictionary<ParamValue>(node.With.Append(KeyValuePair.Create("headers", (ParamValue)headers))) } };
+
+        await _provider.ExecuteAsync(context, TestContext.Current.CancellationToken);
+
+        Assert.Equal(["de"], _handler.Request!.Content!.Headers.ContentLanguage);
+        Assert.Equal("application/x-thing", _handler.Request.Content.Headers.ContentType!.MediaType);
     }
 }

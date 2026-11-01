@@ -50,7 +50,8 @@ public static class ConfigMapper
             {
                 Address = d.Address,
                 Adb = d.Adb,
-                Inputs = NullIfEmpty(d.Inputs.ToDictionary(i => i.Key, i => i.Value.ToList())),
+                Inputs = d.Inputs.Count == 0 ? null : new ParamDocument(new MapParam(new(d.Inputs.Select(i =>
+                    KeyValuePair.Create(i.Key, (ParamValue)new ListParam(new(i.Value.Select(m => (ParamValue)m)))))))),
             })),
         },
         Flows = NullIfEmpty(config.Flows.ToDictionary(f => f.Id, ToDocument)),
@@ -188,16 +189,38 @@ public static class ConfigMapper
                 }
                 var inputs = new List<KeyValuePair<string, ValueList<string>>>();
                 var ok = true;
-                foreach (var (input, moves) in item.Inputs ?? [])
+                IEnumerable<KeyValuePair<string, ParamValue>>? entries = item.Inputs?.ToValue() switch
                 {
-                    if ((moves ?? []).FirstOrDefault(m => m is not ("up" or "down")) is { } bad)
+                    null => [],
+                    MapParam map => map.Entries,
+                    ScalarParam { Text: "" } => [],
+                    _ => (IEnumerable<KeyValuePair<string, ParamValue>>?)null,
+                };
+                if (entries is null)
+                {
+                    Error(path + ".inputs", "Inputs are names with their moves, like  hdmi2: [down, down].");
+                    continue;
+                }
+                foreach (var (input, value) in entries)
+                {
+                    // A lone move is a one-move list; anything else that isn't up or down rejects the entry.
+                    var moves = value switch
                     {
-                        Error($"{path}.inputs.{input}", $"\"{bad}\" isn't a move: use up or down.");
+                        ScalarParam scalar => [scalar.Text],
+                        ListParam list => list.Items.Select(m => m is ScalarParam s ? s.Text : null).ToList(),
+                        _ => new List<string?> { null },
+                    };
+                    var bad = moves.FindIndex(m => m is not ("up" or "down"));
+                    if (bad >= 0)
+                    {
+                        Error($"{path}.inputs.{input}", moves[bad] is { Length: > 0 } text
+                            ? $"\"{text}\" isn't a move: use up or down."
+                            : "Each move is up or down.");
                         ok = false;
                     }
                     else
                     {
-                        inputs.Add(KeyValuePair.Create(input, new ValueList<string>(moves ?? [])));
+                        inputs.Add(KeyValuePair.Create(input, new ValueList<string>(moves!)));
                     }
                 }
                 if (ok)

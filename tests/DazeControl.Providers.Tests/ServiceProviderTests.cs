@@ -6,14 +6,12 @@ namespace DazeControl.Providers.Tests;
 
 public class ServiceProviderTests
 {
-    /// <summary>Reports <see cref="States"/> in turn on each query (the last repeats); records the requests.</summary>
-    private sealed class FakeServices(ServiceState initial, params ServiceState[] states) : IServices
+    /// <summary>Answers each query with the next state (the last repeats); records the requests.</summary>
+    private sealed class FakeServices(params ServiceState[] states) : IServices
     {
         private int _queries;
 
         public List<string> Calls { get; } = [];
-
-        public ServiceState Open(string name, bool start) => initial;
 
         public void RequestStart(string name) => Calls.Add("start " + name);
 
@@ -28,6 +26,23 @@ public class ServiceProviderTests
         var services = new FakeServices(ServiceState.Stopped, ServiceState.Pending, ServiceState.Running);
         await new ServiceStartProvider(services, TimeProvider.System).RunAsync(("name", "SunshineService"));
         Assert.Equal(["start SunshineService"], services.Calls);
+    }
+
+    [Fact]
+    public async Task StopAlreadyUnderWayIsWaitedOutNotSentAgain()
+    {
+        var services = new FakeServices(ServiceState.Pending, ServiceState.Pending, ServiceState.Stopped);
+        await new ServiceStopProvider(services, TimeProvider.System).RunAsync(("name", "x"));
+        Assert.Empty(services.Calls);
+    }
+
+    [Fact]
+    public async Task PausedServiceIsNotStartedBlindly()
+    {
+        var services = new FakeServices(ServiceState.Paused);
+        var failure = await Assert.ThrowsAsync<StepFailedException>(() => new ServiceStartProvider(services, TimeProvider.System).RunAsync(("name", "x")));
+        Assert.Equal("\"x\" is paused; resume it in Services.", failure.Message);
+        Assert.Empty(services.Calls);
     }
 
     [Fact]
@@ -60,21 +75,25 @@ public class ServiceProviderTests
     }
 
     [Fact]
-    public async Task StartWithoutAdminFailsClearlyAndChangesNothing()
+    public async Task StartingARunningProtectedServiceNeedsNoRights() =>
+        // Read-only query first: EventLog is running, so nothing is asked of the SCM that a user can't do.
+        await new ServiceStartProvider(new WindowsServices(), TimeProvider.System).RunAsync(("name", "EventLog"));
+
+    [Fact]
+    public void StartRequestWithoutAdminFailsClearlyAndChangesNothing()
     {
         // EventLog is always running. Without admin, opening it with start rights is refused before anything is sent;
-        // with admin (an elevated test run) the step sees it running and does nothing. No state changes either way.
+        // with admin (an elevated test run) StartService answers "already running", which counts as done.
         using var identity = WindowsIdentity.GetCurrent();
-        var elevated = new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
-        var step = new ServiceStartProvider(new WindowsServices(), TimeProvider.System).RunAsync(("name", "EventLog"));
-        if (elevated)
+        if (new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator))
         {
-            await step;
+            new WindowsServices().RequestStart("EventLog");
             return;
         }
-        var failure = await Assert.ThrowsAsync<StepFailedException>(() => step);
+        var failure = Assert.Throws<StepFailedException>(() => new WindowsServices().RequestStart("EventLog"));
         Assert.Equal("Windows only lets an administrator start \"EventLog\", and Daze Control runs without admin rights. "
             + "Set the service to start automatically, or change it in Services yourself.", failure.Message);
+        Assert.Equal(ServiceState.Running, new WindowsServices().Query("EventLog"));
     }
 
     [Fact]

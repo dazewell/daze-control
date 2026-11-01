@@ -53,7 +53,8 @@ public sealed class FireTvDocument
 
     public string? Adb { get; set; }
 
-    public Dictionary<string, List<string>>? Inputs { get; set; }
+    /// <summary>Read whole, like <c>with:</c>, so a wrong shape is a problem on this entry, not on the file (D-021).</summary>
+    public ParamDocument? Inputs { get; set; }
 }
 
 [YamlSerializable]
