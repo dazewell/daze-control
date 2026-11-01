@@ -95,4 +95,13 @@ public class AudioProviderTests
         if (endpoint is not null)
             Assert.False(string.IsNullOrEmpty(endpoint.Id));
     }
+
+    [Fact]
+    public async Task CoreAudioWaitForAMissingDeviceEndsOnCancel()
+    {
+        // Read-only: registers for device changes, finds nothing, and must unregister and end on the token.
+        using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => new CoreAudioEndpoints().WaitForAsync("no such device 7f3a", AudioFlow.Output, cancel.Token));
+    }
 }
