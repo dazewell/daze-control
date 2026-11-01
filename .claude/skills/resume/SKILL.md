@@ -50,8 +50,8 @@ The user wants work to pause at **97 %** of the 5-hour limit and continue by its
   - `fireAt` = `resetsAt` + 5 minutes, as ISO 8601 with offset (e.g. `2026-11-01T09:05:00Z`)
   - `prompt`: "Continue Daze Control work. Work in `C:\Projects\scd-rewamp` (cd there first). Use the
     `resume` skill, then `repo-workflow`, and carry on from the Resume block in `docs/PLAN.md` with its
-    checkpoint rule and this usage guard. Use Opus at medium effort. Open PRs as usual; never merge them.
-    The user merges."
+    checkpoint rule and this usage guard. Use Opus at medium effort. Open and merge PRs per the merge policy in
+    `repo-workflow` (Copilot review budget: 2 per PR)."
   Then say in one line that work is paused and when it continues, and end the turn. Start no new work.
 - `get_usage` reports `unavailable` / `not_applicable` → keep the normal checkpoint rhythm and don't
   schedule anything.
