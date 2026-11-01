@@ -53,4 +53,29 @@ public class ProcessProviderTests
             () => new PowerShellProvider().RunAsync(("script", "throw 'no headphones'")));
         Assert.Contains("no headphones", failure.Message);
     }
+
+    [Fact]
+    public async Task PowerShellStopsAtTheFirstError()
+    {
+        var marker = Path.Combine(Path.GetTempPath(), $"dazecontrol-{Guid.NewGuid():N}.txt");
+        await Assert.ThrowsAsync<StepFailedException>(() => new PowerShellProvider().RunAsync(
+            ("script", $"throw 'first'\nSet-Content -LiteralPath '{marker}' -Value x")));
+        Assert.False(File.Exists(marker));
+    }
+
+    [Fact]
+    public async Task ExitDoesNotWaitForADescendantHoldingThePipes()
+    {
+        // cmd exits at once; its detached ping child keeps the inherited stdout open for ~20 s.
+        var watch = Stopwatch.StartNew();
+        await new ProcessRunProvider().RunAsync(("path", Cmd), ("args", "/c start /b ping -n 20 127.0.0.1 & exit 0"));
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), $"{watch.Elapsed}");
+    }
+
+    [Fact]
+    public async Task OutputWithoutNewlinesIsDrained()
+    {
+        // 8 MB on one line: must be read in chunks and thrown away, not buffered as a line.
+        await new PowerShellProvider().RunAsync(("script", "[Console]::Out.Write('x' * 8MB)"));
+    }
 }

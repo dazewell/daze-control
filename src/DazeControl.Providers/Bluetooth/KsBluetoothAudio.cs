@@ -65,6 +65,8 @@ public sealed unsafe class KsBluetoothAudio : IBluetoothAudio
             var requested = 0;
             foreach (var endpoint in endpoints.Where(e => e.Active != connect))
             {
+                // A stopped or timed-out attempt sends nothing more: the runner has already released the device lock.
+                cancellationToken.ThrowIfCancellationRequested();
                 if (Send(enumerator.Value, endpoint.Id, connect ? KSPROPERTY_BTAUDIO.KSPROPERTY_ONESHOT_RECONNECT : KSPROPERTY_BTAUDIO.KSPROPERTY_ONESHOT_DISCONNECT))
                     requested++;
             }

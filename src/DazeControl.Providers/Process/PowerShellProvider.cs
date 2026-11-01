@@ -18,9 +18,11 @@ public sealed class PowerShellProvider : IStepProvider
         var start = new ProcessStartInfo(PowerShellPath());
         foreach (var arg in Arguments)
             start.ArgumentList.Add(arg);
-        // -Command - reads the script from stdin; the blank line ends its last statement. 'Stop' makes a failing
-        // cmdlet fail the step instead of printing and carrying on.
-        var body = "$ErrorActionPreference = 'Stop'\n" + context.RequiredText("script") + "\n\n";
+        // -Command - runs stdin statement by statement, so an error would end only its own statement: one try block
+        // makes the first error (cmdlet errors too, via 'Stop') end the whole script with exit code 1. The blank
+        // line ends the block.
+        var body = "try {\n$ErrorActionPreference = 'Stop'\n" + context.RequiredText("script")
+            + "\n} catch {\n[Console]::Error.WriteLine($_.ToString())\nexit 1\n}\n\n";
         var (exitCode, lastError) = await ProcessRunner.RunAsync(start, body, cancellationToken).ConfigureAwait(false);
         if (exitCode != 0)
             throw new StepFailedException(ProcessRunProvider.Failure("PowerShell", exitCode, lastError));
