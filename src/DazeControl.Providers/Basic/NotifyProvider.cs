@@ -15,6 +15,7 @@ public sealed class NotifyProvider(INotifier notifier) : IStepProvider
 
     public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         notifier.Show(context.Flow.Name, context.RequiredText("text"));
         return Task.CompletedTask;
     }

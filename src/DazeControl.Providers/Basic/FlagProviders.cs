@@ -23,6 +23,7 @@ public sealed class FlagSetProvider(FlagStore flags) : IStepProvider
 
     public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         flags.Set(context.RequiredText("name"), context.Boolean("value", fallback: true));
         return Task.CompletedTask;
     }
