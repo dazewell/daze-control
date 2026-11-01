@@ -1,12 +1,13 @@
 # Plan
 
 ## Resume
-Current task: T0.5 — AOT spike gate (branch main, no remote yet)
-Last green checkpoint: 3042c3a "chore: add resume, repo-workflow, knowledge-log and build skills"
-Next action: Engine Program.cs: message-only window + TrayIcon (port OSD) + one RegisterHotKey + YamlDotNet static load; AOT publish
-Tree state: builds, 5/5 tests green · Uncommitted: none
-Notes for next agent: `gh repo create` waits on the user (name, private?). This PC has no MSVC C++ tools:
-Native AOT publish (T0.5) needs them — ask the user before installing (`build` skill).
+Current task: T1.1 — model records + outcomes (branch feat/m1-model, stack on PR #1 until it merges)
+Last green checkpoint: d7f8006 "wip(engine): AOT spike with tray icon, hotkey and YAML static context"
+Next action: Core/Model records (Flow, StepNode, GroupNode, Edge, EdgeWhen, FailurePolicy, RetryPolicy) + Runs/ outcomes, tests first
+Tree state: builds, 37/37 tests green · Uncommitted: none
+Notes for next agent: M0 done; PR #1 (T0.5) waits for the user's merge. Idle footprint 3.9 MB private /
+15.5 MB WS / 0 ms CPU over 10 min (ARCHITECTURE → Footprint). AOT publish needs vswhere on PATH (build skill).
+Core/Yaml/ConfigDocument is the spike's partial schema; T1.2 replaces it.
 
 ---
 
@@ -16,23 +17,24 @@ Native AOT publish (T0.5) needs them — ask the user before installing (`build`
   **Resume block**, rewritten in every checkpoint commit. Format:
   ```
   ## Resume
-Current task: T0.5 — AOT spike gate (branch main, no remote yet)
-Last green checkpoint: 3042c3a "chore: add resume, repo-workflow, knowledge-log and build skills"
-Next action: Engine Program.cs: message-only window + TrayIcon (port OSD) + one RegisterHotKey + YamlDotNet static load; AOT publish
-Tree state: builds, 5/5 tests green · Uncommitted: none
-Notes for next agent: `gh repo create` waits on the user (name, private?). This PC has no MSVC C++ tools:
-Native AOT publish (T0.5) needs them — ask the user before installing (`build` skill).
+Current task: T1.1 — model records + outcomes (branch feat/m1-model, stack on PR #1 until it merges)
+Last green checkpoint: d7f8006 "wip(engine): AOT spike with tray icon, hotkey and YAML static context"
+Next action: Core/Model records (Flow, StepNode, GroupNode, Edge, EdgeWhen, FailurePolicy, RetryPolicy) + Runs/ outcomes, tests first
+Tree state: builds, 37/37 tests green · Uncommitted: none
+Notes for next agent: M0 done; PR #1 (T0.5) waits for the user's merge. Idle footprint 3.9 MB private /
+15.5 MB WS / 0 ms CPU over 10 min (ARCHITECTURE → Footprint). AOT publish needs vswhere on PATH (build skill).
+Core/Yaml/ConfigDocument is the spike's partial schema; T1.2 replaces it.
 
 ---
 
-## M0 Bootstrap
-- [~] T0.1 `git init`, `.gitignore`; ask the user before `gh repo create` (name, private?).
+## M0 Bootstrap ✔ (2026-10-31; T0.1–T0.4 on main, T0.5 PR #1)
+- [x] T0.1 `git init`, `.gitignore`; ask the user before `gh repo create` (name, private?).
 - [x] T0.2 Docs copied from the plan: CLAUDE.md, GOALS, FEATURES, ARCHITECTURE, DECISIONS D-001..D-021,
   DEADENDS, UX, PLAN (this file).
 - [x] T0.3 Skills: `repo-workflow`, `knowledge-log`, `build` (adapted from the OSD), new `resume`;
   `.claude/settings.json` SessionStart hook printing the Resume block.
 - [x] T0.4 Solution skeleton: all projects compile, one passing test per test project, `ci.yml` (build + test).
-- [ ] T0.5 Spike (gate): AOT engine with tray icon + one hotkey + YamlDotNet static context load; no trim/AOT
+- [x] T0.5 Spike (gate): AOT engine with tray icon + one hotkey + YamlDotNet static context load; no trim/AOT
   warnings; `scripts/measure.ps1` → idle numbers in ARCHITECTURE. Over budget → decide with the user.
 
 ## M1 Core model + YAML

@@ -72,6 +72,7 @@ Grow this table when you hit something non-obvious (and record a dead end if a f
 | Symptom | Cause / fix |
 |---|---|
 | `Platform linker not found` / `link.exe` errors on `dotnet publish` | MSVC C++ tools missing: install VS Build Tools with the VCTools workload (above). Git's `usr\bin\link.exe` on PATH is not a linker. |
+| `'vswhere.exe' is not recognized` then `MSB3073 … link.exe … exited with code 123` | ILC's `findvcvarsall.bat` runs `vswhere` from PATH; a shell started before Build Tools were installed lacks it. `scripts/measure.ps1` prepends `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer`; elsewhere do the same or open a new shell. |
 | `IL2xxx` / `IL3xxx` warnings as errors | Reflection or dynamic code reached from the AOT engine. Use source generators (YamlDotNet static context D-005, System.Text.Json source-gen) — never suppress. |
 | `Testing with VSTest target is no longer supported by Microsoft.Testing.Platform` | `global.json` must keep `"test": { "runner": "Microsoft.Testing.Platform" }`; use `dotnet test --solution …`. |
 | `SYSLIB1051` on a `[LibraryImport]` with `HWND` | CsWin32 structs aren't marshallable by the source generator; declare `nint` (OSD build skill). |

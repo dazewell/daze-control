@@ -1,0 +1,8 @@
+# T0.5 spike config: one flow with a chord nobody else uses (Alt+Z belongs to scd until T4.4).
+version: 1
+flows:
+  spike:
+    name: Spike
+    hotkeys: [Ctrl+Alt+F12]
+    nodes:
+      - { id: wait, step: wait, with: { ms: 10 } }

@@ -70,6 +70,10 @@ KS one-shot Bluetooth reconnect (D-023, X-005), `Core/Windowing/OverlayWindow.cs
 
 ## Threading
 
+Engine shell today (T0.5): one hidden top-level window `DazeControl.Tray` (`Engine/Shell/MessageWindow`) on the
+main STA thread; `TrayIcon` and `GlobalHotkey` add message handlers to it; static `[UnmanagedCallersOnly]`
+WndProc (D-022).
+
 engine: one STA message thread (tray, hotkeys, pop-up); FlowRunner on the thread pool;
 each COM provider owns one lazy MTA worker (OSD pattern); pipe server async on the pool. Editor: UI thread +
 `DispatcherQueue.TryEnqueue` for pipe events.
@@ -120,6 +124,10 @@ Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 i
 
 | Date | Build | What ran | Private MB | Working set MB | CPU ms (window) |
 |---|---|---|---|---|---|
+| 2026-10-31 | d7f8006 (T0.5 spike, Release AOT) | tray icon + 1 hotkey + YamlDotNet static load, 3 threads, exe 3.3 MB | 3.8 | 15.2 | 0 (60 s) |
+| 2026-10-31 | d7f8006 (same) | same, 10-min idle; 5 threads | 3.9 | 15.5 | 0 (600 s) |
+
+T0.5 gate passed: no AOT/trim warnings; hotkey press and tray icon checked on the desktop. Unmeasured yet: post-run delta (needs a runner, T3.7).
 
 ## Open questions
 
