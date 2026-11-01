@@ -18,6 +18,7 @@ public sealed class ProcessRunProvider : IStepProvider
         if (context.Text("cwd") is { Length: > 0 } cwd)
             start.WorkingDirectory = Environment.ExpandEnvironmentVariables(cwd);
 
+        cancellationToken.ThrowIfCancellationRequested();
         if (!context.Boolean("wait", fallback: true))
         {
             ProcessRunner.Launch(start);

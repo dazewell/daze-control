@@ -78,4 +78,24 @@ public class ProcessProviderTests
         // 8 MB on one line: must be read in chunks and thrown away, not buffered as a line.
         await new PowerShellProvider().RunAsync(("script", "[Console]::Out.Write('x' * 8MB)"));
     }
+
+    [Fact]
+    public async Task ListArgumentsKeepSpacesAndEmptiesAndListedExitCodes()
+    {
+        // A script that exits 7 only when it got exactly "a b" and "" as two arguments.
+        var script = Path.Combine(Path.GetTempPath(), $"dazecontrol-{Guid.NewGuid():N}.ps1");
+        File.WriteAllText(script, "if ($args.Count -eq 2 -and $args[0] -eq 'a b' -and $args[1] -eq '') { exit 7 } else { exit 1 }");
+        try
+        {
+            var ps = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
+            var context = Steps.Context("process.run", ("path", ps))
+                .WithList("args", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "a b", "")
+                .WithList("exitCodes", "0", "7");
+            await new ProcessRunProvider().ExecuteAsync(context, TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            File.Delete(script);
+        }
+    }
 }
