@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M6 Editor foundation — T6.1–T6.4 (branch feat/m6-editor, no PR yet)
-Last green checkpoint: 1012395 "wip(editor): config session, engine client and page view models"
-Next action: editor runs after a clean rebuild (stale obj caused the no-window hang; build skill troubleshooting row). Next: screenshot Settings/About and light mode, check the engine footprint with scripts/measure.ps1, then docs (ARCHITECTURE editor section, GOALS), bump 0.9.0, PR + Copilot.
+Current task: M7 Canvas — T7.1 (M6 done: branch feat/m6-editor)
+Last green checkpoint: b0da0ee "wip(editor): window shows after a clean build; record the stale-obj trap"
+Next action: sync main, branch feat/m7-canvas and start T7.1: FlowCanvas control rendering nodes/cards/edges from a canvas VM in Editor.ViewModels, pan/zoom/fit; selecting a flow card opens the flow editor page (BreadcrumbBar "Flows › name")
 Tree state: builds, VM tests 21/21 green · Uncommitted: none
-Notes for next agent: screenshot script: GetWindowRect + CopyFromScreen from Windows PowerShell (dangerouslyDisableSandbox). No %APPDATA%\DazeControl\config.yaml on this PC yet, so the Flows page shows its empty state; don't create one in the user's profile — test cards with a temp config only if the editor gets a --config switch.
+Notes for next agent: version is 0.9.0. Editor shows no window → delete src/DazeControl.Editor/obj and bin first (build skill). No config.yaml on this PC yet; don't create one in the user's profile. New flow adds an empty flow; the templates (Blank / TV only / Audio → Headphones) are still to do, with the flow editor. Screenshots: GetWindowRect + CopyFromScreen from Windows PowerShell (outside the sandbox); light mode by flipping HKCU…Personalize AppsUseLightTheme and restoring it.
 
 ---
 
@@ -69,12 +69,12 @@ Notes for next agent: screenshot script: GetWindowRect + CopyFromScreen from Win
 - [x] T5.1 Spike: native acrylic window in AOT (DWM backdrop + D2D text, theme, DPI, no-activate) — passed, D-034 (feat/m5-popup).
 - [x] T5.2 Pop-up with progress/failure summary, position/duration, animation (honour Animation effects) (feat/m5-popup).
 
-## M6 Editor foundation
-- [~] T6.1 WinUI shell (Mica, TitleBar, NavigationView: Flows, Library, Settings, About), unpackaged
+## M6 Editor foundation ✔ (2026-11-01)
+- [x] T6.1 WinUI shell (Mica, TitleBar, NavigationView: Flows, Library, Settings, About), unpackaged
   self-contained (`EnableMsixTooling`, OSD X-004), single instance + bring to front.
-- [~] T6.2 EngineClient (pipe) + "engine not running" state.
-- [~] T6.3 Config load/autosave (debounced, atomic, backups), external-change InfoBar.
-- [~] T6.4 Flows list page; Settings + About pages.
+- [x] T6.2 EngineClient (pipe) + "engine not running" state.
+- [x] T6.3 Config load/autosave (debounced, atomic, backups), external-change InfoBar.
+- [x] T6.4 Flows list page; Settings + About pages (feat/m6-editor).
 
 ## M7 Canvas
 - [ ] T7.1 Render nodes/cards/edges from VM, pan/zoom/fit.
