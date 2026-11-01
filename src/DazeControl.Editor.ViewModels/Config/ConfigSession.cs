@@ -72,12 +72,21 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
         try
         {
             var load = _store.Load();
-            if (load.Config is { } config)
+            var mappingError = load.Problems.FirstOrDefault(p => p.Severity == Severity.Error);
+            if (load.Config is { } config && mappingError is null)
             {
                 LoadError = null;
                 Current = config;
-                Problems = ConfigValidator.Validate(config, load.Problems);
+                Problems = [.. load.Problems, .. ConfigValidator.Validate(config, load.Problems)];
                 CanEdit = true;
+            }
+            else if (load.Config is { } partial)
+            {
+                // Mapping dropped what it couldn't read; saving would delete it from the file.
+                LoadError = $"config.yaml has errors, so the editor won't change it until they're fixed by hand. {mappingError!.Path}: {mappingError.Message}";
+                Current = partial;
+                Problems = [.. load.Problems, .. ConfigValidator.Validate(partial, load.Problems)];
+                CanEdit = false;
             }
             else
             {
@@ -110,10 +119,19 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
     }
 
     /// <summary>Writes pending edits now (window closing, a timer firing).</summary>
-    public void Flush()
+    public void Flush() => Save(overwrite: false);
+
+    /// <param name="overwrite">Keep mine: write even though the file changed since it was read.</param>
+    private void Save(bool overwrite)
     {
         if (!_dirty || OutsideChange == OutsideChange.Conflict)
             return;
+        // The watcher can be late (an edit 200 ms before someone else's write): check right before writing.
+        if (!overwrite && _store.ChangedOnDisk())
+        {
+            OutsideChange = OutsideChange.Conflict;
+            return;
+        }
         try
         {
             _store.Save(Current);
@@ -149,7 +167,7 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
     private void KeepMine()
     {
         OutsideChange = OutsideChange.None;
-        Flush();
+        Save(overwrite: true);
     }
 
     [RelayCommand]

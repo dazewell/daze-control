@@ -58,6 +58,10 @@ public sealed class ConfigStore
         {
             return false; // mid-write by someone else: the watcher fires again when it's done
         }
+        catch (UnauthorizedAccessException)
+        {
+            return true; // replaced by a file we can't read: a change; Load reports it
+        }
     }
 
     /// <summary>Writes <paramref name="config"/> unless the file already holds exactly that.</summary>

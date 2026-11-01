@@ -50,7 +50,7 @@ public sealed partial class ShellWindow : Window
         _watchDelay.IsRepeating = false;
         _watchDelay.Tick += (_, _) => ViewModel.Session.CheckOutsideChange();
         var folder = Path.GetDirectoryName(ViewModel.Session.Path)!;
-        if (Directory.Exists(folder))
+        if (TryCreate(folder))
         {
             _watcher = new FileSystemWatcher(folder, Path.GetFileName(ViewModel.Session.Path))
             {
@@ -74,6 +74,20 @@ public sealed partial class ShellWindow : Window
     }
 
     public ShellViewModel ViewModel { get; }
+
+    /// <summary>The engine makes this folder too; making it here lets the watcher start on a first launch.</summary>
+    private static bool TryCreate(string folder)
+    {
+        try
+        {
+            Directory.CreateDirectory(folder);
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
 
     /// <summary>A second start of the editor lands here (single instance).</summary>
     public void BringToFront()

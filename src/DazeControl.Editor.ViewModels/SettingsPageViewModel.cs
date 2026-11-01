@@ -11,7 +11,7 @@ namespace DazeControl.Editor.ViewModels;
 public sealed partial class SettingsPageViewModel : ObservableObject, IDisposable
 {
     public const int MinPopupSeconds = 1;
-    public const int MaxPopupSeconds = 30;
+    public const int MaxPopupSeconds = 60; // as ConfigMapper accepts
 
     private readonly ConfigSession _session;
     private readonly IEngineClient _engine;

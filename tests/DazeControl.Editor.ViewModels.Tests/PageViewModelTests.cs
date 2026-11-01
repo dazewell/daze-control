@@ -184,4 +184,12 @@ public sealed class PageViewModelTests : IDisposable
 
         Assert.Equal("Settings", shell.Subtitle);
     }
+
+    [Theory]
+    [InlineData("E7F4", "")]
+    [InlineData(null, FlowItemViewModel.DefaultGlyph)]
+    [InlineData("nope", FlowItemViewModel.DefaultGlyph)]
+    [InlineData("D800", FlowItemViewModel.DefaultGlyph)]
+    public void GlyphsAreHexCodePoints(string? code, string expected) =>
+        Assert.Equal(expected, FlowItemViewModel.DecodeGlyph(code));
 }

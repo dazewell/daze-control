@@ -211,4 +211,35 @@ public sealed class ConfigSessionTests : IDisposable
         Assert.False(_session.HasSaveError);
         Assert.Contains("name: Two", File.ReadAllText(ConfigPath), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void AFileWithMappingErrorsIsReadOnly()
+    {
+        var yaml = Yaml.Replace("version: 1", "version: 1\nsettings: { popup: { seconds: 99 } }", StringComparison.Ordinal);
+        File.WriteAllText(ConfigPath, yaml);
+
+        _session.Load();
+        _session.Update(c => Rename(c, "One"));
+        _session.Flush();
+
+        Assert.False(_session.CanEdit);
+        Assert.Contains("settings.popup.seconds", _session.LoadError, StringComparison.Ordinal);
+        Assert.Contains(_session.Problems, p => p.Path == "settings.popup.seconds");
+        Assert.Equal(yaml, File.ReadAllText(ConfigPath));
+    }
+
+    [Fact]
+    public void AnOutsideWriteTheWatcherHasntReportedYetIsNotOverwritten()
+    {
+        File.WriteAllText(ConfigPath, Yaml);
+        _session.Load();
+        _session.Update(c => Rename(c, "Mine"));
+        var theirs = Yaml.Replace("name: TV", "name: Theirs", StringComparison.Ordinal);
+        File.WriteAllText(ConfigPath, theirs);
+
+        _session.Flush();
+
+        Assert.Equal(OutsideChange.Conflict, _session.OutsideChange);
+        Assert.Equal(theirs, File.ReadAllText(ConfigPath));
+    }
 }

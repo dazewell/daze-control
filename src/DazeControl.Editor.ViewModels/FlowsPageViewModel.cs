@@ -99,7 +99,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             {
                 Items.Move(Items.IndexOf(existing), i);
             }
-            existing.Update(flow, _lastRuns.GetValueOrDefault(flow.Id), withErrors.GetValueOrDefault(flow.Id));
+            existing.Update(flow, _lastRuns.GetValueOrDefault(flow.Id), withErrors.GetValueOrDefault(flow.Id), _session.CanEdit);
         }
         IsEmpty = Items.Count == 0;
     }
@@ -109,7 +109,10 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         if (e.PropertyName is nameof(ConfigSession.Current) or nameof(ConfigSession.Problems))
             Sync();
         if (e.PropertyName == nameof(ConfigSession.CanEdit))
+        {
             OnPropertyChanged(nameof(CanEdit));
+            Sync();
+        }
     }
 
     private void OnEngineEvent(PipeEvent e)
@@ -169,13 +172,18 @@ public sealed partial class FlowItemViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsEnabled { get; set; }
 
-    internal void Update(Flow flow, RunRecord? lastRun, int errors)
+    /// <summary>False while the file is read-only for the editor.</summary>
+    [ObservableProperty]
+    public partial bool CanEdit { get; private set; }
+
+    internal void Update(Flow flow, RunRecord? lastRun, int errors, bool canEdit)
     {
         _syncing = true;
         try
         {
             Name = flow.Name;
-            Glyph = string.IsNullOrEmpty(flow.Glyph) ? DefaultGlyph : flow.Glyph;
+            Glyph = DecodeGlyph(flow.Glyph);
+            CanEdit = canEdit;
             Shortcut = flow.Hotkeys.Count == 0 ? "No shortcut" : string.Join(", ", flow.Hotkeys);
             LastRun = lastRun is null ? "Not run yet" : $"{Describe(lastRun.Outcome)} · {lastRun.Started.ToLocalTime():g}";
             HasProblems = errors > 0;
@@ -187,6 +195,13 @@ public sealed partial class FlowItemViewModel : ObservableObject
             _syncing = false;
         }
     }
+
+    /// <summary>YAML holds the code point in hex ("E7F4"); anything else falls back to the default.</summary>
+    internal static string DecodeGlyph(string? code) =>
+        int.TryParse(code, System.Globalization.NumberStyles.AllowHexSpecifier, System.Globalization.CultureInfo.InvariantCulture, out var value)
+        && value is >= 0x20 and <= 0x10FFFF and not (>= 0xD800 and <= 0xDFFF)
+            ? char.ConvertFromUtf32(value)
+            : DefaultGlyph;
 
     internal static string Describe(FlowOutcome outcome) => outcome switch
     {
