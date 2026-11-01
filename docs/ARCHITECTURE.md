@@ -153,11 +153,14 @@ Tests: `FakeProvider` + thread-safe `ManualTime` with `WaitForTimerAsync` (Runti
 ## Engine shell
 
 `Engine/Program`: rolling log (`engine.log`, `Runtime/Diagnostics/LogRotation`, 7 days), handlers for unhandled
-and unobserved exceptions (log only), `Lifecycle/SingleInstance` (mutex `Local\DazeControl.Engine`; a second
-engine logs and exits 0), then `EngineHost`, the hand-written composition root: ConfigHost
+and unobserved exceptions (log only), `Lifecycle/SingleInstance` (mutex `Global\DazeControl.Engine-<user SID>`, taken
+before the log: a second engine of the same user, in any session, exits 0 without writing anything, D-028), then `EngineHost`, the hand-written composition root: ConfigHost
 (`%APPDATA%\DazeControl\config.yaml`, or argv[0]) · RunHistory (`%LOCALAPPDATA%\DazeControl\history.jsonl`) ·
 one FlowRunner + ResourceLocks + FlowLauncher · `Runtime/Control/EngineController` (D-026) · PipeServer · tray ·
-hotkeys. Exit (tray or WM_CLOSE): unregister hotkeys, cancel all runs, close the pipe, ≤ 5 s grace.
+hotkeys. Exit (tray or WM_CLOSE): unregister hotkeys, pipe stops accepting (no new clients or requests), cancel
+all runs, drain the pipe (waiting `run --wait` clients get their answers), close it; ≤ 5 s grace in all.
+`FlowLauncher.RunCompleted` (after history + slot) is what publishes `runFinished` (pipe, tray, log), not the
+runner's RunFinished, so a client reacting to it sees the run in history and the flow free.
 - `Runtime/Triggers/HotkeyTable`: chord → flow from `RunnableFlows`, applied as a diff on each reload (unchanged
   chords stay registered), first flow wins a chord, a chord that fails (another app) fails alone and is retried
   on the next reload; Pause unregisters all (not persisted). Failures → `status` ("Alt+Z: Another app uses…").
@@ -173,11 +176,17 @@ hotkeys. Exit (tray or WM_CLOSE): unregister hotkeys, cancel all runs, close the
 `Ipc/IpcJson`, camelCase, string enums, nulls omitted), `protocol: 1`. `Ipc/PipeServer`: any number of clients;
 requests on one connection run concurrently, answers carry the request id; after `subscribe` the connection also
 gets events (`PipeMessage.Event`, id 0: runStarted, nodeStarted, nodeFinished, runFinished, configReloaded). A
-client that goes away cancels its waiting requests. `Ipc/PipeClient`: one request at a time.
+client that goes away cancels its waiting requests. Writes go through a bounded queue per connection
+(`QueueLimit` 256 lines) drained by one write loop; a full queue drops that client (logged). Pending pipe I/O
+ends only by cancellation (X-001). `Ipc/PipeClient`: one request at a time; events read while waiting for an
+answer go to `EventReceived`, or (no handler) a queue `ReadAsync` returns first.
+`cancel` and `status` use `FlowLauncher.RunningFlowIds` (a run outlives its flow's removal from the config);
+`history <text>` matches a recorded flow id, then the config's id/name, then a recorded name.
 Ops (EngineController): `run` (flow id or name; `wait` → the RunRecord; `dryRun` → a runner whose steps do
 nothing, no history), `cancel`, `list`, `status`, `validate`, `history` (flow, limit), `autostart` (enable
 true/false/absent); `devices`, `test-step`, `capture-display-layout` answer "can't do that yet" until M4.
-`dctl` (`src/DazeControl.Cli`): run/cancel/list/validate/status/history/autostart/devices; `validate <file>`
+`dctl` (`src/DazeControl.Cli`): run/cancel/list/validate/status/history/autostart/devices, parsed strictly by
+`Ipc/CommandLine` (unknown flag or wrong word count → exit 2, never ignored); `validate <file>`
 and, with no engine, `list`/`validate` read the YAML themselves. Exit codes 0 ok, 1 failed, 2 usage, 3 no engine.
 
 ## Adding a provider

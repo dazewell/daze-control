@@ -1,12 +1,22 @@
+using System.Security.Principal;
+
 namespace DazeControl.Engine.Lifecycle;
 
 /// <summary>
-/// One engine per user session (FEATURES F9): a named mutex in the session's <c>Local\</c> namespace. Held until
-/// disposed or the process dies (Windows abandons it then, and the next engine takes it).
+/// One engine per user (FEATURES F9), across all their sessions: a named mutex in the <c>Global\</c> namespace keyed
+/// by the user SID — the same scope as the pipe (named pipes are machine-wide), so history and logs have one writer.
+/// Plain users may create <c>Global\</c> mutexes. Held until disposed or the process dies (Windows abandons it
+/// then, and the next engine takes it).
 /// </summary>
 internal sealed class SingleInstance : IDisposable
 {
-    public const string MutexName = @"Local\DazeControl.Engine";
+    public static string MutexName(string userSid) => $@"Global\DazeControl.Engine-{userSid}";
+
+    public static string CurrentMutexName()
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        return MutexName(identity.User!.Value);
+    }
 
     private readonly Mutex _mutex;
     private bool _owned;
@@ -17,9 +27,10 @@ internal sealed class SingleInstance : IDisposable
         _owned = owned;
     }
 
-    /// <summary>Null when another engine in this session already holds it.</summary>
-    public static SingleInstance? TryAcquire(string name = MutexName)
+    /// <summary>Null when another engine of this user already holds it.</summary>
+    public static SingleInstance? TryAcquire(string? name = null)
     {
+        name ??= CurrentMutexName();
         var mutex = new Mutex(initiallyOwned: false, name);
         bool owned;
         try

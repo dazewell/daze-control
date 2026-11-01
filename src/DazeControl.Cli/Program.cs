@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using DazeControl.Core;
 using DazeControl.Core.Model;
@@ -56,45 +57,38 @@ public static class Program
 
     private static async Task<int> RunAsync(string command, string[] rest)
     {
-        var flags = rest.Where(a => a.StartsWith("--", StringComparison.Ordinal)).ToList();
-        var words = rest.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToList();
+        CommandLine line;
+        try
+        {
+            line = CommandLine.Parse(command, rest);
+        }
+        catch (CommandLineException e)
+        {
+            return UsageError(e.Message);
+        }
         switch (command)
         {
             case "run":
-                if (words.Count != 1)
-                    return UsageError("run needs one flow.");
                 return await SendAsync(new PipeRequest
                 {
-                    Op = Ops.Run, Flow = words[0], Wait = flags.Contains("--wait") || flags.Contains("--dry-run"),
-                    DryRun = flags.Contains("--dry-run"), Trigger = "Command line",
+                    Op = Ops.Run, Flow = line.Word, Wait = line.Wait || line.DryRun, DryRun = line.DryRun, Trigger = "Command line",
                 }, PrintRun).ConfigureAwait(false);
             case "cancel":
-                return words.Count == 1
-                    ? await SendAsync(new PipeRequest { Op = Ops.Cancel, Flow = words[0] }, _ => Ok).ConfigureAwait(false)
-                    : UsageError("cancel needs one flow.");
+                return await SendAsync(new PipeRequest { Op = Ops.Cancel, Flow = line.Word }, _ => Ok).ConfigureAwait(false);
             case "list":
                 return await SendAsync(new PipeRequest { Op = Ops.List }, PrintFlows, offline: ListOffline).ConfigureAwait(false);
             case "validate":
-                if (words.Count == 1)
-                    return ValidateOffline(words[0]);
+                if (line.Word is { } file)
+                    return ValidateOffline(file);
                 return await SendAsync(new PipeRequest { Op = Ops.Validate }, m => PrintProblems(m.Problems ?? []),
                     offline: () => ValidateOffline(DefaultConfigPath(), missingIsEmpty: true)).ConfigureAwait(false);
             case "status":
                 return await SendAsync(new PipeRequest { Op = Ops.Status }, PrintStatus).ConfigureAwait(false);
             case "history":
-                int? limit = null;
-                var limitAt = rest.ToList().IndexOf("--limit");
-                if (limitAt >= 0)
-                {
-                    if (limitAt + 1 >= rest.Length || !int.TryParse(rest[limitAt + 1], CultureInfo.InvariantCulture, out var n) || n < 1)
-                        return UsageError("--limit needs a number.");
-                    limit = n;
-                    words.Remove(rest[limitAt + 1]);
-                }
-                return await SendAsync(new PipeRequest { Op = Ops.History, Flow = words.FirstOrDefault(), Limit = limit },
+                return await SendAsync(new PipeRequest { Op = Ops.History, Flow = line.Word, Limit = line.Limit },
                     PrintHistory).ConfigureAwait(false);
             case "autostart":
-                bool? enable = words.FirstOrDefault() switch
+                bool? enable = line.Word switch
                 {
                     null => null,
                     "on" => true,
@@ -112,9 +106,9 @@ public static class Program
                     return Ok;
                 }).ConfigureAwait(false);
             case "devices":
-                return await SendAsync(new PipeRequest { Op = Ops.Devices, Flow = words.FirstOrDefault() }, _ => Ok).ConfigureAwait(false);
+                return await SendAsync(new PipeRequest { Op = Ops.Devices, Flow = line.Word }, _ => Ok).ConfigureAwait(false);
             default:
-                return UsageError($"Unknown command \"{command}\".");
+                throw new UnreachableException();
         }
     }
 

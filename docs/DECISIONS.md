@@ -248,3 +248,13 @@ Status: accepted
   square with a play mark reads on dark and light taskbars.
 - Why not `IDI_APPLICATION` + a drawn overlay: GDI alpha when drawing an icon into a DIB is unreliable.
 - Revisit if: the product gets a designed icon (M10): ship it as a resource then, keep the variants drawn.
+
+## D-028 · 2026-11-01 · One engine per user across sessions: Global\ mutex keyed by the user SID
+Status: accepted
+- Decision: `SingleInstance` uses `Global\DazeControl.Engine-<user SID>`, taken before `Log.Initialize`.
+- Why: the pipe name is per user and named pipes are machine-wide, so two sessions of one user would run two
+  engines on one pipe and two writers of history.jsonl and engine.log (PR #4 review). Plain users may create
+  `Global\` mutexes (only file mappings need SeCreateGlobalPrivilege).
+- Why not: per-session pipe names — clients would need the session id, and history/log would still be shared;
+  `Local\` mutex — the bug.
+- Revisit if: per-session engines are ever wanted (then per-session pipe, history and log paths too).

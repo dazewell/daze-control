@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M3 review — PR #4 (branch feat/m3-engine-shell), Copilot review 1 of 2 in, 13 findings open
-Last green checkpoint: 9bb117a "docs(skills): request Copilot with gh pr edit --add-reviewer @copilot"
-Next action: fix all 13 findings of review 5729313870 per the plan in the session notes folder file `pr4-review1-plan.md` (copied below in short), reply + resolve each thread, push, then `gh pr edit 4 --add-reviewer @copilot` (review 2, the last) and check the timeline shows reviewer Copilot
-Tree state: builds, 324/324 tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: treated as Critical (§6.4): wrong flag runs a real flow instead of a dry run; slow subscriber grows memory; engines in two sessions share one pipe. Short plan: CLI strict flags/arg counts · mutex Global\DazeControl.Engine-<SID> · PipeServer bounded per-connection channel, drop slow subscriber · measure.ps1 checks dctl exit codes (0/1 ok, 2/3 throw) · exit: stop accepting, cancel runs, await in-flight answers, dispose · runFinished from a new FlowLauncher.RunCompleted (after history + slot) · NIN_KEYSELECT · PipeClient queues events for ReadAsync · launcher RunningFlowIds for cancel/status · TriggerAsync(FlowState) to avoid a second snapshot read · history filters by recorded flow id · LogRotation recovers engine.log.rotating, never overwrites.
+Current task: M3 review — PR #4 (branch feat/m3-engine-shell), Copilot review 1 fixed, review 2 (the last) next
+Last green checkpoint: 4c033af "docs(plan): hand over PR #4 review 1 findings"
+Next action: reply to + resolve the 13 review-1 threads (comment ids in the session notes file `pr4-review1-plan.md`), push, `gh pr edit 4 --add-reviewer @copilot`, check the timeline shows Copilot, then wait for CI + review 2 and follow repo-workflow §6 (merge, or fix + code-review high, then merge)
+Tree state: builds, 357/357 tests green, AOT publish clean · Uncommitted: none
+Notes for next agent: never end a pipe I/O by disposing the pipe (X-001). Review 2 is the last Copilot review for #4.
 
 ---
 

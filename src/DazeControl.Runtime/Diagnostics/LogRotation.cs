@@ -17,6 +17,7 @@ public static class LogRotation
 
     private const string Prefix = "engine-";
     private const string ArchiveFormat = "yyyy-MM-dd";
+    private const string RotatingSuffix = ".rotating";
 
     public static void Rotate(string directory, DateTime now)
     {
@@ -24,6 +25,7 @@ public static class LogRotation
         var current = Path.Combine(directory, FileName);
         try
         {
+            RecoverRotating(directory, current + RotatingSuffix);
             var lastDay = File.Exists(current) ? File.GetLastWriteTime(current).Date : today;
             if (lastDay < today)
                 Archive(current, Path.Combine(directory, ArchiveName(lastDay)));
@@ -55,9 +57,32 @@ public static class LogRotation
             return;
         }
         // Same day archived before (clock turned back): keep both, in order. Move first, so a locked log fails
-        // before anything is appended and a retry can't append it twice.
-        var moved = current + ".rotating";
-        File.Move(current, moved, overwrite: true);
+        // before anything is appended and a retry can't append it twice. Never overwrite an unrecovered
+        // .rotating: RecoverRotating runs first, so one still there means it failed — this Move throws, skip.
+        var moved = current + RotatingSuffix;
+        File.Move(current, moved);
+        try
+        {
+            File.AppendAllText(archive, File.ReadAllText(moved));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Archive locked: put the log back (nothing wrote engine.log since, Write holds its lock).
+            File.Move(moved, current);
+            throw;
+        }
+        File.Delete(moved);
+    }
+
+    /// <summary>
+    /// A <c>.rotating</c> left by a cut rotation (crash, or the log couldn't be put back) is appended to the archive
+    /// of the day it was written, then deleted. Throws if that fails, so rotation is skipped and it stays.
+    /// </summary>
+    private static void RecoverRotating(string directory, string moved)
+    {
+        if (!File.Exists(moved))
+            return;
+        var archive = Path.Combine(directory, ArchiveName(File.GetLastWriteTime(moved).Date));
         File.AppendAllText(archive, File.ReadAllText(moved));
         File.Delete(moved);
     }

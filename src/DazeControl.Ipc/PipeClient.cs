@@ -7,12 +7,13 @@ namespace DazeControl.Ipc;
 /// <summary>
 /// A client of the engine's pipe (dctl, the editor). One request at a time per client: <see cref="SendAsync"/>
 /// writes it and reads lines until the answer with the same id arrives, handing any events on the way to
-/// <see cref="EventReceived"/>.
+/// <see cref="EventReceived"/>, or (no handler) queueing them for <see cref="ReadAsync"/>.
 /// </summary>
 public sealed class PipeClient : IAsyncDisposable
 {
     private readonly NamedPipeClientStream _pipe;
     private readonly StreamReader _reader;
+    private readonly Queue<PipeMessage> _events = new();
     private int _nextId;
 
     private PipeClient(NamedPipeClientStream pipe)
@@ -53,17 +54,28 @@ public sealed class PipeClient : IAsyncDisposable
         await _pipe.FlushAsync(cancellationToken).ConfigureAwait(false);
         while (true)
         {
-            var reply = await ReadAsync(cancellationToken).ConfigureAwait(false)
+            var reply = await ReadLineAsync(cancellationToken).ConfigureAwait(false)
                 ?? throw new IOException("The engine closed the connection.");
             if (reply.Event is { } e && reply.Id == 0 && reply.Ok)
-                EventReceived?.Invoke(e);
+            {
+                if (EventReceived is { } handler)
+                    handler(e);
+                else
+                    _events.Enqueue(reply);
+            }
             else if (reply.Id == id || reply.Id == 0)
                 return reply;
         }
     }
 
-    /// <summary>The next message (after <see cref="Ops.Subscribe"/>: events); null when the engine has gone.</summary>
-    public async Task<PipeMessage?> ReadAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// The next message (after <see cref="Ops.Subscribe"/>: events), events that arrived during
+    /// <see cref="SendAsync"/> first; null when the engine has gone.
+    /// </summary>
+    public async Task<PipeMessage?> ReadAsync(CancellationToken cancellationToken = default) =>
+        _events.TryDequeue(out var queued) ? queued : await ReadLineAsync(cancellationToken).ConfigureAwait(false);
+
+    private async Task<PipeMessage?> ReadLineAsync(CancellationToken cancellationToken)
     {
         while (await _reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
         {

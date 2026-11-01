@@ -10,6 +10,7 @@ public sealed class PipeTests : IAsyncDisposable
 
     private readonly string _name = "DazeControl.Tests-" + Guid.NewGuid().ToString("N");
     private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _slowStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly PipeServer _server;
     private readonly List<string> _errors = [];
 
@@ -18,7 +19,10 @@ public sealed class PipeTests : IAsyncDisposable
         _server = new PipeServer(_name, async (request, token) =>
         {
             if (request.Op == "slow")
+            {
+                _slowStarted.TrySetResult();
                 await _gate.Task.WaitAsync(token);
+            }
             if (request.Op == "throw")
                 throw new InvalidOperationException("boom");
             return new PipeMessage { Id = request.Id, Ok = true, Error = request.Op + ":" + request.Flow };
@@ -119,5 +123,73 @@ public sealed class PipeTests : IAsyncDisposable
 
         await Assert.ThrowsAnyAsync<IOException>(() => pending.WaitAsync(TimeSpan.FromSeconds(5), Ct));
         await client.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task EventsDuringSendAreKeptForReadAsync()
+    {
+        await using var subscriber = await Connect();
+        Assert.True((await subscriber.SendAsync(new PipeRequest { Op = Ops.Subscribe }, Ct)).Ok);
+        var pending = subscriber.SendAsync(new PipeRequest { Op = "slow" }, Ct);
+        await WaitUntil(() => _slowStarted.Task.IsCompleted);
+
+        _server.Broadcast(new PipeEvent { Kind = EventKinds.ConfigReloaded });
+        _gate.SetResult();
+        Assert.True((await pending).Ok);
+
+        var message = await subscriber.ReadAsync(Ct).WaitAsync(TimeSpan.FromSeconds(5), Ct);
+        Assert.Equal(EventKinds.ConfigReloaded, message!.Event!.Kind);
+    }
+
+    [Fact]
+    public async Task ASubscriberThatNeverReadsIsDropped()
+    {
+        await using var pipe = new NamedPipeClientStream(".", _name, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await pipe.ConnectAsync(5000, Ct);
+        await pipe.WriteAsync(Encoding.UTF8.GetBytes("{\"protocol\":1,\"id\":1,\"op\":\"subscribe\"}\n"), Ct);
+        await pipe.FlushAsync(Ct);
+        await Task.Delay(200, Ct); // let the subscribe land
+
+        var big = new string('x', 4096);
+        for (var i = 0; i < PipeServer.QueueLimit * 8 && !HasError("pipe: client too slow, dropped"); i++)
+        {
+            _server.Broadcast(new PipeEvent { Kind = EventKinds.ConfigReloaded, FlowId = big });
+            await Task.Yield();
+        }
+
+        Assert.True(HasError("pipe: client too slow, dropped"));
+        await using (var other = await Connect())
+            Assert.True((await other.SendAsync(new PipeRequest { Op = "status" }, Ct)).Ok);
+        // Its cut-off writes (the unread subscribe answer among them) don't hold up the exit.
+        await _server.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), Ct);
+    }
+
+    [Fact]
+    public async Task StopAcceptingStillWritesPendingAnswers()
+    {
+        await using var client = await Connect();
+        var pending = client.SendAsync(new PipeRequest { Op = "slow" }, Ct);
+        await WaitUntil(() => _slowStarted.Task.IsCompleted);
+
+        await _server.StopAcceptingAsync();
+        Assert.Null(await PipeClient.ConnectAsync(_name, TimeSpan.FromMilliseconds(200), Ct));
+        var draining = _server.DrainAsync(Ct);
+        _gate.SetResult();
+
+        Assert.Equal("slow:", (await pending.WaitAsync(TimeSpan.FromSeconds(5), Ct)).Error);
+        await draining.WaitAsync(TimeSpan.FromSeconds(5), Ct);
+    }
+
+    private bool HasError(string what)
+    {
+        lock (_errors)
+            return _errors.Contains(what);
+    }
+
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        for (var i = 0; i < 500 && !condition(); i++)
+            await Task.Delay(10, Ct);
+        Assert.True(condition());
     }
 }

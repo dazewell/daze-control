@@ -119,4 +119,51 @@ public sealed class LogRotationTests : IDisposable
         Assert.False(File.Exists(Current));
         Assert.Equal("first\nsecond\n", File.ReadAllText(Archive(10, 22)));
     }
+
+    [Fact]
+    public void ALockedArchivePutsTheLogBack()
+    {
+        File.WriteAllText(Archive(10, 22), "first\n");
+        WriteCurrent("second\n", new DateTime(2026, 10, 22, 20, 0, 0));
+        using (new FileStream(Archive(10, 22), FileMode.Open, FileAccess.Read, FileShare.None))
+            LogRotation.Rotate(_directory, Now);
+
+        Assert.Equal("second\n", File.ReadAllText(Current));
+        Assert.False(File.Exists(Current + ".rotating"));
+
+        LogRotation.Rotate(_directory, Now);
+
+        Assert.Equal("first\nsecond\n", File.ReadAllText(Archive(10, 22)));
+    }
+
+    [Fact]
+    public void ALeftoverRotatingFileIsRecoveredIntoItsDay()
+    {
+        var moved = Current + ".rotating";
+        File.WriteAllText(Archive(10, 21), "first\n");
+        File.WriteAllText(moved, "cut\n");
+        File.SetLastWriteTime(moved, new DateTime(2026, 10, 21, 22, 0, 0));
+        WriteCurrent("today\n", new DateTime(2026, 10, 23, 0, 0, 1));
+
+        LogRotation.Rotate(_directory, Now);
+
+        Assert.False(File.Exists(moved));
+        Assert.Equal("first\ncut\n", File.ReadAllText(Archive(10, 21)));
+        Assert.Equal("today\n", File.ReadAllText(Current));
+    }
+
+    [Fact]
+    public void AnUnrecoveredRotatingFileIsNeverOverwritten()
+    {
+        var moved = Current + ".rotating";
+        File.WriteAllText(moved, "cut\n");
+        File.SetLastWriteTime(moved, new DateTime(2026, 10, 22, 22, 0, 0));
+        File.WriteAllText(Archive(10, 22), "first\n");
+        WriteCurrent("second\n", new DateTime(2026, 10, 22, 23, 0, 0));
+        using (new FileStream(Archive(10, 22), FileMode.Open, FileAccess.Read, FileShare.None))
+            LogRotation.Rotate(_directory, Now);
+
+        Assert.Equal("cut\n", File.ReadAllText(moved));
+        Assert.Equal("second\n", File.ReadAllText(Current));
+    }
 }

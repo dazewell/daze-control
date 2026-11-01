@@ -18,6 +18,8 @@ internal sealed unsafe class TrayIcon : IDisposable
 {
     private const uint IconId = 1;
     private const uint CallbackMessage = PInvoke.WM_APP + 1;
+    /// <summary>NIN_KEYSELECT (NIN_SELECT | NINF_KEY): Enter or Space on the focused icon; missing from the CsWin32 metadata.</summary>
+    private const uint NinKeySelect = PInvoke.NIN_SELECT | 0x1;
     private const uint FirstCommand = 1;
 
     private readonly MessageWindow _window;
@@ -109,10 +111,10 @@ internal sealed unsafe class TrayIcon : IDisposable
     {
         if (message == CallbackMessage)
         {
-            // Version 4: LOWORD(lParam) is the event, wParam the anchor in screen coordinates. Left click opens
-            // the menu too: the tray has nothing else to show.
+            // Version 4: LOWORD(lParam) is the event, wParam the anchor in screen coordinates. Left click and
+            // keyboard activation (Enter/Space on the focused icon) open the menu too: the tray has nothing else to show.
             var notification = (uint)(lParam.Value & 0xFFFF);
-            if (notification == PInvoke.WM_CONTEXTMENU || notification == PInvoke.NIN_SELECT)
+            if (notification is PInvoke.WM_CONTEXTMENU or PInvoke.NIN_SELECT or NinKeySelect)
                 ShowMenu((short)(wParam.Value & 0xFFFF), (short)((wParam.Value >> 16) & 0xFFFF));
             return true;
         }

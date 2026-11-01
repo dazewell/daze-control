@@ -34,15 +34,27 @@ public sealed class EngineControllerTests : IDisposable
     private readonly RunHistory _history = new(null);
     private readonly EngineController _controller;
     private readonly List<string> _log = [];
+    private ConfigSnapshot _snapshot;
+
+    /// <summary>When set, the config changes to this right after the next read (a reload mid-request).</summary>
+    private ConfigSnapshot? _afterNextRead;
 
     public EngineControllerTests()
     {
         _provider.On("a", (context, token) => context.Flow.Id == "slow" ? _gate.Task.WaitAsync(token) : Task.CompletedTask);
         _launcher = new FlowLauncher(new FlowRunner([_provider], _time), _history);
-        var snapshot = ConfigHost.Apply(ConfigSnapshot.Empty, ConfigYaml.Load(Yaml));
-        _controller = new EngineController(() => snapshot, _launcher, _history, EngineController.CreateDryRunner(_time),
+        _snapshot = ConfigHost.Apply(ConfigSnapshot.Empty, ConfigYaml.Load(Yaml));
+        _controller = new EngineController(ReadConfig, _launcher, _history, EngineController.CreateDryRunner(_time),
             new Autostart(_root + @"\Run", _root + @"\Approved"), new EngineInfo("1.2.3", 42, @"C:\x\DazeControl.exe", "c.yaml"),
             line => { lock (_log) _log.Add(line); });
+    }
+
+    private ConfigSnapshot ReadConfig()
+    {
+        var current = _snapshot;
+        if (_afterNextRead is { } next)
+            (_snapshot, _afterNextRead) = (next, null);
+        return current;
     }
 
     public void Dispose()
@@ -200,5 +212,40 @@ public sealed class EngineControllerTests : IDisposable
         Assert.Null(await _controller.TriggerAsync("broken", "Tray"));
 
         Assert.Contains("run: broken (Tray) not runnable", _log);
+    }
+
+    [Fact]
+    public async Task ARunOutlivesItsFlowForCancelAndStatus()
+    {
+        var run = Send(Ops.Run, "slow", wait: true);
+        await _provider.Started("a");
+        _snapshot = ConfigSnapshot.Empty;
+
+        Assert.Equal(["slow"], (await Send(Ops.Status)).Status!.Running!);
+        Assert.True((await Send(Ops.Cancel, "slow")).Ok);
+        Assert.Equal(FlowOutcome.Cancelled, (await run).Run!.Outcome);
+    }
+
+    [Fact]
+    public async Task RunLaunchesTheVersionItChecked()
+    {
+        _afterNextRead = ConfigSnapshot.Empty;
+
+        var answer = await Send(Ops.Run, "tv", wait: true);
+
+        Assert.True(answer.Ok);
+        Assert.Equal("TV only", answer.Run!.FlowName);
+        Assert.Single(_history.Recent);
+    }
+
+    [Fact]
+    public async Task HistoryOfARemovedFlowIsFoundByIdOrName()
+    {
+        await Send(Ops.Run, "tv", wait: true);
+        _snapshot = ConfigSnapshot.Empty;
+
+        Assert.Single((await Send(Ops.History, "tv")).History!);
+        Assert.Single((await Send(Ops.History, "tv only")).History!);
+        Assert.Equal("There's no flow called \"nope\".", (await Send(Ops.History, "nope")).Error);
     }
 }

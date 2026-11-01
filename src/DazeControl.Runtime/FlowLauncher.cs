@@ -18,6 +18,14 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
     private readonly Dictionary<string, Slot> _slots = [];
     private bool _closed;
 
+    /// <summary>
+    /// A run ended, after its history record was written and its slot freed (a subscriber reacting at once sees
+    /// both). From a pool thread; quick. A handler that throws goes to <see cref="ListenerFailed"/>.
+    /// </summary>
+    public event Action<RunFinished>? RunCompleted;
+
+    public event Action<Exception>? ListenerFailed;
+
     /// <param name="flow">The flow version to run.</param>
     /// <param name="library">The library that version was validated with (<c>FlowState.Library</c>); a queued
     /// run keeps it even if the config reloads before it starts.</param>
@@ -61,6 +69,16 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
     {
         lock (_lock)
             return _slots.TryGetValue(flowId, out var slot) && slot.Cancel is not null;
+    }
+
+    /// <summary>Flows with a run now, whether or not they are still in the config.</summary>
+    public IReadOnlyList<string> RunningFlowIds
+    {
+        get
+        {
+            lock (_lock)
+                return [.. _slots.Where(s => s.Value.Cancel is not null).Select(s => s.Key)];
+        }
     }
 
     /// <summary>Cancels the flow's run and drops its queued one (tray, <c>dctl cancel</c>); false when it wasn't running.</summary>
@@ -156,6 +174,8 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
                 Start(slot, nextRequest, next);
             }
         }
+        if (result is not null)
+            RaiseCompleted(new RunFinished(result.RunId, flow.Id, result.Started + result.Duration, result.Outcome));
         if (failure is not null)
         {
             if (completion is null)
@@ -165,6 +185,20 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
         }
         completion?.TrySetResult(result);
         return result;
+    }
+
+    private void RaiseCompleted(RunFinished finished)
+    {
+        try
+        {
+            RunCompleted?.Invoke(finished);
+        }
+#pragma warning disable CA1031 // fail-soft: a listener bug must not lose the run's result
+        catch (Exception e)
+#pragma warning restore CA1031
+        {
+            ListenerFailed?.Invoke(e);
+        }
     }
 
     private sealed class Slot

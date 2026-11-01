@@ -38,9 +38,14 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         new(ProviderCatalog.All.Select(d => new NoOpProvider(d.Id)), time);
 
     /// <summary>Starts a runnable flow (hotkey, tray, pipe); null when it can't run or the trigger was ignored.</summary>
-    public Task<RunResult?> TriggerAsync(string flowId, string trigger)
+    public Task<RunResult?> TriggerAsync(string flowId, string trigger) =>
+        TriggerAsync(config().Flows.FirstOrDefault(f => f.FlowId == flowId), flowId, trigger);
+
+    /// <summary>Starts this version of the flow (the one the caller checked), not whatever the config holds now.</summary>
+    public Task<RunResult?> TriggerAsync(FlowState state, string trigger) => TriggerAsync(state, state.FlowId, trigger);
+
+    private Task<RunResult?> TriggerAsync(FlowState? state, string flowId, string trigger)
     {
-        var state = config().Flows.FirstOrDefault(f => f.FlowId == flowId);
         if (state?.Running is not { Enabled: true } flow)
         {
             log($"run: {flowId} ({trigger}) not runnable");
@@ -66,11 +71,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             case Ops.Run:
                 return await RunAsync(request, cancellationToken).ConfigureAwait(false);
             case Ops.Cancel:
-                if (Find(request.Flow) is not { } toCancel)
-                    return NotFound(id, request.Flow);
-                return launcher.Cancel(toCancel.FlowId)
-                    ? new PipeMessage { Id = id, Ok = true }
-                    : PipeMessage.Fail(id, $"{NameOf(toCancel)} isn't running.");
+                return Cancel(request);
             case Ops.List:
                 return new PipeMessage { Id = id, Ok = true, Flows = [.. config().Flows.Select(Describe)] };
             case Ops.Status:
@@ -105,7 +106,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             return new PipeMessage { Id = id, Ok = true, Run = Record(dry, flow.Id, flow.Name, trigger + " (dry run)") };
         }
 
-        var run = TriggerAsync(state.FlowId, trigger);
+        var run = TriggerAsync(state, trigger);
         if (!request.Wait)
         {
             // Ignored triggers resolve at once; anything else has started.
@@ -122,14 +123,40 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
     private static RunRecord Record(RunResult result, string flowId, string name, string trigger) =>
         new(result.RunId, flowId, name, trigger, result.Started, result.Duration, result.Outcome, [.. result.Nodes]);
 
+    /// <summary>A run keeps going when its flow leaves the config, so a raw id that is running can be cancelled.</summary>
+    private PipeMessage Cancel(PipeRequest request)
+    {
+        var id = request.Id;
+        var running = launcher.RunningFlowIds;
+        string flowId, name;
+        if (request.Flow is { } text && running.Contains(text, StringComparer.Ordinal))
+            (flowId, name) = (text, Find(text) is { } byId ? NameOf(byId) : text);
+        else if (Find(request.Flow) is { } state)
+            (flowId, name) = (state.FlowId, NameOf(state));
+        else
+            return NotFound(id, request.Flow);
+        return launcher.Cancel(flowId) ? new PipeMessage { Id = id, Ok = true } : PipeMessage.Fail(id, $"{name} isn't running.");
+    }
+
+    /// <summary>
+    /// History outlives the config: the filter matches a recorded flow id, then the config's id or name, then a
+    /// recorded name.
+    /// </summary>
     private PipeMessage History(PipeRequest request)
     {
         IEnumerable<RunRecord> runs = history?.Recent ?? [];
-        if (request.Flow is not null)
+        if (request.Flow is { } text)
         {
-            if (Find(request.Flow) is not { } state)
-                return NotFound(request.Id, request.Flow);
-            runs = runs.Where(r => r.FlowId == state.FlowId);
+            if (!runs.Any(r => r.FlowId == text))
+            {
+                if (Find(text) is { } state)
+                    text = state.FlowId;
+                else if (runs.FirstOrDefault(r => string.Equals(r.FlowName, text, StringComparison.OrdinalIgnoreCase)) is { } byName)
+                    text = byName.FlowId;
+                else
+                    return NotFound(request.Id, request.Flow);
+            }
+            runs = runs.Where(r => r.FlowId == text);
         }
         runs = runs.OrderByDescending(r => r.Started);
         if (request.Limit is > 0 and var limit)
@@ -165,7 +192,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             ProcessId = info.ProcessId,
             ConfigPath = info.ConfigPath,
             ShortcutsPaused = shell.ShortcutsPaused,
-            Running = [.. snapshot.Flows.Where(f => launcher.IsRunning(f.FlowId)).Select(f => f.FlowId)],
+            Running = [.. launcher.RunningFlowIds.Order(StringComparer.Ordinal)],
             ShortcutProblems = [.. shell.ShortcutProblems],
             Errors = snapshot.Problems.Count(p => p.Severity == Severity.Error),
             Warnings = snapshot.Problems.Count(p => p.Severity == Severity.Warning),

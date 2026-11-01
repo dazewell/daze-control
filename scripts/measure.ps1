@@ -8,6 +8,7 @@ param(
     [int]$IdleSeconds = 60,
     # After the idle window: run this flow -Runs times through dctl, settle again and sample the "after a run" numbers.
     [string]$RunFlow,
+    [ValidateRange(1, [int]::MaxValue)]
     [int]$Runs = 5
 )
 $ErrorActionPreference = 'Stop'
@@ -44,7 +45,19 @@ try {
     if ($RunFlow) {
         $dctl = Join-Path $root 'artifacts\cli\dctl.exe'
         if (-not (Test-Path $dctl)) { throw "no dctl at $dctl (dotnet publish src/DazeControl.Cli -c Release -r win-x64 -o artifacts/cli)" }
-        for ($i = 0; $i -lt $Runs; $i++) { & $dctl run $RunFlow --wait | Out-Null }
+        # Exit 0 = the run succeeded, 1 = it ran and failed (expected until M4 brings providers); 2 = usage error,
+        # 3 = no engine, anything else = dctl broke: then no run happened and the "after" numbers mean nothing.
+        $runsFrom = (Get-Date).AddSeconds(-1)
+        for ($i = 0; $i -lt $Runs; $i++) {
+            & $dctl run $RunFlow --wait | Out-Null
+            if ($LASTEXITCODE -notin 0, 1) { throw "dctl run $RunFlow exited $($LASTEXITCODE): no run happened" }
+        }
+        # Exit 1 is also "no such flow": count the runs the history recorded since the first one started
+        # (lines start with the local start time, yyyy-MM-dd HH:mm:ss).
+        $history = @(& $dctl history $RunFlow --limit $Runs)
+        if ($LASTEXITCODE -ne 0) { throw "dctl history $RunFlow exited $LASTEXITCODE" }
+        $recorded = @($history | Where-Object { [datetime]::ParseExact($_.Substring(0, 19), 'yyyy-MM-dd HH:mm:ss', $null) -ge $runsFrom })
+        if ($recorded.Count -ne $Runs) { throw "expected $Runs new run(s) of $RunFlow in the history, got $($recorded.Count)" }
         Start-Sleep -Seconds $SettleSeconds
         $p.Refresh()
         $afterPrivateMb = [math]::Round($p.PrivateMemorySize64 / 1MB, 1)

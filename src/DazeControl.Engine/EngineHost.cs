@@ -32,7 +32,7 @@ internal sealed record EnginePaths(string Config, string History, string Logs)
 /// </summary>
 internal sealed class EngineHost : IDisposable
 {
-    /// <summary>How long exit waits for running flows to wind down after cancelling them.</summary>
+    /// <summary>How long exit waits for running flows to wind down and their waiting clients to get answers.</summary>
     private static readonly TimeSpan ExitGrace = TimeSpan.FromSeconds(5);
 
     private readonly MessageWindow _window;
@@ -66,6 +66,8 @@ internal sealed class EngineHost : IDisposable
         _history.WriteFailed += e => Log.Error("history: write failed", e);
         var runner = new FlowRunner(providers, TimeProvider.System, new ResourceLocks(), events: OnRunEvent);
         _launcher = new FlowLauncher(runner, _history);
+        _launcher.RunCompleted += OnRunCompleted;
+        _launcher.ListenerFailed += e => Log.Error("run: completion listener", e);
 
         _config = new ConfigHost(paths.Config, TimeProvider.System);
         _config.ListenerFailed += e => Log.Error("config: listener", e);
@@ -89,10 +91,21 @@ internal sealed class EngineHost : IDisposable
         Log.Info("engine: exiting");
         _hotkeyTable.Clear();
         _config.Dispose();
-        // Cancel runs first: a client waiting on one gets its answer before the pipe closes.
+        // No new requests, cancel the runs, let every waiting client get its answer, then close the pipe; all of it
+        // within the grace (drain gives up a second early so the pipe still closes cleanly).
         var exit = Task.Run(async () =>
         {
-            await _launcher.CancelAllAsync().ConfigureAwait(false);
+            using var drainGrace = new CancellationTokenSource(ExitGrace - TimeSpan.FromSeconds(1));
+            await _pipe.StopAcceptingAsync().ConfigureAwait(false);
+            try
+            {
+                await _launcher.CancelAllAsync().WaitAsync(drainGrace.Token).ConfigureAwait(false);
+                await _pipe.DrainAsync(drainGrace.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                Log.Warn("engine: runs or answers still pending at exit; closing the pipe");
+            }
             await _pipe.DisposeAsync().ConfigureAwait(false);
         });
         if (!exit.Wait(ExitGrace))
@@ -197,21 +210,32 @@ internal sealed class EngineHost : IDisposable
         _controller.TriggerAsync(flowId, hotkey.ToString());
     }
 
-    /// <summary>From pool threads (FlowRunner): log, then hand the rest to the message thread. Quick.</summary>
+    /// <summary>
+    /// From pool threads (FlowRunner): log, then hand the rest to the message thread. Quick. The runner's
+    /// RunFinished is skipped: <see cref="OnRunCompleted"/> publishes it once history and the launcher caught up.
+    /// </summary>
     private void OnRunEvent(RunEvent e)
     {
-        if (e is RunStarted or RunFinished)
-            _window.Post(() => OnRunEventPosted(e));
-        _pipe?.Broadcast(PipeEvent.From(e));
         switch (e)
         {
-            case RunFinished finished:
-                Log.Info($"run: {finished.FlowId} {finished.Outcome}");
+            case RunFinished:
+                return;
+            case RunStarted:
+                _window.Post(() => OnRunEventPosted(e));
                 break;
             case NodeFinished { Result: { Outcome: not NodeOutcome.Succeeded } result } node:
                 Log.Info($"run: {node.FlowId}/{result.NodeId} {result.Outcome}{(result.Error is null ? "" : ": " + result.Error)}");
                 break;
         }
+        _pipe?.Broadcast(PipeEvent.From(e));
+    }
+
+    /// <summary>From a pool thread (FlowLauncher), after the run is in the history and its slot is free.</summary>
+    private void OnRunCompleted(RunFinished finished)
+    {
+        Log.Info($"run: {finished.FlowId} {finished.Outcome}");
+        _window.Post(() => OnRunEventPosted(finished));
+        _pipe?.Broadcast(PipeEvent.From(finished));
     }
 
     public void Dispose()
