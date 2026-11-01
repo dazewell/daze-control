@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M3 engine shell (branch feat/m3-engine-shell, no PR yet) — T3.7 footprint gate
-Last green checkpoint: 3dcbfce "wip(engine): pipe server, protocol and engine controller; autostart"
-Next action: T3.7: `pwsh scripts/measure.ps1 -NoPublish -Config samples/user-config.yaml -IdleSeconds 600 -RunFlow connect-technics` (publish engine + dctl first); paste both rows into ARCHITECTURE → Footprint; then open the M3 PR
-Tree state: builds, 324/324 tests green, AOT publish clean (engine 6.5 MB, dctl 5.7 MB) · Uncommitted: none
-Notes for next agent: dctl checked end to end against the published engine 2026-11-01 (all commands, hot reload, offline list/validate). Version bumped to 0.4.0 in this branch.
+Current task: M3 review — PR for feat/m3-engine-shell (number in `gh pr list`), then T4.1
+Last green checkpoint: 1fbc856 "wip(cli): dctl commands over the pipe, offline list and validate"
+Next action: take the M3 PR through repo-workflow §6 (CI, Copilot review, budget 2), squash-merge, sync main; then T4.1 on feat/m4-providers-basic: wait, notify, flag providers + register them in Engine/Program.cs (empty provider list today)
+Tree state: builds, 324/324 tests green, AOT publish clean · Uncommitted: none
+Notes for next agent: M3 (T3.1–T3.7) complete on feat/m3-engine-shell; footprint gate passed (4.6 MB private, 0 ms idle CPU over 10 min, +0.5 MB after runs). Version 0.4.0.
 
 ---
 
@@ -43,14 +43,14 @@ Notes for next agent: dctl checked end to end against the published engine 2026-
 - [x] T2.5 Run events + history (last 100) + `history.jsonl` (feat/m2-runtime).
 - [x] T2.6 ConfigHost: load, debounced reload, last valid version per flow (D-021), never-valid flows disabled (feat/m2-runtime).
 
-## M3 Engine shell
+## M3 Engine shell ✔ (2026-11-01)
 - [x] T3.1 Composition root, single instance mutex, Log, global exception handlers (feat/m3-engine-shell).
 - [x] T3.2 TrayIcon from flows (folders, separators, running mark, Pause hotkeys, Open editor, Exit) (feat/m3-engine-shell).
 - [x] T3.3 GlobalHotkey from flows (per-chord failure non-fatal) (feat/m3-engine-shell).
 - [x] T3.4 Autostart (feat/m3-engine-shell).
 - [x] T3.5 PipeServer + protocol (feat/m3-engine-shell).
 - [x] T3.6 `dctl` CLI (feat/m3-engine-shell).
-- [ ] T3.7 Footprint gate.
+- [x] T3.7 Footprint gate (feat/m3-engine-shell).
 
 ## M4 Providers (each CLI-testable via `dctl run`/`devices`; hardware steps verified on the dev PC)
 - [ ] T4.1 wait, notify, flag.
