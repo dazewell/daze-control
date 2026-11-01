@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M4 Providers — PR #5 (T4.1–T4.4, feat/m4-basic-steps) in review; T4.6 next on feat/m4-system-steps (stacked on #5)
-Last green checkpoint: 413c6b4 "wip(providers): display topology presets and outputs-only over CCD"
-Next action: finish PR #5 per §6 if not merged yet; then T4.6 rest: an `IDeviceQueries` seam in Runtime so EngineController answers Ops.Devices and Ops.CaptureDisplayLayout (stubs at EngineController.cs "This version can't do that yet"), implemented in Providers; then T4.7 http + credentials
-Tree state: builds, 402/402 tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: PR #4 left 3 minor items open (see its last comment). Never end a pipe I/O by disposing the pipe (X-001). Providers read params via `StepParams` (written value, else descriptor default). Plan: PR 1 = T4.1–T4.4, PR 2 = T4.5–T4.9. T4.4 live gate (Connect Technics on Alt+Z) needs the user's headphones: prove with unit tests + dry run, leave the live check to the user.
+Current task: M4 Providers — T4.6 rest (branch feat/m4-system-steps, no PR yet; T4.1–T4.4 merged as PR #5 `72153ab`, T4.5 + most of T4.6 on this branch, synced with main)
+Last green checkpoint: 080da76 "Merge remote-tracking branch 'origin/main' into feat/m4-system-steps"
+Next action: answer Ops.Devices and Ops.CaptureDisplayLayout (stubs in Runtime/Control/EngineController.cs, "This version can't do that yet"): add a small `IDeviceQueries` seam in Runtime, implement it in Providers (audio/bluetooth/displays lists, CcdDisplays.CaptureLayout → YAML snippet for library.displays), wire it in Engine/Program.cs, print it in dctl; then tick T4.6 and do T4.7 http + credentials
+Tree state: builds, 406/406 tests green · Uncommitted: none
+Notes for next agent: PR 2 (T4.5–T4.9) opens from this branch; bump the version once against main (0.5.0 → 0.6.0). Display tests on the dev PC use `CcdDisplays(validateOnly: true)` (SDC_VALIDATE): never apply a layout live without a revert ready. Set DAZE_DEV_PC=1 to turn on the dev-PC hardware asserts. T4.4 live gate waits on the user (GOALS → Waiting on the user). Bash heredocs with nested quotes fail to parse in this tool; write files with Write.
 
 ---
 
