@@ -63,9 +63,12 @@ PR description: what changed, why (link D-xxx), how it was verified, what's left
 ## 6. Merge policy (user, 2026-11-01: agents merge while the app is being scaffolded)
 
 Agents merge their own PRs so work isn't blocked while the user sleeps. Per PR:
-1. CI green, then wait for the Copilot review (it runs on its own when the PR leaves draft; if none comes
-   within ~15 min, request one with
-   `gh api -X POST repos/dazewell/daze-control/pulls/<n>/requested_reviewers -f "reviewers[]=copilot-pull-request-reviewer[bot]"`).
+1. Copilot doesn't review on its own (user, 2026-11-01). Right after opening the PR (or marking it ready),
+   request it, every time:
+   `gh api -X POST repos/dazewell/daze-control/pulls/<n>/requested_reviewers -f "reviewers[]=copilot-pull-request-reviewer[bot]"`.
+   Check it took: `gh api repos/dazewell/daze-control/issues/<n>/timeline --jq '.[] | select(.event=="review_requested") | .requested_reviewer.login'`
+   prints `Copilot` (`reviewRequests` empties again once Copilot starts, so it can't confirm it). A review counts
+   against the budget only once requested. Then wait for CI green and the review.
 2. Read the overview (🟢 / 🟡 / 🔴) and every comment. **Critical** = the review calls it critical or 🔴, or it
    is a correctness, data-loss, security or fail-soft violation (your judgement counts too).
 3. No Critical → fix cheap findings or reply why not, resolve the threads, squash-merge
