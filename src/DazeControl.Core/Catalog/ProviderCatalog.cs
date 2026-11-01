@@ -3,13 +3,12 @@ using DazeControl.Core.Model;
 namespace DazeControl.Core.Catalog;
 
 /// <summary>
-/// Every step type the engine knows, compiled in (D-006). Providers whose library kinds don't exist yet
-/// (<c>firetv.*</c>) are added with them in M4. Glyphs from UX 5.3.
+/// Every step type the engine knows, compiled in (D-006). Glyphs from UX 5.3.
 /// </summary>
 public static class ProviderCatalog
 {
     private const string Audio = "E767", Bluetooth = "E702", Display = "E7F4", Process = "E756", Script = "E943",
-        Http = "E774", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1";
+        Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1";
 
     private static readonly TimeSpan Short = TimeSpan.FromSeconds(10);
 
@@ -73,6 +72,24 @@ public static class ProviderCatalog
                 Help = "Name of a saved credential; the secret stays in Windows Credential Manager.",
             },
         ]),
+        new("firetv.input", "Fire TV input", Tv, TimeSpan.FromSeconds(20),
+        [
+            Ref("device", "Fire TV", LibraryKind.FireTv),
+            new("input", ParamKind.Text, "Input") { Required = true, Help = "One of the inputs saved with the Fire TV." },
+        ])
+        { Resources = ["adb:{device}"] },
+        new("firetv.keys", "Fire TV keys", Tv, TimeSpan.FromSeconds(20),
+        [
+            Ref("device", "Fire TV", LibraryKind.FireTv),
+            new("keys", ParamKind.TextList, "Keys")
+            {
+                Required = true, Help = "Android key names, sent in order: home, back, dpad_down, media_play_pause.",
+            },
+        ])
+        { Resources = ["adb:{device}"] },
+        new("firetv.sleep", "Fire TV sleep", Tv, TimeSpan.FromSeconds(20),
+            [Ref("device", "Fire TV", LibraryKind.FireTv)])
+        { Resources = ["adb:{device}"] },
         new("service.start", "Start service", Service, TimeSpan.FromSeconds(30),
             [new("name", ParamKind.Text, "Service name") { Required = true }])
         { Resources = ["service:{name}"] },

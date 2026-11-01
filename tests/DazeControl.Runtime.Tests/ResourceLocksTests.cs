@@ -83,4 +83,24 @@ public class ResourceLocksTests
 
         Assert.Equal(FlowRunner.ResourcesOf(descriptor, Node("hp"), library), FlowRunner.ResourcesOf(descriptor, Node("technics"), library));
     }
+
+    [Fact]
+    public void FireTvWithAndWithoutTheDefaultPortSharesOneLock()
+    {
+        var descriptor = ProviderCatalog.Find("firetv.sleep")!;
+        var library = new Library { FireTv = [new FireTvDevice("a", "192.168.1.50", new([])), new FireTvDevice("b", "192.168.1.50:5555", new([]))] };
+        StepNode Node(string device) => new("tv", "firetv.sleep") { With = new([KeyValuePair.Create("device", (ParamValue)device)]) };
+
+        Assert.Equal(["adb:192.168.1.50:5555"], FlowRunner.ResourcesOf(descriptor, Node("a"), library));
+        Assert.Equal(FlowRunner.ResourcesOf(descriptor, Node("a"), library), FlowRunner.ResourcesOf(descriptor, Node("b"), library));
+    }
+
+    [Fact]
+    public void ServiceNamesShareALockWhateverTheirCase()
+    {
+        var descriptor = ProviderCatalog.Find("service.start")!;
+        StepNode Node(string name) => new("s", "service.start") { With = new([KeyValuePair.Create("name", (ParamValue)name)]) };
+
+        Assert.Equal(FlowRunner.ResourcesOf(descriptor, Node("Spooler"), Library.Empty), FlowRunner.ResourcesOf(descriptor, Node("spooler"), Library.Empty));
+    }
 }

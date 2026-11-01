@@ -207,6 +207,11 @@ public class ConfigYamlTests
     [InlineData("library: { bluetooth: { x: { name: X } } }", "library.bluetooth.x.address")]
     [InlineData("library: { audio: { x: { flow: input } } }", "library.audio.x.match")]
     [InlineData("library: { audio: { x: { match: X, flow: both } } }", "library.audio.x.flow")]
+    [InlineData("library: { firetv: { tv: { inputs: { a: [up] } } } }", "library.firetv.tv.address")]
+    [InlineData("library: { firetv: { tv: { address: 1.2.3.4, inputs: { a: [left] } } } }", "library.firetv.tv.inputs.a")]
+    [InlineData("library: { firetv: { tv: { address: 1.2.3.4, inputs: { a: [up, ~] } } } }", "library.firetv.tv.inputs.a")]
+    [InlineData("library: { firetv: { tv: { address: 1.2.3.4, inputs: { a: { b: up } } } } }", "library.firetv.tv.inputs.a")]
+    [InlineData("library: { firetv: { tv: { address: 1.2.3.4, inputs: hdmi2 } } }", "library.firetv.tv.inputs")]
     public void BadSettingsAndLibraryEntriesAreFileWideProblems(string yaml, string path)
     {
         var load = ConfigYaml.Load(yaml);
@@ -290,4 +295,20 @@ public class ConfigYamlTests
         Assert.False(new DisplayLayout("d", ["m", "n"], "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=").IsWellFormed());
         Assert.False(new DisplayLayout("d", [" "], "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=").IsWellFormed());
     }
+
+    [Fact]
+    public void FireTvEntryReadsItsInputs()
+    {
+        var config = LoadClean("library: { firetv: { tv: { address: 192.168.1.50, inputs: { hdmi2: [down, down] } } } }");
+
+        var tv = Assert.Single(config.Library.FireTv);
+        Assert.Equal("192.168.1.50", tv.Address);
+        Assert.Null(tv.Adb);
+        Assert.Equal(["down", "down"], tv.Inputs["hdmi2"]);
+        Assert.Contains("firetv:", ConfigYaml.Save(config), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LoneFireTvMoveIsAOneMoveList() =>
+        Assert.Equal(["down"], LoadClean("library: { firetv: { tv: { address: 1.2.3.4, inputs: { hdmi2: down } } } }").Library.FireTv[0].Inputs["hdmi2"]);
 }

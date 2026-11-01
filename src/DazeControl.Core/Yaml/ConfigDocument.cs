@@ -41,6 +41,20 @@ public sealed class LibraryDocument
     public Dictionary<string, BluetoothDocument>? Bluetooth { get; set; }
 
     public Dictionary<string, DisplayLayoutDocument>? Displays { get; set; }
+
+    /// <summary>"firetv:", like the step names (camelCase would make it "fireTv").</summary>
+    public Dictionary<string, FireTvDocument>? Firetv { get; set; }
+}
+
+[YamlSerializable]
+public sealed class FireTvDocument
+{
+    public string? Address { get; set; }
+
+    public string? Adb { get; set; }
+
+    /// <summary>Read whole, like <c>with:</c>, so a wrong shape is a problem on this entry, not on the file (D-021).</summary>
+    public ParamDocument? Inputs { get; set; }
 }
 
 [YamlSerializable]

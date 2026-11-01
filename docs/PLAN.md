@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M4 Providers — T4.6 done, opening PR 2 (T4.5–T4.6, branch feat/m4-system-steps); then T4.7 on a new branch
-Last green checkpoint: 5be35c0 "docs(plan): checkpoint after PR #5 merge, T4.6 pipe ops next"
-Next action: open PR 2 from feat/m4-system-steps (base main), `gh pr edit <n> --add-reviewer @copilot`, merge per repo-workflow §6; then branch feat/m4-net-steps from main for T4.7 http + credentials
-Tree state: builds, 428/428 tests green · Uncommitted: none
-Notes for next agent: version is 0.6.0 on this branch (bump once more for PR 3 → 0.7.0). Display tests on the dev PC use `CcdDisplays(validateOnly: true)` (SDC_VALIDATE): never apply a layout live without a revert ready. Set DAZE_DEV_PC=1 to turn on the dev-PC hardware asserts. T4.4 live gate waits on the user (GOALS → Waiting on the user). Bash heredocs with nested quotes fail to parse in this tool; write files with Write or python.
+Current task: M5 Run pop-up — T5.1 spike (M4 done: PR #5, PR #6, PR 3 for T4.7–T4.9 from feat/m4-net-steps)
+Last green checkpoint: 118637d "Merge remote-tracking branch 'origin/main' into feat/m4-net-steps"
+Next action: if PR 3 (feat/m4-net-steps) isn't merged yet, finish it per repo-workflow §6; then branch feat/m5-popup from main and start T5.1: a native acrylic window in AOT (DWM backdrop + D2D text, theme, DPI, never activates), read the OSD's OverlayWindow (D-008, X-007) first
+Tree state: builds, 475/475 tests green · Uncommitted: none
+Notes for next agent: version is 0.7.0. PR #6 thread replies were blocked by the permission classifier (the fix commit message carries the answers). DAZE_DEV_PC=1 turns on dev-PC asserts. Write files with Write or python, not Bash heredocs with nested quotes.
 
 ---
 
@@ -52,7 +52,7 @@ Notes for next agent: version is 0.6.0 on this branch (bump once more for PR 3 �
 - [x] T3.6 `dctl` CLI (feat/m3-engine-shell).
 - [x] T3.7 Footprint gate (feat/m3-engine-shell).
 
-## M4 Providers (each CLI-testable via `dctl run`/`devices`; hardware steps verified on the dev PC)
+## M4 Providers ✔ (2026-11-01; PRs #5, #6, and the T4.7–T4.9 PR) (each CLI-testable via `dctl run`/`devices`; hardware steps verified on the dev PC)
 - [x] T4.1 wait, notify, flag (branch feat/m4-basic-steps).
 - [x] T4.2 process.run, script.powershell (branch feat/m4-basic-steps).
 - [x] T4.3 audio (port OSD worker + IPolicyConfig; wait for endpoint via notification) (branch feat/m4-basic-steps).
@@ -61,9 +61,9 @@ Notes for next agent: version is 0.6.0 on this branch (bump once more for PR 3 �
   (GOALS → Waiting on the user).
 - [x] T4.5 display presets + outputs-only (port scd CCD) (branch feat/m4-system-steps).
 - [x] T4.6 Spike + display.layout capture/apply, `dctl devices` + `dctl capture-display-layout` (branch feat/m4-system-steps).
-- [ ] T4.7 http + credentials.
-- [ ] T4.8 firetv.
-- [ ] T4.9 service.
+- [x] T4.7 http + credentials (branch feat/m4-net-steps).
+- [x] T4.8 firetv (branch feat/m4-net-steps).
+- [x] T4.9 service (branch feat/m4-net-steps).
 
 ## M5 Run pop-up
 - [ ] T5.1 Spike: native acrylic window in AOT (DWM backdrop + D2D text, theme, DPI, no-activate).

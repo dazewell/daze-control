@@ -283,3 +283,39 @@ Status: accepted
 - Why not match by friendly name: ambiguous and renamed by Windows. Why not Windows.Devices.Bluetooth / CfgMgr to
   map address → container: more interop for the same answer; no profile connect API there anyway (OSD D-023).
 - Revisit if: a driver puts the address in neither property (then map the address to a container via CfgMgr).
+
+## D-031 · 2026-11-01 · Credentials are generic Credential Manager entries named `DazeControl:<name>`
+Status: accepted
+- Decision: `http.request`'s `credential: sunshine` reads the generic credential `DazeControl:sunshine`
+  (`CredRead`); with a user name it becomes Basic auth, without one the secret is a Bearer token. Users save it
+  with `cmdkey /generic:DazeControl:sunshine /user:admin /pass` (the editor writes it later). Errors name the
+  host and status code only (never the secret or the server's reason text). TLS is checked as usual; no "trust any
+  certificate" switch. A sign-in goes only over https:// or to loopback. No cookies, no redirects (one request).
+- Why: the prefix keeps a flow from reaching the PC's other saved passwords; cmdkey needs no admin and no UI.
+- Why not raw target names: any config could send any saved credential to any URL. Why not a skip-TLS
+  option now: nothing in the user's config needs it yet (scd's sunshine section was unused).
+- Revisit if: a self-signed local API (Sunshine on :47990) must be called — then pin its certificate, not skip checks.
+
+## D-032 · 2026-11-01 · Fire TV: adb.exe per step, one chained shell call, `library.firetv`
+Status: accepted
+- Decision: `library.firetv.<key>` = `address` (port 5555 if none), optional `adb` path (else PATH), `inputs`
+  (name → up/down moves). Each step runs `adb connect` (3 tries, 1 s apart; success only when the answer says
+  "connected to", since adb exits 0 on failure), then one `adb -s <serial> shell "a && b && c"` (scd's
+  sequence for inputs: WAKEUP, TV_INPUT, moves, DPAD_CENTER). Keys must be `[A-Za-z0-9_]` (they go into a shell
+  line); `home` → `KEYCODE_HOME`. Lock `adb:<address>`. `dctl devices adb` = `adb devices`.
+- Why: a port of what scd did and the user relies on; nothing resident between steps (D-009).
+- Why not an adb protocol client in-process: RSA auth + framing to maintain for three key presses.
+- Revisit if: adb's start-up (~1 s cold daemon) makes the TV flow feel slow.
+
+## D-033 · 2026-11-01 · Services through the SCM without admin; no elevation path
+Status: accepted
+- Decision: `service.start`/`stop` read the state first (query rights only); a pending start/stop is waited out;
+  already in that state = success; only then open with start/stop rights, request it and poll every 250 ms
+  until there (the step timeout ends it). Lock `service:<NAME>` upper-cased (SCM names ignore case).
+  Access denied fails at once: "Windows only lets an administrator start …".
+- Why: D-008 (no admin). Most services refuse non-admin start/stop; a few (and ones whose ACL the user changed,
+  e.g. with `sc sdset`) allow it, and those work.
+- Why not an elevated helper or scheduled task like scd: an admin path is exactly what the rewrite dropped.
+  Why not NotifyServiceStatusChange: needs an alertable thread; a run lasts seconds, idle stays at zero.
+- Revisit if: the user needs a service only an admin can control (Sunshine) — then an opt-in scheduled task.
+

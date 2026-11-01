@@ -46,6 +46,13 @@ public static class ConfigMapper
                 Monitors = [.. d.Monitors],
                 Ccd = d.Data,
             })),
+            Firetv = NullIfEmpty(config.Library.FireTv.ToDictionary(d => d.Key, d => new FireTvDocument
+            {
+                Address = d.Address,
+                Adb = d.Adb,
+                Inputs = d.Inputs.Count == 0 ? null : new ParamDocument(new MapParam(new(d.Inputs.Select(i =>
+                    KeyValuePair.Create(i.Key, (ParamValue)new ListParam(new(i.Value.Select(m => (ParamValue)m)))))))),
+            })),
         },
         Flows = NullIfEmpty(config.Flows.ToDictionary(f => f.Id, ToDocument)),
     };
@@ -171,7 +178,55 @@ public static class ConfigMapper
                 else
                     displays.Add(layout);
             }
-            return new Library { Audio = new(audio), Bluetooth = new(bluetooth), Displays = new(displays) };
+            var fireTv = new List<FireTvDevice>();
+            foreach (var (key, item) in document?.Firetv ?? [])
+            {
+                var path = $"library.firetv.{key}";
+                if (string.IsNullOrWhiteSpace(item?.Address))
+                {
+                    Error(path + ".address", "Fire TV address missing (like 192.168.1.50).");
+                    continue;
+                }
+                var inputs = new List<KeyValuePair<string, ValueList<string>>>();
+                var ok = true;
+                IEnumerable<KeyValuePair<string, ParamValue>>? entries = item.Inputs?.ToValue() switch
+                {
+                    null => [],
+                    MapParam map => map.Entries,
+                    ScalarParam { Text: "" } => [],
+                    _ => (IEnumerable<KeyValuePair<string, ParamValue>>?)null,
+                };
+                if (entries is null)
+                {
+                    Error(path + ".inputs", "Inputs are names with their moves, like  hdmi2: [down, down].");
+                    continue;
+                }
+                foreach (var (input, value) in entries)
+                {
+                    // A lone move is a one-move list; anything else that isn't up or down rejects the entry.
+                    var moves = value switch
+                    {
+                        ScalarParam scalar => [scalar.Text],
+                        ListParam list => list.Items.Select(m => m is ScalarParam s ? s.Text : null).ToList(),
+                        _ => new List<string?> { null },
+                    };
+                    var bad = moves.FindIndex(m => m is not ("up" or "down"));
+                    if (bad >= 0)
+                    {
+                        Error($"{path}.inputs.{input}", moves[bad] is { Length: > 0 } text
+                            ? $"\"{text}\" isn't a move: use up or down."
+                            : "Each move is up or down.");
+                        ok = false;
+                    }
+                    else
+                    {
+                        inputs.Add(KeyValuePair.Create(input, new ValueList<string>(moves!)));
+                    }
+                }
+                if (ok)
+                    fireTv.Add(new FireTvDevice(key, item.Address, new(inputs), string.IsNullOrWhiteSpace(item.Adb) ? null : item.Adb));
+            }
+            return new Library { Audio = new(audio), Bluetooth = new(bluetooth), Displays = new(displays), FireTv = new(fireTv) };
         }
 
         private Flow ReadFlow(string id, FlowDocument? document)

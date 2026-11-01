@@ -2,7 +2,10 @@ using DazeControl.Providers.Audio;
 using DazeControl.Providers.Basic;
 using DazeControl.Providers.Bluetooth;
 using DazeControl.Providers.Display;
+using DazeControl.Providers.FireTv;
+using DazeControl.Providers.Http;
 using DazeControl.Providers.Process;
+using DazeControl.Providers.Service;
 using DazeControl.Runtime.Control;
 using DazeControl.Runtime.Providers;
 
@@ -12,7 +15,7 @@ namespace DazeControl.Providers;
 public static class BuiltInProviders
 {
     /// <summary>What <c>dctl devices</c> and <c>dctl capture-display-layout</c> read.</summary>
-    public static IDeviceQueries Devices() => new SystemDevices(new CcdDisplays());
+    public static IDeviceQueries Devices() => new SystemDevices(new CcdDisplays(), new AdbProcess());
 
     public static IReadOnlyList<IStepProvider> Create(TimeProvider time, INotifier notifier)
     {
@@ -20,6 +23,8 @@ public static class BuiltInProviders
         var audio = new CoreAudioEndpoints();
         var bluetooth = new KsBluetoothAudio();
         var displays = new CcdDisplays();
+        var fireTv = new FireTvRemote(new AdbProcess(), time);
+        var services = new WindowsServices();
         return
         [
             new WaitProvider(time),
@@ -28,6 +33,7 @@ public static class BuiltInProviders
             new FlagCheckProvider(flags),
             new ProcessRunProvider(),
             new PowerShellProvider(),
+            new HttpRequestProvider(new WindowsCredentials()),
             new AudioSetDefaultProvider(audio),
             new AudioSetVolumeProvider(audio),
             new AudioMuteProvider(audio),
@@ -36,6 +42,11 @@ public static class BuiltInProviders
             new DisplayTopologyProvider(displays),
             new DisplayOutputsProvider(displays),
             new DisplayLayoutProvider(displays),
+            new FireTvInputProvider(fireTv),
+            new FireTvKeysProvider(fireTv),
+            new FireTvSleepProvider(fireTv),
+            new ServiceStartProvider(services, time),
+            new ServiceStopProvider(services, time),
         ];
     }
 }
