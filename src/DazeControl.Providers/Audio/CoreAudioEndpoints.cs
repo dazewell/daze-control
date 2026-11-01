@@ -167,7 +167,7 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
         }
     }
 
-    private static AudioEndpoint Describe(IMMDevice* device)
+    internal static AudioEndpoint Describe(IMMDevice* device)
     {
         device->GetId(out var id);
         string text;
@@ -225,7 +225,7 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
         _ => [ERole.eConsole, ERole.eMultimedia, ERole.eCommunications],
     };
 
-    private readonly struct Enumerator : IDisposable
+    internal readonly struct Enumerator : IDisposable
     {
         public IMMDeviceEnumerator* Value { get; private init; }
 
@@ -244,7 +244,7 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
     /// A hand-built IMMNotificationClient (no COM marshalling under AOT): a vtable of static callbacks and a
     /// GCHandle to the callback. Lifetime is ours, not refcounted: freed only after Unregister has returned.
     /// </summary>
-    private sealed class DeviceChangeClient : IDisposable
+    internal sealed class DeviceChangeClient : IDisposable
     {
         private static readonly HRESULT Ok = (HRESULT)0;
         private static readonly HRESULT NoInterface = (HRESULT)unchecked((int)0x80004002);

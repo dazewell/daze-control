@@ -11,3 +11,10 @@ IPropertyStore
 PKEY_Device_FriendlyName
 PropVariantClear
 DEVICE_STATE
+IDeviceTopology
+IConnector
+IKsControl
+KSPROPSETID_BtAudio
+KSPROPERTY_BTAUDIO
+KSPROPERTY_TYPE_GET
+PKEY_Device_ContainerId
