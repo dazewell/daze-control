@@ -1,12 +1,12 @@
 # Plan
 
 ## Resume
-Current task: T0.5 — AOT spike gate (branch main, no remote yet)
-Last green checkpoint: 3042c3a "chore: add resume, repo-workflow, knowledge-log and build skills"
-Next action: Engine Program.cs: message-only window + TrayIcon (port OSD) + one RegisterHotKey + YamlDotNet static load; AOT publish
-Tree state: builds, 5/5 tests green · Uncommitted: none
-Notes for next agent: `gh repo create` waits on the user (name, private?). This PC has no MSVC C++ tools:
-Native AOT publish (T0.5) needs them — ask the user before installing (`build` skill).
+Current task: T0.5 — AOT spike gate (branch feat/m0-aot-spike, no PR yet)
+Last green checkpoint: e5e2905 "chore: add solution skeleton, one test per test project and CI"
+Next action: AOT-publish the engine (needs VS Build Tools C++), fix any IL/AOT warnings, run scripts/measure.ps1
+Tree state: builds, 37/37 tests green · Uncommitted: none
+Notes for next agent: repo is github.com/dazewell/daze-control (public, user 2026-10-31). Spike hotkey is
+Ctrl+Alt+F12 (samples/spike-config.yaml): Alt+Z stays scd's until T4.4.
 
 ---
 
@@ -16,17 +16,17 @@ Native AOT publish (T0.5) needs them — ask the user before installing (`build`
   **Resume block**, rewritten in every checkpoint commit. Format:
   ```
   ## Resume
-Current task: T0.5 — AOT spike gate (branch main, no remote yet)
-Last green checkpoint: 3042c3a "chore: add resume, repo-workflow, knowledge-log and build skills"
-Next action: Engine Program.cs: message-only window + TrayIcon (port OSD) + one RegisterHotKey + YamlDotNet static load; AOT publish
-Tree state: builds, 5/5 tests green · Uncommitted: none
-Notes for next agent: `gh repo create` waits on the user (name, private?). This PC has no MSVC C++ tools:
-Native AOT publish (T0.5) needs them — ask the user before installing (`build` skill).
+Current task: T0.5 — AOT spike gate (branch feat/m0-aot-spike, no PR yet)
+Last green checkpoint: e5e2905 "chore: add solution skeleton, one test per test project and CI"
+Next action: AOT-publish the engine (needs VS Build Tools C++), fix any IL/AOT warnings, run scripts/measure.ps1
+Tree state: builds, 37/37 tests green · Uncommitted: none
+Notes for next agent: repo is github.com/dazewell/daze-control (public, user 2026-10-31). Spike hotkey is
+Ctrl+Alt+F12 (samples/spike-config.yaml): Alt+Z stays scd's until T4.4.
 
 ---
 
 ## M0 Bootstrap
-- [~] T0.1 `git init`, `.gitignore`; ask the user before `gh repo create` (name, private?).
+- [x] T0.1 `git init`, `.gitignore`; ask the user before `gh repo create` (name, private?).
 - [x] T0.2 Docs copied from the plan: CLAUDE.md, GOALS, FEATURES, ARCHITECTURE, DECISIONS D-001..D-021,
   DEADENDS, UX, PLAN (this file).
 - [x] T0.3 Skills: `repo-workflow`, `knowledge-log`, `build` (adapted from the OSD), new `resume`;

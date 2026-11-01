@@ -6,6 +6,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="YamlDotNet" />
+    <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="DazeControl.Core.Tests" />
   </ItemGroup>
 
