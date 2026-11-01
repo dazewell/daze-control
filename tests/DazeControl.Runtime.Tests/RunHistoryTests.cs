@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
 using static DazeControl.Runtime.Tests.SchedulerTests;
@@ -62,6 +63,33 @@ public sealed class RunHistoryTests : IDisposable
         File.AppendAllText(HistoryFile, "{ not json\n");
 
         AssertSame(good, Assert.Single(new RunHistory(HistoryFile).Recent));
+    }
+
+    [Fact]
+    public void CorruptLinesDontCostHealthyRecords()
+    {
+        Directory.CreateDirectory(_dir);
+        var records = Enumerable.Range(0, RunHistory.Capacity + 1).Select(Record).ToList();
+        File.WriteAllLines(HistoryFile, records.Select(r => JsonSerializer.Serialize(r, HistoryJson.Default.RunRecord)));
+        File.AppendAllText(HistoryFile, "{ not json\n");
+
+        var reloaded = new RunHistory(HistoryFile).Recent;
+
+        Assert.Equal(records.Skip(1).Select(r => r.RunId), reloaded.Select(r => r.RunId));
+    }
+
+    [Fact]
+    public void RecordAfterACutOffLineSurvives()
+    {
+        Directory.CreateDirectory(_dir);
+        var first = Record(1);
+        new RunHistory(HistoryFile).Add(first);
+        File.AppendAllText(HistoryFile, "{\"runId\":\"0"); // a crash mid-write, no newline
+        var second = Record(2);
+
+        new RunHistory(HistoryFile).Add(second);
+
+        Assert.Equal([first.RunId, second.RunId], new RunHistory(HistoryFile).Recent.Select(r => r.RunId));
     }
 
     [Fact]

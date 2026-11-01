@@ -18,6 +18,7 @@ public sealed class RunHistory
     private readonly string? _path;
     private readonly List<RunRecord> _records = [];
     private int _linesInFile;
+    private bool _unterminated;
 
     /// <param name="path">The history file; null keeps history in memory only.</param>
     public RunHistory(string? path)
@@ -29,13 +30,11 @@ public sealed class RunHistory
         {
             if (!File.Exists(path))
                 return;
-            var lines = File.ReadAllLines(path);
+            var text = File.ReadAllText(path);
+            _unterminated = text.Length > 0 && !text.EndsWith('\n'); // a crash cut the last record short
+            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             _linesInFile = lines.Length;
-            foreach (var line in lines.TakeLast(Capacity))
-            {
-                if (TryParse(line) is { } record)
-                    _records.Add(record);
-            }
+            _records.AddRange(lines.Select(TryParse).OfType<RunRecord>().TakeLast(Capacity));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -81,7 +80,9 @@ public sealed class RunHistory
                 }
                 else
                 {
-                    File.AppendAllText(_path, Serialize(record) + "\n");
+                    // Never glue a record onto a cut-off one: both would be lost at the next start.
+                    File.AppendAllText(_path, (_unterminated ? "\n" : "") + Serialize(record) + "\n");
+                    _unterminated = false;
                     _linesInFile++;
                 }
             }

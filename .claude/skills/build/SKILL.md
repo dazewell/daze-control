@@ -78,4 +78,5 @@ Grow this table when you hit something non-obvious (and record a dead end if a f
 | `YDNG001` / `CS0144 Cannot create an instance of the abstract type` from the YamlDotNet generator | The static context generates every public property type, abstract ones included. Box the value in a concrete class with no public properties and handle it in an `IYamlTypeConverter` (`Yaml/ParamDocument`). |
 | `SYSLIB1051` on a `[LibraryImport]` with `HWND` | CsWin32 structs aren't marshallable by the source generator; declare `nint` (OSD build skill). |
 | `LNK1207: incompatible PDB format in …\win-x64\native\DazeControl.pdb` on publish | Stale native PDB from another linker version: delete `src/DazeControl.Engine/bin/Release/…/win-x64/native` and `obj/Release/…/win-x64/native` (2026-10-31). |
+| `MSB3073 … 'vswhere.exe' is not recognized` on publish | ILC's link step needs vswhere on PATH: `$env:PATH += ";C:\Program Files (x86)\Microsoft Visual Studio\Installer"` (2026-11-01). |
 | `MSB3027` / file is locked by `DazeControl` | Running engine; `pwsh scripts/stop.ps1`. |

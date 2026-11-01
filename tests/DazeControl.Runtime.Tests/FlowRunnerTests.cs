@@ -145,6 +145,52 @@ public sealed class FlowRunnerTests : IDisposable
     }
 
     [Fact]
+    public async Task TimeoutBoundsAProviderThatBlocksBeforeReturningItsTask()
+    {
+        using var unblock = new ManualResetEventSlim();
+        _provider.On("a", (_, _) =>
+        {
+            unblock.Wait(TestContext.Current.CancellationToken);
+            return Task.CompletedTask;
+        });
+        var run = Run(Flow(Step("a", "timeout: 5s")));
+
+        await _provider.Started("a");
+        await _time.WaitForTimerAsync();
+        _time.Advance(TimeSpan.FromSeconds(5));
+        var result = await run;
+        unblock.Set();
+
+        Assert.Equal("Didn't finish within 5s.", Node(result, "a").Error);
+    }
+
+    [Fact]
+    public async Task CancelledRunStartsNoStep()
+    {
+        using var cancel = new CancellationTokenSource();
+        await cancel.CancelAsync();
+
+        var result = await RunWith(Flow(Step("a"), Step("b", "after: [a]")), cancel.Token);
+
+        Assert.Empty(_provider.Attempts);
+        Assert.Equal(FlowOutcome.Cancelled, result.Outcome);
+        Assert.All(result.Nodes, n => Assert.Equal(0, n.Attempts));
+    }
+
+    [Fact]
+    public async Task TimeoutTheTimerCantHoldFailsOnlyItsStep()
+    {
+        var flow = Flow(Step("a", "onFailure: ignore"), Step("b", "after: [a]")); // validation would reject 1200h
+        flow = flow with { Nodes = [((StepNode)flow.Nodes[0]) with { Timeout = TimeSpan.FromHours(1200) }, flow.Nodes[1]] };
+
+        var result = await Run(flow);
+
+        Assert.Contains("longer than", Node(result, "a").Error, StringComparison.Ordinal);
+        Assert.DoesNotContain(_provider.Attempts, a => a.Step == "a");
+        Assert.Equal(NodeOutcome.Succeeded, Node(result, "b").Outcome);
+    }
+
+    [Fact]
     public async Task UsesTheDescriptorTimeoutWhenTheNodeHasNone()
     {
         _provider.On("a", (_, token) => FakeProvider.Hang(token));

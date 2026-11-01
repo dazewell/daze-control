@@ -93,6 +93,56 @@ public sealed class ConfigHostTests : IDisposable
     }
 
     [Fact]
+    public void MissingFolderIsAnEmptyConfiguration()
+    {
+        using var host = new ConfigHost(Path.Combine(_dir, "nope", "config.yaml"), _time, _changes);
+
+        Assert.Empty(host.Current.Flows);
+        Assert.Empty(host.Current.Problems);
+    }
+
+    [Fact]
+    public void WatcherThatCantStartStillLoadsAndReportsIt()
+    {
+        var blocker = Path.Combine(_dir, "file");
+        File.WriteAllText(blocker, "");
+
+        using var host = new ConfigHost(Path.Combine(blocker, "config.yaml"), _time);
+
+        Assert.Contains(host.Current.Problems, p => p.Message.StartsWith("Can't watch", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RetainedVersionYieldsItsHotkeyToAValidFlow()
+    {
+        Write("  one: { hotkeys: [Alt+Z], nodes: [{ id: a, step: notify, with: { text: x } }] }\n" + Flow("two"));
+        using var host = Host();
+
+        Write("  one: { hotkeys: [Alt+Z], nodes: [{ id: a, step: nope }] }\n" +
+            "  two: { hotkeys: [Alt+Z], nodes: [{ id: a, step: notify, with: { text: x } }] }\n");
+        host.Reload();
+
+        var runnable = host.Current.RunnableFlows.ToDictionary(f => f.Id);
+        Assert.Empty(runnable["one"].Hotkeys);
+        Assert.Equal(["Alt+Z"], runnable["two"].Hotkeys);
+        Assert.Contains(host.Current.Flows[0].Problems, p => p.Severity == Core.Validation.Severity.Warning);
+    }
+
+    [Fact]
+    public void RetainedVersionKeepsTheLibraryEntriesItUses()
+    {
+        const string Step = "{ id: a, step: bluetooth.connect, with: { device: hp } }";
+        File.WriteAllText(ConfigFile, $"library: {{ bluetooth: {{ hp: {{ address: \"B8:20:8E:ED:48:FC\" }} }} }}\nflows:\n  one: {{ nodes: [{Step}] }}\n");
+        using var host = Host();
+
+        File.WriteAllText(ConfigFile, $"library: {{ bluetooth: {{ hp: {{ address: \"B8-20\" }} }} }}\nflows:\n  one: {{ nodes: [{Step}] }}\n");
+        host.Reload();
+
+        Assert.True(host.Current.Flows[0].IsStale);
+        Assert.Equal("B8:20:8E:ED:48:FC", Assert.Single(host.Current.Library.Bluetooth).Address);
+    }
+
+    [Fact]
     public void DisabledFlowIsNotRunnable()
     {
         File.WriteAllText(ConfigFile, "flows: { off: { enabled: false, nodes: [{ id: a, step: notify, with: { text: x } }] } }");

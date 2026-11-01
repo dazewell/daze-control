@@ -136,16 +136,19 @@ public sealed class FlowRunner
         string? error = null;
         for (var attempt = 1; attempt <= attempts; attempt++)
         {
-            if (attempt > 1)
+            try
             {
-                try
-                {
+                if (attempt > 1)
                     await Task.Delay(node.Retry!.Delay, _time, flowToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    return new(StepResult.Cancelled, attempt - 1, error, _time.GetElapsedTime(started));
-                }
+                flowToken.ThrowIfCancellationRequested(); // a cancelled run starts no further side effects
+            }
+            catch (OperationCanceledException)
+            {
+                return new(StepResult.Cancelled, attempt - 1, error, _time.GetElapsedTime(started));
+            }
+            catch (ArgumentOutOfRangeException e) // a delay the timer can't hold
+            {
+                return new(StepResult.Failed, attempt - 1, e.Message, _time.GetElapsedTime(started));
             }
             Raise(new NodeStarted(runId, flow.Id, _time.GetUtcNow(), node.Id, attempt));
             error = await AttemptAsync(provider, new StepContext(flow, node, descriptor, _library, attempt), timeout, flowToken)
@@ -161,30 +164,31 @@ public sealed class FlowRunner
     /// <returns>Null on success, else why it failed.</returns>
     private async Task<string?> AttemptAsync(IStepProvider provider, StepContext context, TimeSpan timeout, CancellationToken flowToken)
     {
-        using var timeoutCancel = new CancellationTokenSource(timeout, _time);
+        CancellationTokenSource timeoutCancel;
+        try
+        {
+            timeoutCancel = new CancellationTokenSource(timeout, _time);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return $"A timeout of {Duration.Format(timeout)} is longer than this version supports.";
+        }
+        using var ownedTimeout = timeoutCancel;
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(flowToken, timeoutCancel.Token);
         IDisposable held;
         try
         {
             // Waiting for a lock counts toward the timeout: a step stuck behind another still ends on time.
             held = await _locks.AcquireAsync(ResourcesOf(context.Descriptor, context.Node), linked.Token).ConfigureAwait(false);
+            linked.Token.ThrowIfCancellationRequested(); // AcquireAsync with no resources doesn't check
         }
         catch (OperationCanceledException)
         {
             return flowToken.IsCancellationRequested ? "Cancelled." : $"Waited {Duration.Format(timeout)} for another step using the same device.";
         }
         using var release = held;
-        Task execution;
-        try
-        {
-            execution = provider.ExecuteAsync(context, linked.Token);
-        }
-#pragma warning disable CA1031 // fail-soft: a provider bug fails its step, never the engine
-        catch (Exception e)
-#pragma warning restore CA1031
-        {
-            return e.Message;
-        }
+        // On the pool, so a provider that blocks before returning its task is still bounded by WaitAsync.
+        var execution = Task.Run(() => provider.ExecuteAsync(context, linked.Token), CancellationToken.None);
         try
         {
             // WaitAsync ends the attempt on time even if the provider ignores its token.

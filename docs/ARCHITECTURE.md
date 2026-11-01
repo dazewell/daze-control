@@ -140,8 +140,9 @@ ignored. `RunHistory` keeps the last 100 `RunRecord`s and appends them to `histo
 `HistoryJson`, camelCase, string enums), skipping corrupt lines. Once the file holds 200 lines it is rewritten
 atomically back to the last 100. The launcher records each finished run with its trigger text.
 `ConfigHost` owns config.yaml: load → validate → per flow the file's version if valid, else the last valid
-one (D-021, `FlowState.IsStale`), else disabled; an unreadable file changes only the problems; a missing file is
-empty. It reloads 300 ms after the last change (`IFileChangeSource`, FileSystemWatcher on the folder) and
+one (D-021, `FlowState.IsStale`), else disabled. A retained version keeps the library entries it references and
+yields any hotkey a current flow took (warning). An unreadable file changes only the problems; a missing file is
+empty; a watcher that can't start leaves loading on (warning). It reloads 300 ms after the last change (`IFileChangeSource`, FileSystemWatcher on the folder) and
 raises `Changed` with a `ConfigSnapshot` (`RunnableFlows` = valid and enabled).
 Tests: `FakeProvider` + thread-safe `ManualTime` with `WaitForTimerAsync` (Runtime.Tests).
 

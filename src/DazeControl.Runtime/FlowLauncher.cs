@@ -74,7 +74,15 @@ public sealed class FlowLauncher(Func<FlowRunner> runner, RunHistory? history = 
         }
         foreach (var cancel in cancels)
             await cancel.CancelAsync().ConfigureAwait(false);
-        await Task.WhenAll(running).ConfigureAwait(false);
+        try
+        {
+            await Task.WhenAll(running).ConfigureAwait(false);
+        }
+#pragma warning disable CA1031 // WhenAll has waited for every run; a failed one was reported to its trigger
+        catch (Exception)
+#pragma warning restore CA1031
+        {
+        }
     }
 
     /// <summary>Under the lock.</summary>
@@ -107,7 +115,8 @@ public sealed class FlowLauncher(Func<FlowRunner> runner, RunHistory? history = 
         }
         lock (_lock)
         {
-            cancel.Dispose();
+            // The source is not disposed: restart and CancelAllAsync cancel it outside the lock, possibly after
+            // this point. It has no timer, so nothing leaks.
             slot.Cancel = null;
             slot.Current = null;
             if (slot.Pending is { } next)
@@ -120,8 +129,10 @@ public sealed class FlowLauncher(Func<FlowRunner> runner, RunHistory? history = 
         }
         if (failure is not null)
         {
-            completion?.TrySetException(failure);
-            throw failure;
+            if (completion is null)
+                throw failure;
+            completion.TrySetException(failure); // the caller awaits this one; the internal task stays unfaulted
+            return null;
         }
         completion?.TrySetResult(result);
         return result;
