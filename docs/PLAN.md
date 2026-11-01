@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M3 review — PR for feat/m3-engine-shell (number in `gh pr list`), then T4.1
-Last green checkpoint: 1fbc856 "wip(cli): dctl commands over the pipe, offline list and validate"
-Next action: take the M3 PR through repo-workflow §6 (CI, Copilot review, budget 2), squash-merge, sync main; then T4.1 on feat/m4-providers-basic: wait, notify, flag providers + register them in Engine/Program.cs (empty provider list today)
+Current task: M3 review — PR #4 (branch feat/m3-engine-shell), Copilot review 1 of 2 in, 13 findings open
+Last green checkpoint: 9bb117a "docs(skills): request Copilot with gh pr edit --add-reviewer @copilot"
+Next action: fix all 13 findings of review 5729313870 per the plan in the session notes folder file `pr4-review1-plan.md` (copied below in short), reply + resolve each thread, push, then `gh pr edit 4 --add-reviewer @copilot` (review 2, the last) and check the timeline shows reviewer Copilot
 Tree state: builds, 324/324 tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: M3 (T3.1–T3.7) complete on feat/m3-engine-shell; footprint gate passed (4.6 MB private, 0 ms idle CPU over 10 min, +0.5 MB after runs). Version 0.4.0.
+Notes for next agent: treated as Critical (§6.4): wrong flag runs a real flow instead of a dry run; slow subscriber grows memory; engines in two sessions share one pipe. Short plan: CLI strict flags/arg counts · mutex Global\DazeControl.Engine-<SID> · PipeServer bounded per-connection channel, drop slow subscriber · measure.ps1 checks dctl exit codes (0/1 ok, 2/3 throw) · exit: stop accepting, cancel runs, await in-flight answers, dispose · runFinished from a new FlowLauncher.RunCompleted (after history + slot) · NIN_KEYSELECT · PipeClient queues events for ReadAsync · launcher RunningFlowIds for cancel/status · TriggerAsync(FlowState) to avoid a second snapshot read · history filters by recorded flow id · LogRotation recovers engine.log.rotating, never overwrites.
 
 ---
 
