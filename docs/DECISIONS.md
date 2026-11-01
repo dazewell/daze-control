@@ -204,3 +204,15 @@ Status: accepted
 - Why not typed DTOs + catching the exception: no way to keep the rest of the file. Why not parsing the
   YAML representation model by hand: loses the static context (D-005) and doubles the code.
 - Revisit if: YamlDotNet gains per-property error recovery.
+
+## D-024 · 2026-10-31 · An outgoing `when: failure` edge handles the failure
+Status: accepted
+- Decision: a failed node with at least one outgoing `when: failure` edge doesn't apply its `stop`/`skip`
+  policy: the fallback runs and the flow carries on. Its `success` edges still don't fire, so dependents that
+  needed success are skipped. A node with no failure edge keeps its policy. A handled failure makes the flow
+  PartiallySucceeded ("Done, with a problem").
+- Why: user, 2026-10-31 ("Link handles it"): drawing the fallback link is the intent; "buds if headphones
+  fail" must work without extra settings.
+- Why not "stop still stops": every fallback would also need "Keep going" set by hand, and forgetting it
+  makes the fallback dead. Why not making it a validation error: still a manual step for an obvious intent.
+- Revisit if: users want a failure branch that runs and then still stops the flow.

@@ -102,7 +102,9 @@ No coordinates: layout is computed (D-020); node order within a column is the or
 Edges are `after: [id | {id, when}]` on the target node; a card is
 `{ id: g1, group: [hp, buds], after: [...] }` and its members carry no `after`. Node keys: `id`, `step` |
 `group`, `name`, `with`, `after`, `onFailure` (stop/skip/ignore), `timeout`, `retry: { count, delay }`;
-cards take no `with`/`timeout`/`retry`. Durations "500ms", "20s", "1m30s" (`Model/Duration`). Enums read
+cards take no `with`/`timeout`/`retry`. A failed node with an outgoing `when: failure` edge has
+handled its failure: its `onFailure` policy is not applied, the fallback runs, its `success` dependents are
+skipped, and the flow ends PartiallySucceeded (D-024). Durations "500ms", "20s", "1m30s" (`Model/Duration`). Enums read
 case-insensitively, written camelCase. Full example: `tests/DazeControl.Core.Tests/Fixtures/full.yaml`.
 
 Pipeline (Core): `ConfigYaml.Load` → static-context DTOs (`Yaml/ConfigDocument`, all scalars strings, D-023;
@@ -143,7 +145,5 @@ T0.5 gate passed: no AOT/trim warnings; hotkey press and tray icon checked on th
 
 ## Open questions
 
-- (T2.1) Does a `stop` node with an outgoing `when: failure` edge still cancel the flow? F1's fallback example
-  ("buds if headphones fail") only works if a handled failure doesn't stop it; decide and record before the scheduler.
 - Unknown YAML keys (typos like `afer:`) are ignored silently (`IgnoreUnmatchedProperties`); reporting them
   as warnings needs a pass over the representation model or a YamlDotNet hook.
