@@ -1,10 +1,10 @@
 # Plan
 
 ## Resume
-Current task: M4 Providers — PR 1 for T4.1–T4.4 (branch feat/m4-basic-steps)
-Last green checkpoint: 5565296 "test(providers): live-checked audio.setDefault, cover the real wait cancel"
-Next action: open PR 1 (T4.1–T4.4), request the Copilot review, wait for CI + review in the background, merge per repo-workflow §6; then branch feat/m4-system-steps for T4.5 display presets
-Tree state: builds, 390/390 tests green, AOT publish clean · Uncommitted: none
+Current task: M4 Providers — PR #5 (T4.1–T4.4, feat/m4-basic-steps) in review; T4.6 next on feat/m4-system-steps (stacked on #5)
+Last green checkpoint: 4386a50 "feat(providers): bluetooth connect and disconnect through BtAudio KS requests"
+Next action: finish PR #5 per §6 (Copilot review requested, CI running); then on feat/m4-system-steps: T4.6 spike — capture the current CCD layout (paths+modes, monitor device paths) and re-apply it with SDC_VALIDATE only
+Tree state: builds, 397/397 tests green, AOT publish clean · Uncommitted: none
 Notes for next agent: PR #4 left 3 minor items open (see its last comment). Never end a pipe I/O by disposing the pipe (X-001). Providers read params via `StepParams` (written value, else descriptor default). Plan: PR 1 = T4.1–T4.4, PR 2 = T4.5–T4.9. T4.4 live gate (Connect Technics on Alt+Z) needs the user's headphones: prove with unit tests + dry run, leave the live check to the user.
 
 ---
@@ -59,7 +59,7 @@ Notes for next agent: PR #4 left 3 minor items open (see its last comment). Neve
 - [x] T4.4 bluetooth (port OSD D-023 + disconnect) (branch feat/m4-basic-steps). **Gate: the user's Connect
   Technics flow works on Alt+Z → user can stop scd.** Unit tests + dry run pass; live check waits on the user
   (GOALS → Waiting on the user).
-- [ ] T4.5 display presets + outputs-only (port scd CCD).
+- [x] T4.5 display presets + outputs-only (port scd CCD) (branch feat/m4-system-steps).
 - [ ] T4.6 Spike + display.layout capture/apply.
 - [ ] T4.7 http + credentials.
 - [ ] T4.8 firetv.

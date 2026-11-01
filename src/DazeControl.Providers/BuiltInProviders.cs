@@ -1,6 +1,7 @@
 using DazeControl.Providers.Audio;
 using DazeControl.Providers.Basic;
 using DazeControl.Providers.Bluetooth;
+using DazeControl.Providers.Display;
 using DazeControl.Providers.Process;
 using DazeControl.Runtime.Providers;
 
@@ -14,6 +15,7 @@ public static class BuiltInProviders
         var flags = new FlagStore();
         var audio = new CoreAudioEndpoints();
         var bluetooth = new KsBluetoothAudio();
+        var displays = new CcdDisplays();
         return
         [
             new WaitProvider(time),
@@ -27,6 +29,8 @@ public static class BuiltInProviders
             new AudioMuteProvider(audio),
             new BluetoothConnectProvider(bluetooth),
             new BluetoothDisconnectProvider(bluetooth),
+            new DisplayTopologyProvider(displays),
+            new DisplayOutputsProvider(displays),
         ];
     }
 }
