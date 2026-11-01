@@ -1,12 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T1.2 — YAML DTOs + mapper (branch feat/m1-core-model, one PR for all of M1)
-Last green checkpoint: a9be8e4 "Merge pull request #1 from dazewell/feat/m0-aot-spike"
-Next action: Core/Yaml DTOs for the full schema + ParamValue/after type converters; ConfigMapper (DTO ⇄ Model, problems for bad durations/enums)
-Tree state: builds, 71/71 tests green · Uncommitted: none
-Notes for next agent: T1.1 model is in Core/Model (ValueList/ValueDictionary give records value equality) and
-Core/Runs/Outcomes. Core/Yaml/ConfigDocument is the spike's partial schema; T1.2 replaces it (Engine/Program uses it).
+Current task: T1.4 — provider catalog + ParamSpec (branch feat/m1-core-model, draft PR #2 for all of M1)
+Last green checkpoint: 91836cd "feat(core): add flow model records and run outcomes"
+Next action: Core/Catalog: ParamSpec, ProviderDescriptor, ProviderCatalog with the F3 providers; then T1.3 Validator (needs the catalog, so T1.4 goes first)
+Tree state: builds, 97/97 tests green, AOT publish clean · Uncommitted: none
+Notes for next agent: T1.2 done: ConfigYaml.Load/Save + ConfigMapper (D-023). Problem record lives in Core/Validation.
 
 ---
 
@@ -29,10 +28,10 @@ Core/Runs/Outcomes. Core/Yaml/ConfigDocument is the spike's partial schema; T1.2
   warnings; `scripts/measure.ps1` → idle numbers in ARCHITECTURE. Over budget → decide with the user.
 
 ## M1 Core model + YAML
-- [x] T1.1 Model records + outcomes (feat/m1-core-model).
-- [~] T1.2 YAML DTOs/mapper, round-trip tests, fixtures incl. the user's flow.
+- [x] T1.1 Model records + outcomes (PR #2).
+- [x] T1.2 YAML DTOs/mapper, round-trip tests, fixtures incl. the user's flow (PR #2).
 - [ ] T1.3 Validation (cycles, refs, card rules, params vs descriptors; problem records with node paths).
-- [ ] T1.4 Provider catalog descriptors + `ParamSpec`.
+- [~] T1.4 Provider catalog descriptors + `ParamSpec`.
 - [ ] T1.5 _(mechanical)_ Hand-convert the user's scd.toml into `samples/user-config.yaml` (Technics flow +
   both Bluetooth devices) — the one-time "import".
 

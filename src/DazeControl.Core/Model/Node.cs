@@ -29,6 +29,9 @@ public sealed record RetryPolicy(int Count, TimeSpan Delay);
 /// <summary>A step or a card. Ids are unique within a flow.</summary>
 public abstract record Node(string Id)
 {
+    /// <summary>Label on the canvas; null = the provider's title for a step, "Run together" for a card.</summary>
+    public string? Name { get; init; }
+
     public ValueList<Edge> After { get; init; } = [];
 
     public FailurePolicy OnFailure { get; init; } = FailurePolicy.Stop;
@@ -49,8 +52,4 @@ public sealed record StepNode(string Id, string Step) : Node(Id)
 /// A card: <paramref name="Members"/> (ids of step nodes in the same flow, no nesting) start together; the card
 /// finishes when all have. Members carry no edges of their own (D-003).
 /// </summary>
-public sealed record GroupNode(string Id, ValueList<string> Members) : Node(Id)
-{
-    /// <summary>Card header; null = "Run together".</summary>
-    public string? Name { get; init; }
-}
+public sealed record GroupNode(string Id, ValueList<string> Members) : Node(Id);

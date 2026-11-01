@@ -1,5 +1,6 @@
 using DazeControl.Core;
 using DazeControl.Core.Input;
+using DazeControl.Core.Model;
 using DazeControl.Core.Yaml;
 using DazeControl.Engine.Diagnostics;
 using DazeControl.Engine.Shell;
@@ -28,8 +29,9 @@ public static class Program
         using var hotkeys = new GlobalHotkey(window);
 
         var flowsById = new Dictionary<int, string>();
-        foreach (var (key, flow) in config.Flows)
+        foreach (var flow in config.Flows)
         {
+            var key = flow.Id;
             foreach (var text in flow.Hotkeys)
             {
                 if (!Hotkey.TryParse(text, out var hotkey))
@@ -57,11 +59,14 @@ public static class Program
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppInfo.FolderName, "config.yaml");
 
     // Fail-soft: a missing or broken file means no flows, never a dead engine.
-    private static ConfigDocument LoadConfig(string path)
+    private static Configuration LoadConfig(string path)
     {
         try
         {
-            var config = ConfigYaml.Parse(File.ReadAllText(path));
+            var load = ConfigYaml.Load(File.ReadAllText(path));
+            foreach (var problem in load.Problems)
+                Log.Info($"config: {problem}");
+            var config = load.Config ?? Configuration.Empty;
             Log.Info($"config: {path}, {config.Flows.Count} flow(s)");
             return config;
         }
@@ -69,10 +74,6 @@ public static class Program
         {
             Log.Info($"config: {path} not readable ({e.Message}); no flows");
         }
-        catch (YamlDotNet.Core.YamlException e)
-        {
-            Log.Error($"config: {path} is not valid YAML; no flows", e);
-        }
-        return new ConfigDocument();
+        return Configuration.Empty;
     }
 }

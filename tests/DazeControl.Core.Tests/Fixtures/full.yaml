@@ -1,0 +1,39 @@
+# Every schema feature once; ConfigYamlTests round-trips it.
+version: 1
+settings: { popup: { position: TopRight, seconds: 5 } }
+library:
+  audio:
+    technics: { match: "Technics EAH-AZ80" }
+    desk-mic: { match: "Yeti", flow: input }
+  bluetooth:
+    technics: { address: "B8:20:8E:ED:48:FC", name: "Technics EAH-AZ80" }
+    sony: { address: "80:99:E7:2A:AB:A1" }
+flows:
+  connect-technics:
+    name: Connect Technics
+    hotkeys: [Alt+Z]
+    nodes:
+      - { id: bt, step: bluetooth.connect, with: { device: technics }, timeout: 20s }
+      - { id: out, step: audio.setDefault, with: { device: technics }, after: [bt] }
+  tv-mode:
+    name: TV mode
+    glyph: E7F4
+    tray: { folder: Living room, separator: true }
+    hotkeys: [Win+Alt+T, Ctrl+Alt+F12]
+    whenRunning: restart
+    popup: false
+    nodes:
+      - { id: hp, step: bluetooth.connect, name: Headphones, with: { device: sony }, onFailure: skip,
+          retry: { count: 2, delay: 1s500ms } }
+      - { id: buds, step: bluetooth.connect, with: { device: technics }, after: [{ id: hp, when: failure }] }
+      - { id: lights, step: http.request, onFailure: ignore,
+          with: { url: "http://hue.local/api", method: PUT, headers: { Accept: application/json, X-Note: "a: b" } } }
+      - { id: tv, step: process.run, with: { path: 'C:\Tools\tv.exe', args: [--input, hdmi2, ""] } }
+      - { id: card, group: [lights, tv], name: Lights and TV, after: [hp] }
+      - { id: done, step: notify, with: { text: "#ready" }, after: [card, { id: buds, when: always }] }
+  hidden:
+    enabled: false
+    tray: { show: false }
+    whenRunning: queue
+    nodes:
+      - { id: w, step: wait, with: { duration: 2m } }

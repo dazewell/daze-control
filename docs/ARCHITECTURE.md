@@ -84,7 +84,7 @@ each COM provider owns one lazy MTA worker (OSD pattern); pipe server async on t
 (comments not preserved on editor save — accepted, user hand-edits still load); engine hot-reloads.
 ```yaml
 version: 1
-settings: { popup: { position: BottomCenter, seconds: 3 } }
+settings: { popup: { position: bottomCenter, seconds: 3 } }
 library:
   audio:     { technics: { match: "Technics EAH-AZ80", flow: output } }
   bluetooth: { technics: { address: "B8:20:8E:ED:48:FC", name: "Technics EAH-AZ80" },
@@ -100,7 +100,15 @@ flows:
 ```
 No coordinates: layout is computed (D-020); node order within a column is the order in `nodes`.
 Edges are `after: [id | {id, when}]` on the target node; a card is
-`{ id: g1, group: [hp, buds], after: [...] }` and its members carry no `after`.
+`{ id: g1, group: [hp, buds], after: [...] }` and its members carry no `after`. Node keys: `id`, `step` |
+`group`, `name`, `with`, `after`, `onFailure` (stop/skip/ignore), `timeout`, `retry: { count, delay }`;
+cards take no `with`/`timeout`/`retry`. Durations "500ms", "20s", "1m30s" (`Model/Duration`). Enums read
+case-insensitively, written camelCase. Full example: `tests/DazeControl.Core.Tests/Fixtures/full.yaml`.
+
+Pipeline (Core): `ConfigYaml.Load` → static-context DTOs (`Yaml/ConfigDocument`, all scalars strings, D-023;
+`ParamValueConverter`/`AfterConverter` for the polymorphic bits) → `ConfigMapper` → `Model` records
+(value equality via `ValueList`/`ValueDictionary`) + `Problem`s with YAML paths and flow ids.
+`ConfigYaml.Save` maps back, omitting defaults.
 
 ## IPC
 
@@ -131,4 +139,5 @@ T0.5 gate passed: no AOT/trim warnings; hotkey press and tray icon checked on th
 
 ## Open questions
 
-- none yet
+- Unknown YAML keys (typos like `afer:`) are ignored silently (`IgnoreUnmatchedProperties`); reporting them
+  as warnings needs a pass over the representation model or a YamlDotNet hook.

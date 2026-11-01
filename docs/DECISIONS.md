@@ -192,3 +192,15 @@ Status: accepted
   for no gain in a headless engine. Why not marshalling CsWin32: delegate WndProc and marshalled structs are
   less certain under AOT.
 - Revisit if: a component must block its thread (it then gets its own window/thread, not the shared one).
+
+## D-023 · 2026-10-31 · YAML DTOs hold scalars as strings; the mapper turns bad values into problems
+Status: accepted
+- Decision: `Core/Yaml` DTOs type every scalar as `string`; `ConfigMapper` parses enums (case-insensitive,
+  written camelCase), bools, ints and durations and reports bad ones as `Problem`s with a YAML path and the
+  flow id. Only unreadable YAML or a newer `version` reject the whole file (`ConfigLoad.Config == null`).
+  Step params stay text (`ParamValue`) and are checked against `ParamSpec` by validation.
+- Why: D-021 needs one bad flow to disable only itself; typed DTOs make YamlDotNet throw for the whole file
+  on `enabled: yes`.
+- Why not typed DTOs + catching the exception: no way to keep the rest of the file. Why not parsing the
+  YAML representation model by hand: loses the static context (D-005) and doubles the code.
+- Revisit if: YamlDotNet gains per-property error recovery.
