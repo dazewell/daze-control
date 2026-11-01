@@ -122,6 +122,12 @@ fails its own flow instead. Hotkeys go only to enabled flows without errors; the
 the steps to start next; `IsStopped` tells the runner to cancel what's running; `Outcomes` per node and
 `Result` (`Outcomes.Summarize`). Units are steps outside cards and cards; a card hands out all its members at
 once.
+`Runtime/FlowRunner.RunAsync(flow, ct)` drives it: each step runs on the pool through its `IStepProvider`
+(`Runtime/Providers`) with `1 + retry.count` attempts `retry.delay` apart, each with a timeout (node's, else the
+descriptor's) on the injected `TimeProvider`. `WaitAsync` ends an attempt on time even if a provider ignores
+its token (the abandoned task is observed). A stopped or cancelled flow cancels the running steps; the runner
+awaits them all. Returns `RunResult` (flow outcome + `NodeResult` per node: attempts, error text, duration).
+Tests: `FakeProvider` + thread-safe `ManualTime` with `WaitForTimerAsync` (Runtime.Tests).
 
 ## IPC
 

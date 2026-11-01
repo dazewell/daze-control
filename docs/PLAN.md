@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T2.2 — failure policies in the runner: retries, timeouts, cancellation (branch feat/m2-runtime)
-Last green checkpoint: 66b8462 "chore(skills): never end a turn just to wait for CI"
-Next action: Runtime/IStepProvider + StepContext contracts and FlowRunner (async, TimeProvider): runs Scheduler's steps on the pool, retry count/delay, per-step timeout (node or descriptor default), cancel running steps when IsStopped/cancelled; tests with a fake provider + ManualTime (port OSD TestDoubles)
-Tree state: builds, 198/198 tests green · Uncommitted: none
-Notes for next agent: T2.1 done: Scheduler applies policies + D-024 (D-025). RuntimeInfo placeholder removed.
+Current task: T2.3 — resource locks (branch feat/m2-runtime)
+Last green checkpoint: 9853477 "feat(runtime): schedule flow DAGs with policies, cards and fallbacks"
+Next action: Runtime/ResourceLocks: engine-wide named async locks; FlowRunner takes the step's descriptor Resources ({param} replaced by the with: value) around each attempt, in sorted order (no deadlock); time spent waiting counts toward the timeout; tests: two runs on the same bluetooth device serialise, different devices overlap
+Tree state: builds, 208/208 tests green (Runtime suite stable over 10 runs) · Uncommitted: none
+Notes for next agent: T2.2 done: FlowRunner + IStepProvider/StepContext + FakeProvider/ManualTime. AOT publish not yet re-checked on this branch (do it before the PR).
 
 ---
 
@@ -37,8 +37,8 @@ Notes for next agent: T2.1 done: Scheduler applies policies + D-024 (D-025). Run
 
 ## M2 Runtime (pure, fake providers + `ManualTime`)
 - [x] T2.1 Scheduler: ready set, all-inputs join, edge `when`, skip propagation, cards (feat/m2-runtime).
-- [~] T2.2 Failure policies, retries, timeouts, cancellation.
-- [ ] T2.3 Resource locks.
+- [x] T2.2 Failure policies, retries, timeouts, cancellation (feat/m2-runtime).
+- [~] T2.3 Resource locks.
 - [ ] T2.4 `whenRunning`.
 - [ ] T2.5 Run events + history (last 100) + `history.jsonl`.
 - [ ] T2.6 ConfigHost: load, debounced reload, last valid version per flow (D-021), never-valid flows disabled.
