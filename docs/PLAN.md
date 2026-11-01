@@ -2,8 +2,8 @@
 
 ## Resume
 Current task: M4 Providers — T4.3 audio (branch feat/m4-basic-steps, no PR yet; T4.1–T4.2 done)
-Last green checkpoint: 0ef5d49 "wip(providers): process.run and script.powershell"
-Next action: T4.3 code + fake tests are in (Providers/Audio, ComThread). Still to do: AOT publish of the engine (scd-rewamp:build skill) must stay warning-free with the hand-made IMMNotificationClient vtable; then a live check of audio.setDefault via a temp config + dctl run, recording the current default output first and setting it back right after; then tick T4.3 and start T4.4 bluetooth
+Last green checkpoint: 109f0ab "wip(providers): audio default, volume and mute over raw Core Audio"
+Next action: live check of audio.setDefault (Engine AOT publish already verified warning-free at 109f0ab): record the current default output (CoreAudioEndpoints.DefaultAsync or Get-AudioDevice), run a temp config through dctl run --wait that sets another active output, confirm, then set the recorded device back right away; then tick T4.3 and start T4.4 bluetooth (port OSD D-023 DeviceConnector)
 Tree state: builds, 382/382 tests green · Uncommitted: none
 Notes for next agent: PR #4 left 3 minor items open (see its last comment). Never end a pipe I/O by disposing the pipe (X-001). Providers read params via `StepParams` (written value, else descriptor default). Plan: PR 1 = T4.1–T4.4, PR 2 = T4.5–T4.9. T4.4 live gate (Connect Technics on Alt+Z) needs the user's headphones: prove with unit tests + dry run, leave the live check to the user.
 
