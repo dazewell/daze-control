@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M2 review — PR #3 (branch feat/m2-runtime), then T3.1
-Last green checkpoint: ded87a4 "fix(runtime): bound blocking providers and keep retained flows consistent"
-Next action: PR #3: both Copilot reviews are addressed (budget used); once CI is green, squash-merge and sync main; then T3.1 on feat/m3-engine-shell: Engine/Program single-instance mutex, Log, global handlers; compose ConfigHost + one FlowRunner (ResourceLocks, RunHistory at %LOCALAPPDATA%\DazeControl\history.jsonl) + FlowLauncher; trigger with FlowState.Running + FlowState.Library; hotkeys from ConfigHost.Current.RunnableFlows, re-registered on Changed (marshal to the message thread)
-Tree state: builds, 248/248 tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: PR #3 used its 2 Copilot reviews; merge after green CI, then T3.1. M2 (T2.1-T2.6) is complete on feat/m2-runtime. Version 0.3.0. No providers exist yet: T3.x wires with an empty provider list until M4.
+Current task: M3 engine shell (branch feat/m3-engine-shell, no PR yet) — T3.2 tray menu next
+Last green checkpoint: 14a052f "feat(runtime): M2 scheduler, runner, locks, launcher, history and config host (#3)"
+Next action: T3.2: Runtime/Tray/TrayMenu (pure model: flows in YAML order, folders, separators, running mark, "(needs fixing)", fixed tail) + tests; render it in Engine/Shell/TrayIcon; busy/paused icon + tooltip
+Tree state: builds, 267/267 tests green · Uncommitted: none
+Notes for next agent: EngineHost (Engine/EngineHost.cs) is the composition root; MessageWindow.Post marshals to the message thread; HotkeyTable (Runtime/Triggers) already does T3.3's diffing — T3.3 is left to surface failures (tooltip/status) and to check on the desktop.
 
 ---
 
@@ -44,9 +44,9 @@ Notes for next agent: PR #3 used its 2 Copilot reviews; merge after green CI, th
 - [x] T2.6 ConfigHost: load, debounced reload, last valid version per flow (D-021), never-valid flows disabled (feat/m2-runtime).
 
 ## M3 Engine shell
-- [ ] T3.1 Composition root, single instance mutex, Log, global exception handlers.
+- [x] T3.1 Composition root, single instance mutex, Log, global exception handlers (feat/m3-engine-shell).
 - [ ] T3.2 TrayIcon from flows (folders, separators, running mark, Pause hotkeys, Open editor, Exit).
-- [ ] T3.3 GlobalHotkey from flows (per-chord failure non-fatal).
+- [~] T3.3 GlobalHotkey from flows (per-chord failure non-fatal) (feat/m3-engine-shell).
 - [ ] T3.4 Autostart.
 - [ ] T3.5 PipeServer + protocol.
 - [ ] T3.6 `dctl` CLI.
