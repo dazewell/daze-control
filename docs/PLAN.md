@@ -1,29 +1,20 @@
 # Plan
 
 ## Resume
-Current task: T1.1 — model records + outcomes (branch feat/m1-model, stack on PR #1 until it merges)
-Last green checkpoint: d7f8006 "wip(engine): AOT spike with tray icon, hotkey and YAML static context"
-Next action: Core/Model records (Flow, StepNode, GroupNode, Edge, EdgeWhen, FailurePolicy, RetryPolicy) + Runs/ outcomes, tests first
-Tree state: builds, 37/37 tests green · Uncommitted: none
-Notes for next agent: M0 done; PR #1 (T0.5) waits for the user's merge. Idle footprint 3.9 MB private /
-15.5 MB WS / 0 ms CPU over 10 min (ARCHITECTURE → Footprint). AOT publish needs vswhere on PATH (build skill).
-Core/Yaml/ConfigDocument is the spike's partial schema; T1.2 replaces it.
+Current task: T1.2 — YAML DTOs + mapper (branch feat/m1-core-model, one PR for all of M1)
+Last green checkpoint: a9be8e4 "Merge pull request #1 from dazewell/feat/m0-aot-spike"
+Next action: Core/Yaml DTOs for the full schema + ParamValue/after type converters; ConfigMapper (DTO ⇄ Model, problems for bad durations/enums)
+Tree state: builds, 71/71 tests green · Uncommitted: none
+Notes for next agent: T1.1 model is in Core/Model (ValueList/ValueDictionary give records value equality) and
+Core/Runs/Outcomes. Core/Yaml/ConfigDocument is the spike's partial schema; T1.2 replaces it (Engine/Program uses it).
 
 ---
 
 ## Workflow (usage-cap-proof, D-018)
 
 - This file = the task list with status `[ ]` / `[~]` / `[x]`, branch and PR per task. Its top is the
-  **Resume block**, rewritten in every checkpoint commit. Format:
-  ```
-  ## Resume
-Current task: T1.1 — model records + outcomes (branch feat/m1-model, stack on PR #1 until it merges)
-Last green checkpoint: d7f8006 "wip(engine): AOT spike with tray icon, hotkey and YAML static context"
-Next action: Core/Model records (Flow, StepNode, GroupNode, Edge, EdgeWhen, FailurePolicy, RetryPolicy) + Runs/ outcomes, tests first
-Tree state: builds, 37/37 tests green · Uncommitted: none
-Notes for next agent: M0 done; PR #1 (T0.5) waits for the user's merge. Idle footprint 3.9 MB private /
-15.5 MB WS / 0 ms CPU over 10 min (ARCHITECTURE → Footprint). AOT publish needs vswhere on PATH (build skill).
-Core/Yaml/ConfigDocument is the spike's partial schema; T1.2 replaces it.
+  **Resume block**, rewritten in every checkpoint commit; its format is in the `resume` skill (not copied
+  here, so a search-and-replace of the block can't clobber it).
 
 ---
 
@@ -38,8 +29,8 @@ Core/Yaml/ConfigDocument is the spike's partial schema; T1.2 replaces it.
   warnings; `scripts/measure.ps1` → idle numbers in ARCHITECTURE. Over budget → decide with the user.
 
 ## M1 Core model + YAML
-- [ ] T1.1 Model records + outcomes.
-- [ ] T1.2 YAML DTOs/mapper, round-trip tests, fixtures incl. the user's flow.
+- [x] T1.1 Model records + outcomes (feat/m1-core-model).
+- [~] T1.2 YAML DTOs/mapper, round-trip tests, fixtures incl. the user's flow.
 - [ ] T1.3 Validation (cycles, refs, card rules, params vs descriptors; problem records with node paths).
 - [ ] T1.4 Provider catalog descriptors + `ParamSpec`.
 - [ ] T1.5 _(mechanical)_ Hand-convert the user's scd.toml into `samples/user-config.yaml` (Technics flow +
