@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>dctl</AssemblyName>
+    <RootNamespace>DazeControl.Cli</RootNamespace>
+    <AssemblyTitle>Daze Control command line</AssemblyTitle>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DazeControl.Core\DazeControl.Core.csproj" />
+    <ProjectReference Include="..\DazeControl.Ipc\DazeControl.Ipc.csproj" />
+  </ItemGroup>
+
+</Project>

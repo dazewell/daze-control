@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>DazeControl</AssemblyName>
+    <AssemblyTitle>Daze Control</AssemblyTitle>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Resident engine: Native AOT, no UI framework (D-001). -->
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DazeControl.Core\DazeControl.Core.csproj" />
+    <ProjectReference Include="..\DazeControl.Runtime\DazeControl.Runtime.csproj" />
+    <ProjectReference Include="..\DazeControl.Providers\DazeControl.Providers.csproj" />
+    <ProjectReference Include="..\DazeControl.Ipc\DazeControl.Ipc.csproj" />
+  </ItemGroup>
+
+</Project>

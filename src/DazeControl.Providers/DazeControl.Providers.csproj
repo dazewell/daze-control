@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Referenced by the Native AOT engine (D-001): the analyzers flag trim/AOT problems at build time. -->
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DazeControl.Core\DazeControl.Core.csproj" />
+    <ProjectReference Include="..\DazeControl.Runtime\DazeControl.Runtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DazeControl.Providers.Tests" />
+  </ItemGroup>
+
+</Project>

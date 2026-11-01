@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Build
+        run: dotnet build DazeControl.slnx -c Release -nologo
+      - name: Test
+        run: dotnet test --solution DazeControl.slnx -c Release --no-build
+      # The only check that catches AOT/trim warnings (errors here) in the resident exes (D-001).
+      - name: Publish engine (Native AOT)
+        run: dotnet publish src/DazeControl.Engine -c Release -r win-x64 -o artifacts/engine -nologo
+      - name: Publish dctl (Native AOT)
+        run: dotnet publish src/DazeControl.Cli -c Release -r win-x64 -o artifacts/cli -nologo

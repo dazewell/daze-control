@@ -1,10 +1,10 @@
 # Plan
 
 ## Resume
-Current task: T0.4 — solution skeleton (branch main, no remote yet)
-Last green checkpoint: b53fd50 "docs: seed repo memory from the approved plan"
-Next action: DazeControl.slnx + props + all src/tests projects, one test per test project, ci.yml
-Tree state: no code yet · Uncommitted: none
+Current task: T0.5 — AOT spike gate (branch main, no remote yet)
+Last green checkpoint: 3042c3a "chore: add resume, repo-workflow, knowledge-log and build skills"
+Next action: Engine Program.cs: message-only window + TrayIcon (port OSD) + one RegisterHotKey + YamlDotNet static load; AOT publish
+Tree state: builds, 5/5 tests green · Uncommitted: none
 Notes for next agent: `gh repo create` waits on the user (name, private?). This PC has no MSVC C++ tools:
 Native AOT publish (T0.5) needs them — ask the user before installing (`build` skill).
 
@@ -16,10 +16,10 @@ Native AOT publish (T0.5) needs them — ask the user before installing (`build`
   **Resume block**, rewritten in every checkpoint commit. Format:
   ```
   ## Resume
-Current task: T0.4 — solution skeleton (branch main, no remote yet)
-Last green checkpoint: b53fd50 "docs: seed repo memory from the approved plan"
-Next action: DazeControl.slnx + props + all src/tests projects, one test per test project, ci.yml
-Tree state: no code yet · Uncommitted: none
+Current task: T0.5 — AOT spike gate (branch main, no remote yet)
+Last green checkpoint: 3042c3a "chore: add resume, repo-workflow, knowledge-log and build skills"
+Next action: Engine Program.cs: message-only window + TrayIcon (port OSD) + one RegisterHotKey + YamlDotNet static load; AOT publish
+Tree state: builds, 5/5 tests green · Uncommitted: none
 Notes for next agent: `gh repo create` waits on the user (name, private?). This PC has no MSVC C++ tools:
 Native AOT publish (T0.5) needs them — ask the user before installing (`build` skill).
 
@@ -31,7 +31,7 @@ Native AOT publish (T0.5) needs them — ask the user before installing (`build`
   DEADENDS, UX, PLAN (this file).
 - [x] T0.3 Skills: `repo-workflow`, `knowledge-log`, `build` (adapted from the OSD), new `resume`;
   `.claude/settings.json` SessionStart hook printing the Resume block.
-- [ ] T0.4 Solution skeleton: all projects compile, one passing test per test project, `ci.yml` (build + test).
+- [x] T0.4 Solution skeleton: all projects compile, one passing test per test project, `ci.yml` (build + test).
 - [ ] T0.5 Spike (gate): AOT engine with tray icon + one hotkey + YamlDotNet static context load; no trim/AOT
   warnings; `scripts/measure.ps1` → idle numbers in ARCHITECTURE. Over budget → decide with the user.
 

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>DazeControl.Editor</AssemblyName>
+    <RootNamespace>DazeControl.Editor</RootNamespace>
+    <AssemblyTitle>Daze Control</AssemblyTitle>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWinUI>true</UseWinUI>
+    <!-- Unpackaged, self-contained Windows App SDK, as in the OSD. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained Condition="'$(_IsPublishing)' == 'true'">true</SelfContained>
+    <!-- Without it publish drops the .pri and .xbf files: the app dies loading XAML (OSD X-004). -->
+    <EnableMsixTooling>true</EnableMsixTooling>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DazeControl.Core\DazeControl.Core.csproj" />
+    <ProjectReference Include="..\DazeControl.Ipc\DazeControl.Ipc.csproj" />
+    <ProjectReference Include="..\DazeControl.Editor.ViewModels\DazeControl.Editor.ViewModels.csproj" />
+  </ItemGroup>
+
+</Project>
