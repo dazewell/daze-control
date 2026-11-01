@@ -36,6 +36,16 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
 - [x] M0 Bootstrap · [x] M1 Core model + YAML · [x] M2 Runtime · [x] M3 Engine shell · [ ] M4 Providers
 - [ ] M5 Run pop-up · [ ] M6 Editor foundation · [ ] M7 Canvas · [ ] M8 Inspector + Library · [ ] M9 Runs · [ ] M10 Ship
 
+## Waiting on the user
+
+- **T4.4 gate, live check (needs your Technics headphones):** copy `samples/user-config.yaml` to
+  `%APPDATA%\DazeControl\config.yaml`, start the engine (`artifacts\engine\DazeControl.exe`), turn the
+  headphones on but leave them disconnected, press **Alt+Z**. Expected: they connect and become the default output.
+  Unit tests and `dctl run connect-technics --dry-run` pass; the live run wasn't possible without the headphones.
+  If the connect works but the output switch fails, the endpoint name may not contain "Technics EAH-AZ80"
+  (offload endpoints are named "Headphones"/"Technics"): change `library.audio.technics.match`.
+  When it works, scd can be stopped.
+
 ## Next step
 
 See the Resume block at the top of [PLAN.md](PLAN.md).

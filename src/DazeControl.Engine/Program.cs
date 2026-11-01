@@ -1,6 +1,6 @@
 using DazeControl.Engine.Diagnostics;
 using DazeControl.Engine.Lifecycle;
-using DazeControl.Runtime.Providers;
+using DazeControl.Providers;
 
 namespace DazeControl.Engine;
 
@@ -30,8 +30,7 @@ public static class Program
 
         var paths = EnginePaths.Default(args.Length > 0 ? Path.GetFullPath(args[0]) : null);
         Log.Info($"engine: config {paths.Config}");
-        // Providers arrive in M4; until then every step fails with "This version can't run … steps".
-        using var host = new EngineHost(paths, Array.Empty<IStepProvider>());
+        using var host = new EngineHost(paths, notifier => BuiltInProviders.Create(TimeProvider.System, notifier));
         host.Run();
         Log.Info("engine: exit");
         return 0;

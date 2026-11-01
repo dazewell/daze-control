@@ -259,3 +259,27 @@ Status: accepted
   `Local\` mutex — the bug. Cost accepted: a second interactive session of the same user gets no tray or hotkeys
   (hotkeys are per desktop), and its dctl drives the first session's engine.
 - Revisit if: per-session engines are ever wanted (then per-session pipe, history and log paths too).
+
+## D-029 · 2026-11-01 · Flags live in engine memory; `notify` shows a tray notification until M5
+Status: accepted
+- Decision: `FlagStore` is an in-memory, case-insensitive map shared by all flows; unset = off; an engine
+  restart clears it. `notify` hands its text to `INotifier`; the engine shows it as a tray balloon (NIF_INFO)
+  until the run pop-up (M5) takes over.
+- Why: flags model "mode while I'm at the PC" (gaming, headphones); a reboot resetting them matches that, and
+  it needs no file or write path. A balloon is the cheapest visible output with no new window code.
+- Why not: persisting flags in config/state file — a write path and stale state after a crash; waiting for M5
+  for `notify` — the step would be untestable end to end until then.
+- Revisit if: the user wants a flag to survive a restart (then a small `flags.json` next to history).
+
+## D-030 · 2026-11-01 · Bluetooth devices are found by address in their audio endpoints' device paths
+Status: accepted
+- Decision: `KsBluetoothAudio` lists all non-disabled endpoints; those whose device path properties
+  (`{b3f8fa53-0004-438e-9003-51a46e139bfc}` pid 2 or 39) contain the address hex ("B8208EED48FC") belong to the
+  device, widened to every endpoint with the same `PKEY_Device_ContainerId` (not the local-machine one). Connect
+  sends `KSPROPERTY_ONESHOT_RECONNECT` to its inactive endpoints, disconnect `…_DISCONNECT` to its active ones,
+  then waits on IMMNotificationClient until an endpoint turns active (or none is). Already in that state = success.
+- Why: the library stores the address (scd's ids), and names change (offload endpoints are "Headphones",
+  "Technics"). Pid 39 holds the BTHENUM path on Intel offload endpoints, pid 2 on classic ones (dev PC, 26300).
+- Why not match by friendly name: ambiguous and renamed by Windows. Why not Windows.Devices.Bluetooth / CfgMgr to
+  map address → container: more interop for the same answer; no profile connect API there anyway (OSD D-023).
+- Revisit if: a driver puts the address in neither property (then map the address to a container via CfgMgr).

@@ -202,6 +202,11 @@ and, with no engine, `list`/`validate` read the YAML themselves. Exit codes 0 ok
 4. Tests: descriptor/param validation, YAML round-trip of a sample node, runner behaviour with the fake.
 No change to Runner, YAML mapper or editor: the inspector renders from `ParamSpec`.
 
+As built (M4): the composition root is `Providers/BuiltInProviders.Create`. Params are read with `StepParams`
+(written value, else the descriptor default). COM providers (Audio, Bluetooth) use CsWin32 without marshalling
+and run each call on a short-lived MTA thread (`ComThread`), which turns a failed HRESULT into a step failure;
+waits for a device use a hand-made IMMNotificationClient vtable (`CoreAudioEndpoints.DeviceChangeClient`).
+
 ## Footprint (measured by `scripts/measure.ps1`)
 
 Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 idle minutes, back within +2 MB after a run.
