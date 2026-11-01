@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M4 Providers — PR 3 (T4.7–T4.9, branch feat/m4-net-steps, stacked on feat/m4-system-steps = PR #6)
-Last green checkpoint: 40548e7 "wip(providers): firetv input, keys and sleep over adb (T4.8)"
-Next action: once PR #6 is merged, merge origin/main into feat/m4-net-steps (stacked-PR rule), bump to 0.7.0, run a dctl dry run of a Fire TV flow, open PR 3 and merge per repo-workflow §6
-Tree state: builds, 472/472 tests green · Uncommitted: none
-Notes for next agent: PR #6 review fixes are in ef216ba (also merged here). Thread replies on PR #6 were blocked by the permission classifier; the fix commit message carries the answers. No live Fire TV: unit tests + fakes + dry run only. DAZE_DEV_PC=1 turns on dev-PC asserts. Write files with Write or python, not Bash heredocs with nested quotes.
+Current task: M5 Run pop-up — T5.1 spike (M4 done: PR #5, PR #6, PR 3 for T4.7–T4.9 from feat/m4-net-steps)
+Last green checkpoint: 118637d "Merge remote-tracking branch 'origin/main' into feat/m4-net-steps"
+Next action: if PR 3 (feat/m4-net-steps) isn't merged yet, finish it per repo-workflow §6; then branch feat/m5-popup from main and start T5.1: a native acrylic window in AOT (DWM backdrop + D2D text, theme, DPI, never activates), read the OSD's OverlayWindow (D-008, X-007) first
+Tree state: builds, 475/475 tests green · Uncommitted: none
+Notes for next agent: version is 0.7.0. PR #6 thread replies were blocked by the permission classifier (the fix commit message carries the answers). DAZE_DEV_PC=1 turns on dev-PC asserts. Write files with Write or python, not Bash heredocs with nested quotes.
 
 ---
 
@@ -52,7 +52,7 @@ Notes for next agent: PR #6 review fixes are in ef216ba (also merged here). Thre
 - [x] T3.6 `dctl` CLI (feat/m3-engine-shell).
 - [x] T3.7 Footprint gate (feat/m3-engine-shell).
 
-## M4 Providers (each CLI-testable via `dctl run`/`devices`; hardware steps verified on the dev PC)
+## M4 Providers ✔ (2026-11-01; PRs #5, #6, and the T4.7–T4.9 PR) (each CLI-testable via `dctl run`/`devices`; hardware steps verified on the dev PC)
 - [x] T4.1 wait, notify, flag (branch feat/m4-basic-steps).
 - [x] T4.2 process.run, script.powershell (branch feat/m4-basic-steps).
 - [x] T4.3 audio (port OSD worker + IPolicyConfig; wait for endpoint via notification) (branch feat/m4-basic-steps).

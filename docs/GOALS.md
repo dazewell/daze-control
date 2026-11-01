@@ -33,7 +33,7 @@ lives in [DECISIONS.md](DECISIONS.md).
 ## Status
 
 Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
-- [x] M0 Bootstrap · [x] M1 Core model + YAML · [x] M2 Runtime · [x] M3 Engine shell · [ ] M4 Providers
+- [x] M0 Bootstrap · [x] M1 Core model + YAML · [x] M2 Runtime · [x] M3 Engine shell · [x] M4 Providers
 - [ ] M5 Run pop-up · [ ] M6 Editor foundation · [ ] M7 Canvas · [ ] M8 Inspector + Library · [ ] M9 Runs · [ ] M10 Ship
 
 ## Waiting on the user
@@ -45,6 +45,10 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
   If the connect works but the output switch fails, the endpoint name may not contain "Technics EAH-AZ80"
   (offload endpoints are named "Headphones"/"Technics"): change `library.audio.technics.match`.
   When it works, scd can be stopped.
+- **Fire TV, Sunshine, services (optional, untested live):** `firetv.*` steps are tested only with fakes and a
+  dry run. To try them, add your TV under `library.firetv` (address, inputs as up/down moves, D-032). A
+  `credential:` is a Credential Manager entry named `DazeControl:<name>` (D-031). Most services can only be
+  started or stopped by an admin, so `service.*` fails with a message for those (D-033).
 
 ## Next step
 
