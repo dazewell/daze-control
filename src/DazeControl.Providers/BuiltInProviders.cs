@@ -1,4 +1,5 @@
 using DazeControl.Providers.Basic;
+using DazeControl.Providers.Process;
 using DazeControl.Runtime.Providers;
 
 namespace DazeControl.Providers;
@@ -15,6 +16,8 @@ public static class BuiltInProviders
             new NotifyProvider(notifier),
             new FlagSetProvider(flags),
             new FlagCheckProvider(flags),
+            new ProcessRunProvider(),
+            new PowerShellProvider(),
         ];
     }
 }
