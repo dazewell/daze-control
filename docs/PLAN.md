@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T2.6 — ConfigHost (branch feat/m2-runtime)
-Last green checkpoint: 931cd0b "feat(runtime): apply whenRunning to repeated triggers"
-Next action: Runtime/ConfigHost: Load(path) → ConfigYaml.Load + ConfigValidator.Validate(config, load.Problems); per flow keep the last valid version (D-021), never-valid flows disabled; unreadable file (Config null) keeps everything; Changed event; debounced reload via an injectable file-change source + TimeProvider (FileSystemWatcher adapter, ~300 ms); tests with ManualTime and temp files
-Tree state: builds, 225/225 tests green · Uncommitted: none
-Notes for next agent: T2.5 done: RunEvents, RunHistory (history.jsonl), FlowRunner events sink, FlowLauncher(trigger, history). AOT publish not yet re-checked on this branch (do it before the PR).
+Current task: T3.1 — composition root (new branch feat/m3-engine-shell from main once the M2 PR merges)
+Last green checkpoint: 4737d5e "feat(runtime): raise run events and keep the last 100 runs"
+Next action: Engine/Program: single-instance mutex, Log, global exception handlers; compose ConfigHost + FlowRunner (ResourceLocks, RunHistory at %LOCALAPPDATA%\DazeControl\history.jsonl) + FlowLauncher; hotkeys from ConfigHost.Current.RunnableFlows, re-registered on Changed (marshal to the message thread)
+Tree state: builds, 232/232 tests green, AOT publish clean · Uncommitted: none
+Notes for next agent: M2 done on feat/m2-runtime (PR open; merge per repo-workflow section 6). Version 0.3.0. No providers exist yet: the engine can only run flows once M4 adds them; T3.x can wire with an empty provider list.
 
 ---
 
@@ -35,13 +35,13 @@ Notes for next agent: T2.5 done: RunEvents, RunHistory (history.jsonl), FlowRunn
 - [x] T1.5 _(mechanical)_ Hand-convert the user's scd.toml into `samples/user-config.yaml` (Technics flow +
   both Bluetooth devices) — the one-time "import" (PR #2).
 
-## M2 Runtime (pure, fake providers + `ManualTime`)
+## M2 Runtime (pure, fake providers + `ManualTime`) ✔ (2026-11-01)
 - [x] T2.1 Scheduler: ready set, all-inputs join, edge `when`, skip propagation, cards (feat/m2-runtime).
 - [x] T2.2 Failure policies, retries, timeouts, cancellation (feat/m2-runtime).
 - [x] T2.3 Resource locks (feat/m2-runtime).
 - [x] T2.4 `whenRunning` (feat/m2-runtime).
 - [x] T2.5 Run events + history (last 100) + `history.jsonl` (feat/m2-runtime).
-- [~] T2.6 ConfigHost: load, debounced reload, last valid version per flow (D-021), never-valid flows disabled.
+- [x] T2.6 ConfigHost: load, debounced reload, last valid version per flow (D-021), never-valid flows disabled (feat/m2-runtime).
 
 ## M3 Engine shell
 - [ ] T3.1 Composition root, single instance mutex, Log, global exception handlers.
