@@ -1,11 +1,12 @@
 # Plan
 
 ## Resume
-Current task: T0.2 — seed docs (branch main, no remote yet)
-Last green checkpoint: 52c0154 "chore: init repo with .gitignore and .gitattributes"
-Next action: commit docs, then T0.3 skills + SessionStart hook
-Tree state: no code yet · Uncommitted: docs/ (this commit)
-Notes for next agent: `gh repo create` waits on the user (name, private?) — ask before creating it.
+Current task: T0.4 — solution skeleton (branch main, no remote yet)
+Last green checkpoint: b53fd50 "docs: seed repo memory from the approved plan"
+Next action: DazeControl.slnx + props + all src/tests projects, one test per test project, ci.yml
+Tree state: no code yet · Uncommitted: none
+Notes for next agent: `gh repo create` waits on the user (name, private?). This PC has no MSVC C++ tools:
+Native AOT publish (T0.5) needs them — ask the user before installing (`build` skill).
 
 ---
 
@@ -15,46 +16,20 @@ Notes for next agent: `gh repo create` waits on the user (name, private?) — as
   **Resume block**, rewritten in every checkpoint commit. Format:
   ```
   ## Resume
-  Current task: T2.2 — failure policies (branch feat/m2-runner, PR #7, stacked on #6)
-  Last green checkpoint: 3f2a1c9 "wip(runtime): retries with TimeProvider"
-  Next action: FlowRunnerTests.IgnoredFailureRunsDependents, then implement in Scheduler.Complete
-  Tree state: builds, 41/41 tests green · Uncommitted: none
-  Notes for next agent: skip propagation must ignore `always` edges (see D-003)
-  ```
-- **Checkpoint rule:** after every green sub-step (≤ ~20 min of work): build + tests → commit (`wip(...)`
-  allowed on branches; squash-merge cleans it) → update Resume block in the same commit → `git push`. Never
-  hold uncommitted work across a long step. A cut session loses at most one sub-step.
-- **Session start (`resume` skill, also wired as a SessionStart hook that prints the Resume block):**
-  read Resume → `git status` (leftovers from a cut session: build them; keep if green, else `git stash` and
-  note it) → `gh pr list --state open` → build + tests → continue at "Next action". Don't re-read whole docs:
-  GOALS + the task's files + grep DECISIONS/DEADENDS for the area.
-- **Near the cap / context limit:** stop at the next green point, commit, write the Resume block with the exact
-  next action and any half-formed reasoning, push. Better a small clean stop than a big dirty one.
-- **Task sizing:** every task lands a green, mergeable increment in one session (~≤ 1 h agent time), names
-  its files and its done-when (test names / commands / what to see on screen). Tasks marked _(mechanical)_
-  can run on a cheaper model. Broad reading goes to subagents to keep the main context small.
-- **Definition of done per task:** build + tests green · knowledge logged (D-/X-) · PLAN.md status + Resume
-  updated · GOALS status current · pushed + PR (user merges; stacked-PR rule in `repo-workflow`).
-
-## Verification (every task)
-
-- `dotnet build` + `dotnet test --solution` green (CI the same).
-- Runtime semantics: unit tests over fake providers + `ManualTime` (parallel branches, joins, `when` edges,
-  policies, retries, timeouts, locks, `whenRunning`, hot-reload last-good).
-- Engine: `scripts/measure.ps1` budgets (idle private/working set, 10-min CPU delta, post-run delta);
-  `dctl status/run/devices`; tray + hotkey on the real desktop; kill/restart leaves nothing behind.
-- Hardware: the user's Connect Technics flow (Alt+Z) end to end; audio switch seen in the OSD app; display
-  presets reversible (always test with a revert flow ready).
-- Editor: run it, screenshot each page, light/dark, 175 % scale; canvas drag/connect/group via UIA +
-  input injection; UX.md acceptance checklist.
+Current task: T0.4 — solution skeleton (branch main, no remote yet)
+Last green checkpoint: b53fd50 "docs: seed repo memory from the approved plan"
+Next action: DazeControl.slnx + props + all src/tests projects, one test per test project, ci.yml
+Tree state: no code yet · Uncommitted: none
+Notes for next agent: `gh repo create` waits on the user (name, private?). This PC has no MSVC C++ tools:
+Native AOT publish (T0.5) needs them — ask the user before installing (`build` skill).
 
 ---
 
 ## M0 Bootstrap
 - [~] T0.1 `git init`, `.gitignore`; ask the user before `gh repo create` (name, private?).
-- [~] T0.2 Docs copied from the plan: CLAUDE.md, GOALS, FEATURES, ARCHITECTURE, DECISIONS D-001..D-021,
+- [x] T0.2 Docs copied from the plan: CLAUDE.md, GOALS, FEATURES, ARCHITECTURE, DECISIONS D-001..D-021,
   DEADENDS, UX, PLAN (this file).
-- [ ] T0.3 Skills: `repo-workflow`, `knowledge-log`, `build` (adapted from the OSD), new `resume`;
+- [x] T0.3 Skills: `repo-workflow`, `knowledge-log`, `build` (adapted from the OSD), new `resume`;
   `.claude/settings.json` SessionStart hook printing the Resume block.
 - [ ] T0.4 Solution skeleton: all projects compile, one passing test per test project, `ci.yml` (build + test).
 - [ ] T0.5 Spike (gate): AOT engine with tray icon + one hotkey + YamlDotNet static context load; no trim/AOT
