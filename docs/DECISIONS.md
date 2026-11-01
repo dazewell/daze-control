@@ -256,5 +256,6 @@ Status: accepted
   engines on one pipe and two writers of history.jsonl and engine.log (PR #4 review). Plain users may create
   `Global\` mutexes (only file mappings need SeCreateGlobalPrivilege).
 - Why not: per-session pipe names — clients would need the session id, and history/log would still be shared;
-  `Local\` mutex — the bug.
+  `Local\` mutex — the bug. Cost accepted: a second interactive session of the same user gets no tray or hotkeys
+  (hotkeys are per desktop), and its dctl drives the first session's engine.
 - Revisit if: per-session engines are ever wanted (then per-session pipe, history and log paths too).

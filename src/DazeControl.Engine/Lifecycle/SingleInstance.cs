@@ -31,7 +31,15 @@ internal sealed class SingleInstance : IDisposable
     public static SingleInstance? TryAcquire(string? name = null)
     {
         name ??= CurrentMutexName();
-        var mutex = new Mutex(initiallyOwned: false, name);
+        Mutex mutex;
+        try
+        {
+            mutex = new Mutex(initiallyOwned: false, name);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null; // held by an engine of this user at another integrity level (started elevated)
+        }
         bool owned;
         try
         {

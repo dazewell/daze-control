@@ -57,7 +57,7 @@ try {
         # (lines start with the local start time, yyyy-MM-dd HH:mm:ss).
         $history = @(& $dctl history $RunFlow --limit $Runs)
         if ($LASTEXITCODE -ne 0) { throw "dctl history $RunFlow exited $LASTEXITCODE" }
-        $recorded = @($history | Where-Object { [datetime]::ParseExact($_.Substring(0, 19), 'yyyy-MM-dd HH:mm:ss', $null) -ge $runsFrom })
+        $recorded = @($history | Where-Object { [datetime]::ParseExact($_.Substring(0, 19), 'yyyy-MM-dd HH:mm:ss', [cultureinfo]::InvariantCulture) -ge $runsFrom })
         if ($recorded.Count -ne $Runs) { throw "expected $Runs new run(s) of $RunFlow in the history, got $($recorded.Count)" }
         Start-Sleep -Seconds $SettleSeconds
         $p.Refresh()

@@ -50,7 +50,7 @@ public sealed class PipeServer(string pipeName, Func<PipeRequest, CancellationTo
             return;
         var line = JsonSerializer.Serialize(new PipeMessage { Ok = true, Event = e }, IpcJson.Default.PipeMessage);
         foreach (var connection in subscribers)
-            _ = connection.Enqueue(line);
+            connection.Enqueue(line, awaited: false);
     }
 
     /// <summary>No new clients and no new requests on open connections; requests already taken still get answers.</summary>
@@ -249,11 +249,12 @@ public sealed class PipeServer(string pipeName, Func<PipeRequest, CancellationTo
         /// Queues one line; completes once it is written or can't be. A line that can't be queued (full queue, or
         /// the connection is ending) always drops the client, so no answer is lost while its client keeps waiting.
         /// </summary>
-        public Task Enqueue(string line)
+        /// <param name="awaited">False for events: nobody waits for them, so no completion is allocated.</param>
+        public Task Enqueue(string line, bool awaited = true)
         {
-            var written = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var written = awaited ? new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously) : null;
             if (_queue.Writer.TryWrite((line, written)))
-                return written.Task;
+                return written?.Task ?? Task.CompletedTask;
             if (!_closed && Interlocked.Exchange(ref _dropped, 1) == 0)
                 server.Report("pipe: client too slow, dropped", new IOException($"{QueueLimit} lines unread"));
             Leave(); // cancels its pending read and write; ServeAsync cleans up

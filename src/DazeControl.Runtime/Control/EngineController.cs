@@ -146,8 +146,8 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
     }
 
     /// <summary>
-    /// History outlives the config: the filter matches a recorded flow id, then the config's id or name, then a
-    /// recorded name.
+    /// History outlives the config: the filter matches a recorded flow id, then the config's id or name, then the
+    /// newest recorded name.
     /// </summary>
     private PipeMessage History(PipeRequest request)
     {
@@ -158,7 +158,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             {
                 if (Find(text) is { } state)
                     text = state.FlowId;
-                else if (runs.FirstOrDefault(r => string.Equals(r.FlowName, text, StringComparison.OrdinalIgnoreCase)) is { } byName)
+                else if (runs.LastOrDefault(r => string.Equals(r.FlowName, text, StringComparison.OrdinalIgnoreCase)) is { } byName)
                     text = byName.FlowId;
                 else
                     return NotFound(request.Id, request.Flow);
