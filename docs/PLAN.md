@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T3.1 — composition root (new branch feat/m3-engine-shell from main once the M2 PR merges)
+Current task: M2 review — PR #3 (branch feat/m2-runtime), then T3.1
 Last green checkpoint: 4737d5e "feat(runtime): raise run events and keep the last 100 runs"
-Next action: Engine/Program: single-instance mutex, Log, global exception handlers; compose ConfigHost + FlowRunner (ResourceLocks, RunHistory at %LOCALAPPDATA%\DazeControl\history.jsonl) + FlowLauncher; hotkeys from ConfigHost.Current.RunnableFlows, re-registered on Changed (marshal to the message thread)
+Next action: PR #3: wait for CI + the Copilot review in the background (repo-workflow section 6.7), handle findings per section 6 (budget 2 reviews), squash-merge, sync main; then T3.1 on feat/m3-engine-shell: Engine/Program single-instance mutex, Log, global handlers; compose ConfigHost + FlowRunner (ResourceLocks, RunHistory at %LOCALAPPDATA%\DazeControl\history.jsonl) + FlowLauncher; hotkeys from ConfigHost.Current.RunnableFlows, re-registered on Changed (marshal to the message thread)
 Tree state: builds, 232/232 tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: M2 done on feat/m2-runtime (PR open; merge per repo-workflow section 6). Version 0.3.0. No providers exist yet: the engine can only run flows once M4 adds them; T3.x can wire with an empty provider list.
+Notes for next agent: M2 (T2.1-T2.6) is complete on feat/m2-runtime, PR #3 open, no Copilot review yet. Version 0.3.0. No providers exist yet: T3.x wires with an empty provider list until M4.
 
 ---
 
