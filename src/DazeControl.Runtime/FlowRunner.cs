@@ -21,10 +21,17 @@ public sealed class FlowRunner
     private readonly Library _library;
     private readonly TimeProvider _time;
     private readonly IReadOnlyList<ProviderDescriptor> _catalog;
+    private readonly ResourceLocks _locks;
 
-    public FlowRunner(IEnumerable<IStepProvider> providers, Library library, TimeProvider time,
+    /// <param name="providers">One per step type the engine can run.</param>
+    /// <param name="library">The configuration's library, handed to each step.</param>
+    /// <param name="time">Clock for timeouts and retry delays.</param>
+    /// <param name="locks">Shared by every runner in the engine, so locks hold across flows.</param>
+    /// <param name="catalog">Step types; the compiled-in catalog by default.</param>
+    public FlowRunner(IEnumerable<IStepProvider> providers, Library library, TimeProvider time, ResourceLocks? locks = null,
         IReadOnlyList<ProviderDescriptor>? catalog = null)
     {
+        _locks = locks ?? new ResourceLocks();
         _providers = providers.ToDictionary(p => p.Id);
         _library = library;
         _time = time;
@@ -109,6 +116,17 @@ public sealed class FlowRunner
     {
         using var timeoutCancel = new CancellationTokenSource(timeout, _time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(flowToken, timeoutCancel.Token);
+        IDisposable held;
+        try
+        {
+            // Waiting for a lock counts toward the timeout: a step stuck behind another still ends on time.
+            held = await _locks.AcquireAsync(ResourcesOf(context.Descriptor, context.Node), linked.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return flowToken.IsCancellationRequested ? "Cancelled." : $"Waited {Duration.Format(timeout)} for another step using the same device.";
+        }
+        using var release = held;
         Task execution;
         try
         {
@@ -138,6 +156,11 @@ public sealed class FlowRunner
             return e.Message;
         }
     }
+
+    /// <summary>The descriptor's lock names with "{param}" replaced by that param's value ("bluetooth:technics").</summary>
+    internal static IEnumerable<string> ResourcesOf(ProviderDescriptor descriptor, StepNode node) =>
+        descriptor.Resources.Select(resource => node.With.Aggregate(resource, (name, param) =>
+            param.Value is ScalarParam scalar ? name.Replace("{" + param.Key + "}", scalar.Text, StringComparison.Ordinal) : name));
 
     // A provider abandoned on timeout may still fault later; observe it so it never surfaces as unobserved.
     private static void Observe(Task task) =>

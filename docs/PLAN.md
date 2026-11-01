@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T2.3 — resource locks (branch feat/m2-runtime)
-Last green checkpoint: 9853477 "feat(runtime): schedule flow DAGs with policies, cards and fallbacks"
-Next action: Runtime/ResourceLocks: engine-wide named async locks; FlowRunner takes the step's descriptor Resources ({param} replaced by the with: value) around each attempt, in sorted order (no deadlock); time spent waiting counts toward the timeout; tests: two runs on the same bluetooth device serialise, different devices overlap
-Tree state: builds, 208/208 tests green (Runtime suite stable over 10 runs) · Uncommitted: none
-Notes for next agent: T2.2 done: FlowRunner + IStepProvider/StepContext + FakeProvider/ManualTime. AOT publish not yet re-checked on this branch (do it before the PR).
+Current task: T2.4 — whenRunning (branch feat/m2-runtime)
+Last green checkpoint: b700d0a "feat(runtime): run flows with retries, timeouts and cancellation"
+Next action: Runtime/FlowLauncher (or TriggerRouter): one entry per flow id; Trigger(flow) applies Flow.WhenRunning: ignore (drop while running), queue (one pending run after the current), restart (cancel current, then start); returns a Task<RunResult?>; tests with FakeProvider
+Tree state: builds, 213/213 tests green · Uncommitted: none
+Notes for next agent: T2.3 done: ResourceLocks + FlowRunner.ResourcesOf. AOT publish not yet re-checked on this branch (do it before the PR).
 
 ---
 
@@ -38,8 +38,8 @@ Notes for next agent: T2.2 done: FlowRunner + IStepProvider/StepContext + FakePr
 ## M2 Runtime (pure, fake providers + `ManualTime`)
 - [x] T2.1 Scheduler: ready set, all-inputs join, edge `when`, skip propagation, cards (feat/m2-runtime).
 - [x] T2.2 Failure policies, retries, timeouts, cancellation (feat/m2-runtime).
-- [~] T2.3 Resource locks.
-- [ ] T2.4 `whenRunning`.
+- [x] T2.3 Resource locks (feat/m2-runtime).
+- [~] T2.4 `whenRunning`.
 - [ ] T2.5 Run events + history (last 100) + `history.jsonl`.
 - [ ] T2.6 ConfigHost: load, debounced reload, last valid version per flow (D-021), never-valid flows disabled.
 

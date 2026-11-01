@@ -127,6 +127,10 @@ once.
 descriptor's) on the injected `TimeProvider`. `WaitAsync` ends an attempt on time even if a provider ignores
 its token (the abandoned task is observed). A stopped or cancelled flow cancels the running steps; the runner
 awaits them all. Returns `RunResult` (flow outcome + `NodeResult` per node: attempts, error text, duration).
+`ResourceLocks` (one per engine, shared by all runners): around each attempt the runner takes the descriptor's
+`Resources` with `{param}` filled in (`bluetooth:technics`), in ordinal order (no deadlocks). Waiting counts
+toward the attempt's timeout. The lock is let go when the attempt ends, even if a timed-out provider is
+still running in the background.
 Tests: `FakeProvider` + thread-safe `ManualTime` with `WaitForTimerAsync` (Runtime.Tests).
 
 ## IPC
