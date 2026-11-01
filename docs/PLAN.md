@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T1.5 — hand-convert scd.toml (branch feat/m1-core-model, draft PR #2 for all of M1)
-Last green checkpoint: e7beed6 "feat(core): add the provider catalog with typed param specs"
-Next action: write samples/user-config.yaml from %APPDATA%\scd\scd.toml (Technics flow on Alt+Z + technics/sony Bluetooth) and a test that it loads and validates clean
-Tree state: builds, 168/168 tests green · Uncommitted: none
-Notes for next agent: T1.3 done: Core/Validation/ConfigValidator. Engine/Program still only logs mapper problems; ConfigHost (T2.6) wires validation in.
+Current task: T2.1 — scheduler (new branch feat/m2-runtime from main once PR #2 merges; else stack on feat/m1-core-model)
+Last green checkpoint: c4d8c19 "feat(core): validate flows against F1 rules and the catalog"
+Next action: first resolve the ARCHITECTURE open question on stop + failure edges (record a D-xxx), then Runtime/Scheduler tests first: ready set, all-inputs join, edge when, skip propagation, cards
+Tree state: builds, 171/171 tests green · Uncommitted: none
+Notes for next agent: M1 done in PR #2 (waits for the user's merge). Model: Core/Model; YAML: Core/Yaml (D-023); validation: Core/Validation; catalog: Core/Catalog. Version 0.2.0.
 
 ---
 
@@ -27,13 +27,13 @@ Notes for next agent: T1.3 done: Core/Validation/ConfigValidator. Engine/Program
 - [x] T0.5 Spike (gate): AOT engine with tray icon + one hotkey + YamlDotNet static context load; no trim/AOT
   warnings; `scripts/measure.ps1` → idle numbers in ARCHITECTURE. Over budget → decide with the user.
 
-## M1 Core model + YAML
+## M1 Core model + YAML ✔ (2026-10-31, PR #2)
 - [x] T1.1 Model records + outcomes (PR #2).
 - [x] T1.2 YAML DTOs/mapper, round-trip tests, fixtures incl. the user's flow (PR #2).
 - [x] T1.3 Validation (cycles, refs, card rules, params vs descriptors; problem records with node paths) (PR #2).
 - [x] T1.4 Provider catalog descriptors + `ParamSpec` (PR #2).
-- [~] T1.5 _(mechanical)_ Hand-convert the user's scd.toml into `samples/user-config.yaml` (Technics flow +
-  both Bluetooth devices) — the one-time "import".
+- [x] T1.5 _(mechanical)_ Hand-convert the user's scd.toml into `samples/user-config.yaml` (Technics flow +
+  both Bluetooth devices) — the one-time "import" (PR #2).
 
 ## M2 Runtime (pure, fake providers + `ManualTime`)
 - [ ] T2.1 Scheduler: ready set, all-inputs join, edge `when`, skip propagation, cards.

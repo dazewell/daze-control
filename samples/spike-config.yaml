@@ -5,4 +5,4 @@ flows:
     name: Spike
     hotkeys: [Ctrl+Alt+F12]
     nodes:
-      - { id: wait, step: wait, with: { ms: 10 } }
+      - { id: wait, step: wait, with: { duration: 10ms } }

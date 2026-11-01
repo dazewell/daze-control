@@ -142,5 +142,7 @@ T0.5 gate passed: no AOT/trim warnings; hotkey press and tray icon checked on th
 
 ## Open questions
 
+- (T2.1) Does a `stop` node with an outgoing `when: failure` edge still cancel the flow? F1's fallback example
+  ("buds if headphones fail") only works if a handled failure doesn't stop it; decide and record before the scheduler.
 - Unknown YAML keys (typos like `afer:`) are ignored silently (`IgnoreUnmatchedProperties`); reporting them
   as warnings needs a pass over the representation model or a YamlDotNet hook.
