@@ -131,6 +131,9 @@ awaits them all. Returns `RunResult` (flow outcome + `NodeResult` per node: atte
 `Resources` with `{param}` filled in (`bluetooth:technics`), in ordinal order (no deadlocks). Waiting counts
 toward the attempt's timeout. The lock is let go when the attempt ends, even if a timed-out provider is
 still running in the background.
+`FlowLauncher.TriggerAsync(flow)` is the one entry for triggers: one slot per flow id applies `whenRunning`
+(ignore → null result; queue → one coalesced run afterwards; restart → cancel, wait for it to wind down, run the
+latest version). `CancelAllAsync` drops queued runs and awaits running ones (engine exit).
 Tests: `FakeProvider` + thread-safe `ManualTime` with `WaitForTimerAsync` (Runtime.Tests).
 
 ## IPC

@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T2.4 — whenRunning (branch feat/m2-runtime)
-Last green checkpoint: b700d0a "feat(runtime): run flows with retries, timeouts and cancellation"
-Next action: Runtime/FlowLauncher (or TriggerRouter): one entry per flow id; Trigger(flow) applies Flow.WhenRunning: ignore (drop while running), queue (one pending run after the current), restart (cancel current, then start); returns a Task<RunResult?>; tests with FakeProvider
-Tree state: builds, 213/213 tests green · Uncommitted: none
-Notes for next agent: T2.3 done: ResourceLocks + FlowRunner.ResourcesOf. AOT publish not yet re-checked on this branch (do it before the PR).
+Current task: T2.5 — run events + history (branch feat/m2-runtime)
+Last green checkpoint: 4d95ea5 "feat(runtime): serialise steps that share a device across flows"
+Next action: Core/Runs event records (RunStarted, NodeStarted, NodeFinished, RunFinished with trigger + times); FlowRunner raises them via an IRunEvents sink; Runtime/RunHistory keeps the last 100 RunRecords in memory and appends JSON lines to history.jsonl (System.Text.Json source-gen, AOT), loads the tail on start, tolerates a corrupt line; tests with a temp dir
+Tree state: builds, 219/219 tests green (Runtime suite stable over 15 runs) · Uncommitted: none
+Notes for next agent: T2.4 done: FlowLauncher. AOT publish not yet re-checked on this branch (do it before the PR).
 
 ---
 
@@ -39,8 +39,8 @@ Notes for next agent: T2.3 done: ResourceLocks + FlowRunner.ResourcesOf. AOT pub
 - [x] T2.1 Scheduler: ready set, all-inputs join, edge `when`, skip propagation, cards (feat/m2-runtime).
 - [x] T2.2 Failure policies, retries, timeouts, cancellation (feat/m2-runtime).
 - [x] T2.3 Resource locks (feat/m2-runtime).
-- [~] T2.4 `whenRunning`.
-- [ ] T2.5 Run events + history (last 100) + `history.jsonl`.
+- [x] T2.4 `whenRunning` (feat/m2-runtime).
+- [~] T2.5 Run events + history (last 100) + `history.jsonl`.
 - [ ] T2.6 ConfigHost: load, debounced reload, last valid version per flow (D-021), never-valid flows disabled.
 
 ## M3 Engine shell
