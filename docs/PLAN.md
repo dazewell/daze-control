@@ -2,9 +2,9 @@
 
 ## Resume
 Current task: M4 Providers — T4.3 audio (branch feat/m4-basic-steps, no PR yet; T4.1–T4.2 done)
-Last green checkpoint: 977bdae "wip(providers): wait, notify and flag steps"
-Next action: read the audio descriptors in ProviderCatalog and the OSD's audio worker + IPolicyConfig (C:\Projects\daze-media-osd), port them to `Providers/Audio/` behind an interface with a fake; record the default device before any live test and restore it
-Tree state: builds, 376/376 tests green · Uncommitted: none
+Last green checkpoint: 0ef5d49 "wip(providers): process.run and script.powershell"
+Next action: T4.3 code + fake tests are in (Providers/Audio, ComThread). Still to do: AOT publish of the engine (scd-rewamp:build skill) must stay warning-free with the hand-made IMMNotificationClient vtable; then a live check of audio.setDefault via a temp config + dctl run, recording the current default output first and setting it back right after; then tick T4.3 and start T4.4 bluetooth
+Tree state: builds, 382/382 tests green · Uncommitted: none
 Notes for next agent: PR #4 left 3 minor items open (see its last comment). Never end a pipe I/O by disposing the pipe (X-001). Providers read params via `StepParams` (written value, else descriptor default). Plan: PR 1 = T4.1–T4.4, PR 2 = T4.5–T4.9. T4.4 live gate (Connect Technics on Alt+Z) needs the user's headphones: prove with unit tests + dry run, leave the live check to the user.
 
 ---
@@ -55,7 +55,7 @@ Notes for next agent: PR #4 left 3 minor items open (see its last comment). Neve
 ## M4 Providers (each CLI-testable via `dctl run`/`devices`; hardware steps verified on the dev PC)
 - [x] T4.1 wait, notify, flag (branch feat/m4-basic-steps).
 - [x] T4.2 process.run, script.powershell (branch feat/m4-basic-steps).
-- [ ] T4.3 audio (port OSD worker + IPolicyConfig; wait for endpoint via notification).
+- [~] T4.3 audio (port OSD worker + IPolicyConfig; wait for endpoint via notification) (branch feat/m4-basic-steps).
 - [ ] T4.4 bluetooth (port OSD D-023 + disconnect). **Gate: the user's Connect Technics flow works on Alt+Z →
   user can stop scd.**
 - [ ] T4.5 display presets + outputs-only (port scd CCD).

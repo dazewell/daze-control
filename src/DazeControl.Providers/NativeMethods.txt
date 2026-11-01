@@ -1,0 +1,13 @@
+CoCreateInstance
+CoInitializeEx
+CoUninitialize
+MMDeviceEnumerator
+IMMDeviceEnumerator
+IMMDevice
+IMMDeviceCollection
+IMMNotificationClient
+IAudioEndpointVolume
+IPropertyStore
+PKEY_Device_FriendlyName
+PropVariantClear
+DEVICE_STATE

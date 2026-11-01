@@ -1,3 +1,4 @@
+using DazeControl.Providers.Audio;
 using DazeControl.Providers.Basic;
 using DazeControl.Providers.Process;
 using DazeControl.Runtime.Providers;
@@ -10,6 +11,7 @@ public static class BuiltInProviders
     public static IReadOnlyList<IStepProvider> Create(TimeProvider time, INotifier notifier)
     {
         var flags = new FlagStore();
+        var audio = new CoreAudioEndpoints();
         return
         [
             new WaitProvider(time),
@@ -18,6 +20,9 @@ public static class BuiltInProviders
             new FlagCheckProvider(flags),
             new ProcessRunProvider(),
             new PowerShellProvider(),
+            new AudioSetDefaultProvider(audio),
+            new AudioSetVolumeProvider(audio),
+            new AudioMuteProvider(audio),
         ];
     }
 }
