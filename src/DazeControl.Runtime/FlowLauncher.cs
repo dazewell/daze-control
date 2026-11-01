@@ -63,6 +63,23 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
             return _slots.TryGetValue(flowId, out var slot) && slot.Cancel is not null;
     }
 
+    /// <summary>Cancels the flow's run and drops its queued one (tray, <c>dctl cancel</c>); false when it wasn't running.</summary>
+    public bool Cancel(string flowId)
+    {
+        CancellationTokenSource? cancel;
+        lock (_lock)
+        {
+            if (!_slots.TryGetValue(flowId, out var slot) || slot.Cancel is null)
+                return false;
+            slot.Pending?.TrySetResult(null);
+            slot.Pending = null;
+            slot.PendingRequest = null;
+            cancel = slot.Cancel;
+        }
+        cancel.Cancel(); // outside the lock: cancellation callbacks run inline
+        return true;
+    }
+
     /// <summary>
     /// Engine exit: cancels every run, drops queued ones, ignores later triggers, and waits until all have wound
     /// down.

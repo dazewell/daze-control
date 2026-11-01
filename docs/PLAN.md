@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M3 engine shell (branch feat/m3-engine-shell, no PR yet) — T3.4 autostart next
-Last green checkpoint: f76410c "wip(engine): composition root, single instance, rolling log, hotkey table"
-Next action: T3.4: Runtime/Lifecycle/Autostart (port OSD Core/Lifecycle/Autostart.cs, value "DazeControl", tests on a scratch HKCU key); exposed through the pipe op `autostart` in T3.5 and `dctl autostart [on|off]` in T3.6
-Tree state: builds, 285/285 tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: tray + hotkeys checked on the desktop 2026-11-01 (menu, folder, needs-fixing, pause, Exit, Alt+Z run). Busy icon/running bullet unseen on screen: no provider runs long yet (M4).
+Current task: M3 engine shell (branch feat/m3-engine-shell, no PR yet) — T3.6 dctl next
+Last green checkpoint: 3bfbc6f "wip(engine): tray menu from flows, drawn icon variants, pause shortcuts"
+Next action: T3.6: src/DazeControl.Cli/Program.cs — commands run/list/validate [file]/status/history/cancel/autostart/devices over PipeClient (Protocol.CurrentPipeName); `validate <file>` and `list` without an engine work offline from the YAML; exit codes 0 ok, 1 failed, 2 usage, 3 no engine
+Tree state: builds, 324/324 tests green · Uncommitted: none
+Notes for next agent: pipe ops live in Runtime/Control/EngineController (Runtime now references Ipc); PipeServer/PipeClient in Ipc. Pipe not yet tried against the published engine (do it with dctl in T3.6).
 
 ---
 
@@ -47,8 +47,8 @@ Notes for next agent: tray + hotkeys checked on the desktop 2026-11-01 (menu, fo
 - [x] T3.1 Composition root, single instance mutex, Log, global exception handlers (feat/m3-engine-shell).
 - [x] T3.2 TrayIcon from flows (folders, separators, running mark, Pause hotkeys, Open editor, Exit) (feat/m3-engine-shell).
 - [x] T3.3 GlobalHotkey from flows (per-chord failure non-fatal) (feat/m3-engine-shell).
-- [ ] T3.4 Autostart.
-- [ ] T3.5 PipeServer + protocol.
+- [x] T3.4 Autostart (feat/m3-engine-shell).
+- [x] T3.5 PipeServer + protocol (feat/m3-engine-shell).
 - [ ] T3.6 `dctl` CLI.
 - [ ] T3.7 Footprint gate.
 

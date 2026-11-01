@@ -1,0 +1,204 @@
+using DazeControl.Core.Runs;
+using DazeControl.Core.Yaml;
+using DazeControl.Ipc;
+using DazeControl.Runtime.Control;
+using DazeControl.Runtime.Lifecycle;
+
+namespace DazeControl.Runtime.Tests;
+
+public sealed class EngineControllerTests : IDisposable
+{
+    private const string Yaml = """
+        flows:
+          tv:
+            name: TV only
+            hotkeys: [Alt+T]
+            nodes: [{ id: a, step: notify, with: { text: x } }]
+          slow:
+            name: Slow one
+            nodes: [{ id: a, step: notify, with: { text: x } }]
+          broken:
+            name: Broken
+            nodes: [{ id: a, step: nope }]
+          off:
+            name: Off
+            enabled: false
+            nodes: [{ id: a, step: notify, with: { text: x } }]
+        """;
+
+    private readonly string _root = @"Software\DazeControl.Tests\" + Guid.NewGuid().ToString("N");
+    private readonly ManualTime _time = new();
+    private readonly FakeProvider _provider = new();
+    private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly FlowLauncher _launcher;
+    private readonly RunHistory _history = new(null);
+    private readonly EngineController _controller;
+    private readonly List<string> _log = [];
+
+    public EngineControllerTests()
+    {
+        _provider.On("a", (context, token) => context.Flow.Id == "slow" ? _gate.Task.WaitAsync(token) : Task.CompletedTask);
+        _launcher = new FlowLauncher(new FlowRunner([_provider], _time), _history);
+        var snapshot = ConfigHost.Apply(ConfigSnapshot.Empty, ConfigYaml.Load(Yaml));
+        _controller = new EngineController(() => snapshot, _launcher, _history, EngineController.CreateDryRunner(_time),
+            new Autostart(_root + @"\Run", _root + @"\Approved"), new EngineInfo("1.2.3", 42, @"C:\x\DazeControl.exe", "c.yaml"),
+            line => { lock (_log) _log.Add(line); });
+    }
+
+    public void Dispose()
+    {
+        _gate.TrySetResult();
+        _time.Dispose();
+        Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(_root, throwOnMissingSubKey: false);
+    }
+
+    private Task<PipeMessage> Send(string op, string? flow = null, bool wait = false, bool dryRun = false, bool? enable = null, int? limit = null) =>
+        _controller.HandleAsync(new PipeRequest { Id = 7, Op = op, Flow = flow, Wait = wait, DryRun = dryRun, Enable = enable, Limit = limit },
+            CancellationToken.None);
+
+    [Fact]
+    public async Task RunWithWaitAnswersWithTheRecord()
+    {
+        var answer = await Send(Ops.Run, "tv", wait: true);
+
+        Assert.True(answer.Ok);
+        Assert.Equal(7, answer.Id);
+        Assert.Equal(FlowOutcome.Succeeded, answer.Run!.Outcome);
+        Assert.Equal("Command line", answer.Run.Trigger);
+        Assert.Single(_history.Recent);
+    }
+
+    [Fact]
+    public async Task AFlowIsFoundByItsNameToo()
+    {
+        Assert.True((await Send(Ops.Run, "tv ONLY", wait: true)).Ok);
+    }
+
+    [Theory]
+    [InlineData("nope", "There's no flow called \"nope\".")]
+    [InlineData(null, "Say which flow.")]
+    [InlineData("broken", "Broken needs fixing before it can run.")]
+    [InlineData("off", "Off is turned off.")]
+    public async Task RunRefusesWhatCantRun(string? flow, string error)
+    {
+        var answer = await Send(Ops.Run, flow);
+
+        Assert.False(answer.Ok);
+        Assert.Equal(error, answer.Error);
+    }
+
+    [Fact]
+    public async Task RunWithoutWaitAnswersAtOnceAndAnIgnoredSecondStartSaysSo()
+    {
+        Assert.True((await Send(Ops.Run, "slow")).Ok);
+        await _provider.Started("a");
+
+        var second = await Send(Ops.Run, "slow");
+
+        Assert.Equal("Slow one is already running.", second.Error);
+        Assert.Equal(["slow"], (await Send(Ops.Status)).Status!.Running!);
+    }
+
+    [Fact]
+    public async Task CancelStopsARunningFlow()
+    {
+        var run = Send(Ops.Run, "slow", wait: true);
+        await _provider.Started("a");
+
+        Assert.True((await Send(Ops.Cancel, "slow")).Ok);
+
+        Assert.Equal(FlowOutcome.Cancelled, (await run).Run!.Outcome);
+        Assert.Equal("Slow one isn't running.", (await Send(Ops.Cancel, "slow")).Error);
+    }
+
+    [Fact]
+    public async Task DryRunWalksTheFlowWithoutRunningStepsOrHistory()
+    {
+        var answer = await Send(Ops.Run, "tv", dryRun: true);
+
+        Assert.Equal(FlowOutcome.Succeeded, answer.Run!.Outcome);
+        Assert.Empty(_provider.Attempts);
+        Assert.Empty(_history.Recent);
+    }
+
+    [Fact]
+    public async Task ListDescribesEveryFlow()
+    {
+        var flows = (await Send(Ops.List)).Flows!;
+
+        Assert.Equal(["tv", "slow", "broken", "off"], flows.Select(f => f.Id));
+        Assert.Equal(["Alt+T"], flows[0].Hotkeys!);
+        Assert.True(flows[0].Runnable);
+        Assert.False(flows[2].Runnable);
+        Assert.Equal("Broken", flows[2].Name);
+        Assert.Equal(1, flows[2].Errors);
+        Assert.False(flows[3].Runnable);
+    }
+
+    [Fact]
+    public async Task StatusCarriesTheShellState()
+    {
+        _controller.Shell = new ShellStatus(true, ["Alt+T: taken"]);
+
+        var status = (await Send(Ops.Status)).Status!;
+
+        Assert.Equal("1.2.3", status.Version);
+        Assert.True(status.ShortcutsPaused);
+        Assert.Equal(["Alt+T: taken"], status.ShortcutProblems!);
+        Assert.Equal(1, status.Errors);
+    }
+
+    [Fact]
+    public async Task ValidateListsTheConfigsProblems()
+    {
+        var problem = Assert.Single((await Send(Ops.Validate)).Problems!);
+
+        Assert.Equal("error", problem.Severity);
+        Assert.Equal("broken", problem.FlowId);
+    }
+
+    [Fact]
+    public async Task HistoryIsNewestFirstAndFiltersByFlow()
+    {
+        await Send(Ops.Run, "tv", wait: true);
+        _time.Advance(TimeSpan.FromSeconds(1));
+        await Send(Ops.Run, "tv", wait: true);
+
+        var all = (await Send(Ops.History)).History!;
+        Assert.Equal(2, all.Length);
+        Assert.True(all[0].Started > all[1].Started);
+        Assert.Single((await Send(Ops.History, "tv", limit: 1)).History!);
+        Assert.Empty((await Send(Ops.History, "slow")).History!);
+    }
+
+    [Fact]
+    public async Task AutostartPointsAtTheEngine()
+    {
+        Assert.Equal("off", (await Send(Ops.Autostart)).Autostart!.State);
+
+        var on = (await Send(Ops.Autostart, enable: true)).Autostart!;
+        Assert.Equal("on", on.State);
+        Assert.Equal(@"C:\x\DazeControl.exe", on.Path);
+
+        Assert.Equal("off", (await Send(Ops.Autostart, enable: false)).Autostart!.State);
+    }
+
+    [Theory]
+    [InlineData(Ops.Devices)]
+    [InlineData("frobnicate")]
+    public async Task UnsupportedOpsAnswerWithAnError(string op)
+    {
+        var answer = await Send(op);
+
+        Assert.False(answer.Ok);
+        Assert.NotNull(answer.Error);
+    }
+
+    [Fact]
+    public async Task TriggerLogsWhatCantRun()
+    {
+        Assert.Null(await _controller.TriggerAsync("broken", "Tray"));
+
+        Assert.Contains("run: broken (Tray) not runnable", _log);
+    }
+}

@@ -4,7 +4,10 @@ using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
 using DazeControl.Engine.Diagnostics;
 using DazeControl.Engine.Shell;
+using DazeControl.Ipc;
 using DazeControl.Runtime;
+using DazeControl.Runtime.Control;
+using DazeControl.Runtime.Lifecycle;
 using DazeControl.Runtime.Providers;
 using DazeControl.Runtime.Tray;
 using DazeControl.Runtime.Triggers;
@@ -39,6 +42,8 @@ internal sealed class EngineHost : IDisposable
     private readonly ConfigHost _config;
     private readonly RunHistory _history;
     private readonly FlowLauncher _launcher;
+    private readonly EngineController _controller;
+    private readonly PipeServer _pipe;
     private readonly string _editorPath = Path.Combine(AppContext.BaseDirectory, "DazeControl.Editor.exe");
 
     // Message thread only.
@@ -49,7 +54,7 @@ internal sealed class EngineHost : IDisposable
     {
         _window = new MessageWindow();
         _tray = new TrayIcon(_window, AppInfo.ProductName, BuildMenu);
-        _tray.FlowChosen += flowId => Trigger(flowId, "Tray");
+        _tray.FlowChosen += flowId => _controller!.TriggerAsync(flowId, "Tray");
         _tray.CommandChosen += OnTrayCommand;
         _hotkeys = new GlobalHotkey(_window);
         _hotkeyTable = new HotkeyTable(_hotkeys);
@@ -65,6 +70,14 @@ internal sealed class EngineHost : IDisposable
         _config = new ConfigHost(paths.Config, TimeProvider.System);
         _config.ListenerFailed += e => Log.Error("config: listener", e);
         _config.Changed += snapshot => _window.Post(() => Apply(snapshot));
+
+        var exe = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "DazeControl.exe");
+        var version = typeof(EngineHost).Assembly.GetName().Version?.ToString(3) ?? "?";
+        _controller = new EngineController(() => _config.Current, _launcher, _history,
+            EngineController.CreateDryRunner(TimeProvider.System), new Autostart(),
+            new EngineInfo(version, Environment.ProcessId, exe, paths.Config), Log.Info);
+        _pipe = new PipeServer(Protocol.CurrentPipeName(), _controller.HandleAsync, (what, e) => Log.Error(what, e));
+        _pipe.Start();
         Apply(_config.Current);
     }
 
@@ -76,7 +89,13 @@ internal sealed class EngineHost : IDisposable
         Log.Info("engine: exiting");
         _hotkeyTable.Clear();
         _config.Dispose();
-        if (!_launcher.CancelAllAsync().Wait(ExitGrace))
+        // Cancel runs first: a client waiting on one gets its answer before the pipe closes.
+        var exit = Task.Run(async () =>
+        {
+            await _launcher.CancelAllAsync().ConfigureAwait(false);
+            await _pipe.DisposeAsync().ConfigureAwait(false);
+        });
+        if (!exit.Wait(ExitGrace))
             Log.Warn($"engine: runs still winding down after {ExitGrace.TotalSeconds:0} s; exiting anyway");
     }
 
@@ -94,8 +113,13 @@ internal sealed class EngineHost : IDisposable
             Log.Info($"hotkey: {hotkey} for {_hotkeyTable.Wanted[hotkey]}: {why}");
         Log.Info($"config: {snapshot.Flows.Count} flow(s), {snapshot.RunnableFlows.Count()} runnable, "
             + $"{_hotkeyTable.Wanted.Count - _hotkeyTable.Failures.Count} shortcut(s)");
+        PublishShell();
         UpdateTray();
+        _pipe.Broadcast(new PipeEvent { Kind = EventKinds.ConfigReloaded, At = DateTimeOffset.UtcNow });
     }
+
+    private void PublishShell() => _controller.Shell = new ShellStatus(_hotkeyTable.Paused,
+        [.. _hotkeyTable.Failures.Select(f => $"{f.Key}: {f.Value}")]);
 
     private IReadOnlyList<TrayEntry> BuildMenu() => TrayMenu.Build(_config.Current, new TrayState(
         _running.Select(r => r.FlowId).ToHashSet(), id => _hotkeyTable.ShortcutOf(id)?.ToString(),
@@ -114,6 +138,7 @@ internal sealed class EngineHost : IDisposable
                 else
                     _hotkeyTable.Pause();
                 Log.Info($"hotkey: shortcuts {(_hotkeyTable.Paused ? "paused" : "resumed")}");
+                PublishShell();
                 UpdateTray();
                 break;
             case TrayCommand.OpenEditor:
@@ -169,28 +194,7 @@ internal sealed class EngineHost : IDisposable
     {
         if (_hotkeyTable.Resolve(id) is not var (flowId, hotkey))
             return;
-        Trigger(flowId, hotkey.ToString());
-    }
-
-    /// <summary>Starts a flow from a trigger; the run continues on the pool and is logged when it ends.</summary>
-    public Task<RunResult?> Trigger(string flowId, string trigger)
-    {
-        var state = _config.Current.Flows.FirstOrDefault(f => f.FlowId == flowId);
-        if (state?.Running is not { Enabled: true } flow)
-        {
-            Log.Info($"run: {flowId} ({trigger}) not runnable");
-            return Task.FromResult<RunResult?>(null);
-        }
-        Log.Info($"run: {flowId} triggered by {trigger}");
-        var run = _launcher.TriggerAsync(flow, state.Library, trigger);
-        _ = run.ContinueWith(t =>
-        {
-            if (t.IsFaulted)
-                Log.Error($"run: {flowId} failed in the runner", t.Exception!);
-            else if (t.Result is null)
-                Log.Info($"run: {flowId} ({trigger}) ignored, already running");
-        }, TaskScheduler.Default);
-        return run;
+        _controller.TriggerAsync(flowId, hotkey.ToString());
     }
 
     /// <summary>From pool threads (FlowRunner): log, then hand the rest to the message thread. Quick.</summary>
@@ -198,6 +202,7 @@ internal sealed class EngineHost : IDisposable
     {
         if (e is RunStarted or RunFinished)
             _window.Post(() => OnRunEventPosted(e));
+        _pipe?.Broadcast(PipeEvent.From(e));
         switch (e)
         {
             case RunFinished finished:
