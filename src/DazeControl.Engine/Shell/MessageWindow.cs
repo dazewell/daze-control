@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using DazeControl.Engine.Diagnostics;
@@ -17,8 +18,11 @@ internal sealed unsafe class MessageWindow : IDisposable
     /// <summary>Scripts find the engine by this class (scripts/stop.ps1, build skill).</summary>
     public const string ClassName = "DazeControl.Tray";
 
+    private const uint InvokeMessage = PInvoke.WM_APP + 100;
+
     private static MessageWindow? s_current;
     private readonly List<Handler> _handlers = [];
+    private readonly ConcurrentQueue<Action> _posted = new();
 
     /// <summary>Returns true when it handled the message.</summary>
     public delegate bool Handler(uint message, WPARAM wParam, LPARAM lParam);
@@ -62,6 +66,13 @@ internal sealed unsafe class MessageWindow : IDisposable
         }
     }
 
+    /// <summary>Runs <paramref name="action"/> on the message thread, after the current message; safe from any thread.</summary>
+    public void Post(Action action)
+    {
+        _posted.Enqueue(action);
+        PInvoke.PostMessage(Handle, InvokeMessage, default, default);
+    }
+
     /// <summary>Asks the window to close; safe from any thread.</summary>
     public void Close() => PInvoke.PostMessage(Handle, PInvoke.WM_CLOSE, default, default);
 
@@ -73,6 +84,11 @@ internal sealed unsafe class MessageWindow : IDisposable
         {
             if (s_current is { } self && hwnd == self.Handle)
             {
+                if (message == InvokeMessage)
+                {
+                    self.RunPosted();
+                    return (LRESULT)0;
+                }
                 foreach (var handler in self._handlers)
                 {
                     if (handler(message, wParam, lParam))
@@ -91,6 +107,22 @@ internal sealed unsafe class MessageWindow : IDisposable
             return (LRESULT)0;
         }
         return PInvoke.DefWindowProc(hwnd, message, wParam, lParam);
+    }
+
+    private void RunPosted()
+    {
+        while (_posted.TryDequeue(out var action))
+        {
+            // One failing action must not drop the ones queued behind it.
+            try
+            {
+                action();
+            }
+            catch (Exception e)
+            {
+                Log.Error("posted action", e);
+            }
+        }
     }
 
     public void Dispose()

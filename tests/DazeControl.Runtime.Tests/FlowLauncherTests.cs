@@ -145,4 +145,61 @@ public sealed class FlowLauncherTests : IDisposable
 
         Assert.Equal([Library.Empty, newer], seen);
     }
+
+    [Fact]
+    public async Task RunCompletedComesAfterHistoryAndTheFreedSlot()
+    {
+        var history = new RunHistory(null);
+        var launcher = new FlowLauncher(new FlowRunner([_provider], _time), history);
+        var seen = new TaskCompletionSource<(RunFinished, int, bool)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        launcher.RunCompleted += e => seen.TrySetResult((e, history.Recent.Count, launcher.IsRunning(e.FlowId)));
+        var run = launcher.TriggerAsync(Gated(WhenRunning.Ignore), Library.Empty);
+        await _provider.Started("a");
+        Assert.Equal(["f"], launcher.RunningFlowIds);
+
+        _gate.SetResult();
+        var (finished, recorded, running) = await seen.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.Equal(FlowOutcome.Succeeded, finished.Outcome);
+        Assert.Equal((await run)!.RunId, finished.RunId);
+        Assert.Equal(1, recorded);
+        Assert.False(running);
+        Assert.Empty(launcher.RunningFlowIds);
+    }
+
+    [Fact]
+    public async Task AThrowingRunCompletedListenerDoesNotLoseTheResult()
+    {
+        var failures = new List<Exception>();
+        _launcher.RunCompleted += _ => throw new InvalidOperationException("listener");
+        _launcher.ListenerFailed += failures.Add;
+        _gate.SetResult();
+
+        Assert.Equal(FlowOutcome.Succeeded, (await _launcher.TriggerAsync(Gated(WhenRunning.Ignore), Library.Empty))!.Outcome);
+        Assert.Single(failures);
+    }
+
+    [Fact]
+    public async Task AQueuedRunsCompletionNeverOvertakesItsPredecessors()
+    {
+        var order = new List<Guid>();
+        _launcher.RunCompleted += e =>
+        {
+            if (order.Count == 0)
+                Thread.Sleep(200); // a slow listener: the queued run must still wait for it
+            lock (order)
+                order.Add(e.RunId);
+        };
+        var first = _launcher.TriggerAsync(Gated(WhenRunning.Queue), Library.Empty);
+        await _provider.Started("a");
+        var second = _launcher.TriggerAsync(Gated(WhenRunning.Queue), Library.Empty);
+        _gate.SetResult();
+
+        var firstId = (await first)!.RunId;
+        var secondId = (await second)!.RunId;
+
+        for (var i = 0; i < 100 && order.Count < 2; i++)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        Assert.Equal([firstId, secondId], order);
+    }
 }

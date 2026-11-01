@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using DazeControl.Core.Input;
 using DazeControl.Engine.Diagnostics;
+using DazeControl.Runtime.Triggers;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
@@ -11,7 +12,7 @@ namespace DazeControl.Engine.Shell;
 /// Global shortcuts through <c>RegisterHotKey</c> on the engine's message window, one id per chord (OSD
 /// D-020, D-022): no hook, no admin; a chord another app owns fails alone and the rest still work.
 /// </summary>
-internal sealed class GlobalHotkey : IDisposable
+internal sealed class GlobalHotkey : IHotkeyRegistrar, IDisposable
 {
     private const int ErrorHotkeyAlreadyRegistered = 1409;
 
@@ -41,6 +42,12 @@ internal sealed class GlobalHotkey : IDisposable
         return error == ErrorHotkeyAlreadyRegistered
             ? $"Another app uses {hotkey}. Try another one."
             : $"Couldn't set up {hotkey} (error {error}). Try another one.";
+    }
+
+    public void Unregister(int id)
+    {
+        if (_registered.Remove(id))
+            PInvoke.UnregisterHotKey(_window.Handle, id);
     }
 
     private bool OnMessage(uint message, WPARAM wParam, LPARAM lParam)

@@ -70,9 +70,10 @@ KS one-shot Bluetooth reconnect (D-023, X-005), `Core/Windowing/OverlayWindow.cs
 
 ## Threading
 
-Engine shell today (T0.5): one hidden top-level window `DazeControl.Tray` (`Engine/Shell/MessageWindow`) on the
+Engine shell (M3): one hidden top-level window `DazeControl.Tray` (`Engine/Shell/MessageWindow`) on the
 main STA thread; `TrayIcon` and `GlobalHotkey` add message handlers to it; static `[UnmanagedCallersOnly]`
-WndProc (D-022).
+WndProc (D-022). Other threads reach it only through `MessageWindow.Post(Action)` (queue + `WM_APP+100`):
+config reloads and RunStarted/RunFinished are posted there; the tray and `HotkeyTable` are touched nowhere else.
 
 engine: one STA message thread (tray, hotkeys, pop-up); FlowRunner on the thread pool;
 each COM provider owns one lazy MTA worker (OSD pattern); pipe server async on the pool. Editor: UI thread +
@@ -149,12 +150,48 @@ empty; a watcher that can't start leaves loading on (warning). It reloads 300 ms
 (`RunnableFlows` = valid and enabled) in reload order; a throwing handler goes to `ListenerFailed`.
 Tests: `FakeProvider` + thread-safe `ManualTime` with `WaitForTimerAsync` (Runtime.Tests).
 
+## Engine shell
+
+`Engine/Program`: rolling log (`engine.log`, `Runtime/Diagnostics/LogRotation`, 7 days), handlers for unhandled
+and unobserved exceptions (log only), `Lifecycle/SingleInstance` (mutex `Global\DazeControl.Engine-<user SID>`, taken
+before the log: a second engine of the same user, in any session, exits 0 without writing anything, D-028), then `EngineHost`, the hand-written composition root: ConfigHost
+(`%APPDATA%\DazeControl\config.yaml`, or argv[0]) · RunHistory (`%LOCALAPPDATA%\DazeControl\history.jsonl`) ·
+one FlowRunner + ResourceLocks + FlowLauncher · `Runtime/Control/EngineController` (D-026) · PipeServer · tray ·
+hotkeys. Exit (tray or WM_CLOSE): unregister hotkeys, pipe stops accepting (no new clients or requests), cancel
+all runs, drain the pipe (waiting `run --wait` clients get their answers), close it; ≤ 5 s grace in all.
+`FlowLauncher.RunCompleted` (after history + slot) is what publishes `runFinished` (pipe, tray, log), not the
+runner's RunFinished, so a client reacting to it sees the run in history and the flow free (or running its queued
+run, which starts only after that event, so a flow's completions arrive in order). Autostart keeps a config path
+given on the command line as the Run value's argument.
+- `Runtime/Triggers/HotkeyTable`: chord → flow from `RunnableFlows`, applied as a diff on each reload (unchanged
+  chords stay registered), first flow wins a chord, a chord that fails (another app) fails alone and is retried
+  on the next reload; Pause unregisters all (not persisted). Failures → `status` ("Alt+Z: Another app uses…").
+- `Runtime/Tray/TrayMenu`: the menu as data (UX §5.6), rendered by `Engine/Shell/TrayIcon` each time it opens
+  (left or right click), dark/light like the taskbar (uxtheme #135/#136). Icon drawn in code by
+  `Shell/TrayGlyph` (idle / busy / paused, D-027); tooltip = running flows, else paused, else the last run's
+  problem. Not yet: per-flow glyph bitmaps in the menu (need M5's glyph-font rendering).
+- `Runtime/Lifecycle/Autostart`: HKCU Run value `DazeControl` → engine exe (OSD port), set through the pipe op.
+
 ## IPC
 
-`\\.\pipe\DazeControl-<user SID>`, `PipeOptions.CurrentUserOnly`, newline-delimited JSON
-(source-gen), `protocol: 1`; request/response by id plus an event stream (run events, config reloaded,
-engine status). Ops: `run`, `cancel`, `test-step`, `validate`, `devices`, `capture-display-layout`,
-`history`, `status`, `subscribe`.
+`\\.\pipe\DazeControl-<user SID>`, `PipeOptions.CurrentUserOnly`, newline-delimited JSON (source-gen
+`Ipc/IpcJson`, camelCase, string enums, nulls omitted), `protocol: 1`. `Ipc/PipeServer`: any number of clients;
+requests on one connection run concurrently, answers carry the request id; after `subscribe` the connection also
+gets events (`PipeMessage.Event`, id 0: runStarted, nodeStarted, nodeFinished, runFinished, configReloaded). A
+client that goes away cancels its waiting requests. Writes go through a bounded queue per connection
+(`QueueLimit` 256 lines) drained by one write loop; a line that can't be queued drops that client (logged).
+Requests are read by a bounded line reader (`MaxLineBytes` 64 KB, longer → client dropped); more than
+`MaxPendingRequests` (16) unanswered on one connection are refused. Pending pipe I/O ends only by cancellation
+(X-001). `Ipc/PipeClient`: one request at a time; events read while waiting for an
+answer go to `EventReceived`, or (no handler) a queue `ReadAsync` returns first.
+`cancel` and `status` use `FlowLauncher.RunningFlowIds` (a run outlives its flow's removal from the config);
+`history <text>` matches a recorded flow id, then the config's id/name, then a recorded name.
+Ops (EngineController): `run` (flow id or name; `wait` → the RunRecord; `dryRun` → a runner whose steps do
+nothing, no history), `cancel`, `list`, `status`, `validate`, `history` (flow, limit), `autostart` (enable
+true/false/absent); `devices`, `test-step`, `capture-display-layout` answer "can't do that yet" until M4.
+`dctl` (`src/DazeControl.Cli`): run/cancel/list/validate/status/history/autostart/devices, parsed strictly by
+`Ipc/CommandLine` (unknown flag or wrong word count → exit 2, never ignored); `validate <file>`
+and, with no engine, `list`/`validate` read the YAML themselves. Exit codes 0 ok, 1 failed, 2 usage, 3 no engine.
 
 ## Adding a provider
 
@@ -174,7 +211,11 @@ Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 i
 | 2026-10-31 | d7f8006 (T0.5 spike, Release AOT) | tray icon + 1 hotkey + YamlDotNet static load, 3 threads, exe 3.3 MB | 3.8 | 15.2 | 0 (60 s) |
 | 2026-10-31 | d7f8006 (same) | same, 10-min idle; 5 threads | 3.9 | 15.5 | 0 (600 s) |
 
-T0.5 gate passed: no AOT/trim warnings; hotkey press and tray icon checked on the desktop. Unmeasured yet: post-run delta (needs a runner, T3.7).
+| 2026-11-01 | 1fbc856 (M3 engine shell, Release AOT) | user-config, tray + pipe + ConfigHost watcher, 5 threads, exe 6.2 MB | 4.6 | 19.4 | 0 (600 s) |
+| 2026-11-01 | 1fbc856 (same) | after 5 `dctl run connect-technics --wait` (steps fail at once: no providers yet) | 5.1 (+0.5) | 20.2 | 0 (600 s) |
+
+T0.5 gate passed: no AOT/trim warnings; hotkey press and tray icon checked on the desktop. T3.7 gate passed
+(rows above). The post-run delta covers runner, history and pipe only; re-measure with real providers (M4, M10).
 
 ## Open questions
 

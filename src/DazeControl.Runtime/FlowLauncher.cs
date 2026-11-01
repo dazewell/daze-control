@@ -18,6 +18,14 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
     private readonly Dictionary<string, Slot> _slots = [];
     private bool _closed;
 
+    /// <summary>
+    /// A run ended, after its history record was written and its slot freed (a subscriber reacting at once sees
+    /// both). From a pool thread; quick. A handler that throws goes to <see cref="ListenerFailed"/>.
+    /// </summary>
+    public event Action<RunFinished>? RunCompleted;
+
+    public event Action<Exception>? ListenerFailed;
+
     /// <param name="flow">The flow version to run.</param>
     /// <param name="library">The library that version was validated with (<c>FlowState.Library</c>); a queued
     /// run keeps it even if the config reloads before it starts.</param>
@@ -63,6 +71,33 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
             return _slots.TryGetValue(flowId, out var slot) && slot.Cancel is not null;
     }
 
+    /// <summary>Flows with a run now, whether or not they are still in the config.</summary>
+    public IReadOnlyList<string> RunningFlowIds
+    {
+        get
+        {
+            lock (_lock)
+                return [.. _slots.Where(s => s.Value.Cancel is not null).Select(s => s.Key)];
+        }
+    }
+
+    /// <summary>Cancels the flow's run and drops its queued one (tray, <c>dctl cancel</c>); false when it wasn't running.</summary>
+    public bool Cancel(string flowId)
+    {
+        CancellationTokenSource? cancel;
+        lock (_lock)
+        {
+            if (!_slots.TryGetValue(flowId, out var slot) || slot.Cancel is null)
+                return false;
+            slot.Pending?.TrySetResult(null);
+            slot.Pending = null;
+            slot.PendingRequest = null;
+            cancel = slot.Cancel;
+        }
+        cancel.Cancel(); // outside the lock: cancellation callbacks run inline
+        return true;
+    }
+
     /// <summary>
     /// Engine exit: cancels every run, drops queued ones, ignores later triggers, and waits until all have wound
     /// down.
@@ -97,20 +132,24 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
     }
 
     /// <summary>Under the lock.</summary>
-    private Task<RunResult?> Start(Slot slot, Request request, TaskCompletionSource<RunResult?>? completion)
+    /// <param name="after">Completes once the previous run of this flow has published <see cref="RunCompleted"/>, so
+    /// a flow's completions arrive in run order.</param>
+    private Task<RunResult?> Start(Slot slot, Request request, TaskCompletionSource<RunResult?>? completion, Task? after = null)
     {
         var cancel = new CancellationTokenSource();
         slot.Cancel = cancel;
-        var current = RunAsync(slot, request, cancel, completion);
+        var current = RunAsync(slot, request, cancel, completion, after);
         slot.Current = current;
         return current;
     }
 
     private async Task<RunResult?> RunAsync(Slot slot, Request request, CancellationTokenSource cancel,
-        TaskCompletionSource<RunResult?>? completion)
+        TaskCompletionSource<RunResult?>? completion, Task? after)
     {
         var (flow, library, trigger) = request;
         await Task.Yield(); // the trigger (hotkey on the message thread) returns at once
+        if (after is not null)
+            await after.ConfigureAwait(false);
         RunResult? result = null;
         Exception? failure = null;
         try
@@ -125,6 +164,7 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
         {
             failure = e;
         }
+        TaskCompletionSource? published = null;
         lock (_lock)
         {
             // The source is not disposed: restart and CancelAllAsync cancel it outside the lock, possibly after
@@ -136,9 +176,13 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
                 slot.Pending = null;
                 var nextRequest = slot.PendingRequest!;
                 slot.PendingRequest = null;
-                Start(slot, nextRequest, next);
+                published = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                Start(slot, nextRequest, next, published.Task);
             }
         }
+        if (result is not null)
+            RaiseCompleted(new RunFinished(result.RunId, flow.Id, result.Started + result.Duration, result.Outcome));
+        published?.SetResult();
         if (failure is not null)
         {
             if (completion is null)
@@ -148,6 +192,20 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
         }
         completion?.TrySetResult(result);
         return result;
+    }
+
+    private void RaiseCompleted(RunFinished finished)
+    {
+        try
+        {
+            RunCompleted?.Invoke(finished);
+        }
+#pragma warning disable CA1031 // fail-soft: a listener bug must not lose the run's result
+        catch (Exception e)
+#pragma warning restore CA1031
+        {
+            ListenerFailed?.Invoke(e);
+        }
     }
 
     private sealed class Slot

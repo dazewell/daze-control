@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M2 review — PR #3 (branch feat/m2-runtime), then T3.1
-Last green checkpoint: ded87a4 "fix(runtime): bound blocking providers and keep retained flows consistent"
-Next action: PR #3: both Copilot reviews are addressed (budget used); once CI is green, squash-merge and sync main; then T3.1 on feat/m3-engine-shell: Engine/Program single-instance mutex, Log, global handlers; compose ConfigHost + one FlowRunner (ResourceLocks, RunHistory at %LOCALAPPDATA%\DazeControl\history.jsonl) + FlowLauncher; trigger with FlowState.Running + FlowState.Library; hotkeys from ConfigHost.Current.RunnableFlows, re-registered on Changed (marshal to the message thread)
-Tree state: builds, 248/248 tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: PR #3 used its 2 Copilot reviews; merge after green CI, then T3.1. M2 (T2.1-T2.6) is complete on feat/m2-runtime. Version 0.3.0. No providers exist yet: T3.x wires with an empty provider list until M4.
+Current task: M4 Providers — T4.1 wait, notify, flag (not started; M3 merged as PR #4)
+Last green checkpoint: b64cb42 "fix(m3): self-review of the review fixes" (squash-merged into main as PR #4)
+Next action: branch `feat/m4-basic-steps` from main, read FEATURES/ARCHITECTURE for the wait, notify and flag steps (Core/Catalog descriptors exist), implement the `wait` provider in DazeControl.Providers with a test first, then notify and flag; verify each with `dctl run <flow> --wait`
+Tree state: builds, 364/364 tests green, AOT publish clean · Uncommitted: none
+Notes for next agent: PR #4 left 3 minor items open (see its last comment): a subscriber that isn't reading can use up the exit drain grace, PipeClient's event queue is unbounded, `dctl autostart` hides the config argument. Never end a pipe I/O by disposing the pipe (X-001).
 
 ---
 
@@ -43,14 +43,14 @@ Notes for next agent: PR #3 used its 2 Copilot reviews; merge after green CI, th
 - [x] T2.5 Run events + history (last 100) + `history.jsonl` (feat/m2-runtime).
 - [x] T2.6 ConfigHost: load, debounced reload, last valid version per flow (D-021), never-valid flows disabled (feat/m2-runtime).
 
-## M3 Engine shell
-- [ ] T3.1 Composition root, single instance mutex, Log, global exception handlers.
-- [ ] T3.2 TrayIcon from flows (folders, separators, running mark, Pause hotkeys, Open editor, Exit).
-- [ ] T3.3 GlobalHotkey from flows (per-chord failure non-fatal).
-- [ ] T3.4 Autostart.
-- [ ] T3.5 PipeServer + protocol.
-- [ ] T3.6 `dctl` CLI.
-- [ ] T3.7 Footprint gate.
+## M3 Engine shell ✔ (2026-11-01, PR #4)
+- [x] T3.1 Composition root, single instance mutex, Log, global exception handlers (feat/m3-engine-shell).
+- [x] T3.2 TrayIcon from flows (folders, separators, running mark, Pause hotkeys, Open editor, Exit) (feat/m3-engine-shell).
+- [x] T3.3 GlobalHotkey from flows (per-chord failure non-fatal) (feat/m3-engine-shell).
+- [x] T3.4 Autostart (feat/m3-engine-shell).
+- [x] T3.5 PipeServer + protocol (feat/m3-engine-shell).
+- [x] T3.6 `dctl` CLI (feat/m3-engine-shell).
+- [x] T3.7 Footprint gate (feat/m3-engine-shell).
 
 ## M4 Providers (each CLI-testable via `dctl run`/`devices`; hardware steps verified on the dev PC)
 - [ ] T4.1 wait, notify, flag.

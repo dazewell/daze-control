@@ -228,3 +228,34 @@ Status: accepted
   rule a fast deterministic test. A "may fail" step that fails did fail, so a repair branch on it should run.
 - Why not failure edges ignoring FailedIgnored: a "fix it" branch would silently never run on a may-fail step.
 - Revisit if: users expect "may fail" to mean "pretend it succeeded" everywhere.
+
+## D-026 · 2026-11-01 · One EngineController in Runtime answers triggers and pipe ops; Runtime references Ipc
+Status: accepted
+- Decision: hotkeys, the tray and every pipe request go through `Runtime/Control/EngineController`, which finds
+  the flow (id, else name), starts it via FlowLauncher and builds the `Ipc` answers. Runtime references Ipc;
+  the pipe transport (PipeServer/PipeClient) stays in Ipc.
+- Why: one place decides what "run this flow" means for every trigger, tested in Runtime.Tests without a pipe or
+  Win32. The CLI and editor reference only Ipc, so they don't carry the runtime.
+- Why not the handler in the Engine exe: it has no test project (AOT WinExe). Why not Ipc → Runtime: dctl would
+  carry the runner.
+- Revisit if: the editor needs runtime types itself (then split protocol records from the transport).
+
+## D-027 · 2026-11-01 · The tray icon is drawn in code
+Status: accepted
+- Decision: `Engine/Shell/TrayGlyph` paints the idle/busy/paused icons as 32-bit pixels at the small-icon size
+  (supersampled) and makes them with `CreateIconIndirect`; no .ico files or Win32 resources.
+- Why: the AOT engine ships as one exe; a .res needs rc.exe in the build; the variants come for free. An accent
+  square with a play mark reads on dark and light taskbars.
+- Why not `IDI_APPLICATION` + a drawn overlay: GDI alpha when drawing an icon into a DIB is unreliable.
+- Revisit if: the product gets a designed icon (M10): ship it as a resource then, keep the variants drawn.
+
+## D-028 · 2026-11-01 · One engine per user across sessions: Global\ mutex keyed by the user SID
+Status: accepted
+- Decision: `SingleInstance` uses `Global\DazeControl.Engine-<user SID>`, taken before `Log.Initialize`.
+- Why: the pipe name is per user and named pipes are machine-wide, so two sessions of one user would run two
+  engines on one pipe and two writers of history.jsonl and engine.log (PR #4 review). Plain users may create
+  `Global\` mutexes (only file mappings need SeCreateGlobalPrivilege).
+- Why not: per-session pipe names — clients would need the session id, and history/log would still be shared;
+  `Local\` mutex — the bug. Cost accepted: a second interactive session of the same user gets no tray or hotkeys
+  (hotkeys are per desktop), and its dctl drives the first session's engine.
+- Revisit if: per-session engines are ever wanted (then per-session pipe, history and log paths too).
