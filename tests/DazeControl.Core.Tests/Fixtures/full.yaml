@@ -8,6 +8,8 @@ library:
   bluetooth:
     technics: { address: "B8:20:8E:ED:48:FC", name: "Technics EAH-AZ80" }
     sony: { address: "80:99:E7:2A:AB:A1" }
+  displays:
+    desk: { monitors: ['\\?\DISPLAY#DELA1F2#5&1a2b3c&0&UID4352#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}'], ccd: AAAAAA== }
 flows:
   connect-technics:
     name: Connect Technics
@@ -37,3 +39,4 @@ flows:
     whenRunning: queue
     nodes:
       - { id: w, step: wait, with: { duration: 2m } }
+      - { id: screens, step: display.layout, with: { layout: desk }, after: [w] }

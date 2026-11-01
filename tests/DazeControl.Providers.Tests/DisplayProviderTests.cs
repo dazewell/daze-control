@@ -1,3 +1,4 @@
+using DazeControl.Core.Model;
 using DazeControl.Providers.Display;
 using DazeControl.Runtime.Providers;
 
@@ -19,6 +20,10 @@ public class DisplayProviderTests
             Calls.Add($"only {string.Join("+", outputs)}");
             return [.. outputs.Where(o => o == "VGA-9")];
         }
+
+        public DisplayLayout CaptureLayout(string key) => new(key, ["mon"], "AAAA");
+
+        public void ApplyLayout(DisplayLayout layout) => Calls.Add($"layout {layout.Key}");
     }
 
     [Theory]
@@ -69,5 +74,37 @@ public class DisplayProviderTests
         Assert.Empty(displays.UseOnly(active));
         if (active.Count >= 2)
             displays.SetTopology(DisplayTopology.Extend);
+    }
+
+    [Fact]
+    public async Task LayoutResolvesTheLibraryEntry()
+    {
+        var displays = new FakeDisplays();
+        var context = Steps.Context("display.layout", ("layout", "desk")) with
+        {
+            Library = new Library { Displays = [new DisplayLayout("desk", ["mon"], "AAAA")] },
+        };
+        await new DisplayLayoutProvider(displays).ExecuteAsync(context, TestContext.Current.CancellationToken);
+        Assert.Equal(["layout desk"], displays.Calls);
+    }
+
+    [Fact]
+    public void DamagedLayoutFailsPlainly()
+    {
+        var failure = Assert.Throws<StepFailedException>(
+            () => new CcdDisplays(validateOnly: true).ApplyLayout(new DisplayLayout("desk", ["mon"], "not base64!")));
+        Assert.Equal("The layout \"desk\" is damaged; capture it again.", failure.Message);
+    }
+
+    [Fact]
+    public void CapturedLayoutIsAcceptedBackWithoutApplying()
+    {
+        // Spike T4.6 on the dev PC: capture, then SDC_VALIDATE the re-resolved layout; the screens never change.
+        var displays = new CcdDisplays(validateOnly: true);
+        if (!displays.Outputs().Any(o => o.Active))
+            return; // headless CI runner
+        var layout = displays.CaptureLayout("now");
+        Assert.All(layout.Monitors, m => Assert.Contains("DISPLAY#", m, StringComparison.OrdinalIgnoreCase));
+        displays.ApplyLayout(layout);
     }
 }

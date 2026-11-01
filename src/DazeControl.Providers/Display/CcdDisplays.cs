@@ -1,3 +1,4 @@
+using DazeControl.Core.Model;
 using DazeControl.Runtime.Providers;
 using Windows.Win32;
 using Windows.Win32.Devices.Display;
@@ -67,6 +68,10 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
         }
         return [];
     }
+
+    public DisplayLayout CaptureLayout(string key) => CcdLayout.Capture(key);
+
+    public void ApplyLayout(DisplayLayout layout) => CcdLayout.Apply(layout, validateOnly);
 
     private static void Check(int error, string what)
     {

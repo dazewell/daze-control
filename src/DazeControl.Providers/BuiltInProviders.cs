@@ -31,6 +31,7 @@ public static class BuiltInProviders
             new BluetoothDisconnectProvider(bluetooth),
             new DisplayTopologyProvider(displays),
             new DisplayOutputsProvider(displays),
+            new DisplayLayoutProvider(displays),
         ];
     }
 }

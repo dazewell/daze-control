@@ -1,3 +1,4 @@
+using DazeControl.Core.Model;
 using DazeControl.Runtime.Providers;
 
 namespace DazeControl.Providers.Display;
@@ -23,6 +24,11 @@ public interface IDisplays
 
     /// <summary>Turns on exactly these outputs (by port or monitor name), the rest off; returns the names it didn't find.</summary>
     IReadOnlyList<string> UseOnly(IReadOnlyList<string> outputs);
+
+    /// <summary>The screens as they are now, for <c>display.layout</c>.</summary>
+    DisplayLayout CaptureLayout(string key);
+
+    void ApplyLayout(DisplayLayout layout);
 }
 
 /// <summary><c>display.topology</c>: PC screen only / duplicate / extend / second screen only.</summary>
@@ -63,4 +69,19 @@ public sealed class DisplayOutputsProvider(IDisplays displays) : IStepProvider
 
     private static string Known(IDisplays displays) =>
         string.Join(", ", displays.Outputs().Where(o => o.Available).Select(o => o.Monitor.Length > 0 ? $"{o.Port} ({o.Monitor})" : o.Port));
+}
+
+/// <summary><c>display.layout</c>: restores a captured layout (positions, resolutions, which screens are on).</summary>
+public sealed class DisplayLayoutProvider(IDisplays displays) : IStepProvider
+{
+    public string Id => "display.layout";
+
+    public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
+    {
+        var key = context.RequiredText("layout");
+        var layout = context.Library.Displays.FirstOrDefault(d => d.Key == key)
+            ?? throw new StepFailedException($"No screen layout called \"{key}\" in the library.");
+        displays.ApplyLayout(layout);
+        return Task.CompletedTask;
+    }
 }

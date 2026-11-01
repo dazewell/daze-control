@@ -41,6 +41,11 @@ public static class ConfigMapper
                 Address = d.Address,
                 Name = d.Name,
             })),
+            Displays = NullIfEmpty(config.Library.Displays.ToDictionary(d => d.Key, d => new DisplayLayoutDocument
+            {
+                Monitors = [.. d.Monitors],
+                Ccd = d.Data,
+            })),
         },
         Flows = NullIfEmpty(config.Flows.ToDictionary(f => f.Id, ToDocument)),
     };
@@ -156,7 +161,15 @@ public static class ConfigMapper
                 else
                     bluetooth.Add(new BluetoothDevice(key, item.Address, item.Name));
             }
-            return new Library { Audio = new(audio), Bluetooth = new(bluetooth) };
+            var displays = new List<DisplayLayout>();
+            foreach (var (key, item) in document?.Displays ?? [])
+            {
+                if (string.IsNullOrWhiteSpace(item?.Ccd) || item.Monitors is not { Count: > 0 })
+                    Error($"library.displays.{key}", "This layout is incomplete; capture it again.");
+                else
+                    displays.Add(new DisplayLayout(key, new(item.Monitors), item.Ccd));
+            }
+            return new Library { Audio = new(audio), Bluetooth = new(bluetooth), Displays = new(displays) };
         }
 
         private Flow ReadFlow(string id, FlowDocument? document)

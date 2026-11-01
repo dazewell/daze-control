@@ -2,9 +2,9 @@
 
 ## Resume
 Current task: M4 Providers — PR #5 (T4.1–T4.4, feat/m4-basic-steps) in review; T4.6 next on feat/m4-system-steps (stacked on #5)
-Last green checkpoint: 4386a50 "feat(providers): bluetooth connect and disconnect through BtAudio KS requests"
-Next action: finish PR #5 per §6 (Copilot review requested, CI running); then on feat/m4-system-steps: T4.6 spike — capture the current CCD layout (paths+modes, monitor device paths) and re-apply it with SDC_VALIDATE only
-Tree state: builds, 397/397 tests green, AOT publish clean · Uncommitted: none
+Last green checkpoint: 413c6b4 "wip(providers): display topology presets and outputs-only over CCD"
+Next action: finish PR #5 per §6 if not merged yet; then T4.6 rest: an `IDeviceQueries` seam in Runtime so EngineController answers Ops.Devices and Ops.CaptureDisplayLayout (stubs at EngineController.cs "This version can't do that yet"), implemented in Providers; then T4.7 http + credentials
+Tree state: builds, 402/402 tests green, AOT publish clean · Uncommitted: none
 Notes for next agent: PR #4 left 3 minor items open (see its last comment). Never end a pipe I/O by disposing the pipe (X-001). Providers read params via `StepParams` (written value, else descriptor default). Plan: PR 1 = T4.1–T4.4, PR 2 = T4.5–T4.9. T4.4 live gate (Connect Technics on Alt+Z) needs the user's headphones: prove with unit tests + dry run, leave the live check to the user.
 
 ---
@@ -60,7 +60,7 @@ Notes for next agent: PR #4 left 3 minor items open (see its last comment). Neve
   Technics flow works on Alt+Z → user can stop scd.** Unit tests + dry run pass; live check waits on the user
   (GOALS → Waiting on the user).
 - [x] T4.5 display presets + outputs-only (port scd CCD) (branch feat/m4-system-steps).
-- [ ] T4.6 Spike + display.layout capture/apply.
+- [~] T4.6 Spike + display.layout capture/apply (branch feat/m4-system-steps): capture/apply + library kind done, spike validated; `dctl capture-display-layout` + `devices` pipe ops still to do.
 - [ ] T4.7 http + credentials.
 - [ ] T4.8 firetv.
 - [ ] T4.9 service.

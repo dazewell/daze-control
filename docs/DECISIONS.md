@@ -158,7 +158,7 @@ Status: accepted
 - Revisit if: the Resume block keeps going stale (then automate it).
 
 ## D-019 · 2026-10-31 · Displays: presets and outputs-only first; captured layouts re-resolve LUIDs
-Status: accepted (layout part pending spike T4.6)
+Status: accepted (T4.6 spike passed 2026-11-01: a layout captured on the dev PC re-resolved by device path and passed SDC_VALIDATE)
 - Decision: `display.topology` (Win+P presets) and `display.outputs` (port scd's CCD code) first;
   `display.layout` captures a CCD layout and re-resolves adapter LUIDs by monitor device path at apply time.
 - Why: LUIDs change across reboots; presets and port lists cover the user's current flows.
