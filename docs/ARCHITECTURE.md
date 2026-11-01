@@ -60,6 +60,8 @@ KS one-shot Bluetooth reconnect (D-023, X-005), `Core/Windowing/OverlayWindow.cs
 - Fail-soft: a bad flow / library item / provider init disables only itself; the engine always starts and
   keeps the last good config on a bad reload. No unobserved task (runner awaits all; global handlers log).
 - Every step has a timeout and honours cancellation; processes are killed (tree) on timeout.
+  A device write (SetDisplayConfig, a BtAudio request) checks the token right before it is sent: the runner has
+  released the step's lock by then, so a late write would overwrite the next step's change.
 - Idle = zero: no timers, no polling, no resident COM objects; waits are event-driven
   (IMMNotificationClient, device state, WM_DISPLAYCHANGE) with a timeout; COM workers start lazily and stop
   after 60 s idle.

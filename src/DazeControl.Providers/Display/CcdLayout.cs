@@ -23,6 +23,9 @@ internal static unsafe class CcdLayout
         if (paths.Length == 0)
             throw new StepFailedException("No screen is on.");
         var monitors = paths.Select(p => Target(p.targetInfo.adapterId, p.targetInfo.id).DevicePath).ToArray();
+        // A screen that went away mid-capture has no device path: such a layout could never be restored.
+        if (monitors.Any(m => m.Length == 0))
+            throw new StepFailedException("A screen changed while capturing; try again.");
         var bytes = new byte[sizeof(int) * 2 + paths.Length * sizeof(DISPLAYCONFIG_PATH_INFO) + modes.Length * sizeof(DISPLAYCONFIG_MODE_INFO)];
         BitConverter.TryWriteBytes(bytes.AsSpan(0), paths.Length);
         BitConverter.TryWriteBytes(bytes.AsSpan(sizeof(int)), modes.Length);
@@ -31,7 +34,7 @@ internal static unsafe class CcdLayout
         return new DisplayLayout(key, [.. monitors], Convert.ToBase64String(bytes));
     }
 
-    public static void Apply(DisplayLayout layout, bool validateOnly)
+    public static void Apply(DisplayLayout layout, bool validateOnly, CancellationToken cancellationToken)
     {
         var (paths, modes) = Decode(layout);
         if (paths.Length != layout.Monitors.Count)
@@ -77,6 +80,7 @@ internal static unsafe class CcdLayout
         var flags = SET_DISPLAY_CONFIG_FLAGS.SDC_USE_SUPPLIED_DISPLAY_CONFIG | SET_DISPLAY_CONFIG_FLAGS.SDC_ALLOW_CHANGES
             | (validateOnly ? SET_DISPLAY_CONFIG_FLAGS.SDC_VALIDATE : SET_DISPLAY_CONFIG_FLAGS.SDC_APPLY | SET_DISPLAY_CONFIG_FLAGS.SDC_SAVE_TO_DATABASE);
         int error;
+        cancellationToken.ThrowIfCancellationRequested();
         fixed (DISPLAYCONFIG_PATH_INFO* pathArray = paths)
         fixed (DISPLAYCONFIG_MODE_INFO* modeArray = modes)
             error = PInvoke.SetDisplayConfig((uint)paths.Length, pathArray, (uint)modes.Length, modeArray, flags);

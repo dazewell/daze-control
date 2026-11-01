@@ -170,10 +170,12 @@ public static class ConfigMapper
             var displays = new List<DisplayLayout>();
             foreach (var (key, item) in document?.Displays ?? [])
             {
-                if (string.IsNullOrWhiteSpace(item?.Ccd) || item.Monitors is not { Count: > 0 })
-                    Error($"library.displays.{key}", "This layout is incomplete; capture it again.");
+                // A damaged layout is dropped like any bad entry, so its flows keep their last good version (D-021).
+                if (string.IsNullOrWhiteSpace(item?.Ccd) || item.Monitors is not { Count: > 0 }
+                    || new DisplayLayout(key, new(item.Monitors), item.Ccd) is not { } layout || !layout.IsWellFormed())
+                    Error($"library.displays.{key}", "This layout is incomplete or damaged; capture it again.");
                 else
-                    displays.Add(new DisplayLayout(key, new(item.Monitors), item.Ccd));
+                    displays.Add(layout);
             }
             var fireTv = new List<FireTvDevice>();
             foreach (var (key, item) in document?.Firetv ?? [])
