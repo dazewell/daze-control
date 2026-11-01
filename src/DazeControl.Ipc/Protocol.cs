@@ -66,6 +66,12 @@ public sealed class PipeRequest
 
     /// <summary>run: for the history ("Command line", "Editor").</summary>
     public string? Trigger { get; init; }
+
+    /// <summary>devices: audio, bluetooth, displays or adb.</summary>
+    public string? Kind { get; init; }
+
+    /// <summary>capture-display-layout: the library key the layout is saved under.</summary>
+    public string? Key { get; init; }
 }
 
 public sealed class PipeMessage
@@ -90,6 +96,11 @@ public sealed class PipeMessage
     public AutostartInfo? Autostart { get; init; }
 
     public PipeEvent? Event { get; init; }
+
+    public DeviceInfo[]? Devices { get; init; }
+
+    /// <summary>capture-display-layout: a <c>library:</c> snippet to paste into config.yaml.</summary>
+    public string? Yaml { get; init; }
 
     public static PipeMessage Fail(int id, string error) => new() { Id = id, Error = error };
 }
@@ -152,6 +163,18 @@ public sealed class AutostartInfo
     public string State { get; init; } = "";
 
     public string? Path { get; init; }
+}
+
+/// <summary>One device for <c>dctl devices</c> and the editor's pickers.</summary>
+public sealed class DeviceInfo
+{
+    /// <summary>What a step's <c>with:</c> takes: an endpoint name, a Bluetooth address, a port.</summary>
+    public string Name { get; init; } = "";
+
+    /// <summary>"Output, default", "Connected", "DELL S2722QC, on".</summary>
+    public string? Detail { get; init; }
+
+    public string? Id { get; init; }
 }
 
 public static class EventKinds

@@ -52,7 +52,7 @@ internal sealed class EngineHost : IDisposable
     private readonly List<(Guid RunId, string FlowId)> _running = [];
     private string? _lastProblem;
 
-    public EngineHost(EnginePaths paths, Func<INotifier, IEnumerable<IStepProvider>> providers)
+    public EngineHost(EnginePaths paths, Func<INotifier, IEnumerable<IStepProvider>> providers, IDeviceQueries? devices = null)
     {
         _window = new MessageWindow();
         _tray = new TrayIcon(_window, AppInfo.ProductName, BuildMenu);
@@ -79,7 +79,7 @@ internal sealed class EngineHost : IDisposable
         var version = typeof(EngineHost).Assembly.GetName().Version?.ToString(3) ?? "?";
         _controller = new EngineController(() => _config.Current, _launcher, _history,
             EngineController.CreateDryRunner(TimeProvider.System), new Autostart(),
-            new EngineInfo(version, Environment.ProcessId, exe, paths.Config, paths.ConfigArgument), Log.Info);
+            new EngineInfo(version, Environment.ProcessId, exe, paths.Config, paths.ConfigArgument), Log.Info, devices);
         _pipe = new PipeServer(Protocol.CurrentPipeName(), _controller.HandleAsync, (what, e) => Log.Error(what, e));
         _pipe.Start();
         Apply(_config.Current);

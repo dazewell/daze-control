@@ -1,8 +1,10 @@
+using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
 using DazeControl.Core.Yaml;
 using DazeControl.Ipc;
 using DazeControl.Runtime.Control;
 using DazeControl.Runtime.Lifecycle;
+using DazeControl.Runtime.Providers;
 
 namespace DazeControl.Runtime.Tests;
 
@@ -197,6 +199,8 @@ public sealed class EngineControllerTests : IDisposable
 
     [Theory]
     [InlineData(Ops.Devices)]
+    [InlineData(Ops.CaptureDisplayLayout)]
+    [InlineData(Ops.TestStep)]
     [InlineData("frobnicate")]
     public async Task UnsupportedOpsAnswerWithAnError(string op)
     {
@@ -247,5 +251,61 @@ public sealed class EngineControllerTests : IDisposable
         Assert.Single((await Send(Ops.History, "tv")).History!);
         Assert.Single((await Send(Ops.History, "tv only")).History!);
         Assert.Equal("There's no flow called \"nope\".", (await Send(Ops.History, "nope")).Error);
+    }
+
+    private sealed class FakeDevices : IDeviceQueries
+    {
+        public IReadOnlyList<string> Kinds { get; } = ["audio", "displays"];
+
+        public Task<IReadOnlyList<DeviceInfo>> ListAsync(string kind, CancellationToken cancellationToken) => kind == "audio"
+            ? Task.FromResult<IReadOnlyList<DeviceInfo>>([new DeviceInfo { Name = "Speakers", Detail = "Output, default" }])
+            : throw new StepFailedException("Can't read the screens.");
+
+        public Task<DisplayLayout> CaptureDisplayLayoutAsync(string key, CancellationToken cancellationToken) =>
+            Task.FromResult(new DisplayLayout(key, [@"\?\DISPLAY#DEL1#1", "TV"], "AAAA"));
+    }
+
+    private EngineController WithDevices() => new(ReadConfig, _launcher, _history, EngineController.CreateDryRunner(_time),
+        new Autostart(_root + @"\Run", _root + @"\Approved"), new EngineInfo("1.2.3", 42, "x.exe", "c.yaml"), _ => { }, new FakeDevices());
+
+    [Fact]
+    public async Task DevicesListsTheKindAsked()
+    {
+        var answer = await WithDevices().HandleAsync(new PipeRequest { Id = 3, Op = Ops.Devices, Kind = "audio" }, CancellationToken.None);
+
+        Assert.True(answer.Ok);
+        Assert.Equal("Speakers", Assert.Single(answer.Devices!).Name);
+    }
+
+    [Theory]
+    [InlineData(null, "Say which devices: audio, displays.")]
+    [InlineData("toaster", "Say which devices: audio, displays.")]
+    [InlineData("displays", "Can't read the screens.")]
+    public async Task DevicesExplainsWhatWentWrong(string? kind, string error)
+    {
+        var answer = await WithDevices().HandleAsync(new PipeRequest { Id = 3, Op = Ops.Devices, Kind = kind }, CancellationToken.None);
+
+        Assert.False(answer.Ok);
+        Assert.Equal(error, answer.Error);
+    }
+
+    [Fact]
+    public async Task CapturedLayoutIsASnippetThatLoadsBack()
+    {
+        var answer = await WithDevices().HandleAsync(new PipeRequest { Id = 3, Op = Ops.CaptureDisplayLayout, Key = "desk" }, CancellationToken.None);
+
+        Assert.True(answer.Ok, answer.Error);
+        var load = ConfigYaml.Load(answer.Yaml!);
+        Assert.Empty(load.Problems);
+        var layout = Assert.Single(load.Config!.Library.Displays);
+        Assert.Equal(new DisplayLayout("desk", [@"\?\DISPLAY#DEL1#1", "TV"], "AAAA"), layout);
+    }
+
+    [Fact]
+    public async Task CaptureNeedsAName()
+    {
+        var answer = await WithDevices().HandleAsync(new PipeRequest { Id = 3, Op = Ops.CaptureDisplayLayout, Key = " " }, CancellationToken.None);
+
+        Assert.Equal("Say what to call the layout.", answer.Error);
     }
 }

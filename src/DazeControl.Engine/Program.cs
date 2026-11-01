@@ -30,7 +30,7 @@ public static class Program
 
         var paths = EnginePaths.Default(args.Length > 0 ? Path.GetFullPath(args[0]) : null);
         Log.Info($"engine: config {paths.Config}");
-        using var host = new EngineHost(paths, notifier => BuiltInProviders.Create(TimeProvider.System, notifier));
+        using var host = new EngineHost(paths, notifier => BuiltInProviders.Create(TimeProvider.System, notifier), BuiltInProviders.Devices());
         host.Run();
         Log.Info("engine: exit");
         return 0;

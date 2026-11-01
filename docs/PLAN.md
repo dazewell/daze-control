@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M4 Providers — T4.6 rest (branch feat/m4-system-steps, no PR yet; T4.1–T4.4 merged as PR #5 `72153ab`, T4.5 + most of T4.6 on this branch, synced with main)
-Last green checkpoint: 080da76 "Merge remote-tracking branch 'origin/main' into feat/m4-system-steps"
-Next action: answer Ops.Devices and Ops.CaptureDisplayLayout (stubs in Runtime/Control/EngineController.cs, "This version can't do that yet"): add a small `IDeviceQueries` seam in Runtime, implement it in Providers (audio/bluetooth/displays lists, CcdDisplays.CaptureLayout → YAML snippet for library.displays), wire it in Engine/Program.cs, print it in dctl; then tick T4.6 and do T4.7 http + credentials
-Tree state: builds, 406/406 tests green · Uncommitted: none
-Notes for next agent: PR 2 (T4.5–T4.9) opens from this branch; bump the version once against main (0.5.0 → 0.6.0). Display tests on the dev PC use `CcdDisplays(validateOnly: true)` (SDC_VALIDATE): never apply a layout live without a revert ready. Set DAZE_DEV_PC=1 to turn on the dev-PC hardware asserts. T4.4 live gate waits on the user (GOALS → Waiting on the user). Bash heredocs with nested quotes fail to parse in this tool; write files with Write.
+Current task: M4 Providers — T4.6 done, opening PR 2 (T4.5–T4.6, branch feat/m4-system-steps); then T4.7 on a new branch
+Last green checkpoint: 5be35c0 "docs(plan): checkpoint after PR #5 merge, T4.6 pipe ops next"
+Next action: open PR 2 from feat/m4-system-steps (base main), `gh pr edit <n> --add-reviewer @copilot`, merge per repo-workflow §6; then branch feat/m4-net-steps from main for T4.7 http + credentials
+Tree state: builds, 428/428 tests green · Uncommitted: none
+Notes for next agent: version is 0.6.0 on this branch (bump once more for PR 3 → 0.7.0). Display tests on the dev PC use `CcdDisplays(validateOnly: true)` (SDC_VALIDATE): never apply a layout live without a revert ready. Set DAZE_DEV_PC=1 to turn on the dev-PC hardware asserts. T4.4 live gate waits on the user (GOALS → Waiting on the user). Bash heredocs with nested quotes fail to parse in this tool; write files with Write or python.
 
 ---
 
@@ -60,7 +60,7 @@ Notes for next agent: PR 2 (T4.5–T4.9) opens from this branch; bump the versio
   Technics flow works on Alt+Z → user can stop scd.** Unit tests + dry run pass; live check waits on the user
   (GOALS → Waiting on the user).
 - [x] T4.5 display presets + outputs-only (port scd CCD) (branch feat/m4-system-steps).
-- [~] T4.6 Spike + display.layout capture/apply (branch feat/m4-system-steps): capture/apply + library kind done, spike validated; `dctl capture-display-layout` + `devices` pipe ops still to do.
+- [x] T4.6 Spike + display.layout capture/apply, `dctl devices` + `dctl capture-display-layout` (branch feat/m4-system-steps).
 - [ ] T4.7 http + credentials.
 - [ ] T4.8 firetv.
 - [ ] T4.9 service.

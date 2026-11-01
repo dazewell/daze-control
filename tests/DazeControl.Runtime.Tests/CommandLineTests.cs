@@ -24,6 +24,8 @@ public class CommandLineTests
     [InlineData("history", "a", "b")]
     [InlineData("autostart", "on", "off")]
     [InlineData("devices")]
+    [InlineData("capture-display-layout")]
+    [InlineData("capture-display-layout", "a", "b")]
     [InlineData("nope")]
     public void WrongWordCountIsAUsageError(params string[] args) =>
         Assert.Throws<CommandLineException>(() => Parse(args));

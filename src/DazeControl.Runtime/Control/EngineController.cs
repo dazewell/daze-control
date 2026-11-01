@@ -1,6 +1,7 @@
 using DazeControl.Core.Catalog;
 using DazeControl.Core.Runs;
 using DazeControl.Core.Validation;
+using DazeControl.Core.Yaml;
 using DazeControl.Ipc;
 using DazeControl.Runtime.Lifecycle;
 using DazeControl.Runtime.Providers;
@@ -25,7 +26,7 @@ public sealed record EngineInfo(string Version, int ProcessId, string ExePath, s
 /// the shell's state arrives as <see cref="Shell"/> snapshots.
 /// </summary>
 public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher launcher, RunHistory? history,
-    FlowRunner dryRunner, Autostart autostart, EngineInfo info, Action<string> log)
+    FlowRunner dryRunner, Autostart autostart, EngineInfo info, Action<string> log, IDeviceQueries? devices = null)
 {
     private volatile ShellStatus _shell = ShellStatus.Empty;
 
@@ -84,10 +85,49 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                 return History(request);
             case Ops.Autostart:
                 return Autostart(request);
-            case Ops.Devices or Ops.TestStep or Ops.CaptureDisplayLayout:
-                return PipeMessage.Fail(id, "This version can't do that yet: it arrives with the step types.");
+            case Ops.Devices:
+                return await DevicesAsync(request, cancellationToken).ConfigureAwait(false);
+            case Ops.CaptureDisplayLayout:
+                return await CaptureDisplayLayoutAsync(request, cancellationToken).ConfigureAwait(false);
+            case Ops.TestStep:
+                return PipeMessage.Fail(id, "This version can't do that yet: it arrives with the editor.");
             default:
                 return PipeMessage.Fail(id, $"Unknown request \"{request.Op}\".");
+        }
+    }
+
+    private async Task<PipeMessage> DevicesAsync(PipeRequest request, CancellationToken cancellationToken)
+    {
+        if (devices is null)
+            return PipeMessage.Fail(request.Id, "This engine can't list devices.");
+        if (request.Kind is not { } kind || !devices.Kinds.Contains(kind, StringComparer.Ordinal))
+            return PipeMessage.Fail(request.Id, $"Say which devices: {string.Join(", ", devices.Kinds)}.");
+        try
+        {
+            var list = await devices.ListAsync(kind, cancellationToken).ConfigureAwait(false);
+            return new PipeMessage { Id = request.Id, Ok = true, Devices = [.. list] };
+        }
+        catch (StepFailedException e)
+        {
+            return PipeMessage.Fail(request.Id, e.Message);
+        }
+    }
+
+    private async Task<PipeMessage> CaptureDisplayLayoutAsync(PipeRequest request, CancellationToken cancellationToken)
+    {
+        if (devices is null)
+            return PipeMessage.Fail(request.Id, "This engine can't read the screens.");
+        if (string.IsNullOrWhiteSpace(request.Key))
+            return PipeMessage.Fail(request.Id, "Say what to call the layout.");
+        try
+        {
+            var layout = await devices.CaptureDisplayLayoutAsync(request.Key, cancellationToken).ConfigureAwait(false);
+            log($"displays: captured layout {layout.Key} ({layout.Monitors.Count} screen(s))");
+            return new PipeMessage { Id = request.Id, Ok = true, Yaml = ConfigYaml.Snippet(layout) };
+        }
+        catch (StepFailedException e)
+        {
+            return PipeMessage.Fail(request.Id, e.Message);
         }
     }
 

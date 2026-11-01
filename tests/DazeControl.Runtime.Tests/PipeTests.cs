@@ -1,5 +1,6 @@
 using System.IO.Pipes;
 using System.Text;
+using System.Text.Json;
 using DazeControl.Ipc;
 
 namespace DazeControl.Runtime.Tests;
@@ -23,6 +24,8 @@ public sealed class PipeTests : IAsyncDisposable
                 _slowStarted.TrySetResult();
                 await _gate.Task.WaitAsync(token);
             }
+            if (request.Op == "echo")
+                return new PipeMessage { Id = request.Id, Ok = true, Error = JsonSerializer.Serialize(request, IpcJson.Default.PipeRequest) };
             if (request.Op == "throw")
                 throw new InvalidOperationException("boom");
             return new PipeMessage { Id = request.Id, Ok = true, Error = request.Op + ":" + request.Flow };
@@ -48,6 +51,30 @@ public sealed class PipeTests : IAsyncDisposable
 
         Assert.True(answer.Ok);
         Assert.Equal("list:tv", answer.Error);
+    }
+
+    [Fact]
+    public async Task EveryRequestFieldReachesTheServer()
+    {
+        // The client copies the request to stamp its id: a field added to PipeRequest but not to that copy is lost.
+        var sent = new PipeRequest();
+        foreach (var property in typeof(PipeRequest).GetProperties().Where(p => p.Name is not ("Protocol" or "Id")))
+        {
+            object value = property.PropertyType switch
+            {
+                var t when t == typeof(string) => property.Name == "Op" ? "echo" : property.Name,
+                var t when t == typeof(bool) || t == typeof(bool?) => true,
+                var t when t == typeof(int?) => 3,
+                var t => throw new InvalidOperationException($"Give {property.Name} ({t}) a test value."),
+            };
+            property.SetValue(sent, value);
+        }
+        await using var client = await Connect();
+
+        var echoed = JsonSerializer.Deserialize((await client.SendAsync(sent, Ct)).Error!, IpcJson.Default.PipeRequest)!;
+
+        foreach (var property in typeof(PipeRequest).GetProperties().Where(p => p.Name is not ("Protocol" or "Id")))
+            Assert.Equal(property.GetValue(sent), property.GetValue(echoed));
     }
 
     [Fact]
