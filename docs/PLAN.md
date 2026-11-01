@@ -2,10 +2,10 @@
 
 ## Resume
 Current task: T2.1 — scheduler (new branch feat/m2-runtime from main once PR #2 merges; else stack on feat/m1-core-model)
-Last green checkpoint: c4d8c19 "feat(core): validate flows against F1 rules and the catalog"
+Last green checkpoint: 1cc4087 "feat(samples): hand-convert the user's scd.toml and close M1"
 Next action: first resolve the ARCHITECTURE open question on stop + failure edges (record a D-xxx), then Runtime/Scheduler tests first: ready set, all-inputs join, edge when, skip propagation, cards
-Tree state: builds, 171/171 tests green · Uncommitted: none
-Notes for next agent: M1 done in PR #2 (waits for the user's merge). Model: Core/Model; YAML: Core/Yaml (D-023); validation: Core/Validation; catalog: Core/Catalog. Version 0.2.0.
+Tree state: builds, 175/175 tests green · Uncommitted: none
+Notes for next agent: M1 done in PR #2 (review comments addressed; waits for the user's merge). Model: Core/Model; YAML: Core/Yaml (D-023); validation: Core/Validation; catalog: Core/Catalog. Version 0.2.0.
 
 ---
 

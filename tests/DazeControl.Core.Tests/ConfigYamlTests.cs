@@ -225,4 +225,21 @@ public class ConfigYamlTests
         Assert.Equal(PopupPosition.BottomLeft, config.Settings.Popup.Position);
         Assert.Contains("position: bottomLeft", ConfigYaml.Save(config), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void AudioEntryWithBadFlowIsDroppedSoItsReferencesFail()
+    {
+        var load = ConfigYaml.Load("library: { audio: { mic: { match: Yeti, flow: inpt }, spk: { match: Dell } } }");
+
+        Assert.Equal("library.audio.mic.flow", Assert.Single(load.Problems).Path);
+        Assert.Equal(["spk"], load.Config!.Library.Audio.Select(d => d.Key));
+    }
+
+    [Fact]
+    public void UnknownKeyInAfterIsIgnoredLikeOtherUnknownKeys()
+    {
+        var config = LoadClean("flows: { f: { nodes: [{ id: b, step: wait, after: [{ id: a, whne: { x: 1 } }] }] } }");
+
+        Assert.Equal([new Edge("a")], config.Flows[0].Nodes[0].After);
+    }
 }

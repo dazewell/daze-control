@@ -209,4 +209,32 @@ public class ConfigValidatorTests
 
         Assert.Null(Single(problems, "library.bluetooth.x.address").FlowId);
     }
+
+    [Fact]
+    public void FlowsUsingABrokenBluetoothEntryFailOthersStayValid()
+    {
+        var load = ConfigYaml.Load("""
+            library: { bluetooth: { bad: { address: "B8-20" } } }
+            flows:
+              uses: { nodes: [{ id: a, step: bluetooth.connect, with: { device: bad } }] }
+              other: { nodes: [{ id: a, step: notify, with: { text: x } }] }
+            """);
+
+        var problems = ConfigValidator.Validate(load.Config!);
+
+        Assert.Equal(["uses"], ConfigValidator.FlowsWithErrors(problems));
+        Assert.Contains(problems, p => p.Path == "flows.uses.nodes.a.with.device" && p.Message.Contains("needs fixing", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RejectedFlowDoesNotTakeAHotkeyFromAHealthyOne()
+    {
+        var problems = Validate($$"""
+            flows:
+              broken: { hotkeys: [Alt+Z], nodes: [{ id: a, step: nope }] }
+              healthy: { hotkeys: [Alt+Z], nodes: [{{StepA}}] }
+            """);
+
+        Assert.Equal(["broken"], ConfigValidator.FlowsWithErrors(problems));
+    }
 }

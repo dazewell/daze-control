@@ -18,15 +18,24 @@ public static partial class ConfigValidator
     {
         var problems = new List<Problem>();
         catalog ??= ProviderCatalog.All;
+        var badLibraryItems = new HashSet<(LibraryKind, string)>();
         foreach (var device in config.Library.Bluetooth)
         {
             if (!BluetoothAddress().IsMatch(device.Address))
+            {
+                badLibraryItems.Add((LibraryKind.Bluetooth, device.Key));
                 problems.Add(new(Severity.Error, $"library.bluetooth.{device.Key}.address",
                     $"\"{device.Address}\" isn't a Bluetooth address (like B8:20:8E:ED:48:FC)."));
+            }
         }
+        var checkers = config.Flows.Select(f => new FlowChecker(f, config.Library, badLibraryItems, catalog, problems)).ToList();
+        foreach (var checker in checkers)
+            checker.Check();
+        // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
         var hotkeyOwners = new Dictionary<Hotkey, string>();
-        foreach (var flow in config.Flows)
-            new FlowChecker(flow, config.Library, catalog, problems).Check(hotkeyOwners);
+        var rejected = FlowsWithErrors(problems);
+        foreach (var checker in checkers)
+            checker.ClaimHotkeys(hotkeyOwners, rejected);
         return new(problems);
     }
 
@@ -40,15 +49,16 @@ public static partial class ConfigValidator
     [GeneratedRegex("^[0-9A-Fa-f]{4,5}$")]
     private static partial Regex GlyphCode();
 
-    private sealed class FlowChecker(Flow flow, Library library, IReadOnlyList<ProviderDescriptor> catalog, List<Problem> problems)
+    private sealed class FlowChecker(Flow flow, Library library, HashSet<(LibraryKind, string)> badLibraryItems,
+        IReadOnlyList<ProviderDescriptor> catalog, List<Problem> problems)
     {
         private readonly string _path = $"flows.{flow.Id}";
         private readonly Dictionary<string, Node> _nodes = [];
         private readonly Dictionary<string, string> _cardOf = []; // member id → card id
 
-        public void Check(Dictionary<Hotkey, string> hotkeyOwners)
+        public void Check()
         {
-            CheckSettings(hotkeyOwners);
+            CheckSettings();
             if (flow.Nodes.Count == 0)
                 Add(Severity.Warning, _path + ".nodes", "This flow has no steps yet.");
             foreach (var node in flow.Nodes)
@@ -67,17 +77,27 @@ public static partial class ConfigValidator
             CheckCycles();
         }
 
-        private void CheckSettings(Dictionary<Hotkey, string> hotkeyOwners)
+        private void CheckSettings()
         {
             if (flow.Glyph is { } glyph && !GlyphCode().IsMatch(glyph))
                 Add(Severity.Warning, _path + ".glyph", $"\"{glyph}\" isn't a Segoe Fluent Icons code (like E702); the step's icon is used.");
             foreach (var text in flow.Hotkeys)
             {
-                if (!Hotkey.TryParse(text, out var hotkey))
+                if (!Hotkey.TryParse(text, out _))
                     Error(_path + ".hotkeys", $"\"{text}\" isn't a shortcut: use Win, Ctrl or Alt plus A–Z, 0–9 or F1–F24 (like Alt+Z).");
-                else if (!flow.Enabled)
-                    continue; // a turned-off flow doesn't hold its hotkeys
-                else if (hotkeyOwners.TryGetValue(hotkey, out var owner))
+            }
+        }
+
+        /// <summary>Only enabled flows without errors hold hotkeys; the later of two clashing flows gets the error.</summary>
+        public void ClaimHotkeys(Dictionary<Hotkey, string> hotkeyOwners, IReadOnlySet<string> rejected)
+        {
+            if (!flow.Enabled || rejected.Contains(flow.Id))
+                return;
+            foreach (var text in flow.Hotkeys)
+            {
+                if (!Hotkey.TryParse(text, out var hotkey))
+                    continue;
+                if (hotkeyOwners.TryGetValue(hotkey, out var owner))
                     Error(_path + ".hotkeys", owner == flow.Id ? $"{hotkey} is listed twice." : $"{hotkey} already runs flow \"{owner}\".");
                 else
                     hotkeyOwners[hotkey] = flow.Id;
@@ -184,6 +204,8 @@ public static partial class ConfigValidator
                 ParamKind.Choice when !spec.Choices.Contains(text) => $"\"{text}\" isn't one of: {string.Join(", ", spec.Choices)}.",
                 ParamKind.LibraryRef when text.Length > 0 && !library.Contains(spec.Library!.Value, text) =>
                     $"No {LibraryName(spec.Library!.Value)} called \"{text}\" in the library.",
+                ParamKind.LibraryRef when badLibraryItems.Contains((spec.Library!.Value, text)) =>
+                    $"The {LibraryName(spec.Library!.Value)} \"{text}\" needs fixing in the library first.",
                 _ => null,
             };
             if (message is not null)

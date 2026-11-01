@@ -29,7 +29,7 @@ public static class Program
         using var hotkeys = new GlobalHotkey(window);
 
         var flowsById = new Dictionary<int, string>();
-        foreach (var flow in config.Flows)
+        foreach (var flow in config.Flows.Where(f => f.Enabled))
         {
             var key = flow.Id;
             foreach (var text in flow.Hotkeys)

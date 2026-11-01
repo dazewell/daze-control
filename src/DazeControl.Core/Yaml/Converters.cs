@@ -76,19 +76,17 @@ internal sealed class AfterConverter : IYamlTypeConverter
         parser.Consume<MappingStart>();
         while (!parser.TryConsume<MappingEnd>(out _))
         {
-            var key = parser.Consume<Scalar>();
-            var value = parser.Consume<Scalar>().Value;
-            switch (key.Value)
+            var key = parser.Consume<Scalar>().Value;
+            if (key is not ("id" or "when"))
             {
-                case "id":
-                    after.Id = value;
-                    break;
-                case "when":
-                    after.When = value;
-                    break;
-                default:
-                    throw new YamlException(key.Start, key.End, $"Unknown key \"{key.Value}\" in after (use id and when).");
+                parser.SkipThisAndNestedEvents(); // unknown keys are ignored, like everywhere else (ConfigYaml)
+                continue;
             }
+            var value = parser.Consume<Scalar>().Value;
+            if (key == "id")
+                after.Id = value;
+            else
+                after.When = value;
         }
         return after;
     }

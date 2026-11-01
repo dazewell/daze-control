@@ -142,10 +142,11 @@ public static class ConfigMapper
             foreach (var (key, item) in document?.Audio ?? [])
             {
                 var path = $"library.audio.{key}";
+                // A bad entry is dropped, not defaulted: its references then fail their own flows.
                 if (string.IsNullOrWhiteSpace(item?.Match))
                     Error(path + ".match", "Say which device: part of its name as Windows shows it.");
-                else
-                    audio.Add(new AudioDevice(key, item.Match, Enum(item.Flow, path + ".flow", AudioFlow.Output)));
+                else if (TryEnum(item.Flow, path + ".flow", AudioFlow.Output, out var flow))
+                    audio.Add(new AudioDevice(key, item.Match, flow));
             }
             var bluetooth = new List<BluetoothDevice>();
             foreach (var (key, item) in document?.Bluetooth ?? [])
@@ -247,17 +248,22 @@ public static class ConfigMapper
             return new RetryPolicy(count.Value, DurationOrNull(document.Delay, path + ".delay") ?? TimeSpan.Zero);
         }
 
-        private T Enum<T>(string? text, string path, T fallback) where T : struct, Enum
+        private T Enum<T>(string? text, string path, T fallback) where T : struct, Enum =>
+            TryEnum(text, path, fallback, out var value) ? value : fallback;
+
+        private bool TryEnum<T>(string? text, string path, T fallback, out T value) where T : struct, Enum
         {
+            value = fallback;
             if (text is null)
-                return fallback;
+                return true;
             // Enum.TryParse also takes numbers and "a, b" lists; neither is meaningful in YAML.
             if (text.Length > 0 && char.IsAsciiLetter(text[0]) && !text.Contains(',', StringComparison.Ordinal)
-                && System.Enum.TryParse<T>(text, ignoreCase: true, out var value))
-                return value;
+                && System.Enum.TryParse(text, ignoreCase: true, out value))
+                return true;
+            value = fallback;
             var choices = string.Join(", ", System.Enum.GetValues<T>().Select(EnumText));
             Error(path, $"\"{text}\" isn't one of: {choices}.");
-            return fallback;
+            return false;
         }
 
         private bool Bool(string? text, string path, bool fallback)
