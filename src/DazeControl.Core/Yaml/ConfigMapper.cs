@@ -200,7 +200,9 @@ public static class ConfigMapper
             var after = new List<Edge>();
             foreach (var item in document.After ?? [])
             {
-                if (string.IsNullOrWhiteSpace(item.Id))
+                if (item.Malformed is { } malformed)
+                    Error(path + ".after", malformed);
+                else if (string.IsNullOrWhiteSpace(item.Id))
                     Error(path + ".after", "An after entry needs the id of a step or card.");
                 else
                     after.Add(new Edge(item.Id, Enum(item.When, path + ".after", EdgeWhen.Success)));

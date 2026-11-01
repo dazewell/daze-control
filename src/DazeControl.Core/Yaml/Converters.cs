@@ -70,23 +70,41 @@ internal sealed class AfterConverter : IYamlTypeConverter
 
     public object? ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
     {
+        // Wrong shapes become AfterDocument.Malformed, which the mapper reports on the flow (D-023), instead of
+        // an exception that would lose the whole file.
         if (parser.TryConsume<Scalar>(out var scalar))
             return new AfterDocument { Id = scalar.Value };
         var after = new AfterDocument();
-        parser.Consume<MappingStart>();
+        if (!parser.TryConsume<MappingStart>(out _))
+        {
+            parser.SkipThisAndNestedEvents();
+            after.Malformed = "Write an id, or { id: …, when: … }.";
+            return after;
+        }
         while (!parser.TryConsume<MappingEnd>(out _))
         {
-            var key = parser.Consume<Scalar>().Value;
+            if (!parser.TryConsume<Scalar>(out var keyScalar))
+            {
+                parser.SkipThisAndNestedEvents(); // complex key
+                parser.SkipThisAndNestedEvents(); // its value
+                continue;
+            }
+            var key = keyScalar.Value;
             if (key is not ("id" or "when"))
             {
                 parser.SkipThisAndNestedEvents(); // unknown keys are ignored, like everywhere else (ConfigYaml)
                 continue;
             }
-            var value = parser.Consume<Scalar>().Value;
+            if (!parser.TryConsume<Scalar>(out var value))
+            {
+                parser.SkipThisAndNestedEvents();
+                after.Malformed = $"{key} takes a single value.";
+                continue;
+            }
             if (key == "id")
-                after.Id = value;
+                after.Id = value.Value;
             else
-                after.When = value;
+                after.When = value.Value;
         }
         return after;
     }

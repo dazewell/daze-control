@@ -242,4 +242,22 @@ public class ConfigYamlTests
 
         Assert.Equal([new Edge("a")], config.Flows[0].Nodes[0].After);
     }
+
+    [Theory]
+    [InlineData("[{ id: a, when: [failure] }]")]
+    [InlineData("[{ id: [a] }]")]
+    [InlineData("[[a]]")]
+    public void WrongShapeInAfterIsAProblemOnItsFlowOnly(string after)
+    {
+        var load = ConfigYaml.Load($$"""
+            flows:
+              bad: { nodes: [{ id: b, step: wait, after: {{after}} }] }
+              good: { nodes: [{ id: a, step: wait }] }
+            """);
+
+        var problem = Assert.Single(load.Problems);
+        Assert.Equal(("bad", "flows.bad.nodes.b.after"), (problem.FlowId, problem.Path));
+        Assert.Empty(load.Config!.Flows[0].Nodes[0].After);
+        Assert.Equal(2, load.Config.Flows.Count);
+    }
 }

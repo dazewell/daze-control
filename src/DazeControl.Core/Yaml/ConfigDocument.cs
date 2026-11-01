@@ -125,6 +125,9 @@ public sealed class AfterDocument
     public string? Id { get; set; }
 
     public string? When { get; set; }
+
+    /// <summary>Set by <see cref="AfterConverter"/> when the entry has the wrong shape; never written.</summary>
+    public string? Malformed { get; set; }
 }
 
 /// <summary>

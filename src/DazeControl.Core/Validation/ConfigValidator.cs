@@ -14,7 +14,12 @@ public static partial class ConfigValidator
 {
     public const int MaxRetries = 10; // the inspector's "Try again" range (UX 5.4)
 
-    public static ValueList<Problem> Validate(Configuration config, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    /// <param name="config">The mapped configuration.</param>
+    /// <param name="earlier">Problems from loading (<c>ConfigLoad.Problems</c>): flows they reject get no hotkeys.</param>
+    /// <param name="catalog">Step types; the compiled-in catalog by default.</param>
+    /// <returns>Only the validator's own problems.</returns>
+    public static ValueList<Problem> Validate(Configuration config, IEnumerable<Problem>? earlier = null,
+        IReadOnlyList<ProviderDescriptor>? catalog = null)
     {
         var problems = new List<Problem>();
         catalog ??= ProviderCatalog.All;
@@ -33,7 +38,7 @@ public static partial class ConfigValidator
             checker.Check();
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
         var hotkeyOwners = new Dictionary<Hotkey, string>();
-        var rejected = FlowsWithErrors(problems);
+        var rejected = FlowsWithErrors(problems.Concat(earlier ?? []));
         foreach (var checker in checkers)
             checker.ClaimHotkeys(hotkeyOwners, rejected);
         return new(problems);
@@ -88,18 +93,32 @@ public static partial class ConfigValidator
             }
         }
 
-        /// <summary>Only enabled flows without errors hold hotkeys; the later of two clashing flows gets the error.</summary>
+        /// <summary>
+        /// Only enabled flows without errors hold hotkeys; the later of two clashing flows gets the error. All or
+        /// nothing: a flow that fails here claims none of its hotkeys, so it can't block a third flow.
+        /// </summary>
         public void ClaimHotkeys(Dictionary<Hotkey, string> hotkeyOwners, IReadOnlySet<string> rejected)
         {
             if (!flow.Enabled || rejected.Contains(flow.Id))
                 return;
+            var mine = new HashSet<Hotkey>();
+            var failed = false;
             foreach (var text in flow.Hotkeys)
             {
                 if (!Hotkey.TryParse(text, out var hotkey))
                     continue;
-                if (hotkeyOwners.TryGetValue(hotkey, out var owner))
-                    Error(_path + ".hotkeys", owner == flow.Id ? $"{hotkey} is listed twice." : $"{hotkey} already runs flow \"{owner}\".");
-                else
+                var message = !mine.Add(hotkey) ? $"{hotkey} is listed twice."
+                    : hotkeyOwners.TryGetValue(hotkey, out var owner) ? $"{hotkey} already runs flow \"{owner}\"."
+                    : null;
+                if (message is not null)
+                {
+                    Error(_path + ".hotkeys", message);
+                    failed = true;
+                }
+            }
+            if (!failed)
+            {
+                foreach (var hotkey in mine)
                     hotkeyOwners[hotkey] = flow.Id;
             }
         }

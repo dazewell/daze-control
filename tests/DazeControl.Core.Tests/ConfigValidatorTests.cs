@@ -237,4 +237,32 @@ public class ConfigValidatorTests
 
         Assert.Equal(["broken"], ConfigValidator.FlowsWithErrors(problems));
     }
+
+    [Fact]
+    public void FlowThatLosesAClashClaimsNoneOfItsHotkeys()
+    {
+        var problems = Validate($$"""
+            flows:
+              first: { hotkeys: [Alt+Z], nodes: [{{StepA}}] }
+              second: { hotkeys: [Alt+X, Alt+Z], nodes: [{{StepA}}] }
+              third: { hotkeys: [Alt+X], nodes: [{{StepA}}] }
+            """);
+
+        Assert.Equal(["second"], ConfigValidator.FlowsWithErrors(problems));
+    }
+
+    [Fact]
+    public void FlowRejectedWhileLoadingClaimsNoHotkeys()
+    {
+        var load = ConfigYaml.Load($$"""
+            flows:
+              typo: { hotkeys: [Alt+Z], nodes: [{ id: a, step: notify, with: { text: x }, timeout: soon }] }
+              healthy: { hotkeys: [Alt+Z], nodes: [{{StepA}}] }
+            """);
+
+        var problems = ConfigValidator.Validate(load.Config!, load.Problems);
+
+        Assert.Empty(problems);
+        Assert.Equal(["typo"], ConfigValidator.FlowsWithErrors(load.Problems));
+    }
 }
