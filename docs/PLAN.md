@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M5 Run pop-up — T5.1 + T5.2 done, PR #8 (feat/m5-popup) open; merge waits on the user (footprint, GOALS → Waiting on the user)
+Current task: M6 Editor foundation — T6.1 (M5 done: PR #8)
 Last green checkpoint: 1f16ad4 "fix(engine): pop-up review — run snapshot, DPI, device loss, contrast theme"
-Next action: when the user accepts the pop-up's one-off ~+2.5 MB, change ARCHITECTURE → Footprint "back within +2 MB after a run" to name the pop-up allowance, drop the GOALS item, check CI on PR #8 and `gh pr merge 8 --squash --delete-branch`; then branch feat/m6-editor and start T6.1. If the user wants GDI drawing instead, rewrite Shell/RunPopup's Render without D2D/DWrite and re-measure.
+Next action: sync main, branch feat/m6-editor and start T6.1: WinUI shell (Mica, TitleBar, NavigationView: Flows, Library, Settings, About), unpackaged self-contained (EnableMsixTooling, OSD X-004), single instance + bring to front
 Tree state: builds, 510/510 tests green · Uncommitted: none
-Notes for next agent: version is 0.8.0. Copilot review 1 of 2 used on PR #8: 6 medium findings, 5 fixed in 1f16ad4, Narrator deferred to T10.5; replies posted, but resolving threads was blocked by the permission classifier (leave them). Pop-up test config + screenshot scripts lived in the session scratchpad; recreate from D-034 (a striped topmost WinForms window behind the pop-up proves the blur). Write files with Write or python, not Bash heredocs with nested quotes.
+Notes for next agent: version is 0.8.0. Selecting a failed run's pop-up calls EngineHost.OpenEditor() with no arguments; the run page (M9) should take a run id. Narrator support for the pop-up is T10.5. Write files with Write or python, not Bash heredocs with nested quotes.
 
 ---
 
@@ -65,7 +65,7 @@ Notes for next agent: version is 0.8.0. Copilot review 1 of 2 used on PR #8: 6 m
 - [x] T4.8 firetv (branch feat/m4-net-steps).
 - [x] T4.9 service (branch feat/m4-net-steps).
 
-## M5 Run pop-up
+## M5 Run pop-up ✔ (2026-11-01, PR #8)
 - [x] T5.1 Spike: native acrylic window in AOT (DWM backdrop + D2D text, theme, DPI, no-activate) — passed, D-034 (feat/m5-popup).
 - [x] T5.2 Pop-up with progress/failure summary, position/duration, animation (honour Animation effects) (feat/m5-popup).
 

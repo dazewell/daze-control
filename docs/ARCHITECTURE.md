@@ -218,7 +218,8 @@ waits for a device use a hand-made IMMNotificationClient vtable (`CoreAudioEndpo
 
 ## Footprint (measured by `scripts/measure.ps1`)
 
-Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 idle minutes, back within +2 MB after a run.
+Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 idle minutes, back within +2 MB after a run
+(+4.5 MB once the run pop-up has shown: its first showing costs ~+2.5 MB once, flat after that, D-036).
 
 | Date | Build | What ran | Private MB | Working set MB | CPU ms (window) |
 |---|---|---|---|---|---|
@@ -232,8 +233,8 @@ Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 i
 | 2026-11-01 | same | after 3 runs of a 3-step flow with `popup: false` | 5.9 (+0.7) | 21.8 | 0 (60 s) |
 | 2026-11-01 | same | after 10 runs with the pop-up (software D2D, d2d1/DWrite unloaded on hide, D-034) | 8.8 (+3.5) | 24.9 | 0 (60 s) |
 
-M5: absolute budget holds; the pop-up's first showing costs ~+2.5 MB private once (flat from 3 to 10 runs), over
-the "+2 MB after a run" line → asked the user (PR for M5).
+M5: absolute budget holds; the pop-up's first showing costs ~+2.5 MB private once (flat from 3 to 10 runs); the user
+accepted it and the post-run line now allows it (D-036).
 
 T0.5 gate passed: no AOT/trim warnings; hotkey press and tray icon checked on the desktop. T3.7 gate passed
 (rows above). The post-run delta covers runner, history and pipe only; re-measure with real providers (M4, M10).

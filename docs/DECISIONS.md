@@ -343,3 +343,12 @@ Status: accepted
   "Stopped" become row 3's first line in the tone colour (semibold), above the reason (UX §5.6 updated).
 - Why: in the column they squeezed the flow name to "Audio to headpho…" (screenshot, T5.2).
 - Revisit if: the editor's run view (M9) settles on another pattern; keep the two alike.
+
+## D-036 · 2026-11-01 · Accept the pop-up's one-time ~+2.5 MB; keep Direct2D
+Status: accepted (user, 2026-11-01: "Accept, merge")
+- Decision: the post-run budget line allows the pop-up's first showing (+4.5 MB after a run once it has shown,
+  instead of +2); the pop-up keeps software Direct2D/DirectWrite (D-034).
+- Why: the cost is paid once and stays flat (3 and 10 runs: +3.1 / +3.5 MB vs +0.7 without the pop-up), absolute
+  numbers stay well inside 15 MB / 35 MB / 0 ms (8.8 / 24.9 / 0).
+- Why not a GDI rewrite: more code (own alpha handling, no antialiased ring) to save ~2.5 MB.
+- Revisit if: the post-pop-up footprint grows with runs, or another feature needs that headroom.

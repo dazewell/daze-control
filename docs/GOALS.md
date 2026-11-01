@@ -34,14 +34,9 @@ lives in [DECISIONS.md](DECISIONS.md).
 
 Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
 - [x] M0 Bootstrap · [x] M1 Core model + YAML · [x] M2 Runtime · [x] M3 Engine shell · [x] M4 Providers
-- [ ] M5 Run pop-up · [ ] M6 Editor foundation · [ ] M7 Canvas · [ ] M8 Inspector + Library · [ ] M9 Runs · [ ] M10 Ship
+- [x] M5 Run pop-up · [ ] M6 Editor foundation · [ ] M7 Canvas · [ ] M8 Inspector + Library · [ ] M9 Runs · [ ] M10 Ship
 
 ## Waiting on the user
-
-- **M5 pop-up footprint:** idle is unchanged (4.9 MB private / 20.4 MB working set / 0 ms CPU), and after pop-ups
-  the engine settles at 8.8 MB / 24.9 MB / 0 ms, inside the 15 / 35 / 0 budget. But the first pop-up costs
-  ~+2.5 MB private once (flat from 3 to 10 runs), above the "back within +2 MB after a run" line. Accept it
-  (raise that line), or ask for a GDI-drawn pop-up without Direct2D (more code, same look minus antialiased ring).
 
 - **T4.4 gate, live check (needs your Technics headphones):** copy `samples/user-config.yaml` to
   `%APPDATA%\DazeControl\config.yaml`, start the engine (`artifacts\engine\DazeControl.exe`), turn the
