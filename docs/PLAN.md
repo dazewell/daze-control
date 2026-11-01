@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M5 Run pop-up — T5.1 spike (M4 done: PR #5, PR #6, PR 3 for T4.7–T4.9 from feat/m4-net-steps)
-Last green checkpoint: 118637d "Merge remote-tracking branch 'origin/main' into feat/m4-net-steps"
-Next action: if PR 3 (feat/m4-net-steps) isn't merged yet, finish it per repo-workflow §6; then branch feat/m5-popup from main and start T5.1: a native acrylic window in AOT (DWM backdrop + D2D text, theme, DPI, never activates), read the OSD's OverlayWindow (D-008, X-007) first
-Tree state: builds, 475/475 tests green · Uncommitted: none
-Notes for next agent: version is 0.7.0. PR #6 thread replies were blocked by the permission classifier (the fix commit message carries the answers). DAZE_DEV_PC=1 turns on dev-PC asserts. Write files with Write or python, not Bash heredocs with nested quotes.
+Current task: M6 Editor foundation — T6.1 (M5 done: PR #8)
+Last green checkpoint: 1f16ad4 "fix(engine): pop-up review — run snapshot, DPI, device loss, contrast theme"
+Next action: sync main, branch feat/m6-editor and start T6.1: WinUI shell (Mica, TitleBar, NavigationView: Flows, Library, Settings, About), unpackaged self-contained (EnableMsixTooling, OSD X-004), single instance + bring to front
+Tree state: builds, 510/510 tests green · Uncommitted: none
+Notes for next agent: version is 0.8.0. Selecting a failed run's pop-up calls EngineHost.OpenEditor() with no arguments; the run page (M9) should take a run id. Narrator support for the pop-up is T10.5. Write files with Write or python, not Bash heredocs with nested quotes.
 
 ---
 
@@ -65,9 +65,9 @@ Notes for next agent: version is 0.7.0. PR #6 thread replies were blocked by the
 - [x] T4.8 firetv (branch feat/m4-net-steps).
 - [x] T4.9 service (branch feat/m4-net-steps).
 
-## M5 Run pop-up
-- [ ] T5.1 Spike: native acrylic window in AOT (DWM backdrop + D2D text, theme, DPI, no-activate).
-- [ ] T5.2 Pop-up with progress/failure summary, position/duration, animation (honour Animation effects).
+## M5 Run pop-up ✔ (2026-11-01, PR #8)
+- [x] T5.1 Spike: native acrylic window in AOT (DWM backdrop + D2D text, theme, DPI, no-activate) — passed, D-034 (feat/m5-popup).
+- [x] T5.2 Pop-up with progress/failure summary, position/duration, animation (honour Animation effects) (feat/m5-popup).
 
 ## M6 Editor foundation
 - [ ] T6.1 WinUI shell (Mica, TitleBar, NavigationView: Flows, Library, Settings, About), unpackaged
@@ -100,5 +100,7 @@ Notes for next agent: version is 0.7.0. PR #6 thread replies were blocked by the
 - [ ] T10.1 Velopack pack/install/update + release.yml.
 - [ ] T10.2 README.
 - [ ] T10.3 UX acceptance pass against the UX.md checklist (screenshots, light/dark/high contrast, 100–175 %
-  scale, text size).
+  scale, text size). Includes the pop-up in a contrast theme and at 225 % text (not checked live in M5).
+- [ ] T10.5 Pop-up for Narrator: it draws everything itself, so screen readers get only the window title. Raise a
+  UIA notification (or a minimal provider with an invoke for "see what happened") without activating (PR #8 review).
 - [ ] T10.4 Footprint gate + 24 h daily-driver soak (user), then retire scd (user turns off its scheduled task).

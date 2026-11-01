@@ -86,3 +86,4 @@ Grow this table when you hit something non-obvious (and record a dead end if a f
 | `LNK1207: incompatible PDB format in …\win-x64\native\DazeControl.pdb` on publish | Stale native PDB from another linker version: delete `src/DazeControl.Engine/bin/Release/…/win-x64/native` and `obj/Release/…/win-x64/native` (2026-10-31). |
 | `MSB3073 … 'vswhere.exe' is not recognized` on publish | ILC's link step needs vswhere on PATH: `$env:PATH += ";C:\Program Files (x86)\Microsoft Visual Studio\Installer"` (2026-11-01). |
 | `MSB3027` / file is locked by `DazeControl` | Running engine; `pwsh scripts/stop.ps1`. |
+| Need a CsWin32 COM/P/Invoke signature (D2D, DWrite, DWM) | Generated code isn't on disk: `dotnet build src/DazeControl.Engine --no-dependencies --no-incremental -p:EmitCompilerGeneratedFiles=true -p:CompilerGeneratedFilesOutputPath=<scratch dir>`, then grep the `.g.cs` (2026-11-01). |

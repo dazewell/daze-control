@@ -3,7 +3,11 @@ namespace DazeControl.Core.Runs;
 /// <summary>Live progress of one run, for the pop-up, the editor's run overlay and the pipe (FEATURES F5).</summary>
 public abstract record RunEvent(Guid RunId, string FlowId, DateTimeOffset At);
 
-public sealed record RunStarted(Guid RunId, string FlowId, DateTimeOffset At, int NodeCount) : RunEvent(RunId, FlowId, At);
+public sealed record RunStarted(Guid RunId, string FlowId, DateTimeOffset At, int NodeCount) : RunEvent(RunId, FlowId, At)
+{
+    /// <summary>The version that runs (in process only; not sent on the pipe). A reload can't change it mid-run.</summary>
+    public Model.Flow? Flow { get; init; }
+}
 
 public sealed record NodeStarted(Guid RunId, string FlowId, DateTimeOffset At, string NodeId, int Attempt)
     : RunEvent(RunId, FlowId, At);

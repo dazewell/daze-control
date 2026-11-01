@@ -107,9 +107,10 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 - Pop-up: 340 wide, padding 16, spacing 12, radius 8, acrylic, no-activate, the OSD's six positions. Row 1 (min
   28): glyph 20 | name BodyStrong | status Caption "2 of 3" on 20/*/44 columns · Row 2: 4-px determinate track
   (finished nodes) · Row 3: Caption current step "Connecting Technics…". ~104 DIP, grows with text size.
-  Success: "Done" / "Took 3.1 s", hides after the duration, click-through. Partial: "Done, with a problem"
-  (caution) / "Connect headphones didn't work, so it went on without it." Failure: critical glyph, "Didn't
-  finish", first failure in plain words (≤ 2 lines), Row 4 "Select to see what happened" (opens the run),
+  Success: "Done" (status column) / "Took 3.1 s", hides after the duration, click-through. Longer outcomes are
+  row 3's first line in the tone colour (D-035). Partial: "Done, with a problem" (caution) / "Connect headphones
+  didn't work, so it went on without it." Failure: critical glyph, "Didn't finish", first failure in plain
+  words (≤ 2 lines), Row 4 "Select to see what happened" (opens the run),
   stays 6 s and is clickable (still never activates on show).
 
 ## 5.7 Microcopy (the OSD's D-026 voice: plain, friendly, sentence case)
