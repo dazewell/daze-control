@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M3 review — PR #4 (branch feat/m3-engine-shell), Copilot review 1 fixed, review 2 (the last) next
-Last green checkpoint: 4c033af "docs(plan): hand over PR #4 review 1 findings"
-Next action: reply to + resolve the 13 review-1 threads (comment ids in the session notes file `pr4-review1-plan.md`), push, `gh pr edit 4 --add-reviewer @copilot`, check the timeline shows Copilot, then wait for CI + review 2 and follow repo-workflow §6 (merge, or fix + code-review high, then merge)
+Current task: M3 review — PR #4 (branch feat/m3-engine-shell), review 1 fixed and threads resolved, Copilot review 2 (the last) requested 17:51Z
+Last green checkpoint: c6e00d0 "fix(m3): address PR #4 review 1"
+Next action: when CI and review 2 are in, follow repo-workflow §6: no Critical → fix cheap ones or reply, resolve, `gh pr merge 4 --squash --delete-branch`; Critical → fix, `code-review` skill at high effort on the PR diff, note it in the PR, merge. Never a third Copilot review. After merge: sync main, Resume block → M4 T4.1
 Tree state: builds, 357/357 tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: never end a pipe I/O by disposing the pipe (X-001). Review 2 is the last Copilot review for #4.
+Notes for next agent: never end a pipe I/O by disposing the pipe (X-001).
 
 ---
 

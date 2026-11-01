@@ -64,7 +64,7 @@ PR description: what changed, why (link D-xxx), how it was verified, what's left
 
 Agents merge their own PRs so work isn't blocked while the user sleeps. Per PR:
 1. Copilot doesn't review on its own (user, 2026-11-01). Right after opening the PR (or marking it ready),
-   request it, every time: `gh pr edit <n> --add-reviewer @copilot` (fallback if that fails:
+   request it, every time: `gh pr edit <n> --add-reviewer @copilot` (works: PR #4 review 2, 2026-11-01; fallback if it fails:
    `gh api -X POST repos/dazewell/daze-control/pulls/<n>/requested_reviewers -f "reviewers[]=copilot-pull-request-reviewer[bot]"`).
    Check it took: `gh api repos/dazewell/daze-control/issues/<n>/timeline --jq '.[] | select(.event=="review_requested") | .requested_reviewer.login'`
    prints `Copilot` (`reviewRequests` empties again once Copilot starts, so it can't confirm it). A review counts
