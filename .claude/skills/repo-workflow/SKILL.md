@@ -78,6 +78,8 @@ Agents merge their own PRs so work isn't blocked while the user sleeps. Per PR:
 6. Never merge with CI red, with a finding you think is critical but couldn't fix, or a PR that needs the
    user's decision (scope, UX, a decision that contradicts a D-xxx): stop, write it in the Resume block
    notes and the PR, and leave it for the user.
+7. Never end a turn just to wait for CI or a Copilot review: run `gh pr checks <n> --watch` (or a polling
+   loop for the review) in the background and act when it exits. Nothing wakes an ended turn overnight.
 
 Stacked PRs: PRs are squash-merged, so once a base PR lands, the next branch conflicts with `main`
 even though nothing new is in it. If `git diff <base PR's last head> origin/main` is empty and the

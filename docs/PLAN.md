@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T2.1 — scheduler (new branch feat/m2-runtime from main once PR #2 merges)
-Last green checkpoint: da2296a "fix(core): never let config loading throw"
-Next action: Runtime/Scheduler tests first: ready set, all-inputs join, edge when, skip propagation, cards, and D-024 (an outgoing failure edge handles the failure: no stop/skip, fallback runs, success dependents skipped, flow PartiallySucceeded)
-Tree state: builds, 182/182 tests green, CI green on da2296a · Uncommitted: none
-Notes for next agent: BLOCKED: PR #2 passed both Copilot reviews + self-review + CI, but the agent's squash-merge was refused by the Claude Code auto-mode permission classifier ("Merge Without Review"). The user merges it or adds a permission rule for gh pr merge; don't work around it. Then start T2.1 from main. In the first M2 commit, add to repo-workflow SKILL.md section 6: never end a turn just to wait for CI or a Copilot review; run `gh pr checks <n> --watch` (or a polling loop for the review) in the background and act when it exits, since nothing wakes an ended turn overnight.
+Current task: T2.1 — scheduler (branch feat/m2-runtime, one PR for M2 per milestone like PR #2)
+Last green checkpoint: 422752f "feat(core): M1 core model, YAML, validation and catalog (#2)"
+Next action: Runtime/Scheduling/Scheduler (pure, synchronous: Start() / Complete(step, StepResult) → steps to start) + SchedulerTests: chain, join, failure edge (D-024), stop, skip, ignore, cards, always, cancel
+Tree state: builds, 182/182 tests green · Uncommitted: none
+Notes for next agent: M1 merged (PR #2). Policies (stop/skip/ignore, D-024) live in the scheduler because they decide which edges fire; retries/timeouts/async runner are T2.2.
 
 ---
 
@@ -36,7 +36,7 @@ Notes for next agent: BLOCKED: PR #2 passed both Copilot reviews + self-review +
   both Bluetooth devices) — the one-time "import" (PR #2).
 
 ## M2 Runtime (pure, fake providers + `ManualTime`)
-- [ ] T2.1 Scheduler: ready set, all-inputs join, edge `when`, skip propagation, cards.
+- [~] T2.1 Scheduler: ready set, all-inputs join, edge `when`, skip propagation, cards.
 - [ ] T2.2 Failure policies, retries, timeouts, cancellation.
 - [ ] T2.3 Resource locks.
 - [ ] T2.4 `whenRunning`.
