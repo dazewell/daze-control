@@ -60,6 +60,8 @@ KS one-shot Bluetooth reconnect (D-023, X-005), `Core/Windowing/OverlayWindow.cs
 - Fail-soft: a bad flow / library item / provider init disables only itself; the engine always starts and
   keeps the last good config on a bad reload. No unobserved task (runner awaits all; global handlers log).
 - Every step has a timeout and honours cancellation; processes are killed (tree) on timeout.
+  A device write (SetDisplayConfig, a BtAudio request) checks the token right before it is sent: the runner has
+  released the step's lock by then, so a late write would overwrite the next step's change.
 - Idle = zero: no timers, no polling, no resident COM objects; waits are event-driven
   (IMMNotificationClient, device state, WM_DISPLAYCHANGE) with a timeout; COM workers start lazily and stop
   after 60 s idle.
@@ -188,8 +190,11 @@ answer go to `EventReceived`, or (no handler) a queue `ReadAsync` returns first.
 `history <text>` matches a recorded flow id, then the config's id/name, then a recorded name.
 Ops (EngineController): `run` (flow id or name; `wait` → the RunRecord; `dryRun` → a runner whose steps do
 nothing, no history), `cancel`, `list`, `status`, `validate`, `history` (flow, limit), `autostart` (enable
-true/false/absent); `devices`, `test-step`, `capture-display-layout` answer "can't do that yet" until M4.
-`dctl` (`src/DazeControl.Cli`): run/cancel/list/validate/status/history/autostart/devices, parsed strictly by
+true/false/absent), `devices` (kind) and `capture-display-layout` (key → a `library: displays:` YAML snippet)
+through `Runtime/Control/IDeviceQueries` (read-only; `Providers/SystemDevices` on the real PC); `test-step`
+answers "can't do that yet" until the editor. `PipeClient` copies each request to stamp its id: a new
+`PipeRequest` field goes into that copy too (`PipeTests.EveryRequestFieldReachesTheServer` fails otherwise).
+`dctl` (`src/DazeControl.Cli`): run/cancel/list/validate/status/history/autostart/devices/capture-display-layout, parsed strictly by
 `Ipc/CommandLine` (unknown flag or wrong word count → exit 2, never ignored); `validate <file>`
 and, with no engine, `list`/`validate` read the YAML themselves. Exit codes 0 ok, 1 failed, 2 usage, 3 no engine.
 

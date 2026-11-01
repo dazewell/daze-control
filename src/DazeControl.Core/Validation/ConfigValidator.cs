@@ -240,6 +240,7 @@ public static partial class ConfigValidator
         {
             LibraryKind.Audio => "audio device",
             LibraryKind.Bluetooth => "Bluetooth device",
+            LibraryKind.Display => "screen layout",
             _ => kind.ToString(),
         };
 

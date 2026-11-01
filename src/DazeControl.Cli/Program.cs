@@ -30,6 +30,8 @@ public static class Program
           history [flow] [--limit n]        recent runs, newest first
           autostart [on|off]                start the engine with Windows
           devices audio|bluetooth|displays|adb
+                                            what steps can name on this PC
+          capture-display-layout <name>     the screens as they are now, as YAML for library.displays
         Exit codes: 0 ok, 1 failed, 2 usage, 3 the engine isn't running.
         """;
 
@@ -106,7 +108,13 @@ public static class Program
                     return Ok;
                 }).ConfigureAwait(false);
             case "devices":
-                return await SendAsync(new PipeRequest { Op = Ops.Devices, Flow = line.Word }, _ => Ok).ConfigureAwait(false);
+                return await SendAsync(new PipeRequest { Op = Ops.Devices, Kind = line.Word }, PrintDevices).ConfigureAwait(false);
+            case "capture-display-layout":
+                return await SendAsync(new PipeRequest { Op = Ops.CaptureDisplayLayout, Key = line.Word }, m =>
+                {
+                    Console.Out.Write(m.Yaml);
+                    return Ok;
+                }).ConfigureAwait(false);
             default:
                 throw new UnreachableException();
         }
@@ -169,6 +177,15 @@ public static class Program
             var hotkeys = flow.Hotkeys is { Length: > 0 } h ? $"  [{string.Join(", ", h)}]" : "";
             Console.Out.WriteLine($"{flow.Id,-24} {flow.Name}{hotkeys} — {state}");
         }
+        return Ok;
+    }
+
+    private static int PrintDevices(PipeMessage message)
+    {
+        if (message.Devices is not { Length: > 0 })
+            Console.Out.WriteLine("None found.");
+        foreach (var device in message.Devices ?? [])
+            Console.Out.WriteLine(device.Detail is { } detail ? $"{device.Name} — {detail}" : device.Name);
         return Ok;
     }
 

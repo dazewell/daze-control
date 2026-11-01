@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M4 Providers — PR 1 for T4.1–T4.4 (branch feat/m4-basic-steps)
-Last green checkpoint: 5565296 "test(providers): live-checked audio.setDefault, cover the real wait cancel"
-Next action: open PR 1 (T4.1–T4.4), request the Copilot review, wait for CI + review in the background, merge per repo-workflow §6; then branch feat/m4-system-steps for T4.5 display presets
-Tree state: builds, 394/394 tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: PR #4 left 3 minor items open (see its last comment). Never end a pipe I/O by disposing the pipe (X-001). Providers read params via `StepParams` (written value, else descriptor default). Plan: PR 1 = T4.1–T4.4, PR 2 = T4.5–T4.9. T4.4 live gate (Connect Technics on Alt+Z) needs the user's headphones: prove with unit tests + dry run, leave the live check to the user.
+Current task: M4 Providers — T4.6 done, opening PR 2 (T4.5–T4.6, branch feat/m4-system-steps); then T4.7 on a new branch
+Last green checkpoint: 5be35c0 "docs(plan): checkpoint after PR #5 merge, T4.6 pipe ops next"
+Next action: open PR 2 from feat/m4-system-steps (base main), `gh pr edit <n> --add-reviewer @copilot`, merge per repo-workflow §6; then branch feat/m4-net-steps from main for T4.7 http + credentials
+Tree state: builds, 428/428 tests green · Uncommitted: none
+Notes for next agent: version is 0.6.0 on this branch (bump once more for PR 3 → 0.7.0). Display tests on the dev PC use `CcdDisplays(validateOnly: true)` (SDC_VALIDATE): never apply a layout live without a revert ready. Set DAZE_DEV_PC=1 to turn on the dev-PC hardware asserts. T4.4 live gate waits on the user (GOALS → Waiting on the user). Bash heredocs with nested quotes fail to parse in this tool; write files with Write or python.
 
 ---
 
@@ -59,8 +59,8 @@ Notes for next agent: PR #4 left 3 minor items open (see its last comment). Neve
 - [x] T4.4 bluetooth (port OSD D-023 + disconnect) (branch feat/m4-basic-steps). **Gate: the user's Connect
   Technics flow works on Alt+Z → user can stop scd.** Unit tests + dry run pass; live check waits on the user
   (GOALS → Waiting on the user).
-- [ ] T4.5 display presets + outputs-only (port scd CCD).
-- [ ] T4.6 Spike + display.layout capture/apply.
+- [x] T4.5 display presets + outputs-only (port scd CCD) (branch feat/m4-system-steps).
+- [x] T4.6 Spike + display.layout capture/apply, `dctl devices` + `dctl capture-display-layout` (branch feat/m4-system-steps).
 - [ ] T4.7 http + credentials.
 - [ ] T4.8 firetv.
 - [ ] T4.9 service.

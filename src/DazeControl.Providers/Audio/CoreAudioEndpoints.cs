@@ -130,8 +130,20 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
         }
     }
 
-    private static AudioEndpoint? Find(IMMDeviceEnumerator* enumerator, string match, AudioFlow flow)
+    private static AudioEndpoint? Find(IMMDeviceEnumerator* enumerator, string match, AudioFlow flow) =>
+        Active(enumerator, flow).FirstOrDefault(e => e.Name.Contains(match, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Read-only, for <c>dctl devices audio</c>: the connected endpoints of one flow and the default's id.</summary>
+    internal static Task<(List<AudioEndpoint> Endpoints, string? DefaultId)> ListAsync(AudioFlow flow, CancellationToken cancellationToken) =>
+        ComThread.RunAsync(() =>
+        {
+            using var enumerator = Enumerator.Create();
+            return (Active(enumerator.Value, flow), Default(flow)?.Id);
+        }, cancellationToken);
+
+    private static List<AudioEndpoint> Active(IMMDeviceEnumerator* enumerator, AudioFlow flow)
     {
+        var found = new List<AudioEndpoint>();
         IMMDeviceCollection* devices;
         enumerator->EnumAudioEndpoints(DataFlow(flow), DEVICE_STATE.DEVICE_STATE_ACTIVE, &devices);
         try
@@ -150,16 +162,14 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
                 }
                 try
                 {
-                    var endpoint = Describe(device);
-                    if (endpoint.Name.Contains(match, StringComparison.OrdinalIgnoreCase))
-                        return endpoint;
+                    found.Add(Describe(device));
                 }
                 finally
                 {
                     device->Release();
                 }
             }
-            return null;
+            return found;
         }
         finally
         {

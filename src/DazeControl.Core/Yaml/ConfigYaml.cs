@@ -54,5 +54,14 @@ public static class ConfigYaml
 
     public static string Save(Configuration config) => Serialize(ConfigMapper.ToDocument(config));
 
+    /// <summary>A <c>library: displays:</c> block holding just this layout, to paste into config.yaml.</summary>
+    public static string Snippet(DisplayLayout layout) => Serialize(new ConfigDocument
+    {
+        Library = new LibraryDocument
+        {
+            Displays = new() { [layout.Key] = new DisplayLayoutDocument { Monitors = [.. layout.Monitors], Ccd = layout.Data } },
+        },
+    });
+
     internal static string Serialize(ConfigDocument document) => Serializer.Serialize(document);
 }

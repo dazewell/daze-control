@@ -20,6 +20,7 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         ["history"] = new(0, 1, "history takes at most one flow.", "--limit"),
         ["autostart"] = new(0, 1, "autostart takes on or off."),
         ["devices"] = new(1, 1, "devices needs one kind: audio, bluetooth, displays or adb."),
+        ["capture-display-layout"] = new(1, 1, "capture-display-layout needs a name for the layout."),
     };
 
     /// <exception cref="CommandLineException">The command, a flag or the words don't fit.</exception>

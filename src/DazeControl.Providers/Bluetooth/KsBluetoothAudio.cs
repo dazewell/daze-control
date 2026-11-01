@@ -46,6 +46,76 @@ public sealed unsafe class KsBluetoothAudio : IBluetoothAudio
             return (endpoints.Count, endpoints.Count(e => e.Active));
         }, cancellationToken);
 
+    /// <summary>
+    /// Read-only, for <c>dctl devices bluetooth</c>: paired Bluetooth audio devices by address, with their endpoint
+    /// names and whether any is connected. Endpoints whose own path has no address join their container's device.
+    /// </summary>
+    internal static Task<List<(string Address, string Name, bool Connected)>> ListAsync(CancellationToken cancellationToken) =>
+        ComThread.RunAsync(() =>
+        {
+            using var enumerator = CoreAudioEndpoints.Enumerator.Create();
+            var all = new List<(string Name, bool Active, Guid? Container, string? Address)>();
+            ForEachEndpoint(enumerator.Value, (device, active) =>
+            {
+                string? address = null;
+                foreach (var key in PathKeys)
+                    address ??= AddressIn(StringProperty(device, key));
+                all.Add((CoreAudioEndpoints.Describe(device).Name, active, ContainerId(device), address));
+            });
+            var byContainer = all.Where(e => e.Address is not null && e.Container is { } c && c != LocalMachine)
+                .GroupBy(e => e.Container).ToDictionary(g => g.Key!.Value, g => g.First().Address!);
+            return all
+                .Select(e => (e.Name, e.Active, Address: e.Address
+                    ?? (e.Container is { } c && byContainer.TryGetValue(c, out var a) ? a : null)))
+                .Where(e => e.Address is not null)
+                .GroupBy(e => e.Address!)
+                .Select(g => (Format(g.Key), DeviceName(g.Select(e => e.Name)), g.Any(e => e.Active)))
+                .OrderBy(d => d.Item2, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+        }, cancellationToken);
+
+    /// <summary>"…&amp;0&amp;B8208EED48FC_C00000000" → "B8208EED48FC": twelve hex digits right before "_C".</summary>
+    internal static string? AddressIn(string? path)
+    {
+        if (path is null || !path.Contains("BTH", StringComparison.OrdinalIgnoreCase))
+            return null;
+        for (var end = path.IndexOf("_C", StringComparison.OrdinalIgnoreCase); end >= 0;
+             end = path.IndexOf("_C", end + 1, StringComparison.OrdinalIgnoreCase))
+        {
+            var start = end - 12;
+            if (start >= 0 && IsHex(path.AsSpan(start, 12))
+                && (start == 0 || !char.IsAsciiHexDigit(path[start - 1])))
+                return path.Substring(start, 12).ToUpperInvariant();
+        }
+        return null;
+    }
+
+    private static bool IsHex(ReadOnlySpan<char> text)
+    {
+        foreach (var c in text)
+        {
+            if (!char.IsAsciiHexDigit(c))
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>"B8208EED48FC" → "B8:20:8E:ED:48:FC", as the library writes it.</summary>
+    internal static string Format(string hex) =>
+        string.Join(':', Enumerable.Range(0, hex.Length / 2).Select(i => hex.Substring(i * 2, 2)));
+
+    /// <summary>"Headphones (Technics EAH-AZ80)" + "Headset (Technics EAH-AZ80 Hands-Free)" → "Technics EAH-AZ80".</summary>
+    internal static string DeviceName(IEnumerable<string> endpointNames)
+    {
+        var inner = endpointNames.Select(n =>
+        {
+            var open = n.IndexOf('(', StringComparison.Ordinal);
+            var close = n.LastIndexOf(')');
+            return open >= 0 && close > open ? n[(open + 1)..close].Trim() : n.Trim();
+        }).Where(n => n.Length > 0).ToList();
+        return inner.Count == 0 ? "" : inner.MinBy(n => n.Length)!;
+    }
+
     private static BluetoothChange Change(BluetoothDevice device, bool connect, CancellationToken cancellationToken)
     {
         var address = Hex(device.Address);
@@ -90,9 +160,11 @@ public sealed unsafe class KsBluetoothAudio : IBluetoothAudio
 
     private readonly record struct Endpoint(string Id, bool Active);
 
-    private static List<Endpoint> Endpoints(IMMDeviceEnumerator* enumerator, string address)
+    private delegate void EndpointAction(IMMDevice* device, bool active);
+
+    /// <summary>Every audio endpoint, connected or not (a disconnected Bluetooth one is unplugged or not present).</summary>
+    private static void ForEachEndpoint(IMMDeviceEnumerator* enumerator, EndpointAction action)
     {
-        var all = new List<(string Id, bool Active, Guid? Container, bool Match)>();
         IMMDeviceCollection* devices;
         enumerator->EnumAudioEndpoints(EDataFlow.eAll,
             DEVICE_STATE.DEVICE_STATE_ACTIVE | DEVICE_STATE.DEVICE_STATE_UNPLUGGED | DEVICE_STATE.DEVICE_STATE_NOTPRESENT, &devices);
@@ -113,10 +185,7 @@ public sealed unsafe class KsBluetoothAudio : IBluetoothAudio
                 try
                 {
                     device->GetState(out var state);
-                    var match = false;
-                    foreach (var key in PathKeys)
-                        match |= StringProperty(device, key)?.Contains(address, StringComparison.OrdinalIgnoreCase) == true;
-                    all.Add((CoreAudioEndpoints.Describe(device).Id, state == DEVICE_STATE.DEVICE_STATE_ACTIVE, ContainerId(device), match));
+                    action(device, state == DEVICE_STATE.DEVICE_STATE_ACTIVE);
                 }
                 finally
                 {
@@ -128,6 +197,18 @@ public sealed unsafe class KsBluetoothAudio : IBluetoothAudio
         {
             devices->Release();
         }
+    }
+
+    private static List<Endpoint> Endpoints(IMMDeviceEnumerator* enumerator, string address)
+    {
+        var all = new List<(string Id, bool Active, Guid? Container, bool Match)>();
+        ForEachEndpoint(enumerator, (device, active) =>
+        {
+            var match = false;
+            foreach (var key in PathKeys)
+                match |= StringProperty(device, key)?.Contains(address, StringComparison.OrdinalIgnoreCase) == true;
+            all.Add((CoreAudioEndpoints.Describe(device).Id, active, ContainerId(device), match));
+        });
         var containers = all.Where(e => e.Match && e.Container is { } c && c != LocalMachine).Select(e => e.Container).ToHashSet();
         return [.. all.Where(e => e.Match || containers.Contains(e.Container)).Select(e => new Endpoint(e.Id, e.Active))];
     }

@@ -4,7 +4,7 @@ namespace DazeControl.Core.Catalog;
 
 /// <summary>
 /// Every step type the engine knows, compiled in (D-006). Providers whose library kinds don't exist yet
-/// (<c>firetv.*</c>, <c>display.layout</c>) are added with them in M4. Glyphs from UX 5.3.
+/// (<c>firetv.*</c>) are added with them in M4. Glyphs from UX 5.3.
 /// </summary>
 public static class ProviderCatalog
 {
@@ -48,6 +48,9 @@ public static class ProviderCatalog
         [
             new("outputs", ParamKind.TextList, "Screens") { Required = true, Help = "Monitor names as Windows shows them." },
         ])
+        { Resources = ["display"] },
+        new("display.layout", "Restore screen layout", Display, Short,
+            [Ref("layout", "Layout", LibraryKind.Display, help: "A layout captured with dctl capture-display-layout.")])
         { Resources = ["display"] },
         new("process.run", "Run program", Process, TimeSpan.FromSeconds(30),
         [

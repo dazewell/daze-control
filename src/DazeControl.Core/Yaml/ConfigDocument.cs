@@ -39,6 +39,8 @@ public sealed class LibraryDocument
     public Dictionary<string, AudioDocument>? Audio { get; set; }
 
     public Dictionary<string, BluetoothDocument>? Bluetooth { get; set; }
+
+    public Dictionary<string, DisplayLayoutDocument>? Displays { get; set; }
 }
 
 [YamlSerializable]
@@ -47,6 +49,14 @@ public sealed class AudioDocument
     public string? Match { get; set; }
 
     public string? Flow { get; set; }
+}
+
+[YamlSerializable]
+public sealed class DisplayLayoutDocument
+{
+    public List<string>? Monitors { get; set; }
+
+    public string? Ccd { get; set; }
 }
 
 [YamlSerializable]

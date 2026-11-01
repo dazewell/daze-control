@@ -49,7 +49,7 @@ settings, honours "Animation effects"); tray tooltip/glyph shows the last run's 
 via the engine; live run view and history timeline; undo/redo; accessible outline view. Spec: §5.
 
 **F8 CLI** — `dctl run <flow> [--wait] [--dry-run]`, `list`, `validate [file]`, `status`,
-`devices audio|bluetooth|displays|adb`, `history [flow]`.
+`devices audio|bluetooth|displays|adb`, `capture-display-layout <name>`, `history [flow]`.
 
 **F9 Ops** — per-user install + in-app updates, start with Windows (HKCU Run), single instance, rolling logs
 (7 days), crash capture, no admin, config backups (last 10).
