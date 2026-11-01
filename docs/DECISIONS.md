@@ -43,7 +43,7 @@ Status: accepted
 - Revisit if: comment preservation becomes important to the user.
 
 ## D-005 · 2026-10-31 · YAML via YamlDotNet static context (AOT)
-Status: accepted (pending T0.5 verification)
+Status: accepted (verified in T0.5: YamlDotNet 18.1.0 + Vecc static generator, zero AOT/trim warnings)
 - Decision: YamlDotNet with its `StaticContext` source generator for DTOs in `Core/Yaml`.
 - Why: mature, widely used; the static context avoids reflection so it works under Native AOT / trimming.
 - Why not VYaml: fallback if YamlDotNet's static path emits AOT/trim warnings or misses features.
@@ -180,3 +180,15 @@ Status: accepted
 - Why: editor autosave writes half-built flows; they must not disable a working predecessor.
 - Why not whole-file last-good: one broken flow would freeze edits to all the others.
 - Revisit if: users find it confusing that an edited flow still runs its old version.
+
+## D-022 · 2026-10-31 · Engine shell: one message window, CsWin32 without marshalling
+Status: accepted
+- Decision: the engine's tray icon and hotkeys share one hidden top-level window on the main STA thread
+  (`Engine/Shell/MessageWindow`); CsWin32 runs with `allowMarshaling: false` (NativeMethods.json), so the
+  WndProc is a static `[UnmanagedCallersOnly]` function pointer and structs are passed by pointer.
+- Why: ARCHITECTURE's single message thread; no marshalling stubs or delegate thunks under AOT. T0.5
+  measured 3.8 MB private / 15.2 MB working set / 0 ms idle CPU with 3 threads.
+- Why not the OSD's thread-per-component windows (OSD TrayIcon, GlobalHotkey): an extra thread and stack each
+  for no gain in a headless engine. Why not marshalling CsWin32: delegate WndProc and marshalled structs are
+  less certain under AOT.
+- Revisit if: a component must block its thread (it then gets its own window/thread, not the shared one).

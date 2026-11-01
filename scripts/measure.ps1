@@ -14,6 +14,8 @@ if (-not $Exe) {
     $Exe = Join-Path $root 'artifacts\engine\DazeControl.exe'
     if (-not $NoPublish) {
         & (Join-Path $PSScriptRoot 'stop.ps1')
+        # ILC finds the MSVC linker through vswhere on PATH (build skill -> Troubleshooting).
+        $env:PATH = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer;$env:PATH"
         dotnet publish (Join-Path $root 'src\DazeControl.Engine') -c Release -r win-x64 -o (Join-Path $root 'artifacts\engine') -nologo
         if ($LASTEXITCODE -ne 0) { throw "publish failed" }
     }
