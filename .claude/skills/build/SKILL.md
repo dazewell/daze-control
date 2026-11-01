@@ -87,3 +87,4 @@ Grow this table when you hit something non-obvious (and record a dead end if a f
 | `MSB3073 … 'vswhere.exe' is not recognized` on publish | ILC's link step needs vswhere on PATH: `$env:PATH += ";C:\Program Files (x86)\Microsoft Visual Studio\Installer"` (2026-11-01). |
 | `MSB3027` / file is locked by `DazeControl` | Running engine; `pwsh scripts/stop.ps1`. |
 | Need a CsWin32 COM/P/Invoke signature (D2D, DWrite, DWM) | Generated code isn't on disk: `dotnet build src/DazeControl.Engine --no-dependencies --no-incremental -p:EmitCompilerGeneratedFiles=true -p:CompilerGeneratedFilesOutputPath=<scratch dir>`, then grep the `.g.cs` (2026-11-01). |
+| Editor starts, no window ever shows, `OnLaunched` never runs (process idles, no top-level windows) | Stale `src/DazeControl.Editor/obj` after XAML/Main changes (seen 2026-11-01 adding `DISABLE_XAML_GENERATED_MAIN`): delete the editor's `obj` and `bin`, rebuild. Check this before bisecting code. |

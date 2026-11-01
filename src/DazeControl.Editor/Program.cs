@@ -6,7 +6,7 @@ namespace DazeControl.Editor;
 
 /// <summary>
 /// Own Main (DISABLE_XAML_GENERATED_MAIN) for single instance: a second start signals the first, which brings its
-/// window to the front, and exits. A named mutex + event, not AppInstance redirection (X-002).
+/// window to the front, and exits. A named mutex + event: simpler than AppInstance redirection, no async wait in Main.
 /// </summary>
 public static partial class Program
 {
