@@ -108,7 +108,10 @@ case-insensitively, written camelCase. Full example: `tests/DazeControl.Core.Tes
 Pipeline (Core): `ConfigYaml.Load` → static-context DTOs (`Yaml/ConfigDocument`, all scalars strings, D-023;
 `ParamValueConverter`/`AfterConverter` for the polymorphic bits) → `ConfigMapper` → `Model` records
 (value equality via `ValueList`/`ValueDictionary`) + `Problem`s with YAML paths and flow ids.
-`ConfigYaml.Save` maps back, omitting defaults.
+`ConfigYaml.Save` maps back, omitting defaults. Then `ConfigValidator.Validate` (refs, cycles, card rules,
+hotkey clashes, `with:` against `Catalog/ProviderCatalog` descriptors) adds more; `FlowsWithErrors` names the
+flows that must not run as written. Problems with no flow id (library, settings) never disable a flow by
+themselves: a step that references a dropped library item fails its own flow instead.
 
 ## IPC
 

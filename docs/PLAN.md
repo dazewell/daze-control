@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T1.3 — validation (branch feat/m1-core-model, draft PR #2 for all of M1)
-Last green checkpoint: ff1c5ce "feat(core): read and write config.yaml through DTOs and a mapper"
-Next action: Core/Validation/ConfigValidator.Validate(Configuration) → Problems: node ids, refs, cycles, card rules, params vs ProviderCatalog, hotkeys; tests first
-Tree state: builds, 132/132 tests green · Uncommitted: none
-Notes for next agent: T1.4 done before T1.3 (validation needs it). firetv.* and display.layout descriptors wait for their library kinds (M4).
+Current task: T1.5 — hand-convert scd.toml (branch feat/m1-core-model, draft PR #2 for all of M1)
+Last green checkpoint: e7beed6 "feat(core): add the provider catalog with typed param specs"
+Next action: write samples/user-config.yaml from %APPDATA%\scd\scd.toml (Technics flow on Alt+Z + technics/sony Bluetooth) and a test that it loads and validates clean
+Tree state: builds, 168/168 tests green · Uncommitted: none
+Notes for next agent: T1.3 done: Core/Validation/ConfigValidator. Engine/Program still only logs mapper problems; ConfigHost (T2.6) wires validation in.
 
 ---
 
@@ -30,9 +30,9 @@ Notes for next agent: T1.4 done before T1.3 (validation needs it). firetv.* and 
 ## M1 Core model + YAML
 - [x] T1.1 Model records + outcomes (PR #2).
 - [x] T1.2 YAML DTOs/mapper, round-trip tests, fixtures incl. the user's flow (PR #2).
-- [~] T1.3 Validation (cycles, refs, card rules, params vs descriptors; problem records with node paths).
+- [x] T1.3 Validation (cycles, refs, card rules, params vs descriptors; problem records with node paths) (PR #2).
 - [x] T1.4 Provider catalog descriptors + `ParamSpec` (PR #2).
-- [ ] T1.5 _(mechanical)_ Hand-convert the user's scd.toml into `samples/user-config.yaml` (Technics flow +
+- [~] T1.5 _(mechanical)_ Hand-convert the user's scd.toml into `samples/user-config.yaml` (Technics flow +
   both Bluetooth devices) — the one-time "import".
 
 ## M2 Runtime (pure, fake providers + `ManualTime`)
