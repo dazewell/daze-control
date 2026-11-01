@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
@@ -21,6 +22,12 @@ public sealed class PipeServer(string pipeName, Func<PipeRequest, CancellationTo
 {
     /// <summary>Lines waiting for one client; a client this far behind is dropped.</summary>
     public const int QueueLimit = 256;
+
+    /// <summary>Longest request line; a client sending a longer one is dropped before it is buffered further.</summary>
+    public const int MaxLineBytes = 64 * 1024;
+
+    /// <summary>Unanswered requests per connection (each <c>run --wait</c> holds one); more are refused.</summary>
+    public const int MaxPendingRequests = 16;
 
     private readonly CancellationTokenSource _accept = new();
     private readonly CancellationTokenSource _stop = new();
@@ -121,18 +128,22 @@ public sealed class PipeServer(string pipeName, Func<PipeRequest, CancellationTo
             // Pending pipe I/O holds the handle open (Dispose can't close it), so reads and writes end by
             // cancellation (CancelIoEx), never by disposing the pipe.
             using var reading = CancellationTokenSource.CreateLinkedTokenSource(_accept.Token, connection.Gone.Token);
-            using var reader = new StreamReader(connection.Pipe, new UTF8Encoding(false), leaveOpen: true);
+            var reader = new LineReader(connection.Pipe);
             while (await reader.ReadLineAsync(reading.Token).ConfigureAwait(false) is { } line)
             {
                 if (line.Length == 0)
                     continue;
                 pending.RemoveAll(t => t.IsCompleted);
-                pending.Add(AnswerAsync(connection, line));
+                pending.Add(AnswerAsync(connection, line, busy: pending.Count >= MaxPendingRequests));
             }
         }
         catch (OperationCanceledException) when (_accept.IsCancellationRequested)
         {
             stopping = true; // keep the client: its pending answers are still written
+        }
+        catch (InvalidDataException e)
+        {
+            onError?.Invoke("pipe: request too long, client dropped", e);
         }
         catch (Exception e) when (e is OperationCanceledException or IOException or ObjectDisposedException)
         {
@@ -152,7 +163,8 @@ public sealed class PipeServer(string pipeName, Func<PipeRequest, CancellationTo
         }
     }
 
-    private async Task AnswerAsync(Connection connection, string line)
+    /// <param name="busy">The connection already has <see cref="MaxPendingRequests"/> unanswered: refuse all but subscribe.</param>
+    private async Task AnswerAsync(Connection connection, string line, bool busy)
     {
         PipeMessage answer;
         PipeRequest? request = null;
@@ -168,6 +180,8 @@ public sealed class PipeServer(string pipeName, Func<PipeRequest, CancellationTo
                 connection.Subscribed = true;
                 answer = new PipeMessage { Id = request.Id, Ok = true };
             }
+            else if (busy)
+                answer = PipeMessage.Fail(request.Id, $"Too many requests at once (more than {MaxPendingRequests}). Wait for some answers.");
             else
                 answer = await handler(request, connection.Gone.Token).ConfigureAwait(false);
         }
@@ -220,6 +234,7 @@ public sealed class PipeServer(string pipeName, Func<PipeRequest, CancellationTo
 
         private int _left;
         private int _dropped;
+        private volatile bool _closed;
 
         public NamedPipeServerStream Pipe { get; } = pipe;
 
@@ -230,22 +245,27 @@ public sealed class PipeServer(string pipeName, Func<PipeRequest, CancellationTo
 
         public Task? Run { get; set; }
 
-        /// <summary>Queues one line; completes once it is written or can't be. A full queue drops the client.</summary>
+        /// <summary>
+        /// Queues one line; completes once it is written or can't be. A line that can't be queued (full queue, or
+        /// the connection is ending) always drops the client, so no answer is lost while its client keeps waiting.
+        /// </summary>
         public Task Enqueue(string line)
         {
             var written = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             if (_queue.Writer.TryWrite((line, written)))
                 return written.Task;
-            if (_queue.Reader.Count >= QueueLimit && Interlocked.Exchange(ref _dropped, 1) == 0)
-            {
+            if (!_closed && Interlocked.Exchange(ref _dropped, 1) == 0)
                 server.Report("pipe: client too slow, dropped", new IOException($"{QueueLimit} lines unread"));
-                Leave(); // cancels its pending read and write; ServeAsync cleans up
-            }
+            Leave(); // cancels its pending read and write; ServeAsync cleans up
             return Task.CompletedTask;
         }
 
         /// <summary>No more lines; the write loop ends once the queue is written.</summary>
-        public void Complete() => _queue.Writer.TryComplete();
+        public void Complete()
+        {
+            _closed = true;
+            _queue.Writer.TryComplete();
+        }
 
         public void Leave()
         {
@@ -283,12 +303,54 @@ public sealed class PipeServer(string pipeName, Func<PipeRequest, CancellationTo
             finally
             {
                 inFlight?.TrySetResult(); // cut off mid-write: its answer waits no longer
-                _queue.Writer.TryComplete();
+                Complete();
                 while (_queue.Reader.TryRead(out var item))
                     item.Written?.TrySetResult();
             }
         }
 
         public void Dispose() => Gone.Dispose();
+    }
+
+    /// <summary>
+    /// Newline-delimited UTF-8 lines of at most <see cref="MaxLineBytes"/>: a longer line throws
+    /// <see cref="InvalidDataException"/> instead of being buffered without bound.
+    /// </summary>
+    private sealed class LineReader(Stream stream)
+    {
+        private readonly byte[] _buffer = new byte[4096];
+        private readonly ArrayBufferWriter<byte> _line = new();
+        private int _start;
+        private int _end;
+
+        /// <summary>Null at the end of the stream (a partial last line is dropped: its client has gone).</summary>
+        public async Task<string?> ReadLineAsync(CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                var newline = Array.IndexOf(_buffer, (byte)'\n', _start, _end - _start);
+                if (newline >= 0)
+                {
+                    Append(_start, newline - _start);
+                    _start = newline + 1;
+                    var line = Encoding.UTF8.GetString(_line.WrittenSpan).TrimEnd('\r');
+                    _line.ResetWrittenCount();
+                    return line;
+                }
+                Append(_start, _end - _start);
+                _start = _end = 0;
+                var read = await stream.ReadAsync(_buffer, cancellationToken).ConfigureAwait(false);
+                if (read == 0)
+                    return null;
+                _end = read;
+            }
+        }
+
+        private void Append(int offset, int count)
+        {
+            if (_line.WrittenCount + count > MaxLineBytes)
+                throw new InvalidDataException($"A request is longer than {MaxLineBytes} bytes.");
+            _line.Write(_buffer.AsSpan(offset, count));
+        }
     }
 }

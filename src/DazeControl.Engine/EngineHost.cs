@@ -15,13 +15,14 @@ using DazeControl.Runtime.Triggers;
 namespace DazeControl.Engine;
 
 /// <summary>Where the engine keeps its files.</summary>
-internal sealed record EnginePaths(string Config, string History, string Logs)
+/// <param name="ConfigArgument">The config given on the command line; null for the default one.</param>
+internal sealed record EnginePaths(string Config, string History, string Logs, string? ConfigArgument = null)
 {
     public static EnginePaths Default(string? config = null)
     {
         var roaming = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppInfo.FolderName);
         var local = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppInfo.FolderName);
-        return new(config ?? Path.Combine(roaming, "config.yaml"), Path.Combine(local, "history.jsonl"), Log.DefaultDirectory);
+        return new(config ?? Path.Combine(roaming, "config.yaml"), Path.Combine(local, "history.jsonl"), Log.DefaultDirectory, config);
     }
 }
 
@@ -77,7 +78,7 @@ internal sealed class EngineHost : IDisposable
         var version = typeof(EngineHost).Assembly.GetName().Version?.ToString(3) ?? "?";
         _controller = new EngineController(() => _config.Current, _launcher, _history,
             EngineController.CreateDryRunner(TimeProvider.System), new Autostart(),
-            new EngineInfo(version, Environment.ProcessId, exe, paths.Config), Log.Info);
+            new EngineInfo(version, Environment.ProcessId, exe, paths.Config, paths.ConfigArgument), Log.Info);
         _pipe = new PipeServer(Protocol.CurrentPipeName(), _controller.HandleAsync, (what, e) => Log.Error(what, e));
         _pipe.Start();
         Apply(_config.Current);

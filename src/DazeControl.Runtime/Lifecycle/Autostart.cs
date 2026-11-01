@@ -38,19 +38,23 @@ public sealed class Autostart
         using var run = Registry.CurrentUser.OpenSubKey(_runKey);
         if (run?.GetValue(ValueName) is not string command)
             return new AutostartStatus(AutostartState.Off, null);
-        var path = command.Trim().Trim('"');
+        var path = ExePathOf(command);
         using var approved = Registry.CurrentUser.OpenSubKey(_approvedKey);
         // Explorer writes 12 bytes; an odd first byte (03, 07) means turned off, even (02, 06) on. No value = on.
         var disabled = approved?.GetValue(ValueName) is byte[] { Length: > 0 } flags && (flags[0] & 1) == 1;
         return new AutostartStatus(disabled ? AutostartState.DisabledByWindows : AutostartState.On, path);
     }
 
-    /// <summary>Points the Run value at <paramref name="exePath"/> and clears a Task Manager "disabled".</summary>
-    public void Enable(string exePath)
+    /// <summary>
+    /// Points the Run value at <paramref name="exePath"/> (with <paramref name="configPath"/> as its argument, when
+    /// the engine runs a non-default config) and clears a Task Manager "disabled".
+    /// </summary>
+    public void Enable(string exePath, string? configPath = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(exePath);
+        var command = configPath is null ? $"\"{exePath}\"" : $"\"{exePath}\" \"{configPath}\"";
         using (var run = Registry.CurrentUser.CreateSubKey(_runKey))
-            run.SetValue(ValueName, $"\"{exePath}\"", RegistryValueKind.String);
+            run.SetValue(ValueName, command, RegistryValueKind.String);
         DeleteValue(_approvedKey);
     }
 
@@ -74,6 +78,19 @@ public sealed class Autostart
             return false;
         Disable();
         return true;
+    }
+
+    /// <summary>The exe of a Run command: the first quoted token, else up to the first space.</summary>
+    internal static string ExePathOf(string command)
+    {
+        command = command.Trim();
+        if (command.StartsWith('"'))
+        {
+            var close = command.IndexOf('"', 1);
+            return close < 0 ? command[1..] : command[1..close];
+        }
+        var space = command.IndexOf(' ');
+        return space < 0 ? command : command[..space];
     }
 
     private static void DeleteValue(string keyPath)

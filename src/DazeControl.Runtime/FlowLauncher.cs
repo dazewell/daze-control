@@ -132,20 +132,24 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
     }
 
     /// <summary>Under the lock.</summary>
-    private Task<RunResult?> Start(Slot slot, Request request, TaskCompletionSource<RunResult?>? completion)
+    /// <param name="after">Completes once the previous run of this flow has published <see cref="RunCompleted"/>, so
+    /// a flow's completions arrive in run order.</param>
+    private Task<RunResult?> Start(Slot slot, Request request, TaskCompletionSource<RunResult?>? completion, Task? after = null)
     {
         var cancel = new CancellationTokenSource();
         slot.Cancel = cancel;
-        var current = RunAsync(slot, request, cancel, completion);
+        var current = RunAsync(slot, request, cancel, completion, after);
         slot.Current = current;
         return current;
     }
 
     private async Task<RunResult?> RunAsync(Slot slot, Request request, CancellationTokenSource cancel,
-        TaskCompletionSource<RunResult?>? completion)
+        TaskCompletionSource<RunResult?>? completion, Task? after)
     {
         var (flow, library, trigger) = request;
         await Task.Yield(); // the trigger (hotkey on the message thread) returns at once
+        if (after is not null)
+            await after.ConfigureAwait(false);
         RunResult? result = null;
         Exception? failure = null;
         try
@@ -160,6 +164,7 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
         {
             failure = e;
         }
+        TaskCompletionSource? published = null;
         lock (_lock)
         {
             // The source is not disposed: restart and CancelAllAsync cancel it outside the lock, possibly after
@@ -171,11 +176,13 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
                 slot.Pending = null;
                 var nextRequest = slot.PendingRequest!;
                 slot.PendingRequest = null;
-                Start(slot, nextRequest, next);
+                published = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                Start(slot, nextRequest, next, published.Task);
             }
         }
         if (result is not null)
             RaiseCompleted(new RunFinished(result.RunId, flow.Id, result.Started + result.Duration, result.Outcome));
+        published?.SetResult();
         if (failure is not null)
         {
             if (completion is null)

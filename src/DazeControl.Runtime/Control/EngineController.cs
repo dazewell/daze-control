@@ -15,7 +15,9 @@ public sealed record ShellStatus(bool ShortcutsPaused, IReadOnlyList<string> Sho
 }
 
 /// <summary>Where the engine's files are and how it was started, for <c>status</c> and <c>autostart</c>.</summary>
-public sealed record EngineInfo(string Version, int ProcessId, string ExePath, string ConfigPath);
+/// <param name="ConfigArgument">The config path the engine was started with, null for the default one; autostart
+/// passes it on so the next sign-in loads the same flows.</param>
+public sealed record EngineInfo(string Version, int ProcessId, string ExePath, string ConfigPath, string? ConfigArgument = null);
 
 /// <summary>
 /// Every trigger and pipe request goes through here (FEATURES F2, F8; ARCHITECTURE → IPC): finds the flow by id or
@@ -117,7 +119,12 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         var result = await run.WaitAsync(cancellationToken).ConfigureAwait(false);
         return result is null
             ? PipeMessage.Fail(id, $"{flow.Name} is already running.")
-            : new PipeMessage { Id = id, Ok = true, Run = Record(result, flow.Id, flow.Name, trigger) };
+            // A queued run may be a later trigger's (its version and trigger): answer with what history recorded.
+            : new PipeMessage
+            {
+                Id = id, Ok = true,
+                Run = history?.Recent.FirstOrDefault(r => r.RunId == result.RunId) ?? Record(result, flow.Id, flow.Name, trigger),
+            };
     }
 
     private static RunRecord Record(RunResult result, string flowId, string name, string trigger) =>
@@ -167,7 +174,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
     private PipeMessage Autostart(PipeRequest request)
     {
         if (request.Enable == true)
-            autostart.Enable(info.ExePath);
+            autostart.Enable(info.ExePath, info.ConfigArgument);
         else if (request.Enable == false)
             autostart.Disable();
         if (request.Enable is { } enable)

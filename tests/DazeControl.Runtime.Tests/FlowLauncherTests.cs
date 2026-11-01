@@ -178,4 +178,28 @@ public sealed class FlowLauncherTests : IDisposable
         Assert.Equal(FlowOutcome.Succeeded, (await _launcher.TriggerAsync(Gated(WhenRunning.Ignore), Library.Empty))!.Outcome);
         Assert.Single(failures);
     }
+
+    [Fact]
+    public async Task AQueuedRunsCompletionNeverOvertakesItsPredecessors()
+    {
+        var order = new List<Guid>();
+        _launcher.RunCompleted += e =>
+        {
+            if (order.Count == 0)
+                Thread.Sleep(200); // a slow listener: the queued run must still wait for it
+            lock (order)
+                order.Add(e.RunId);
+        };
+        var first = _launcher.TriggerAsync(Gated(WhenRunning.Queue), Library.Empty);
+        await _provider.Started("a");
+        var second = _launcher.TriggerAsync(Gated(WhenRunning.Queue), Library.Empty);
+        _gate.SetResult();
+
+        var firstId = (await first)!.RunId;
+        var secondId = (await second)!.RunId;
+
+        for (var i = 0; i < 100 && order.Count < 2; i++)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        Assert.Equal([firstId, secondId], order);
+    }
 }

@@ -29,6 +29,22 @@ public sealed class AutostartTests : IDisposable
         Assert.Equal(new AutostartStatus(AutostartState.On, @"C:\Apps\Daze Control\DazeControl.exe"), Autostart.Read());
     }
 
+    [Fact]
+    public void EnableKeepsAConfigArgumentAndReadStillFindsTheExe()
+    {
+        Autostart.Enable(@"C:\Apps\Daze Control\DazeControl.exe", @"D:\My Flows\config.yaml");
+
+        using var run = Registry.CurrentUser.OpenSubKey(RunKey)!;
+        Assert.Equal("\"C:\\Apps\\Daze Control\\DazeControl.exe\" \"D:\\My Flows\\config.yaml\"", run.GetValue(Autostart.ValueName));
+        Assert.Equal(@"C:\Apps\Daze Control\DazeControl.exe", Autostart.Read().Path);
+    }
+
+    [Theory]
+    [InlineData("\"C:\\a b\\x.exe\" \"c.yaml\"", @"C:\a b\x.exe")]
+    [InlineData(@"C:\x.exe c.yaml", @"C:\x.exe")]
+    [InlineData(@"  C:\x.exe  ", @"C:\x.exe")]
+    public void ExePathOfACommand(string command, string exe) => Assert.Equal(exe, Autostart.ExePathOf(command));
+
     [Theory]
     [InlineData(0x03, AutostartState.DisabledByWindows)]
     [InlineData(0x07, AutostartState.DisabledByWindows)]

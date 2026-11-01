@@ -186,6 +186,50 @@ public sealed class PipeTests : IAsyncDisposable
             return _errors.Contains(what);
     }
 
+    [Fact]
+    public async Task ARequestLineOverTheLimitDropsTheClient()
+    {
+        await using var pipe = new NamedPipeClientStream(".", _name, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await pipe.ConnectAsync(5000, Ct);
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        var chunk = Encoding.UTF8.GetBytes(new string('x', 4096));
+        var sending = Task.Run(async () =>
+        {
+            try
+            {
+                for (var sent = 0; sent <= PipeServer.MaxLineBytes * 2; sent += chunk.Length)
+                    await pipe.WriteAsync(chunk, stop.Token);
+            }
+            catch (Exception e) when (e is IOException or OperationCanceledException)
+            {
+                // Dropped.
+            }
+        }, Ct);
+
+        await WaitUntil(() => HasError("pipe: request too long, client dropped"));
+        await stop.CancelAsync();
+        await sending;
+        await using var other = await Connect();
+        Assert.True((await other.SendAsync(new PipeRequest { Op = "status" }, Ct)).Ok);
+    }
+
+    [Fact]
+    public async Task RequestsBeyondThePendingLimitAreRefused()
+    {
+        await using var pipe = new NamedPipeClientStream(".", _name, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await pipe.ConnectAsync(5000, Ct);
+        var lines = string.Concat(Enumerable.Range(1, PipeServer.MaxPendingRequests + 1)
+            .Select(i => $"{{\"protocol\":1,\"id\":{i},\"op\":\"slow\"}}\n"));
+        await pipe.WriteAsync(Encoding.UTF8.GetBytes(lines), Ct);
+        using var reader = new StreamReader(pipe);
+
+        var answer = System.Text.Json.JsonSerializer.Deserialize(await reader.ReadLineAsync(Ct) ?? "", IpcJson.Default.PipeMessage)!;
+
+        Assert.False(answer.Ok);
+        Assert.Equal(PipeServer.MaxPendingRequests + 1, answer.Id);
+        Assert.Contains("Too many requests", answer.Error, StringComparison.Ordinal);
+    }
+
     private static async Task WaitUntil(Func<bool> condition)
     {
         for (var i = 0; i < 500 && !condition(); i++)

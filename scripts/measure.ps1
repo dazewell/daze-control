@@ -8,7 +8,8 @@ param(
     [int]$IdleSeconds = 60,
     # After the idle window: run this flow -Runs times through dctl, settle again and sample the "after a run" numbers.
     [string]$RunFlow,
-    [ValidateRange(1, [int]::MaxValue)]
+    # 1..100: RunHistory keeps the last 100 runs, and the runs are checked against it.
+    [ValidateRange(1, 100)]
     [int]$Runs = 5
 )
 $ErrorActionPreference = 'Stop'

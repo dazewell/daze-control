@@ -160,7 +160,9 @@ one FlowRunner + ResourceLocks + FlowLauncher · `Runtime/Control/EngineControll
 hotkeys. Exit (tray or WM_CLOSE): unregister hotkeys, pipe stops accepting (no new clients or requests), cancel
 all runs, drain the pipe (waiting `run --wait` clients get their answers), close it; ≤ 5 s grace in all.
 `FlowLauncher.RunCompleted` (after history + slot) is what publishes `runFinished` (pipe, tray, log), not the
-runner's RunFinished, so a client reacting to it sees the run in history and the flow free.
+runner's RunFinished, so a client reacting to it sees the run in history and the flow free (or running its queued
+run, which starts only after that event, so a flow's completions arrive in order). Autostart keeps a config path
+given on the command line as the Run value's argument.
 - `Runtime/Triggers/HotkeyTable`: chord → flow from `RunnableFlows`, applied as a diff on each reload (unchanged
   chords stay registered), first flow wins a chord, a chord that fails (another app) fails alone and is retried
   on the next reload; Pause unregisters all (not persisted). Failures → `status` ("Alt+Z: Another app uses…").
@@ -177,8 +179,10 @@ runner's RunFinished, so a client reacting to it sees the run in history and the
 requests on one connection run concurrently, answers carry the request id; after `subscribe` the connection also
 gets events (`PipeMessage.Event`, id 0: runStarted, nodeStarted, nodeFinished, runFinished, configReloaded). A
 client that goes away cancels its waiting requests. Writes go through a bounded queue per connection
-(`QueueLimit` 256 lines) drained by one write loop; a full queue drops that client (logged). Pending pipe I/O
-ends only by cancellation (X-001). `Ipc/PipeClient`: one request at a time; events read while waiting for an
+(`QueueLimit` 256 lines) drained by one write loop; a line that can't be queued drops that client (logged).
+Requests are read by a bounded line reader (`MaxLineBytes` 64 KB, longer → client dropped); more than
+`MaxPendingRequests` (16) unanswered on one connection are refused. Pending pipe I/O ends only by cancellation
+(X-001). `Ipc/PipeClient`: one request at a time; events read while waiting for an
 answer go to `EventReceived`, or (no handler) a queue `ReadAsync` returns first.
 `cancel` and `status` use `FlowLauncher.RunningFlowIds` (a run outlives its flow's removal from the config);
 `history <text>` matches a recorded flow id, then the config's id/name, then a recorded name.
