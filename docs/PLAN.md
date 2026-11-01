@@ -1,9 +1,9 @@
 # Plan
 
 ## Resume
-Current task: M7 Canvas — T7.1 (M6 done: branch feat/m6-editor)
-Last green checkpoint: b0da0ee "wip(editor): window shows after a clean build; record the stale-obj trap"
-Next action: sync main, branch feat/m7-canvas and start T7.1: FlowCanvas control rendering nodes/cards/edges from a canvas VM in Editor.ViewModels, pan/zoom/fit; selecting a flow card opens the flow editor page (BreadcrumbBar "Flows › name")
+Current task: M6 merge — PR #9 (feat/m6-editor), Copilot review 1 requested; then M7 T7.1
+Last green checkpoint: f94cf0c "docs: record the editor foundation and bump to 0.9.0"
+Next action: PR #9 — wait for CI and the Copilot review, handle them per repo-workflow §6, squash-merge; then sync main, branch feat/m7-canvas and start T7.1: FlowCanvas control rendering nodes/cards/edges from a canvas VM in Editor.ViewModels, pan/zoom/fit; selecting a flow card opens the flow editor page (BreadcrumbBar "Flows › name")
 Tree state: builds, VM tests 21/21 green · Uncommitted: none
 Notes for next agent: version is 0.9.0. Editor shows no window → delete src/DazeControl.Editor/obj and bin first (build skill). No config.yaml on this PC yet; don't create one in the user's profile. New flow adds an empty flow; the templates (Blank / TV only / Audio → Headphones) are still to do, with the flow editor. Screenshots: GetWindowRect + CopyFromScreen from Windows PowerShell (outside the sandbox); light mode by flipping HKCU…Personalize AppsUseLightTheme and restoring it.
 
