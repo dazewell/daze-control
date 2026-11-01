@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M3 review — PR #4 (branch feat/m3-engine-shell), review 1 fixed and threads resolved, Copilot review 2 (the last) requested 17:51Z
-Last green checkpoint: c6e00d0 "fix(m3): address PR #4 review 1"
-Next action: when CI and review 2 are in, follow repo-workflow §6: no Critical → fix cheap ones or reply, resolve, `gh pr merge 4 --squash --delete-branch`; Critical → fix, `code-review` skill at high effort on the PR diff, note it in the PR, merge. Never a third Copilot review. After merge: sync main, Resume block → M4 T4.1
-Tree state: builds, 357/357 tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: never end a pipe I/O by disposing the pipe (X-001).
+Current task: M4 Providers — T4.1 wait, notify, flag (not started; M3 merged as PR #4)
+Last green checkpoint: b64cb42 "fix(m3): self-review of the review fixes" (squash-merged into main as PR #4)
+Next action: branch `feat/m4-basic-steps` from main, read FEATURES/ARCHITECTURE for the wait, notify and flag steps (Core/Catalog descriptors exist), implement the `wait` provider in DazeControl.Providers with a test first, then notify and flag; verify each with `dctl run <flow> --wait`
+Tree state: builds, 364/364 tests green, AOT publish clean · Uncommitted: none
+Notes for next agent: PR #4 left 3 minor items open (see its last comment): a subscriber that isn't reading can use up the exit drain grace, PipeClient's event queue is unbounded, `dctl autostart` hides the config argument. Never end a pipe I/O by disposing the pipe (X-001).
 
 ---
 
@@ -43,7 +43,7 @@ Notes for next agent: never end a pipe I/O by disposing the pipe (X-001).
 - [x] T2.5 Run events + history (last 100) + `history.jsonl` (feat/m2-runtime).
 - [x] T2.6 ConfigHost: load, debounced reload, last valid version per flow (D-021), never-valid flows disabled (feat/m2-runtime).
 
-## M3 Engine shell ✔ (2026-11-01)
+## M3 Engine shell ✔ (2026-11-01, PR #4)
 - [x] T3.1 Composition root, single instance mutex, Log, global exception handlers (feat/m3-engine-shell).
 - [x] T3.2 TrayIcon from flows (folders, separators, running mark, Pause hotkeys, Open editor, Exit) (feat/m3-engine-shell).
 - [x] T3.3 GlobalHotkey from flows (per-chord failure non-fatal) (feat/m3-engine-shell).
