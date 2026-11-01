@@ -55,12 +55,31 @@ T10.1; until then the version only labels builds.)
 - [ ] Knowledge recorded (decisions / dead ends / architecture / open questions closed).
 - [ ] `docs/PLAN.md` task ticked, Resume block points at the next task; GOALS status current.
 - [ ] If any instruction in `CLAUDE.md` or a skill turned out wrong or stale, fix it in this same change.
-- [ ] Pushed and a PR opened with `gh pr create` (when a remote exists); the user merges. Commit to
-      `main` directly only if the user says so.
+- [ ] Pushed and a PR opened with `gh pr create` (when a remote exists); merged per the merge policy
+      below. Commit to `main` directly only if the user says so.
 
 PR description: what changed, why (link D-xxx), how it was verified, what's left.
 
-Stacked PRs: the user squash-merges, so once a base PR lands, the next branch conflicts with `main`
+## 6. Merge policy (user, 2026-11-01: agents merge while the app is being scaffolded)
+
+Agents merge their own PRs so work isn't blocked while the user sleeps. Per PR:
+1. CI green, then wait for the Copilot review (it runs on its own when the PR leaves draft; if none comes
+   within ~15 min, request one with
+   `gh api -X POST repos/dazewell/daze-control/pulls/<n>/requested_reviewers -f "reviewers[]=copilot-pull-request-reviewer[bot]"`).
+2. Read the overview (🟢 / 🟡 / 🔴) and every comment. **Critical** = the review calls it critical or 🔴, or it
+   is a correctness, data-loss, security or fail-soft violation (your judgement counts too).
+3. No Critical → fix cheap findings or reply why not, resolve the threads, squash-merge
+   (`gh pr merge <n> --squash --delete-branch`), sync `main`, start the next task.
+4. Critical → fix all findings, reply on each thread, push, request a **second** Copilot review (step 1's
+   command). **Budget: 2 Copilot reviews per PR, never a third** (each costs the user).
+5. Critical still open after the second review → fix them yourself, then review your own fixes (`code-review`
+   skill at high effort on the PR diff) until you find nothing critical; note in the PR what the second
+   review raised and how you verified the fixes; then merge.
+6. Never merge with CI red, with a finding you think is critical but couldn't fix, or a PR that needs the
+   user's decision (scope, UX, a decision that contradicts a D-xxx): stop, write it in the Resume block
+   notes and the PR, and leave it for the user.
+
+Stacked PRs: PRs are squash-merged, so once a base PR lands, the next branch conflicts with `main`
 even though nothing new is in it. If `git diff <base PR's last head> origin/main` is empty and the
 branch contains that head, merge `origin/main` and resolve every conflict to the branch's side
 (`git checkout --ours`). Then check that `git write-tree` matches the pre-merge tree. Never rebase or

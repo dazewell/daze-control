@@ -1,0 +1,99 @@
+using DazeControl.Core.Model;
+
+namespace DazeControl.Core.Catalog;
+
+/// <summary>
+/// Every step type the engine knows, compiled in (D-006). Providers whose library kinds don't exist yet
+/// (<c>firetv.*</c>, <c>display.layout</c>) are added with them in M4. Glyphs from UX 5.3.
+/// </summary>
+public static class ProviderCatalog
+{
+    private const string Audio = "E767", Bluetooth = "E702", Display = "E7F4", Process = "E756", Script = "E943",
+        Http = "E774", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1";
+
+    private static readonly TimeSpan Short = TimeSpan.FromSeconds(10);
+
+    public static ValueList<ProviderDescriptor> All { get; } =
+    [
+        new("audio.setDefault", "Set default device", Audio, Short,
+        [
+            Ref("device", "Device", LibraryKind.Audio),
+            new("roles", ParamKind.Choice, "Use for") { Choices = ["all", "console", "communications"], Default = "all" },
+        ])
+        { Resources = ["audio"] },
+        new("audio.setVolume", "Set volume", Audio, Short,
+        [
+            Ref("device", "Device", LibraryKind.Audio, required: false, help: "Empty = the current default device."),
+            new("percent", ParamKind.WholeNumber, "Volume (%)") { Required = true, Min = 0, Max = 100 },
+        ])
+        { Resources = ["audio"] },
+        new("audio.mute", "Mute", Audio, Short,
+        [
+            Ref("device", "Device", LibraryKind.Audio, required: false, help: "Empty = the current default device."),
+            new("muted", ParamKind.Boolean, "Muted") { Default = "true" },
+        ])
+        { Resources = ["audio"] },
+        new("bluetooth.connect", "Connect", Bluetooth, TimeSpan.FromSeconds(20),
+            [Ref("device", "Device", LibraryKind.Bluetooth)])
+        { Resources = ["bluetooth:{device}"] },
+        new("bluetooth.disconnect", "Disconnect", Bluetooth, TimeSpan.FromSeconds(20),
+            [Ref("device", "Device", LibraryKind.Bluetooth)])
+        { Resources = ["bluetooth:{device}"] },
+        new("display.topology", "Project", Display, Short,
+        [
+            new("mode", ParamKind.Choice, "Mode") { Required = true, Choices = ["internal", "clone", "extend", "external"] },
+        ])
+        { Resources = ["display"] },
+        new("display.outputs", "Use only these screens", Display, Short,
+        [
+            new("outputs", ParamKind.TextList, "Screens") { Required = true, Help = "Monitor names as Windows shows them." },
+        ])
+        { Resources = ["display"] },
+        new("process.run", "Run program", Process, TimeSpan.FromSeconds(30),
+        [
+            new("path", ParamKind.FilePath, "Program") { Required = true },
+            new("args", ParamKind.TextList, "Arguments"),
+            new("cwd", ParamKind.FilePath, "Start in"),
+            new("wait", ParamKind.Boolean, "Wait until it exits") { Default = "true" },
+            new("exitCodes", ParamKind.TextList, "Exit codes that mean success") { Default = "0" },
+        ]),
+        new("script.powershell", "Run PowerShell", Script, TimeSpan.FromSeconds(60),
+            [new("script", ParamKind.MultilineText, "Script") { Required = true }]),
+        new("http.request", "Web request", Http, Short,
+        [
+            new("url", ParamKind.Text, "Address") { Required = true },
+            new("method", ParamKind.Choice, "Method") { Choices = ["GET", "POST", "PUT", "PATCH", "DELETE"], Default = "GET" },
+            new("headers", ParamKind.TextMap, "Headers"),
+            new("body", ParamKind.MultilineText, "Body"),
+            new("credential", ParamKind.Text, "Sign in with")
+            {
+                Help = "Name of a saved credential; the secret stays in Windows Credential Manager.",
+            },
+        ]),
+        new("service.start", "Start service", Service, TimeSpan.FromSeconds(30),
+            [new("name", ParamKind.Text, "Service name") { Required = true }])
+        { Resources = ["service:{name}"] },
+        new("service.stop", "Stop service", Service, TimeSpan.FromSeconds(30),
+            [new("name", ParamKind.Text, "Service name") { Required = true }])
+        { Resources = ["service:{name}"] },
+        new("wait", "Wait", Wait, TimeSpan.FromHours(1),
+            [new("duration", ParamKind.Duration, "How long") { Required = true }]),
+        new("notify", "Show a message", Message, Short,
+            [new("text", ParamKind.Text, "Message") { Required = true }]),
+        new("flag.set", "Set a flag", Flag, Short,
+        [
+            new("name", ParamKind.Text, "Flag") { Required = true },
+            new("value", ParamKind.Boolean, "On") { Default = "true" },
+        ]),
+        new("flag.check", "Check a flag", Flag, Short,
+        [
+            new("name", ParamKind.Text, "Flag") { Required = true },
+            new("value", ParamKind.Boolean, "Is on") { Default = "true", Help = "Fails when the flag differs; follow it with an \"if it fails\" branch." },
+        ]),
+    ];
+
+    public static ProviderDescriptor? Find(string id) => All.FirstOrDefault(d => d.Id == id);
+
+    private static ParamSpec Ref(string name, string title, LibraryKind kind, bool required = true, string? help = null) =>
+        new(name, ParamKind.LibraryRef, title) { Library = kind, Required = required, Help = help };
+}

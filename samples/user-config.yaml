@@ -1,0 +1,18 @@
+# The user's scd setup (%APPDATA%\scd\scd.toml), converted by hand once (D-004, T1.5).
+# Not carried over: scd's monitors, firetv and sunshine sections were empty or unused by any action,
+# and its daemon log settings have no equivalent (the engine logs to %LOCALAPPDATA%\DazeControl\logs).
+# Install: copy to %APPDATA%\DazeControl\config.yaml.
+version: 1
+library:
+  audio:
+    technics: { match: "Technics EAH-AZ80" }
+  bluetooth:
+    technics: { address: "B8:20:8E:ED:48:FC", name: "Technics EAH-AZ80" }
+    sony: { address: "80:99:E7:2A:AB:A1" }
+flows:
+  connect-technics:
+    name: Connect Technics
+    hotkeys: [Alt+Z]
+    nodes:
+      - { id: bt, step: bluetooth.connect, with: { device: technics } }
+      - { id: out, step: audio.setDefault, with: { device: technics }, after: [bt] }

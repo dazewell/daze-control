@@ -1,29 +1,19 @@
 # Plan
 
 ## Resume
-Current task: T1.1 — model records + outcomes (branch feat/m1-model, stack on PR #1 until it merges)
-Last green checkpoint: d7f8006 "wip(engine): AOT spike with tray icon, hotkey and YAML static context"
-Next action: Core/Model records (Flow, StepNode, GroupNode, Edge, EdgeWhen, FailurePolicy, RetryPolicy) + Runs/ outcomes, tests first
-Tree state: builds, 37/37 tests green · Uncommitted: none
-Notes for next agent: M0 done; PR #1 (T0.5) waits for the user's merge. Idle footprint 3.9 MB private /
-15.5 MB WS / 0 ms CPU over 10 min (ARCHITECTURE → Footprint). AOT publish needs vswhere on PATH (build skill).
-Core/Yaml/ConfigDocument is the spike's partial schema; T1.2 replaces it.
+Current task: T2.1 — scheduler (new branch feat/m2-runtime from main once PR #2 merges)
+Last green checkpoint: da2296a "fix(core): never let config loading throw"
+Next action: Runtime/Scheduler tests first: ready set, all-inputs join, edge when, skip propagation, cards, and D-024 (an outgoing failure edge handles the failure: no stop/skip, fallback runs, success dependents skipped, flow PartiallySucceeded)
+Tree state: builds, 182/182 tests green, CI green on da2296a · Uncommitted: none
+Notes for next agent: BLOCKED: PR #2 passed both Copilot reviews + self-review + CI, but the agent's squash-merge was refused by the Claude Code auto-mode permission classifier ("Merge Without Review"). The user merges it or adds a permission rule for gh pr merge; don't work around it. Then start T2.1 from main. In the first M2 commit, add to repo-workflow SKILL.md section 6: never end a turn just to wait for CI or a Copilot review; run `gh pr checks <n> --watch` (or a polling loop for the review) in the background and act when it exits, since nothing wakes an ended turn overnight.
 
 ---
 
 ## Workflow (usage-cap-proof, D-018)
 
 - This file = the task list with status `[ ]` / `[~]` / `[x]`, branch and PR per task. Its top is the
-  **Resume block**, rewritten in every checkpoint commit. Format:
-  ```
-  ## Resume
-Current task: T1.1 — model records + outcomes (branch feat/m1-model, stack on PR #1 until it merges)
-Last green checkpoint: d7f8006 "wip(engine): AOT spike with tray icon, hotkey and YAML static context"
-Next action: Core/Model records (Flow, StepNode, GroupNode, Edge, EdgeWhen, FailurePolicy, RetryPolicy) + Runs/ outcomes, tests first
-Tree state: builds, 37/37 tests green · Uncommitted: none
-Notes for next agent: M0 done; PR #1 (T0.5) waits for the user's merge. Idle footprint 3.9 MB private /
-15.5 MB WS / 0 ms CPU over 10 min (ARCHITECTURE → Footprint). AOT publish needs vswhere on PATH (build skill).
-Core/Yaml/ConfigDocument is the spike's partial schema; T1.2 replaces it.
+  **Resume block**, rewritten in every checkpoint commit; its format is in the `resume` skill (not copied
+  here, so a search-and-replace of the block can't clobber it).
 
 ---
 
@@ -37,13 +27,13 @@ Core/Yaml/ConfigDocument is the spike's partial schema; T1.2 replaces it.
 - [x] T0.5 Spike (gate): AOT engine with tray icon + one hotkey + YamlDotNet static context load; no trim/AOT
   warnings; `scripts/measure.ps1` → idle numbers in ARCHITECTURE. Over budget → decide with the user.
 
-## M1 Core model + YAML
-- [ ] T1.1 Model records + outcomes.
-- [ ] T1.2 YAML DTOs/mapper, round-trip tests, fixtures incl. the user's flow.
-- [ ] T1.3 Validation (cycles, refs, card rules, params vs descriptors; problem records with node paths).
-- [ ] T1.4 Provider catalog descriptors + `ParamSpec`.
-- [ ] T1.5 _(mechanical)_ Hand-convert the user's scd.toml into `samples/user-config.yaml` (Technics flow +
-  both Bluetooth devices) — the one-time "import".
+## M1 Core model + YAML ✔ (2026-10-31, PR #2)
+- [x] T1.1 Model records + outcomes (PR #2).
+- [x] T1.2 YAML DTOs/mapper, round-trip tests, fixtures incl. the user's flow (PR #2).
+- [x] T1.3 Validation (cycles, refs, card rules, params vs descriptors; problem records with node paths) (PR #2).
+- [x] T1.4 Provider catalog descriptors + `ParamSpec` (PR #2).
+- [x] T1.5 _(mechanical)_ Hand-convert the user's scd.toml into `samples/user-config.yaml` (Technics flow +
+  both Bluetooth devices) — the one-time "import" (PR #2).
 
 ## M2 Runtime (pure, fake providers + `ManualTime`)
 - [ ] T2.1 Scheduler: ready set, all-inputs join, edge `when`, skip propagation, cards.

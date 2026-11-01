@@ -35,6 +35,27 @@ Stop at the next green point. Commit. Write the Resume block with the **exact** 
 file, method) and any half-formed reasoning the next agent would otherwise have to rediscover. Push.
 Better a small clean stop than a big dirty one.
 
+## Usage guard (5-hour limit, user 2026-11-01)
+
+The user wants work to pause at **97 %** of the 5-hour limit and continue by itself after the reset.
+
+- Read the limit with `mcp__ccd_session_mgmt__get_usage` (load it with ToolSearch if deferred): the
+  `plan.windows` entry labelled "5-hour limit" has `percentUsed` and `resetsAt` (UTC).
+- Check it at session start, after every checkpoint commit, and before starting any sub-step. At ≥ 90 %
+  keep sub-steps small (one test + its code) so the next check comes soon.
+- At **≥ 97 %**: do the "Near the cap" stop below (commit, Resume block, push). Then create **one**
+  scheduled task with `mcp__scheduled-tasks__create_scheduled_task`:
+  - `taskId` `daze-control-resume` (if taken, list scheduled tasks: an enabled one already pending → don't
+    add another; a finished one → use the free id the error names)
+  - `fireAt` = `resetsAt` + 5 minutes, as ISO 8601 with offset (e.g. `2026-11-01T09:05:00Z`)
+  - `prompt`: "Continue Daze Control work. Work in `C:\Projects\scd-rewamp` (cd there first). Use the
+    `resume` skill, then `repo-workflow`, and carry on from the Resume block in `docs/PLAN.md` with its
+    checkpoint rule and this usage guard. Use Opus at medium effort. Open and merge PRs per the merge policy in
+    `repo-workflow` (Copilot review budget: 2 per PR)."
+  Then say in one line that work is paused and when it continues, and end the turn. Start no new work.
+- `get_usage` reports `unavailable` / `not_applicable` → keep the normal checkpoint rhythm and don't
+  schedule anything.
+
 ## Resume block format
 
 ```
