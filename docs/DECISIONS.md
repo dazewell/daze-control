@@ -283,3 +283,15 @@ Status: accepted
 - Why not match by friendly name: ambiguous and renamed by Windows. Why not Windows.Devices.Bluetooth / CfgMgr to
   map address → container: more interop for the same answer; no profile connect API there anyway (OSD D-023).
 - Revisit if: a driver puts the address in neither property (then map the address to a container via CfgMgr).
+
+## D-031 · 2026-11-01 · Credentials are generic Credential Manager entries named `DazeControl:<name>`
+Status: accepted
+- Decision: `http.request`'s `credential: sunshine` reads the generic credential `DazeControl:sunshine`
+  (`CredRead`); with a user name it becomes Basic auth, without one the secret is a Bearer token. Users save it
+  with `cmdkey /generic:DazeControl:sunshine /user:admin /pass` (the editor writes it later). Errors name the
+  host and status only, never the secret. TLS is checked as usual; no "trust any certificate" switch.
+- Why: the prefix keeps a flow from reaching the PC's other saved passwords; cmdkey needs no admin and no UI.
+- Why not raw target names: any config could send any saved credential to any URL. Why not a skip-TLS
+  option now: nothing in the user's config needs it yet (scd's sunshine section was unused).
+- Revisit if: a self-signed local API (Sunshine on :47990) must be called — then pin its certificate, not skip checks.
+

@@ -2,6 +2,7 @@ using DazeControl.Providers.Audio;
 using DazeControl.Providers.Basic;
 using DazeControl.Providers.Bluetooth;
 using DazeControl.Providers.Display;
+using DazeControl.Providers.Http;
 using DazeControl.Providers.Process;
 using DazeControl.Runtime.Control;
 using DazeControl.Runtime.Providers;
@@ -28,6 +29,7 @@ public static class BuiltInProviders
             new FlagCheckProvider(flags),
             new ProcessRunProvider(),
             new PowerShellProvider(),
+            new HttpRequestProvider(new WindowsCredentials()),
             new AudioSetDefaultProvider(audio),
             new AudioSetVolumeProvider(audio),
             new AudioMuteProvider(audio),
