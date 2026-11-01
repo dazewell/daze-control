@@ -147,5 +147,6 @@ T0.5 gate passed: no AOT/trim warnings; hotkey press and tray icon checked on th
 
 - A value of the wrong *shape* (a list where a scalar belongs, e.g. `timeout: [5s]`, `hotkeys: Alt+Z`) still
   rejects the whole file; only `with:` and `after:` are shape-tolerant so far (D-023 covers bad scalar values).
+  YAML aliases (`*anchor`) inside `with:` also reject it. `ConfigYaml.Load` never throws either way.
 - Unknown YAML keys (typos like `afer:`) are ignored silently (`IgnoreUnmatchedProperties`); reporting them
   as warnings needs a pass over the representation model or a YamlDotNet hook.

@@ -40,6 +40,12 @@ public static class ConfigYaml
             var message = (e.InnerException ?? e).Message;
             return new ConfigLoad(null, [new Problem(Severity.Error, "", $"Line {e.Start.Line}, column {e.Start.Column}: {message}")]);
         }
+#pragma warning disable CA1031 // fail-soft: whatever the deserializer throws, the file is unusable but the engine lives
+        catch (Exception e)
+#pragma warning restore CA1031
+        {
+            return new ConfigLoad(null, [new Problem(Severity.Error, "", $"Can't read the file: {e.Message}")]);
+        }
         var problems = new List<Problem>();
         var config = ConfigMapper.ToModel(document, problems);
         var unusable = problems.Exists(p => p.Path == "version");
@@ -47,9 +53,6 @@ public static class ConfigYaml
     }
 
     public static string Save(Configuration config) => Serialize(ConfigMapper.ToDocument(config));
-
-    internal static ConfigDocument ParseDocument(string yaml) =>
-        Deserializer.Deserialize<ConfigDocument?>(yaml) ?? new ConfigDocument();
 
     internal static string Serialize(ConfigDocument document) => Serializer.Serialize(document);
 }

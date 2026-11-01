@@ -2,9 +2,9 @@
 
 ## Resume
 Current task: T2.1 — scheduler (new branch feat/m2-runtime from main once PR #2 merges; else stack on feat/m1-core-model)
-Last green checkpoint: 6a693ae "docs: record that a failure edge handles the failure"
+Last green checkpoint: 68c6b83 "fix(core): keep after-shape errors and hotkey clashes flow-local"
 Next action: Runtime/Scheduler tests first: ready set, all-inputs join, edge when, skip propagation, cards, and D-024 (an outgoing failure edge handles the failure: no stop/skip, fallback runs, success dependents skipped, flow PartiallySucceeded)
-Tree state: builds, 180/180 tests green · Uncommitted: none
+Tree state: builds, 182/182 tests green · Uncommitted: none
 Notes for next agent: M1 done in PR #2 (review comments addressed; waits for the user's merge). Model: Core/Model; YAML: Core/Yaml (D-023); validation: Core/Validation; catalog: Core/Catalog. Version 0.2.0.
 
 ---

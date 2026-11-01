@@ -260,4 +260,14 @@ public class ConfigYamlTests
         Assert.Empty(load.Config!.Flows[0].Nodes[0].After);
         Assert.Equal(2, load.Config.Flows.Count);
     }
+
+    [Theory]
+    [InlineData("flows: { a: { nodes: [] }, a: { nodes: [] } }")]
+    [InlineData("x: &n { id: a, step: wait }\nflows: { f: { nodes: [{ id: a, step: wait, with: *n }] } }")]
+    public void LoadNeverThrows(string yaml)
+    {
+        var load = ConfigYaml.Load(yaml);
+
+        Assert.True(load.Config is not null || load.Problems.Count > 0);
+    }
 }
