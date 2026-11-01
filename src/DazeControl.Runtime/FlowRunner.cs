@@ -211,8 +211,8 @@ public sealed class FlowRunner
     }
 
     /// <summary>
-    /// The descriptor's lock names with "{param}" replaced by that param's value ("audio"). A Bluetooth reference
-    /// becomes the device's address, so two library keys for one device share its lock ("bluetooth:B8:20:…").
+    /// The descriptor's lock names with "{param}" replaced by that param's value ("audio"). A Bluetooth or Fire TV
+    /// reference becomes the device's address, so two library keys for one device share its lock ("bluetooth:B8:20:…").
     /// </summary>
     internal static IEnumerable<string> ResourcesOf(ProviderDescriptor descriptor, StepNode node, Library library) =>
         descriptor.Resources.Select(resource => node.With.Aggregate(resource, (name, param) =>
@@ -220,11 +220,14 @@ public sealed class FlowRunner
                 ? name.Replace("{" + param.Key + "}", Identity(descriptor.FindParam(param.Key), scalar.Text, library), StringComparison.Ordinal)
                 : name));
 
-    private static string Identity(ParamSpec? spec, string text, Library library) =>
-        spec is { Kind: ParamKind.LibraryRef, Library: LibraryKind.Bluetooth }
-            && library.Bluetooth.FirstOrDefault(d => d.Key == text) is { } device
-            ? device.Address.ToUpperInvariant()
-            : text;
+    private static string Identity(ParamSpec? spec, string text, Library library) => spec switch
+    {
+        { Kind: ParamKind.LibraryRef, Library: LibraryKind.Bluetooth }
+            when library.Bluetooth.FirstOrDefault(d => d.Key == text) is { } device => device.Address.ToUpperInvariant(),
+        { Kind: ParamKind.LibraryRef, Library: LibraryKind.FireTv }
+            when library.FireTv.FirstOrDefault(d => d.Key == text) is { } tv => tv.Address.ToUpperInvariant(),
+        _ => text,
+    };
 
     // A provider abandoned on timeout may still fault later; observe it so it never surfaces as unobserved.
     private static void Observe(Task task) =>

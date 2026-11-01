@@ -46,6 +46,12 @@ public static class ConfigMapper
                 Monitors = [.. d.Monitors],
                 Ccd = d.Data,
             })),
+            Firetv = NullIfEmpty(config.Library.FireTv.ToDictionary(d => d.Key, d => new FireTvDocument
+            {
+                Address = d.Address,
+                Adb = d.Adb,
+                Inputs = NullIfEmpty(d.Inputs.ToDictionary(i => i.Key, i => i.Value.ToList())),
+            })),
         },
         Flows = NullIfEmpty(config.Flows.ToDictionary(f => f.Id, ToDocument)),
     };
@@ -169,7 +175,33 @@ public static class ConfigMapper
                 else
                     displays.Add(new DisplayLayout(key, new(item.Monitors), item.Ccd));
             }
-            return new Library { Audio = new(audio), Bluetooth = new(bluetooth), Displays = new(displays) };
+            var fireTv = new List<FireTvDevice>();
+            foreach (var (key, item) in document?.Firetv ?? [])
+            {
+                var path = $"library.firetv.{key}";
+                if (string.IsNullOrWhiteSpace(item?.Address))
+                {
+                    Error(path + ".address", "Fire TV address missing (like 192.168.1.50).");
+                    continue;
+                }
+                var inputs = new List<KeyValuePair<string, ValueList<string>>>();
+                var ok = true;
+                foreach (var (input, moves) in item.Inputs ?? [])
+                {
+                    if ((moves ?? []).FirstOrDefault(m => m is not ("up" or "down")) is { } bad)
+                    {
+                        Error($"{path}.inputs.{input}", $"\"{bad}\" isn't a move: use up or down.");
+                        ok = false;
+                    }
+                    else
+                    {
+                        inputs.Add(KeyValuePair.Create(input, new ValueList<string>(moves ?? [])));
+                    }
+                }
+                if (ok)
+                    fireTv.Add(new FireTvDevice(key, item.Address, new(inputs), string.IsNullOrWhiteSpace(item.Adb) ? null : item.Adb));
+            }
+            return new Library { Audio = new(audio), Bluetooth = new(bluetooth), Displays = new(displays), FireTv = new(fireTv) };
         }
 
         private Flow ReadFlow(string id, FlowDocument? document)

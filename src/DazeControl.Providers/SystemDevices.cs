@@ -3,13 +3,14 @@ using DazeControl.Ipc;
 using DazeControl.Providers.Audio;
 using DazeControl.Providers.Bluetooth;
 using DazeControl.Providers.Display;
+using DazeControl.Providers.FireTv;
 using DazeControl.Runtime.Control;
 using DazeControl.Runtime.Providers;
 
 namespace DazeControl.Providers;
 
 /// <summary>The real PC's devices, read-only, for <c>dctl devices</c> and <c>dctl capture-display-layout</c>.</summary>
-public sealed class SystemDevices(IDisplays displays) : IDeviceQueries
+public sealed class SystemDevices(IDisplays displays, IAdb adb) : IDeviceQueries
 {
     public IReadOnlyList<string> Kinds { get; } = ["audio", "bluetooth", "displays", "adb"];
 
@@ -45,11 +46,24 @@ public sealed class SystemDevices(IDisplays displays) : IDeviceQueries
                     Detail = (o.Monitor.Length > 0 ? o.Monitor + ", " : "") + (o.Active ? "on" : "off"),
                 })];
             case "adb":
-                throw new StepFailedException("Fire TV devices arrive with the firetv steps.");
+                var result = await adb.RunAsync(FireTvRemote.DefaultAdb, ["devices"], cancellationToken).ConfigureAwait(false);
+                if (result.ExitCode != 0)
+                    throw new StepFailedException($"adb devices failed: {result.LastError}");
+                return AdbDevices(result.Output);
             default:
                 throw new StepFailedException($"Say which devices: {string.Join(", ", Kinds)}.");
         }
     }
+
+    /// <summary>"List of devices attached", then "192.168.1.50:5555&lt;tab&gt;device" per device.</summary>
+    internal static IReadOnlyList<DeviceInfo> AdbDevices(string output) =>
+    [
+        .. output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(line => !line.StartsWith("List of devices", StringComparison.Ordinal) && !line.StartsWith('*'))
+            .Select(line => line.Split('\t', ' ').Where(part => part.Length > 0).ToArray())
+            .Where(parts => parts.Length >= 2)
+            .Select(parts => new DeviceInfo { Name = parts[0], Detail = parts[1] == "device" ? "connected" : parts[1] }),
+    ];
 
     public Task<DisplayLayout> CaptureDisplayLayoutAsync(string key, CancellationToken cancellationToken) =>
         Task.Run(() => displays.CaptureLayout(key), cancellationToken);

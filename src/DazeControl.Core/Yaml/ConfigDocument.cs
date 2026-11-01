@@ -41,6 +41,19 @@ public sealed class LibraryDocument
     public Dictionary<string, BluetoothDocument>? Bluetooth { get; set; }
 
     public Dictionary<string, DisplayLayoutDocument>? Displays { get; set; }
+
+    /// <summary>"firetv:", like the step names (camelCase would make it "fireTv").</summary>
+    public Dictionary<string, FireTvDocument>? Firetv { get; set; }
+}
+
+[YamlSerializable]
+public sealed class FireTvDocument
+{
+    public string? Address { get; set; }
+
+    public string? Adb { get; set; }
+
+    public Dictionary<string, List<string>>? Inputs { get; set; }
 }
 
 [YamlSerializable]

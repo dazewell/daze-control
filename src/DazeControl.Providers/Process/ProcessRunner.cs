@@ -14,12 +14,21 @@ internal static class ProcessRunner
     /// <summary>Runs to exit; on cancel (timeout, stop) kills the whole tree before rethrowing.</summary>
     public static async Task<(int ExitCode, string LastError)> RunAsync(ProcessStartInfo start, string? stdin, CancellationToken cancellationToken)
     {
+        var (exitCode, lastError, _) = await RunAsync(start, stdin, keepOutput: false, cancellationToken).ConfigureAwait(false);
+        return (exitCode, lastError);
+    }
+
+    /// <summary>As above; with <paramref name="keepOutput"/> also the last 4 KB of stdout (adb answers there).</summary>
+    public static async Task<(int ExitCode, string LastError, string Output)> RunAsync(ProcessStartInfo start, string? stdin,
+        bool keepOutput, CancellationToken cancellationToken)
+    {
         start.UseShellExecute = false;
         start.CreateNoWindow = true;
         start.RedirectStandardError = true;
         start.RedirectStandardOutput = true;
         start.RedirectStandardInput = stdin is not null;
         start.StandardErrorEncoding = Encoding.UTF8;
+        start.StandardOutputEncoding = Encoding.UTF8;
 
         using var process = Start(start);
         // The parent's exit, not EOF on its pipes: a descendant that inherited them may keep them open for hours.
@@ -31,7 +40,8 @@ internal static class ProcessRunner
 
         // Fixed-size chunks, never whole lines: a child writing without newlines can't grow the engine's memory.
         using var drain = new CancellationTokenSource();
-        var output = DiscardAsync(process.StandardOutput.BaseStream, drain.Token);
+        var kept = new StringBuilder();
+        var output = keepOutput ? TailAsync(process.StandardOutput, kept, drain.Token) : DiscardAsync(process.StandardOutput.BaseStream, drain.Token);
         var tail = new StringBuilder();
         var error = TailAsync(process.StandardError, tail, drain.Token);
         try
@@ -52,8 +62,12 @@ internal static class ProcessRunner
         // The exit can beat the last stderr line: give the readers a bounded moment, then stop them.
         await Task.WhenAny(Task.WhenAll(output, error), Task.Delay(DrainGrace, CancellationToken.None)).ConfigureAwait(false);
         await drain.CancelAsync().ConfigureAwait(false);
+        string lastError, text;
         lock (tail)
-            return (process.ExitCode, LastLine(tail.ToString()));
+            lastError = LastLine(tail.ToString());
+        lock (kept)
+            text = kept.ToString();
+        return (process.ExitCode, lastError, text);
     }
 
     /// <summary>Starts without waiting (shell execute: documents, shortcuts and URLs work too).</summary>
