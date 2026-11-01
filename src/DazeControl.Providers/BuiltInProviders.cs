@@ -5,6 +5,7 @@ using DazeControl.Providers.Display;
 using DazeControl.Providers.FireTv;
 using DazeControl.Providers.Http;
 using DazeControl.Providers.Process;
+using DazeControl.Providers.Service;
 using DazeControl.Runtime.Control;
 using DazeControl.Runtime.Providers;
 
@@ -23,6 +24,7 @@ public static class BuiltInProviders
         var bluetooth = new KsBluetoothAudio();
         var displays = new CcdDisplays();
         var fireTv = new FireTvRemote(new AdbProcess(), time);
+        var services = new WindowsServices();
         return
         [
             new WaitProvider(time),
@@ -43,6 +45,8 @@ public static class BuiltInProviders
             new FireTvInputProvider(fireTv),
             new FireTvKeysProvider(fireTv),
             new FireTvSleepProvider(fireTv),
+            new ServiceStartProvider(services, time),
+            new ServiceStopProvider(services, time),
         ];
     }
 }

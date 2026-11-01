@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M4 Providers — T4.8 firetv (branch feat/m4-net-steps, stacked on feat/m4-system-steps = PR #6 in review)
-Last green checkpoint: c861cea "feat(cli): dctl devices and capture-display-layout (T4.6)"
-Next action: T4.8: add the firetv library kind (Core model + YAML + validation) and `firetv.input`/`firetv.keys`/`firetv.sleep` descriptors, then an `IAdb` seam with a fake; port scd's Modules/FireTv/FireTvModule.cs (C:\Projects\Copilot\system-control-daemon) for the adb commands
-Tree state: builds, tests green (T4.7 http + credentials done) · Uncommitted: none
-Notes for next agent: PR #6 (T4.5–T4.6) merges per repo-workflow §6; once it lands, merge origin/main into this branch per the stacked-PR rule. Version is 0.6.0 (bump to 0.7.0 in PR 3). No live Fire TV: unit tests + fakes + dry run only. Display tests use `CcdDisplays(validateOnly: true)`. DAZE_DEV_PC=1 turns on dev-PC asserts. Write files with Write or python, not Bash heredocs with nested quotes.
+Current task: M4 Providers — PR 3 (T4.7–T4.9, branch feat/m4-net-steps, stacked on feat/m4-system-steps = PR #6)
+Last green checkpoint: 40548e7 "wip(providers): firetv input, keys and sleep over adb (T4.8)"
+Next action: once PR #6 is merged, merge origin/main into feat/m4-net-steps (stacked-PR rule), bump to 0.7.0, run a dctl dry run of a Fire TV flow, open PR 3 and merge per repo-workflow §6
+Tree state: builds, 472/472 tests green · Uncommitted: none
+Notes for next agent: PR #6 review fixes are in ef216ba (also merged here). Thread replies on PR #6 were blocked by the permission classifier; the fix commit message carries the answers. No live Fire TV: unit tests + fakes + dry run only. DAZE_DEV_PC=1 turns on dev-PC asserts. Write files with Write or python, not Bash heredocs with nested quotes.
 
 ---
 
@@ -62,8 +62,8 @@ Notes for next agent: PR #6 (T4.5–T4.6) merges per repo-workflow §6; once it 
 - [x] T4.5 display presets + outputs-only (port scd CCD) (branch feat/m4-system-steps).
 - [x] T4.6 Spike + display.layout capture/apply, `dctl devices` + `dctl capture-display-layout` (branch feat/m4-system-steps).
 - [x] T4.7 http + credentials (branch feat/m4-net-steps).
-- [ ] T4.8 firetv.
-- [ ] T4.9 service.
+- [x] T4.8 firetv (branch feat/m4-net-steps).
+- [x] T4.9 service (branch feat/m4-net-steps).
 
 ## M5 Run pop-up
 - [ ] T5.1 Spike: native acrylic window in AOT (DWM backdrop + D2D text, theme, DPI, no-activate).

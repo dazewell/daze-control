@@ -295,3 +295,25 @@ Status: accepted
   option now: nothing in the user's config needs it yet (scd's sunshine section was unused).
 - Revisit if: a self-signed local API (Sunshine on :47990) must be called — then pin its certificate, not skip checks.
 
+## D-032 · 2026-11-01 · Fire TV: adb.exe per step, one chained shell call, `library.firetv`
+Status: accepted
+- Decision: `library.firetv.<key>` = `address` (port 5555 if none), optional `adb` path (else PATH), `inputs`
+  (name → up/down moves). Each step runs `adb connect` (3 tries, 1 s apart; success only when the answer says
+  "connected to", since adb exits 0 on failure), then one `adb -s <serial> shell "a && b && c"` (scd's
+  sequence for inputs: WAKEUP, TV_INPUT, moves, DPAD_CENTER). Keys must be `[A-Za-z0-9_]` (they go into a shell
+  line); `home` → `KEYCODE_HOME`. Lock `adb:<address>`. `dctl devices adb` = `adb devices`.
+- Why: a port of what scd did and the user relies on; nothing resident between steps (D-009).
+- Why not an adb protocol client in-process: RSA auth + framing to maintain for three key presses.
+- Revisit if: adb's start-up (~1 s cold daemon) makes the TV flow feel slow.
+
+## D-033 · 2026-11-01 · Services through the SCM without admin; no elevation path
+Status: accepted
+- Decision: `service.start`/`stop` open the service with only start/stop + query rights; already in that state
+  = success; otherwise request it and poll the state every 250 ms until there (the step timeout ends it).
+  Access denied fails at once: "Windows only lets an administrator start …".
+- Why: D-008 (no admin). Most services refuse non-admin start/stop; a few (and ones whose ACL the user changed,
+  e.g. with `sc sdset`) allow it, and those work.
+- Why not an elevated helper or scheduled task like scd: an admin path is exactly what the rewrite dropped.
+  Why not NotifyServiceStatusChange: needs an alertable thread; a run lasts seconds, idle stays at zero.
+- Revisit if: the user needs a service only an admin can control (Sunshine) — then an opt-in scheduled task.
+
