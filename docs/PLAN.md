@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T2.5 — run events + history (branch feat/m2-runtime)
-Last green checkpoint: 4d95ea5 "feat(runtime): serialise steps that share a device across flows"
-Next action: Core/Runs event records (RunStarted, NodeStarted, NodeFinished, RunFinished with trigger + times); FlowRunner raises them via an IRunEvents sink; Runtime/RunHistory keeps the last 100 RunRecords in memory and appends JSON lines to history.jsonl (System.Text.Json source-gen, AOT), loads the tail on start, tolerates a corrupt line; tests with a temp dir
-Tree state: builds, 219/219 tests green (Runtime suite stable over 15 runs) · Uncommitted: none
-Notes for next agent: T2.4 done: FlowLauncher. AOT publish not yet re-checked on this branch (do it before the PR).
+Current task: T2.6 — ConfigHost (branch feat/m2-runtime)
+Last green checkpoint: 931cd0b "feat(runtime): apply whenRunning to repeated triggers"
+Next action: Runtime/ConfigHost: Load(path) → ConfigYaml.Load + ConfigValidator.Validate(config, load.Problems); per flow keep the last valid version (D-021), never-valid flows disabled; unreadable file (Config null) keeps everything; Changed event; debounced reload via an injectable file-change source + TimeProvider (FileSystemWatcher adapter, ~300 ms); tests with ManualTime and temp files
+Tree state: builds, 225/225 tests green · Uncommitted: none
+Notes for next agent: T2.5 done: RunEvents, RunHistory (history.jsonl), FlowRunner events sink, FlowLauncher(trigger, history). AOT publish not yet re-checked on this branch (do it before the PR).
 
 ---
 
@@ -40,8 +40,8 @@ Notes for next agent: T2.4 done: FlowLauncher. AOT publish not yet re-checked on
 - [x] T2.2 Failure policies, retries, timeouts, cancellation (feat/m2-runtime).
 - [x] T2.3 Resource locks (feat/m2-runtime).
 - [x] T2.4 `whenRunning` (feat/m2-runtime).
-- [~] T2.5 Run events + history (last 100) + `history.jsonl`.
-- [ ] T2.6 ConfigHost: load, debounced reload, last valid version per flow (D-021), never-valid flows disabled.
+- [x] T2.5 Run events + history (last 100) + `history.jsonl` (feat/m2-runtime).
+- [~] T2.6 ConfigHost: load, debounced reload, last valid version per flow (D-021), never-valid flows disabled.
 
 ## M3 Engine shell
 - [ ] T3.1 Composition root, single instance mutex, Log, global exception handlers.

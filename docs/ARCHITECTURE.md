@@ -134,6 +134,11 @@ still running in the background.
 `FlowLauncher.TriggerAsync(flow)` is the one entry for triggers: one slot per flow id applies `whenRunning`
 (ignore → null result; queue → one coalesced run afterwards; restart → cancel, wait for it to wind down, run the
 latest version). `CancelAllAsync` drops queued runs and awaits running ones (engine exit).
+Events (`Core/Runs/RunEvents`): the runner raises RunStarted, NodeStarted (per attempt), NodeFinished (every
+node, skipped and cancelled too) and RunFinished through an `Action<RunEvent>` sink; a throwing listener is
+ignored. `RunHistory` keeps the last 100 `RunRecord`s and appends them to `history.jsonl` (STJ source-gen
+`HistoryJson`, camelCase, string enums), skipping corrupt lines. Once the file holds 200 lines it is rewritten
+atomically back to the last 100. The launcher records each finished run with its trigger text.
 Tests: `FakeProvider` + thread-safe `ManualTime` with `WaitForTimerAsync` (Runtime.Tests).
 
 ## IPC

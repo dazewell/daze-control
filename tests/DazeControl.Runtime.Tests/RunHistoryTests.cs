@@ -1,0 +1,113 @@
+using DazeControl.Core.Model;
+using DazeControl.Core.Runs;
+using static DazeControl.Runtime.Tests.SchedulerTests;
+
+namespace DazeControl.Runtime.Tests;
+
+public sealed class RunHistoryTests : IDisposable
+{
+    private readonly string _dir = Path.Combine(Path.GetTempPath(), "dc-history-" + Guid.NewGuid().ToString("N"));
+    private readonly ManualTime _time = new();
+
+    private string HistoryFile => Path.Combine(_dir, "history.jsonl");
+
+    public void Dispose()
+    {
+        _time.Dispose();
+        if (Directory.Exists(_dir))
+            Directory.Delete(_dir, recursive: true);
+    }
+
+    private static RunRecord Record(int n) => new(Guid.NewGuid(), "f" + n, "Flow " + n, "Alt+Z",
+        new DateTimeOffset(2026, 11, 1, 0, 0, n % 60, TimeSpan.Zero), TimeSpan.FromSeconds(n), FlowOutcome.PartiallySucceeded,
+        [new NodeResult("a", NodeOutcome.FailedIgnored, 2, "Didn't connect.", TimeSpan.FromMilliseconds(1500))]);
+
+    private static void AssertSame(RunRecord expected, RunRecord actual)
+    {
+        Assert.Equal(expected with { Nodes = [] }, actual with { Nodes = [] });
+        Assert.Equal(expected.Nodes, actual.Nodes);
+    }
+
+    [Fact]
+    public void PersistsAndReloadsRecords()
+    {
+        var record = Record(1);
+        new RunHistory(HistoryFile).Add(record);
+
+        var reloaded = new RunHistory(HistoryFile);
+
+        AssertSame(record, Assert.Single(reloaded.Recent));
+        Assert.Null(reloaded.LoadError);
+    }
+
+    [Fact]
+    public void KeepsTheLastHundredAndTrimsTheFile()
+    {
+        var history = new RunHistory(HistoryFile);
+        for (var i = 0; i < 250; i++)
+            history.Add(Record(i));
+
+        Assert.Equal(RunHistory.Capacity, history.Recent.Count);
+        Assert.Equal("f249", history.Recent[^1].FlowId);
+        Assert.True(File.ReadAllLines(HistoryFile).Length < 2 * RunHistory.Capacity);
+        Assert.Equal(history.Recent.Select(r => r.RunId), new RunHistory(HistoryFile).Recent.Select(r => r.RunId));
+    }
+
+    [Fact]
+    public void SkipsCorruptLines()
+    {
+        Directory.CreateDirectory(_dir);
+        var good = Record(7);
+        new RunHistory(HistoryFile).Add(good);
+        File.AppendAllText(HistoryFile, "{ not json\n");
+
+        AssertSame(good, Assert.Single(new RunHistory(HistoryFile).Recent));
+    }
+
+    [Fact]
+    public void UnwritablePathKeepsMemoryHistoryAndReports()
+    {
+        Directory.CreateDirectory(_dir);
+        var history = new RunHistory(_dir); // a directory, not a file
+        Exception? reported = null;
+        history.WriteFailed += e => reported = e;
+
+        history.Add(Record(1));
+
+        Assert.Single(history.Recent);
+        Assert.NotNull(reported);
+    }
+
+    [Fact]
+    public async Task RunnerRaisesEventsForEveryNode()
+    {
+        var events = new List<RunEvent>();
+        var provider = new FakeProvider().On("a", (_, _) => FakeProvider.Fail("no"));
+        var runner = new FlowRunner([provider], Library.Empty, _time, events: e =>
+        {
+            lock (events)
+                events.Add(e);
+        });
+
+        var result = await runner.RunAsync(Flow(Step("a", "onFailure: skip"), Step("b", "after: [a]")), TestContext.Current.CancellationToken);
+
+        Assert.IsType<RunStarted>(events[0]);
+        Assert.Equal(result.RunId, events[0].RunId);
+        Assert.Equal(["a"], events.OfType<NodeStarted>().Select(e => e.NodeId));
+        Assert.Equal([("a", NodeOutcome.Failed), ("b", NodeOutcome.Skipped)],
+            events.OfType<NodeFinished>().Select(e => (e.Result.NodeId, e.Result.Outcome)));
+        Assert.Equal(FlowOutcome.Failed, Assert.IsType<RunFinished>(events[^1]).Outcome);
+    }
+
+    [Fact]
+    public async Task LauncherRecordsFinishedRunsWithTheirTrigger()
+    {
+        var history = new RunHistory(null);
+        var launcher = new FlowLauncher(() => new FlowRunner([new FakeProvider()], Library.Empty, _time), history);
+
+        await launcher.TriggerAsync(Flow(Step("a")), "Alt+Z");
+
+        var record = Assert.Single(history.Recent);
+        Assert.Equal(("f", "Alt+Z", FlowOutcome.Succeeded), (record.FlowId, record.Trigger, record.Outcome));
+    }
+}

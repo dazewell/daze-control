@@ -1,4 +1,5 @@
 using DazeControl.Core.Model;
+using DazeControl.Core.Runs;
 
 namespace DazeControl.Runtime;
 
@@ -9,13 +10,17 @@ namespace DazeControl.Runtime;
 /// over once it has wound down. Different flows run in parallel; the queued or restarted run uses the flow
 /// version of the latest trigger.
 /// </summary>
-public sealed class FlowLauncher(Func<FlowRunner> runner)
+/// <param name="runner">The runner for the current configuration (ConfigHost swaps it on reload).</param>
+/// <param name="history">Where finished runs are recorded; null records nothing.</param>
+public sealed class FlowLauncher(Func<FlowRunner> runner, RunHistory? history = null)
 {
     private readonly Lock _lock = new();
     private readonly Dictionary<string, Slot> _slots = [];
 
+    /// <param name="flow">The flow version to run.</param>
+    /// <param name="trigger">For the history: "Alt+Z", "Tray", "Command line", "Editor".</param>
     /// <returns>The run's result; null when the trigger was ignored.</returns>
-    public Task<RunResult?> TriggerAsync(Flow flow)
+    public Task<RunResult?> TriggerAsync(Flow flow, string trigger = "")
     {
         CancellationTokenSource? toCancel = null;
         Task<RunResult?> task;
@@ -25,7 +30,7 @@ public sealed class FlowLauncher(Func<FlowRunner> runner)
                 _slots[flow.Id] = slot = new Slot();
             if (slot.Cancel is null)
             {
-                task = Start(slot, flow, completion: null);
+                task = Start(slot, flow, trigger, completion: null);
             }
             else if (flow.WhenRunning == WhenRunning.Ignore)
             {
@@ -36,6 +41,7 @@ public sealed class FlowLauncher(Func<FlowRunner> runner)
                 if (flow.WhenRunning == WhenRunning.Restart)
                     toCancel = slot.Cancel;
                 slot.PendingFlow = flow;
+                slot.PendingTrigger = trigger;
                 slot.Pending ??= new TaskCompletionSource<RunResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
                 task = slot.Pending.Task;
             }
@@ -72,16 +78,17 @@ public sealed class FlowLauncher(Func<FlowRunner> runner)
     }
 
     /// <summary>Under the lock.</summary>
-    private Task<RunResult?> Start(Slot slot, Flow flow, TaskCompletionSource<RunResult?>? completion)
+    private Task<RunResult?> Start(Slot slot, Flow flow, string trigger, TaskCompletionSource<RunResult?>? completion)
     {
         var cancel = new CancellationTokenSource();
         slot.Cancel = cancel;
-        var current = RunAsync(slot, flow, cancel, completion);
+        var current = RunAsync(slot, flow, trigger, cancel, completion);
         slot.Current = current;
         return current;
     }
 
-    private async Task<RunResult?> RunAsync(Slot slot, Flow flow, CancellationTokenSource cancel, TaskCompletionSource<RunResult?>? completion)
+    private async Task<RunResult?> RunAsync(Slot slot, Flow flow, string trigger, CancellationTokenSource cancel,
+        TaskCompletionSource<RunResult?>? completion)
     {
         await Task.Yield(); // the trigger (hotkey on the message thread) returns at once
         RunResult? result = null;
@@ -89,6 +96,8 @@ public sealed class FlowLauncher(Func<FlowRunner> runner)
         try
         {
             result = await runner().RunAsync(flow, cancel.Token).ConfigureAwait(false);
+            history?.Add(new RunRecord(result.RunId, flow.Id, flow.Name, trigger, result.Started, result.Duration,
+                result.Outcome, [.. result.Nodes]));
         }
 #pragma warning disable CA1031 // fail-soft: a runner bug must not wedge the slot; the caller sees the exception
         catch (Exception e)
@@ -106,7 +115,7 @@ public sealed class FlowLauncher(Func<FlowRunner> runner)
                 slot.Pending = null;
                 var nextFlow = slot.PendingFlow!;
                 slot.PendingFlow = null;
-                Start(slot, nextFlow, next);
+                Start(slot, nextFlow, slot.PendingTrigger ?? "", next);
             }
         }
         if (failure is not null)
@@ -127,5 +136,7 @@ public sealed class FlowLauncher(Func<FlowRunner> runner)
         public TaskCompletionSource<RunResult?>? Pending { get; set; }
 
         public Flow? PendingFlow { get; set; }
+
+        public string? PendingTrigger { get; set; }
     }
 }

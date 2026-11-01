@@ -8,7 +8,16 @@ namespace DazeControl.Runtime;
 
 /// <param name="Outcome">How the run ended.</param>
 /// <param name="Nodes">One result per node, in flow order.</param>
-public sealed record RunResult(FlowOutcome Outcome, ValueList<NodeResult> Nodes);
+public sealed record RunResult(FlowOutcome Outcome, ValueList<NodeResult> Nodes)
+{
+    /// <summary>Same id as the run's events.</summary>
+    public Guid RunId { get; init; }
+
+    /// <summary>Wall-clock start (UTC).</summary>
+    public DateTimeOffset Started { get; init; }
+
+    public TimeSpan Duration { get; init; }
+}
 
 /// <summary>
 /// Runs one flow: the <see cref="Scheduler"/> decides what starts, this class runs those steps on the pool with
@@ -22,15 +31,18 @@ public sealed class FlowRunner
     private readonly TimeProvider _time;
     private readonly IReadOnlyList<ProviderDescriptor> _catalog;
     private readonly ResourceLocks _locks;
+    private readonly Action<RunEvent>? _events;
 
     /// <param name="providers">One per step type the engine can run.</param>
     /// <param name="library">The configuration's library, handed to each step.</param>
     /// <param name="time">Clock for timeouts and retry delays.</param>
     /// <param name="locks">Shared by every runner in the engine, so locks hold across flows.</param>
     /// <param name="catalog">Step types; the compiled-in catalog by default.</param>
+    /// <param name="events">Receives <see cref="RunEvent"/>s from pool threads; must be quick and thread-safe.</param>
     public FlowRunner(IEnumerable<IStepProvider> providers, Library library, TimeProvider time, ResourceLocks? locks = null,
-        IReadOnlyList<ProviderDescriptor>? catalog = null)
+        IReadOnlyList<ProviderDescriptor>? catalog = null, Action<RunEvent>? events = null)
     {
+        _events = events;
         _locks = locks ?? new ResourceLocks();
         _providers = providers.ToDictionary(p => p.Id);
         _library = library;
@@ -41,6 +53,11 @@ public sealed class FlowRunner
     public async Task<RunResult> RunAsync(Flow flow, CancellationToken cancellationToken)
     {
         var scheduler = new Scheduler(flow);
+        var runId = Guid.NewGuid();
+        var started = _time.GetUtcNow();
+        var startedTicks = _time.GetTimestamp();
+        Raise(new RunStarted(runId, flow.Id, started, flow.Nodes.Count));
+        var reported = new HashSet<string>();
         using var stepsCancel = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var running = new Dictionary<Task<StepRun>, string>();
         var results = new Dictionary<string, StepRun>();
@@ -48,7 +65,17 @@ public sealed class FlowRunner
         void Launch(IEnumerable<string> ids)
         {
             foreach (var id in ids)
-                running.Add(RunStepAsync(flow, (StepNode)flow.FindNode(id)!, stepsCancel.Token), id);
+                running.Add(RunStepAsync(runId, flow, (StepNode)flow.FindNode(id)!, stepsCancel.Token), id);
+        }
+
+        NodeResult ResultOf(string id) => results.TryGetValue(id, out var r)
+            ? new NodeResult(id, scheduler.Outcomes[id], r.Attempts, r.Error, r.Duration)
+            : new NodeResult(id, scheduler.Outcomes[id], Attempts: 0);
+
+        void ReportFinished()
+        {
+            foreach (var id in scheduler.Outcomes.Keys.Where(reported.Add).ToList())
+                Raise(new NodeFinished(runId, flow.Id, _time.GetUtcNow(), ResultOf(id)));
         }
 
         Launch(scheduler.Start());
@@ -62,22 +89,41 @@ public sealed class FlowRunner
             if (cancellationToken.IsCancellationRequested && !scheduler.IsCancelled)
                 scheduler.Cancel();
             Launch(scheduler.Complete(id, run.Result));
+            ReportFinished();
             if (scheduler.IsStopped || scheduler.IsCancelled)
                 await stepsCancel.CancelAsync().ConfigureAwait(false);
         }
         if (cancellationToken.IsCancellationRequested && !scheduler.IsCancelled)
             scheduler.Cancel(); // cancelled after the last step finished: the outcome stays as run
+        ReportFinished(); // nodes resolved without running (empty flow, cancel before start)
 
-        var nodes = flow.Nodes.Select(n => results.TryGetValue(n.Id, out var r)
-            ? new NodeResult(n.Id, scheduler.Outcomes[n.Id], r.Attempts, r.Error, r.Duration)
-            : new NodeResult(n.Id, scheduler.Outcomes[n.Id], Attempts: 0));
-        return new RunResult(scheduler.Result, new(nodes));
+        var result = new RunResult(scheduler.Result, new(flow.Nodes.Select(n => ResultOf(n.Id))))
+        {
+            RunId = runId,
+            Started = started,
+            Duration = _time.GetElapsedTime(startedTicks),
+        };
+        Raise(new RunFinished(runId, flow.Id, _time.GetUtcNow(), result.Outcome));
+        return result;
+    }
+
+    private void Raise(RunEvent e)
+    {
+        try
+        {
+            _events?.Invoke(e);
+        }
+#pragma warning disable CA1031 // fail-soft: a broken listener must not break the run
+        catch (Exception)
+#pragma warning restore CA1031
+        {
+        }
     }
 
     private readonly record struct StepRun(StepResult Result, int Attempts, string? Error, TimeSpan Duration);
 
     /// <summary>All attempts of one step. Never throws: every failure becomes a <see cref="StepRun"/>.</summary>
-    private async Task<StepRun> RunStepAsync(Flow flow, StepNode node, CancellationToken flowToken)
+    private async Task<StepRun> RunStepAsync(Guid runId, Flow flow, StepNode node, CancellationToken flowToken)
     {
         await Task.Yield(); // run on the pool, never inline in the scheduler loop
         var started = _time.GetTimestamp();
@@ -101,6 +147,7 @@ public sealed class FlowRunner
                     return new(StepResult.Cancelled, attempt - 1, error, _time.GetElapsedTime(started));
                 }
             }
+            Raise(new NodeStarted(runId, flow.Id, _time.GetUtcNow(), node.Id, attempt));
             error = await AttemptAsync(provider, new StepContext(flow, node, descriptor, _library, attempt), timeout, flowToken)
                 .ConfigureAwait(false);
             if (error is null)
