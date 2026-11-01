@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T2.1 — scheduler (branch feat/m2-runtime, one PR for M2 per milestone like PR #2)
-Last green checkpoint: 422752f "feat(core): M1 core model, YAML, validation and catalog (#2)"
-Next action: Runtime/Scheduling/Scheduler (pure, synchronous: Start() / Complete(step, StepResult) → steps to start) + SchedulerTests: chain, join, failure edge (D-024), stop, skip, ignore, cards, always, cancel
-Tree state: builds, 182/182 tests green · Uncommitted: none
-Notes for next agent: M1 merged (PR #2). Policies (stop/skip/ignore, D-024) live in the scheduler because they decide which edges fire; retries/timeouts/async runner are T2.2.
+Current task: T2.2 — failure policies in the runner: retries, timeouts, cancellation (branch feat/m2-runtime)
+Last green checkpoint: 66b8462 "chore(skills): never end a turn just to wait for CI"
+Next action: Runtime/IStepProvider + StepContext contracts and FlowRunner (async, TimeProvider): runs Scheduler's steps on the pool, retry count/delay, per-step timeout (node or descriptor default), cancel running steps when IsStopped/cancelled; tests with a fake provider + ManualTime (port OSD TestDoubles)
+Tree state: builds, 198/198 tests green · Uncommitted: none
+Notes for next agent: T2.1 done: Scheduler applies policies + D-024 (D-025). RuntimeInfo placeholder removed.
 
 ---
 
@@ -36,8 +36,8 @@ Notes for next agent: M1 merged (PR #2). Policies (stop/skip/ignore, D-024) live
   both Bluetooth devices) — the one-time "import" (PR #2).
 
 ## M2 Runtime (pure, fake providers + `ManualTime`)
-- [~] T2.1 Scheduler: ready set, all-inputs join, edge `when`, skip propagation, cards.
-- [ ] T2.2 Failure policies, retries, timeouts, cancellation.
+- [x] T2.1 Scheduler: ready set, all-inputs join, edge `when`, skip propagation, cards (feat/m2-runtime).
+- [~] T2.2 Failure policies, retries, timeouts, cancellation.
 - [ ] T2.3 Resource locks.
 - [ ] T2.4 `whenRunning`.
 - [ ] T2.5 Run events + history (last 100) + `history.jsonl`.

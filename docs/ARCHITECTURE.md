@@ -116,6 +116,13 @@ flows that must not run as written. Problems with no flow id (library, settings)
 themselves: a bad library entry is dropped (mapper) or marked broken (validator), so a step that references it
 fails its own flow instead. Hotkeys go only to enabled flows without errors; the later of two clashing flows fails.
 
+## Runtime
+
+`Runtime/Scheduling/Scheduler` (pure, D-025): one per run; `Start()` and `Complete(step, StepResult)` return
+the steps to start next; `IsStopped` tells the runner to cancel what's running; `Outcomes` per node and
+`Result` (`Outcomes.Summarize`). Units are steps outside cards and cards; a card hands out all its members at
+once.
+
 ## IPC
 
 `\\.\pipe\DazeControl-<user SID>`, `PipeOptions.CurrentUserOnly`, newline-delimited JSON
