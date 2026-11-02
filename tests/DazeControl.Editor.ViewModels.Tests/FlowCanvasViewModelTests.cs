@@ -273,6 +273,8 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         Assert.True(_canvas.TidyUp());
 
         Assert.Equal(["bt", "out", "vol", "note", "both", "w1", "w2"], Order());
+        Assert.True(Node("out").Y < Node("vol").Y);
+        Assert.Equal("vol", _canvas.HitTest(new Point(Node("vol").Bounds.X + 5, Node("vol").Bounds.CenterY))?.Id);
         Assert.True(_session.HasUnsavedChanges);
     }
 
