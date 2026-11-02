@@ -158,7 +158,8 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
             return;
         }
         Load();
-        OutsideChange = OutsideChange.Reloaded;
+        if (!HasLoadError) // a failed reload shows its own error instead
+            OutsideChange = OutsideChange.Reloaded;
     }
 
     /// <summary>Conflict: take the file's version and drop the edits here.</summary>
