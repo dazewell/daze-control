@@ -293,6 +293,71 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     }
 
     [Fact]
+    public void CtrlGGroupsTheSelectionAndSelectsTheCard()
+    {
+        _canvas.Select("out");
+        _canvas.Toggle("vol");
+
+        Assert.Equal(ConnectRefusal.None, _canvas.GroupSelection());
+
+        var card = Node(_canvas.SelectedIds.Single());
+        Assert.Equal(CanvasNodeKind.Card, card.Kind);
+        Assert.Equal(card.Id, Node("out").CardId);
+        Assert.Equal(card.Id, Node("vol").CardId);
+        Assert.Contains(_canvas.Edges, e => e.From == "bt" && e.To == card.Id);
+    }
+
+    [Fact]
+    public void CtrlGRefusesStepsThatWaitForEachOther()
+    {
+        _canvas.Select("bt");
+        _canvas.Toggle("out");
+
+        Assert.Equal(ConnectRefusal.SameCard, _canvas.GroupSelection());
+        Assert.False(_session.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public void CtrlShiftGUngroupsAndSelectsTheMembers()
+    {
+        _canvas.Select("both");
+
+        _canvas.UngroupSelection();
+
+        Assert.Null(_canvas.Find("both"));
+        Assert.Equal(["w1", "w2"], _canvas.SelectedIds.Order());
+        Assert.Equal(CanvasNodeKind.Step, Node("w1").Kind);
+    }
+
+    [Fact]
+    public void DropZonesFollowThePointer()
+    {
+        var target = Node("vol");
+        Assert.Equal(DropZone.RunAfter, FlowCanvasViewModel.ZoneAt(target, new Point(target.Bounds.Right - 2, target.Bounds.CenterY)));
+        Assert.Equal(DropZone.RunTogether, FlowCanvasViewModel.ZoneAt(target, new Point(target.X + 10, target.Bounds.CenterY)));
+        Assert.Equal(DropZone.None, FlowCanvasViewModel.ZoneAt(target, new Point(target.X + 10, target.Y + 2)));
+        Assert.Equal(DropZone.RunTogether, FlowCanvasViewModel.ZoneAt(Node("both"), new Point(Node("both").X + 10, Node("both").Y + 2)));
+    }
+
+    [Fact]
+    public void DroppingAPillOnACardJoinsIt()
+    {
+        Assert.Equal(ConnectRefusal.None, _canvas.Drop("note", "both", DropZone.RunTogether));
+
+        Assert.Equal("both", Node("note").CardId);
+        Assert.Equal(["w1", "w2", "note"], ((GroupNode)_canvas.Flow!.FindNode("both")!).Members);
+    }
+
+    [Fact]
+    public void DroppingAMemberOutDissolvesATwoStepCard()
+    {
+        _canvas.TakeOutOfCard("w1");
+
+        Assert.Null(_canvas.Find("both"));
+        Assert.Null(Node("w2").CardId);
+    }
+
+    [Fact]
     public void DeletedFlowShowsAsMissing()
     {
         _session.Update(c => c with { Flows = [] });

@@ -300,6 +300,64 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         Edit(flow => FlowGraph.SetWhen(flow, edge.From, edge.To, when));
     }
 
+    // ---- Cards (UX §5.2): Ctrl+G, Ctrl+Shift+G, drop zones ----
+
+    /// <summary>Ctrl+G / "Run together" on the selection (steps and cards, in `nodes` order); selects the card.</summary>
+    public ConnectRefusal GroupSelection()
+    {
+        if (Flow is not { } flow)
+            return ConnectRefusal.Unknown;
+        var ids = flow.Nodes.Select(n => n.Id).Where(_selected.Contains).ToList();
+        var (next, refusal) = FlowEdits.Group(flow, ids);
+        if (refusal != ConnectRefusal.None || next == flow)
+            return refusal;
+        var cardOf = FlowLayout.CardOf(next);
+        var card = ids.Select(id => next.FindNode(id) is GroupNode ? id : cardOf.GetValueOrDefault(id)).First(id => id is not null)!;
+        Edit(_ => next);
+        Select(card);
+        return ConnectRefusal.None;
+    }
+
+    /// <summary>Ctrl+Shift+G: every selected card; its members end up selected.</summary>
+    public void UngroupSelection()
+    {
+        if (Flow is not { } flow)
+            return;
+        var cards = flow.Nodes.OfType<GroupNode>().Where(g => _selected.Contains(g.Id)).ToList();
+        if (cards.Count == 0)
+            return;
+        Edit(f => cards.Aggregate(f, (current, card) => FlowEdits.Ungroup(current, card.Id)));
+        _selected.Clear();
+        foreach (var member in cards.SelectMany(c => c.Members).Where(id => Find(id) is not null))
+            _selected.Add(member);
+        ApplySelection();
+    }
+
+    /// <summary>Where a dragged pill would land over <paramref name="target"/> at content point <paramref name="p"/>.</summary>
+    public static DropZone ZoneAt(CanvasNodeViewModel target, Point p)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        if (p.X > target.X + target.Width * 2 / 3)
+            return DropZone.RunAfter;
+        // A card's body is all "run together"; a pill keeps thin top/bottom bands for reordering.
+        var band = target.Kind == CanvasNodeKind.Card ? 0 : target.Height / 4;
+        return p.Y >= target.Y + band && p.Y <= target.Y + target.Height - band ? DropZone.RunTogether : DropZone.None;
+    }
+
+    /// <summary>Drop <paramref name="dragged"/> on <paramref name="target"/>'s zone; a refusal changes nothing.</summary>
+    public ConnectRefusal Drop(string dragged, string target, DropZone zone)
+    {
+        if (Flow is not { } flow || zone == DropZone.None)
+            return ConnectRefusal.None;
+        var (next, refusal) = zone == DropZone.RunAfter ? FlowEdits.RunAfter(flow, dragged, target) : FlowEdits.RunTogether(flow, dragged, target);
+        if (refusal == ConnectRefusal.None && next != flow)
+            Edit(_ => next);
+        return refusal;
+    }
+
+    /// <summary>A member dropped outside its card leaves it.</summary>
+    public void TakeOutOfCard(string member) => Edit(flow => FlowEdits.TakeOut(flow, member));
+
     private static double Distance(Point a, Point b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
 
     // ---- Edits ----

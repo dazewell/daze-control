@@ -67,6 +67,15 @@ public static class FlowGraph
         return seen;
     }
 
+    /// <summary>Whether the drawn graph has a loop (validation reports it; edits must not create one).</summary>
+    public static bool HasLoop(Flow flow)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        var cardOf = FlowLayout.CardOf(flow);
+        var edges = FlowLayout.Edges(flow, cardOf);
+        return edges.Any(e => Reaches(edges, e.To, e.From));
+    }
+
     private static bool Reaches(IReadOnlyList<(string From, string To, EdgeWhen When)> edges, string start, string target)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal) { start };
