@@ -26,6 +26,9 @@ public enum ParamKind
     /// <summary>Path to a file; existence is checked at run time, not on load (the drive may come later).</summary>
     FilePath,
 
+    /// <summary>Path to a folder (a program's working directory); checked at run time like <see cref="FilePath"/>.</summary>
+    FolderPath,
+
     /// <summary>YAML list of scalars, e.g. command-line args.</summary>
     TextList,
 

@@ -55,7 +55,7 @@ public static class ProviderCatalog
         [
             new("path", ParamKind.FilePath, "Program") { Required = true },
             new("args", ParamKind.TextList, "Arguments"),
-            new("cwd", ParamKind.FilePath, "Start in"),
+            new("cwd", ParamKind.FolderPath, "Start in"),
             new("wait", ParamKind.Boolean, "Wait until it exits") { Default = "true" },
             new("exitCodes", ParamKind.TextList, "Exit codes that mean success") { Default = "0" },
         ]),

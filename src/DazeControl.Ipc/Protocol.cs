@@ -72,6 +72,13 @@ public sealed class PipeRequest
 
     /// <summary>capture-display-layout: the library key the layout is saved under.</summary>
     public string? Key { get; init; }
+
+    /// <summary>test-step: the step's id in <see cref="Flow"/>.</summary>
+    public string? Node { get; init; }
+
+    /// <summary>test-step: config.yaml text holding the flow and the library as the editor shows them, so a test
+    /// never waits for a save and a reload.</summary>
+    public string? Config { get; init; }
 }
 
 public sealed class PipeMessage

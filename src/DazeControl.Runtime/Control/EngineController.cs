@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using DazeControl.Core.Catalog;
+using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
 using DazeControl.Core.Validation;
 using DazeControl.Core.Yaml;
@@ -26,8 +28,13 @@ public sealed record EngineInfo(string Version, int ProcessId, string ExePath, s
 /// the shell's state arrives as <see cref="Shell"/> snapshots.
 /// </summary>
 public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher launcher, RunHistory? history,
-    FlowRunner dryRunner, Autostart autostart, EngineInfo info, Action<string> log, IDeviceQueries? devices = null)
+    FlowRunner dryRunner, Autostart autostart, EngineInfo info, Action<string> log, IDeviceQueries? devices = null,
+    FlowRunner? stepRunner = null)
 {
+    /// <summary>A step test runs as a flow with this id prefix; <c>cancel</c> with that id stops it.</summary>
+    public const string TestPrefix = "test:";
+
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _tests = new(StringComparer.Ordinal);
     private volatile ShellStatus _shell = ShellStatus.Empty;
 
     public ShellStatus Shell
@@ -90,7 +97,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             case Ops.CaptureDisplayLayout:
                 return await CaptureDisplayLayoutAsync(request, cancellationToken).ConfigureAwait(false);
             case Ops.TestStep:
-                return PipeMessage.Fail(id, "This version can't do that yet: it arrives with the editor.");
+                return await TestStepAsync(request, cancellationToken).ConfigureAwait(false);
             default:
                 return PipeMessage.Fail(id, $"Unknown request \"{request.Op}\".");
         }
@@ -110,6 +117,52 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         catch (StepFailedException e)
         {
             return PipeMessage.Fail(request.Id, e.Message);
+        }
+    }
+
+    /// <summary>
+    /// "Test this step" (UX §5.4): runs one step of the config text the editor sent, alone (no edges, stop on
+    /// failure), with the real providers and the engine's locks, so it waits for a running flow using the same
+    /// device. No history, no pop-up. One test per flow at a time.
+    /// </summary>
+    private async Task<PipeMessage> TestStepAsync(PipeRequest request, CancellationToken cancellationToken)
+    {
+        var id = request.Id;
+        if (stepRunner is null)
+            return PipeMessage.Fail(id, "This engine can't test steps.");
+        if (request.Config is null || string.IsNullOrEmpty(request.Flow) || string.IsNullOrEmpty(request.Node))
+            return PipeMessage.Fail(id, "Say which step to test.");
+        var load = ConfigYaml.Load(request.Config);
+        if (load.Config?.Flows.FirstOrDefault(f => f.Id == request.Flow) is not { } flow
+            || flow.FindNode(request.Node) is not StepNode step)
+            return PipeMessage.Fail(id, "That step isn't in the flow.");
+
+        var testId = TestPrefix + flow.Id;
+        var test = new Flow(testId, flow.Name, [step with { After = [], OnFailure = FailurePolicy.Stop }]);
+        // Mapping replaces a bad value (timeout: nonsense) with the default: that must refuse the test, not run it.
+        // Edges and the policy are dropped for the test, so their problems don't count.
+        var mapped = $"flows.{flow.Id}.nodes.{step.Id}";
+        var prefix = $"flows.{testId}.nodes.{step.Id}";
+        var problem = load.Problems.Where(p => p.Path == mapped || p.Path.StartsWith(mapped + ".", StringComparison.Ordinal))
+            .Where(p => !p.Path.StartsWith(mapped + ".after", StringComparison.Ordinal) && p.Path != mapped + ".onFailure")
+            .Concat(ConfigValidator.Validate(new Configuration { Library = load.Config.Library, Flows = [test] })
+                .Where(p => p.Path.StartsWith(prefix, StringComparison.Ordinal)))
+            .FirstOrDefault(p => p.Severity == Severity.Error);
+        if (problem is not null)
+            return PipeMessage.Fail(id, $"Fix this step first: {problem.Message}");
+
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        if (!_tests.TryAdd(testId, cancel))
+            return PipeMessage.Fail(id, "This flow is already testing a step.");
+        try
+        {
+            log($"test: {flow.Id}/{step.Id} ({step.Step})");
+            var result = await stepRunner.RunAsync(test, load.Config.Library, cancel.Token).ConfigureAwait(false);
+            return new PipeMessage { Id = id, Ok = true, Run = Record(result, testId, flow.Name, "Test") };
+        }
+        finally
+        {
+            _tests.TryRemove(testId, out _);
         }
     }
 
@@ -174,6 +227,11 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
     private PipeMessage Cancel(PipeRequest request)
     {
         var id = request.Id;
+        if (request.Flow is { } test && _tests.TryGetValue(test, out var testing))
+        {
+            testing.Cancel();
+            return new PipeMessage { Id = id, Ok = true };
+        }
         var running = launcher.RunningFlowIds;
         string flowId, name;
         if (request.Flow is { } text && running.Contains(text, StringComparer.Ordinal))

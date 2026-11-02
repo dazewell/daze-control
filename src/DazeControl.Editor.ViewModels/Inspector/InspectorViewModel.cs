@@ -1,0 +1,787 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Globalization;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using DazeControl.Core.Catalog;
+using DazeControl.Core.Input;
+using DazeControl.Core.Layout;
+using DazeControl.Core.Model;
+using DazeControl.Core.Runs;
+using DazeControl.Core.Validation;
+using DazeControl.Core.Yaml;
+using DazeControl.Editor.ViewModels.Canvas;
+using DazeControl.Editor.ViewModels.Config;
+using DazeControl.Editor.ViewModels.Engine;
+using DazeControl.Ipc;
+
+namespace DazeControl.Editor.ViewModels.Inspector;
+
+public enum InspectorMode
+{
+    /// <summary>Nothing selected: the flow's own settings (UX §5.1).</summary>
+    Flow,
+    Step,
+    Card,
+
+    /// <summary>Several nodes selected.</summary>
+    Many,
+}
+
+/// <summary>A shortcut row in the flow's settings: the recorder's value and its conflict note.</summary>
+public sealed partial class ShortcutViewModel(int index) : ObservableObject
+{
+    public int Index { get; } = index;
+
+    [ObservableProperty]
+    public partial string Hotkey { get; internal set; } = "";
+
+    /// <summary>"Another app uses Alt+Z. Try another one." / "Alt+Z already runs flow "TV only"."</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProblem))]
+    public partial string? Problem { get; internal set; }
+
+    public bool HasProblem => Problem is not null;
+}
+
+/// <summary>A glyph in the flow's icon picker.</summary>
+public sealed record GlyphOption(string Code, string Glyph, string Name);
+
+/// <summary>
+/// The right-hand pane of the flow editor (UX §5.4), built from the selection: a step's settings rendered from its
+/// <see cref="ParamSpec"/>s, its failure policy (hover previews what wouldn't run) and timing, "Test this step";
+/// a card's name and policy; with nothing selected, the flow's settings. Every change is one canvas edit, so it is
+/// one undo step. UI thread only; engine answers come back through <c>post</c>.
+/// </summary>
+public sealed partial class InspectorViewModel : ObservableObject, IDisposable
+{
+    public const int MaxRetries = 10;
+    public static readonly TimeSpan ResultTime = TimeSpan.FromSeconds(3);
+
+    private readonly ConfigSession _session;
+    private readonly FlowCanvasViewModel _canvas;
+    private readonly IEngineClient _engine;
+    private readonly Action<Action> _post;
+    private readonly Func<string, bool> _fileExists;
+    private readonly Dictionary<LibraryKind, IReadOnlyList<DeviceInfo>> _live = [];
+    private IReadOnlyList<string> _shortcutProblems = [];
+    private CancellationTokenSource? _test;
+    private bool _loading;
+    private string? _stepType;
+
+    public InspectorViewModel(ConfigSession session, FlowCanvasViewModel canvas, IEngineClient engine, Action<Action> post,
+        Func<string, bool>? fileExists = null)
+    {
+        _session = session;
+        _canvas = canvas;
+        _engine = engine;
+        _post = post;
+        _fileExists = fileExists ?? (p => File.Exists(p) || Directory.Exists(p));
+        _session.PropertyChanged += OnSessionChanged;
+        _canvas.PropertyChanged += OnCanvasChanged;
+        _engine.StateChanged += OnEngineStateChanged;
+        _engine.EventReceived += OnEngineEvent;
+        Load();
+    }
+
+    public string FlowId => _canvas.FlowId;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFlow), nameof(IsStep), nameof(IsCard), nameof(IsMany), nameof(IsNode))]
+    public partial InspectorMode Mode { get; private set; }
+
+    public bool IsFlow => Mode == InspectorMode.Flow;
+
+    public bool IsStep => Mode == InspectorMode.Step;
+
+    public bool IsCard => Mode == InspectorMode.Card;
+
+    public bool IsMany => Mode == InspectorMode.Many;
+
+    /// <summary>A step or a card: the header, name and policy apply.</summary>
+    public bool IsNode => IsStep || IsCard;
+
+    public bool CanEdit => _session.CanEdit;
+
+    /// <summary>The selected step or card.</summary>
+    [ObservableProperty]
+    public partial string? NodeId { get; private set; }
+
+    [ObservableProperty]
+    public partial string Glyph { get; private set; } = "";
+
+    /// <summary>"Bluetooth › Connect"; cards "Runs together · 2 steps".</summary>
+    [ObservableProperty]
+    public partial string Kind { get; private set; } = "";
+
+    /// <summary>The node's own name; "" = the provider's title, shown as <see cref="NamePlaceholder"/>.</summary>
+    [ObservableProperty]
+    public partial string Name { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string NamePlaceholder { get; private set; } = "";
+
+    /// <summary>"3 steps selected".</summary>
+    [ObservableProperty]
+    public partial string ManyText { get; private set; } = "";
+
+    public ObservableCollection<ParamFieldViewModel> Fields { get; } = [];
+
+    [ObservableProperty]
+    public partial bool HasFields { get; private set; }
+
+    // ---- If it fails (UX §5.4) ----
+
+    public static string Describe(FailurePolicy policy) => policy switch
+    {
+        FailurePolicy.Skip => "Steps that wait for this one are skipped. Others carry on.",
+        FailurePolicy.Ignore => "This step may fail, and the flow carries on.",
+        _ => "Nothing after this runs.",
+    };
+
+    /// <summary>0 Stop, 1 Skip, 2 Keep going (RadioButtons' SelectedIndex).</summary>
+    [ObservableProperty]
+    public partial int PolicyIndex { get; set; }
+
+    // ---- Timing ----
+
+    /// <summary>"Try again" 0–10.</summary>
+    [ObservableProperty]
+    public partial double Retries { get; set; }
+
+    /// <summary>"Wait between tries", seconds.</summary>
+    [ObservableProperty]
+    public partial double RetryDelay { get; set; }
+
+    /// <summary>"Give up after", seconds; NaN = the step type's default.</summary>
+    [ObservableProperty]
+    public partial double Timeout { get; set; } = double.NaN;
+
+    /// <summary>"10 s" — what an empty "Give up after" means.</summary>
+    [ObservableProperty]
+    public partial string TimeoutPlaceholder { get; private set; } = "";
+
+    public bool CanRetryDelay => Retries > 0;
+
+    // ---- Test this step ----
+
+    public bool EngineRunning => _engine.IsRunning;
+
+    public bool CanTest => IsStep && EngineRunning && !IsTesting;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTest), nameof(IsIdle))]
+    public partial bool IsTesting { get; private set; }
+
+    public bool IsIdle => !IsTesting;
+
+    /// <summary>"Worked in 1.2 s." / "Didn't work: …"; null = no result to show.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTestResult), nameof(ShowTestSuccess), nameof(ShowTestFailure))]
+    public partial string? TestResult { get; private set; }
+
+    public bool HasTestResult => TestResult is not null;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowTestSuccess), nameof(ShowTestFailure))]
+    public partial bool TestSucceeded { get; private set; }
+
+    public bool ShowTestSuccess => HasTestResult && TestSucceeded;
+
+    public bool ShowTestFailure => HasTestResult && !TestSucceeded;
+
+    /// <summary>The step's error in full for "Show details"; null when there is none.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTestDetails))]
+    public partial string? TestDetails { get; private set; }
+
+    public bool HasTestDetails => TestDetails is not null;
+
+    // ---- Flow settings (nothing selected) ----
+
+    [ObservableProperty]
+    public partial string FlowName { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string FlowGlyph { get; private set; } = "";
+
+    public IReadOnlyList<GlyphOption> GlyphOptions { get; } = BuildGlyphs();
+
+    /// <summary>Tray submenu ("" = top level); the editable ComboBox commits on leaving it.</summary>
+    [ObservableProperty]
+    public partial string TrayFolder { get; set; } = "";
+
+    [ObservableProperty]
+    public partial IReadOnlyList<string> Folders { get; private set; } = [];
+
+    [ObservableProperty]
+    public partial bool LineAbove { get; set; }
+
+    public ObservableCollection<ShortcutViewModel> Shortcuts { get; } = [];
+
+    /// <summary>"If it's already running": 0 Ignore it, 1 Run it after, 2 Start over.</summary>
+    [ObservableProperty]
+    public partial int WhenRunningIndex { get; set; }
+
+    [ObservableProperty]
+    public partial bool ShowPopup { get; set; }
+
+    private Flow? Flow => _canvas.Flow;
+
+    private Node? Node => NodeId is null ? null : Flow?.FindNode(NodeId);
+
+    // ---- Loading ----
+
+    /// <summary>Re-reads the selection and the config; values the user didn't change stay as they are.</summary>
+    private void Load()
+    {
+        _loading = true;
+        try
+        {
+            var selected = _canvas.SelectedIds;
+            var flow = Flow;
+            Node? node = selected.Count == 1 ? flow?.FindNode(selected.First()) : null;
+            var mode = selected.Count > 1 ? InspectorMode.Many
+                : node is StepNode ? InspectorMode.Step
+                : node is GroupNode ? InspectorMode.Card
+                : InspectorMode.Flow;
+            if (node?.Id != NodeId)
+            {
+                ClearTest();
+                _canvas.Preview(null);
+            }
+            NodeId = node?.Id;
+            Mode = mode;
+            OnPropertyChanged(nameof(CanTest));
+            ManyText = string.Create(CultureInfo.InvariantCulture, $"{selected.Count} selected");
+            switch (node)
+            {
+                case StepNode step:
+                    LoadStep(step);
+                    break;
+                case GroupNode card:
+                    LoadCard(card);
+                    break;
+                default:
+                    ClearFields();
+                    if (flow is not null)
+                        LoadFlow(flow);
+                    break;
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void LoadStep(StepNode step)
+    {
+        var descriptor = ProviderCatalog.Find(step.Step);
+        Glyph = FlowItemViewModel.DecodeGlyph(descriptor?.Glyph ?? "E9CE");
+        Kind = descriptor is null ? step.Step : $"{CanvasNodeViewModel.Area(descriptor.Area)} › {descriptor.Title}";
+        NamePlaceholder = descriptor?.Title ?? step.Step;
+        Name = step.Name ?? "";
+        PolicyIndex = (int)step.OnFailure;
+        Retries = step.Retry?.Count ?? 0;
+        RetryDelay = step.Retry?.Delay.TotalSeconds ?? 0;
+        Timeout = step.Timeout?.TotalSeconds ?? double.NaN;
+        TimeoutPlaceholder = descriptor is null ? "" : Seconds(descriptor.DefaultTimeout);
+        OnPropertyChanged(nameof(CanRetryDelay));
+
+        if (step.Step != _stepType || Fields.Count == 0 && descriptor?.Params.Count > 0)
+        {
+            ClearFields();
+            _stepType = step.Step;
+            foreach (var spec in descriptor?.Params ?? [])
+            {
+                var field = new ParamFieldViewModel(spec, WriteParam, _fileExists);
+                field.DevicePicked += OnDevicePicked;
+                Fields.Add(field);
+            }
+            HasFields = Fields.Count > 0;
+            foreach (var kind in Fields.Where(f => f.IsDevice).Select(f => f.Spec.Library).OfType<LibraryKind>().Distinct())
+                _ = RefreshDevicesAsync(kind);
+        }
+        var path = $"flows.{FlowId}.nodes.{step.Id}.with.";
+        foreach (var field in Fields)
+        {
+            step.With.TryGetValue(field.Name, out var value);
+            if (field.IsDevice && field.Spec.Library is { } kind)
+                field.SetDevices(Options(field, kind, (value as ScalarParam)?.Text), (value as ScalarParam)?.Text);
+            var errors = _session.Problems.Where(p => p.Severity == Severity.Error).ToList();
+            var problem = errors.FirstOrDefault(p => p.Path == path + field.Name)?.Message
+                // A missing required setting is reported on "with" as "Device is missing (device: …)." (UX §5.7 #9).
+                ?? (errors.Any(p => p.Path == path[..^1] && p.Message.EndsWith($"({field.Name}: …).", StringComparison.Ordinal))
+                    ? field.IsDevice ? "Choose a device." : "Fill this in." : null);
+            field.Load(value, problem);
+        }
+    }
+
+    private void LoadCard(GroupNode card)
+    {
+        ClearFields();
+        Glyph = FlowItemViewModel.DecodeGlyph("E8FD");
+        Kind = card.Members.Count == 1 ? "Runs together · 1 step" : $"Runs together · {card.Members.Count} steps";
+        NamePlaceholder = "Run together";
+        Name = card.Name ?? "";
+        PolicyIndex = (int)card.OnFailure;
+    }
+
+    private void LoadFlow(Flow flow)
+    {
+        FlowName = flow.Name;
+        FlowGlyph = FlowItemViewModel.DecodeGlyph(flow.Glyph ?? FirstGlyph(flow));
+        TrayFolder = flow.Tray.Folder ?? "";
+        LineAbove = flow.Tray.Separator;
+        Folders = [.. _session.Current.Flows.Select(f => f.Tray.Folder).OfType<string>().Distinct(StringComparer.Ordinal).Order(StringComparer.CurrentCulture)];
+        WhenRunningIndex = (int)flow.WhenRunning;
+        ShowPopup = flow.Popup;
+
+        var pending = Shortcuts.Where(s => s.Hotkey.Length == 0).ToList();
+        Shortcuts.Clear();
+        var problems = _session.Problems.Where(p => p.Path == $"flows.{flow.Id}.hotkeys").Select(p => p.Message).ToList();
+        for (var i = 0; i < flow.Hotkeys.Count; i++)
+        {
+            var text = Hotkey.TryParse(flow.Hotkeys[i], out var parsed) ? parsed.ToString() : flow.Hotkeys[i];
+            var busy = _shortcutProblems.FirstOrDefault(m => m.StartsWith(text + ": ", StringComparison.Ordinal));
+            Shortcuts.Add(new ShortcutViewModel(i)
+            {
+                Hotkey = text,
+                Problem = problems.FirstOrDefault(m => m.StartsWith(text + " ", StringComparison.Ordinal)) ?? busy?[(text.Length + 2)..],
+            });
+        }
+        if (pending.Count > 0)
+            Shortcuts.Add(new ShortcutViewModel(flow.Hotkeys.Count));
+    }
+
+    private void ClearFields()
+    {
+        foreach (var field in Fields)
+            field.DevicePicked -= OnDevicePicked;
+        Fields.Clear();
+        HasFields = false;
+        _stepType = null;
+    }
+
+    private List<DeviceOption> Options(ParamFieldViewModel field, LibraryKind kind, string? current) =>
+        LibraryDevices.Options(kind, _session.Current.Library, _live.GetValueOrDefault(kind), current, field.Spec.Required,
+            canCapture: EngineRunning && CanEdit);
+
+    /// <summary>Asks the engine what's on this PC now (on load and each time a picker opens, UX §5.4).</summary>
+    public async Task RefreshDevicesAsync(LibraryKind kind)
+    {
+        if (kind == LibraryKind.Display)
+            return; // layouts are captured, not listed
+        var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.Devices, Kind = LibraryDevices.PipeKind(kind) }).ConfigureAwait(false);
+        if (answer is not { Ok: true, Devices: { } devices })
+            return;
+        _post(() =>
+        {
+            _live[kind] = devices;
+            if (Node is StepNode step)
+            {
+                _loading = true;
+                try
+                {
+                    foreach (var field in Fields.Where(f => f.Spec.Library == kind))
+                    {
+                        var current = step.With.TryGetValue(field.Name, out var v) ? (v as ScalarParam)?.Text : null;
+                        field.SetDevices(Options(field, kind, current), current);
+                    }
+                }
+                finally
+                {
+                    _loading = false;
+                }
+            }
+        });
+    }
+
+    // ---- Writing ----
+
+    private void EditNode(Func<Node, Node> change)
+    {
+        if (_loading || NodeId is not { } id || !CanEdit)
+            return;
+        _canvas.Edit(flow => flow with { Nodes = [.. flow.Nodes.Select(n => n.Id == id ? change(n) : n)] });
+    }
+
+    private void EditStep(Func<StepNode, StepNode> change) => EditNode(n => n is StepNode s ? change(s) : n);
+
+    private void EditFlow(Func<Flow, Flow> change)
+    {
+        if (!_loading && CanEdit)
+            _canvas.Edit(change);
+    }
+
+    private void WriteParam(ParamFieldViewModel field, ParamValue? value) => EditStep(s => s with
+    {
+        With = value is null
+            ? new(s.With.Where(e => e.Key != field.Name))
+            : new([.. s.With, new KeyValuePair<string, ParamValue>(field.Name, value)]),
+    });
+
+    /// <summary>A device from Windows joins the Library under a new key; a capture becomes a new layout.</summary>
+    private void OnDevicePicked(ParamFieldViewModel field, DeviceOption option)
+    {
+        if (field.Spec.Library is not { } kind || !CanEdit)
+            return;
+        if (option.Source == DeviceSource.Capture)
+        {
+            _ = CaptureLayoutAsync(field);
+            return;
+        }
+        if (option.Device is not { } device)
+            return;
+        var (library, key) = LibraryDevices.Add(_session.Current.Library, kind, device);
+        _session.Update(c => c with { Library = library });
+        WriteParam(field, new ScalarParam(key));
+    }
+
+    private async Task CaptureLayoutAsync(ParamFieldViewModel field)
+    {
+        var key = LibraryDevices.NewKey(_session.Current.Library, LibraryKind.Display, "layout");
+        var nodeId = NodeId;
+        var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.CaptureDisplayLayout, Key = key }).ConfigureAwait(false);
+        _post(() =>
+        {
+            if (NodeId != nodeId || !Fields.Contains(field))
+                return; // the selection moved on while the screens were read
+
+            var captured = answer is { Ok: true, Yaml: { } yaml } ? ConfigYaml.Load(yaml).Config?.Library.Displays is { Count: > 0 } displays ? displays[0] : null : null;
+            if (captured is null)
+            {
+                Load(); // back to the key the step had
+                return;
+            }
+            _session.Update(c => c with { Library = c.Library with { Displays = [.. c.Library.Displays, captured] } });
+            WriteParam(field, new ScalarParam(captured.Key));
+        });
+    }
+
+    partial void OnNameChanged(string value)
+    {
+        var name = value.Trim();
+        EditNode(n => n with { Name = name.Length == 0 ? null : name });
+    }
+
+    partial void OnPolicyIndexChanged(int value)
+    {
+        if (value is >= 0 and <= 2)
+            EditNode(n => n with { OnFailure = (FailurePolicy)value });
+    }
+
+    partial void OnRetriesChanged(double value)
+    {
+        OnPropertyChanged(nameof(CanRetryDelay));
+        var count = double.IsNaN(value) ? 0 : (int)Math.Clamp(Math.Round(value), 0, MaxRetries);
+        EditStep(s => s with
+        {
+            Retry = count == 0 ? null : new RetryPolicy(count, s.Retry?.Delay ?? TimeSpan.FromSeconds(1)),
+        });
+    }
+
+    partial void OnRetryDelayChanged(double value)
+    {
+        var delay = TimeSpan.FromMilliseconds(Math.Round(Math.Max(0, double.IsNaN(value) ? 0 : value) * 1000));
+        EditStep(s => s.Retry is { } retry ? s with { Retry = retry with { Delay = delay } } : s);
+    }
+
+    partial void OnTimeoutChanged(double value) => EditStep(s => s with
+    {
+        Timeout = double.IsNaN(value) || value <= 0 ? null : TimeSpan.FromMilliseconds(Math.Round(value * 1000)),
+    });
+
+    partial void OnFlowNameChanged(string value)
+    {
+        var name = value.Trim();
+        if (name.Length > 0)
+            EditFlow(f => f with { Name = name });
+    }
+
+    [RelayCommand]
+    private void PickGlyph(GlyphOption option) =>
+        EditFlow(f => f with { Glyph = f.Glyph is null && option.Code == FirstGlyph(f) ? null : option.Code });
+
+    partial void OnTrayFolderChanged(string value)
+    {
+        var folder = value.Trim();
+        EditFlow(f => f with { Tray = f.Tray with { Folder = folder.Length == 0 ? null : folder } });
+    }
+
+    partial void OnLineAboveChanged(bool value) => EditFlow(f => f with { Tray = f.Tray with { Separator = value } });
+
+    partial void OnWhenRunningIndexChanged(int value)
+    {
+        if (value is >= 0 and <= 2)
+            EditFlow(f => f with { WhenRunning = (WhenRunning)value });
+    }
+
+    partial void OnShowPopupChanged(bool value) => EditFlow(f => f with { Popup = value });
+
+    /// <summary>Adds an empty recorder; nothing is written until a chord is recorded in it.</summary>
+    [RelayCommand]
+    private void AddShortcut()
+    {
+        if (Shortcuts.All(s => s.Hotkey.Length > 0))
+            Shortcuts.Add(new ShortcutViewModel(Shortcuts.Count));
+    }
+
+    /// <summary>The recorder at <paramref name="index"/> recorded <paramref name="hotkey"/> ("" = cleared: removed).</summary>
+    public void SetShortcut(int index, string hotkey)
+    {
+        if (Flow is not { } flow)
+            return;
+        var list = flow.Hotkeys.ToList();
+        if (hotkey.Length == 0)
+        {
+            if (index < list.Count)
+                list.RemoveAt(index);
+            else if (Shortcuts.LastOrDefault() is { Hotkey.Length: 0 } pending)
+                Shortcuts.Remove(pending);
+        }
+        else if (index < list.Count)
+        {
+            list[index] = hotkey;
+        }
+        else
+        {
+            list.Add(hotkey);
+        }
+        if (!list.SequenceEqual(flow.Hotkeys))
+        {
+            if (index >= flow.Hotkeys.Count && Shortcuts.LastOrDefault() is { Hotkey.Length: 0 } pending)
+                Shortcuts.Remove(pending);
+            EditFlow(f => f with { Hotkeys = [.. list] });
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveShortcut(ShortcutViewModel shortcut) => SetShortcut(shortcut.Index, "");
+
+    /// <summary>The engine's own shortcut problems ("Alt+Z: Another app uses Alt+Z…"), for the conflict notes.</summary>
+    public async Task RefreshShortcutProblemsAsync()
+    {
+        var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.Status }).ConfigureAwait(false);
+        _post(() =>
+        {
+            _shortcutProblems = answer?.Status?.ShortcutProblems ?? [];
+            if (Mode == InspectorMode.Flow)
+                Load();
+        });
+    }
+
+    // ---- Failure-policy preview ----
+
+    /// <summary>Hover/focus on a policy: fades what wouldn't run if this node failed; null clears it.</summary>
+    public void PreviewPolicy(int? index)
+    {
+        if (index is not ({ } i and >= 0 and <= 2) || NodeId is null || Flow is not { } flow)
+        {
+            _canvas.Preview(null);
+            return;
+        }
+        _canvas.Preview(Affected(flow, NodeId, (FailurePolicy)i));
+    }
+
+    /// <summary>
+    /// What wouldn't run if <paramref name="id"/> failed (as <c>Scheduler</c> decides): Stop — everything except it and
+    /// what it waits for, unless an "if it fails" edge handles it (then as Skip); Skip — what waits for it through "if it
+    /// works" edges, but not past "whatever happens" edges; Keep going — nothing. A card member fails into its card, whose
+    /// policy decides. Cards bring their members.
+    /// </summary>
+    public static IReadOnlySet<string> Affected(Flow flow, string id, FailurePolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        var cardOf = FlowLayout.CardOf(flow);
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        var top = id;
+        if (cardOf.TryGetValue(id, out var card))
+        {
+            if (policy == FailurePolicy.Ignore)
+                return result;
+            top = card;
+            policy = flow.FindNode(card)?.OnFailure ?? FailurePolicy.Stop;
+        }
+        var edges = FlowLayout.Edges(flow, cardOf);
+        if (policy == FailurePolicy.Stop && edges.Any(e => e.From == top && e.When == EdgeWhen.Failure))
+            policy = FailurePolicy.Skip;
+        switch (policy)
+        {
+            case FailurePolicy.Stop:
+                var upstream = Reach(edges, top, backwards: true, onlySuccess: false);
+                upstream.Add(top);
+                foreach (var node in flow.Nodes)
+                {
+                    if (!upstream.Contains(cardOf.GetValueOrDefault(node.Id, node.Id)))
+                        result.Add(node.Id);
+                }
+                break;
+            case FailurePolicy.Skip:
+                var skipped = Reach(edges, top, backwards: false, onlySuccess: true);
+                foreach (var node in flow.Nodes)
+                {
+                    if (skipped.Contains(cardOf.GetValueOrDefault(node.Id, node.Id)))
+                        result.Add(node.Id);
+                }
+                break;
+        }
+        result.Remove(id);
+        result.Remove(top);
+        return result;
+    }
+
+    private static HashSet<string> Reach(IReadOnlyList<(string From, string To, EdgeWhen When)> edges, string start, bool backwards, bool onlySuccess)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var stack = new Stack<string>([start]);
+        while (stack.Count > 0)
+        {
+            var at = stack.Pop();
+            foreach (var (from, to, when) in edges)
+            {
+                // Skip: the failed step fires only its "if it fails" edges; a skipped one still fires "whatever happens".
+                if (onlySuccess && (at == start ? when != EdgeWhen.Success : when == EdgeWhen.Always))
+                    continue;
+                var (here, next) = backwards ? (to, from) : (from, to);
+                if (here == at && seen.Add(next))
+                    stack.Push(next);
+            }
+        }
+        return seen;
+    }
+
+    // ---- Test this step (UX §5.4) ----
+
+    /// <summary>Runs the selected step alone in the engine with the values on screen (saved or not).</summary>
+    [RelayCommand]
+    private async Task TestAsync()
+    {
+        if (Node is not StepNode step || Flow is not { } flow || !EngineRunning || IsTesting)
+            return;
+        var yaml = ConfigYaml.Save(new Configuration { Library = _session.Current.Library, Flows = [flow] });
+        var nodeId = step.Id;
+        using var cancel = new CancellationTokenSource();
+        _test = cancel;
+        IsTesting = true;
+        TestResult = null;
+        TestDetails = null;
+        PipeMessage? answer;
+        try
+        {
+            answer = await _engine.SendAsync(new PipeRequest { Op = Ops.TestStep, Flow = flow.Id, Node = nodeId, Config = yaml }, cancel.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            answer = null;
+        }
+        _test = null;
+        IsTesting = false;
+        if (NodeId != nodeId)
+            return; // the selection moved on; the result belongs to another step
+        if (cancel.IsCancellationRequested)
+        {
+            ShowResult(false, "Test stopped.", null);
+            return;
+        }
+        if (answer is null)
+            ShowResult(false, "Didn't work: the engine isn't running.", null);
+        else if (!answer.Ok)
+            ShowResult(false, "Didn't work: " + answer.Error, null);
+        else if (answer.Run?.Nodes.FirstOrDefault(n => n.NodeId == nodeId) is { } result)
+            ShowResult(result.Outcome == NodeOutcome.Succeeded, Explain(result), result.Error);
+    }
+
+    [RelayCommand]
+    private void CancelTest() => _test?.Cancel();
+
+    /// <summary>"Worked in 1.2 s." / "Didn't work: Windows couldn't find Technics."</summary>
+    public static string Explain(NodeResult result) => result.Outcome switch
+    {
+        NodeOutcome.Succeeded => result.Duration < TimeSpan.FromSeconds(0.05) ? "Worked right away." : $"Worked in {Seconds(result.Duration)}.",
+        NodeOutcome.Cancelled => "Test stopped.",
+        _ => "Didn't work: " + FirstLine(result.Error ?? "it failed."),
+    };
+
+    private void ShowResult(bool succeeded, string text, string? details)
+    {
+        TestSucceeded = succeeded;
+        TestResult = text;
+        TestDetails = details is not null && details != FirstLine(details) ? details : null;
+    }
+
+    private void ClearTest()
+    {
+        _test?.Cancel();
+        TestResult = null;
+        TestDetails = null;
+    }
+
+    // ---- Helpers ----
+
+    private static string FirstLine(string text) => text.ReplaceLineEndings("\n").Split('\n')[0].Trim();
+
+    /// <summary>"1.2 s", "10 s".</summary>
+    internal static string Seconds(TimeSpan time) =>
+        string.Create(CultureInfo.CurrentCulture, $"{Math.Round(time.TotalSeconds, time.TotalSeconds < 10 ? 1 : 0)} s");
+
+    private static string FirstGlyph(Flow flow) =>
+        flow.Nodes.OfType<StepNode>().Select(s => ProviderCatalog.Find(s.Step)?.Glyph).OfType<string>().FirstOrDefault() ?? "E8FD";
+
+    private static List<GlyphOption> BuildGlyphs()
+    {
+        (string Code, string Name)[] extra =
+        [
+            ("E8FD", "List"), ("E7F8", "Laptop"), ("E7FC", "Game"), ("E8D6", "Music"), ("E714", "Video"),
+            ("E80F", "Home"), ("E706", "Brightness"), ("E708", "Moon"), ("E7E8", "Power"), ("E734", "Star"),
+        ];
+        return [.. ProviderCatalog.All.GroupBy(d => d.Glyph).Select(g => (Code: g.Key, Name: CanvasNodeViewModel.Area(g.First().Area)))
+            .Concat(extra).DistinctBy(g => g.Code).Select(g => new GlyphOption(g.Code, FlowItemViewModel.DecodeGlyph(g.Code), g.Name))];
+    }
+
+    private void OnSessionChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ConfigSession.Current) or nameof(ConfigSession.Problems))
+            Load();
+        else if (e.PropertyName == nameof(ConfigSession.CanEdit))
+            OnPropertyChanged(nameof(CanEdit));
+    }
+
+    private void OnCanvasChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(FlowCanvasViewModel.SelectedIds))
+            Load();
+    }
+
+    private void OnEngineStateChanged() => _post(() =>
+    {
+        OnPropertyChanged(nameof(EngineRunning));
+        OnPropertyChanged(nameof(CanTest));
+        Load(); // "Capture current layout" comes and goes with the engine
+        if (EngineRunning)
+        {
+            _ = RefreshShortcutProblemsAsync();
+            foreach (var kind in Fields.Select(f => f.Spec.Library).OfType<LibraryKind>().Distinct())
+                _ = RefreshDevicesAsync(kind);
+        }
+    });
+
+    /// <summary>The engine registers shortcuts after each reload: their conflicts are known only then.</summary>
+    private void OnEngineEvent(PipeEvent e)
+    {
+        if (e.Kind == EventKinds.ConfigReloaded)
+            _ = RefreshShortcutProblemsAsync();
+    }
+
+    public void Dispose()
+    {
+        _test?.Cancel();
+        _canvas.Preview(null);
+        _session.PropertyChanged -= OnSessionChanged;
+        _canvas.PropertyChanged -= OnCanvasChanged;
+        _engine.StateChanged -= OnEngineStateChanged;
+        _engine.EventReceived -= OnEngineEvent;
+        ClearFields();
+    }
+}

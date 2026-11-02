@@ -92,6 +92,10 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsFocused { get; internal set; }
 
+    /// <summary>Faded while the inspector previews a failure policy: what wouldn't run (UX §5.4).</summary>
+    [ObservableProperty]
+    public partial bool IsDimmed { get; internal set; }
+
     /// <summary>Screen-reader name, e.g. "Set default output, Technics. Audio. Waits for Connect Technics. May fail."</summary>
     [ObservableProperty]
     public partial string AutomationName { get; private set; } = "";

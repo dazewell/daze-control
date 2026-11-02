@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M7 done on feat/m7-edit (PR open, see `gh pr list`); next M8 T8.1 Inspector
-Last green checkpoint: 9ae0f67 "docs: record M7 edit commands and bump to 0.12.0"
-Next action: if the feat/m7-edit PR is still open, finish its merge policy (§6) first. Then branch feat/m8-inspector from main: T8.1 = inspector pane 320 wide right of the canvas in ShellWindow, VM `InspectorViewModel` built from `ParamSpec` for the selected step (nothing selected → flow settings)
-Tree state: builds, 648/648 tests green · Uncommitted: none
-Notes for next agent: version is 0.12.0. M7 leftovers are listed in ARCHITECTURE → Open questions (port/edge "+", minimap, dot grid, F2, Ctrl+L, live region). Test the editor only with `--config <scratch>\config.yaml`; send Enter with SendKeys (build skill). Deferred from PR #9 (minor): "Close without saving" flushes after a plain save error; OnClosing is async void around ContentDialog.
+Current task: M8 — T8.1 done (feat/m8-inspector, PR open, see `gh pr list`); next T8.2 Library pages
+Last green checkpoint: "feat(editor): inspector pane with step settings, policy preview and Test (T8.1)"
+Next action: if the feat/m8-inspector PR is still open, finish its merge policy (§6). Then branch feat/m8-library from main: T8.2 = `Library/LibraryPageViewModel` in Editor.ViewModels with sections Audio, Bluetooth, Displays, Fire TV, Programs (Programs = the `process.run` paths the flows use; there is no Library kind for them); reuse `Inspector/LibraryDevices` (live state, NewKey, Add); Test = read-only check via pipe `devices` (found? connected?) or file exists, never a state change; "Used by n flows" counts steps whose LibraryRef param holds the key. Replace the Library placeholder panel in ShellWindow with a Pivot. Then T8.3 Problems (CommandBar "Problems (n)" → list from `ConfigSession.Problems` for this flow; click selects the node).
+Tree state: builds, 679/679 tests green · Uncommitted: none
+Notes for next agent: version is 0.13.0 (the T8.2/T8.3 PR bumps to 0.14.0). Test the editor only with `--config <scratch>/config.yaml`; a dev engine started with that config (bin/Debug engine exe, `--config`) locks the engine's bin/Debug DLLs: stop it before building. Screenshots: UIA InvokePattern on "Edit <flow>", clicks via SetCursorPos + mouse_event (build skill).
 
 ---
 
@@ -87,7 +87,7 @@ Notes for next agent: version is 0.12.0. M7 leftovers are listed in ARCHITECTURE
 - [x] T7.8 Outline view (keyboard + screen reader equivalent) (feat/m7-edit).
 
 ## M8 Inspector + Library
-- [ ] T8.1 Inspector from `ParamSpec` (device pickers live via pipe, hotkey recorder, file picker, durations),
+- [x] T8.1 Inspector from `ParamSpec` (device pickers live via pipe, hotkey recorder, file picker, durations),
   failure-policy control, Test step.
 - [ ] T8.2 Library pages with Test.
 - [ ] T8.3 Problems list.
