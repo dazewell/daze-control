@@ -603,4 +603,33 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         Assert.Contains(results, r => r.Title == "Disconnect");
         Assert.Equal(StepPaletteViewModel.All.Count, StepPaletteViewModel.Search("  ").Count);
     }
+    [Fact]
+    public void ProblemsListThisFlowsProblemsErrorsFirstAndSelectTheirStep()
+    {
+        Assert.False(_canvas.HasProblems);
+        Assert.Equal("Problems (0)", _canvas.ProblemsLabel);
+
+        _session.Update(c => c with
+        {
+            Flows = [.. c.Flows.Select(f => f with
+            {
+                Hotkeys = ["Alt+"],
+                Nodes = [.. f.Nodes.Select(n => n is StepNode { Id: "out" } s
+                    ? s with { With = new([new KeyValuePair<string, ParamValue>("device", new ScalarParam("gone"))]) }
+                    : n)],
+            })],
+        });
+
+        Assert.Equal("Problems (2)", _canvas.ProblemsLabel);
+        var step = Assert.Single(_canvas.Problems, p => p.NodeId == "out");
+        Assert.Equal("Set default device", step.Where);
+        Assert.Contains("gone", step.Message, StringComparison.Ordinal);
+        var flow = Assert.Single(_canvas.Problems, p => p.NodeId is null);
+        Assert.Equal("Flow settings", flow.Where);
+
+        _canvas.Show(step);
+        Assert.Equal(["out"], _canvas.SelectedIds);
+        _canvas.Show(flow);
+        Assert.Empty(_canvas.SelectedIds);
+    }
 }

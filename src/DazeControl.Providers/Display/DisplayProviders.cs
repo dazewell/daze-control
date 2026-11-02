@@ -11,8 +11,11 @@ public enum DisplayTopology
     External,
 }
 
-/// <summary>One video output: <paramref name="Port"/> as scd named it ("HDMI-1", "DP-3"), the monitor's name.</summary>
-public sealed record DisplayOutput(string Port, string Monitor, bool Available, bool Active);
+/// <summary>
+/// One video output: <paramref name="Port"/> as scd named it ("HDMI-1", "DP-3"), the monitor's name.
+/// <paramref name="DevicePath"/> is the monitor's, as a <see cref="DisplayLayout"/> lists it ("" when none).
+/// </summary>
+public sealed record DisplayOutput(string Port, string Monitor, bool Available, bool Active, string DevicePath = "");
 
 /// <summary>The CCD API (QueryDisplayConfig / SetDisplayConfig) behind a seam (D-019).</summary>
 public interface IDisplays

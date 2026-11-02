@@ -1,0 +1,306 @@
+using DazeControl.Core.Model;
+using DazeControl.Core.Yaml;
+using DazeControl.Editor.ViewModels.Config;
+using DazeControl.Editor.ViewModels.Inspector;
+using DazeControl.Editor.ViewModels.LibraryPage;
+using DazeControl.Ipc;
+
+namespace DazeControl.Editor.ViewModels.Tests;
+
+public sealed class LibraryPageViewModelTests : IDisposable
+{
+    private const string Monitor = @"\\?\DISPLAY#DELA1F2#5&1a2b3c&0&UID4352";
+
+    internal const string Yaml = """
+        version: 1
+        library:
+          audio:
+            technics: { match: "Technics EAH-AZ80" }
+            mic: { match: "Yeti", flow: input }
+          bluetooth:
+            technics: { address: "B8:20:8E:ED:48:FC", name: "Technics" }
+            sony: { address: "80:99:E7:2A:AB:A1", name: "Sony" }
+          displays:
+            desk: { monitors: ['\\?\DISPLAY#DELA1F2#5&1a2b3c&0&UID4352'], ccd: AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= }
+          firetv:
+            living-room: { address: 192.168.1.50 }
+        flows:
+          a:
+            name: Connect Technics
+            nodes:
+              - { id: bt, step: bluetooth.connect, with: { device: technics } }
+              - { id: out, step: audio.setDefault, with: { device: technics }, after: [bt] }
+              - { id: vol, step: audio.setVolume, with: { device: technics, percent: "30" }, after: [out] }
+              - { id: app, step: process.run, with: { path: 'C:\Tools\tv.exe' } }
+          b:
+            name: TV
+            nodes:
+              - { id: bt, step: bluetooth.connect, with: { device: technics } }
+              - { id: tv, step: firetv.input, with: { device: living-room, input: hdmi2 } }
+              - { id: app, step: process.run, with: { path: 'c:\tools\TV.exe' } }
+              - { id: np, step: process.run, with: { path: notepad.exe } }
+        """;
+
+    private readonly string _folder = Path.Combine(Path.GetTempPath(), "DazeControl.Tests-" + Guid.NewGuid().ToString("N"));
+    private readonly ManualTime _time = new();
+    private readonly FakeEngine _engine = new() { IsRunning = true };
+    private readonly HashSet<string> _files = new(StringComparer.OrdinalIgnoreCase) { @"C:\Tools\tv.exe", @"C:\Windows\notepad.exe" };
+    private readonly ConfigSession _session;
+    private readonly LibraryPageViewModel _page;
+
+    public LibraryPageViewModelTests()
+    {
+        Directory.CreateDirectory(_folder);
+        var path = Path.Combine(_folder, "config.yaml");
+        File.WriteAllText(path, Yaml);
+        _session = new ConfigSession(new ConfigStore(path, Path.Combine(_folder, "backups"), _time), _time, action => action());
+        _session.Load();
+        Assert.True(_session.CanEdit, string.Join("; ", _session.Problems));
+        _engine.Answer = request => request.Op switch
+        {
+            Ops.Devices when request.Kind == "bluetooth" => new PipeMessage
+            {
+                Ok = true,
+                Devices =
+                [
+                    new DeviceInfo { Name = "B8:20:8E:ED:48:FC", Detail = "Technics, connected" },
+                    new DeviceInfo { Name = "80:99:E7:2A:AB:A1", Detail = "Sony, not connected" },
+                    new DeviceInfo { Name = "11:22:33:44:55:66", Detail = "WH-1000XM4, not connected" },
+                ],
+            },
+            Ops.Devices when request.Kind == "audio" => new PipeMessage
+            {
+                Ok = true,
+                Devices = [new DeviceInfo { Name = "Speakers (Technics EAH-AZ80)", Detail = "Output, default" }],
+            },
+            Ops.Devices when request.Kind == "displays" => new PipeMessage
+            {
+                Ok = true,
+                Devices = [new DeviceInfo { Name = "DP-1", Id = Monitor, Detail = "DELL, on" }],
+            },
+            Ops.Devices when request.Kind == "adb" => new PipeMessage { Ok = true, Devices = [] },
+            _ => new PipeMessage { Ok = true },
+        };
+        _page = new LibraryPageViewModel(_session, _engine, action => action(), _files.Contains, () => @"C:\Windows;C:\Other");
+    }
+
+    public void Dispose()
+    {
+        _page.Dispose();
+        _session.Dispose();
+        _time.Dispose();
+        Directory.Delete(_folder, recursive: true);
+    }
+
+    private LibraryItemViewModel Item(LibraryKind? kind, string key) => _page.Section(kind).Items.Single(i => i.Key == key);
+
+    [Fact]
+    public void SectionsAreTheFiveLibraryKindsInPivotOrder() =>
+        Assert.Equal(["Audio", "Bluetooth", "Displays", "Fire TV", "Programs"], _page.Sections.Select(s => s.Title));
+
+    [Fact]
+    public void ItemsCountTheFlowsThatUseThem()
+    {
+        Assert.Equal("Used by 2 flows", Item(LibraryKind.Bluetooth, "technics").UsedByText);
+        Assert.Equal("Used by 1 flow", Item(LibraryKind.Audio, "technics").UsedByText); // two steps, one flow
+        Assert.Equal("Not used yet", Item(LibraryKind.Bluetooth, "sony").UsedByText);
+        Assert.Equal("Used by 1 flow", Item(LibraryKind.FireTv, "living-room").UsedByText);
+        Assert.Equal("Not used yet", Item(LibraryKind.Display, "desk").UsedByText);
+    }
+
+    [Fact]
+    public void ProgramsAreTheRunPathsOfTheFlowsIgnoringCase()
+    {
+        var programs = _page.Section(null).Items;
+
+        Assert.Equal(["notepad.exe", "tv.exe"], programs.Select(p => p.Title));
+        Assert.Equal("Used by 2 flows", programs.Single(p => p.Title == "tv.exe").UsedByText);
+        Assert.Equal(@"C:\Tools", programs.Single(p => p.Title == "tv.exe").Detail);
+        Assert.False(programs[0].CanRemove);
+    }
+
+    [Fact]
+    public void CardsDescribeTheItemAndOnlyUnusedOnesCanBeRemoved()
+    {
+        Assert.Equal("Input", Item(LibraryKind.Audio, "mic").Detail);
+        Assert.Equal("B8:20:8E:ED:48:FC", Item(LibraryKind.Bluetooth, "technics").Detail);
+        Assert.Equal("1 screen", Item(LibraryKind.Display, "desk").Detail);
+        Assert.False(Item(LibraryKind.Bluetooth, "technics").CanRemove);
+        Assert.True(Item(LibraryKind.Bluetooth, "sony").CanRemove);
+    }
+
+    [Fact]
+    public async Task RefreshShowsLiveStateAndWhatWindowsHasThatTheLibraryDoesnt()
+    {
+        await _page.RefreshAsync();
+
+        Assert.Equal("B8:20:8E:ED:48:FC · Connected", Item(LibraryKind.Bluetooth, "technics").Description);
+        Assert.Equal("Output, default", Item(LibraryKind.Audio, "technics").State);
+        Assert.Equal(LibraryDevices.NotFound, Item(LibraryKind.Audio, "mic").State);
+        var available = Assert.Single(_page.Section(LibraryKind.Bluetooth).Available);
+        Assert.Equal("WH-1000XM4", available.Title);
+        Assert.Empty(_page.Section(LibraryKind.Display).Available); // layouts are captured, not added
+    }
+
+    [Fact]
+    public async Task AddPutsAWindowsDeviceIntoTheLibrary()
+    {
+        await _page.RefreshAsync();
+        var option = _page.Section(LibraryKind.Bluetooth).Available[0];
+
+        _page.AddCommand.Execute(option);
+
+        var added = Assert.Single(_session.Current.Library.Bluetooth, d => d.Address == "11:22:33:44:55:66");
+        Assert.Equal("wh-1000xm4", added.Key);
+        Assert.Equal("WH-1000XM4", added.Name);
+        Assert.Contains(_page.Section(LibraryKind.Bluetooth).Items, i => i.Key == "wh-1000xm4");
+        Assert.Empty(_page.Section(LibraryKind.Bluetooth).Available);
+    }
+
+    [Fact]
+    public void RemoveDropsOnlyUnusedItems()
+    {
+        _page.RemoveCommand.Execute(Item(LibraryKind.Bluetooth, "technics"));
+        _page.RemoveCommand.Execute(Item(LibraryKind.Bluetooth, "sony"));
+
+        Assert.Equal(["technics"], _session.Current.Library.Bluetooth.Select(d => d.Key));
+    }
+
+    [Fact]
+    public async Task CaptureAddsTheCurrentLayoutUnderANewKey()
+    {
+        var layout = _session.Current.Library.Displays[0] with { Key = "layout" };
+        var yaml = ConfigYaml.Snippet(layout);
+        var answer = _engine.Answer!;
+        _engine.Answer = r => r.Op == Ops.CaptureDisplayLayout ? new PipeMessage { Ok = true, Yaml = yaml } : answer(r);
+
+        await _page.CaptureCommand.ExecuteAsync(null);
+
+        Assert.Equal(["desk", "layout"], _session.Current.Library.Displays.Select(d => d.Key));
+        Assert.Equal(Ops.CaptureDisplayLayout, _engine.Requests[^1].Op);
+    }
+
+    [Fact]
+    public async Task CaptureWithoutTheEngineSaysSo()
+    {
+        _engine.IsRunning = false;
+
+        await _page.CaptureCommand.ExecuteAsync(null);
+
+        Assert.Equal("Start Daze Control to capture the layout.", _page.Section(LibraryKind.Display).Note);
+        Assert.Single(_session.Current.Library.Displays);
+    }
+
+    [Fact]
+    public async Task TestAsksOnlyForTheLiveListAndReportsWhatItFound()
+    {
+        var technics = Item(LibraryKind.Bluetooth, "technics");
+        var sony = Item(LibraryKind.Bluetooth, "sony");
+
+        await technics.TestCommand.ExecuteAsync(null);
+        await sony.TestCommand.ExecuteAsync(null);
+
+        Assert.True(technics.Worked);
+        Assert.Equal("Found Technics: connected.", technics.ResultMessage);
+        Assert.True(sony.Cautioned);
+        Assert.Equal("Found Sony. Not connected right now. The flow will still try.", sony.ResultMessage);
+        Assert.All(_engine.Requests, r => Assert.Equal(Ops.Devices, r.Op)); // never a step that changes anything
+        Assert.Equal("Connected", technics.State); // the test refreshed the live state too
+    }
+
+    [Fact]
+    public async Task TestOfAMissingDeviceFails()
+    {
+        var mic = Item(LibraryKind.Audio, "mic");
+
+        await mic.TestCommand.ExecuteAsync(null);
+
+        Assert.True(mic.Failed);
+        Assert.Equal("Windows couldn't find Yeti. Make sure it's plugged in or turned on, then try again.", mic.ResultMessage);
+    }
+
+    [Fact]
+    public async Task TestWithoutTheEngineSaysToStartIt()
+    {
+        _engine.IsRunning = false;
+        var technics = Item(LibraryKind.Bluetooth, "technics");
+
+        await technics.TestCommand.ExecuteAsync(null);
+
+        Assert.Equal("Start Daze Control to test this.", technics.ResultMessage);
+    }
+
+    [Fact]
+    public async Task FireTvNotConnectedToAdbIsACautionNotAFailure()
+    {
+        var tv = Item(LibraryKind.FireTv, "living-room");
+
+        await tv.TestCommand.ExecuteAsync(null);
+
+        Assert.True(tv.Cautioned);
+    }
+
+    [Fact]
+    public async Task DisplayTestChecksEveryScreenOfTheLayoutIsConnected()
+    {
+        var desk = Item(LibraryKind.Display, "desk");
+        await desk.TestCommand.ExecuteAsync(null);
+        Assert.Equal("Its screen is connected.", desk.ResultMessage);
+
+        var answer = _engine.Answer!;
+        _engine.Answer = r => r.Kind == "displays" ? new PipeMessage { Ok = true, Devices = [new DeviceInfo { Name = "HDMI-1", Id = "other" }] } : answer(r);
+        await desk.TestCommand.ExecuteAsync(null);
+        Assert.True(desk.Failed);
+        Assert.Equal("None of its screens are connected right now.", desk.ResultMessage);
+    }
+
+    [Fact]
+    public async Task ProgramTestLooksForTheFileAndOnPath()
+    {
+        var tv = _page.Section(null).Items.Single(p => p.Title == "tv.exe");
+        var notepad = _page.Section(null).Items.Single(p => p.Title == "notepad.exe");
+
+        await tv.TestCommand.ExecuteAsync(null);
+        await notepad.TestCommand.ExecuteAsync(null);
+
+        Assert.Equal("Found the program.", tv.ResultMessage);
+        Assert.Equal(@"Found it: C:\Windows\notepad.exe", notepad.ResultMessage);
+        Assert.Empty(_engine.Requests);
+
+        _files.Clear();
+        await tv.TestCommand.ExecuteAsync(null);
+        Assert.True(tv.Failed);
+    }
+
+    [Fact]
+    public async Task ItemsKeepTheirTestResultWhenTheConfigChanges()
+    {
+        var technics = Item(LibraryKind.Bluetooth, "technics");
+        await technics.TestCommand.ExecuteAsync(null);
+
+        _session.Update(c => c with { Flows = [.. c.Flows.Where(f => f.Id == "a")] });
+
+        Assert.Same(technics, Item(LibraryKind.Bluetooth, "technics"));
+        Assert.True(technics.HasResult);
+        Assert.Equal("Used by 1 flow", technics.UsedByText);
+    }
+
+    [Fact]
+    public void LibraryProblemsShowOnTheirCard()
+    {
+        _session.Update(c => c with { Library = c.Library with { Bluetooth = [c.Library.Bluetooth[0] with { Address = "nope" }, c.Library.Bluetooth[1]] } });
+
+        Assert.Contains("isn't a Bluetooth address", Item(LibraryKind.Bluetooth, "technics").Problem, StringComparison.Ordinal);
+        Assert.False(Item(LibraryKind.Bluetooth, "sony").HasProblem);
+    }
+
+    [Fact]
+    public async Task EngineStartingRefreshesTheLiveState()
+    {
+        _engine.IsRunning = false;
+        _engine.SetRunning(true);
+        await Task.Yield();
+
+        Assert.Equal("Connected", Item(LibraryKind.Bluetooth, "technics").State);
+    }
+}

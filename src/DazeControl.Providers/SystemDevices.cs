@@ -43,6 +43,7 @@ public sealed class SystemDevices(IDisplays displays, IAdb adb) : IDeviceQueries
                 return [.. displays.Outputs().Where(o => o.Available).Select(o => new DeviceInfo
                 {
                     Name = o.Port,
+                    Id = o.DevicePath.Length > 0 ? o.DevicePath : null,
                     Detail = (o.Monitor.Length > 0 ? o.Monitor + ", " : "") + (o.Active ? "on" : "off"),
                 })];
             case "adb":

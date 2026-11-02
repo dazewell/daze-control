@@ -145,7 +145,8 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
         var technology = ok ? request.outputTechnology : path.targetInfo.outputTechnology;
         var connector = ok ? request.connectorInstance : path.targetInfo.id;
         var monitor = ok ? request.monitorFriendlyDeviceName.ToString() : "";
-        return new DisplayOutput($"{Prefix(technology)}-{connector}", monitor, path.targetInfo.targetAvailable, (path.flags & PathActive) != 0);
+        return new DisplayOutput($"{Prefix(technology)}-{connector}", monitor, path.targetInfo.targetAvailable, (path.flags & PathActive) != 0,
+            ok ? request.monitorDevicePath.ToString() : "");
     }
 
     // scd's port names, so its profiles carry over unchanged.
