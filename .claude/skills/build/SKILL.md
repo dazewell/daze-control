@@ -72,6 +72,9 @@ Open a flow with UIA (`InvokePattern` on the button named "Edit <flow name>"). D
 screen): `SetCursorPos` alone reaches WinUI as a single pointer move, so a drag never starts. Light theme: flip
 HKCU…Personalize `AppsUseLightTheme`; high contrast: `SystemParametersInfo(SPI_SETHIGHCONTRAST)` with
 `SPIF_SENDCHANGE` only (not saved), restored in a `finally`. Restore both right after the screenshot.
+Keys: `keybd_event` letters and Ctrl chords work, but **Enter arrives as `VirtualKey.None`** (even with its scan
+code), so an AutoSuggestBox never submits; send Enter with `SendKeys.SendWait("{ENTER}")` (2026-11-02). Toggling
+an AppBarToggleButton through UIA leaves focus on the button: click into the target before sending keys.
 
 ## Verifying changes
 

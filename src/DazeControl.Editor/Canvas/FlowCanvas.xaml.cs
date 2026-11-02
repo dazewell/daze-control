@@ -5,10 +5,13 @@ using DazeControl.Core.Model;
 using DazeControl.Editor.ViewModels.Canvas;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
 using Windows.UI.Core;
 using CorePoint = DazeControl.Core.Layout.Point;
@@ -58,6 +61,10 @@ public sealed partial class FlowCanvas : UserControl
         Root.PointerCaptureLost += (_, _) => EndGesture();
         Root.PointerExited += (_, _) => { if (_gesture == Gesture.None) ShowPorts(null); };
         Root.RightTapped += OnRightTapped;
+        Root.DoubleTapped += OnDoubleTapped;
+        Root.AllowDrop = true; // palette drags (OLE between controls; never for gestures inside the canvas, UX §5.8 #7)
+        Root.DragOver += OnPaletteDragOver;
+        Root.Drop += OnPaletteDrop;
         Root.AddHandler(PointerWheelChangedEvent, new PointerEventHandler((_, _) => _autoFit = false), handledEventsToo: true);
     }
 
@@ -308,6 +315,9 @@ public sealed partial class FlowCanvas : UserControl
     private static bool CtrlDown() =>
         InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down);
 
+    private static bool ShiftDown() =>
+        InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down);
+
     private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
     {
         if (_viewModel is null || _gesture != Gesture.None)
@@ -419,7 +429,7 @@ public sealed partial class FlowCanvas : UserControl
             case Gesture.Press when _dragged is not null && !CtrlDown():
                 _viewModel.Select(_dragged.Node.Id); // a plain click on one of several selected narrows to it
                 break;
-            case Gesture.Connect when ConnectTarget(position) is { } end:
+            case Gesture.Connect when ConnectTarget(position) is { } end && end.Id != _connectFrom!.Id: // a click on a port is no drag
                 ShowRefusal(_viewModel.Connect(_connectFrom!.Id, end.Id), end);
                 break;
             case Gesture.DragNode:
@@ -538,12 +548,142 @@ public sealed partial class FlowCanvas : UserControl
     /// <summary>The §5.7 #3/#4 teaching tip at <paramref name="at"/>; nothing for a plain no-op.</summary>
     private void ShowRefusal(ConnectRefusal refusal, CanvasNodeViewModel at)
     {
-        if (FlowCanvasViewModel.Explain(refusal) is not { } why || !_views.TryGetValue(at.Id, out var view))
+        if (FlowCanvasViewModel.Explain(refusal) is not { } why)
             return;
-        RefusalTip.Subtitle = why;
-        RefusalTip.Target = view;
-        RefusalTip.IsOpen = true;
+        if (!Shown)
+            ShowTip(why, FallbackTarget);
+        else if (_views.TryGetValue(at.Id, out var view))
+            ShowTip(why, view);
     }
+
+    /// <summary>Where tips and the quick-add search open while the canvas is hidden (the Outline view).</summary>
+    public FrameworkElement? FallbackTarget { get; set; }
+
+    private bool Shown => Visibility == Visibility.Visible && ActualWidth > 0;
+
+    // ---- Add a step: quick-add search, palette drop (UX §5.2) ----
+
+    /// <summary>
+    /// The search flyout at <paramref name="at"/> (content DIP; null = beside the focused step, else the middle of the
+    /// view). The chosen step runs after <paramref name="after"/>, or goes on <paramref name="edge"/>.
+    /// </summary>
+    public void ShowQuickAdd(Windows.Foundation.Point? at, IReadOnlyList<string>? after, CanvasEdgeViewModel? edge)
+    {
+        if (_viewModel is not { CanEdit: true } vm)
+            return;
+        var box = new AutoSuggestBox
+        {
+            PlaceholderText = "Search steps",
+            QueryIcon = new SymbolIcon(Symbol.Find),
+            Width = 280,
+            ItemsSource = StepPaletteViewModel.Search(""),
+            UpdateTextOnSelect = false,
+        };
+        AutomationProperties.SetName(box, "Add a step");
+        var flyout = new Flyout { Content = box, Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft };
+        box.TextChanged += (s, args) =>
+        {
+            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+            {
+                s.ItemsSource = StepPaletteViewModel.Search(s.Text);
+                s.IsSuggestionListOpen = true;
+            }
+        };
+        var done = false;
+        void Choose(PaletteItem? item)
+        {
+            if (done || item is null)
+                return;
+            done = true;
+            flyout.Hide();
+            if (edge is not null)
+                vm.InsertStep(item.Step, edge);
+            else
+                vm.AddStep(item.Step, after);
+            if (Shown)
+                Focus(FocusState.Programmatic);
+            RevealFocused();
+        }
+        box.QuerySubmitted += (_, args) =>
+            Choose(args.ChosenSuggestion as PaletteItem ?? (StepPaletteViewModel.Search(args.QueryText) is [var first, ..] ? first : null));
+        flyout.Opened += (_, _) => { box.Focus(FocusState.Programmatic); box.IsSuggestionListOpen = true; };
+        var position = at ?? (vm.FocusedId is { } id && vm.Find(id) is { } node ? P(FlowCanvasViewModel.OutPort(node)) : default);
+        if (!Shown && FallbackTarget is not null)
+            flyout.ShowAt(FallbackTarget, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Bottom });
+        else if (at is null && vm.FocusedId is null)
+            flyout.ShowAt(Root, new FlyoutShowOptions { Position = new(Root.ActualWidth / 2 - 140, Root.ActualHeight / 3) });
+        else
+            flyout.ShowAt(Host, new FlyoutShowOptions { Position = position });
+    }
+
+    /// <summary>Palette click or Enter: after the selection, else a first step.</summary>
+    public void AddFromPalette(string step)
+    {
+        if (_viewModel is null)
+            return;
+        _viewModel.AddStep(step, [.. _viewModel.SelectedIds]);
+        if (Shown)
+            Focus(FocusState.Programmatic);
+        RevealFocused();
+    }
+
+    /// <summary>Data format the palette drags: the step id as text with this prefix.</summary>
+    public const string PaletteDragPrefix = "daze-step:";
+
+    private static async Task<string?> DraggedStep(DragEventArgs e)
+    {
+        if (!e.DataView.Contains(StandardDataFormats.Text))
+            return null;
+        var text = await e.DataView.GetTextAsync();
+        return text.StartsWith(PaletteDragPrefix, StringComparison.Ordinal) ? text[PaletteDragPrefix.Length..] : null;
+    }
+
+    private void OnPaletteDragOver(object sender, DragEventArgs e)
+    {
+        if (_viewModel is not { CanEdit: true } || !e.DataView.Contains(StandardDataFormats.Text))
+            return;
+        e.AcceptedOperation = DataPackageOperation.Copy;
+        var target = _viewModel.HitTest(C(e.GetPosition(Host)));
+        e.DragUIOverride.Caption = target is null ? "Add a step" : $"Run after {target.Title}";
+    }
+
+    /// <summary>Dropped on a step: runs after it (its card for a member); on empty canvas: a first step.</summary>
+    private async void OnPaletteDrop(object sender, DragEventArgs e)
+    {
+        if (_viewModel is not { CanEdit: true } vm)
+            return;
+        var deferral = e.GetDeferral();
+        try
+        {
+            var target = vm.HitTest(C(e.GetPosition(Host)));
+            if (await DraggedStep(e) is { } step)
+            {
+                vm.AddStep(step, target is null ? null : [target.Id]);
+                RevealFocused();
+            }
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+        if (Shown)
+            Focus(FocusState.Programmatic);
+    }
+
+    private void OnDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (_viewModel is null)
+            return;
+        var position = e.GetPosition(Host);
+        if (_viewModel.HitTest(C(position)) is null && _viewModel.HitTestEdge(C(position)) is null)
+        {
+            _viewModel.ClearSelection();
+            ShowQuickAdd(position, null, null);
+            e.Handled = true;
+        }
+    }
+
+    private void OnAddFirstStep(object sender, RoutedEventArgs e) => ShowQuickAdd(null, null, null);
 
     // ---- Drag a pill onto another: run together / run after (UX §5.2) ----
 
@@ -591,16 +731,85 @@ public sealed partial class FlowCanvas : UserControl
             return;
         var position = e.GetPosition(Host);
         var touch = e.PointerDeviceType == PointerDeviceType.Touch;
-        if (_viewModel.HitTest(C(position)) is null && _viewModel.HitTestEdge(C(position), touch ? 20 : 12) is { } edge)
+        if (_viewModel.HitTest(C(position)) is { } node)
         {
-            EdgeMenu(edge).ShowAt(Host, position);
+            if (!node.IsSelected)
+                _viewModel.Select(node.Id);
+            NodeMenu(position).ShowAt(Host, position);
+            e.Handled = true;
+        }
+        else if (_viewModel.HitTestEdge(C(position), touch ? 20 : 12) is { } edge)
+        {
+            EdgeMenu(edge, position).ShowAt(Host, position);
+            e.Handled = true;
+        }
+        else if (_viewModel.CanPaste)
+        {
+            var menu = new MenuFlyout();
+            menu.Items.Add(Item("Add a step…", "", () => ShowQuickAdd(position, null, null), "/"));
+            menu.Items.Add(Item("Paste", "", () => { _viewModel.ClearSelection(); _viewModel.Paste(); }, "Ctrl+V"));
+            menu.ShowAt(Host, position);
             e.Handled = true;
         }
     }
 
-    private MenuFlyout EdgeMenu(CanvasEdgeViewModel edge)
+    private static MenuFlyoutItem Item(string text, string glyph, Action click, string? shortcut = null, bool enabled = true)
+    {
+        var item = new MenuFlyoutItem { Text = text, Icon = new FontIcon { Glyph = glyph }, IsEnabled = enabled };
+        if (shortcut is not null)
+            item.KeyboardAcceleratorTextOverride = shortcut;
+        item.Click += (_, _) => click();
+        return item;
+    }
+
+    /// <summary>Every command on the selection (the Outline view shows the same menu, UX §5.2).</summary>
+    public MenuFlyout NodeMenu(Windows.Foundation.Point? at = null)
     {
         var menu = new MenuFlyout();
+        if (_viewModel is not { } vm)
+            return menu;
+        var editable = vm.CanEdit;
+        var selected = vm.SelectedIds.ToList();
+        var anchor = selected.Count > 0 ? vm.Find(selected[0]) : null;
+        menu.Items.Add(Item("Add a step after…", "", () => ShowQuickAdd(at, selected, null), "/", editable));
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(Item("Copy", "", () => vm.Copy(), "Ctrl+C"));
+        menu.Items.Add(Item("Paste after", "", vm.Paste, "Ctrl+V", editable && vm.CanPaste));
+        menu.Items.Add(Item("Duplicate", "", vm.Duplicate, "Ctrl+D", editable));
+        menu.Items.Add(new MenuFlyoutSeparator());
+        if (selected.Count > 1)
+            menu.Items.Add(Item("Run together", "", () => ShowRefusalAt(vm.GroupSelection(), anchor), "Ctrl+G", editable));
+        if (selected.Any(id => vm.Find(id)?.Kind == CanvasNodeKind.Card))
+            menu.Items.Add(Item("Ungroup", "", () => ShowRefusalAt(vm.UngroupSelection(), anchor), "Ctrl+Shift+G", editable));
+        if (selected.Count == 1 && anchor is not null && anchor.Kind != CanvasNodeKind.Card)
+        {
+            menu.Items.Add(Item("Move up", "", () => vm.MoveInColumn(anchor.Id, -1), "Alt+Up", editable));
+            menu.Items.Add(Item("Move down", "", () => vm.MoveInColumn(anchor.Id, 1), "Alt+Down", editable));
+        }
+        menu.Items.Add(Item("Delete", "", vm.DeleteSelection, "Del", editable));
+        return menu;
+    }
+
+    private void ShowRefusalAt(ConnectRefusal refusal, CanvasNodeViewModel? at)
+    {
+        if (at is not null)
+            ShowRefusal(refusal, at);
+        else if (FlowCanvasViewModel.Explain(refusal) is { } why)
+            ShowTip(why, null);
+    }
+
+    private void ShowTip(string text, FrameworkElement? target)
+    {
+        RefusalTip.Subtitle = text;
+        RefusalTip.Target = target;
+        RefusalTip.IsOpen = true;
+    }
+
+    private MenuFlyout EdgeMenu(CanvasEdgeViewModel edge, Windows.Foundation.Point at)
+    {
+        var menu = new MenuFlyout();
+        menu.Items.Add(Item("Add a step here…", "", () => ShowQuickAdd(at, null, edge)));
+        menu.Items.Add(new MenuFlyoutSeparator());
         void Add(string text, EdgeWhen when)
         {
             var item = new ToggleMenuFlyoutItem { Text = text, IsChecked = edge.When == when };
@@ -630,6 +839,54 @@ public sealed partial class FlowCanvas : UserControl
 
     // ---- Keyboard (UX §5.2): one tab stop, roving focus ----
 
+    /// <summary>
+    /// The edit shortcuts the canvas and the Outline view share (UX §5.2): Ctrl+G, Ctrl+Shift+G, Ctrl+Z/Y, Ctrl+C/V/D,
+    /// Del and "/". False when <paramref name="key"/> isn't one of them.
+    /// </summary>
+    public bool RunCommandKey(VirtualKey key)
+    {
+        if (_viewModel is not { } vm)
+            return false;
+        var ctrl = CtrlDown();
+        switch (key)
+        {
+            case VirtualKey.G when ctrl && vm.CanEdit:
+                if (ShiftDown())
+                {
+                    if (vm.SelectedIds.FirstOrDefault() is { } card && vm.Find(card) is { } at)
+                        ShowRefusal(vm.UngroupSelection(), at);
+                }
+                else if (vm.SelectedIds.FirstOrDefault() is { } first && vm.Find(first) is { } anchor)
+                    ShowRefusal(vm.GroupSelection(), anchor);
+                break;
+            case VirtualKey.Z when ctrl && ShiftDown():
+            case VirtualKey.Y when ctrl:
+                vm.Redo();
+                break;
+            case VirtualKey.Z when ctrl:
+                vm.Undo();
+                break;
+            case VirtualKey.C when ctrl:
+                vm.Copy();
+                break;
+            case VirtualKey.V when ctrl:
+                vm.Paste();
+                break;
+            case VirtualKey.D when ctrl:
+                vm.Duplicate();
+                break;
+            case VirtualKey.Delete or VirtualKey.Back when vm.CanEdit:
+                vm.DeleteSelection();
+                break;
+            case (VirtualKey)191 or VirtualKey.Divide when vm.CanEdit: // "/" (VK_OEM_2)
+                ShowQuickAdd(null, [.. vm.SelectedIds], null);
+                break;
+            default:
+                return false;
+        }
+        return true;
+    }
+
     protected override void OnKeyDown(KeyRoutedEventArgs e)
     {
         ArgumentNullException.ThrowIfNull(e);
@@ -639,6 +896,12 @@ public sealed partial class FlowCanvas : UserControl
         var alt = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down);
         e.Handled = true;
         _autoFit = false;
+        if (RunCommandKey(e.Key))
+        {
+            UpdateFocusRing();
+            RevealFocused();
+            return;
+        }
         switch (e.Key)
         {
             case VirtualKey.Up or VirtualKey.Down when alt && _viewModel.FocusedId is { } id && _viewModel.CanEdit:
@@ -655,15 +918,6 @@ public sealed partial class FlowCanvas : UserControl
                 break;
             case VirtualKey.Down:
                 _viewModel.MoveFocus(FocusMove.Down);
-                break;
-            case VirtualKey.G when ctrl && _viewModel.CanEdit:
-                if (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down))
-                {
-                    if (_viewModel.SelectedIds.FirstOrDefault() is { } card && _viewModel.Find(card) is { } at)
-                        ShowRefusal(_viewModel.UngroupSelection(), at);
-                }
-                else if (_viewModel.SelectedIds.FirstOrDefault() is { } first && _viewModel.Find(first) is { } anchor)
-                    ShowRefusal(_viewModel.GroupSelection(), anchor);
                 break;
             case VirtualKey.A when ctrl:
                 _viewModel.SelectAll();
@@ -706,6 +960,13 @@ public sealed partial class FlowCanvas : UserControl
         FrameworkElementAutomationPeer.FromElement(this)?.RaiseNotificationEvent(
             AutomationNotificationKind.ActionCompleted, AutomationNotificationProcessing.MostRecent, node.AutomationName, "canvas-focus");
     }
+
+    /// <summary>After an add or paste: scroll to the new step once it has its slot.</summary>
+    private void RevealFocused() => DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+    {
+        if (Shown && _viewModel?.FocusedId is { } id && _viewModel.Find(id) is { } node)
+            BringIntoView(node);
+    });
 
     private void BringIntoView(CanvasNodeViewModel node)
     {

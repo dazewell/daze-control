@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M7 Canvas — T7.3–7.4 + T7.6 done on feat/m7-connect (PR open, see `gh pr list`); next T7.5 + T7.7–7.8
-Last green checkpoint: d2184ac "Merge remote-tracking branch 'origin/main' into feat/m7-connect"
-Next action: if the feat/m7-connect PR is still open, finish its merge policy (§6) first. Then branch feat/m7-edit from main: T7.7 = VM undo/redo stack in `FlowCanvasViewModel.Edit` (snapshots of `Flow`, Ctrl+Z / Ctrl+Y, CommandBar Undo/Redo), then copy/paste/delete; T7.5 palette + quick-add; T7.8 Outline view
-Tree state: builds, 612/612 tests green · Uncommitted: none
-Notes for next agent: version is 0.11.0. Test the editor only with `--config <scratch>\config.yaml` (build skill: UIA + absolute mouse_event drags; take click points from UIA BoundingRectangle, the window moves between launches). Not done yet in M7: dot grid, minimap, "Add a step" in the empty state (T7.5), 225 % text check, edge hover, long edges crossing pills (ARCHITECTURE open question). Light/HC screenshots of ports, drop zones and the refusal tip not taken yet. Deferred from PR #9 (minor): "Close without saving" flushes after a plain save error; OnClosing is async void around ContentDialog.
+Current task: M7 done on feat/m7-edit (PR open, see `gh pr list`); next M8 T8.1 Inspector
+Last green checkpoint: 9ae0f67 "docs: record M7 edit commands and bump to 0.12.0"
+Next action: if the feat/m7-edit PR is still open, finish its merge policy (§6) first. Then branch feat/m8-inspector from main: T8.1 = inspector pane 320 wide right of the canvas in ShellWindow, VM `InspectorViewModel` built from `ParamSpec` for the selected step (nothing selected → flow settings)
+Tree state: builds, 648/648 tests green · Uncommitted: none
+Notes for next agent: version is 0.12.0. M7 leftovers are listed in ARCHITECTURE → Open questions (port/edge "+", minimap, dot grid, F2, Ctrl+L, live region). Test the editor only with `--config <scratch>\config.yaml`; send Enter with SendKeys (build skill). Deferred from PR #9 (minor): "Close without saving" flushes after a plain save error; OnClosing is async void around ContentDialog.
 
 ---
 
@@ -76,15 +76,15 @@ Notes for next agent: version is 0.11.0. Test the editor only with `--config <sc
 - [x] T6.3 Config load/autosave (debounced, atomic, backups), external-change InfoBar.
 - [x] T6.4 Flows list page; Settings + About pages (feat/m6-editor).
 
-## M7 Canvas
+## M7 Canvas ✔ (2026-11-02, PRs #10, #11, feat/m7-edit)
 - [x] T7.1 Render nodes/cards/edges from VM, pan/zoom/fit (feat/m7-canvas).
 - [x] T7.2 Move, select, multi-select (feat/m7-canvas).
 - [x] T7.3 Connect by port drag, cycle refusal (feat/m7-connect).
 - [x] T7.4 Cards: group/ungroup, drag pills in/out (feat/m7-connect).
-- [ ] T7.5 Palette + quick-add search.
+- [x] T7.5 Palette + quick-add search (feat/m7-edit).
 - [x] T7.6 Auto-arrange (Core layered layout, tested) + Tidy up (feat/m7-connect).
-- [ ] T7.7 Undo/redo, copy/paste, delete.
-- [ ] T7.8 Outline view (keyboard + screen reader equivalent).
+- [x] T7.7 Undo/redo, copy/paste, delete (feat/m7-edit).
+- [x] T7.8 Outline view (keyboard + screen reader equivalent) (feat/m7-edit).
 
 ## M8 Inspector + Library
 - [ ] T8.1 Inspector from `ParamSpec` (device pickers live via pipe, hotkey recorder, file picker, durations),

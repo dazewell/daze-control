@@ -9,10 +9,16 @@ using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Data;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
+using VirtualKey = Windows.System.VirtualKey;
+using CoreVirtualKeyStates = Windows.UI.Core.CoreVirtualKeyStates;
+using DazeControl.Editor.Canvas;
 
 namespace DazeControl.Editor;
 
@@ -28,6 +34,7 @@ public sealed partial class ShellWindow : Window
     private bool _closeAnyway;
     private bool _asking;
     private FlowCanvasViewModel? _editor;
+    private readonly StepPaletteViewModel _palette = new();
 
     public ShellWindow(ShellViewModel viewModel)
     {
@@ -47,6 +54,8 @@ public sealed partial class ShellWindow : Window
 
         ViewModel.Session.PropertyChanged += OnSessionChanged;
         ViewModel.PropertyChanged += OnShellChanged;
+        PaletteList.ItemsSource = new CollectionViewSource { Source = _palette.Groups, IsSourceGrouped = true, ItemsPath = new PropertyPath(nameof(PaletteGroup.Items)) }.View;
+        FlowCanvasControl.FallbackTarget = OutlineTree;
         ShowOutsideChange();
 
         // Debounced: one save by another editor raises several events.
@@ -181,6 +190,8 @@ public sealed partial class ShellWindow : Window
         if (_editor is not null)
             _editor.PropertyChanged += OnEditorChanged;
         FlowCanvasControl.ViewModel = _editor;
+        UpdateHistory();
+        UpdateOutline();
         FlowEditorPage.Visibility = Show(_editor is not null);
         PagesScroller.Visibility = Show(_editor is null);
         UpdateBreadcrumb();
@@ -201,6 +212,15 @@ public sealed partial class ShellWindow : Window
             case nameof(FlowCanvasViewModel.ZoomText):
                 ZoomButton.Label = _editor!.ZoomText;
                 break;
+            case nameof(FlowCanvasViewModel.CanUndo) or nameof(FlowCanvasViewModel.CanRedo) or nameof(FlowCanvasViewModel.CanEdit):
+                UpdateHistory();
+                break;
+            case nameof(FlowCanvasViewModel.Outline):
+                UpdateOutline();
+                break;
+            case nameof(FlowCanvasViewModel.SelectedIds):
+                DispatcherQueue.TryEnqueue(SelectInOutline); // never inside the tree's own input handling
+                break;
         }
     }
 
@@ -214,6 +234,152 @@ public sealed partial class ShellWindow : Window
     }
 
     private void OnTidyUp(object sender, RoutedEventArgs e) => _editor?.TidyUp();
+
+    private void OnUndo(object sender, RoutedEventArgs e) => _editor?.Undo();
+
+    private void OnRedo(object sender, RoutedEventArgs e) => _editor?.Redo();
+
+    private void UpdateHistory()
+    {
+        UndoButton.IsEnabled = _editor is { CanUndo: true, CanEdit: true };
+        RedoButton.IsEnabled = _editor is { CanRedo: true, CanEdit: true };
+    }
+
+    // ---- Palette (UX §5.1, §5.2) ----
+
+    private void OnTogglePalette(object sender, RoutedEventArgs e) => PalettePane.Visibility = Show(PaletteToggle.IsChecked == true);
+
+    private void OnPaletteSearchChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        _palette.Query = sender.Text;
+        PaletteEmpty.Visibility = Show(_palette.IsEmpty);
+    }
+
+    private void OnPaletteItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is PaletteItem item)
+            FlowCanvasControl.AddFromPalette(item.Step);
+    }
+
+    private void OnPaletteDragStarting(object sender, DragItemsStartingEventArgs e)
+    {
+        if (e.Items.FirstOrDefault() is not PaletteItem item || _editor is not { CanEdit: true })
+        {
+            e.Cancel = true;
+            return;
+        }
+        e.Data.SetText(FlowCanvas.PaletteDragPrefix + item.Step);
+        e.Data.RequestedOperation = DataPackageOperation.Copy;
+    }
+
+    // ---- Canvas | Outline (UX §5.2) ----
+
+    private bool _syncingOutline;
+
+    private void OnShowCanvas(object sender, RoutedEventArgs e) => ShowOutline(false);
+
+    private void OnShowOutline(object sender, RoutedEventArgs e) => ShowOutline(true);
+
+    private void ShowOutline(bool outline)
+    {
+        CanvasViewButton.IsChecked = !outline;
+        OutlineViewButton.IsChecked = outline;
+        OutlineTree.Visibility = Show(outline);
+        FlowCanvasControl.Visibility = Show(!outline);
+        if (outline)
+        {
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, SelectInOutline); // rows exist only after layout
+            OutlineTree.Focus(FocusState.Programmatic);
+        }
+        else
+        {
+            FlowCanvasControl.Focus(FocusState.Programmatic);
+        }
+    }
+
+    private void UpdateOutline()
+    {
+        _syncingOutline = true;
+        OutlineTree.ItemsSource = _editor?.Outline;
+        _syncingOutline = false;
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, SelectInOutline);
+    }
+
+    /// <summary>
+    /// The outline selects one row (TreeView multi-select doesn't redraw its check boxes from code reliably): on
+    /// showing it, a canvas multi-selection narrows to the focused step so commands act only on what is visible.
+    /// </summary>
+    private void SelectInOutline()
+    {
+        if (_editor is null || OutlineTree.Visibility != Visibility.Visible)
+            return;
+        var id = _editor.FocusedId ?? (_editor.SelectedIds.Count > 0 ? _editor.SelectedIds.First() : null);
+        if (_editor.SelectedIds.Count > 1)
+            _editor.SelectOnly(id is null ? [] : [id]);
+        var item = _editor.Outline.SelectMany(i => i.Children.Prepend(i)).FirstOrDefault(i => i.Id == id);
+        _syncingOutline = true;
+        try
+        {
+            if (item is not null && OutlineTree.ContainerFromItem(item) is TreeViewItem container
+                && OutlineTree.NodeFromContainer(container) is { } node)
+            {
+                OutlineTree.SelectedNode = node;
+                container.StartBringIntoView();
+            }
+            else
+            {
+                OutlineTree.SelectedNode = null;
+            }
+        }
+        finally
+        {
+            _syncingOutline = false;
+        }
+    }
+
+    private void OnOutlineSelectionChanged(TreeView sender, TreeViewSelectionChangedEventArgs args)
+    {
+        if (_syncingOutline || _editor is null || sender.SelectedNode?.Content is not OutlineItem item)
+            return;
+        if (_editor.SelectedIds.Count != 1 || !_editor.SelectedIds.Contains(item.Id))
+            _editor.SelectOnly([item.Id]);
+    }
+
+    private void OnOutlineKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (_editor is null)
+            return;
+        var alt = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down);
+        if (alt && e.Key is VirtualKey.Up or VirtualKey.Down && _editor.FocusedId is { } id && _editor.CanEdit)
+        {
+            _editor.MoveInColumn(id, e.Key == VirtualKey.Up ? -1 : 1);
+            e.Handled = true;
+        }
+        else if (FlowCanvasControl.RunCommandKey(e.Key))
+        {
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>Right-click, Shift+F10 or the menu key: the canvas's own command menu (UX §5.2).</summary>
+    private void OnOutlineContextRequested(UIElement sender, ContextRequestedEventArgs args)
+    {
+        if (_editor is null)
+            return;
+        if ((args.OriginalSource as FrameworkElement)?.DataContext is OutlineItem item && !_editor.SelectedIds.Contains(item.Id))
+            _editor.Select(item.Id);
+        var target = args.OriginalSource as FrameworkElement ?? OutlineTree;
+        Windows.Foundation.Point? point = args.TryGetPosition(OutlineTree, out var p) ? p : null;
+        args.Handled = true;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            var menu = FlowCanvasControl.NodeMenu();
+            if (point is { } at)
+                menu.ShowAt(OutlineTree, at);
+            else
+                menu.ShowAt(target);
+        });
+    }
 
     private void OnFit(object sender, RoutedEventArgs e) => FlowCanvasControl.Fit();
 

@@ -209,7 +209,7 @@ ends the process. Single instance: a named mutex; a second start sets a named ev
 brings its window to the front. Pages (UX §5.1) are panels in one `ShellWindow` (Flows, Library placeholder until
 M8, Settings, About), cards in the OSD's settings-card style (App.xaml). All logic is in `Editor.ViewModels`:
 - `Config/ConfigStore` — config.yaml I/O: atomic write (temp + `File.Move` overwrite), one backup per editor
-  session in `%APPDATA%\DazeControlackups` (newest 10), and the text last read/written to tell outside changes.
+  session in `%APPDATA%\DazeControl\backups` (newest 10), and the text last read/written to tell outside changes.
 - `Config/ConfigSession` — every edit is `Update(c => …)`; saved 300 ms after the last one (`TimeProvider`).
   A file that can't be read (bad YAML, newer schema) is never written (`CanEdit` false). An outside change
   (window's FileSystemWatcher, debounced) reloads when nothing is unsaved, else waits: InfoBar Keep mine / Reload.
@@ -226,7 +226,14 @@ M8, Settings, About), cards in the OSD's settings-card style (App.xaml). All log
 - Canvas edits live in Core: `FlowGraph` (connect/disconnect/`when`, refusals: exists, loop, same card) and
   `FlowEdits` (group/ungroup, take out — a card under 2 members dissolves —, run together/after on drop).
   `FlowTidy` ("Tidy up") cuts crossings with barycentre sweeps; nodes only trade the `nodes` slots their column
-  already holds, so the YAML diff stays small.
+  already holds, so the YAML diff stays small. `FlowCommands` (add, insert on an edge, delete with bridging, copy,
+  paste) backs the edit commands (D-039).
+- Flow editor commands: undo/redo are whole-flow snapshots in the canvas VM (D-039). Palette and quick-add
+  (`/`, double-click, the empty state's button, "Add a step…" menus) share `StepPaletteViewModel.Search`; the palette
+  drags into the canvas with OLE drag-drop (text `daze-step:<id>`), the only drag that crosses controls. The
+  Outline view (`FlowCanvasViewModel.Outline`, a TreeView) is the screen-reader equivalent: same selection (one row:
+  showing it narrows a canvas multi-selection to the focused step, since TreeView multi-select didn't redraw its check
+  boxes from code reliably), same shortcuts (`FlowCanvas.RunCommandKey`) and the same command menu (`FlowCanvas.NodeMenu`).
 - `--config <path>` makes the editor edit another file (tests, screenshots); its backups go to `backups/<file>/`
   next to it, and its single-instance names are scoped by path.
 
@@ -268,6 +275,10 @@ T0.5 gate passed: no AOT/trim warnings; hotkey press and tray icon checked on th
 (rows above). The post-run delta covers runner, history and pipe only; re-measure with real providers (M4, M10).
 
 ## Open questions
+
+- Not built in M7 yet: "+" on a port and on an edge midpoint (menus cover both), minimap, dot grid, F2 rename and
+  Ctrl+L "Runs after…" (wait for the M8 inspector), the outline's live region for run results (M9),
+  multi-select in the outline.
 
 - Long canvas edges (skipping a column) are a straight Bézier and can cross a pill in the skipped column; layered
   layouts usually route them through dummy nodes. Fix if real flows look messy.

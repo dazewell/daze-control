@@ -33,13 +33,22 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     private readonly ConfigSession _session;
     private readonly Dictionary<string, Size> _measured = new(StringComparer.Ordinal);
     private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
+    private readonly CanvasClipboard _clipboard;
+    private readonly List<Flow> _undo = [], _redo = [];
     private FlowArrangement _arrangement = new([], [], [], new Size(96, 96));
+    private Flow? _known;
+    private bool _editing;
 
-    public FlowCanvasViewModel(ConfigSession session, string flowId)
+    /// <summary>Undo steps kept per open flow.</summary>
+    public const int HistoryLimit = 100;
+
+    public FlowCanvasViewModel(ConfigSession session, string flowId, CanvasClipboard? clipboard = null)
     {
         _session = session;
+        _clipboard = clipboard ?? new CanvasClipboard();
         FlowId = flowId;
         _session.PropertyChanged += OnSessionChanged;
+        _known = Flow;
         Sync();
     }
 
@@ -78,6 +87,18 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     public partial string? FocusedId { get; private set; }
 
     public bool CanEdit => _session.CanEdit;
+
+    [ObservableProperty]
+    public partial bool CanUndo { get; private set; }
+
+    [ObservableProperty]
+    public partial bool CanRedo { get; private set; }
+
+    /// <summary>The Outline view's rows (UX §5.2): run order, cards as branches.</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<OutlineItem> Outline { get; private set; } = [];
+
+    public bool CanPaste => _clipboard.Clip is not null;
 
     public IReadOnlyCollection<string> SelectedIds => _selected;
 
@@ -406,11 +427,152 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         return true;
     }
 
-    /// <summary>Applies a change to this flow (one undo entry from T7.7).</summary>
+    /// <summary>Applies a change to this flow: one undo entry per call, so a gesture makes exactly one call.</summary>
     public void Edit(Func<Flow, Flow> change)
     {
         ArgumentNullException.ThrowIfNull(change);
-        _session.Update(c => c with { Flows = [.. c.Flows.Select(f => f.Id == FlowId ? change(f) : f)] });
+        if (Flow is not { } before)
+            return;
+        Replace(change);
+        if (Flow is not { } after || after.Equals(before))
+            return;
+        Push(_undo, before);
+        _redo.Clear();
+        UpdateHistory();
+    }
+
+    /// <summary>Ctrl+Z.</summary>
+    public void Undo() => Step(_undo, _redo);
+
+    /// <summary>Ctrl+Y / Ctrl+Shift+Z.</summary>
+    public void Redo() => Step(_redo, _undo);
+
+    private void Step(List<Flow> from, List<Flow> to)
+    {
+        if (from.Count == 0 || Flow is not { } current || !CanEdit)
+            return;
+        var target = from[^1];
+        from.RemoveAt(from.Count - 1);
+        Replace(_ => target);
+        Push(to, current);
+        UpdateHistory();
+    }
+
+    private void Replace(Func<Flow, Flow> change)
+    {
+        _editing = true;
+        try
+        {
+            _session.Update(c => c with { Flows = [.. c.Flows.Select(f => f.Id == FlowId ? change(f) : f)] });
+        }
+        finally
+        {
+            _editing = false;
+        }
+        _known = Flow;
+    }
+
+    private static void Push(List<Flow> stack, Flow flow)
+    {
+        stack.Add(flow);
+        if (stack.Count > HistoryLimit)
+            stack.RemoveAt(0);
+    }
+
+    private void UpdateHistory()
+    {
+        CanUndo = _undo.Count > 0;
+        CanRedo = _redo.Count > 0;
+    }
+
+    // ---- Add, delete, copy, paste (UX §5.2) ----
+
+    /// <summary>Palette, quick-add or "Add a step after": a new step after <paramref name="after"/> (none = a first step); selected.</summary>
+    public string? AddStep(string step, IEnumerable<string>? after = null)
+    {
+        if (Flow is null || !CanEdit)
+            return null;
+        string? id = null;
+        Edit(flow =>
+        {
+            (var next, id) = FlowCommands.Add(flow, step, after ?? []);
+            return next;
+        });
+        SelectOnly(id is null ? [] : [id]);
+        return id;
+    }
+
+    /// <summary>"Add a step here" on an edge.</summary>
+    public string? InsertStep(string step, CanvasEdgeViewModel edge)
+    {
+        ArgumentNullException.ThrowIfNull(edge);
+        if (Flow is null || !CanEdit)
+            return null;
+        string? id = null;
+        Edit(flow =>
+        {
+            (var next, id) = FlowCommands.Insert(flow, step, edge.From, edge.To);
+            return next;
+        });
+        SelectOnly(id is null ? [] : [id]);
+        return id;
+    }
+
+    /// <summary>Del: the selection, reconnecting around it.</summary>
+    public void DeleteSelection()
+    {
+        if (_selected.Count == 0)
+            return;
+        var ids = _selected.ToList();
+        Edit(flow => FlowCommands.Delete(flow, ids));
+    }
+
+    /// <summary>Ctrl+C; false when nothing is selected.</summary>
+    public bool Copy()
+    {
+        if (Flow is not { } flow || _selected.Count == 0)
+            return false;
+        _clipboard.Clip = FlowCommands.Copy(flow, _selected);
+        OnPropertyChanged(nameof(CanPaste));
+        return true;
+    }
+
+    /// <summary>Ctrl+V: the copied steps run after the selection (nothing selected: beside where they came from); selected.</summary>
+    public void Paste()
+    {
+        if (_clipboard.Clip is { } clip)
+            PasteClip(clip, _selected.Count > 0 ? [.. _selected] : null);
+    }
+
+    /// <summary>Ctrl+D: copies of the selection beside it; the clipboard keeps what it had.</summary>
+    public void Duplicate()
+    {
+        if (Flow is { } flow && _selected.Count > 0)
+            PasteClip(FlowCommands.Copy(flow, _selected), after: null);
+    }
+
+    private void PasteClip(FlowClip clip, List<string>? after)
+    {
+        if (!CanEdit)
+            return;
+        ValueList<string> ids = [];
+        Edit(flow =>
+        {
+            (var next, ids) = FlowCommands.Paste(flow, clip, after);
+            return next;
+        });
+        SelectOnly(ids);
+    }
+
+    /// <summary>Replaces the selection (the Outline view's multi-select); focus goes to the first.</summary>
+    public void SelectOnly(IEnumerable<string> ids)
+    {
+        _selected.Clear();
+        foreach (var id in ids.Where(id => Find(id) is not null))
+            _selected.Add(id);
+        if (_selected.Count > 0)
+            SetFocus(_selected.First());
+        ApplySelection();
     }
 
     // ---- Sync ----
@@ -476,7 +638,16 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         SetFocus(FocusedId);
         ApplySelection();
         IsEmpty = Nodes.Count == 0;
+        Outline = BuildOutline();
         OnPropertyChanged(nameof(Arrangement));
+    }
+
+    private List<OutlineItem> BuildOutline()
+    {
+        OutlineItem Item(CanvasNodeViewModel n, IReadOnlyList<OutlineItem> children) =>
+            new(n.Id, n.Title, n.Summary, n.Glyph, n.AutomationName, children);
+        return [.. Nodes.Where(n => n.Kind != CanvasNodeKind.Member).OrderBy(n => n.Column).ThenBy(n => n.Row)
+            .Select(n => Item(n, [.. Nodes.Where(m => m.CardId == n.Id).OrderBy(m => m.Row).Select(m => Item(m, []))]))];
     }
 
     private void ApplySelection()
@@ -490,6 +661,14 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     private void OnSessionChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(ConfigSession.Current) && !_editing && !Equals(Flow, _known))
+        {
+            // Reloaded from disk or changed on another page: undo would bring back a version made outside this canvas.
+            _known = Flow;
+            _undo.Clear();
+            _redo.Clear();
+            UpdateHistory();
+        }
         if (e.PropertyName is nameof(ConfigSession.Current) or nameof(ConfigSession.Problems))
             Sync();
         if (e.PropertyName == nameof(ConfigSession.CanEdit))

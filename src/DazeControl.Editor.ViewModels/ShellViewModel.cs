@@ -45,13 +45,15 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
     public bool IsEditingFlow => Editor is not null;
 
+    private readonly Canvas.CanvasClipboard _clipboard = new();
+
     public void OpenFlow(string flowId)
     {
         if (Editor?.FlowId == flowId)
             return;
         CloseFlow();
         if (Session.Current.Flows.Any(f => f.Id == flowId))
-            Editor = new Canvas.FlowCanvasViewModel(Session, flowId);
+            Editor = new Canvas.FlowCanvasViewModel(Session, flowId, _clipboard);
     }
 
     public void CloseFlow()
