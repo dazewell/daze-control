@@ -43,7 +43,7 @@ public sealed class EngineControllerTests : IDisposable
 
     public EngineControllerTests()
     {
-        _provider.On("a", (context, token) => context.Flow.Id == "slow" ? _gate.Task.WaitAsync(token) : Task.CompletedTask);
+        _provider.On("a", (context, token) => context.Flow.Id is "slow" or "test:slow" ? _gate.Task.WaitAsync(token) : Task.CompletedTask);
         _launcher = new FlowLauncher(new FlowRunner([_provider], _time), _history);
         _snapshot = ConfigHost.Apply(ConfigSnapshot.Empty, ConfigYaml.Load(Yaml));
         _controller = new EngineController(ReadConfig, _launcher, _history, EngineController.CreateDryRunner(_time),
@@ -310,5 +310,58 @@ public sealed class EngineControllerTests : IDisposable
         var answer = await WithDevices().HandleAsync(new PipeRequest { Id = 3, Op = Ops.CaptureDisplayLayout, Key = " " }, CancellationToken.None);
 
         Assert.Equal("Say what to call the layout.", answer.Error);
+    }
+
+    private const string TestYaml = """
+        flows:
+          tv:
+            name: TV only
+            nodes:
+              - { id: a, step: notify, with: { text: x } }
+              - { id: b, step: notify, after: [a] }
+        """;
+
+    private EngineController WithStepRunner() => new(ReadConfig, _launcher, _history, EngineController.CreateDryRunner(_time),
+        new Autostart(_root + @"\Run", _root + @"\Approved"), new EngineInfo("1.2.3", 42, @"C:\x\DazeControl.exe", "c.yaml"),
+        _ => { }, stepRunner: new FlowRunner([_provider], _time));
+
+    private static PipeRequest Test(string node, string flow = "tv", string config = TestYaml) =>
+        new() { Id = 5, Op = Ops.TestStep, Flow = flow, Node = node, Config = config };
+
+    [Fact]
+    public async Task TestStepRunsTheSentStepAloneWithoutHistory()
+    {
+        var answer = await WithStepRunner().HandleAsync(Test("a"), CancellationToken.None);
+
+        Assert.True(answer.Ok, answer.Error);
+        Assert.Equal(FlowOutcome.Succeeded, answer.Run!.Outcome);
+        Assert.Equal("test:tv", answer.Run.FlowId);
+        Assert.Equal(["a"], answer.Run.Nodes.Select(n => n.NodeId));
+        Assert.Equal([("a", 1)], _provider.Attempts);
+        Assert.Empty(_history.Recent);
+    }
+
+    [Theory]
+    [InlineData("b", "Fix this step first:")] // notify without text
+    [InlineData("zz", "That step isn't in the flow.")]
+    public async Task TestStepRefusesWhatCantRun(string node, string error)
+    {
+        var answer = await WithStepRunner().HandleAsync(Test(node), CancellationToken.None);
+
+        Assert.False(answer.Ok);
+        Assert.StartsWith(error, answer.Error, StringComparison.Ordinal);
+        Assert.Empty(_provider.Attempts);
+    }
+
+    [Fact]
+    public async Task CancelStopsAStepTest()
+    {
+        var controller = WithStepRunner();
+        var test = controller.HandleAsync(Test("a", "slow", Yaml), CancellationToken.None);
+        await _provider.Started("a");
+
+        Assert.True((await controller.HandleAsync(new PipeRequest { Id = 6, Op = Ops.Cancel, Flow = "test:slow" }, CancellationToken.None)).Ok);
+
+        Assert.Equal(FlowOutcome.Cancelled, (await test).Run!.Outcome);
     }
 }

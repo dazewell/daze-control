@@ -71,7 +71,9 @@ internal sealed class EngineHost : IDisposable
         if (_history.LoadError is { } loadError)
             Log.Error($"history: {paths.History} not loaded", loadError);
         _history.WriteFailed += e => Log.Error("history: write failed", e);
-        var runner = new FlowRunner(providers(new TrayNotifier(_window, _tray)), TimeProvider.System, new ResourceLocks(), events: OnRunEvent);
+        var stepProviders = providers(new TrayNotifier(_window, _tray)).ToList();
+        var locks = new ResourceLocks();
+        var runner = new FlowRunner(stepProviders, TimeProvider.System, locks, events: OnRunEvent);
         _launcher = new FlowLauncher(runner, _history);
         _launcher.RunCompleted += OnRunCompleted;
         _launcher.ListenerFailed += e => Log.Error("run: completion listener", e);
@@ -84,7 +86,9 @@ internal sealed class EngineHost : IDisposable
         var version = typeof(EngineHost).Assembly.GetName().Version?.ToString(3) ?? "?";
         _controller = new EngineController(() => _config.Current, _launcher, _history,
             EngineController.CreateDryRunner(TimeProvider.System), new Autostart(),
-            new EngineInfo(version, Environment.ProcessId, exe, paths.Config, paths.ConfigArgument), Log.Info, devices);
+            new EngineInfo(version, Environment.ProcessId, exe, paths.Config, paths.ConfigArgument), Log.Info, devices,
+            // Step tests share the providers and locks but raise no run events: no pop-up, no history.
+            new FlowRunner(stepProviders, TimeProvider.System, locks));
         _pipe = new PipeServer(Protocol.CurrentPipeName(), _controller.HandleAsync, (what, e) => Log.Error(what, e));
         _pipe.Start();
         Apply(_config.Current);
