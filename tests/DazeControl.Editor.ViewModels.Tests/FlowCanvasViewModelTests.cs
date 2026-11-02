@@ -256,6 +256,43 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     }
 
     [Fact]
+    public void DraggingFromAnOutputPortConnects()
+    {
+        var port = FlowCanvasViewModel.OutPort(Node("vol"));
+        Assert.Equal("vol", _canvas.OutPortAt(new Point(port.X + 5, port.Y - 5))?.Id);
+        Assert.Null(_canvas.OutPortAt(FlowCanvasViewModel.OutPort(Node("w1")))); // members: ports on the card
+
+        Assert.Equal(ConnectRefusal.None, _canvas.Connect("vol", "w2"));
+
+        Assert.Contains(new Edge("vol"), _canvas.Flow!.FindNode("both")!.After);
+        Assert.Contains(_canvas.Edges, e => e.From == "vol" && e.To == "both");
+    }
+
+    [Fact]
+    public void ALoopIsRefusedWithTheTeachingText()
+    {
+        var refusal = _canvas.Connect("note", "bt");
+
+        Assert.Equal(ConnectRefusal.Loop, refusal);
+        Assert.StartsWith("That would make a loop.", FlowCanvasViewModel.Explain(refusal));
+        Assert.False(_session.HasUnsavedChanges);
+        Assert.Equal(ConnectRefusal.SameCard, _canvas.CanConnect("w1", "w2"));
+    }
+
+    [Fact]
+    public void EdgeMenuChangesWhenAndRemoves()
+    {
+        var edge = _canvas.Edges.Single(e => e.To == "vol");
+
+        _canvas.SetWhen(edge, EdgeWhen.Always);
+        Assert.Equal(EdgeStyle.Always, _canvas.Edges.Single(e => e.To == "vol").Style);
+
+        _canvas.Disconnect(_canvas.Edges.Single(e => e.To == "vol"));
+        Assert.DoesNotContain(_canvas.Edges, e => e.To == "vol");
+        Assert.Equal(0, Node("vol").Column);
+    }
+
+    [Fact]
     public void DeletedFlowShowsAsMissing()
     {
         _session.Update(c => c with { Flows = [] });

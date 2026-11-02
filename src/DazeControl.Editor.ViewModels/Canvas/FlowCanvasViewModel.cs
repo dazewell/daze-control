@@ -252,6 +252,56 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     private IEnumerable<CanvasNodeViewModel> Siblings(CanvasNodeViewModel node) =>
         Nodes.Where(n => n.Column == node.Column && n.CardId == node.CardId).OrderBy(n => n.Row);
 
+    // ---- Connect (UX §5.2): drag from an output port (right) to a node's input port or body ----
+
+    /// <summary>Port hit radius in DIP: 24-DIP target (UX §5.3); touch passes 20 for the 40-DIP one.</summary>
+    public const double PortRadius = 12;
+
+    public static Point OutPort(CanvasNodeViewModel node) => new(node.X + node.Width, node.Y + node.Height / 2);
+
+    public static Point InPort(CanvasNodeViewModel node) => new(node.X, node.Y + node.Height / 2);
+
+    /// <summary>The step or card whose output port is under <paramref name="p"/>; members have none (ports on the card).</summary>
+    public CanvasNodeViewModel? OutPortAt(Point p, double radius = PortRadius) =>
+        Nodes.Where(n => n.Kind != CanvasNodeKind.Member)
+            .Select(n => (Node: n, Distance: Distance(OutPort(n), p)))
+            .Where(x => x.Distance <= radius).OrderBy(x => x.Distance).Select(x => x.Node).FirstOrDefault();
+
+    public ConnectRefusal CanConnect(string from, string to) =>
+        Flow is { } flow ? FlowGraph.CanConnect(flow, from, to) : ConnectRefusal.Unknown;
+
+    /// <summary>Makes <paramref name="to"/> wait for <paramref name="from"/>; a refusal changes nothing.</summary>
+    public ConnectRefusal Connect(string from, string to)
+    {
+        var refusal = CanConnect(from, to);
+        if (refusal == ConnectRefusal.None)
+            Edit(flow => FlowGraph.Connect(flow, from, to));
+        return refusal;
+    }
+
+    /// <summary>What the canvas says when it refuses (UX §5.7 #3, #4); null = say nothing.</summary>
+    public static string? Explain(ConnectRefusal refusal) => refusal switch
+    {
+        ConnectRefusal.Loop => "That would make a loop. A step can't wait for something that waits for it.",
+        ConnectRefusal.SameCard => "Steps in a card start together, so they can't wait for each other.",
+        _ => null,
+    };
+
+    public void Disconnect(CanvasEdgeViewModel edge)
+    {
+        ArgumentNullException.ThrowIfNull(edge);
+        Edit(flow => FlowGraph.Disconnect(flow, edge.From, edge.To));
+    }
+
+    /// <summary>Edge menu: "Only if this fails" (Failure), "Whatever happens" (Always), back to Success.</summary>
+    public void SetWhen(CanvasEdgeViewModel edge, EdgeWhen when)
+    {
+        ArgumentNullException.ThrowIfNull(edge);
+        Edit(flow => FlowGraph.SetWhen(flow, edge.From, edge.To, when));
+    }
+
+    private static double Distance(Point a, Point b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
+
     // ---- Edits ----
 
     /// <summary>Applies a change to this flow (one undo entry from T7.7).</summary>
