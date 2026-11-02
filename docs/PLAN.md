@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M9 — T9.2 Runs page (T9.1 done on feat/m9-runs, see `gh pr list`)
-Last green checkpoint: "wip(editor): run overlay view model with live states, dry run and edit lock"
-Next action: if the T9.1 PR is still open, finish its merge policy (§6). Then branch feat/m9-runs-page from main: `Runs/RunsPageViewModel` (pipe `history` limit 100, grouped by day, refresh on runFinished) + `RunDetailViewModel` over `Core/Runs/RunTimeline.Build` (already done and tested), `EditorPage.Runs` nav item, "Open in editor" = `ShellViewModel.OpenFlow` + `Run.Show(record)`.
-Tree state: builds, all tests green · Uncommitted: none
-Notes for next agent: version is 0.15.0 (T9.2's PR bumps to 0.16.0). The dev engine takes the config path as its first argument, not `--config` (the editor takes `--config`). Never UIA-invoke by the name "Close": it hits the window's close button.
+Current task: M9 — T9.2 Runs page (branch feat/m9-runs-page, stacked on feat/m9-runs = PR #16)
+Last green checkpoint: "wip(editor): Runs page and run detail view models with the timeline layout"
+Next action: if PR #16 is still open, finish its merge policy (§6), then merge origin/main into feat/m9-runs-page (stacked-PR rule, repo-workflow §6). Then the view in `ShellWindow.xaml`: a "Runs" NavigationViewItem (Tag="Runs", glyph E81C) between Library and Settings and a `RunsPage` panel shown in `OnNavigationSelectionChanged` (call `ViewModel.Runs.RefreshAsync()` there, like Library). Left: grouped ListView (CollectionViewSource IsSourceGrouped over `Runs.Days`, header `RunDay.Title`; row = glyph, name, trigger, time, result chip, duration from `RunItemViewModel`), selection → `Runs.Select`. Right: `Runs.Detail` — Sentence, Facts, a timeline drawn in code on a Canvas (`Bars`/`Brackets`/`Ticks`; `Detail.Layout(width)` on SizeChanged; bar fill by outcome like the pills, may-fail dashed caution, notches as 2-DIP gaps; tap a bar → `SelectedBar`, show `SelectedLines`), `NotRun` lines, "Open in editor" (`ViewModel.OpenRun(Detail.Record)`, enabled by `CanOpenInEditor`), "This run is from an older version, so it has no timeline." when `!HasTimeline`, empty state "No runs yet" / "Run a flow and it shows up here.". Then screenshots (light/dark/HC), version 0.16.0, ARCHITECTURE Editor bullet for the Runs page, PLAN/GOALS → M10 T10.1, PR + §6.
+Tree state: builds, 740/740 tests green · Uncommitted: none
+Notes for next agent: the VMs are done and tested (`Runs/RunsPageViewModel`, `Runs/RunDetailViewModel`, `ShellViewModel.Runs`/`OpenRun`, `EditorPage.Runs`); only the view is left. A bar's "log lines" are the step's outcome/tries/error (`SelectedLines`) because the engine log isn't per run: state that UX §5.5 deviation in the PR. The dev engine takes the config path as its first argument; never UIA-invoke "Close" (it's the window's close button). The scratch config and UIA/screenshot/high-contrast scripts from the last session are in its scratchpad `m9` folder (named in the shared side-session notes); they are short to rewrite from the build skill.
 
 ---
 
@@ -93,8 +93,8 @@ Notes for next agent: version is 0.15.0 (T9.2's PR bumps to 0.16.0). The dev eng
 - [x] T8.3 Problems list (feat/m8-library).
 
 ## M9 Runs
-- [x] T9.1 Live run overlay on the canvas (feat/m9-runs).
-- [ ] T9.2 History list + parallel-lane timeline.
+- [x] T9.1 Live run overlay on the canvas (feat/m9-runs, PR #16).
+- [~] T9.2 History list + parallel-lane timeline (feat/m9-runs-page, stacked on PR #16).
 
 ## M10 Ship
 - [ ] T10.1 Velopack pack/install/update + release.yml.
