@@ -11,6 +11,7 @@ public enum EditorPage
 {
     Flows,
     Library,
+    Runs,
     Settings,
     About,
 }
@@ -29,6 +30,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         Flows = new FlowsPageViewModel(session, engine, post);
         Settings = new SettingsPageViewModel(session, engine, post, logsFolder);
         Library = new LibraryPage.LibraryPageViewModel(session, engine, post);
+        Runs = new Runs.RunsPageViewModel(session, engine, post);
         _engine.StateChanged += OnEngineStateChanged;
         EngineRunning = engine.IsRunning;
     }
@@ -40,6 +42,19 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     public SettingsPageViewModel Settings { get; }
 
     public LibraryPage.LibraryPageViewModel Library { get; }
+
+    public Runs.RunsPageViewModel Runs { get; }
+
+    /// <summary>"Open in editor" on the Runs page: the flow, with that run's states on the canvas.</summary>
+    public void OpenRun(Core.Runs.RunRecord run)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        OpenFlow(run.FlowId);
+        if (Editor?.FlowId != run.FlowId)
+            return;
+        Page = EditorPage.Flows;
+        Run?.Show(run);
+    }
 
     /// <summary>The flow being edited (Flows › name); null on the Flows list.</summary>
     [ObservableProperty]
@@ -114,5 +129,6 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         Flows.Dispose();
         Settings.Dispose();
         Library.Dispose();
+        Runs.Dispose();
     }
 }

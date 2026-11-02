@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M9 — T9.2 Runs page (T9.1 done on feat/m9-runs, see `gh pr list`)
-Last green checkpoint: "wip(editor): run overlay view model with live states, dry run and edit lock"
-Next action: if the T9.1 PR is still open, finish its merge policy (§6). Then branch feat/m9-runs-page from main: `Runs/RunsPageViewModel` (pipe `history` limit 100, grouped by day, refresh on runFinished) + `RunDetailViewModel` over `Core/Runs/RunTimeline.Build` (already done and tested), `EditorPage.Runs` nav item, "Open in editor" = `ShellViewModel.OpenFlow` + `Run.Show(record)`.
-Tree state: builds, all tests green · Uncommitted: none
-Notes for next agent: version is 0.15.0 (T9.2's PR bumps to 0.16.0). The dev engine takes the config path as its first argument, not `--config` (the editor takes `--config`). Never UIA-invoke by the name "Close": it hits the window's close button.
+Current task: M10 — T10.1 Velopack pack/install/update + release.yml (not started; branch from main)
+Last green checkpoint: 4cef1ec "wip(editor): Runs page view with the day list, detail and timeline (T9.2)"
+Next action: read GOALS and grep DECISIONS/DEADENDS for "Velopack"/"release", then branch `feat/m10-ship` from main and start T10.1.
+Tree state: builds, 743/743 tests green · Uncommitted: none
+Notes for next agent: M9 is done (PRs #16, #17). Open follow-ups from M9 (not blockers): the run overlay attaches to a run already going only at its next NodeStarted (needs per-run state on subscribe); Outline rows don't show run state or announce run results yet.
 
 ---
 
@@ -92,9 +92,9 @@ Notes for next agent: version is 0.15.0 (T9.2's PR bumps to 0.16.0). The dev eng
 - [x] T8.2 Library pages with Test (feat/m8-library).
 - [x] T8.3 Problems list (feat/m8-library).
 
-## M9 Runs
-- [x] T9.1 Live run overlay on the canvas (feat/m9-runs).
-- [ ] T9.2 History list + parallel-lane timeline.
+## M9 Runs ✔ (2026-11-02, PRs #16, #17)
+- [x] T9.1 Live run overlay on the canvas (feat/m9-runs, PR #16).
+- [x] T9.2 History list + parallel-lane timeline (feat/m9-runs-page, PR #17).
 
 ## M10 Ship
 - [ ] T10.1 Velopack pack/install/update + release.yml.

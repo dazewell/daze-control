@@ -34,7 +34,7 @@ lives in [DECISIONS.md](DECISIONS.md).
 
 Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
 - [x] M0 Bootstrap · [x] M1 Core model + YAML · [x] M2 Runtime · [x] M3 Engine shell · [x] M4 Providers
-- [x] M5 Run pop-up · [x] M6 Editor foundation · [x] M7 Canvas · [x] M8 Inspector + Library · [ ] M9 Runs · [ ] M10 Ship
+- [x] M5 Run pop-up · [x] M6 Editor foundation · [x] M7 Canvas · [x] M8 Inspector + Library · [x] M9 Runs · [ ] M10 Ship
 
 ## Waiting on the user
 
