@@ -376,7 +376,7 @@
                                 <!-- Outline (UX §5.2): the keyboard and screen-reader equivalent of the canvas. -->
                                 <TreeView x:Name="OutlineTree" Visibility="Collapsed" Padding="16,8" SelectionMode="Single" CanDragItems="False"
                                           AllowDrop="False" CanReorderItems="False" AutomationProperties.Name="Steps in run order"
-                                          ItemInvoked="OnOutlineInvoked" SelectionChanged="OnOutlineSelectionChanged"
+                                          SelectionChanged="OnOutlineSelectionChanged"
                                           PreviewKeyDown="OnOutlineKeyDown" ContextRequested="OnOutlineContextRequested">
                                     <TreeView.ItemTemplate>
                                         <DataTemplate x:DataType="vmc:OutlineItem">

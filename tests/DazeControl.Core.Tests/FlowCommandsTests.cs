@@ -157,4 +157,37 @@ public class FlowCommandsTests
         Assert.Equal(["m1-2"], ids);
         Assert.Equal(2, ((GroupNode)pasted.FindNode("card")!).Members.Count);
     }
+
+    [Fact]
+    public void DeleteStaysLinearOnSplitJoinChains()
+    {
+        // 30 layers of a → (x, y) → z: every path bridges to s; without memoizing that is 2^30 copies.
+        var nodes = new List<Node> { Step("s") };
+        var last = "s";
+        for (var i = 0; i < 30; i++)
+        {
+            nodes.Add(Step($"x{i}", last));
+            nodes.Add(Step($"y{i}", last));
+            nodes.Add(Step($"z{i}", $"x{i}", $"y{i}"));
+            last = $"z{i}";
+        }
+        nodes.Add(Step("end", last));
+        var flow = FlowOf([.. nodes]);
+
+        var deleted = FlowCommands.Delete(flow, nodes.Skip(1).Select(n => n.Id).Where(id => id != "end"));
+
+        Assert.Equal([E("s")], After(deleted, "end"));
+    }
+
+    [Fact]
+    public void PasteWaitsForTheCardOfASourceGroupedSinceTheCopy()
+    {
+        var flow = FlowOf(Step("a"), Step("b", "a"), Step("c"));
+        var clip = FlowCommands.Copy(flow, ["b"]);
+        var grouped = FlowEdits.Group(flow, ["a", "c"]).Flow;
+
+        var (pasted, _) = FlowCommands.Paste(grouped, clip, after: null);
+
+        Assert.Equal([E("together")], After(pasted, "b-2"));
+    }
 }

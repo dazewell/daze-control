@@ -288,7 +288,7 @@ public sealed partial class ShellWindow : Window
         FlowCanvasControl.Visibility = Show(!outline);
         if (outline)
         {
-            DispatcherQueue.TryEnqueue(SelectInOutline); // containers exist only after the next layout pass
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, SelectInOutline); // rows exist only after layout
             OutlineTree.Focus(FocusState.Programmatic);
         }
         else
@@ -302,42 +302,47 @@ public sealed partial class ShellWindow : Window
         _syncingOutline = true;
         OutlineTree.ItemsSource = _editor?.Outline;
         _syncingOutline = false;
-        DispatcherQueue.TryEnqueue(SelectInOutline);
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, SelectInOutline);
     }
 
-    /// <summary>The outline follows the canvas selection (its first item), so both views act on the same steps.</summary>
+    /// <summary>
+    /// The outline selects one row (TreeView multi-select doesn't redraw its check boxes from code reliably): on
+    /// showing it, a canvas multi-selection narrows to the focused step so commands act only on what is visible.
+    /// </summary>
     private void SelectInOutline()
     {
         if (_editor is null || OutlineTree.Visibility != Visibility.Visible)
             return;
-        var id = _editor.FocusedId is { } focused && _editor.SelectedIds.Contains(focused) ? focused : _editor.SelectedIds.FirstOrDefault();
+        var id = _editor.FocusedId ?? (_editor.SelectedIds.Count > 0 ? _editor.SelectedIds.First() : null);
+        if (_editor.SelectedIds.Count > 1)
+            _editor.SelectOnly(id is null ? [] : [id]);
         var item = _editor.Outline.SelectMany(i => i.Children.Prepend(i)).FirstOrDefault(i => i.Id == id);
-        if (ReferenceEquals(OutlineTree.SelectedItem, item))
-            return;
         _syncingOutline = true;
-        // SelectedItem alone doesn't show for items bound through ItemsSource; select the node behind the row.
-        if (item is not null && OutlineTree.ContainerFromItem(item) is TreeViewItem container && OutlineTree.NodeFromContainer(container) is { } node)
+        try
         {
-            OutlineTree.SelectedNode = node;
-            container.StartBringIntoView();
+            if (item is not null && OutlineTree.ContainerFromItem(item) is TreeViewItem container
+                && OutlineTree.NodeFromContainer(container) is { } node)
+            {
+                OutlineTree.SelectedNode = node;
+                container.StartBringIntoView();
+            }
+            else
+            {
+                OutlineTree.SelectedNode = null;
+            }
         }
-        else
+        finally
         {
-            OutlineTree.SelectedItem = item;
+            _syncingOutline = false;
         }
-        _syncingOutline = false;
     }
 
     private void OnOutlineSelectionChanged(TreeView sender, TreeViewSelectionChangedEventArgs args)
     {
-        if (!_syncingOutline && sender.SelectedItem is OutlineItem item && _editor is not null && !_editor.SelectedIds.Contains(item.Id))
-            _editor.Select(item.Id);
-    }
-
-    private void OnOutlineInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
-    {
-        if (args.InvokedItem is OutlineItem item)
-            _editor?.Select(item.Id);
+        if (_syncingOutline || _editor is null || sender.SelectedNode?.Content is not OutlineItem item)
+            return;
+        if (_editor.SelectedIds.Count != 1 || !_editor.SelectedIds.Contains(item.Id))
+            _editor.SelectOnly([item.Id]);
     }
 
     private void OnOutlineKeyDown(object sender, KeyRoutedEventArgs e)

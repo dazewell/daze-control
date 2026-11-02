@@ -564,7 +564,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         SelectOnly(ids);
     }
 
-    private void SelectOnly(IEnumerable<string> ids)
+    /// <summary>Replaces the selection (the Outline view's multi-select); focus goes to the first.</summary>
+    public void SelectOnly(IEnumerable<string> ids)
     {
         _selected.Clear();
         foreach (var id in ids.Where(id => Find(id) is not null))

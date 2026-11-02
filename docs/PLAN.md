@@ -2,9 +2,9 @@
 
 ## Resume
 Current task: M7 done on feat/m7-edit (PR open, see `gh pr list`); next M8 T8.1 Inspector
-Last green checkpoint: 7b5d3e9 "wip(editor): outline selection, reveal new steps, port click is no connect"
+Last green checkpoint: 9ae0f67 "docs: record M7 edit commands and bump to 0.12.0"
 Next action: if the feat/m7-edit PR is still open, finish its merge policy (§6) first. Then branch feat/m8-inspector from main: T8.1 = inspector pane 320 wide right of the canvas in ShellWindow, VM `InspectorViewModel` built from `ParamSpec` for the selected step (nothing selected → flow settings)
-Tree state: builds, 646/646 tests green · Uncommitted: none
+Tree state: builds, 648/648 tests green · Uncommitted: none
 Notes for next agent: version is 0.12.0. M7 leftovers are listed in ARCHITECTURE → Open questions (port/edge "+", minimap, dot grid, F2, Ctrl+L, live region). Test the editor only with `--config <scratch>\config.yaml`; send Enter with SendKeys (build skill). Deferred from PR #9 (minor): "Close without saving" flushes after a plain save error; OnClosing is async void around ContentDialog.
 
 ---

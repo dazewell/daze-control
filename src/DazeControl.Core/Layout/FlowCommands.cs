@@ -77,13 +77,20 @@ public static partial class FlowCommands
         ValueList<Edge> Waits(string id) =>
             cardOf.TryGetValue(id, out var card) ? flow.FindNode(card)!.After : flow.FindNode(id)?.After ?? [];
 
-        IEnumerable<Edge> Bridge(Edge edge, HashSet<string> visiting)
+        // Memoized per deleted node, deduplicated as it goes: split/join layers would otherwise multiply paths.
+        var resolved = new Dictionary<string, List<Edge>>(StringComparer.Ordinal);
+        var visiting = new HashSet<string>(StringComparer.Ordinal);
+        IEnumerable<Edge> Bridge(Edge edge)
         {
             if (!gone.Contains(edge.From))
                 return [edge];
-            if (edge.When == EdgeWhen.Failure || !visiting.Add(edge.From))
+            if (edge.When == EdgeWhen.Failure || !visiting.Add(edge.From)) // a loop can't bridge to anything
                 return [];
-            var bridged = Waits(edge.From).SelectMany(e => Bridge(e, visiting)).ToList();
+            if (!resolved.TryGetValue(edge.From, out var bridged))
+            {
+                bridged = [.. Waits(edge.From).SelectMany(Bridge).DistinctBy(e => e.From, StringComparer.Ordinal)];
+                resolved[edge.From] = bridged;
+            }
             visiting.Remove(edge.From);
             return bridged;
         }
@@ -95,9 +102,9 @@ public static partial class FlowCommands
                 GroupNode g => g with
                 {
                     Members = [.. g.Members.Where(m => !gone.Contains(m))],
-                    After = Merge(g.After.SelectMany(e => Bridge(e, new(StringComparer.Ordinal)))),
+                    After = Merge(g.After.SelectMany(Bridge)),
                 },
-                _ => n with { After = Merge(n.After.SelectMany(e => Bridge(e, new(StringComparer.Ordinal)))) },
+                _ => n with { After = Merge(n.After.SelectMany(Bridge)) },
             })],
         };
         foreach (var card in result.Nodes.OfType<GroupNode>().Where(g => g.Members.Count == 1).ToList())
@@ -153,6 +160,7 @@ public static partial class FlowCommands
                 map[node.Id] = Unique(BaseOf(node.Id), id => flow.FindNode(id) is not null || map.ContainsValue(id));
         }
         var anchors = after is null ? null : Anchors(flow, after);
+        var cardOf = FlowLayout.CardOf(flow);
         var members = clip.Nodes.OfType<GroupNode>().SelectMany(g => g.Members).ToHashSet(StringComparer.Ordinal);
         var pasted = new List<Node>();
         foreach (var node in clip.Nodes.DistinctBy(n => n.Id))
@@ -161,7 +169,8 @@ public static partial class FlowCommands
             ValueList<Edge> edges = members.Contains(node.Id) ? []
                 : anchors is not null ? (inner.Count > 0 ? [.. inner] : [.. anchors.Select(a => new Edge(a))])
                 : Merge(node.After.Where(e => map.ContainsKey(e.From) || flow.FindNode(e.From) is not null)
-                    .Select(e => map.TryGetValue(e.From, out var to) ? e with { From = to } : e));
+                    // A source grouped since the copy: wait for its card (edges never name a member).
+                    .Select(e => e with { From = map.TryGetValue(e.From, out var to) ? to : cardOf.GetValueOrDefault(e.From, e.From) }));
             pasted.Add(node switch
             {
                 GroupNode g => g with { Id = map[g.Id], Members = [.. g.Members.Where(map.ContainsKey).Select(m => map[m])], After = edges },
