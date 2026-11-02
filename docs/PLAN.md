@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M6 merge — PR #9 (feat/m6-editor), both Copilot reviews used; then M7 T7.1
-Last green checkpoint: b42c871 "fix(editor): review — never drop unread config, re-check disk before saving"
-Next action: PR #9 — once CI is green on the close fix, squash-merge (§6; review 2's P1 is fixed here, no third review). Then sync main, branch feat/m7-canvas and start T7.1: FlowCanvas control rendering nodes/cards/edges from a canvas VM in Editor.ViewModels, pan/zoom/fit; selecting a flow card opens the flow editor page (BreadcrumbBar "Flows › name")
+Current task: M7 Canvas — T7.1 (M6 merged: PR #9)
+Last green checkpoint: 92ddcf0 "fix(editor): don't claim a reload that failed"
+Next action: sync main, branch feat/m7-canvas and start T7.1: FlowCanvas control rendering nodes/cards/edges from a canvas VM in Editor.ViewModels, pan/zoom/fit; selecting a flow card opens the flow editor page (BreadcrumbBar "Flows › name")
 Tree state: builds, VM tests 27/27 green · Uncommitted: none
-Notes for next agent: version is 0.9.0. Editor shows no window → delete src/DazeControl.Editor/obj and bin first (build skill). No config.yaml on this PC yet; don't create one in the user's profile. New flow adds an empty flow; the templates (Blank / TV only / Audio → Headphones) are still to do, with the flow editor. Screenshots: GetWindowRect + CopyFromScreen from Windows PowerShell (outside the sandbox); light mode by flipping HKCU…Personalize AppsUseLightTheme and restoring it.
+Notes for next agent: version is 0.9.0. Editor shows no window → delete src/DazeControl.Editor/obj and bin first (build skill). No config.yaml on this PC yet; don't create one in the user's profile. Deferred from PR #9's self-review (minor): "Close without saving" still flushes in Closed after a plain save error; OnClosing is async void around ContentDialog.ShowAsync (guard it once a second dialog exists). New flow adds an empty flow; the templates (Blank / TV only / Audio → Headphones) are still to do, with the flow editor. Screenshots: GetWindowRect + CopyFromScreen from Windows PowerShell (outside the sandbox); light mode by flipping HKCU…Personalize AppsUseLightTheme and restoring it.
 
 ---
 
