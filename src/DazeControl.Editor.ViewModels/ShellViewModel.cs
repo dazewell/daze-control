@@ -28,6 +28,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         _post = post;
         Flows = new FlowsPageViewModel(session, engine, post);
         Settings = new SettingsPageViewModel(session, engine, post, logsFolder);
+        Library = new LibraryPage.LibraryPageViewModel(session, engine, post);
         _engine.StateChanged += OnEngineStateChanged;
         EngineRunning = engine.IsRunning;
     }
@@ -37,6 +38,8 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     public FlowsPageViewModel Flows { get; }
 
     public SettingsPageViewModel Settings { get; }
+
+    public LibraryPage.LibraryPageViewModel Library { get; }
 
     /// <summary>The flow being edited (Flows › name); null on the Flows list.</summary>
     [ObservableProperty]
@@ -103,5 +106,6 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         Editor?.Dispose();
         Flows.Dispose();
         Settings.Dispose();
+        Library.Dispose();
     }
 }

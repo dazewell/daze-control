@@ -98,6 +98,25 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial IReadOnlyList<OutlineItem> Outline { get; private set; } = [];
 
+    /// <summary>This flow's problems, errors first, in canvas order (UX §5.1 "Problems (n)").</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProblemsLabel), nameof(HasProblems))]
+    public partial IReadOnlyList<ProblemItem> Problems { get; private set; } = [];
+
+    public bool HasProblems => Problems.Count > 0;
+
+    public string ProblemsLabel => $"Problems ({Problems.Count})";
+
+    /// <summary>A row of the Problems list picked: select its step (the inspector follows), or the flow's settings.</summary>
+    public void Show(ProblemItem problem)
+    {
+        ArgumentNullException.ThrowIfNull(problem);
+        if (problem.NodeId is { } id && Find(id) is not null)
+            Select(id);
+        else
+            ClearSelection();
+    }
+
     public bool CanPaste => _clipboard.Clip is not null;
 
     public IReadOnlyCollection<string> SelectedIds => _selected;
@@ -587,13 +606,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         ExtentWidth = _arrangement.Extent.Width;
         ExtentHeight = _arrangement.Extent.Height;
 
-        var prefix = $"flows.{FlowId}.nodes.";
-        // Ids may contain dots ("audio.default"): the longest id the rest of the path starts with is the node.
-        var ids = flow.Nodes.Select(n => n.Id).OrderByDescending(id => id.Length).ToList();
-        var problems = _session.Problems.Where(p => p.FlowId == FlowId && p.Severity == Severity.Error && p.Path.StartsWith(prefix, StringComparison.Ordinal))
-            .Select(p => p.Path[prefix.Length..])
-            .Select(rest => ids.FirstOrDefault(id => rest == id || rest.StartsWith(id + ".", StringComparison.Ordinal)))
-            .OfType<string>().ToHashSet(StringComparer.Ordinal);
+        var problems = _session.Problems.Where(p => p.FlowId == FlowId && p.Severity == Severity.Error)
+            .Select(p => NodeOf(flow, p.Path)).OfType<string>().ToHashSet(StringComparer.Ordinal);
         var nodes = flow.Nodes.GroupBy(n => n.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         var titles = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -639,7 +653,26 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         ApplySelection();
         IsEmpty = Nodes.Count == 0;
         Outline = BuildOutline();
+        Problems = [.. _session.Problems.Where(p => p.FlowId == FlowId)
+            .Select(p => (Problem: p, Node: NodeOf(flow, p.Path)))
+            .Select(p => new ProblemItem(p.Problem.Severity, p.Problem.Message,
+                p.Node is null ? "Flow settings" : titles.GetValueOrDefault(p.Node, p.Node), p.Node))
+            .OrderBy(p => p.Severity)// Column, then top edge: a card member's Row counts within its card, not the column.
+            .ThenBy(p => p.NodeId is null ? -1 : Find(p.NodeId)?.Column ?? int.MaxValue)
+            .ThenBy(p => p.NodeId is null ? 0 : Find(p.NodeId)?.Y ?? 0)];
         OnPropertyChanged(nameof(Arrangement));
+    }
+
+    /// <summary>The step or card a problem path ("flows.f.nodes.bt.with.device") is about; null for the flow itself.</summary>
+    private string? NodeOf(Flow flow, string path)
+    {
+        var prefix = $"flows.{FlowId}.nodes.";
+        if (!path.StartsWith(prefix, StringComparison.Ordinal))
+            return null;
+        var rest = path[prefix.Length..];
+        // Ids may contain dots ("audio.default"): the longest id the rest of the path starts with is the node.
+        return flow.Nodes.Select(n => n.Id).OrderByDescending(id => id.Length)
+            .FirstOrDefault(id => rest == id || rest.StartsWith(id + ".", StringComparison.Ordinal));
     }
 
     private List<OutlineItem> BuildOutline()

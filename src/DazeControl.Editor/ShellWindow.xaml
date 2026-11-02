@@ -6,6 +6,8 @@
     xmlns:vm="using:DazeControl.Editor.ViewModels"
     xmlns:canvas="using:DazeControl.Editor.Canvas"
     xmlns:inspector="using:DazeControl.Editor.Inspector"
+    xmlns:library="using:DazeControl.Editor.Library"
+    xmlns:local="using:DazeControl.Editor"
     xmlns:vmc="using:DazeControl.Editor.ViewModels.Canvas"
     Title="Daze Control">
 
@@ -148,11 +150,12 @@
                             </ItemsRepeater>
                         </StackPanel>
 
-                        <!-- Library (M8) -->
+                        <!-- Library (UX §5.1) -->
                         <StackPanel x:Name="LibraryPage" Grid.Row="1" Spacing="4" Visibility="Collapsed">
                             <TextBlock Text="Library" Style="{StaticResource PageTitle}" />
-                            <TextBlock Text="Your devices, displays and programs, named once and used by any flow. Coming soon; until then they live in config.yaml."
+                            <TextBlock Text="Your devices, screen layouts and programs, named once and used by any flow."
                                        Style="{StaticResource SettingsCardDescription}" />
+                            <library:LibraryView x:Name="LibraryViewControl" />
                         </StackPanel>
 
                         <!-- Settings -->
@@ -320,6 +323,39 @@
                             <AppBarButton Label="Tidy up" ToolTipService.ToolTip="Reorder steps so fewer lines cross" Click="OnTidyUp">
                                 <AppBarButton.Icon><FontIcon Glyph="&#xE8CB;" /></AppBarButton.Icon>
                             </AppBarButton>
+                            <AppBarSeparator />
+                            <!-- Problems (n) (UX §5.1): pick one to select its step; the inspector shows what to fix. -->
+                            <AppBarButton x:Name="ProblemsButton" Label="Problems (0)" ToolTipService.ToolTip="What needs fixing in this flow">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE7BA;" /></AppBarButton.Icon>
+                                <AppBarButton.Flyout>
+                                    <Flyout x:Name="ProblemsFlyout" Placement="BottomEdgeAlignedRight">
+                                        <Grid MinWidth="320" MaxWidth="440">
+                                            <TextBlock x:Name="NoProblemsText" Text="Nothing to fix in this flow." Margin="4,8"
+                                                       Style="{StaticResource SettingsCardDescription}" />
+                                            <ListView x:Name="ProblemsList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnProblemClick"
+                                                      AutomationProperties.Name="Problems" MaxHeight="400">
+                                                <ListView.ItemTemplate>
+                                                    <DataTemplate x:DataType="vmc:ProblemItem">
+                                                        <Grid ColumnSpacing="12" Padding="0,8" AutomationProperties.Name="{x:Bind AutomationName}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" VerticalAlignment="Top" Margin="0,2,0,0"
+                                                                      Foreground="{x:Bind local:ShellWindow.ProblemBrush(IsError)}" />
+                                                            <StackPanel Grid.Column="1">
+                                                                <TextBlock Text="{x:Bind Where}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                                <TextBlock Text="{x:Bind Message}" TextWrapping="Wrap" Style="{StaticResource SettingsCardDescription}" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListView.ItemTemplate>
+                                            </ListView>
+                                        </Grid>
+                                    </Flyout>
+                                </AppBarButton.Flyout>
+                            </AppBarButton>
+                            <AppBarSeparator />
                             <AppBarButton Label="Fit" ToolTipService.ToolTip="Fit to window (Ctrl+0)" Click="OnFit">
                                 <AppBarButton.Icon><FontIcon Glyph="&#xE9A6;" /></AppBarButton.Icon>
                             </AppBarButton>

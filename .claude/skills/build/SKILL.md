@@ -75,6 +75,8 @@ HKCU…Personalize `AppsUseLightTheme`; high contrast: `SystemParametersInfo(SPI
 Keys: `keybd_event` letters and Ctrl chords work, but **Enter arrives as `VirtualKey.None`** (even with its scan
 code), so an AutoSuggestBox never submits; send Enter with `SendKeys.SendWait("{ENTER}")` (2026-11-02). Toggling
 an AppBarToggleButton through UIA leaves focus on the button: click into the target before sending keys.
+UIA finds elements by Name: Pivot headers and ListView rows take the item's `ToString()`, so give item VMs one;
+a Button with text content needs `AutomationProperties.Name`, or the search finds its inner TextBlock (no Invoke).
 
 ## Verifying changes
 

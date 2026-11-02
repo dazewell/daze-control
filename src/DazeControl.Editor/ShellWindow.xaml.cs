@@ -50,6 +50,7 @@ public sealed partial class ShellWindow : Window
 
         var hwnd = Win32Interop.GetWindowFromWindowId(AppWindow.Id);
         InspectorPaneControl.WindowHandle = hwnd;
+        LibraryViewControl.ViewModel = ViewModel.Library;
         var scale = GetDpiForWindow(hwnd) / 96.0;
         AppWindow.Resize(new SizeInt32((int)(WidthDip * scale), (int)(HeightDip * scale)));
 
@@ -169,6 +170,8 @@ public sealed partial class ShellWindow : Window
         ViewModel.CloseFlow(); // Flows in the pane always means the list
         FlowsPage.Visibility = Show(page == EditorPage.Flows);
         LibraryPage.Visibility = Show(page == EditorPage.Library);
+        if (page == EditorPage.Library)
+            _ = ViewModel.Library.RefreshAsync();
         SettingsPage.Visibility = Show(page == EditorPage.Settings);
         AboutPage.Visibility = Show(page == EditorPage.About);
     }
@@ -196,6 +199,7 @@ public sealed partial class ShellWindow : Window
             _ = inspector.RefreshShortcutProblemsAsync();
         UpdateHistory();
         UpdateOutline();
+        UpdateProblems();
         FlowEditorPage.Visibility = Show(_editor is not null);
         PagesScroller.Visibility = Show(_editor is null);
         UpdateBreadcrumb();
@@ -222,6 +226,9 @@ public sealed partial class ShellWindow : Window
             case nameof(FlowCanvasViewModel.Outline):
                 UpdateOutline();
                 break;
+            case nameof(FlowCanvasViewModel.Problems):
+                UpdateProblems();
+                break;
             case nameof(FlowCanvasViewModel.SelectedIds):
                 DispatcherQueue.TryEnqueue(SelectInOutline); // never inside the tree's own input handling
                 break;
@@ -247,6 +254,32 @@ public sealed partial class ShellWindow : Window
     {
         UndoButton.IsEnabled = _editor is { CanUndo: true, CanEdit: true };
         RedoButton.IsEnabled = _editor is { CanRedo: true, CanEdit: true };
+    }
+
+    // ---- Problems (n) (UX §5.1) ----
+
+    public static Brush ProblemBrush(bool isError) =>
+        (Brush)Application.Current.Resources[isError ? "SystemFillColorCriticalBrush" : "SystemFillColorCautionBrush"];
+
+    private void UpdateProblems()
+    {
+        var problems = _editor?.Problems ?? [];
+        ProblemsButton.Label = _editor?.ProblemsLabel ?? "Problems (0)";
+        ProblemsList.ItemsSource = problems;
+        ProblemsList.Visibility = Show(problems.Count > 0);
+        NoProblemsText.Visibility = Show(problems.Count == 0);
+    }
+
+    private void OnProblemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is not ProblemItem problem || _editor is null)
+            return;
+        ProblemsFlyout.Hide();
+        _editor.Show(problem); // the outline follows the selection too (OnEditorChanged)
+        if (OutlineTree.Visibility == Visibility.Visible)
+            OutlineTree.Focus(FocusState.Programmatic);
+        else
+            FlowCanvasControl.Focus(FocusState.Programmatic);
     }
 
     // ---- Palette (UX §5.1, §5.2) ----
