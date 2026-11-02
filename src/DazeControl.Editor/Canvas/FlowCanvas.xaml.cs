@@ -150,7 +150,7 @@ public sealed partial class FlowCanvas : UserControl
                 UpdateFocusRing();
                 AnnounceFocus();
                 break;
-            case nameof(FlowCanvasViewModel.SelectedIds) or nameof(FlowCanvasViewModel.CanEdit):
+            case nameof(FlowCanvasViewModel.SelectedIds) or nameof(FlowCanvasViewModel.CanEdit) or nameof(FlowCanvasViewModel.IsShowingRun):
                 DrawEdges();
                 if (_gesture == Gesture.None)
                     ShowPorts(null); // the dots follow the selection until the pointer hovers again
@@ -245,7 +245,8 @@ public sealed partial class FlowCanvas : UserControl
         foreach (var edge in _viewModel.Edges)
         {
             var c = edge.Curve;
-            var path = edge.IsSelected ? SelectedEdges : edge.Style switch
+            // During a run an edge turns accent once its source finished (UX §5.3).
+            var path = edge.IsSelected || edge.IsLit ? SelectedEdges : edge.Style switch
             {
                 EdgeStyle.IntoMayFail => MayFailEdges,
                 EdgeStyle.IfFails => IfFailsEdges,
@@ -256,7 +257,7 @@ public sealed partial class FlowCanvas : UserControl
             figure.Segments.Add(new BezierSegment { Point1 = P(c.Control1), Point2 = P(c.Control2), Point3 = P(c.End) });
             curves[path].Figures.Add(figure);
 
-            var arrows = edge.IsSelected ? SelectedArrows : edge.Style == EdgeStyle.IfFails ? IfFailsArrows : NormalArrows;
+            var arrows = edge.IsSelected || edge.IsLit ? SelectedArrows : edge.Style == EdgeStyle.IfFails ? IfFailsArrows : NormalArrows;
             var arrow = new PathFigure { StartPoint = P(c.Tip), IsClosed = true, IsFilled = true };
             arrow.Segments.Add(new LineSegment { Point = new(c.End.X, c.End.Y - 3.5) });
             arrow.Segments.Add(new LineSegment { Point = new(c.End.X, c.End.Y + 3.5) });

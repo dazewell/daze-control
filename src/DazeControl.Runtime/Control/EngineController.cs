@@ -43,9 +43,12 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         set => _shell = value;
     }
 
-    /// <summary>A runner whose steps do nothing, for <c>dctl run --dry-run</c>: walks the flow's structure only.</summary>
+    /// <summary>
+    /// A runner whose steps do nothing, for <c>dctl run --dry-run</c> and the editor's Dry run: walks the flow's
+    /// structure only. A step whose device isn't in the library fails, so the dry run shows what would be skipped.
+    /// </summary>
     public static FlowRunner CreateDryRunner(TimeProvider time) =>
-        new(ProviderCatalog.All.Select(d => new NoOpProvider(d.Id)), time);
+        new(ProviderCatalog.All.Select(d => new DryProvider(d.Id)), time);
 
     /// <summary>Starts a runnable flow (hotkey, tray, pipe); null when it can't run or the trigger was ignored.</summary>
     public Task<RunResult?> TriggerAsync(string flowId, string trigger) =>
@@ -187,6 +190,8 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
     private async Task<PipeMessage> RunAsync(PipeRequest request, CancellationToken cancellationToken)
     {
         var id = request.Id;
+        if (request.DryRun && request.Config is not null)
+            return await DryRunSentAsync(request, request.Trigger ?? "Editor", cancellationToken).ConfigureAwait(false);
         if (Find(request.Flow) is not { } state)
             return NotFound(id, request.Flow);
         if (state.Running is not { } flow)
@@ -197,7 +202,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
 
         if (request.DryRun)
         {
-            var dry = await dryRunner.RunAsync(flow, state.Library, cancellationToken).ConfigureAwait(false);
+            var dry = await dryRunner.RunAsync(WithoutRetries(flow), state.Library, cancellationToken).ConfigureAwait(false);
             return new PipeMessage { Id = id, Ok = true, Run = Record(dry, flow.Id, flow.Name, trigger + " (dry run)") };
         }
 
@@ -219,6 +224,34 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                 Run = history?.Recent.FirstOrDefault(r => r.RunId == result.RunId) ?? Record(result, flow.Id, flow.Name, trigger),
             };
     }
+
+    /// <summary>
+    /// The editor's Dry run (UX §5.5): walks the flow as the editor shows it (<see cref="PipeRequest.Config"/>), not
+    /// the saved one, so a step whose device is missing shows as failed. Other problems (a loop, a bad timeout)
+    /// refuse it: the steps would not run in that shape.
+    /// </summary>
+    private async Task<PipeMessage> DryRunSentAsync(PipeRequest request, string trigger, CancellationToken cancellationToken)
+    {
+        var load = ConfigYaml.Load(request.Config!);
+        if (load.Config?.Flows.FirstOrDefault(f => f.Id == request.Flow) is not { } flow)
+            return NotFound(request.Id, request.Flow);
+        var path = $"flows.{flow.Id}";
+        var nodes = path + ".nodes.";
+        // Ids may contain dots: a step's values are "<nodes><id>.with" for one of the flow's own ids, nothing else.
+        var values = flow.Nodes.Select(n => nodes + n.Id + ".with").ToList();
+        bool IsStepValue(string p) => values.Exists(v => p == v || p.StartsWith(v + ".", StringComparison.Ordinal));
+        var blocking = load.Problems.Concat(ConfigValidator.Validate(load.Config))
+            .Where(p => p.Severity == Severity.Error && (p.Path == path || p.Path.StartsWith(path + ".", StringComparison.Ordinal)))
+            .FirstOrDefault(p => !IsStepValue(p.Path));
+        if (blocking is not null)
+            return PipeMessage.Fail(request.Id, $"Fix this first: {blocking.Message}");
+        var dry = await dryRunner.RunAsync(WithoutRetries(flow), load.Config.Library, cancellationToken).ConfigureAwait(false);
+        return new PipeMessage { Id = request.Id, Ok = true, Run = Record(dry, flow.Id, flow.Name, trigger + " (dry run)") };
+    }
+
+    /// <summary>A dry step that fails (missing device) must not wait out its retry delays: a preview answers at once.</summary>
+    private static Flow WithoutRetries(Flow flow) =>
+        flow with { Nodes = [.. flow.Nodes.Select(n => n is StepNode { Retry: not null } step ? step with { Retry = null } : n)] };
 
     private static RunRecord Record(RunResult result, string flowId, string name, string trigger) =>
         new(result.RunId, flowId, name, trigger, result.Started, result.Duration, result.Outcome, [.. result.Nodes]);
@@ -343,10 +376,21 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         FlowId = problem.FlowId,
     };
 
-    private sealed class NoOpProvider(string id) : IStepProvider
+    private sealed class DryProvider(string id) : IStepProvider
     {
         public string Id => id;
 
-        public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
+        {
+            foreach (var spec in context.Descriptor.Params.Where(p => p.Kind == ParamKind.LibraryRef && p.Library is not null))
+            {
+                var key = context.Node.With.TryGetValue(spec.Name, out var value) && value is ScalarParam s ? s.Text : "";
+                if (key.Length == 0 && spec.Required)
+                    return Task.FromException(new StepFailedException("Choose a device."));
+                if (key.Length > 0 && !context.Library.Contains(spec.Library!.Value, key))
+                    return Task.FromException(new StepFailedException($"{key} isn't in your Library."));
+            }
+            return Task.CompletedTask;
+        }
     }
 }

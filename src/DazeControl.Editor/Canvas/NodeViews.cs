@@ -73,7 +73,10 @@ internal abstract class NodeView : Grid
     }
 }
 
-/// <summary>A step: shape, status ring, glyph, title, summary, one badge chip — 10 elements.</summary>
+/// <summary>
+/// A step: shape, status ring, glyph, title, summary, one badge chip — 10 elements, 11 while running (the
+/// ProgressRing is created on first use).
+/// </summary>
 internal sealed class PillView : NodeView
 {
     private readonly Rectangle _shape = new() { RadiusX = 28, RadiusY = 28 };
@@ -83,6 +86,8 @@ internal sealed class PillView : NodeView
     private readonly TextBlock _summary = new() { TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 1 };
     private readonly TextBlock _badgeText = new() { FontFamily = new FontFamily("Segoe UI Variable Text, Segoe Fluent Icons"), FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
     private readonly Border _badge = new() { CornerRadius = new CornerRadius(10), MinHeight = 20, Padding = new Thickness(8, 0, 8, 0), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 0) };
+    private static readonly Windows.UI.ViewManagement.UISettings Ui = new();
+    private ProgressRing? _progress;
     private bool _showDetails = true;
 
     public PillView(CanvasNodeViewModel node)
@@ -117,22 +122,90 @@ internal sealed class PillView : NodeView
         _title.Style = Theme.Style("BodyStrongTextBlockStyle");
         _summary.Style = Theme.Style("CaptionTextBlockStyle");
         _title.Text = Node.Title;
-        _summary.Text = Node.Summary;
-        _summary.Foreground = Theme.Brush("TextFillColorSecondaryBrush");
-        _summary.Visibility = showDetails && Node.Summary.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-        _glyph.Glyph = Node.Glyph;
-        _glyph.Foreground = Theme.Brush("TextFillColorPrimaryBrush");
-        _ring.Stroke = Theme.Brush("ControlStrongStrokeColorDefaultBrush");
+        _summary.Text = Node.ShownSummary;
+        _summary.Visibility = showDetails && Node.ShownSummary.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        var skipped = Node.RunState == NodeRunState.Skipped;
+        _title.Foreground = Theme.Brush(skipped ? "TextFillColorDisabledBrush" : "TextFillColorPrimaryBrush");
+        _summary.Foreground = Theme.Brush(skipped ? "TextFillColorDisabledBrush" : "TextFillColorSecondaryBrush");
+        ShowRunState();
         _badgeText.Text = Node.BadgeText;
         _badgeText.Foreground = Theme.Brush(Node.HasProblem ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush");
         _badge.Background = Theme.Brush("ControlFillColorSecondaryBrush");
         _badge.Visibility = showDetails && Node.HasBadges ? Visibility.Visible : Visibility.Collapsed;
 
-        _shape.Fill = Theme.Brush("CardBackgroundFillColorDefaultBrush");
+        var failed = Node.RunState == NodeRunState.Failed;
+        _shape.Fill = Theme.Brush(Theme.HighContrast ? "SystemColorWindowColorBrush" : "CardBackgroundFillColorDefaultBrush");
         _shape.Stroke = Node.IsSelected ? Theme.Selection
-            : Theme.Brush(Node.HasProblem ? "SystemFillColorCautionBrush" : "CardStrokeColorDefaultBrush");
-        _shape.StrokeThickness = Node.IsSelected || Node.HasProblem ? Theme.Emphasis : 1;
+            : Theme.Brush(failed ? "SystemFillColorCriticalBrush" : Node.HasProblem ? "SystemFillColorCautionBrush" : "CardStrokeColorDefaultBrush");
+        _shape.StrokeThickness = Node.IsSelected || Node.HasProblem || failed ? Theme.Emphasis : 1;
         _shape.StrokeDashArray = Node.MayFail ? Theme.Dashes(4, 2) : null;
+    }
+
+    /// <summary>Run states as shape plus glyph, never colour alone (UX §5.3).</summary>
+    private void ShowRunState()
+    {
+        var state = Node.RunState;
+        var ringThickness = Theme.HighContrast ? 3 : 2;
+        _ring.StrokeThickness = ringThickness;
+        _ring.StrokeDashArray = null;
+        _ring.Fill = null;
+        _ring.Stroke = Theme.Brush("ControlStrongStrokeColorDefaultBrush");
+        _glyph.FontFamily = (FontFamily)Application.Current.Resources["SymbolThemeFontFamily"];
+        _glyph.Glyph = Node.Glyph;
+        _glyph.Foreground = Theme.Brush("TextFillColorPrimaryBrush");
+        var running = state == NodeRunState.Running;
+        // Animation effects off: a static ¾ ring instead of the spinning one (UX §5.3 motion).
+        var spin = running && Ui.AnimationsEnabled;
+        if (spin && _progress is null)
+        {
+            _progress = new ProgressRing { Width = 32, Height = 32, Margin = new Thickness(12, 0, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, IsHitTestVisible = false };
+            Children.Insert(Children.IndexOf(_ring) + 1, _progress);
+        }
+        if (_progress is not null)
+        {
+            _progress.IsActive = spin;
+            _progress.Visibility = spin ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        string? fill = state switch
+        {
+            NodeRunState.Succeeded => "SystemFillColorSuccessBrush",
+            NodeRunState.Failed => "SystemFillColorCriticalBrush",
+            NodeRunState.FailedMayFail => "SystemFillColorCautionBrush",
+            _ => null,
+        };
+        if (fill is not null)
+        {
+            _ring.Fill = _ring.Stroke = Theme.Brush(fill);
+            _glyph.Foreground = Theme.Brush(Theme.HighContrast ? "SystemColorWindowColorBrush" : "TextOnAccentFillColorPrimaryBrush");
+            _glyph.Glyph = state switch
+            {
+                NodeRunState.Failed => "\uE711",
+                NodeRunState.FailedMayFail => "\uE7BA",
+                _ => "\uE73E",
+            };
+        }
+        switch (state)
+        {
+            case NodeRunState.Running when !spin:
+                _ring.Stroke = Theme.Selection;
+                _ring.StrokeDashArray = Theme.Dashes(Math.PI * 30 * 0.75 / ringThickness, 100); // ¾ of the circumference
+                break;
+            case NodeRunState.Running:
+                _ring.Stroke = Theme.Brush("ControlStrongStrokeColorDisabledBrush");
+                break;
+            case NodeRunState.Skipped:
+                _ring.StrokeDashArray = Theme.Dashes(2, 2);
+                _ring.Stroke = _glyph.Foreground = Theme.Brush("TextFillColorDisabledBrush");
+                _glyph.Glyph = "\uE893";
+                break;
+        }
+        // Dry run: the start order replaces the glyph of a step that would work.
+        if (Node.OrderText.Length > 0 && state is NodeRunState.Succeeded or NodeRunState.None)
+        {
+            _glyph.FontFamily = new FontFamily("Segoe UI Variable Text");
+            _glyph.Glyph = Node.OrderText;
+        }
     }
 
     protected override void OnNodeChanged(object? sender, PropertyChangedEventArgs e) => Refresh(_showDetails);

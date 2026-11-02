@@ -101,7 +101,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     /// <summary>A step or a card: the header, name and policy apply.</summary>
     public bool IsNode => IsStep || IsCard;
 
-    public bool CanEdit => _session.CanEdit;
+    /// <summary>False while the file can't be written or a run is on the canvas (UX §5.5).</summary>
+    public bool CanEdit => _canvas.CanEdit;
 
     /// <summary>The selected step or card.</summary>
     [ObservableProperty]
@@ -752,6 +753,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     {
         if (e.PropertyName == nameof(FlowCanvasViewModel.SelectedIds))
             Load();
+        else if (e.PropertyName == nameof(FlowCanvasViewModel.CanEdit))
+            OnPropertyChanged(nameof(CanEdit));
     }
 
     private void OnEngineStateChanged() => _post(() =>

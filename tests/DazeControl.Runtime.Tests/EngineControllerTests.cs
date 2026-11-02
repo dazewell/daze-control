@@ -366,4 +366,58 @@ public sealed class EngineControllerTests : IDisposable
 
         Assert.Equal(FlowOutcome.Cancelled, (await test).Run!.Outcome);
     }
+
+    private const string DryYaml = """
+        library:
+          bluetooth:
+            technics: { address: "B8:20:8E:00:00:01" }
+        flows:
+          tv:
+            name: TV only
+            nodes:
+              - { id: here, step: bluetooth.connect, with: { device: technics } }
+              - { id: gone, step: bluetooth.connect, with: { device: buds }, onFailure: skip }
+              - { id: after, step: notify, with: { text: x }, after: [gone] }
+        """;
+
+    [Fact]
+    public async Task DryRunOfTheSentConfigFailsMissingDevicesAndSkipsWhatWaits()
+    {
+        var answer = await _controller.HandleAsync(
+            new PipeRequest { Id = 3, Op = Ops.Run, Flow = "tv", DryRun = true, Config = DryYaml, Trigger = "Editor" }, CancellationToken.None);
+
+        Assert.True(answer.Ok, answer.Error);
+        var nodes = answer.Run!.Nodes.ToDictionary(n => n.NodeId);
+        Assert.Equal(NodeOutcome.Succeeded, nodes["here"].Outcome);
+        Assert.Equal(NodeOutcome.Failed, nodes["gone"].Outcome);
+        Assert.Equal("buds isn't in your Library.", nodes["gone"].Error);
+        Assert.Equal(NodeOutcome.Skipped, nodes["after"].Outcome);
+        Assert.Equal("Editor (dry run)", answer.Run.Trigger);
+        Assert.Empty(_history.Recent);
+    }
+
+    [Fact]
+    public async Task DryRunOfTheSentConfigRefusesAFlowThatCantBeWalked()
+    {
+        var loop = DryYaml.Replace("onFailure: skip }", "onFailure: skip, after: [after] }", StringComparison.Ordinal);
+
+        var answer = await _controller.HandleAsync(
+            new PipeRequest { Id = 3, Op = Ops.Run, Flow = "tv", DryRun = true, Config = loop }, CancellationToken.None);
+
+        Assert.False(answer.Ok);
+        Assert.StartsWith("Fix this first:", answer.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DryRunDoesNotWaitOutRetriesOfAMissingDevice()
+    {
+        var yaml = DryYaml.Replace("onFailure: skip }", "onFailure: skip, retry: { count: 3, delay: 30s } }", StringComparison.Ordinal);
+
+        // ManualTime never advances here: a retry delay would hang the request.
+        var answer = await _controller.HandleAsync(
+            new PipeRequest { Id = 3, Op = Ops.Run, Flow = "tv", DryRun = true, Config = yaml }, CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, answer.Run!.Nodes.Single(n => n.NodeId == "gone").Attempts);
+    }
 }

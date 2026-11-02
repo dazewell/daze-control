@@ -27,8 +27,12 @@ public enum FlowOutcome
 /// <param name="Attempts">0 when the node never started (skipped / cancelled before it ran).</param>
 /// <param name="Error">Plain-language reason for the pop-up and history; null on success.</param>
 /// <param name="Duration">Wall time from first start to end, retries included.</param>
+/// <param name="Start">When it started, from the run's start (the Runs timeline); zero when it never started, and in
+/// runs recorded before 0.15.</param>
+/// <param name="Order">1 for the first step started in the run, 2 for the next…; 0 when it never started (and before 0.15).</param>
+/// <param name="Retries">When each try after the first started, from the run's start (the timeline's notches).</param>
 public sealed record NodeResult(string NodeId, NodeOutcome Outcome, int Attempts = 1, string? Error = null,
-    TimeSpan Duration = default);
+    TimeSpan Duration = default, TimeSpan Start = default, int Order = 0, TimeSpan[]? Retries = null);
 
 public static class Outcomes
 {

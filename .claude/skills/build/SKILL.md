@@ -66,7 +66,7 @@ it, take the rect again, right-click that. To only *look* at the menu, post `WM_
 `lParam = WM_CONTEXTMENU (0x7B)` and the anchor in `wParam`; keys don't reach that menu (no foreground).
 Screenshots: `System.Drawing.Graphics.CopyFromScreen` from Windows PowerShell, then read the PNG (2026-11-01).
 
-Editor (M7): run it on a throwaway file, never the user's config: `DazeControl.Editor.exe --config <scratch>\config.yaml`.
+Editor (M7): run it on a throwaway file, never the user's config: `DazeControl.Editor.exe --config <scratch>\config.yaml`. A dev engine for it takes the path as its first argument (`DazeControl.exe <scratch>\config.yaml`, no `--config`: that would be read as the path). Its pipe is per user, so stop it before starting another engine. Screenshot helper: never UIA-invoke the name "Close", it is the window's close button.
 Open a flow with UIA (`InvokePattern` on the button named "Edit <flow name>"). Drags need **absolute
 `mouse_event` moves** (`MOUSEEVENTF_MOVE|ABSOLUTE|VIRTUALDESK`, coordinates scaled to 0–65535 over the virtual
 screen): `SetCursorPos` alone reaches WinUI as a single pointer move, so a drag never starts. Light theme: flip

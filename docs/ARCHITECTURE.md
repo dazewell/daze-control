@@ -252,6 +252,13 @@ About), cards in the OSD's settings-card style (App.xaml). All logic is in `Edit
 - Problems (n) (`FlowCanvasViewModel.Problems`, `ProblemItem`): the flow's problems from `ConfigSession.Problems`,
   errors first, in canvas order; picking one selects its step (the inspector follows) or, for the flow's own
   settings, clears the selection.
+- Runs on the canvas (`Runs/RunOverlayViewModel`, UX §5.5): Run / Dry run / Stop in the flow editor's CommandBar.
+  A live run of the open flow (any trigger) comes from pipe events: per-step `NodeRunView` (state, text, start
+  order) through `FlowCanvasViewModel.ShowRun`, re-applied after every re-layout; edges from a finished step turn
+  accent (`IsLit`). While it runs `FlowCanvasViewModel.IsRunLocked` makes `CanEdit` false and `Edit` a no-op
+  (inspector included), with an InfoBar; the engine going away unlocks it. A finished, dry (D-042) or recorded run
+  stays on the canvas until its InfoBar is closed. Pills draw states as ring fill + glyph (`PillView.ShowRunState`);
+  the ProgressRing is created on first use, and with animations off a static ¾ ring replaces it.
 - `--config <path>` makes the editor edit another file (tests, screenshots); its backups go to `backups/<file>/`
   next to it, and its single-instance names are scoped by path.
 

@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using DazeControl.Editor.ViewModels;
 using DazeControl.Editor.ViewModels.Canvas;
 using DazeControl.Editor.ViewModels.Config;
+using DazeControl.Editor.ViewModels.Runs;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
@@ -34,6 +35,7 @@ public sealed partial class ShellWindow : Window
     private bool _closeAnyway;
     private bool _asking;
     private FlowCanvasViewModel? _editor;
+    private RunOverlayViewModel? _run;
     private readonly StepPaletteViewModel _palette = new();
 
     public ShellWindow(ShellViewModel viewModel)
@@ -195,6 +197,12 @@ public sealed partial class ShellWindow : Window
             _editor.PropertyChanged += OnEditorChanged;
         FlowCanvasControl.ViewModel = _editor;
         InspectorPaneControl.ViewModel = ViewModel.Inspector;
+        if (_run is not null)
+            _run.PropertyChanged -= OnRunChanged;
+        _run = ViewModel.Run;
+        if (_run is not null)
+            _run.PropertyChanged += OnRunChanged;
+        UpdateRun();
         if (ViewModel.Inspector is { } inspector)
             _ = inspector.RefreshShortcutProblemsAsync();
         UpdateHistory();
@@ -243,6 +251,42 @@ public sealed partial class ShellWindow : Window
         if (args.Index == 0)
             ViewModel.CloseFlow();
     }
+
+    // ---- Runs on the canvas (UX §5.5) ----
+
+    private void OnRunChanged(object? sender, PropertyChangedEventArgs e) => UpdateRun();
+
+    private void UpdateRun()
+    {
+        var run = _run;
+        RunButton.IsEnabled = DryRunButton.IsEnabled = run?.CanRun == true;
+        var running = run?.IsRunning == true;
+        RunButton.Visibility = DryRunButton.Visibility = Show(!running);
+        RunStatusItem.Visibility = StopButton.Visibility = Show(running);
+        StopButton.IsEnabled = run?.CanStop == true;
+        RunStatusText.Text = run?.Status ?? "";
+        RunInfo.IsOpen = run?.IsInfoOpen == true;
+        if (run is null)
+            return;
+        RunInfo.Title = run.InfoTitle;
+        RunInfo.Message = run.InfoMessage;
+        RunInfo.IsClosable = run.CanCloseInfo;
+        RunInfo.Severity = run.InfoSeverity switch
+        {
+            RunInfoSeverity.Success => InfoBarSeverity.Success,
+            RunInfoSeverity.Warning => InfoBarSeverity.Warning,
+            RunInfoSeverity.Error => InfoBarSeverity.Error,
+            _ => InfoBarSeverity.Informational,
+        };
+    }
+
+    private void OnRun(object sender, RoutedEventArgs e) => _run?.RunCommand.Execute(null);
+
+    private void OnDryRun(object sender, RoutedEventArgs e) => _run?.DryRunCommand.Execute(null);
+
+    private void OnStopRun(object sender, RoutedEventArgs e) => _run?.StopCommand.Execute(null);
+
+    private void OnRunInfoClosed(InfoBar sender, InfoBarClosedEventArgs args) => _run?.CloseInfo();
 
     private void OnTidyUp(object sender, RoutedEventArgs e) => _editor?.TidyUp();
 

@@ -277,4 +277,30 @@ public sealed class FlowRunnerTests : IDisposable
 
         Assert.Contains("can't run \"notify\"", Node(result, "a").Error, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task ResultsCarryStartOrderStartAndRetryStartsForTheTimeline()
+    {
+        var gate = new TaskCompletionSource();
+        _provider.On("a", async (_, _) => await gate.Task);
+        _provider.On("c", (context, _) => context.Attempt < 2 ? FakeProvider.Fail("not yet") : Task.CompletedTask);
+        var run = Run(Flow(Step("a"), Step("b", "after: [a]"), Step("c", "after: [b], retry: { count: 1, delay: 2s }"),
+            Step("never", "after: [{ id: a, when: failure }]")));
+
+        await _provider.Started("a");
+        _time.Advance(TimeSpan.FromSeconds(3));
+        gate.SetResult();
+        await _provider.Started("c");
+        await _time.WaitForTimerAsync(); // c's attempt timeout
+        await _time.WaitForTimerAsync(); // retry delay
+        _time.Advance(TimeSpan.FromSeconds(2));
+        var result = await run;
+
+        Assert.Equal([1, 2, 3, 0], result.Nodes.Select(n => n.Order));
+        Assert.Equal(TimeSpan.Zero, Node(result, "a").Start);
+        Assert.Equal(TimeSpan.FromSeconds(3), Node(result, "b").Start);
+        Assert.Equal(TimeSpan.FromSeconds(3), Node(result, "c").Start);
+        Assert.Equal([TimeSpan.FromSeconds(5)], Node(result, "c").Retries!);
+        Assert.Null(Node(result, "b").Retries);
+    }
 }

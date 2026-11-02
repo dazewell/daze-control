@@ -86,7 +86,39 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial string? FocusedId { get; private set; }
 
-    public bool CanEdit => _session.CanEdit;
+    /// <summary>False while the file can't be written, and while a run is on the canvas (UX §5.5, §5.7 #22).</summary>
+    public bool CanEdit => _session.CanEdit && !IsRunLocked;
+
+    /// <summary>A live run of this flow is on the canvas: editing waits until it finishes.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanEdit))]
+    public partial bool IsRunLocked { get; internal set; }
+
+    private IReadOnlyDictionary<string, NodeRunView>? _run;
+
+    /// <summary>Shows a run's states on the pills and edges; null goes back to editing.</summary>
+    public void ShowRun(IReadOnlyDictionary<string, NodeRunView>? states)
+    {
+        _run = states;
+        ApplyRun();
+    }
+
+    public bool IsShowingRun => _run is not null;
+
+    private void ApplyRun()
+    {
+        foreach (var node in Nodes)
+            node.ShowRun(_run?.GetValueOrDefault(node.Id));
+        static bool Finished(NodeRunView? view) =>
+            view?.State is NodeRunState.Succeeded or NodeRunState.Failed or NodeRunState.FailedMayFail;
+        // A card has no state of its own: it has finished once every member has.
+        bool SourceFinished(string id) => Flow?.FindNode(id) is GroupNode card
+            ? card.Members.Count > 0 && card.Members.All(m => Finished(_run?.GetValueOrDefault(m)))
+            : Finished(_run?.GetValueOrDefault(id));
+        foreach (var edge in Edges)
+            edge.IsLit = _run is not null && SourceFinished(edge.From);
+        OnPropertyChanged(nameof(IsShowingRun));
+    }
 
     [ObservableProperty]
     public partial bool CanUndo { get; private set; }
@@ -124,6 +156,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     public FlowArrangement Arrangement => _arrangement;
 
     public Flow? Flow => _session.Current.Flows.FirstOrDefault(f => f.Id == FlowId);
+
+    public Library Library => _session.Current.Library;
 
     public CanvasNodeViewModel? Find(string id) => Nodes.FirstOrDefault(n => n.Id == id);
 
@@ -450,7 +484,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     public void Edit(Func<Flow, Flow> change)
     {
         ArgumentNullException.ThrowIfNull(change);
-        if (Flow is not { } before)
+        if (Flow is not { } before || IsRunLocked)
             return;
         Replace(change);
         if (Flow is not { } after || after.Equals(before))
@@ -652,6 +686,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         SetFocus(FocusedId);
         ApplySelection();
         IsEmpty = Nodes.Count == 0;
+        ApplyRun();
         Outline = BuildOutline();
         Problems = [.. _session.Problems.Where(p => p.FlowId == FlowId)
             .Select(p => (Problem: p, Node: NodeOf(flow, p.Path)))

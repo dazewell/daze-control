@@ -390,6 +390,21 @@ Status: accepted
   one asked for it yet. Why not bridge failure edges: "if B fails" can't become a condition on A.
 - Revisit if: users paste between config files, or undo across page switches is wanted.
 
+## D-042 · 2026-11-02 · Dry run walks the editor's on-screen flow; runs record when each step started
+Status: accepted
+- Decision: the editor's Dry run sends `run` with `dryRun` and `config` = library + the flow as shown (like D-040).
+  The engine walks it with the dry runner if its only errors are step values (`…nodes.<id>.with…`); any other error
+  (a loop, a bad timeout) refuses with "Fix this first: …". Dry steps do nothing, except that a step whose device
+  isn't in the library (or is unset) fails, so the canvas shows what a missing ref would fail and skip.
+  `NodeResult` gains `Start` (from the run's start), `Order` (start order, numbered on the scheduler's thread so
+  parallel steps get a stable number) and `Retries` (each later try's start) for the start-order numbers and the
+  Runs timeline. Old history lines read with zeros.
+- Why: the dry run is a preview of what's on screen, and a missing device is the most common thing to preview;
+  numbering in `Launch` makes the order deterministic where timestamps of parallel steps tie.
+- Why not the saved flow by id: with a missing ref the flow isn't valid, so the engine would walk its last valid
+  version (D-021), not what's shown. Why not a dry run inside the editor: Editor.ViewModels doesn't reference
+  Runtime (the scheduler), and the engine's walk is the one that counts.
+
 ## D-041 · 2026-11-02 · Library Test only looks; Programs come from the flows
 Status: accepted
 - Decision: the Library page's Test asks the engine for the live list (pipe `devices`) and says whether the item is

@@ -14,6 +14,35 @@ public enum CanvasNodeKind
     Card,
 }
 
+/// <summary>How a step shows during or after a run (UX §5.3 run states: shape plus glyph, never colour alone).</summary>
+public enum NodeRunState
+{
+    /// <summary>No run on the canvas.</summary>
+    None,
+
+    /// <summary>Empty ring.</summary>
+    Pending,
+
+    /// <summary>Indeterminate ProgressRing.</summary>
+    Running,
+
+    /// <summary>E73E, success fill.</summary>
+    Succeeded,
+
+    /// <summary>E711, critical fill and border.</summary>
+    Failed,
+
+    /// <summary>A may-fail step that failed: E7BA, caution (not red).</summary>
+    FailedMayFail,
+
+    /// <summary>Dashed ring, E893, disabled text. Also a step a stopped run never reached.</summary>
+    Skipped,
+}
+
+/// <param name="Text">Replaces the summary: "1.2 s", "Skipped", "Didn't work: …".</param>
+/// <param name="Order">Dry run: 1 for the first step to start; 0 = no number.</param>
+public sealed record NodeRunView(NodeRunState State, string Text = "", int Order = 0);
+
 /// <summary>A chip on a pill (UX §5.3): optional Segoe Fluent glyph + short text.</summary>
 public sealed record Badge(string Glyph, string Text)
 {
@@ -40,6 +69,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     public partial string Title { get; private set; } = "";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShownSummary))]
     public partial string Summary { get; private set; } = "";
 
     /// <summary>The provider glyph as a character (cards: E8FD).</summary>
@@ -95,6 +125,50 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>Faded while the inspector previews a failure policy: what wouldn't run (UX §5.4).</summary>
     [ObservableProperty]
     public partial bool IsDimmed { get; internal set; }
+
+    /// <summary>Its state in the run on the canvas (<see cref="NodeRunState.None"/> while editing).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsInRun))]
+    public partial NodeRunState RunState { get; private set; }
+
+    public bool IsInRun => RunState != NodeRunState.None;
+
+    /// <summary>During a run it replaces the summary (a finished step shows its duration).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShownSummary))]
+    public partial string RunText { get; private set; } = "";
+
+    public string ShownSummary => RunText.Length > 0 ? RunText : Summary;
+
+    /// <summary>Dry run start order ("1", "2"…); empty = none.</summary>
+    [ObservableProperty]
+    public partial string OrderText { get; private set; } = "";
+
+    internal void ShowRun(NodeRunView? run)
+    {
+        RunState = run?.State ?? NodeRunState.None;
+        RunText = run?.Text ?? "";
+        OrderText = run is { Order: > 0 } ? run.Order.ToString(System.Globalization.CultureInfo.CurrentCulture) : "";
+        // Screen readers hear the run too: "Connect, Technics. Bluetooth. Step 1. Done in 1.2 s."
+        var said = new List<string>();
+        if (OrderText.Length > 0)
+            said.Add($"Step {OrderText}");
+        if (RunState != NodeRunState.None)
+            said.Add(RunWords(RunState, RunText));
+        AutomationName = said.Count == 0 ? _name : $"{_name} {string.Join(". ", said)}.";
+    }
+
+    private static string RunWords(NodeRunState state, string text) => state switch
+    {
+        NodeRunState.Pending => "Waiting",
+        NodeRunState.Running => "Running",
+        NodeRunState.Succeeded => text.Length > 0 ? $"Done in {text}" : "Would work",
+        NodeRunState.FailedMayFail => $"Didn't work, the flow goes on. {text}".TrimEnd(),
+        NodeRunState.Failed => $"Didn't work. {text}".TrimEnd(),
+        _ => text.Length > 0 ? text : "Skipped",
+    };
+
+    private string _name = "";
 
     /// <summary>Screen-reader name, e.g. "Set default output, Technics. Audio. Waits for Connect Technics. May fail."</summary>
     [ObservableProperty]
@@ -161,7 +235,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             parts.Add("May fail");
         if (hasProblem)
             parts.Add("Needs fixing");
-        AutomationName = string.Join(". ", parts) + ".";
+        _name = string.Join(". ", parts) + ".";
+        AutomationName = _name;
     }
 
     /// <summary>"Technics · Default output": the library items and values the step works with, at most two.</summary>
