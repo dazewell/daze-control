@@ -57,6 +57,9 @@ public sealed partial class LibrarySectionViewModel : ObservableObject
     public partial string? Note { get; internal set; }
 
     public bool HasNote => Note is not null;
+
+    /// <summary>The Pivot header's name for screen readers.</summary>
+    public override string ToString() => Title;
 }
 
 /// <summary>

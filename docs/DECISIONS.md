@@ -390,6 +390,20 @@ Status: accepted
   one asked for it yet. Why not bridge failure edges: "if B fails" can't become a condition on A.
 - Revisit if: users paste between config files, or undo across page switches is wanted.
 
+## D-041 · 2026-11-02 · Library Test only looks; Programs come from the flows
+Status: accepted
+- Decision: the Library page's Test asks the engine for the live list (pipe `devices`) and says whether the item is
+  there and connected; a layout's test checks every monitor device path is plugged in (the `displays` list now
+  carries it as `Id`); a program's test looks for the file (a bare name on PATH, as Windows would). It never runs a
+  step. Programs is not a Library kind: the page lists the `process.run` paths the flows use. Remove is offered only
+  for items no flow uses.
+- Why: a test from the Library has no step to borrow settings from, and connecting, switching audio or launching a
+  program from a settings page would change the user's PC as a side effect of looking (the "Test this step" button
+  in the inspector is where a real run belongs, D-040). Listing programs needs no new YAML.
+- Why not a real connect/disconnect pair: it would leave a device in a different state when the second half fails.
+  Why not a `library.programs` kind: steps would need a second way to name a program for no gain yet.
+- Revisit if: users want to name programs once (arguments, working folder) — then add a kind and a LibraryRef param.
+
 ## D-040 · 2026-11-02 · "Test this step" sends the editor's config text; the engine runs that one step alone
 Status: accepted
 - Decision: the inspector sends `test-step` with the flow id, the step id and `config` = YAML of the library plus

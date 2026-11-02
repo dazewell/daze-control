@@ -33,8 +33,12 @@ public sealed partial class LibraryItemViewModel : ObservableObject
     public string Glyph { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AutomationName))]
+    [NotifyPropertyChangedFor(nameof(AutomationName), nameof(TestName), nameof(RemoveName))]
     public partial string Title { get; internal set; } = "";
+
+    public string TestName => $"Test {Title}";
+
+    public string RemoveName => $"Remove {Title} from Library";
 
     /// <summary>"Output", the Bluetooth address, the program's folder.</summary>
     [ObservableProperty]

@@ -206,8 +206,8 @@ and, with no engine, `list`/`validate` read the YAML themselves. Exit codes 0 ok
 
 `DazeControl.Editor.exe` (WinUI 3, unpackaged, self-contained) runs only while its window is open; closing it
 ends the process. Single instance: a named mutex; a second start sets a named event and exits, and the first
-brings its window to the front. Pages (UX §5.1) are panels in one `ShellWindow` (Flows, Library placeholder until
-M8, Settings, About), cards in the OSD's settings-card style (App.xaml). All logic is in `Editor.ViewModels`:
+brings its window to the front. Pages (UX §5.1) are panels in one `ShellWindow` (Flows, Library, Settings,
+About), cards in the OSD's settings-card style (App.xaml). All logic is in `Editor.ViewModels`:
 - `Config/ConfigStore` — config.yaml I/O: atomic write (temp + `File.Move` overwrite), one backup per editor
   session in `%APPDATA%\DazeControl\backups` (newest 10), and the text last read/written to tell outside changes.
 - `Config/ConfigSession` — every edit is `Update(c => …)`; saved 300 ms after the last one (`TimeProvider`).
@@ -244,6 +244,14 @@ M8, Settings, About), cards in the OSD's settings-card style (App.xaml). All log
   Library page): Library items with live state from pipe `devices`, a missing key kept as "Not found on this PC",
   then "From Windows" devices — picking one adds it to the Library under a key made from its name; displays offer
   "Capture current layout". The list refreshes when a picker opens.
+- Library page (`LibraryPage/LibraryPageViewModel`, view `Library/LibraryView`, a Pivot): Audio, Bluetooth, Displays,
+  Fire TV from `library:` plus Programs (the `process.run` paths the flows use). Cards show live state (pipe
+  `devices`, refreshed when the page opens or the engine starts), "Used by n flows" (flows with a step whose
+  LibraryRef param names the key), the item's Library problem, and a read-only Test (D-041). "Add from Windows" and
+  "Capture current layout" reuse `LibraryDevices`; Remove only when unused.
+- Problems (n) (`FlowCanvasViewModel.Problems`, `ProblemItem`): the flow's problems from `ConfigSession.Problems`,
+  errors first, in canvas order; picking one selects its step (the inspector follows) or, for the flow's own
+  settings, clears the selection.
 - `--config <path>` makes the editor edit another file (tests, screenshots); its backups go to `backups/<file>/`
   next to it, and its single-instance names are scoped by path.
 
@@ -286,6 +294,8 @@ T0.5 gate passed: no AOT/trim warnings; hotkey press and tray icon checked on th
 
 ## Open questions
 
+- Library leftovers: renaming a key (would rewrite every step that names it), editing a Fire TV's inputs and an
+  audio match in place, and "Used by" linking to those flows.
 - Inspector leftovers (M8): headers as key/value rows + "Add header" (now "Name: value" lines), a script's "Open in
   editor", the pill ring showing a test result for 3 s, resizing the pane (280–480), and recording a chord the
   running engine already owns (RegisterHotKey eats it, so it runs that flow instead of reaching the recorder).
