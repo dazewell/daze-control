@@ -55,6 +55,10 @@ public sealed partial class CanvasEdgeViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool IsSelected { get; internal set; }
+
+    /// <summary>During a run: accent once its source finished (UX §5.3).</summary>
+    [ObservableProperty]
+    public partial bool IsLit { get; internal set; }
 }
 
 /// <summary>Where a dragged pill lands over another (UX §5.2): body = "Run together", right third = "Run after".</summary>

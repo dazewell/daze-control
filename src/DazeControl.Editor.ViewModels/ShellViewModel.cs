@@ -51,6 +51,9 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     /// <summary>The flow editor's right pane; set before <see cref="Editor"/>, so it is there when the editor shows.</summary>
     public Inspector.InspectorViewModel? Inspector { get; private set; }
 
+    /// <summary>The flow editor's runs (CommandBar, InfoBar, states on the canvas); set with <see cref="Inspector"/>.</summary>
+    public Runs.RunOverlayViewModel? Run { get; private set; }
+
     private readonly Canvas.CanvasClipboard _clipboard = new();
 
     public void OpenFlow(string flowId)
@@ -62,11 +65,14 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
             return;
         var editor = new Canvas.FlowCanvasViewModel(Session, flowId, _clipboard);
         Inspector = new Inspector.InspectorViewModel(Session, editor, _engine, _post);
+        Run = new Runs.RunOverlayViewModel(editor, _engine, _post);
         Editor = editor;
     }
 
     public void CloseFlow()
     {
+        Run?.Dispose();
+        Run = null;
         Inspector?.Dispose();
         Inspector = null;
         Editor?.Dispose();
@@ -102,6 +108,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _engine.StateChanged -= OnEngineStateChanged;
+        Run?.Dispose();
         Inspector?.Dispose();
         Editor?.Dispose();
         Flows.Dispose();
