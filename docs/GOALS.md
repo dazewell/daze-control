@@ -35,6 +35,9 @@ lives in [DECISIONS.md](DECISIONS.md).
 Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
 - [x] M0 Bootstrap · [x] M1 Core model + YAML · [x] M2 Runtime · [x] M3 Engine shell · [x] M4 Providers
 - [x] M5 Run pop-up · [x] M6 Editor foundation · [x] M7 Canvas · [x] M8 Inspector + Library · [x] M9 Runs · [x] M10 Ship
+- [x] First-use fixes (user, 2026-11-02; 0.19.0): Flows list stays inside the window when maximized (X-003); Fire TV is
+  now Android, old `firetv` names are problems that name the new ones (D-045); Library layouts rename and show their
+  screens, Programs get Open file location, "Used by" opens the flows (D-046). Programs stays a derived list (D-041).
 
 ## Ready for you (M10, 2026-11-02)
 

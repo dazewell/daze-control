@@ -1,10 +1,10 @@
 # Plan
 
 ## Resume
-Current task: M10 done on feat/m10-ship — PR open, waiting for CI and Copilot review (merge policy §6)
-Last green checkpoint: the "docs(readme)…" commit on feat/m10-ship
+Current task: first-use fixes F1–F4 on feat/first-use-fixes — PR open, waiting for CI and Copilot review (merge policy §6)
+Last green checkpoint: 0d01543 "wip(editor): Library rename, layout details, used-by flows…"
 Next action: after the PR merges, nothing is queued for agents: GOALS "Ready for you" lists the user's steps (release tag, 24 h soak, retire scd, system-wide UX checks). Next agent work, if asked: T10.5 (pop-up for Narrator).
-Tree state: builds, 754/754 tests green · Uncommitted: none
+Tree state: builds, 778/778 tests green · Uncommitted: none
 Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user.
 
 ---
@@ -113,3 +113,9 @@ Notes for next agent: release.yml is tag-only (D-043): never push a v-tag withou
   happened") without activating (PR #8 review).
 - [x] T10.4 Footprint gate passed (ARCHITECTURE → Footprint, 2026-11-02). The 24 h soak and retiring scd are the
   user's (GOALS → Waiting on the user).
+
+## First-use fixes (user, 2026-11-02; branch feat/first-use-fixes)
+- [x] F1 Flows list stays inside the window when maximized (X-003).
+- [x] F2 Fire TV → Android everywhere, clean rename (D-045).
+- [x] F3 Library › Displays: rename (refs follow) and details of the saved screens (D-046).
+- [x] F4 Library › Programs: Open file location, "Used by" opens the flows (D-046; Programs stays derived, D-041).

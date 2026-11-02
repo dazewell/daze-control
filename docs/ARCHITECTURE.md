@@ -261,7 +261,10 @@ About), cards in the OSD's settings-card style (App.xaml). All logic is in `Edit
   Android from `library:` plus Programs (the `process.run` paths the flows use). Cards show live state (pipe
   `devices`, refreshed when the page opens or the engine starts), "Used by n flows" (flows with a step whose
   LibraryRef param names the key), the item's Library problem, and a read-only Test (D-041). "Add from Windows" and
-  "Capture current layout" reuse `LibraryDevices`; Remove only when unused.
+  "Capture current layout" reuse `LibraryDevices`; Remove only when unused. "Used by" lists the flows (`FlowLink`) and
+  raises `FlowRequested`, which the shell opens. Rename (layouts, Android) = Core `LibraryEdits.Rename`, which rewrites
+  every LibraryRef naming the key; a layout's Details = Core `LayoutScreens.Read`, which reads the capture's CCD bytes by
+  offset (a Providers test pins them to the CsWin32 structs), with name and port from the live list (D-046).
 - Problems (n) (`FlowCanvasViewModel.Problems`, `ProblemItem`): the flow's problems from `ConfigSession.Problems`,
   errors first, in canvas order; picking one selects its step (the inspector follows) or, for the flow's own
   settings, clears the selection.
@@ -322,8 +325,8 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 
 ## Open questions
 
-- Library leftovers: renaming a key (would rewrite every step that names it), editing an Android device's inputs and an
-  audio match in place, and "Used by" linking to those flows.
+- Library leftovers: editing an Android device's inputs and an audio match in place; renaming audio and Bluetooth keys
+  (their cards show the device's name, not the key, D-046).
 - Inspector leftovers (M8): headers as key/value rows + "Add header" (now "Name: value" lines), a script's "Open in
   editor", the pill ring showing a test result for 3 s, resizing the pane (280–480), and recording a chord the
   running engine already owns (RegisterHotKey eats it, so it runs that flow instead of reaching the recorder).

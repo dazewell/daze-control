@@ -48,7 +48,7 @@ public sealed partial class LibraryItemViewModel : ObservableObject
     public string Glyph { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AutomationName), nameof(TestName), nameof(RemoveName), nameof(RenameName), nameof(DetailsName))]
+    [NotifyPropertyChangedFor(nameof(AutomationName), nameof(TestName), nameof(RemoveName), nameof(RenameName), nameof(DetailsName), nameof(OpenLocationName))]
     public partial string Title { get; internal set; } = "";
 
     public string TestName => $"Test {Title}";
@@ -58,6 +58,8 @@ public sealed partial class LibraryItemViewModel : ObservableObject
     public string RenameName => $"Rename {Title}";
 
     public string DetailsName => $"Details of {Title}";
+
+    public string OpenLocationName => $"Open file location of {Title}";
 
     public string UsedByName => $"{UsedByText}: show them";
 
@@ -74,10 +76,12 @@ public sealed partial class LibraryItemViewModel : ObservableObject
     public string Description => State.Length == 0 ? Detail : Detail.Length == 0 ? State : $"{Detail} · {State}";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(UsedByText), nameof(CanRemove), nameof(AutomationName), nameof(IsUsed), nameof(UsedByName))]
+    [NotifyPropertyChangedFor(nameof(UsedByText), nameof(CanRemove), nameof(AutomationName), nameof(IsUsed), nameof(IsUnused), nameof(UsedByName))]
     public partial int UsedBy { get; internal set; }
 
     public bool IsUsed => UsedBy > 0;
+
+    public bool IsUnused => UsedBy == 0;
 
     /// <summary>The flows behind <see cref="UsedBy"/>, by name, for the "Used by" flyout.</summary>
     [ObservableProperty]

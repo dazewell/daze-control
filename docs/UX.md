@@ -11,8 +11,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 - Editor window: WinUI 3, Mica, TitleBar (page name as subtitle), NavigationView Left 200 wide.
   Pages: **Flows** (cards: glyph, name, shortcut, last result, On toggle; select → flow editor with
   BreadcrumbBar "Flows › Connect Technics"; New flow: Blank / TV only / Audio → Headphones templates) ·
-  **Library** (Pivot: Audio, Bluetooth, Displays, Android, Programs; settings cards with Test, "Used by 2
-  flows") · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, logs, updates),
+  **Library** (Pivot: Audio, Bluetooth, Displays, Android, Programs; settings cards with Test and "Used by 2
+  flows", which lists the flows and opens one; layouts and Android devices Rename (their flows follow), a layout's
+  Details list its screens; Programs add Open file location) · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, logs, updates),
   **About** (Copy details). Save errors: InfoBar on top of every page.
 - Flow editor: CommandBar (Run, Dry run, Stop, Undo, Redo, Tidy up, Canvas | Outline, Problems (n)) · left
   palette 240 (collapsible, search) · canvas · right inspector 320 (280–480). Nothing selected → inspector
