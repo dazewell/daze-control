@@ -56,6 +56,13 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     [ObservableProperty]
     public partial IReadOnlyList<Badge> Badges { get; private set; } = [];
 
+    /// <summary>All badges in one chip (glyphs fall back to Segoe Fluent Icons): keeps the pill at ≤ 12 elements (UX §5.8).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBadges))]
+    public partial string BadgeText { get; private set; } = "";
+
+    public bool HasBadges => BadgeText.Length > 0;
+
     /// <summary>Cards: "2 steps".</summary>
     [ObservableProperty]
     public partial string Count { get; private set; } = "";
@@ -111,7 +118,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         if (MayFail)
             badges.Add(new Badge("", "May fail"));
         else if (node.OnFailure == FailurePolicy.Skip)
-            badges.Add(new Badge("", "Skip what depends on it"));
+            badges.Add(new Badge("", "Skip"));
         if (node is GroupNode card)
         {
             Kind = CanvasNodeKind.Card;
@@ -137,6 +144,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         if (badges.Count > MaxBadges)
             badges = [.. badges.Take(MaxBadges), new Badge("", $"+{badges.Count - MaxBadges}")];
         Badges = badges;
+        BadgeText = string.Join("   ", badges.Select(b => b.Glyph.Length > 0 ? $"{b.Glyph} {b.Text}" : b.Text));
 
         var parts = new List<string> { Summary.Length == 0 ? Title : $"{Title}, {Summary}" };
         if (node is StepNode s && ProviderCatalog.Find(s.Step) is { } d)

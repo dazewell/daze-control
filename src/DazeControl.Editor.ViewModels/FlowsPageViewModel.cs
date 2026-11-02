@@ -152,7 +152,10 @@ public sealed partial class FlowItemViewModel : ObservableObject
     public string Id { get; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EditName))]
     public partial string Name { get; private set; } = "";
+
+    public string EditName => $"Edit {Name}";
 
     [ObservableProperty]
     public partial string Glyph { get; private set; } = DefaultGlyph;
