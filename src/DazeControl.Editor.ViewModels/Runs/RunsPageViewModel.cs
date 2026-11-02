@@ -84,12 +84,26 @@ public sealed partial class RunsPageViewModel : ObservableObject, IDisposable
         foreach (var day in history.OrderByDescending(r => r.Started).GroupBy(r => r.Started.ToLocalTime().Date))
             Days.Add(new RunDay(DayTitle(day.Key, today), day.Select(r => new RunItemViewModel(r, GlyphOf(r.FlowId)))));
         IsEmpty = Days.Count == 0;
-        if (Detail is { } shown && !Days.SelectMany(d => d).Any(r => r.Record.RunId == shown.Record.RunId))
+        if (Detail is not { } shown)
+            return;
+        if (Days.SelectMany(d => d).FirstOrDefault(r => r.Record.RunId == shown.Record.RunId) is not { } item)
+        {
             Detail = null;
+            return;
+        }
+        // The flow may have changed or gone since the detail was made (brackets, names, "Open in editor").
+        var flow = FlowOf(item.Record);
+        if (ReferenceEquals(flow, shown.Flow))
+            return;
+        Select(item);
+        if (shown.SelectedBar is { } bar)
+            Detail!.SelectedBar = Detail.Bars.FirstOrDefault(b => b.NodeId == bar.NodeId);
     }
 
     public void Select(RunItemViewModel? item) =>
-        Detail = item is null ? null : new RunDetailViewModel(item.Record, _session.Current.Flows.FirstOrDefault(f => f.Id == item.Record.FlowId));
+        Detail = item is null ? null : new RunDetailViewModel(item.Record, FlowOf(item.Record));
+
+    private Flow? FlowOf(RunRecord record) => _session.Current.Flows.FirstOrDefault(f => f.Id == record.FlowId);
 
     internal static string DayTitle(DateTime day, DateTime today) =>
         day == today ? "Today"

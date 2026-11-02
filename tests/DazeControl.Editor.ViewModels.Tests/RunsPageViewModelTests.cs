@@ -1,3 +1,4 @@
+using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
 using DazeControl.Editor.ViewModels.Config;
 using DazeControl.Editor.ViewModels.Engine;
@@ -114,6 +115,62 @@ public sealed class RunsPageViewModelTests : IDisposable
         var bars = detail.Bars.OrderBy(b => b.X).ToList();
         Assert.Equal(["a", "b", "c"], bars.Select(b => b.NodeId));
         Assert.All(bars.Zip(bars.Skip(1)), p => Assert.True(p.Second.X >= p.First.X + p.First.Width));
+    }
+
+    [Fact]
+    public void InstantStepsAtTheRightEdgeKeepTheirGap()
+    {
+        var run = Run(_time.GetLocalNow(), seconds: 2.002, nodes: [Ran("a", 0, 2), Ran("b", 2, 2.001, order: 2), Ran("c", 2.001, 2.002, order: 3)]);
+        var detail = new RunDetailViewModel(run, null);
+
+        detail.Layout(800);
+
+        var bars = detail.Bars.OrderBy(b => b.X).ToList();
+        Assert.Equal(["a", "b", "c"], bars.Select(b => b.NodeId));
+        Assert.All(bars.Zip(bars.Skip(1)), p => Assert.True(p.Second.X >= p.First.X + p.First.Width + RunDetailViewModel.BarGap));
+        Assert.Equal(800, bars[^1].X + bars[^1].Width, 3);
+    }
+
+    [Fact]
+    public void ABadCardInTheCurrentFlowDrawsNoBrackets()
+    {
+        var flow = _session.Current.Flows[0];
+        flow = flow with { Nodes = new(flow.Nodes.Append(new GroupNode("again", new(["w1"])))) }; // w1 in two cards
+        var run = Run(_time.GetLocalNow(), seconds: 2, nodes: [Ran("w1", 0, 1), Ran("w2", 0, 2, order: 2)]);
+
+        var detail = new RunDetailViewModel(run, flow);
+
+        Assert.Empty(detail.Brackets);
+        Assert.Equal(2, detail.Bars.Count);
+    }
+
+    [Fact]
+    public void ACardThatRanIsNotListedAsSkippedWhenItsFlowIsGone()
+    {
+        var run = Run(_time.GetLocalNow(), seconds: 2, nodes:
+            [Ran("w1", 0, 1), new NodeResult("both", NodeOutcome.Succeeded, Attempts: 0), new NodeResult("x", NodeOutcome.Skipped, Attempts: 0)]);
+
+        var detail = new RunDetailViewModel(run, null);
+
+        Assert.Equal(["x: skipped"], detail.NotRun);
+    }
+
+    [Fact]
+    public void ARefreshRebuildsTheDetailWhenItsFlowWasDeleted()
+    {
+        var history = new[] { Run(_time.GetLocalNow(), nodes: [Ran("bt", 0, 1)]) };
+        using var page = new RunsPageViewModel(_session, _engine, action => action(), _time);
+        page.Show(history);
+        page.Select(page.Days[0][0]);
+        page.Detail!.SelectedBar = page.Detail.Bars[0];
+        Assert.True(page.Detail.CanOpenInEditor);
+
+        File.WriteAllText(_session.Path, "version: 1\nflows: {}\n");
+        _session.Load();
+        page.Show(history);
+
+        Assert.False(page.Detail!.CanOpenInEditor);
+        Assert.Equal("bt", page.Detail.SelectedBar?.NodeId);
     }
 
     [Fact]

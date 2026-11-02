@@ -42,16 +42,31 @@ public sealed partial class RunDetailViewModel : ObservableObject
         Record = record;
         Flow = flow;
         _titles = record.Nodes.ToDictionary(n => n.NodeId, n => TitleOf(flow?.FindNode(n.NodeId), n.NodeId), StringComparer.Ordinal);
-        Timeline = RunTimeline.Build(record, flow);
+        Timeline = Build(record, flow);
         Sentence = RunWords.Sentence(record, NodeTitle);
         // Before 0.15 nothing recorded when steps started: every bar would sit at zero.
         HasTimeline = record.Nodes.Any(n => n.Order > 0);
-        NotRun = [.. record.Nodes.Where(n => n.Attempts == 0 && flow?.FindNode(n.NodeId) is not GroupNode)
+        // A card has no attempts of its own even when it ran; its outcome says whether it was skipped.
+        NotRun = [.. record.Nodes.Where(n => n.Attempts == 0 && n.Outcome is NodeOutcome.Skipped or NodeOutcome.Cancelled
+                && flow?.FindNode(n.NodeId) is not GroupNode)
             .Select(n => $"{NodeTitle(n.NodeId)}: {(n.Outcome == NodeOutcome.Cancelled ? "stopped before it started" : "skipped")}")];
         Layout(600);
     }
 
     public RunRecord Record { get; }
+
+    /// <summary>The flow as it is now may list a card member twice (a problem the editor shows): draw no brackets then.</summary>
+    private static RunTimeline Build(RunRecord record, Flow? flow)
+    {
+        try
+        {
+            return RunTimeline.Build(record, flow);
+        }
+        catch (ArgumentException)
+        {
+            return RunTimeline.Build(record, null);
+        }
+    }
 
     /// <summary>The flow as it is now; null when it was deleted (no brackets, "Open in editor" off).</summary>
     public Flow? Flow { get; }
@@ -104,28 +119,38 @@ public sealed partial class RunDetailViewModel : ObservableObject
         var scale = width / length; // DIP per second
         double X(TimeSpan t) => Math.Min(t.TotalSeconds * scale, width);
         var top = AxisHeight;
-        var laneEnds = new Dictionary<int, double>();
-        Bars = [.. Timeline.Bars.OrderBy(b => b.Start).Select(b =>
+        // Bars widened to MinBarWidth would cover each other: in each lane, a bar starts BarGap after the previous
+        // one ends, then the lane is fitted back from the right edge so the last bars keep their gap too.
+        var placed = Timeline.Bars.OrderBy(b => b.Start).Select(b => (Bar: b, X: X(b.Start), W: Math.Max(X(b.End) - X(b.Start), MinBarWidth))).ToArray();
+        foreach (var lane in placed.Select((p, i) => (p.Bar.Lane, i)).GroupBy(p => p.Lane, p => p.i))
         {
-            var x = X(b.Start);
-            var w = Math.Max(X(b.End) - x, MinBarWidth);
-            // A bar widened to MinBarWidth would cover the next instant step in its lane: start after it.
-            if (laneEnds.TryGetValue(b.Lane, out var end) && x < end + BarGap)
-                x = end + BarGap;
-            if (x + w > width)
-                x = Math.Max(0, width - w);
-            laneEnds[b.Lane] = x + w;
-            return new TimelineBarView(b.NodeId, NodeTitle(b.NodeId), b.Outcome, x, top + b.Lane * LaneHeight + (LaneHeight - BarHeight) / 2, w,
-                [.. b.Notches.Select(n => Math.Clamp(X(n) - x, 0, w))])
+            var end = double.NegativeInfinity;
+            foreach (var i in lane)
             {
-                AutomationName = $"{NodeTitle(b.NodeId)}, {Describe(b.Outcome)}, {RunWords.Seconds(b.End - b.Start)}",
-            };
-        })];
+                placed[i].X = Math.Max(placed[i].X, end + BarGap);
+                end = placed[i].X + placed[i].W;
+            }
+            var limit = width;
+            foreach (var i in lane.Reverse())
+            {
+                // Trim a long bar before moving it, so start times stay where they were.
+                if (placed[i].X + placed[i].W > limit)
+                    placed[i].W = Math.Max(MinBarWidth, limit - placed[i].X);
+                placed[i].X = Math.Max(0, Math.Min(placed[i].X, limit - placed[i].W));
+                limit = placed[i].X - BarGap;
+            }
+        }
+        var bars = placed.Select(p => new TimelineBarView(p.Bar.NodeId, NodeTitle(p.Bar.NodeId), p.Bar.Outcome, p.X,
+            top + p.Bar.Lane * LaneHeight + (LaneHeight - BarHeight) / 2, p.W, [.. p.Bar.Notches.Select(n => Math.Clamp(X(n) - p.X, 0, p.W))])
+        {
+            AutomationName = $"{NodeTitle(p.Bar.NodeId)}, {Describe(p.Bar.Outcome)}, {RunWords.Seconds(p.Bar.End - p.Bar.Start)}",
+        }).ToList();
         Brackets = [.. Timeline.Brackets.Select(c => new TimelineBracketView(
             TitleOf(Flow?.FindNode(c.CardId), "Run together"), X(c.Start), top + c.FirstLane * LaneHeight + 2,
             Math.Max(X(c.End) - X(c.Start), MinBarWidth), (c.LastLane - c.FirstLane + 1) * LaneHeight - 4))];
         Ticks = [.. TickTimes(Timeline.Length).Select(t => new TimelineTick(X(t), RunWords.Seconds(t)))];
         Height = top + Math.Max(1, Timeline.Lanes) * LaneHeight;
+        Bars = bars; // last: the view redraws on Bars, so everything else is in place by then
     }
 
     /// <summary>About five round steps: 0, 0.5, 1 … s or 0, 2, 4 … s.</summary>
