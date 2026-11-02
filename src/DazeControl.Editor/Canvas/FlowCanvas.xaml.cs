@@ -429,7 +429,7 @@ public sealed partial class FlowCanvas : UserControl
             case Gesture.Press when _dragged is not null && !CtrlDown():
                 _viewModel.Select(_dragged.Node.Id); // a plain click on one of several selected narrows to it
                 break;
-            case Gesture.Connect when ConnectTarget(position) is { } end:
+            case Gesture.Connect when ConnectTarget(position) is { } end && end.Id != _connectFrom!.Id: // a click on a port is no drag
                 ShowRefusal(_viewModel.Connect(_connectFrom!.Id, end.Id), end);
                 break;
             case Gesture.DragNode:
@@ -584,13 +584,17 @@ public sealed partial class FlowCanvas : UserControl
         box.TextChanged += (s, args) =>
         {
             if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+            {
                 s.ItemsSource = StepPaletteViewModel.Search(s.Text);
+                s.IsSuggestionListOpen = true;
+            }
         };
-        box.QuerySubmitted += (_, args) =>
+        var done = false;
+        void Choose(PaletteItem? item)
         {
-            var item = args.ChosenSuggestion as PaletteItem ?? (StepPaletteViewModel.Search(args.QueryText) is [var first, ..] ? first : null);
-            if (item is null)
+            if (done || item is null)
                 return;
+            done = true;
             flyout.Hide();
             if (edge is not null)
                 vm.InsertStep(item.Step, edge);
@@ -598,7 +602,10 @@ public sealed partial class FlowCanvas : UserControl
                 vm.AddStep(item.Step, after);
             if (Shown)
                 Focus(FocusState.Programmatic);
-        };
+            RevealFocused();
+        }
+        box.QuerySubmitted += (_, args) =>
+            Choose(args.ChosenSuggestion as PaletteItem ?? (StepPaletteViewModel.Search(args.QueryText) is [var first, ..] ? first : null));
         flyout.Opened += (_, _) => { box.Focus(FocusState.Programmatic); box.IsSuggestionListOpen = true; };
         var position = at ?? (vm.FocusedId is { } id && vm.Find(id) is { } node ? P(FlowCanvasViewModel.OutPort(node)) : default);
         if (!Shown && FallbackTarget is not null)
@@ -617,6 +624,7 @@ public sealed partial class FlowCanvas : UserControl
         _viewModel.AddStep(step, [.. _viewModel.SelectedIds]);
         if (Shown)
             Focus(FocusState.Programmatic);
+        RevealFocused();
     }
 
     /// <summary>Data format the palette drags: the step id as text with this prefix.</summary>
@@ -649,7 +657,10 @@ public sealed partial class FlowCanvas : UserControl
         {
             var target = vm.HitTest(C(e.GetPosition(Host)));
             if (await DraggedStep(e) is { } step)
+            {
                 vm.AddStep(step, target is null ? null : [target.Id]);
+                RevealFocused();
+            }
         }
         finally
         {
@@ -888,6 +899,7 @@ public sealed partial class FlowCanvas : UserControl
         if (RunCommandKey(e.Key))
         {
             UpdateFocusRing();
+            RevealFocused();
             return;
         }
         switch (e.Key)
@@ -948,6 +960,13 @@ public sealed partial class FlowCanvas : UserControl
         FrameworkElementAutomationPeer.FromElement(this)?.RaiseNotificationEvent(
             AutomationNotificationKind.ActionCompleted, AutomationNotificationProcessing.MostRecent, node.AutomationName, "canvas-focus");
     }
+
+    /// <summary>After an add or paste: scroll to the new step once it has its slot.</summary>
+    private void RevealFocused() => DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+    {
+        if (Shown && _viewModel?.FocusedId is { } id && _viewModel.Find(id) is { } node)
+            BringIntoView(node);
+    });
 
     private void BringIntoView(CanvasNodeViewModel node)
     {

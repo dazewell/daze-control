@@ -219,7 +219,7 @@ public sealed partial class ShellWindow : Window
                 UpdateOutline();
                 break;
             case nameof(FlowCanvasViewModel.SelectedIds):
-                SelectInOutline();
+                DispatcherQueue.TryEnqueue(SelectInOutline); // never inside the tree's own input handling
                 break;
         }
     }
@@ -288,7 +288,7 @@ public sealed partial class ShellWindow : Window
         FlowCanvasControl.Visibility = Show(!outline);
         if (outline)
         {
-            SelectInOutline();
+            DispatcherQueue.TryEnqueue(SelectInOutline); // containers exist only after the next layout pass
             OutlineTree.Focus(FocusState.Programmatic);
         }
         else
@@ -302,7 +302,7 @@ public sealed partial class ShellWindow : Window
         _syncingOutline = true;
         OutlineTree.ItemsSource = _editor?.Outline;
         _syncingOutline = false;
-        SelectInOutline();
+        DispatcherQueue.TryEnqueue(SelectInOutline);
     }
 
     /// <summary>The outline follows the canvas selection (its first item), so both views act on the same steps.</summary>
@@ -315,7 +315,16 @@ public sealed partial class ShellWindow : Window
         if (ReferenceEquals(OutlineTree.SelectedItem, item))
             return;
         _syncingOutline = true;
-        OutlineTree.SelectedItem = item;
+        // SelectedItem alone doesn't show for items bound through ItemsSource; select the node behind the row.
+        if (item is not null && OutlineTree.ContainerFromItem(item) is TreeViewItem container && OutlineTree.NodeFromContainer(container) is { } node)
+        {
+            OutlineTree.SelectedNode = node;
+            container.StartBringIntoView();
+        }
+        else
+        {
+            OutlineTree.SelectedItem = item;
+        }
         _syncingOutline = false;
     }
 
@@ -354,12 +363,17 @@ public sealed partial class ShellWindow : Window
             return;
         if ((args.OriginalSource as FrameworkElement)?.DataContext is OutlineItem item && !_editor.SelectedIds.Contains(item.Id))
             _editor.Select(item.Id);
-        var menu = FlowCanvasControl.NodeMenu();
-        if (args.TryGetPosition(OutlineTree, out var point))
-            menu.ShowAt(OutlineTree, point);
-        else
-            menu.ShowAt(args.OriginalSource as FrameworkElement ?? OutlineTree);
+        var target = args.OriginalSource as FrameworkElement ?? OutlineTree;
+        Windows.Foundation.Point? point = args.TryGetPosition(OutlineTree, out var p) ? p : null;
         args.Handled = true;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            var menu = FlowCanvasControl.NodeMenu();
+            if (point is { } at)
+                menu.ShowAt(OutlineTree, at);
+            else
+                menu.ShowAt(target);
+        });
     }
 
     private void OnFit(object sender, RoutedEventArgs e) => FlowCanvasControl.Fit();

@@ -292,9 +292,13 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <Grid Margin="36,0,16,4">
+                    <Grid Margin="36,0,16,4" ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
                         <BreadcrumbBar x:Name="FlowBreadcrumb" VerticalAlignment="Center" ItemClicked="OnBreadcrumbClicked" />
-                        <CommandBar HorizontalAlignment="Right" DefaultLabelPosition="Right" Background="Transparent" IsDynamicOverflowEnabled="True">
+                        <CommandBar Grid.Column="1" HorizontalAlignment="Right" DefaultLabelPosition="Right" Background="Transparent" IsDynamicOverflowEnabled="True">
                             <AppBarButton x:Name="UndoButton" Label="Undo" LabelPosition="Collapsed" ToolTipService.ToolTip="Undo (Ctrl+Z)" Click="OnUndo" IsEnabled="False">
                                 <AppBarButton.Icon><FontIcon Glyph="&#xE7A7;" /></AppBarButton.Icon>
                             </AppBarButton>
@@ -373,7 +377,7 @@
                                 <TreeView x:Name="OutlineTree" Visibility="Collapsed" Padding="16,8" SelectionMode="Single" CanDragItems="False"
                                           AllowDrop="False" CanReorderItems="False" AutomationProperties.Name="Steps in run order"
                                           ItemInvoked="OnOutlineInvoked" SelectionChanged="OnOutlineSelectionChanged"
-                                          KeyDown="OnOutlineKeyDown" ContextRequested="OnOutlineContextRequested">
+                                          PreviewKeyDown="OnOutlineKeyDown" ContextRequested="OnOutlineContextRequested">
                                     <TreeView.ItemTemplate>
                                         <DataTemplate x:DataType="vmc:OutlineItem">
                                             <TreeViewItem ItemsSource="{x:Bind Children}" IsExpanded="True" AutomationProperties.Name="{x:Bind AutomationName}">
