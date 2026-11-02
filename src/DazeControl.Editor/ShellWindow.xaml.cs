@@ -49,6 +49,7 @@ public sealed partial class ShellWindow : Window
         AppFolderText.Text = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
 
         var hwnd = Win32Interop.GetWindowFromWindowId(AppWindow.Id);
+        InspectorPaneControl.WindowHandle = hwnd;
         var scale = GetDpiForWindow(hwnd) / 96.0;
         AppWindow.Resize(new SizeInt32((int)(WidthDip * scale), (int)(HeightDip * scale)));
 
@@ -190,6 +191,9 @@ public sealed partial class ShellWindow : Window
         if (_editor is not null)
             _editor.PropertyChanged += OnEditorChanged;
         FlowCanvasControl.ViewModel = _editor;
+        InspectorPaneControl.ViewModel = ViewModel.Inspector;
+        if (ViewModel.Inspector is { } inspector)
+            _ = inspector.RefreshShortcutProblemsAsync();
         UpdateHistory();
         UpdateOutline();
         FlowEditorPage.Visibility = Show(_editor is not null);

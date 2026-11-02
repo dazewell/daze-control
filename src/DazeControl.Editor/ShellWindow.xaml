@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:DazeControl.Editor.ViewModels"
     xmlns:canvas="using:DazeControl.Editor.Canvas"
+    xmlns:inspector="using:DazeControl.Editor.Inspector"
     xmlns:vmc="using:DazeControl.Editor.ViewModels.Canvas"
     Title="Daze Control">
 
@@ -337,7 +338,11 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
+                        <!-- Inspector (UX §5.4): 320 wide right of the canvas. -->
+                        <inspector:InspectorPane x:Name="InspectorPaneControl" Grid.Column="2" Width="320" />
+
                         <!-- Palette (UX §5.1): 240 wide, search, step types by area; click or drag onto the canvas. -->
                         <Grid x:Name="PalettePane" Width="240" Padding="12,4,12,0" RowSpacing="8">
                             <Grid.RowDefinitions>

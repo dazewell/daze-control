@@ -169,18 +169,25 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     public bool CanTest => IsStep && EngineRunning && !IsTesting;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanTest))]
+    [NotifyPropertyChangedFor(nameof(CanTest), nameof(IsIdle))]
     public partial bool IsTesting { get; private set; }
+
+    public bool IsIdle => !IsTesting;
 
     /// <summary>"Worked in 1.2 s." / "Didn't work: …"; null = no result to show.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasTestResult))]
+    [NotifyPropertyChangedFor(nameof(HasTestResult), nameof(ShowTestSuccess), nameof(ShowTestFailure))]
     public partial string? TestResult { get; private set; }
 
     public bool HasTestResult => TestResult is not null;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowTestSuccess), nameof(ShowTestFailure))]
     public partial bool TestSucceeded { get; private set; }
+
+    public bool ShowTestSuccess => HasTestResult && TestSucceeded;
+
+    public bool ShowTestFailure => HasTestResult && !TestSucceeded;
 
     /// <summary>The step's error in full for "Show details"; null when there is none.</summary>
     [ObservableProperty]
@@ -674,7 +681,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     /// <summary>"Worked in 1.2 s." / "Didn't work: Windows couldn't find Technics."</summary>
     public static string Explain(NodeResult result) => result.Outcome switch
     {
-        NodeOutcome.Succeeded => $"Worked in {Seconds(result.Duration)}.",
+        NodeOutcome.Succeeded => result.Duration < TimeSpan.FromSeconds(0.05) ? "Worked right away." : $"Worked in {Seconds(result.Duration)}.",
         NodeOutcome.Cancelled => "Test stopped.",
         _ => "Didn't work: " + FirstLine(result.Error ?? "it failed."),
     };
