@@ -280,7 +280,8 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
     {
         InfoSeverity = severity;
         InfoTitle = title;
-        InfoMessage = message;
+        // "Done, with a problem" is the title already: the message goes straight to what happened.
+        InfoMessage = message.StartsWith(title + ". ", StringComparison.Ordinal) ? message[(title.Length + 2)..] : message;
         IsInfoOpen = true;
     }
 

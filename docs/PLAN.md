@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M9 — T9.1 live run overlay on the canvas (M8 done: T8.2/T8.3 on feat/m8-library, see `gh pr list`)
-Last green checkpoint: "feat(editor): Library pages with Test and the Problems list (T8.2, T8.3)"
-Next action: if the feat/m8-library PR is still open, finish its merge policy (§6). Then branch feat/m9-runs from main: T9.1 = run states on the canvas from `IEngineClient.EventReceived` (nodeStarted/nodeFinished/runFinished for this flow) in `FlowCanvasViewModel` (a per-node state the pill ring draws, UX §5.3 run states), CommandBar Run / Dry run / Stop + "Running · 2 of 4", editing locked with an InfoBar (§5.7 #22).
-Tree state: builds, 706/706 tests green · Uncommitted: none
-Notes for next agent: version is 0.14.0 (the M9 PR bumps to 0.15.0). Test the editor only with `--config <scratch>/config.yaml`; a dev engine started with that config (bin/Debug engine exe, `--config`) locks the engine's bin/Debug DLLs: stop it before building. Screenshots: UIA by element name (Pivot headers, "Test <item>", "Problems (n)"), see the build skill.
+Current task: M9 — T9.2 Runs page (T9.1 done on feat/m9-runs, see `gh pr list`)
+Last green checkpoint: "wip(editor): run overlay view model with live states, dry run and edit lock"
+Next action: if the T9.1 PR is still open, finish its merge policy (§6). Then branch feat/m9-runs-page from main: `Runs/RunsPageViewModel` (pipe `history` limit 100, grouped by day, refresh on runFinished) + `RunDetailViewModel` over `Core/Runs/RunTimeline.Build` (already done and tested), `EditorPage.Runs` nav item, "Open in editor" = `ShellViewModel.OpenFlow` + `Run.Show(record)`.
+Tree state: builds, all tests green · Uncommitted: none
+Notes for next agent: version is 0.15.0 (T9.2's PR bumps to 0.16.0). The dev engine takes the config path as its first argument, not `--config` (the editor takes `--config`). Never UIA-invoke by the name "Close": it hits the window's close button.
 
 ---
 
@@ -93,7 +93,7 @@ Notes for next agent: version is 0.14.0 (the M9 PR bumps to 0.15.0). Test the ed
 - [x] T8.3 Problems list (feat/m8-library).
 
 ## M9 Runs
-- [ ] T9.1 Live run overlay on the canvas.
+- [x] T9.1 Live run overlay on the canvas (feat/m9-runs).
 - [ ] T9.2 History list + parallel-lane timeline.
 
 ## M10 Ship

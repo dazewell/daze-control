@@ -88,7 +88,8 @@ public sealed class RunOverlayViewModelTests : IDisposable
         Assert.False(_run.IsRunning);
         Assert.True(_canvas.CanEdit);
         Assert.Equal(RunInfoSeverity.Warning, _run.InfoSeverity);
-        Assert.Equal("Done, with a problem. Set default device didn't work, so it went on without it.", _run.InfoMessage);
+        Assert.Equal("Done, with a problem", _run.InfoTitle);
+        Assert.Equal("Set default device didn't work, so it went on without it.", _run.InfoMessage);
         Assert.Equal(NodeRunState.FailedMayFail, State("out"));
         Assert.Equal(NodeRunState.Skipped, State("note")); // never reported: the run ended without it
 
