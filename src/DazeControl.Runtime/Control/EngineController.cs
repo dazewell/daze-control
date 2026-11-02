@@ -139,9 +139,15 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
 
         var testId = TestPrefix + flow.Id;
         var test = new Flow(testId, flow.Name, [step with { After = [], OnFailure = FailurePolicy.Stop }]);
+        // Mapping replaces a bad value (timeout: nonsense) with the default: that must refuse the test, not run it.
+        // Edges and the policy are dropped for the test, so their problems don't count.
+        var mapped = $"flows.{flow.Id}.nodes.{step.Id}";
         var prefix = $"flows.{testId}.nodes.{step.Id}";
-        var problem = ConfigValidator.Validate(new Configuration { Library = load.Config.Library, Flows = [test] })
-            .FirstOrDefault(p => p.Severity == Severity.Error && p.Path.StartsWith(prefix, StringComparison.Ordinal));
+        var problem = load.Problems.Where(p => p.Path == mapped || p.Path.StartsWith(mapped + ".", StringComparison.Ordinal))
+            .Where(p => !p.Path.StartsWith(mapped + ".after", StringComparison.Ordinal) && p.Path != mapped + ".onFailure")
+            .Concat(ConfigValidator.Validate(new Configuration { Library = load.Config.Library, Flows = [test] })
+                .Where(p => p.Path.StartsWith(prefix, StringComparison.Ordinal)))
+            .FirstOrDefault(p => p.Severity == Severity.Error);
         if (problem is not null)
             return PipeMessage.Fail(id, $"Fix this step first: {problem.Message}");
 

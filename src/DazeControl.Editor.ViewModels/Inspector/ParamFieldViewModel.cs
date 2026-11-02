@@ -51,7 +51,10 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     /// <summary>Scripts and bodies: monospace, 8 lines (UX §5.4).</summary>
     public bool IsCode => Kind is ParamKind.MultilineText;
 
-    public bool IsFile => Kind is ParamKind.FilePath;
+    public bool IsFile => Kind is ParamKind.FilePath or ParamKind.FolderPath;
+
+    /// <summary>Browse picks a folder, not a file.</summary>
+    public bool IsFolder => Kind is ParamKind.FolderPath;
 
     public bool IsNumber => Kind is ParamKind.WholeNumber or ParamKind.Duration;
 
@@ -124,7 +127,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                     Choice = scalar ?? Spec.Default;
                     break;
                 case ParamKind.LibraryRef:
-                    Device = Devices.FirstOrDefault(o => o.Key == scalar && o.Source != DeviceSource.Windows)
+                    Device = Devices.FirstOrDefault(o => o.Key == scalar && o.Source is DeviceSource.Library or DeviceSource.Missing)
                         ?? Devices.FirstOrDefault(o => o.Source == DeviceSource.None);
                     break;
                 case ParamKind.TextList:
@@ -164,7 +167,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                 foreach (var option in options)
                     Devices.Add(option);
             }
-            Device = Devices.FirstOrDefault(o => o.Key == current && o.Source != DeviceSource.Windows)
+            Device = Devices.FirstOrDefault(o => o.Key == current && o.Source is DeviceSource.Library or DeviceSource.Missing)
                 ?? Devices.FirstOrDefault(o => o.Source == DeviceSource.None);
         }
         finally
@@ -247,9 +250,9 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     /// <summary>Only full paths are checked: a bare "notepad.exe" is found on PATH at run time.</summary>
     private string? FileProblem()
     {
-        if (Kind != ParamKind.FilePath || Text.Trim() is not { Length: > 0 } path)
+        if (!IsFile || Text.Trim() is not { Length: > 0 } path)
             return null;
         path = Environment.ExpandEnvironmentVariables(path.Trim('"'));
-        return Path.IsPathFullyQualified(path) && !_fileExists(path) ? "Can't find this file." : null;
+        return Path.IsPathFullyQualified(path) && !_fileExists(path) ? (IsFolder ? "Can't find this folder." : "Can't find this file.") : null;
     }
 }

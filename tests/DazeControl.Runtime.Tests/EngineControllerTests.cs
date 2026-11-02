@@ -319,6 +319,7 @@ public sealed class EngineControllerTests : IDisposable
             nodes:
               - { id: a, step: notify, with: { text: x } }
               - { id: b, step: notify, after: [a] }
+              - { id: c, step: notify, with: { text: x }, after: [a], timeout: nonsense }
         """;
 
     private EngineController WithStepRunner() => new(ReadConfig, _launcher, _history, EngineController.CreateDryRunner(_time),
@@ -344,6 +345,7 @@ public sealed class EngineControllerTests : IDisposable
     [Theory]
     [InlineData("b", "Fix this step first:")] // notify without text
     [InlineData("zz", "That step isn't in the flow.")]
+    [InlineData("c", "Fix this step first:")] // a timeout mapping replaced with the default
     public async Task TestStepRefusesWhatCantRun(string node, string error)
     {
         var answer = await WithStepRunner().HandleAsync(Test(node), CancellationToken.None);

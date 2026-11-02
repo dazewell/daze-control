@@ -56,6 +56,15 @@ public sealed partial class InspectorPane : UserControl
     {
         if ((sender as FrameworkElement)?.Tag is not ParamFieldViewModel field || WindowHandle == 0)
             return;
+        if (field.IsFolder)
+        {
+            var folders = new FolderPicker { SuggestedStartLocation = PickerLocationId.ComputerFolder };
+            folders.FileTypeFilter.Add("*");
+            WinRT.Interop.InitializeWithWindow.Initialize(folders, WindowHandle);
+            if (await folders.PickSingleFolderAsync() is { } folder)
+                field.Text = folder.Path;
+            return;
+        }
         var picker = new FileOpenPicker { SuggestedStartLocation = PickerLocationId.ComputerFolder };
         picker.FileTypeFilter.Add("*");
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WindowHandle);

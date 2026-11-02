@@ -80,6 +80,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         _session.PropertyChanged += OnSessionChanged;
         _canvas.PropertyChanged += OnCanvasChanged;
         _engine.StateChanged += OnEngineStateChanged;
+        _engine.EventReceived += OnEngineEvent;
         Load();
     }
 
@@ -441,9 +442,13 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     private async Task CaptureLayoutAsync(ParamFieldViewModel field)
     {
         var key = LibraryDevices.NewKey(_session.Current.Library, LibraryKind.Display, "layout");
+        var nodeId = NodeId;
         var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.CaptureDisplayLayout, Key = key }).ConfigureAwait(false);
         _post(() =>
         {
+            if (NodeId != nodeId || !Fields.Contains(field))
+                return; // the selection moved on while the screens were read
+
             var captured = answer is { Ok: true, Yaml: { } yaml } ? ConfigYaml.Load(yaml).Config?.Library.Displays is { Count: > 0 } displays ? displays[0] : null : null;
             if (captured is null)
             {
@@ -581,16 +586,27 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// What wouldn't run if <paramref name="id"/> failed: Stop — everything except it and what it waits for; Skip —
-    /// what waits for it through "if it works" edges (fallbacks still run); Keep going — nothing. Cards bring their members.
+    /// What wouldn't run if <paramref name="id"/> failed (as <c>Scheduler</c> decides): Stop — everything except it and
+    /// what it waits for, unless an "if it fails" edge handles it (then as Skip); Skip — what waits for it through "if it
+    /// works" edges, but not past "whatever happens" edges; Keep going — nothing. A card member fails into its card, whose
+    /// policy decides. Cards bring their members.
     /// </summary>
     public static IReadOnlySet<string> Affected(Flow flow, string id, FailurePolicy policy)
     {
         ArgumentNullException.ThrowIfNull(flow);
         var cardOf = FlowLayout.CardOf(flow);
-        var top = cardOf.GetValueOrDefault(id, id);
-        var edges = FlowLayout.Edges(flow, cardOf);
         var result = new HashSet<string>(StringComparer.Ordinal);
+        var top = id;
+        if (cardOf.TryGetValue(id, out var card))
+        {
+            if (policy == FailurePolicy.Ignore)
+                return result;
+            top = card;
+            policy = flow.FindNode(card)?.OnFailure ?? FailurePolicy.Stop;
+        }
+        var edges = FlowLayout.Edges(flow, cardOf);
+        if (policy == FailurePolicy.Stop && edges.Any(e => e.From == top && e.When == EdgeWhen.Failure))
+            policy = FailurePolicy.Skip;
         switch (policy)
         {
             case FailurePolicy.Stop:
@@ -603,14 +619,16 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                 }
                 break;
             case FailurePolicy.Skip:
+                var skipped = Reach(edges, top, backwards: false, onlySuccess: true);
                 foreach (var node in flow.Nodes)
                 {
-                    if (Reach(edges, top, backwards: false, onlySuccess: true).Contains(cardOf.GetValueOrDefault(node.Id, node.Id)))
+                    if (skipped.Contains(cardOf.GetValueOrDefault(node.Id, node.Id)))
                         result.Add(node.Id);
                 }
                 break;
         }
         result.Remove(id);
+        result.Remove(top);
         return result;
     }
 
@@ -623,8 +641,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             var at = stack.Pop();
             foreach (var (from, to, when) in edges)
             {
-                // Only the first hop needs "if it works": below a skipped step everything that waits is skipped too.
-                if (onlySuccess && at == start && when != EdgeWhen.Success)
+                // Skip: the failed step fires only its "if it fails" edges; a skipped one still fires "whatever happens".
+                if (onlySuccess && (at == start ? when != EdgeWhen.Success : when == EdgeWhen.Always))
                     continue;
                 var (here, next) = backwards ? (to, from) : (from, to);
                 if (here == at && seen.Add(next))
@@ -740,7 +758,21 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(EngineRunning));
         OnPropertyChanged(nameof(CanTest));
+        Load(); // "Capture current layout" comes and goes with the engine
+        if (EngineRunning)
+        {
+            _ = RefreshShortcutProblemsAsync();
+            foreach (var kind in Fields.Select(f => f.Spec.Library).OfType<LibraryKind>().Distinct())
+                _ = RefreshDevicesAsync(kind);
+        }
     });
+
+    /// <summary>The engine registers shortcuts after each reload: their conflicts are known only then.</summary>
+    private void OnEngineEvent(PipeEvent e)
+    {
+        if (e.Kind == EventKinds.ConfigReloaded)
+            _ = RefreshShortcutProblemsAsync();
+    }
 
     public void Dispose()
     {
@@ -749,6 +781,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         _session.PropertyChanged -= OnSessionChanged;
         _canvas.PropertyChanged -= OnCanvasChanged;
         _engine.StateChanged -= OnEngineStateChanged;
+        _engine.EventReceived -= OnEngineEvent;
         ClearFields();
     }
 }

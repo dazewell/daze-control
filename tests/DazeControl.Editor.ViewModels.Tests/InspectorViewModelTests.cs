@@ -379,4 +379,65 @@ public sealed class InspectorViewModelTests : IDisposable
 
         Assert.Equal("Alt+T already runs flow \"g\".", _inspector.Shortcuts[0].Problem);
     }
+
+    [Fact]
+    public void StopWithAFallbackEdgeDimsOnlyWhatWaitsForItToWork()
+    {
+        // out has an "if it fails" edge to note: failing doesn't stop the flow, note still runs.
+        Assert.Empty(InspectorViewModel.Affected(_canvas.Flow!, "out", FailurePolicy.Stop));
+    }
+
+    [Fact]
+    public void SkipStopsAtWhateverHappensEdgesBelowTheFailedStep()
+    {
+        var flow = new Flow("g", "G",
+        [
+            new StepNode("a", "notify"),
+            new StepNode("b", "notify") { After = [new Edge("a")] },
+            new StepNode("c", "notify") { After = [new Edge("b", EdgeWhen.Always)] },
+        ]);
+
+        Assert.Equal(["b"], InspectorViewModel.Affected(flow, "a", FailurePolicy.Skip));
+    }
+
+    [Fact]
+    public void AMemberFailsIntoItsCardWhosePolicyDecides()
+    {
+        var flow = new Flow("g", "G",
+        [
+            new GroupNode("card", ["m1", "m2"]) { OnFailure = FailurePolicy.Ignore },
+            new StepNode("m1", "notify"),
+            new StepNode("m2", "notify"),
+            new StepNode("after", "notify") { After = [new Edge("card")] },
+        ]);
+
+        Assert.Empty(InspectorViewModel.Affected(flow, "m1", FailurePolicy.Stop));
+        var stopping = flow with { Nodes = [.. flow.Nodes.Select(n => n.Id == "card" ? n with { OnFailure = FailurePolicy.Stop } : n)] };
+        Assert.Equal(["after"], InspectorViewModel.Affected(stopping, "m1", FailurePolicy.Skip));
+        Assert.Empty(InspectorViewModel.Affected(stopping, "m1", FailurePolicy.Ignore));
+    }
+
+    [Fact]
+    public void ANewLayoutStepSelectsNothingSoCaptureCanBePicked()
+    {
+        _canvas.Edit(f => f with { Nodes = [.. f.Nodes, new StepNode("lay", "display.layout")] });
+        _canvas.Select("lay");
+
+        var field = Field("layout");
+        Assert.Null(field.Device);
+        Assert.Contains(field.Devices, o => o.Source == DeviceSource.Capture);
+    }
+
+    [Fact]
+    public void CaptureOptionAppearsWhenTheEngineStarts()
+    {
+        _engine.SetRunning(false);
+        _canvas.Edit(f => f with { Nodes = [.. f.Nodes, new StepNode("lay", "display.layout")] });
+        _canvas.Select("lay");
+        Assert.DoesNotContain(Field("layout").Devices, o => o.Source == DeviceSource.Capture);
+
+        _engine.SetRunning(true);
+
+        Assert.Contains(Field("layout").Devices, o => o.Source == DeviceSource.Capture);
+    }
 }
