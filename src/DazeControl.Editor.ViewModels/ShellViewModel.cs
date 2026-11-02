@@ -45,6 +45,9 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
     public bool IsEditingFlow => Editor is not null;
 
+    /// <summary>The flow editor's right pane; set before <see cref="Editor"/>, so it is there when the editor shows.</summary>
+    public Inspector.InspectorViewModel? Inspector { get; private set; }
+
     private readonly Canvas.CanvasClipboard _clipboard = new();
 
     public void OpenFlow(string flowId)
@@ -52,12 +55,17 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         if (Editor?.FlowId == flowId)
             return;
         CloseFlow();
-        if (Session.Current.Flows.Any(f => f.Id == flowId))
-            Editor = new Canvas.FlowCanvasViewModel(Session, flowId, _clipboard);
+        if (!Session.Current.Flows.Any(f => f.Id == flowId))
+            return;
+        var editor = new Canvas.FlowCanvasViewModel(Session, flowId, _clipboard);
+        Inspector = new Inspector.InspectorViewModel(Session, editor, _engine, _post);
+        Editor = editor;
     }
 
     public void CloseFlow()
     {
+        Inspector?.Dispose();
+        Inspector = null;
         Editor?.Dispose();
         Editor = null;
     }
@@ -91,6 +99,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _engine.StateChanged -= OnEngineStateChanged;
+        Inspector?.Dispose();
         Editor?.Dispose();
         Flows.Dispose();
         Settings.Dispose();

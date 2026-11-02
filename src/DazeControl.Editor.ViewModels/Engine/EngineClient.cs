@@ -46,6 +46,9 @@ public sealed class EngineClient : IEngineClient, IAsyncDisposable
 
     public async Task<PipeMessage?> SendAsync(PipeRequest request, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.Op == Ops.TestStep)
+            return await SendAloneAsync(request, cancellationToken).ConfigureAwait(false);
         await _requestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -66,6 +69,28 @@ public sealed class EngineClient : IEngineClient, IAsyncDisposable
         finally
         {
             _requestLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// A step test can take a minute: it gets a connection of its own so other requests don't queue behind it.
+    /// Cancelling closes that connection, which the engine takes as "stop the test".
+    /// </summary>
+    private async Task<PipeMessage?> SendAloneAsync(PipeRequest request, CancellationToken cancellationToken)
+    {
+        var client = await PipeClient.ConnectAsync(_pipeName, ConnectTimeout, cancellationToken).ConfigureAwait(false);
+        if (client is null)
+            return null;
+        await using (client.ConfigureAwait(false))
+        {
+            try
+            {
+                return await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            }
+            catch (IOException)
+            {
+                return null;
+            }
         }
     }
 

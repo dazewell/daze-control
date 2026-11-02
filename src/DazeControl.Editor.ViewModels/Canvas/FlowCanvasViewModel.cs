@@ -650,6 +650,13 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             .Select(n => Item(n, [.. Nodes.Where(m => m.CardId == n.Id).OrderBy(m => m.Row).Select(m => Item(m, []))]))];
     }
 
+    /// <summary>Fades these nodes (null or empty: none); the inspector's failure-policy preview.</summary>
+    public void Preview(IReadOnlyCollection<string>? dimmed)
+    {
+        foreach (var node in Nodes)
+            node.IsDimmed = dimmed?.Contains(node.Id) == true;
+    }
+
     private void ApplySelection()
     {
         foreach (var node in Nodes)

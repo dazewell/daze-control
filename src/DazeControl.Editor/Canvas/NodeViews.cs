@@ -69,6 +69,7 @@ internal abstract class NodeView : Grid
         Microsoft.UI.Xaml.Controls.Canvas.SetTop(this, Node.Y);
         Width = Node.Width;
         AutomationProperties.SetName(this, Node.AutomationName);
+        Opacity = Node.IsDimmed ? 0.35 : 1; // failure-policy preview (UX §5.4)
     }
 }
 
