@@ -87,7 +87,7 @@
 
                 <!-- Settings -->
                 <TextBlock Text="Settings" Style="{StaticResource InspectorSection}" Visibility="{x:Bind ViewModel.HasFields, Mode=OneWay}" />
-                <ItemsControl ItemsSource="{x:Bind ViewModel.Fields, Mode=OneWay}" IsTabStop="False">
+                <ItemsControl ItemsSource="{x:Bind ViewModel.Fields, Mode=OneWay}" IsTabStop="False" IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Spacing="12" />
@@ -162,6 +162,7 @@
                 </RadioButtons>
 
                 <!-- Timing -->
+                <ContentControl IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" IsTabStop="False" HorizontalContentAlignment="Stretch">
                 <StackPanel Visibility="{x:Bind ViewModel.IsStep, Mode=OneWay}" Spacing="8">
                     <TextBlock Text="Timing" Style="{StaticResource InspectorSection}" />
                     <NumberBox Header="Try again" Value="{x:Bind ViewModel.Retries, Mode=TwoWay}" Minimum="0" Maximum="10"
@@ -177,6 +178,7 @@
                         <TextBlock Text="s" VerticalAlignment="Bottom" Margin="0,0,0,8" />
                     </StackPanel>
                 </StackPanel>
+                </ContentControl>
             </StackPanel>
 
             <!-- ===== Several selected ===== -->
@@ -186,6 +188,7 @@
             </StackPanel>
 
             <!-- ===== Nothing selected: the flow's settings (UX §5.4) ===== -->
+            <ContentControl IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" IsTabStop="False" HorizontalContentAlignment="Stretch">
             <StackPanel Visibility="{x:Bind ViewModel.IsFlow, Mode=OneWay, FallbackValue=Collapsed}" Spacing="12">
                 <TextBlock Text="Flow" Style="{StaticResource SettingsCardDescription}" />
                 <Grid ColumnSpacing="8">
@@ -246,6 +249,7 @@
 
                 <ToggleSwitch Header="Show the pop-up while it runs" IsOn="{x:Bind ViewModel.ShowPopup, Mode=TwoWay}" Margin="0,8,0,0" />
             </StackPanel>
+            </ContentControl>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

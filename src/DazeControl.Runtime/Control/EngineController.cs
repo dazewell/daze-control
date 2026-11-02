@@ -202,7 +202,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
 
         if (request.DryRun)
         {
-            var dry = await dryRunner.RunAsync(flow, state.Library, cancellationToken).ConfigureAwait(false);
+            var dry = await dryRunner.RunAsync(WithoutRetries(flow), state.Library, cancellationToken).ConfigureAwait(false);
             return new PipeMessage { Id = id, Ok = true, Run = Record(dry, flow.Id, flow.Name, trigger + " (dry run)") };
         }
 
@@ -237,14 +237,21 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             return NotFound(request.Id, request.Flow);
         var path = $"flows.{flow.Id}";
         var nodes = path + ".nodes.";
+        // Ids may contain dots: a step's values are "<nodes><id>.with" for one of the flow's own ids, nothing else.
+        var values = flow.Nodes.Select(n => nodes + n.Id + ".with").ToList();
+        bool IsStepValue(string p) => values.Exists(v => p == v || p.StartsWith(v + ".", StringComparison.Ordinal));
         var blocking = load.Problems.Concat(ConfigValidator.Validate(load.Config))
             .Where(p => p.Severity == Severity.Error && (p.Path == path || p.Path.StartsWith(path + ".", StringComparison.Ordinal)))
-            .FirstOrDefault(p => !(p.Path.StartsWith(nodes, StringComparison.Ordinal) && p.Path.Contains(".with", StringComparison.Ordinal)));
+            .FirstOrDefault(p => !IsStepValue(p.Path));
         if (blocking is not null)
             return PipeMessage.Fail(request.Id, $"Fix this first: {blocking.Message}");
-        var dry = await dryRunner.RunAsync(flow, load.Config.Library, cancellationToken).ConfigureAwait(false);
+        var dry = await dryRunner.RunAsync(WithoutRetries(flow), load.Config.Library, cancellationToken).ConfigureAwait(false);
         return new PipeMessage { Id = request.Id, Ok = true, Run = Record(dry, flow.Id, flow.Name, trigger + " (dry run)") };
     }
+
+    /// <summary>A dry step that fails (missing device) must not wait out its retry delays: a preview answers at once.</summary>
+    private static Flow WithoutRetries(Flow flow) =>
+        flow with { Nodes = [.. flow.Nodes.Select(n => n is StepNode { Retry: not null } step ? step with { Retry = null } : n)] };
 
     private static RunRecord Record(RunResult result, string flowId, string name, string trigger) =>
         new(result.RunId, flowId, name, trigger, result.Started, result.Duration, result.Outcome, [.. result.Nodes]);

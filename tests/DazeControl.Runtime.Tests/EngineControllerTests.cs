@@ -407,4 +407,17 @@ public sealed class EngineControllerTests : IDisposable
         Assert.False(answer.Ok);
         Assert.StartsWith("Fix this first:", answer.Error, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task DryRunDoesNotWaitOutRetriesOfAMissingDevice()
+    {
+        var yaml = DryYaml.Replace("onFailure: skip }", "onFailure: skip, retry: { count: 3, delay: 30s } }", StringComparison.Ordinal);
+
+        // ManualTime never advances here: a retry delay would hang the request.
+        var answer = await _controller.HandleAsync(
+            new PipeRequest { Id = 3, Op = Ops.Run, Flow = "tv", DryRun = true, Config = yaml }, CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, answer.Run!.Nodes.Single(n => n.NodeId == "gone").Attempts);
+    }
 }
