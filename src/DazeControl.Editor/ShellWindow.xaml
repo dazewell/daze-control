@@ -7,6 +7,7 @@
     xmlns:canvas="using:DazeControl.Editor.Canvas"
     xmlns:inspector="using:DazeControl.Editor.Inspector"
     xmlns:library="using:DazeControl.Editor.Library"
+    xmlns:runs="using:DazeControl.Editor.Runs"
     xmlns:local="using:DazeControl.Editor"
     xmlns:vmc="using:DazeControl.Editor.ViewModels.Canvas"
     Title="Daze Control">
@@ -32,6 +33,11 @@
                 <NavigationViewItem Content="Library" Tag="Library">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8F1;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="RunsItem" Content="Runs" Tag="Runs">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE81C;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
@@ -289,6 +295,16 @@
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>
+
+                <!-- Runs (UX §5.5): its own list and detail scroll, so it sits outside the pages' scroller. -->
+                <Grid x:Name="RunsPage" Grid.Row="1" Padding="36,0,36,16" RowSpacing="8" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Runs" Style="{StaticResource PageTitle}" />
+                    <runs:RunsView x:Name="RunsViewControl" Grid.Row="1" />
+                </Grid>
 
                 <!-- Flow editor (UX §5.1): Flows › name, commands, palette, canvas or outline. The inspector comes with M8. -->
                 <Grid x:Name="FlowEditorPage" Grid.Row="1" Visibility="Collapsed">

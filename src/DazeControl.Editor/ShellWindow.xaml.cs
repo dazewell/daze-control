@@ -53,6 +53,8 @@ public sealed partial class ShellWindow : Window
         var hwnd = Win32Interop.GetWindowFromWindowId(AppWindow.Id);
         InspectorPaneControl.WindowHandle = hwnd;
         LibraryViewControl.ViewModel = ViewModel.Library;
+        RunsViewControl.ViewModel = ViewModel.Runs;
+        RunsViewControl.OpenRequested += OnOpenRun;
         var scale = GetDpiForWindow(hwnd) / 96.0;
         AppWindow.Resize(new SizeInt32((int)(WidthDip * scale), (int)(HeightDip * scale)));
 
@@ -166,7 +168,7 @@ public sealed partial class ShellWindow : Window
 
     private void OnNavigationSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        if (args.SelectedItemContainer?.Tag is not string tag || !Enum.TryParse<EditorPage>(tag, out var page))
+        if (_navigating || args.SelectedItemContainer?.Tag is not string tag || !Enum.TryParse<EditorPage>(tag, out var page))
             return;
         ViewModel.Page = page;
         ViewModel.CloseFlow(); // Flows in the pane always means the list
@@ -174,8 +176,40 @@ public sealed partial class ShellWindow : Window
         LibraryPage.Visibility = Show(page == EditorPage.Library);
         if (page == EditorPage.Library)
             _ = ViewModel.Library.RefreshAsync();
+        if (page == EditorPage.Runs)
+            _ = ViewModel.Runs.RefreshAsync();
         SettingsPage.Visibility = Show(page == EditorPage.Settings);
         AboutPage.Visibility = Show(page == EditorPage.About);
+        UpdatePages();
+    }
+
+    private bool _navigating;
+
+    /// <summary>"Open in editor" on the Runs page: Flows in the pane again, without closing the flow it opens.</summary>
+    private void OnOpenRun(Core.Runs.RunRecord run)
+    {
+        _navigating = true;
+        try
+        {
+            Navigation.SelectedItem = FlowsItem;
+        }
+        finally
+        {
+            _navigating = false;
+        }
+        FlowsPage.Visibility = Visibility.Visible;
+        LibraryPage.Visibility = SettingsPage.Visibility = AboutPage.Visibility = Visibility.Collapsed;
+        ViewModel.OpenRun(run);
+        UpdatePages();
+    }
+
+    /// <summary>The flow editor, the Runs page and the scrolled pages take the same place.</summary>
+    private void UpdatePages()
+    {
+        var editing = _editor is not null;
+        FlowEditorPage.Visibility = Show(editing);
+        RunsPage.Visibility = Show(!editing && ViewModel.Page == EditorPage.Runs);
+        PagesScroller.Visibility = Show(!editing && ViewModel.Page != EditorPage.Runs);
     }
 
     private static Visibility Show(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
@@ -208,8 +242,7 @@ public sealed partial class ShellWindow : Window
         UpdateHistory();
         UpdateOutline();
         UpdateProblems();
-        FlowEditorPage.Visibility = Show(_editor is not null);
-        PagesScroller.Visibility = Show(_editor is null);
+        UpdatePages();
         UpdateBreadcrumb();
         if (_editor is not null)
             FlowCanvasControl.Focus(FocusState.Programmatic);

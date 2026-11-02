@@ -103,6 +103,20 @@ public sealed class RunsPageViewModelTests : IDisposable
     }
 
     [Fact]
+    public void InstantStepsInALaneDontHideEachOther()
+    {
+        var run = Run(_time.GetLocalNow(), seconds: 8, nodes: [Ran("a", 0, 2), Ran("b", 2, 2.001, order: 2), Ran("c", 2.001, 2.002, order: 3)]);
+        var detail = new RunDetailViewModel(run, null);
+
+        detail.Layout(800);
+
+        Assert.Equal(1, detail.Timeline.Lanes);
+        var bars = detail.Bars.OrderBy(b => b.X).ToList();
+        Assert.Equal(["a", "b", "c"], bars.Select(b => b.NodeId));
+        Assert.All(bars.Zip(bars.Skip(1)), p => Assert.True(p.Second.X >= p.First.X + p.First.Width));
+    }
+
+    [Fact]
     public void ACardIsABracketOverItsMembersLanes()
     {
         var run = Run(_time.GetLocalNow(), seconds: 2, nodes:

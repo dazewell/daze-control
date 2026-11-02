@@ -32,7 +32,7 @@ public sealed record TimelineTick(double X, string Text);
 /// </summary>
 public sealed partial class RunDetailViewModel : ObservableObject
 {
-    public const double LaneHeight = 28, BarHeight = 20, MinBarWidth = 4, AxisHeight = 20;
+    public const double LaneHeight = 28, BarHeight = 20, MinBarWidth = 4, AxisHeight = 20, BarGap = 2;
 
     private readonly Dictionary<string, string> _titles;
 
@@ -104,12 +104,17 @@ public sealed partial class RunDetailViewModel : ObservableObject
         var scale = width / length; // DIP per second
         double X(TimeSpan t) => Math.Min(t.TotalSeconds * scale, width);
         var top = AxisHeight;
-        Bars = [.. Timeline.Bars.Select(b =>
+        var laneEnds = new Dictionary<int, double>();
+        Bars = [.. Timeline.Bars.OrderBy(b => b.Start).Select(b =>
         {
             var x = X(b.Start);
             var w = Math.Max(X(b.End) - x, MinBarWidth);
+            // A bar widened to MinBarWidth would cover the next instant step in its lane: start after it.
+            if (laneEnds.TryGetValue(b.Lane, out var end) && x < end + BarGap)
+                x = end + BarGap;
             if (x + w > width)
                 x = Math.Max(0, width - w);
+            laneEnds[b.Lane] = x + w;
             return new TimelineBarView(b.NodeId, NodeTitle(b.NodeId), b.Outcome, x, top + b.Lane * LaneHeight + (LaneHeight - BarHeight) / 2, w,
                 [.. b.Notches.Select(n => Math.Clamp(X(n) - x, 0, w))])
             {
