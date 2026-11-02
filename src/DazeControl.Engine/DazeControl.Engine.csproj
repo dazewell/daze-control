@@ -5,6 +5,7 @@
     <AssemblyName>DazeControl</AssemblyName>
     <AssemblyTitle>Daze Control</AssemblyTitle>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\assets\app.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <!-- Resident engine: Native AOT, no UI framework (D-001). -->
     <PublishAot>true</PublishAot>

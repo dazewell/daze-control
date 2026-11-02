@@ -52,8 +52,7 @@ Nothing has been released yet. What's left is yours:
 4. **UX checks that change system-wide settings** (not done by agents on your PC): Settings › Display › Scale at
    100 % and 150 %, Accessibility › Text size 225 % (editor pages, canvas pills and the run pop-up grow, nothing
    clips), and Narrator on the canvas Outline. The rest of the checklist passed at 175 % (PLAN T10.3).
-5. **Open follow-ups:** the pop-up isn't read by Narrator (T10.5); the app has no icon of its own yet (Start menu
-   and Apps list show the default exe icon); the run overlay attaches to a run already going only at its next step.
+5. **Open follow-ups:** the pop-up isn't read by Narrator (T10.5); the run overlay attaches to a run already going only at its next step.
 
 ## Waiting on the user
 

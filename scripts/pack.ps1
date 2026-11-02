@@ -37,6 +37,6 @@ foreach ($exe in 'DazeControl.exe', 'DazeControl.Editor.exe', 'dctl.exe') {
 Get-ChildItem $publish -Filter '*.pdb' | Remove-Item
 
 dotnet vpk pack --packId $packId --packVersion $version --packDir $publish --mainExe DazeControl.exe `
-    --packTitle 'Daze Control' --packAuthors dazewell --shortcuts StartMenuRoot --outputDir $Output
+    --packTitle 'Daze Control' --packAuthors dazewell --icon (Join-Path $root 'assets/app.ico') --shortcuts StartMenuRoot --outputDir $Output
 if ($LASTEXITCODE -ne 0) { throw "vpk pack failed ($LASTEXITCODE)." }
 Write-Host "Packed $version into $Output"
