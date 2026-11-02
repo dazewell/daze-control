@@ -138,4 +138,42 @@ public class DisplayProviderTests
         Assert.Equal(DisplayLayout.PathSize, System.Runtime.CompilerServices.Unsafe.SizeOf<Windows.Win32.Devices.Display.DISPLAYCONFIG_PATH_INFO>());
         Assert.Equal(DisplayLayout.ModeSize, System.Runtime.CompilerServices.Unsafe.SizeOf<Windows.Win32.Devices.Display.DISPLAYCONFIG_MODE_INFO>());
     }
+
+    [Fact]
+    public void LibraryDetailsReadTheNativeFieldsBack()
+    {
+        // LayoutScreens (Core) reads the capture by byte offset; fill the real structs and check it lands on the fields.
+        var path = new Windows.Win32.Devices.Display.DISPLAYCONFIG_PATH_INFO();
+        path.sourceInfo.Anonymous.modeInfoIdx = 0;
+        path.targetInfo.Anonymous.modeInfoIdx = 0xffffffff;
+        path.targetInfo.outputTechnology = Windows.Win32.Devices.Display.DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY.DISPLAYCONFIG_OUTPUT_TECHNOLOGY_HDMI;
+        path.targetInfo.refreshRate = new() { Numerator = 120000, Denominator = 1000 };
+        var mode = new Windows.Win32.Devices.Display.DISPLAYCONFIG_MODE_INFO
+        {
+            infoType = Windows.Win32.Devices.Display.DISPLAYCONFIG_MODE_INFO_TYPE.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE,
+        };
+        mode.Anonymous.sourceMode = new() { width = 3840, height = 2160, position = new() { x = -3840, y = 120 } };
+        var bytes = new byte[8 + DisplayLayout.PathSize + DisplayLayout.ModeSize];
+        BitConverter.TryWriteBytes(bytes.AsSpan(0), 1);
+        BitConverter.TryWriteBytes(bytes.AsSpan(4), 1);
+        System.Runtime.InteropServices.MemoryMarshal.Write(bytes.AsSpan(8), in path);
+        System.Runtime.InteropServices.MemoryMarshal.Write(bytes.AsSpan(8 + DisplayLayout.PathSize), in mode);
+
+        var screen = Assert.Single(LayoutScreens.Read(new DisplayLayout("d", ["mon"], Convert.ToBase64String(bytes))));
+
+        Assert.Equal(("HDMI", 3840, 2160, -3840, 120, 120.0), (screen.Connection, screen.Width, screen.Height, screen.X, screen.Y, screen.RefreshHz));
+    }
+
+    [Fact]
+    public void ThisPcsLayoutHasDetailsForEveryScreen()
+    {
+        var displays = new CcdDisplays(validateOnly: true);
+        if (!displays.Outputs().Any(o => o.Active))
+            return; // headless CI runner
+        var screens = LayoutScreens.Read(displays.CaptureLayout("now"));
+
+        Assert.NotEmpty(screens);
+        Assert.All(screens, s => Assert.True(s.Width > 0 && s.Height > 0 && s.RefreshHz > 0, $"{s}"));
+        Assert.Contains(screens, s => s.Primary);
+    }
 }
