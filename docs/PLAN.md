@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M9 — T9.2 Runs page (branch feat/m9-runs-page, stacked on feat/m9-runs = PR #16)
-Last green checkpoint: cb4a08b "Merge origin/main after PR #16"
-Next action: screenshots of the Runs page in light and high contrast (dark is done), then version 0.16.0, ARCHITECTURE Editor bullet for the Runs page, PLAN/GOALS → M10 T10.1, PR + §6.
+Current task: M10 — T10.1 Velopack pack/install/update + release.yml (not started; branch from main)
+Last green checkpoint: 4cef1ec "wip(editor): Runs page view with the day list, detail and timeline (T9.2)"
+Next action: read GOALS and grep DECISIONS/DEADENDS for "Velopack"/"release", then branch `feat/m10-ship` from main and start T10.1.
 Tree state: builds, 743/743 tests green · Uncommitted: none
-Notes for next agent: the view is `src/DazeControl.Editor/Runs/RunsView.xaml(.cs)` (timeline drawn in code, bars are templated Buttons) and the `RunsPage` grid in ShellWindow (outside PagesScroller; `UpdatePages`). "Open in editor" selects Flows in the pane with `_navigating` set, so it doesn't close the flow it opens. A bar's "log lines" are the step's outcome/tries/error (`SelectedLines`): the engine log isn't per run; state that UX §5.5 deviation in the PR. Follow-ups from PR #16 review for the PR body: the overlay attaches to a run already going only at its next NodeStarted; Outline rows don't show run state yet. Dev engine + scratch config: this session's scratchpad `m9` folder (named in the shared side-session notes).
+Notes for next agent: M9 is done (PRs #16, #17). Open follow-ups from M9 (not blockers): the run overlay attaches to a run already going only at its next NodeStarted (needs per-run state on subscribe); Outline rows don't show run state or announce run results yet.
 
 ---
 
@@ -92,9 +92,9 @@ Notes for next agent: the view is `src/DazeControl.Editor/Runs/RunsView.xaml(.cs
 - [x] T8.2 Library pages with Test (feat/m8-library).
 - [x] T8.3 Problems list (feat/m8-library).
 
-## M9 Runs
+## M9 Runs ✔ (2026-11-02, PRs #16, #17)
 - [x] T9.1 Live run overlay on the canvas (feat/m9-runs, PR #16).
-- [~] T9.2 History list + parallel-lane timeline (feat/m9-runs-page).
+- [x] T9.2 History list + parallel-lane timeline (feat/m9-runs-page, PR #17).
 
 ## M10 Ship
 - [ ] T10.1 Velopack pack/install/update + release.yml.

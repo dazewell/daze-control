@@ -259,6 +259,12 @@ About), cards in the OSD's settings-card style (App.xaml). All logic is in `Edit
   (inspector included), with an InfoBar; the engine going away unlocks it. A finished, dry (D-042) or recorded run
   stays on the canvas until its InfoBar is closed. Pills draw states as ring fill + glyph (`PillView.ShowRunState`);
   the ProgressRing is created on first use, and with animations off a static ¾ ring replaces it.
+- Runs page (`Runs/RunsPageViewModel`, `RunDetailViewModel`; view `Editor/Runs/RunsView`, UX §5.5): the engine's
+  `history` grouped by day, refreshed on open and after each runFinished. The detail's timeline is laid out by
+  `RunTimeline` (greedy lanes) + `RunDetailViewModel.Layout(width)` in DIP (min bar 4, instant steps in a lane
+  nudged 2 DIP apart) and drawn in code; bars are templated Buttons (focus, Invoke, UIA name), each bar has an
+  outcome glyph when ≥ 20 DIP so contrast themes don't rely on colour. A bar's "log lines" are its outcome, tries
+  and error from the run record: the engine log isn't split per run. "Open in editor" = `ShellViewModel.OpenRun`.
 - `--config <path>` makes the editor edit another file (tests, screenshots); its backups go to `backups/<file>/`
   next to it, and its single-instance names are scoped by path.
 

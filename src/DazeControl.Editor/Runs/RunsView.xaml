@@ -29,7 +29,7 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <ListView x:Name="RunsList" SelectionMode="Single" AutomationProperties.Name="Runs"
+        <ListView x:Name="RunsList" SelectionMode="Single" IsSynchronizedWithCurrentItem="False" AutomationProperties.Name="Runs"
                   Margin="-12,0,0,0" SelectionChanged="OnRunSelected">
             <ListView.GroupStyle>
                 <GroupStyle>
@@ -86,7 +86,7 @@
                         <TextBlock x:Name="DetailName" Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
                         <TextBlock x:Name="DetailFacts" Style="{StaticResource SettingsCardDescription}" />
                     </StackPanel>
-                    <Button x:Name="OpenInEditorButton" Grid.Column="1" VerticalAlignment="Top" Click="OnOpenInEditor"
+                    <Button x:Name="OpenInEditorButton" Grid.Column="1" AutomationProperties.Name="Open in editor" VerticalAlignment="Top" Click="OnOpenInEditor"
                             ToolTipService.ToolTip="Show this run on the flow's canvas">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <FontIcon Glyph="&#xE70F;" FontSize="14" />
