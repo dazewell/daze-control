@@ -10,7 +10,7 @@ library:
     sony: { address: "80:99:E7:2A:AB:A1" }
   displays:
     desk: { monitors: ['\\?\DISPLAY#DELA1F2#5&1a2b3c&0&UID4352#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}'], ccd: AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= }
-  firetv:
+  android:
     living-room: { address: 192.168.1.50, inputs: { hdmi2: [down, down], pc: [up] } }
     den: { address: "10.0.0.9:5556", adb: 'C:\tools\adb.exe' }
 flows:

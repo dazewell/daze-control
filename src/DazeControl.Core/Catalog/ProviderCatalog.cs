@@ -72,23 +72,23 @@ public static class ProviderCatalog
                 Help = "Name of a saved credential; the secret stays in Windows Credential Manager.",
             },
         ]),
-        new("firetv.input", "Fire TV input", Tv, TimeSpan.FromSeconds(20),
+        new("android.input", "Android input", Tv, TimeSpan.FromSeconds(20),
         [
-            Ref("device", "Fire TV", LibraryKind.FireTv),
-            new("input", ParamKind.Text, "Input") { Required = true, Help = "One of the inputs saved with the Fire TV." },
+            Ref("device", "Android device", LibraryKind.Android),
+            new("input", ParamKind.Text, "Input") { Required = true, Help = "One of the inputs saved with the Android device." },
         ])
         { Resources = ["adb:{device}"] },
-        new("firetv.keys", "Fire TV keys", Tv, TimeSpan.FromSeconds(20),
+        new("android.keys", "Android keys", Tv, TimeSpan.FromSeconds(20),
         [
-            Ref("device", "Fire TV", LibraryKind.FireTv),
+            Ref("device", "Android device", LibraryKind.Android),
             new("keys", ParamKind.TextList, "Keys")
             {
                 Required = true, Help = "Android key names, sent in order: home, back, dpad_down, media_play_pause.",
             },
         ])
         { Resources = ["adb:{device}"] },
-        new("firetv.sleep", "Fire TV sleep", Tv, TimeSpan.FromSeconds(20),
-            [Ref("device", "Fire TV", LibraryKind.FireTv)])
+        new("android.sleep", "Android sleep", Tv, TimeSpan.FromSeconds(20),
+            [Ref("device", "Android device", LibraryKind.Android)])
         { Resources = ["adb:{device}"] },
         new("service.start", "Start service", Service, TimeSpan.FromSeconds(30),
             [new("name", ParamKind.Text, "Service name") { Required = true }])

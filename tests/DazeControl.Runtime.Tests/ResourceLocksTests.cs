@@ -85,11 +85,11 @@ public class ResourceLocksTests
     }
 
     [Fact]
-    public void FireTvWithAndWithoutTheDefaultPortSharesOneLock()
+    public void AndroidWithAndWithoutTheDefaultPortSharesOneLock()
     {
-        var descriptor = ProviderCatalog.Find("firetv.sleep")!;
-        var library = new Library { FireTv = [new FireTvDevice("a", "192.168.1.50", new([])), new FireTvDevice("b", "192.168.1.50:5555", new([]))] };
-        StepNode Node(string device) => new("tv", "firetv.sleep") { With = new([KeyValuePair.Create("device", (ParamValue)device)]) };
+        var descriptor = ProviderCatalog.Find("android.sleep")!;
+        var library = new Library { Android = [new AndroidDevice("a", "192.168.1.50", new([])), new AndroidDevice("b", "192.168.1.50:5555", new([]))] };
+        StepNode Node(string device) => new("tv", "android.sleep") { With = new([KeyValuePair.Create("device", (ParamValue)device)]) };
 
         Assert.Equal(["adb:192.168.1.50:5555"], FlowRunner.ResourcesOf(descriptor, Node("a"), library));
         Assert.Equal(FlowRunner.ResourcesOf(descriptor, Node("a"), library), FlowRunner.ResourcesOf(descriptor, Node("b"), library));

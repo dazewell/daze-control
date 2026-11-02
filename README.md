@@ -47,7 +47,7 @@ flows:
 ```
 
 Steps: `audio.*`, `bluetooth.connect`/`disconnect`, `display.*`, `process.run`, `script.powershell`,
-`http.request`, `firetv.*`, `service.start`/`stop`, `wait`, `notify`, `flag.*`. The editor's step palette lists them
+`http.request`, `android.*`, `service.start`/`stop`, `wait`, `notify`, `flag.*`. The editor's step palette lists them
 with their settings ([docs/FEATURES.md](docs/FEATURES.md) has the whole model).
 
 ### Command line

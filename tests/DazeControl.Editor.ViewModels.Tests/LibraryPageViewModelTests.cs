@@ -22,7 +22,7 @@ public sealed class LibraryPageViewModelTests : IDisposable
             sony: { address: "80:99:E7:2A:AB:A1", name: "Sony" }
           displays:
             desk: { monitors: ['\\?\DISPLAY#DELA1F2#5&1a2b3c&0&UID4352'], ccd: AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= }
-          firetv:
+          android:
             living-room: { address: 192.168.1.50 }
         flows:
           a:
@@ -36,7 +36,7 @@ public sealed class LibraryPageViewModelTests : IDisposable
             name: TV
             nodes:
               - { id: bt, step: bluetooth.connect, with: { device: technics } }
-              - { id: tv, step: firetv.input, with: { device: living-room, input: hdmi2 } }
+              - { id: tv, step: android.input, with: { device: living-room, input: hdmi2 } }
               - { id: app, step: process.run, with: { path: 'c:\tools\TV.exe' } }
               - { id: np, step: process.run, with: { path: notepad.exe } }
         """;
@@ -96,7 +96,7 @@ public sealed class LibraryPageViewModelTests : IDisposable
 
     [Fact]
     public void SectionsAreTheFiveLibraryKindsInPivotOrder() =>
-        Assert.Equal(["Audio", "Bluetooth", "Displays", "Fire TV", "Programs"], _page.Sections.Select(s => s.Title));
+        Assert.Equal(["Audio", "Bluetooth", "Displays", "Android", "Programs"], _page.Sections.Select(s => s.Title));
 
     [Fact]
     public void ItemsCountTheFlowsThatUseThem()
@@ -104,7 +104,7 @@ public sealed class LibraryPageViewModelTests : IDisposable
         Assert.Equal("Used by 2 flows", Item(LibraryKind.Bluetooth, "technics").UsedByText);
         Assert.Equal("Used by 1 flow", Item(LibraryKind.Audio, "technics").UsedByText); // two steps, one flow
         Assert.Equal("Not used yet", Item(LibraryKind.Bluetooth, "sony").UsedByText);
-        Assert.Equal("Used by 1 flow", Item(LibraryKind.FireTv, "living-room").UsedByText);
+        Assert.Equal("Used by 1 flow", Item(LibraryKind.Android, "living-room").UsedByText);
         Assert.Equal("Not used yet", Item(LibraryKind.Display, "desk").UsedByText);
     }
 
@@ -231,9 +231,9 @@ public sealed class LibraryPageViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task FireTvNotConnectedToAdbIsACautionNotAFailure()
+    public async Task AndroidNotConnectedToAdbIsACautionNotAFailure()
     {
-        var tv = Item(LibraryKind.FireTv, "living-room");
+        var tv = Item(LibraryKind.Android, "living-room");
 
         await tv.TestCommand.ExecuteAsync(null);
 
@@ -241,13 +241,13 @@ public sealed class LibraryPageViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task FireTvThatAdbListsButCantUseIsACaution()
+    public async Task AndroidThatAdbListsButCantUseIsACaution()
     {
         var answer = _engine.Answer!;
         _engine.Answer = r => r.Kind == "adb"
             ? new PipeMessage { Ok = true, Devices = [new DeviceInfo { Name = "192.168.1.50:5555", Detail = "unauthorized" }] }
             : answer(r);
-        var tv = Item(LibraryKind.FireTv, "living-room");
+        var tv = Item(LibraryKind.Android, "living-room");
 
         await tv.TestCommand.ExecuteAsync(null);
 

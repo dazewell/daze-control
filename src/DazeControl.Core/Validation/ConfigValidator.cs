@@ -173,7 +173,9 @@ public static partial class ConfigValidator
             var descriptor = catalog.FirstOrDefault(d => d.Id == step.Step);
             if (descriptor is null)
             {
-                Error(path + ".step", $"\"{step.Step}\" isn't a known step type.");
+                Error(path + ".step", step.Step.StartsWith("firetv.", StringComparison.Ordinal)
+                    ? $"\"{step.Step}\" is now called \"android.{step.Step["firetv.".Length..]}\"." // clean rename (D-045)
+                    : $"\"{step.Step}\" isn't a known step type.");
                 return;
             }
             foreach (var (name, value) in step.With)
@@ -241,7 +243,7 @@ public static partial class ConfigValidator
             LibraryKind.Audio => "audio device",
             LibraryKind.Bluetooth => "Bluetooth device",
             LibraryKind.Display => "screen layout",
-            LibraryKind.FireTv => "Fire TV",
+            LibraryKind.Android => "Android device",
             _ => kind.ToString(),
         };
 

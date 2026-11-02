@@ -30,7 +30,7 @@ src/DazeControl.Core/        pure, AOT/trim-safe, no interop: Model/ (Flow, Node
 src/DazeControl.Runtime/     FlowRunner, Scheduler, ResourceLocks, RunHistory, ConfigHost, TriggerRouter,
                              IStepProvider/StepContext contracts; TimeProvider everywhere
 src/DazeControl.Providers/   Windows implementations (CsWin32 NativeMethods.txt, [LibraryImport] for
-                             undocumented): Audio, Bluetooth, Display, Process, Script, Http, FireTv,
+                             undocumented): Audio, Bluetooth, Display, Process, Script, Http, Android,
                              Service, Wait, Notify, Flag, Credentials
 src/DazeControl.Ipc/         protocol records (source-gen JSON), PipeServer, PipeClient
 src/DazeControl.Engine/      AOT WinExe: Program, Shell/ (TrayIcon, GlobalHotkey, RunPopup), Lifecycle/
@@ -258,7 +258,7 @@ About), cards in the OSD's settings-card style (App.xaml). All logic is in `Edit
   then "From Windows" devices — picking one adds it to the Library under a key made from its name; displays offer
   "Capture current layout". The list refreshes when a picker opens.
 - Library page (`LibraryPage/LibraryPageViewModel`, view `Library/LibraryView`, a Pivot): Audio, Bluetooth, Displays,
-  Fire TV from `library:` plus Programs (the `process.run` paths the flows use). Cards show live state (pipe
+  Android from `library:` plus Programs (the `process.run` paths the flows use). Cards show live state (pipe
   `devices`, refreshed when the page opens or the engine starts), "Used by n flows" (flows with a step whose
   LibraryRef param names the key), the item's Library problem, and a read-only Test (D-041). "Add from Windows" and
   "Capture current layout" reuse `LibraryDevices`; Remove only when unused.
@@ -322,7 +322,7 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 
 ## Open questions
 
-- Library leftovers: renaming a key (would rewrite every step that names it), editing a Fire TV's inputs and an
+- Library leftovers: renaming a key (would rewrite every step that names it), editing an Android device's inputs and an
   audio match in place, and "Used by" linking to those flows.
 - Inspector leftovers (M8): headers as key/value rows + "Add header" (now "Name: value" lines), a script's "Open in
   editor", the pill ring showing a test result for 3 s, resizing the pane (280–480), and recording a chord the

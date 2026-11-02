@@ -44,7 +44,7 @@ public sealed partial class LibrarySectionViewModel : ObservableObject
     public bool HasAvailable => Available.Count > 0;
 
     /// <summary>Devices can be added from Windows; Displays capture the current layout; Programs come from flows.</summary>
-    public bool CanAdd => Kind is LibraryKind.Audio or LibraryKind.Bluetooth or LibraryKind.FireTv;
+    public bool CanAdd => Kind is LibraryKind.Audio or LibraryKind.Bluetooth or LibraryKind.Android;
 
     public bool CanCapture => Kind == LibraryKind.Display;
 
@@ -63,7 +63,7 @@ public sealed partial class LibrarySectionViewModel : ObservableObject
 }
 
 /// <summary>
-/// The Library page (UX §5.1): Audio, Bluetooth, Displays, Fire TV and Programs as settings cards with live state,
+/// The Library page (UX §5.1): Audio, Bluetooth, Displays, Android and Programs as settings cards with live state,
 /// "Used by 2 flows" and a read-only Test. Programs are the <c>process.run</c> paths the flows use; there is no
 /// Library kind for them. UI thread only; engine answers come back through <c>post</c>.
 /// </summary>
@@ -96,8 +96,8 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
                 "No Bluetooth devices yet. Add a paired one from Windows."),
             new(LibraryKind.Display, "Displays", LibraryDevices.Glyph(LibraryKind.Display),
                 "No screen layouts yet. Set your screens up the way you like, then capture the layout."),
-            new(LibraryKind.FireTv, "Fire TV", LibraryDevices.Glyph(LibraryKind.FireTv),
-                "No Fire TVs yet. Turn on network debugging on the TV, connect it with adb, then add it."),
+            new(LibraryKind.Android, "Android", LibraryDevices.Glyph(LibraryKind.Android),
+                "No Android devices yet. Turn on network debugging on the TV, connect it with adb, then add it."),
             new(null, "Programs", FlowItemViewModel.DecodeGlyph("E756"),
                 "No programs yet. Programs show up here once a flow runs one."),
         ];
@@ -208,7 +208,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         LibraryKind.Audio => library.Audio.First(d => d.Key == key) is var a && a.Flow == AudioFlow.Input ? "Input" : "Output",
         LibraryKind.Bluetooth => library.Bluetooth.First(d => d.Key == key).Address,
         LibraryKind.Display => LibraryDevices.State(library, kind, key, null),
-        _ => library.FireTv.First(d => d.Key == key).Address,
+        _ => library.Android.First(d => d.Key == key).Address,
     };
 
     private static string ProgramTitle(string path) => Path.GetFileName(path) is { Length: > 0 } name ? name : path;
@@ -230,7 +230,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         LibraryKind.Audio => "audio",
         LibraryKind.Bluetooth => "bluetooth",
         LibraryKind.Display => "displays",
-        _ => "firetv",
+        _ => "android",
     };
 
     // ---- Test (read-only: never connects, switches or launches anything) ----
@@ -282,12 +282,12 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         var device = LibraryDevices.Match(library, kind, key, live);
         return (kind, device) switch
         {
-            (LibraryKind.FireTv, null) => new(TestOutcome.Caution,
+            (LibraryKind.Android, null) => new(TestOutcome.Caution,
                 $"adb isn't connected to {title} right now. The flow connects first, so make sure the TV is on."),
             (_, null) => new(TestOutcome.Failed, kind == LibraryKind.Bluetooth
                 ? $"Windows couldn't find {title}. Make sure it's paired, then try again."
                 : $"Windows couldn't find {title}. Make sure it's plugged in or turned on, then try again."),
-            (LibraryKind.FireTv, _) when !string.Equals(LibraryDevices.Describe(kind, device), "Connected", StringComparison.Ordinal) =>
+            (LibraryKind.Android, _) when !string.Equals(LibraryDevices.Describe(kind, device), "Connected", StringComparison.Ordinal) =>
                 new(TestOutcome.Caution, $"adb sees {title}, but it's {LibraryDevices.Describe(kind, device).ToLowerInvariant()}. "
                     + "Allow debugging on the TV if it asks, then try again."),
             (LibraryKind.Bluetooth, _) when !string.Equals(LibraryDevices.Describe(kind, device), "Connected", StringComparison.Ordinal) =>
@@ -373,7 +373,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
                 LibraryKind.Audio => c.Library with { Audio = [.. c.Library.Audio.Where(d => d.Key != item.Key)] },
                 LibraryKind.Bluetooth => c.Library with { Bluetooth = [.. c.Library.Bluetooth.Where(d => d.Key != item.Key)] },
                 LibraryKind.Display => c.Library with { Displays = [.. c.Library.Displays.Where(d => d.Key != item.Key)] },
-                _ => c.Library with { FireTv = [.. c.Library.FireTv.Where(d => d.Key != item.Key)] },
+                _ => c.Library with { Android = [.. c.Library.Android.Where(d => d.Key != item.Key)] },
             },
         });
     }

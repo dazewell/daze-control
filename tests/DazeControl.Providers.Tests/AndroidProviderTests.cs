@@ -1,10 +1,10 @@
 using DazeControl.Core.Model;
-using DazeControl.Providers.FireTv;
+using DazeControl.Providers.Android;
 using DazeControl.Runtime.Providers;
 
 namespace DazeControl.Providers.Tests;
 
-public class FireTvProviderTests
+public class AndroidProviderTests
 {
     /// <summary>Answers <c>connect</c> with the scripted lines in turn (the last repeats), any shell with success.</summary>
     private sealed class FakeAdb(params string[] connectAnswers) : IAdb
@@ -27,13 +27,13 @@ public class FireTvProviderTests
         }
     }
 
-    private static readonly FireTvDevice Tv = new("tv", "192.168.1.50",
+    private static readonly AndroidDevice Tv = new("tv", "192.168.1.50",
         new([KeyValuePair.Create("hdmi2", new ValueList<string>(["down", "down"])), KeyValuePair.Create("pc", new ValueList<string>(["up"]))]));
 
     private static StepContext Context(string step, params (string Name, string Value)[] with)
     {
         var context = Steps.Context(step, [("device", "tv"), .. with]);
-        return context with { Library = new Library { FireTv = [Tv, Tv with { Key = "den", Address = "10.0.0.9:5556", Adb = @"C:\tools\adb.exe" }] } };
+        return context with { Library = new Library { Android = [Tv, Tv with { Key = "den", Address = "10.0.0.9:5556", Adb = @"C:\tools\adb.exe" }] } };
     }
 
     private static Task Run(IStepProvider provider, StepContext context) =>
@@ -44,7 +44,7 @@ public class FireTvProviderTests
     {
         var adb = new FakeAdb();
 
-        await Run(new FireTvInputProvider(new FireTvRemote(adb, TimeProvider.System)), Context("firetv.input", ("input", "hdmi2")));
+        await Run(new AndroidInputProvider(new AndroidRemote(adb, TimeProvider.System)), Context("android.input", ("input", "hdmi2")));
 
         Assert.Equal(
         [
@@ -58,9 +58,9 @@ public class FireTvProviderTests
     public async Task DeviceWithItsOwnAdbAndPortUsesThem()
     {
         var adb = new FakeAdb("already connected to 10.0.0.9:5556");
-        var context = Context("firetv.sleep") with { Node = new StepNode("s1", "firetv.sleep") { With = new([KeyValuePair.Create("device", (ParamValue)"den")]) } };
+        var context = Context("android.sleep") with { Node = new StepNode("s1", "android.sleep") { With = new([KeyValuePair.Create("device", (ParamValue)"den")]) } };
 
-        await Run(new FireTvSleepProvider(new FireTvRemote(adb, TimeProvider.System)), context);
+        await Run(new AndroidSleepProvider(new AndroidRemote(adb, TimeProvider.System)), context);
 
         Assert.Equal([@"C:\tools\adb.exe connect 10.0.0.9:5556", @"C:\tools\adb.exe -s 10.0.0.9:5556 shell input keyevent KEYCODE_SLEEP"], adb.Calls);
     }
@@ -70,9 +70,9 @@ public class FireTvProviderTests
     {
         var adb = new FakeAdb();
         var failure = await Assert.ThrowsAsync<StepFailedException>(
-            () => Run(new FireTvInputProvider(new FireTvRemote(adb, TimeProvider.System)), Context("firetv.input", ("input", "hdmi9"))));
+            () => Run(new AndroidInputProvider(new AndroidRemote(adb, TimeProvider.System)), Context("android.input", ("input", "hdmi9"))));
 
-        Assert.Equal("The Fire TV \"tv\" has no input called \"hdmi9\" (hdmi2, pc).", failure.Message);
+        Assert.Equal("The Android device \"tv\" has no input called \"hdmi9\" (hdmi2, pc).", failure.Message);
         Assert.Empty(adb.Calls);
     }
 
@@ -80,9 +80,9 @@ public class FireTvProviderTests
     public async Task KeysAreNormalisedAndSentInOrder()
     {
         var adb = new FakeAdb();
-        var context = Context("firetv.keys").WithList("keys", "home", "dpad_down", "KEYCODE_MEDIA_PLAY_PAUSE");
+        var context = Context("android.keys").WithList("keys", "home", "dpad_down", "KEYCODE_MEDIA_PLAY_PAUSE");
 
-        await Run(new FireTvKeysProvider(new FireTvRemote(adb, TimeProvider.System)), context);
+        await Run(new AndroidKeysProvider(new AndroidRemote(adb, TimeProvider.System)), context);
 
         Assert.Equal("adb -s 192.168.1.50:5555 shell input keyevent KEYCODE_HOME && input keyevent KEYCODE_DPAD_DOWN"
             + " && input keyevent KEYCODE_MEDIA_PLAY_PAUSE", adb.Calls[^1]);
@@ -96,7 +96,7 @@ public class FireTvProviderTests
     {
         var adb = new FakeAdb();
         await Assert.ThrowsAsync<StepFailedException>(
-            () => Run(new FireTvKeysProvider(new FireTvRemote(adb, TimeProvider.System)), Context("firetv.keys").WithList("keys", "back", key)));
+            () => Run(new AndroidKeysProvider(new AndroidRemote(adb, TimeProvider.System)), Context("android.keys").WithList("keys", "back", key)));
         Assert.Empty(adb.Calls);
     }
 
@@ -105,7 +105,7 @@ public class FireTvProviderTests
     {
         var adb = new FakeAdb("failed to connect to 192.168.1.50:5555", "connected to 192.168.1.50:5555");
 
-        await Run(new FireTvSleepProvider(new FireTvRemote(adb, TimeProvider.System)), Context("firetv.sleep"));
+        await Run(new AndroidSleepProvider(new AndroidRemote(adb, TimeProvider.System)), Context("android.sleep"));
 
         Assert.Equal(3, adb.Calls.Count); // connect, connect, shell
     }
@@ -116,10 +116,10 @@ public class FireTvProviderTests
         var adb = new FakeAdb("failed to connect to '192.168.1.50:5555': Connection refused");
 
         var failure = await Assert.ThrowsAsync<StepFailedException>(
-            () => Run(new FireTvSleepProvider(new FireTvRemote(adb, TimeProvider.System)), Context("firetv.sleep")));
+            () => Run(new AndroidSleepProvider(new AndroidRemote(adb, TimeProvider.System)), Context("android.sleep")));
 
         Assert.Equal(3, adb.Calls.Count);
-        Assert.Equal("Couldn't reach the Fire TV at 192.168.1.50:5555 (failed to connect to '192.168.1.50:5555': Connection refused). "
+        Assert.Equal("Couldn't reach the Android device at 192.168.1.50:5555 (failed to connect to '192.168.1.50:5555': Connection refused). "
             + "Is it on, with network debugging turned on?", failure.Message);
     }
 
@@ -128,8 +128,8 @@ public class FireTvProviderTests
     {
         var adb = new FakeAdb { ShellExitCode = 1 };
         var failure = await Assert.ThrowsAsync<StepFailedException>(
-            () => Run(new FireTvSleepProvider(new FireTvRemote(adb, TimeProvider.System)), Context("firetv.sleep")));
-        Assert.Equal("The Fire TV refused the keys: error: device offline", failure.Message);
+            () => Run(new AndroidSleepProvider(new AndroidRemote(adb, TimeProvider.System)), Context("android.sleep")));
+        Assert.Equal("The Android device refused the keys: error: device offline", failure.Message);
     }
 
     [Fact]

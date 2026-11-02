@@ -46,7 +46,7 @@ public static class ConfigMapper
                 Monitors = [.. d.Monitors],
                 Ccd = d.Data,
             })),
-            Firetv = NullIfEmpty(config.Library.FireTv.ToDictionary(d => d.Key, d => new FireTvDocument
+            Android = NullIfEmpty(config.Library.Android.ToDictionary(d => d.Key, d => new AndroidDocument
             {
                 Address = d.Address,
                 Adb = d.Adb,
@@ -178,13 +178,15 @@ public static class ConfigMapper
                 else
                     displays.Add(layout);
             }
-            var fireTv = new List<FireTvDevice>();
-            foreach (var (key, item) in document?.Firetv ?? [])
+            if (document?.Firetv is not null)
+                Error("library.firetv", "firetv: is now called android: (it works with any Android device); rename the section, its entries stay the same.");
+            var android = new List<AndroidDevice>();
+            foreach (var (key, item) in document?.Android ?? [])
             {
-                var path = $"library.firetv.{key}";
+                var path = $"library.android.{key}";
                 if (string.IsNullOrWhiteSpace(item?.Address))
                 {
-                    Error(path + ".address", "Fire TV address missing (like 192.168.1.50).");
+                    Error(path + ".address", "Android device address missing (like 192.168.1.50).");
                     continue;
                 }
                 var inputs = new List<KeyValuePair<string, ValueList<string>>>();
@@ -224,9 +226,9 @@ public static class ConfigMapper
                     }
                 }
                 if (ok)
-                    fireTv.Add(new FireTvDevice(key, item.Address, new(inputs), string.IsNullOrWhiteSpace(item.Adb) ? null : item.Adb));
+                    android.Add(new AndroidDevice(key, item.Address, new(inputs), string.IsNullOrWhiteSpace(item.Adb) ? null : item.Adb));
             }
-            return new Library { Audio = new(audio), Bluetooth = new(bluetooth), Displays = new(displays), FireTv = new(fireTv) };
+            return new Library { Audio = new(audio), Bluetooth = new(bluetooth), Displays = new(displays), Android = new(android) };
         }
 
         private Flow ReadFlow(string id, FlowDocument? document)

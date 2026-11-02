@@ -3,7 +3,7 @@ using DazeControl.Core.Model;
 using DazeControl.Providers.Process;
 using DazeControl.Runtime.Providers;
 
-namespace DazeControl.Providers.FireTv;
+namespace DazeControl.Providers.Android;
 
 /// <summary>What one adb.exe call printed.</summary>
 public sealed record AdbResult(int ExitCode, string Output, string LastError);
@@ -29,24 +29,24 @@ public sealed class AdbProcess : IAdb
         }
         catch (StepFailedException e) when (e.InnerException is System.ComponentModel.Win32Exception)
         {
-            throw new StepFailedException(adb == FireTvRemote.DefaultAdb
-                ? "adb isn't installed or isn't on PATH. Install Android platform-tools, or set adb: in the Fire TV's library entry."
+            throw new StepFailedException(adb == AndroidRemote.DefaultAdb
+                ? "adb isn't installed or isn't on PATH. Install Android platform-tools, or set adb: in the Android device's library entry."
                 : $"Couldn't start {adb}: {e.InnerException.Message}");
         }
     }
 }
 
 /// <summary>
-/// One Fire TV over adb, ported from scd's FireTvModule: connect (with retries, since a sleeping TV answers late),
+/// One Android device over adb, ported from scd's AndroidModule: connect (with retries, since a sleeping TV answers late),
 /// then one chained <c>adb shell</c> call per step, so key presses don't pay a round trip each.
 /// </summary>
-public sealed class FireTvRemote(IAdb adb, TimeProvider time)
+public sealed class AndroidRemote(IAdb adb, TimeProvider time)
 {
     public const string DefaultAdb = "adb";
     private const int ConnectAttempts = 3;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
 
-    public async Task ShellAsync(FireTvDevice device, IReadOnlyList<string> commands, CancellationToken cancellationToken)
+    public async Task ShellAsync(AndroidDevice device, IReadOnlyList<string> commands, CancellationToken cancellationToken)
     {
         var exe = device.Adb ?? DefaultAdb;
         var serial = device.Serial;
@@ -55,7 +55,7 @@ public sealed class FireTvRemote(IAdb adb, TimeProvider time)
         cancellationToken.ThrowIfCancellationRequested();
         var result = await adb.RunAsync(exe, ["-s", serial, "shell", string.Join(" && ", commands)], cancellationToken).ConfigureAwait(false);
         if (result.ExitCode != 0)
-            throw new StepFailedException($"The Fire TV refused the keys: {Reason(result)}");
+            throw new StepFailedException($"The Android device refused the keys: {Reason(result)}");
     }
 
     private async Task ConnectAsync(string exe, string serial, CancellationToken cancellationToken)
@@ -72,7 +72,7 @@ public sealed class FireTvRemote(IAdb adb, TimeProvider time)
             if (attempt < ConnectAttempts)
                 await Task.Delay(RetryDelay, time, cancellationToken).ConfigureAwait(false);
         }
-        throw new StepFailedException($"Couldn't reach the Fire TV at {serial} ({reason}). Is it on, with network debugging turned on?");
+        throw new StepFailedException($"Couldn't reach the Android device at {serial} ({reason}). Is it on, with network debugging turned on?");
     }
 
     private static string Reason(AdbResult result)
@@ -94,20 +94,20 @@ public sealed class FireTvRemote(IAdb adb, TimeProvider time)
     public static string KeyEvent(string key) => "input keyevent " + KeyCode(key);
 }
 
-internal static class FireTvSteps
+internal static class AndroidSteps
 {
-    public static FireTvDevice Device(this StepContext context)
+    public static AndroidDevice Device(this StepContext context)
     {
         var key = context.RequiredText("device");
-        return context.Library.FireTv.FirstOrDefault(d => d.Key == key)
-            ?? throw new StepFailedException($"There's no Fire TV called \"{key}\" in the library.");
+        return context.Library.Android.FirstOrDefault(d => d.Key == key)
+            ?? throw new StepFailedException($"There's no Android device called \"{key}\" in the library.");
     }
 }
 
-/// <summary><c>firetv.input</c>: wake, open the input list, move to the saved input, choose it (scd's sequence).</summary>
-public sealed class FireTvInputProvider(FireTvRemote remote) : IStepProvider
+/// <summary><c>android.input</c>: wake, open the input list, move to the saved input, choose it (scd's sequence).</summary>
+public sealed class AndroidInputProvider(AndroidRemote remote) : IStepProvider
 {
-    public string Id => "firetv.input";
+    public string Id => "android.input";
 
     public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
     {
@@ -116,24 +116,24 @@ public sealed class FireTvInputProvider(FireTvRemote remote) : IStepProvider
         if (!device.Inputs.TryGetValue(input, out var moves))
         {
             var known = device.Inputs.Count == 0 ? "none saved yet" : string.Join(", ", device.Inputs.Keys);
-            throw new StepFailedException($"The Fire TV \"{device.Key}\" has no input called \"{input}\" ({known}).");
+            throw new StepFailedException($"The Android device \"{device.Key}\" has no input called \"{input}\" ({known}).");
         }
         return remote.ShellAsync(device, Commands(moves), cancellationToken);
     }
 
     public static IReadOnlyList<string> Commands(IEnumerable<string> moves) =>
     [
-        FireTvRemote.KeyEvent("wakeup"),
-        FireTvRemote.KeyEvent("tv_input"),
-        .. moves.Select(m => FireTvRemote.KeyEvent(m == "up" ? "dpad_up" : "dpad_down")),
-        FireTvRemote.KeyEvent("dpad_center"),
+        AndroidRemote.KeyEvent("wakeup"),
+        AndroidRemote.KeyEvent("tv_input"),
+        .. moves.Select(m => AndroidRemote.KeyEvent(m == "up" ? "dpad_up" : "dpad_down")),
+        AndroidRemote.KeyEvent("dpad_center"),
     ];
 }
 
-/// <summary><c>firetv.keys</c>: the keys in order, in one adb call.</summary>
-public sealed class FireTvKeysProvider(FireTvRemote remote) : IStepProvider
+/// <summary><c>android.keys</c>: the keys in order, in one adb call.</summary>
+public sealed class AndroidKeysProvider(AndroidRemote remote) : IStepProvider
 {
-    public string Id => "firetv.keys";
+    public string Id => "android.keys";
 
     public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
     {
@@ -141,15 +141,15 @@ public sealed class FireTvKeysProvider(FireTvRemote remote) : IStepProvider
         var keys = context.TextList("keys");
         if (keys.Count == 0)
             throw new StepFailedException("Say which keys to send.");
-        return remote.ShellAsync(device, [.. keys.Select(FireTvRemote.KeyEvent)], cancellationToken);
+        return remote.ShellAsync(device, [.. keys.Select(AndroidRemote.KeyEvent)], cancellationToken);
     }
 }
 
-/// <summary><c>firetv.sleep</c>: the TV (and, over HDMI-CEC, usually the screen) goes to sleep.</summary>
-public sealed class FireTvSleepProvider(FireTvRemote remote) : IStepProvider
+/// <summary><c>android.sleep</c>: the TV (and, over HDMI-CEC, usually the screen) goes to sleep.</summary>
+public sealed class AndroidSleepProvider(AndroidRemote remote) : IStepProvider
 {
-    public string Id => "firetv.sleep";
+    public string Id => "android.sleep";
 
     public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken) =>
-        remote.ShellAsync(context.Device(), [FireTvRemote.KeyEvent("sleep")], cancellationToken);
+        remote.ShellAsync(context.Device(), [AndroidRemote.KeyEvent("sleep")], cancellationToken);
 }

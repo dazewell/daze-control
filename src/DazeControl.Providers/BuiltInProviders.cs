@@ -2,7 +2,7 @@ using DazeControl.Providers.Audio;
 using DazeControl.Providers.Basic;
 using DazeControl.Providers.Bluetooth;
 using DazeControl.Providers.Display;
-using DazeControl.Providers.FireTv;
+using DazeControl.Providers.Android;
 using DazeControl.Providers.Http;
 using DazeControl.Providers.Process;
 using DazeControl.Providers.Service;
@@ -23,7 +23,7 @@ public static class BuiltInProviders
         var audio = new CoreAudioEndpoints();
         var bluetooth = new KsBluetoothAudio();
         var displays = new CcdDisplays();
-        var fireTv = new FireTvRemote(new AdbProcess(), time);
+        var android = new AndroidRemote(new AdbProcess(), time);
         var services = new WindowsServices();
         return
         [
@@ -42,9 +42,9 @@ public static class BuiltInProviders
             new DisplayTopologyProvider(displays),
             new DisplayOutputsProvider(displays),
             new DisplayLayoutProvider(displays),
-            new FireTvInputProvider(fireTv),
-            new FireTvKeysProvider(fireTv),
-            new FireTvSleepProvider(fireTv),
+            new AndroidInputProvider(android),
+            new AndroidKeysProvider(android),
+            new AndroidSleepProvider(android),
             new ServiceStartProvider(services, time),
             new ServiceStopProvider(services, time),
         ];

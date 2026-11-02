@@ -466,3 +466,14 @@ Status: accepted
   and the mark is what the app does (a flow with parallel steps).
 - Why not one step fanning out to two: it is the stock "share" glyph. Why not the old play mark: says "media".
 - Revisit if: the mark is unreadable at 16 px on a real taskbar (then drop the edges at ≤ 20 px).
+
+## D-045 · 2026-11-02 · Fire TV becomes Android, with no old-name compatibility
+Status: accepted
+- Decision: the steps are `android.input`/`android.keys`/`android.sleep`, the library section `android:`, the code
+  `Android*` in `Providers/Android`, the Library tab "Android". `firetv:` and `firetv.*` are not read: the section
+  is a file-wide problem naming `android:` and is dropped, a `firetv.x` step is a flow problem naming `android.x`.
+- Why: the steps only send basic adb commands (connect, `input keyevent`), so they work on any Android device; the
+  old name hid that (user, 2026-11-02). No one has a `firetv` entry yet (the converted scd config had none).
+- Why not accept both names: a second spelling forever, in the mapper, validator and every doc, for no user. Why not
+  rewrite old names on load: a silent edit of the user's file.
+- Revisit if: someone does lose entries to it — then add a one-time rewrite with a backup.
