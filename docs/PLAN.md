@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M10 — T10.1 Velopack pack/install/update + release.yml (not started; branch from main)
-Last green checkpoint: 4cef1ec "wip(editor): Runs page view with the day list, detail and timeline (T9.2)"
-Next action: read GOALS and grep DECISIONS/DEADENDS for "Velopack"/"release", then branch `feat/m10-ship` from main and start T10.1.
-Tree state: builds, 743/743 tests green · Uncommitted: none
-Notes for next agent: M9 is done (PRs #16, #17). Open follow-ups from M9 (not blockers): the run overlay attaches to a run already going only at its next NodeStarted (needs per-run state on subscribe); Outline rows don't show run state or announce run results yet.
+Current task: M10 done on feat/m10-ship — PR open, waiting for CI and Copilot review (merge policy §6)
+Last green checkpoint: the "docs(readme)…" commit on feat/m10-ship
+Next action: after the PR merges, nothing is queued for agents: GOALS "Ready for you" lists the user's steps (release tag, 24 h soak, retire scd, system-wide UX checks). Next agent work, if asked: T10.5 (pop-up for Narrator).
+Tree state: builds, 754/754 tests green · Uncommitted: none
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user.
 
 ---
 
@@ -96,11 +96,20 @@ Notes for next agent: M9 is done (PRs #16, #17). Open follow-ups from M9 (not bl
 - [x] T9.1 Live run overlay on the canvas (feat/m9-runs, PR #16).
 - [x] T9.2 History list + parallel-lane timeline (feat/m9-runs-page, PR #17).
 
-## M10 Ship
-- [ ] T10.1 Velopack pack/install/update + release.yml.
-- [ ] T10.2 README.
-- [ ] T10.3 UX acceptance pass against the UX.md checklist (screenshots, light/dark/high contrast, 100–175 %
-  scale, text size). Includes the pop-up in a contrast theme and at 225 % text (not checked live in M5).
-- [ ] T10.5 Pop-up for Narrator: it draws everything itself, so screen readers get only the window title. Raise a
-  UIA notification (or a minimal provider with an invoke for "see what happened") without activating (PR #8 review).
-- [ ] T10.4 Footprint gate + 24 h daily-driver soak (user), then retire scd (user turns off its scheduled task).
+## M10 Ship (feat/m10-ship)
+- [x] T10.1 Velopack pack/install/update + release.yml (D-043). Verified: local pack, install into a scratch folder,
+  `dctl update` from a local feed, apply while running (engine exits cleanly) and at engine start, uninstall
+  (folder, shortcut, Apps entry and Run value gone).
+- [x] T10.2 README.
+- [x] T10.3 UX acceptance pass (2026-11-02, screenshots at 175 % scale / 110 % text, the PC's settings). Passed: run
+  states without colour in light/dark/high contrast (Flows, Runs, pop-up), Runs lanes + one caution bar + "Done, with
+  a problem", pop-up 340 DIP and §5.7 wording, dashed may-fail edge, aligned columns. Fixed: Flows list said "Worked,
+  with problems" (now the shared run words), canvas fit centred a flow too big for the window (now starts at its
+  first step), run list cut the duration off, a stale "Updates arrive with the first release" card.
+  Not checked (system-wide settings on the user's PC, or not re-run this pass): 100–150 % scale, 225 % text (editor
+  and pop-up), Narrator/Outline, Tab order, drag-into-cycle tip, empty states, animation effects off, tray menu.
+- [ ] T10.5 Pop-up for Narrator (deferred past M10, not in the ship brief): it draws everything itself, so screen
+  readers get only the window title. Raise a UIA notification (or a minimal provider with an invoke for "see what
+  happened") without activating (PR #8 review).
+- [x] T10.4 Footprint gate passed (ARCHITECTURE → Footprint, 2026-11-02). The 24 h soak and retiring scd are the
+  user's (GOALS → Waiting on the user).

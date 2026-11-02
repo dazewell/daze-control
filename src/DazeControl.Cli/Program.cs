@@ -3,6 +3,7 @@ using System.Globalization;
 using DazeControl.Core;
 using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
+using DazeControl.Core.Updates;
 using DazeControl.Core.Validation;
 using DazeControl.Core.Yaml;
 using DazeControl.Ipc;
@@ -32,6 +33,7 @@ public static class Program
           devices audio|bluetooth|displays|adb
                                             what steps can name on this PC
           capture-display-layout <name>     the screens as they are now, as YAML for library.displays
+          update                            download a newer version; it installs at the next start
         Exit codes: 0 ok, 1 failed, 2 usage, 3 the engine isn't running.
         """;
 
@@ -115,8 +117,40 @@ public static class Program
                     Console.Out.Write(m.Yaml);
                     return Ok;
                 }).ConfigureAwait(false);
+            case "update":
+                return await UpdateAsync().ConfigureAwait(false);
             default:
                 throw new UnreachableException();
+        }
+    }
+
+    /// <summary>Checks GitHub Releases and downloads a newer release; the engine applies it at its next start (D-043).</summary>
+    private static async Task<int> UpdateAsync()
+    {
+        try
+        {
+            var updates = new VelopackUpdateClient();
+            if (!updates.IsInstalled)
+            {
+                Console.Error.WriteLine("This copy isn't installed, so it doesn't update. Install it with Setup.exe from GitHub Releases.");
+                return Failed;
+            }
+            if (await updates.FindAsync(CancellationToken.None).ConfigureAwait(false) is not { } found)
+            {
+                Console.Out.WriteLine(updates.PendingVersion is { } pending
+                    ? $"Version {pending} is downloaded and installs the next time {AppInfo.ProductName} starts."
+                    : $"Up to date ({updates.CurrentVersion}).");
+                return Ok;
+            }
+            await updates.DownloadAsync(CancellationToken.None).ConfigureAwait(false);
+            Console.Out.WriteLine($"Downloaded version {found}; it installs the next time {AppInfo.ProductName} starts.");
+            return Ok;
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            // Network, GitHub's rate limit, disk, a broken install: the engine's next daily check tries again.
+            Console.Error.WriteLine($"Couldn't check for updates: {e.Message}");
+            return Failed;
         }
     }
 

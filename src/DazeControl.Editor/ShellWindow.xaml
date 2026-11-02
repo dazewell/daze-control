@@ -225,6 +225,27 @@
                                            Value="{x:Bind ViewModel.Settings.PopupSeconds, Mode=TwoWay}" />
                             </Grid>
 
+                            <TextBlock Text="Updates" Style="{StaticResource SettingsSection}" />
+                            <Grid Style="{StaticResource SettingsCard}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE895;" Style="{StaticResource SettingsCardIcon}" />
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="Automatic updates" />
+                                    <TextBlock Text="{x:Bind ViewModel.Updates.Status, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
+                                               AutomationProperties.LiveSetting="Polite" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <Button Content="Check for updates" Click="OnCheckForUpdates"
+                                            IsEnabled="{x:Bind ViewModel.Updates.CanCheck, Mode=OneWay}" />
+                                    <Button Content="Restart now" Click="OnRestartForUpdate" Style="{StaticResource AccentButtonStyle}"
+                                            Visibility="{x:Bind ViewModel.Updates.CanRestart, Mode=OneWay}" />
+                                </StackPanel>
+                            </Grid>
+
                             <TextBlock Text="Files" Style="{StaticResource SettingsSection}" />
                             <Grid Style="{StaticResource SettingsCard}">
                                 <Grid.ColumnDefinitions>
@@ -251,17 +272,6 @@
                                     <TextBlock Text="{x:Bind ViewModel.Settings.LogsFolder}" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
                                 </StackPanel>
                                 <Button Grid.Column="2" Content="Open folder" Click="OnOpenLogsFolder" />
-                            </Grid>
-                            <Grid Style="{StaticResource SettingsCard}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE895;" Style="{StaticResource SettingsCardIcon}" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Updates" />
-                                    <TextBlock Text="Updates arrive with the first release." Style="{StaticResource SettingsCardDescription}" />
-                                </StackPanel>
                             </Grid>
                         </StackPanel>
 

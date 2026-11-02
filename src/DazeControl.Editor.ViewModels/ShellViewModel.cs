@@ -22,13 +22,15 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     private readonly IEngineClient _engine;
     private readonly Action<Action> _post;
 
-    public ShellViewModel(ConfigSession session, IEngineClient engine, Action<Action> post, string logsFolder)
+    public ShellViewModel(ConfigSession session, IEngineClient engine, Action<Action> post, string logsFolder,
+        Core.Updates.IUpdateClient? updates = null)
     {
         Session = session;
         _engine = engine;
         _post = post;
         Flows = new FlowsPageViewModel(session, engine, post);
         Settings = new SettingsPageViewModel(session, engine, post, logsFolder);
+        Updates = new UpdatesViewModel(updates, post);
         Library = new LibraryPage.LibraryPageViewModel(session, engine, post);
         Runs = new Runs.RunsPageViewModel(session, engine, post);
         _engine.StateChanged += OnEngineStateChanged;
@@ -40,6 +42,8 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     public FlowsPageViewModel Flows { get; }
 
     public SettingsPageViewModel Settings { get; }
+
+    public UpdatesViewModel Updates { get; }
 
     public LibraryPage.LibraryPageViewModel Library { get; }
 

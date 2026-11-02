@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="YamlDotNet" />
+    <PackageReference Include="Velopack" />
     <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" PrivateAssets="all" />
   </ItemGroup>
 

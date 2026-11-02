@@ -26,6 +26,19 @@ public partial class App : Application
     /// <summary>A second start of the editor (any thread).</summary>
     public void BringToFront() => _window?.DispatcherQueue.TryEnqueue(() => _window?.BringToFront());
 
+    /// <summary>Null when Velopack can't tell (fail-soft): the Updates card then says this copy doesn't update.</summary>
+    private static Core.Updates.VelopackUpdateClient? CreateUpdateClient()
+    {
+        try
+        {
+            return new Core.Updates.VelopackUpdateClient();
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            return null;
+        }
+    }
+
     /// <summary><see cref="Program.ConfigPath"/> edits another file; its backups go next to it, one folder per file.</summary>
     private static ConfigStore OpenStore() => Program.ConfigPath is { } path
         ? new ConfigStore(path, Path.Combine(Path.GetDirectoryName(path)!, "backups", Path.GetFileName(path)))
@@ -39,7 +52,7 @@ public partial class App : Application
         _engine = new EngineClient();
         var session = new ConfigSession(OpenStore(), TimeProvider.System, Post);
         session.Load();
-        var shell = new ShellViewModel(session, _engine, Post, LogsFolder);
+        var shell = new ShellViewModel(session, _engine, Post, LogsFolder, CreateUpdateClient());
         _window = new ShellWindow(shell);
         _window.Closed += (_, _) =>
         {

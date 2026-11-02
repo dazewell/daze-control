@@ -131,8 +131,21 @@ public sealed partial class ShellWindow : Window
         if (!ViewModel.Session.HasUnsavedChanges)
             return;
         args.Cancel = true;
+        if (await ConfirmLosingChangesAsync())
+        {
+            _closeAnyway = true;
+            Close();
+        }
+    }
+
+    /// <summary>True when nothing is unsaved, or the user chose to lose it. False while the question is already up.</summary>
+    private async Task<bool> ConfirmLosingChangesAsync()
+    {
+        ViewModel.Session.Flush();
+        if (!ViewModel.Session.HasUnsavedChanges)
+            return true;
         if (_asking)
-            return;
+            return false;
         _asking = true;
         try
         {
@@ -147,11 +160,7 @@ public sealed partial class ShellWindow : Window
                 CloseButtonText = "Stay",
                 DefaultButton = ContentDialogButton.Close,
             };
-            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
-            {
-                _closeAnyway = true;
-                Close();
-            }
+            return await dialog.ShowAsync() == ContentDialogResult.Primary;
         }
         finally
         {
@@ -531,6 +540,17 @@ public sealed partial class ShellWindow : Window
     private void OnOpenConfigFolder(object sender, RoutedEventArgs e) => OpenFolder(Path.GetDirectoryName(ViewModel.Session.Path)!);
 
     private void OnOpenLogsFolder(object sender, RoutedEventArgs e) => OpenFolder(ViewModel.Settings.LogsFolder);
+
+    private void OnCheckForUpdates(object sender, RoutedEventArgs e) => _ = ViewModel.Updates.CheckAsync();
+
+    /// <summary>Unsaved edits are asked about first; the window closes only once the updater has the update.</summary>
+    private async void OnRestartForUpdate(object sender, RoutedEventArgs e)
+    {
+        if (!await ConfirmLosingChangesAsync() || !ViewModel.Updates.Restart())
+            return;
+        _closeAnyway = true;
+        Close();
+    }
 
     private static void OpenFolder(string folder)
     {

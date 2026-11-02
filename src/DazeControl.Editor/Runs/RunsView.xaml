@@ -51,7 +51,7 @@
                         <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Style="{StaticResource SettingsCardDescription}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                            <TextBlock Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap">
                                 <Run Text="{x:Bind Trigger}" /><Run Text=" · " /><Run Text="{x:Bind Time}" /><Run Text=" · " /><Run Text="{x:Bind Duration}" />
                             </TextBlock>
                         </StackPanel>

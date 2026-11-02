@@ -177,7 +177,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         if (viewportWidth <= 0 || viewportHeight <= 0)
             return (1, 0, 0);
         var zoom = Math.Clamp(Math.Min(viewportWidth / ExtentWidth, viewportHeight / ExtentHeight), MinZoom, 1);
-        return (zoom, Math.Max(0, (ExtentWidth * zoom - viewportWidth) / 2), Math.Max(0, (ExtentHeight * zoom - viewportHeight) / 2));
+        // Still too big at the smallest zoom: show where the flow starts (top left), not its middle.
+        return (zoom, 0, 0);
     }
 
     // ---- Selection (UX §5.2) ----

@@ -390,6 +390,28 @@ Status: accepted
   one asked for it yet. Why not bridge failure edges: "if B fails" can't become a condition on A.
 - Revisit if: users paste between config files, or undo across page switches is wanted.
 
+## D-043 · 2026-11-02 · Ship as one Velopack package; dctl checks for updates, the engine applies; release on tag only
+Status: accepted
+Refines: D-015
+- Decision: `scripts/pack.ps1` publishes the editor (self-contained) then the AOT engine and dctl into one folder and
+  packs it (packId `DazeControlApp`, mainExe `DazeControl.exe`, Start-menu shortcut). The engine runs Velopack's hooks
+  first: before-update closes a running engine with WM_CLOSE and waits for its mutex; before-uninstall removes our Run
+  value if it points into the install. At start (after the single-instance check) it hands a downloaded update to the
+  updater with its own args and exits; skipped when `VELOPACK_RESTART` is set. Checks run in `dctl update` (find +
+  download, never apply), which the installed engine starts hidden 1 min after start and every 24 h. The editor's
+  Settings › Updates card checks on demand and offers Restart now. `release.yml` runs only on a pushed `v<Version>` tag.
+  CI runs `pack.ps1` on every PR. `DAZECONTROL_UPDATE_SOURCE` points at a local feed folder for testing.
+- Why: one install, one Apps entry, three exes side by side (the engine starts the editor and dctl from its folder).
+  Checking in a child process keeps the HTTP/TLS stack out of the resident engine (footprint budget, D-009); applying
+  at engine start is the OSD's apply-on-next-launch (OSD D-030) for an app that has no launcher. Tag-only: the user
+  authorized merges, not releases (2026-11-02); a release is outward-facing.
+- Why not the OSD's release on merge (OSD D-031): merging any feat PR would publish. Why not checks in the engine:
+  sockets + SChannel stay loaded after the first check. Why not checks only in the editor: it runs rarely.
+- Accepted: uninstall force-kills the engine before any hook (velopack log, 2026-11-02), so its tray icon lingers until
+  hovered. Restart now from the editor starts the engine on the default config. Unsigned (SmartScreen warns).
+- Revisit if: the user wants release on merge (add `branches: [main]` and the OSD's `check` job), or a migration
+  needs `OnAfterUpdateFastCallback`.
+
 ## D-042 · 2026-11-02 · Dry run walks the editor's on-screen flow; runs record when each step started
 Status: accepted
 - Decision: the editor's Dry run sends `run` with `dryRun` and `config` = library + the flow as shown (like D-040).
