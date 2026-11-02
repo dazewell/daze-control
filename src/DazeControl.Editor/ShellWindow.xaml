@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:DazeControl.Editor.ViewModels"
     xmlns:canvas="using:DazeControl.Editor.Canvas"
+    xmlns:vmc="using:DazeControl.Editor.ViewModels.Canvas"
     Title="Daze Control">
 
     <Grid>
@@ -285,7 +286,7 @@
                     </Grid>
                 </ScrollViewer>
 
-                <!-- Flow editor (UX §5.1): Flows › name, commands, canvas. Palette and inspector come with T7.5 / M8. -->
+                <!-- Flow editor (UX §5.1): Flows › name, commands, palette, canvas or outline. The inspector comes with M8. -->
                 <Grid x:Name="FlowEditorPage" Grid.Row="1" Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -294,6 +295,23 @@
                     <Grid Margin="36,0,16,4">
                         <BreadcrumbBar x:Name="FlowBreadcrumb" VerticalAlignment="Center" ItemClicked="OnBreadcrumbClicked" />
                         <CommandBar HorizontalAlignment="Right" DefaultLabelPosition="Right" Background="Transparent" IsDynamicOverflowEnabled="True">
+                            <AppBarButton x:Name="UndoButton" Label="Undo" LabelPosition="Collapsed" ToolTipService.ToolTip="Undo (Ctrl+Z)" Click="OnUndo" IsEnabled="False">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE7A7;" /></AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarButton x:Name="RedoButton" Label="Redo" LabelPosition="Collapsed" ToolTipService.ToolTip="Redo (Ctrl+Y)" Click="OnRedo" IsEnabled="False">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE7A6;" /></AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarSeparator />
+                            <AppBarToggleButton x:Name="PaletteToggle" Label="Steps" ToolTipService.ToolTip="Show or hide the list of steps" IsChecked="True" Click="OnTogglePalette">
+                                <AppBarToggleButton.Icon><FontIcon Glyph="&#xE8A0;" /></AppBarToggleButton.Icon>
+                            </AppBarToggleButton>
+                            <AppBarToggleButton x:Name="CanvasViewButton" Label="Canvas" IsChecked="True" Click="OnShowCanvas">
+                                <AppBarToggleButton.Icon><FontIcon Glyph="&#xE8FD;" /></AppBarToggleButton.Icon>
+                            </AppBarToggleButton>
+                            <AppBarToggleButton x:Name="OutlineViewButton" Label="Outline" ToolTipService.ToolTip="Steps as a list, in run order" Click="OnShowOutline">
+                                <AppBarToggleButton.Icon><FontIcon Glyph="&#xE8A4;" /></AppBarToggleButton.Icon>
+                            </AppBarToggleButton>
+                            <AppBarSeparator />
                             <AppBarButton Label="Tidy up" ToolTipService.ToolTip="Reorder steps so fewer lines cross" Click="OnTidyUp">
                                 <AppBarButton.Icon><FontIcon Glyph="&#xE8CB;" /></AppBarButton.Icon>
                             </AppBarButton>
@@ -311,9 +329,66 @@
                             </AppBarButton>
                         </CommandBar>
                     </Grid>
-                    <Border Grid.Row="1" BorderThickness="1,1,0,0" CornerRadius="8,0,0,0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-                        <canvas:FlowCanvas x:Name="FlowCanvasControl" />
-                    </Border>
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <!-- Palette (UX §5.1): 240 wide, search, step types by area; click or drag onto the canvas. -->
+                        <Grid x:Name="PalettePane" Width="240" Padding="12,4,12,0" RowSpacing="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <AutoSuggestBox x:Name="PaletteSearch" PlaceholderText="Search steps" QueryIcon="Find"
+                                            AutomationProperties.Name="Search steps" TextChanged="OnPaletteSearchChanged" />
+                            <ListView x:Name="PaletteList" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True" CanDragItems="True"
+                                      AutomationProperties.Name="Steps" ItemClick="OnPaletteItemClick" DragItemsStarting="OnPaletteDragStarting">
+                                <ListView.GroupStyle>
+                                    <GroupStyle>
+                                        <GroupStyle.HeaderTemplate>
+                                            <DataTemplate x:DataType="vmc:PaletteGroup">
+                                                <TextBlock Text="{x:Bind Area}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                            </DataTemplate>
+                                        </GroupStyle.HeaderTemplate>
+                                    </GroupStyle>
+                                </ListView.GroupStyle>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="vmc:PaletteItem">
+                                        <StackPanel Orientation="Horizontal" Spacing="12" AutomationProperties.Name="{x:Bind Name}"
+                                                    ToolTipService.ToolTip="Click to add after the selected step, or drag onto the canvas">
+                                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" />
+                                            <TextBlock Text="{x:Bind Title}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <TextBlock x:Name="PaletteEmpty" Grid.Row="1" Visibility="Collapsed" Text="No steps match." Margin="4,8"
+                                       Style="{StaticResource SettingsCardDescription}" />
+                        </Grid>
+                        <Border Grid.Column="1" BorderThickness="1,1,0,0" CornerRadius="8,0,0,0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                            <Grid>
+                                <canvas:FlowCanvas x:Name="FlowCanvasControl" />
+                                <!-- Outline (UX §5.2): the keyboard and screen-reader equivalent of the canvas. -->
+                                <TreeView x:Name="OutlineTree" Visibility="Collapsed" Padding="16,8" SelectionMode="Single" CanDragItems="False"
+                                          AllowDrop="False" CanReorderItems="False" AutomationProperties.Name="Steps in run order"
+                                          ItemInvoked="OnOutlineInvoked" SelectionChanged="OnOutlineSelectionChanged"
+                                          KeyDown="OnOutlineKeyDown" ContextRequested="OnOutlineContextRequested">
+                                    <TreeView.ItemTemplate>
+                                        <DataTemplate x:DataType="vmc:OutlineItem">
+                                            <TreeViewItem ItemsSource="{x:Bind Children}" IsExpanded="True" AutomationProperties.Name="{x:Bind AutomationName}">
+                                                <StackPanel Orientation="Horizontal" Spacing="12" Padding="0,6">
+                                                    <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" />
+                                                    <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                    <TextBlock Text="{x:Bind Summary}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                </StackPanel>
+                                            </TreeViewItem>
+                                        </DataTemplate>
+                                    </TreeView.ItemTemplate>
+                                </TreeView>
+                            </Grid>
+                        </Border>
+                    </Grid>
                 </Grid>
             </Grid>
         </NavigationView>

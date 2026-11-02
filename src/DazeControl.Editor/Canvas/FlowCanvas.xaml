@@ -56,9 +56,11 @@
         <!-- Empty state (UX §5.2). -->
         <StackPanel x:Name="EmptyState" Visibility="Collapsed" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
             <FontIcon Glyph="&#xE945;" FontSize="40" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            <TextBlock Text="No steps yet" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
-            <TextBlock Text="Steps run left to right. Ones side by side run at the same time." HorizontalAlignment="Center"
+            <TextBlock Text="This flow is empty" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <TextBlock Text="Add a step to start. Drag one from the left, or double-click anywhere." HorizontalAlignment="Center"
                        Style="{StaticResource SettingsCardDescription}" />
+            <Button Content="Add a step" HorizontalAlignment="Center" Margin="0,8,0,0" Style="{StaticResource AccentButtonStyle}"
+                    Click="OnAddFirstStep" />
         </StackPanel>
 
     </Grid>
