@@ -431,4 +431,176 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         Assert.True(_canvas.IsMissing);
         Assert.True(_canvas.IsEmpty);
     }
+
+    // ---- T7.7: undo/redo, delete, copy/paste ----
+
+    [Fact]
+    public void UndoAndRedoStepThroughEdits()
+    {
+        Assert.False(_canvas.CanUndo);
+        var original = _canvas.Flow;
+
+        _canvas.Select("vol");
+        _canvas.DeleteSelection();
+        Assert.Null(_canvas.Find("vol"));
+        Assert.True(_canvas.CanUndo);
+
+        _canvas.Undo();
+        Assert.Equal(original, _canvas.Flow);
+        Assert.True(_canvas.CanRedo);
+        Assert.False(_canvas.CanUndo);
+
+        _canvas.Redo();
+        Assert.Null(_canvas.Find("vol"));
+        Assert.False(_canvas.CanRedo);
+    }
+
+    [Fact]
+    public void ANewEditClearsRedoAndNoOpsAddNothing()
+    {
+        _canvas.MoveInColumn("out", 1);
+        _canvas.Undo();
+        Assert.True(_canvas.CanRedo);
+
+        _canvas.Edit(f => f); // nothing changed: no entry, redo kept
+        Assert.True(_canvas.CanRedo);
+        Assert.False(_canvas.CanUndo);
+
+        _canvas.TidyUp();
+        _canvas.AddStep("wait");
+        Assert.False(_canvas.CanRedo);
+        Assert.True(_canvas.CanUndo);
+    }
+
+    [Fact]
+    public void AnOutsideChangeClearsHistory()
+    {
+        _canvas.AddStep("wait");
+        Assert.True(_canvas.CanUndo);
+
+        _session.Update(c => c with { Flows = [.. c.Flows.Select(f => f with { Name = "Renamed elsewhere" })] });
+
+        Assert.False(_canvas.CanUndo);
+        Assert.Equal("Renamed elsewhere", _canvas.FlowName);
+    }
+
+    [Fact]
+    public void AddStepRunsAfterTheSelectionAndSelectsIt()
+    {
+        var id = _canvas.AddStep("bluetooth.disconnect", ["bt"]);
+
+        Assert.Equal("disconnect", id);
+        Assert.Equal([new Edge("bt")], _canvas.Flow!.FindNode("disconnect")!.After);
+        Assert.Equal(["disconnect"], _canvas.SelectedIds);
+        Assert.Equal("disconnect", _canvas.FocusedId);
+        Assert.Equal(Node("out").Column, Node("disconnect").Column);
+    }
+
+    [Fact]
+    public void InsertStepOnAnEdge()
+    {
+        var edge = _canvas.Edges.Single(e => e.From == "bt" && e.To == "vol");
+
+        var id = _canvas.InsertStep("wait", edge);
+
+        Assert.Equal([new Edge("wait")], _canvas.Flow!.FindNode("vol")!.After);
+        Assert.Equal([new Edge("bt")], _canvas.Flow!.FindNode(id!)!.After);
+    }
+
+    [Fact]
+    public void DeleteReconnectsAndDropsTheSelection()
+    {
+        _canvas.Select("out");
+        _canvas.DeleteSelection();
+
+        Assert.Null(_canvas.Find("out"));
+        Assert.Empty(_canvas.SelectedIds);
+        Assert.Empty(_canvas.Flow!.FindNode("note")!.After); // "only if out fails" went with it
+    }
+
+    [Fact]
+    public void CopyPasteRunsAfterTheSelectionAndDuplicateSitsBeside()
+    {
+        Assert.False(_canvas.CanPaste);
+        _canvas.Select("vol");
+        Assert.True(_canvas.Copy());
+        Assert.True(_canvas.CanPaste);
+
+        _canvas.Paste();
+        Assert.Equal(["vol-2"], _canvas.SelectedIds);
+        Assert.Equal([new Edge("vol")], _canvas.Flow!.FindNode("vol-2")!.After);
+
+        _canvas.Select("vol");
+        _canvas.Duplicate();
+        Assert.Equal(["vol-3"], _canvas.SelectedIds);
+        Assert.Equal([new Edge("bt")], _canvas.Flow!.FindNode("vol-3")!.After);
+        Assert.Equal(Node("vol").Column, Node("vol-3").Column);
+
+        _canvas.ClearSelection();
+        Assert.False(_canvas.Copy());
+    }
+
+    [Fact]
+    public void TheClipboardOutlivesTheCanvas()
+    {
+        var clipboard = new CanvasClipboard();
+        using (var first = new FlowCanvasViewModel(_session, "f", clipboard))
+        {
+            first.Select("both");
+            first.Copy();
+        }
+        using var second = new FlowCanvasViewModel(_session, "f", clipboard);
+        second.ClearSelection();
+
+        second.Paste();
+
+        Assert.Equal(["both-2"], second.SelectedIds);
+        Assert.Equal(["w1-2", "w2-2"], ((GroupNode)second.Flow!.FindNode("both-2")!).Members);
+    }
+
+    // ---- T7.8: outline ----
+
+    [Fact]
+    public void OutlineListsStepsInRunOrderWithCardsAsBranches()
+    {
+        var outline = _canvas.Outline;
+
+        Assert.Equal("bt", outline[0].Id);
+        Assert.Equal(["bt", "both", "out", "vol", "note"], outline.Select(i => i.Id));
+        var card = outline.Single(i => i.Id == "both");
+        Assert.Equal(["w1", "w2"], card.Children.Select(c => c.Id));
+        Assert.Equal(Node("out").AutomationName, outline.Single(i => i.Id == "out").AutomationName);
+        Assert.Contains("Waits for Connect", outline.Single(i => i.Id == "out").AutomationName, StringComparison.Ordinal);
+
+        _canvas.Select("note");
+        _canvas.DeleteSelection();
+        Assert.DoesNotContain(_canvas.Outline, i => i.Id == "note");
+    }
+
+    // ---- T7.5: palette ----
+
+    [Fact]
+    public void PaletteGroupsByAreaAndFilters()
+    {
+        var palette = new StepPaletteViewModel();
+        Assert.Contains(palette.Groups, g => g.Area == "Bluetooth" && g.Items.Any(i => i.Step == "bluetooth.connect"));
+
+        palette.Query = "blue conn";
+        var group = Assert.Single(palette.Groups);
+        Assert.Equal(["bluetooth.connect", "bluetooth.disconnect"], group.Items.Select(i => i.Step));
+        Assert.Equal("Connect, Bluetooth", group.Items[0].Name);
+
+        palette.Query = "zzz";
+        Assert.True(palette.IsEmpty);
+    }
+
+    [Fact]
+    public void SearchPutsTitleMatchesFirst()
+    {
+        var results = StepPaletteViewModel.Search("connect");
+
+        Assert.Equal("Connect", results[0].Title);
+        Assert.Contains(results, r => r.Title == "Disconnect");
+        Assert.Equal(StepPaletteViewModel.All.Count, StepPaletteViewModel.Search("  ").Count);
+    }
 }
