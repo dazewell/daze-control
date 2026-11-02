@@ -94,10 +94,10 @@ public static class FlowEdits
         ArgumentNullException.ThrowIfNull(flow);
         if (flow.FindNode(cardId) is not GroupNode card)
             return (flow, ConnectRefusal.None);
-        if (HasFailureFallback(flow, cardId))
-            return (flow, ConnectRefusal.FailureFallback);
         var cardOf = FlowLayout.CardOf(flow);
         var members = card.Members.Where(m => cardOf.GetValueOrDefault(m) == cardId).ToList();
+        if (members.Count > 1 && HasFailureFallback(flow, cardId)) // one step: "card failed" is "that step failed"
+            return (flow, ConnectRefusal.FailureFallback);
         return (flow with
         {
             Nodes = [.. flow.Nodes.Where(n => n.Id != cardId).Select(n =>
@@ -132,7 +132,10 @@ public static class FlowEdits
     private static bool HasFailureFallback(Flow flow, string cardId) =>
         flow.Nodes.Any(n => n.After.Any(e => e.From == cardId && e.When == EdgeWhen.Failure));
 
-    /// <summary>A step leaving a card keeps how its failure was handled: its own "may fail", else the card's policy.</summary>
+    /// <summary>
+    /// A step leaving a card keeps how its failure was handled: its own "may fail", else the card's policy (the rule
+    /// in Scheduler.CompleteMemberOf; change both together).
+    /// </summary>
     private static Node Leave(Node step, GroupNode card) =>
         step.OnFailure == FailurePolicy.Ignore ? step : step with { OnFailure = card.OnFailure };
 

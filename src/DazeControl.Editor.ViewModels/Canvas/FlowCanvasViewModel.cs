@@ -297,7 +297,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         ConnectRefusal.Loop => "That would make a loop. A step can't wait for something that waits for it.",
         ConnectRefusal.SameCard => "Steps in a card start together, so they can't wait for each other.",
         ConnectRefusal.Conditions => "These steps wait for the same step under different conditions, so they can't share a card.",
-        ConnectRefusal.FailureFallback => "Something runs only if this fails, and that would change which failures count. Change or remove that connection first.",
+        ConnectRefusal.FailureFallback => "A step here runs only if something fails, and this change would alter which failures count. Change or remove that \"if it fails\" connection first.",
         ConnectRefusal.FailurePolicies => "These steps handle failure differently, so they can't share a card. Give them the same failure setting first.",
         _ => null,
     };

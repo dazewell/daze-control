@@ -107,6 +107,28 @@ public class FlowEditsTests
     }
 
     [Fact]
+    public void DragsOutOfACardWithAFallbackAreRefusedToo()
+    {
+        var flow = FlowOf(new GroupNode("g", ["m1", "m2"]), Step("m1"), Step("m2"), Step("t"),
+            new StepNode("z", "wait") { After = [new Edge("g", EdgeWhen.Failure)] });
+
+        Assert.Equal(ConnectRefusal.FailureFallback, FlowEdits.RunAfter(flow, "m1", "t").Refusal);
+        Assert.Equal(ConnectRefusal.FailureFallback, FlowEdits.RunTogether(flow, "m1", "t").Refusal);
+    }
+
+    [Fact]
+    public void UngroupingAOneStepCardKeepsItsFallback()
+    {
+        var flow = FlowOf(new GroupNode("g", ["m1"]), Step("m1"),
+            new StepNode("z", "wait") { After = [new Edge("g", EdgeWhen.Failure)] });
+
+        var (ungrouped, refusal) = FlowEdits.Ungroup(flow, "g");
+
+        Assert.Equal(ConnectRefusal.None, refusal);
+        Assert.Equal([new Edge("m1", EdgeWhen.Failure)], After(ungrouped, "z"));
+    }
+
+    [Fact]
     public void GroupRefusesWhenSomethingWaitsForAStepToFail()
     {
         // z ran only if a failed; in a card it would run if b failed too.

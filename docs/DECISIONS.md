@@ -363,3 +363,15 @@ Status: accepted
 - Why not a Composition `ShapeVisual` per §5.8: Bézier `CompositionPath` needs an `IGeometrySource2D`, i.e. Win2D
   or hand-written D2D geometry interop — a dependency or a lot of interop for no visible gain.
 - Revisit if: a 100-edge flow redraws slowly (then move the paths to a `ShapeVisual` with Win2D geometry).
+
+## D-038 · 2026-11-02 · Canvas card edits refuse rather than change when a step runs
+Status: accepted
+- Decision: group, ungroup and take-out refuse (with a tip) when the result would run differently: different
+  conditions on one source, an "if it fails" edge on a grouped step or on a card losing a step, or steps with
+  different failure policies. A step leaving a card takes the card's policy unless it may fail itself; a new card
+  takes its steps' shared policy. Mirrors `Scheduler.CompleteMemberOf` (in a card only a step's own may-fail counts).
+- Why: a drag must not silently change what a flow does; PR #11 review found three such cases.
+- Why not rewrite edges to keep the meaning: "any member failed" has no per-step edge form, and silent policy
+  rewrites would surprise more than a refusal.
+- Revisit if: the refusals block common gestures (dropping a plain step on a may-fail card is refused until the
+  M8 inspector can change policies).
