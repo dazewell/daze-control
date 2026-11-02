@@ -164,22 +164,11 @@
                                             </ItemsRepeater.Layout>
                                             <ItemsRepeater.ItemTemplate>
                                                 <DataTemplate x:DataType="vml:ScreenDetail">
-                                                    <Grid ColumnSpacing="16" AutomationProperties.Name="{x:Bind}">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="2*" MinWidth="140" />
-                                                            <ColumnDefinition Width="80" />
-                                                            <ColumnDefinition Width="110" />
-                                                            <ColumnDefinition Width="90" />
-                                                            <ColumnDefinition Width="100" />
-                                                            <ColumnDefinition Width="70" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Grid.Column="1" Text="{x:Bind Port}" Style="{StaticResource SettingsCardDescription}" />
-                                                        <TextBlock Grid.Column="2" Text="{x:Bind Resolution}" Style="{StaticResource SettingsCardDescription}" />
-                                                        <TextBlock Grid.Column="3" Text="{x:Bind Refresh}" Style="{StaticResource SettingsCardDescription}" />
-                                                        <TextBlock Grid.Column="4" Style="{StaticResource SettingsCardDescription}"><Run Text="at " /><Run Text="{x:Bind Position}" /></TextBlock>
-                                                        <TextBlock Grid.Column="5" Text="{x:Bind PrimaryText}" Style="{StaticResource SettingsCardDescription}" />
-                                                    </Grid>
+                                                    <!-- Name over one wrapping line, so a narrow window loses nothing. -->
+                                                    <StackPanel AutomationProperties.Name="{x:Bind}">
+                                                        <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" />
+                                                        <TextBlock Text="{x:Bind Summary}" TextWrapping="Wrap" Style="{StaticResource SettingsCardDescription}" />
+                                                    </StackPanel>
                                                 </DataTemplate>
                                             </ItemsRepeater.ItemTemplate>
                                         </ItemsRepeater>

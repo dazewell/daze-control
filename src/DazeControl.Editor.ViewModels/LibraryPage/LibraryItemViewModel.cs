@@ -26,6 +26,10 @@ public sealed record ScreenDetail(string Name, string Port, string Resolution, s
 {
     public string PrimaryText => Primary ? "Primary" : "";
 
+    /// <summary>"HDMI-1 · 2560 × 1440 · 60 Hz · at 0, 0 · Primary": one line that wraps in a narrow window.</summary>
+    public string Summary =>
+        string.Join(" · ", new[] { Port, Resolution, Refresh, $"at {Position}", PrimaryText }.Where(t => t.Length > 0));
+
     public override string ToString() =>
         string.Join(", ", new[] { Name, Port, Resolution, Refresh, $"at {Position}", PrimaryText }.Where(t => t.Length > 0));
 }

@@ -331,7 +331,9 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>A full path must exist; a bare name ("notepad.exe") is looked up on PATH as Windows would.</summary>
-    public TestResult TestProgram(string path) => ResolveProgram(path) switch
+    public TestResult TestProgram(string path) => ProgramResult(ResolveProgram(path));
+
+    private static TestResult ProgramResult((string? File, bool OnPath) found) => found switch
     {
         (null, false) => new(TestOutcome.Failed, "Can't find this file. Check the path in the flows that run it."),
         (null, true) => new(TestOutcome.Failed, "Can't find this program on PATH. Use its full path in the flows that run it."),
@@ -362,11 +364,11 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task OpenLocationAsync(LibraryItemViewModel item)
     {
-        var (file, _) = await Task.Run(() => ResolveProgram(item.Key)).ConfigureAwait(true); // a network path can stall
-        if (file is null)
-            item.ShowResult(TestProgram(item.Key));
+        var found = await Task.Run(() => ResolveProgram(item.Key)).ConfigureAwait(true); // a network path can stall
+        if (found.File is null)
+            item.ShowResult(ProgramResult(found)); // not TestProgram: that would look again, on the UI thread
         else
-            _reveal(file);
+            _reveal(found.File);
     }
 
     private static void RevealInExplorer(string file) =>
