@@ -53,7 +53,6 @@ public partial class App : Application
         var session = new ConfigSession(OpenStore(), TimeProvider.System, Post);
         session.Load();
         var shell = new ShellViewModel(session, _engine, Post, LogsFolder, CreateUpdateClient());
-        shell.Updates.RestartRequested += () => _window?.Close();
         _window = new ShellWindow(shell);
         _window.Closed += (_, _) =>
         {

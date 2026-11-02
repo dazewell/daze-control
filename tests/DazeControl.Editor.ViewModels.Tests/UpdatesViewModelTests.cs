@@ -13,6 +13,7 @@ public sealed class UpdatesViewModelTests
         public string? Newer { get; set; }
         public Exception? FindFails { get; set; }
         public bool Applied { get; private set; }
+        public Exception? ApplyFails { get; init; }
 
         public Task<string?> FindAsync(CancellationToken cancellationToken) =>
             FindFails is { } e ? Task.FromException<string?>(e) : Task.FromResult(Newer);
@@ -23,7 +24,7 @@ public sealed class UpdatesViewModelTests
             return Task.CompletedTask;
         }
 
-        public void ApplyAfterExit() => Applied = true;
+        public void ApplyAfterExit() => Applied = ApplyFails is null ? true : throw ApplyFails;
     }
 
     [Fact]
@@ -59,16 +60,13 @@ public sealed class UpdatesViewModelTests
     {
         var client = new FakeUpdates { Newer = "0.18.0" };
         var updates = new UpdatesViewModel(client, a => a());
-        var restarted = false;
-        updates.RestartRequested += () => restarted = true;
 
         await updates.CheckAsync();
         Assert.True(updates.CanRestart);
         Assert.False(updates.CanCheck);
-        updates.Restart();
+        Assert.True(updates.Restart());
 
         Assert.True(client.Applied);
-        Assert.True(restarted);
     }
 
     [Fact]
@@ -88,7 +86,18 @@ public sealed class UpdatesViewModelTests
     public void RestartDoesNothingWithoutAReadyUpdate()
     {
         var client = new FakeUpdates();
-        new UpdatesViewModel(client, a => a()).Restart();
+        Assert.False(new UpdatesViewModel(client, a => a()).Restart());
         Assert.False(client.Applied);
+    }
+
+    [Fact]
+    public void AnUpdaterThatWontStartSaysWhyAndKeepsTheEditorOpen()
+    {
+        var client = new FakeUpdates { PendingVersion = "0.18.0", ApplyFails = new InvalidOperationException("Update.exe is missing.") };
+        var updates = new UpdatesViewModel(client, a => a());
+
+        Assert.False(updates.Restart());
+        Assert.StartsWith("Couldn't start the update: Update.exe is missing.", updates.Status, StringComparison.Ordinal);
+        Assert.True(updates.CanRestart);
     }
 }

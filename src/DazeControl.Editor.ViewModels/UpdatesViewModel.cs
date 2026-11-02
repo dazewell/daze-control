@@ -22,9 +22,6 @@ public sealed partial class UpdatesViewModel : ObservableObject
         Show(_client?.PendingVersion is { } pending ? Ready(pending) : Idle());
     }
 
-    /// <summary>Raised after Restart now handed the update to the updater; the editor then closes.</summary>
-    public event Action? RestartRequested;
-
     [ObservableProperty]
     public partial string Status { get; private set; } = "";
 
@@ -63,13 +60,25 @@ public sealed partial class UpdatesViewModel : ObservableObject
         }
     }
 
-    /// <summary>The updater waits for the editor to exit, closes the engine cleanly, applies, starts the engine.</summary>
-    public void Restart()
+    /// <summary>
+    /// Hands the update to the updater, which waits for the editor to exit, closes the engine cleanly, applies and starts
+    /// the engine. True when it did: the caller then closes the editor. False (with the reason in Status) otherwise.
+    /// </summary>
+    public bool Restart()
     {
         if (_client is null || !CanRestart)
-            return;
-        _client.ApplyAfterExit();
-        RestartRequested?.Invoke();
+            return false;
+        try
+        {
+            _client.ApplyAfterExit();
+            return true;
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            // Update.exe missing, quarantined or blocked: stay open, the update still applies at the next engine start.
+            Show(($"Couldn't start the update: {e.Message} It installs the next time {AppInfo.ProductName} starts.", true, true));
+            return false;
+        }
     }
 
     private (string, bool, bool) Idle() => _client is null
