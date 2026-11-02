@@ -1,0 +1,74 @@
+# Publishes a GitHub Release with the Velopack Setup.exe, portable zip and update feed (D-043) when a tag v<Version>
+# is pushed by hand; the tag must equal <Version> in Directory.Build.props. Only a tag releases, not a merge to main
+# (unlike the OSD's D-031): the user decides when Daze Control ships.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Check the tag matches <Version>
+        id: check
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          if ("v$version" -ne $env:GITHUB_REF_NAME) { throw "Tag $env:GITHUB_REF_NAME doesn't match <Version> $version in Directory.Build.props." }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build and test
+        run: |
+          dotnet build DazeControl.slnx -c Release -nologo
+          dotnet test --solution DazeControl.slnx -c Release --no-build
+
+      - name: Restore vpk
+        run: dotnet tool restore
+
+      # The previous release's full package lets vpk build a delta update; the first release has none.
+      - name: Download previous release
+        continue-on-error: true
+        run: dotnet vpk download github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} -o artifacts/releases
+
+      - name: Pack
+        shell: pwsh
+        run: ./scripts/pack.ps1
+
+      # A draft left by a failed run would make vpk refuse ("already an existing release tagged ..."); a rerun of
+      # this tag deletes it first. Filtered here, not in jq: PowerShell mangles quotes inside a native argument.
+      - name: Delete leftover drafts of this version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          $drafts = gh api "repos/$env:GITHUB_REPOSITORY/releases" --paginate --jq '.[] | select(.draft) | [.id, .tag_name] | @tsv'
+          if ($LASTEXITCODE -ne 0) { throw "Couldn't list releases." }
+          $ids = $drafts | ForEach-Object { $id, $tag = $_ -split "`t"; if ($tag -eq "v$env:VERSION") { $id } }
+          foreach ($id in $ids) {
+              gh api -X DELETE "repos/$env:GITHUB_REPOSITORY/releases/$id"
+              if ($LASTEXITCODE -ne 0) { throw "Couldn't delete draft release $id." }
+              Write-Host "Deleted leftover draft $id for v$env:VERSION"
+          }
+
+      - name: Upload to GitHub Releases
+        run: >
+          dotnet vpk upload github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
+          -o artifacts/releases --tag v${{ steps.check.outputs.version }} --targetCommitish ${{ github.sha }}
+          --releaseName "Daze Control ${{ steps.check.outputs.version }}" --publish

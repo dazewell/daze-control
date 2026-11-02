@@ -178,6 +178,19 @@ given on the command line as the Run value's argument.
   problem. Not yet: per-flow glyph bitmaps in the menu (need M5's glyph-font rendering).
 - `Runtime/Lifecycle/Autostart`: HKCU Run value `DazeControl` → engine exe (OSD port), set through the pipe op.
 
+## Install and updates
+
+D-043. `scripts/pack.ps1` → one folder (editor self-contained + AOT `DazeControl.exe` + AOT `dctl.exe`, no .pdb) →
+`vpk pack` (packId `DazeControlApp`, installs to `%LOCALAPPDATA%\DazeControlApp\current`, Start-menu shortcut).
+`scripts/install.ps1` packs and installs this checkout the same way; `release.yml` publishes on a `v<Version>` tag.
+- `Core/Updates/VelopackUpdateClient` (GitHub Releases, stable, no token; `DAZECONTROL_UPDATE_SOURCE` = local feed):
+  shared by the three exes; sets Velopack's locator itself in the editor and dctl (only the engine runs the hooks).
+- `Engine/Lifecycle/Installer`: Velopack hooks before the single-instance check and the log (a hook runs while the
+  real engine runs). `Program` then applies a downloaded update (exit; the updater restarts the engine with the same
+  args). `Engine/Lifecycle/UpdateCheck`: installed copies only, runs `dctl update` hidden at +1 min and daily, logs
+  its output.
+- `dctl update`: find + download, never apply; exit 0 / 1. Editor: `UpdatesViewModel` (Settings › Updates card).
+
 ## IPC
 
 `\\.\pipe\DazeControl-<user SID>`, `PipeOptions.CurrentUserOnly`, newline-delimited JSON (source-gen
@@ -198,7 +211,7 @@ true/false/absent), `devices` (kind) and `capture-display-layout` (key → a `li
 through `Runtime/Control/IDeviceQueries` (read-only; `Providers/SystemDevices` on the real PC); `test-step`
 answers "can't do that yet" until the editor. `PipeClient` copies each request to stamp its id: a new
 `PipeRequest` field goes into that copy too (`PipeTests.EveryRequestFieldReachesTheServer` fails otherwise).
-`dctl` (`src/DazeControl.Cli`): run/cancel/list/validate/status/history/autostart/devices/capture-display-layout, parsed strictly by
+`dctl` (`src/DazeControl.Cli`): run/cancel/list/validate/status/history/autostart/devices/capture-display-layout/update, parsed strictly by
 `Ipc/CommandLine` (unknown flag or wrong word count → exit 2, never ignored); `validate <file>`
 and, with no engine, `list`/`validate` read the YAML themselves. Exit codes 0 ok, 1 failed, 2 usage, 3 no engine.
 

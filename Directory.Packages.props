@@ -9,6 +9,8 @@
     <!-- YAML with a source-generated static context for AOT (D-005). -->
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
     <PackageVersion Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="18.1.0" />
+    <!-- Per-user install + updates (D-015); keep equal to vpk in dotnet-tools.json. -->
+    <PackageVersion Include="Velopack" Version="1.2.161" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
 </Project>

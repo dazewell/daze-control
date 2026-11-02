@@ -532,6 +532,10 @@ public sealed partial class ShellWindow : Window
 
     private void OnOpenLogsFolder(object sender, RoutedEventArgs e) => OpenFolder(ViewModel.Settings.LogsFolder);
 
+    private void OnCheckForUpdates(object sender, RoutedEventArgs e) => _ = ViewModel.Updates.CheckAsync();
+
+    private void OnRestartForUpdate(object sender, RoutedEventArgs e) => ViewModel.Updates.Restart();
+
     private static void OpenFolder(string folder)
     {
         Directory.CreateDirectory(folder);

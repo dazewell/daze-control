@@ -21,6 +21,7 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         ["autostart"] = new(0, 1, "autostart takes on or off."),
         ["devices"] = new(1, 1, "devices needs one kind: audio, bluetooth, displays or adb."),
         ["capture-display-layout"] = new(1, 1, "capture-display-layout needs a name for the layout."),
+        ["update"] = new(0, 0, "update takes no arguments."),
     };
 
     /// <exception cref="CommandLineException">The command, a flag or the words don't fit.</exception>
