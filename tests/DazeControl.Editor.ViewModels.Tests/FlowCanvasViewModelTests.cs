@@ -256,6 +256,18 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     }
 
     [Fact]
+    public void AProblemMarksTheNodeWithADottedId()
+    {
+        _canvas.Edit(f => f with
+        {
+            Nodes = [.. f.Nodes, new StepNode("audio.x", "audio.setDefault"), new StepNode("audio", "wait") { With = new([KeyValuePair.Create("duration", (ParamValue)"1s")]) }],
+        });
+
+        Assert.True(Node("audio.x").HasProblem); // no device
+        Assert.False(Node("audio").HasProblem);
+    }
+
+    [Fact]
     public void DeletedFlowShowsAsMissing()
     {
         _session.Update(c => c with { Flows = [] });

@@ -3,6 +3,7 @@ using DazeControl.Editor.ViewModels.Canvas;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
@@ -42,9 +43,17 @@ internal abstract class NodeView : Grid
     {
         Node = node;
         IsHitTestVisible = true;
-        node.PropertyChanged += OnNodeChanged;
+        // Reordering removes and re-adds a view, so it subscribes whenever it is in the tree.
+        Loaded += (_, _) =>
+        {
+            node.PropertyChanged -= OnNodeChanged;
+            node.PropertyChanged += OnNodeChanged;
+            OnNodeChanged(node, new PropertyChangedEventArgs(null));
+        };
         Unloaded += (_, _) => node.PropertyChanged -= OnNodeChanged;
     }
+
+    protected override AutomationPeer OnCreateAutomationPeer() => new NodePeer(this);
 
     public CanvasNodeViewModel Node { get; }
 
@@ -133,7 +142,7 @@ internal sealed class CardView : NodeView
 {
     private readonly Rectangle _shape = new() { RadiusX = 12, RadiusY = 12 };
     private readonly FontIcon _glyph = new() { FontSize = 14 };
-    private readonly TextBlock _title = new() { TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _title = new() { TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 1, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _countText = new() { FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
     private readonly Border _count = new() { CornerRadius = new CornerRadius(10), MinHeight = 20, Padding = new Thickness(8, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
 
@@ -141,7 +150,13 @@ internal sealed class CardView : NodeView
         : base(node)
     {
         _count.Child = _countText;
-        var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Height = 32, Margin = new Thickness(12, 4, 12, 0), VerticalAlignment = VerticalAlignment.Top };
+        // Glyph · title (trims within the card) · count chip.
+        var header = new Grid { ColumnSpacing = 8, Height = 32, Margin = new Thickness(12, 4, 12, 0), VerticalAlignment = VerticalAlignment.Top };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        SetColumn(_title, 1);
+        SetColumn(_count, 2);
         header.Children.Add(_glyph);
         header.Children.Add(_title);
         header.Children.Add(_count);
@@ -169,4 +184,16 @@ internal sealed class CardView : NodeView
     }
 
     protected override void OnNodeChanged(object? sender, PropertyChangedEventArgs e) => Refresh(_count.Visibility == Visibility.Visible);
+}
+
+/// <summary>Screen readers see each pill and card by its full name (the Outline view, T7.8, is the full equivalent).</summary>
+internal sealed partial class NodePeer(NodeView owner) : FrameworkElementAutomationPeer(owner)
+{
+    protected override string GetNameCore() => owner.Node.AutomationName;
+
+    protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.ListItem;
+
+    protected override string GetClassNameCore() => owner.IsCard ? "Card" : "Step";
+
+    protected override bool IsKeyboardFocusableCore() => false;
 }

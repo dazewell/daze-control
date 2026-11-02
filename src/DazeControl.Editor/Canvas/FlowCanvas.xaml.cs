@@ -3,6 +3,7 @@ using System.ComponentModel;
 using DazeControl.Editor.ViewModels.Canvas;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
@@ -26,6 +27,7 @@ public sealed partial class FlowCanvas : UserControl
     private readonly TextBlock _measurer = new();
     private FlowCanvasViewModel? _viewModel;
     private bool _fitPending;
+    private bool _autoFit;
 
     private enum Gesture { None, Press, DragNode, Marquee, Pan }
 
@@ -44,10 +46,13 @@ public sealed partial class FlowCanvas : UserControl
         GotFocus += (_, _) => { _viewModel?.EnsureFocus(); UpdateFocusRing(); };
         LostFocus += (_, _) => UpdateFocusRing();
         SizeChanged += (_, _) => { if (_fitPending) Fit(); };
-        Host.PointerPressed += OnPointerPressed;
-        Host.PointerMoved += OnPointerMoved;
-        Host.PointerReleased += OnPointerReleased;
-        Host.PointerCaptureLost += (_, _) => EndGesture();
+        // The whole viewport takes gestures (a small flow leaves blank canvas around Host); positions are in Host's
+        // coordinates. Scroll bars handle their own presses, so they never start a marquee.
+        Root.PointerPressed += OnPointerPressed;
+        Root.PointerMoved += OnPointerMoved;
+        Root.PointerReleased += OnPointerReleased;
+        Root.PointerCaptureLost += (_, _) => EndGesture();
+        Root.AddHandler(PointerWheelChangedEvent, new PointerEventHandler((_, _) => _autoFit = false), handledEventsToo: true);
     }
 
     public FlowCanvasViewModel? ViewModel
@@ -72,7 +77,7 @@ public sealed partial class FlowCanvas : UserControl
             SyncNodes();
             DrawEdges();
             UpdateExtent();
-            _fitPending = true;
+            _fitPending = _autoFit = true;
             Fit();
         }
     }
@@ -90,10 +95,17 @@ public sealed partial class FlowCanvas : UserControl
     }
 
     /// <summary>Ctrl+1.</summary>
-    public void ZoomToActualSize() => Scroller.ChangeView(null, null, 1f);
+    public void ZoomToActualSize()
+    {
+        _autoFit = false;
+        Scroller.ChangeView(null, null, 1f);
+    }
 
-    public void ZoomBy(double factor) =>
+    public void ZoomBy(double factor)
+    {
+        _autoFit = false;
         Scroller.ChangeView(null, null, (float)Math.Clamp(Scroller.ZoomFactor * factor, FlowCanvasViewModel.MinZoom, FlowCanvasViewModel.MaxZoom));
+    }
 
     private void OnViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
     {
@@ -113,14 +125,19 @@ public sealed partial class FlowCanvas : UserControl
         {
             case nameof(FlowCanvasViewModel.ExtentWidth) or nameof(FlowCanvasViewModel.ExtentHeight) or nameof(FlowCanvasViewModel.IsEmpty):
                 UpdateExtent();
+                // Measured pill sizes arrive after the first fit: keep fitting until the user moves the view.
+                if (_autoFit)
+                    DispatcherQueue.TryEnqueue(Fit);
                 break;
             case nameof(FlowCanvasViewModel.FocusedId):
                 UpdateFocusRing();
+                AnnounceFocus();
                 break;
             case nameof(FlowCanvasViewModel.SelectedIds):
                 DrawEdges();
                 break;
             case nameof(FlowCanvasViewModel.Arrangement):
+                SyncNodes(); // kinds are final now (a node can turn into a card without a collection change)
                 DrawEdges();
                 UpdateFocusRing();
                 break;
@@ -284,6 +301,8 @@ public sealed partial class FlowCanvas : UserControl
         var point = e.GetCurrentPoint(Host);
         var props = point.Properties;
         Focus(FocusState.Pointer);
+        UpdateFocusRing(); // the ring is for keyboard focus only
+        _autoFit = false;
         _pointerId = e.Pointer.PointerId;
         _pressContent = point.Position;
         _pressScreen = e.GetCurrentPoint(this).Position;
@@ -295,7 +314,7 @@ public sealed partial class FlowCanvas : UserControl
         {
             _gesture = Gesture.Pan;
         }
-        else if (_viewModel.HitTest(C(point.Position)) is { } node)
+        else if (props.IsLeftButtonPressed && _viewModel.HitTest(C(point.Position)) is { } node)
         {
             if (CtrlDown())
                 _viewModel.Toggle(node.Id);
@@ -315,7 +334,7 @@ public sealed partial class FlowCanvas : UserControl
         }
         if (_gesture != Gesture.None)
         {
-            Host.CapturePointer(e.Pointer);
+            Root.CapturePointer(e.Pointer);
             e.Handled = true;
         }
     }
@@ -382,7 +401,7 @@ public sealed partial class FlowCanvas : UserControl
                 }
                 break;
         }
-        Host.ReleasePointerCapture(e.Pointer);
+        Root.ReleasePointerCapture(e.Pointer);
         EndGesture();
         e.Handled = true;
     }
@@ -413,6 +432,7 @@ public sealed partial class FlowCanvas : UserControl
         var ctrl = CtrlDown();
         var alt = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down);
         e.Handled = true;
+        _autoFit = false;
         switch (e.Key)
         {
             case VirtualKey.Up or VirtualKey.Down when alt && _viewModel.FocusedId is { } id && _viewModel.CanEdit:
@@ -461,6 +481,15 @@ public sealed partial class FlowCanvas : UserControl
         if (e.Key == VirtualKey.Space)
             _spaceDown = false;
         base.OnKeyUp(e);
+    }
+
+    /// <summary>Focus stays on the canvas (one tab stop), so tell screen readers which step the arrows reached.</summary>
+    private void AnnounceFocus()
+    {
+        if (FocusState == FocusState.Unfocused || _viewModel?.FocusedId is not { } id || _viewModel.Find(id) is not { } node)
+            return;
+        FrameworkElementAutomationPeer.FromElement(this)?.RaiseNotificationEvent(
+            AutomationNotificationKind.ActionCompleted, AutomationNotificationProcessing.MostRecent, node.AutomationName, "canvas-focus");
     }
 
     private void BringIntoView(CanvasNodeViewModel node)
