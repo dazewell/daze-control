@@ -217,6 +217,13 @@ M8, Settings, About), cards in the OSD's settings-card style (App.xaml). All log
   3 s while open) and one on-demand request connection; requests answer null when it isn't running.
 - `ShellViewModel`, `FlowsPageViewModel` (cards synced in place so a toggle keeps focus; last run from
   `history`, refreshed on `runFinished`), `SettingsPageViewModel` (autostart through the engine, pop-up in config).
+- Flow editor (M7): Flows › name opens `Canvas/FlowCanvasViewModel` for one flow. Layout is `Core/Layout/FlowLayout`
+  (D-020): layer = longest path from a start, rows = `nodes` order, cards stack members; edges naming a member
+  are drawn from/to its card; cycles and dangling ids are ignored so half-built flows still draw. `EdgeCurve` is the
+  Bézier + hit-test. The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
+  and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
+  edges batched by style, D-037) and maps pointer/keys to VM calls; zoom/scroll is a `ScrollViewer` (50–200 %).
+- `--config <path>` makes the editor edit another file (tests, screenshots); its backups go next to it.
 
 ## Adding a provider
 

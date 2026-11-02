@@ -66,6 +66,13 @@ it, take the rect again, right-click that. To only *look* at the menu, post `WM_
 `lParam = WM_CONTEXTMENU (0x7B)` and the anchor in `wParam`; keys don't reach that menu (no foreground).
 Screenshots: `System.Drawing.Graphics.CopyFromScreen` from Windows PowerShell, then read the PNG (2026-11-01).
 
+Editor (M7): run it on a throwaway file, never the user's config: `DazeControl.Editor.exe --config <scratch>\config.yaml`.
+Open a flow with UIA (`InvokePattern` on the button named "Edit <flow name>"). Drags need **absolute
+`mouse_event` moves** (`MOUSEEVENTF_MOVE|ABSOLUTE|VIRTUALDESK`, coordinates scaled to 0–65535 over the virtual
+screen): `SetCursorPos` alone reaches WinUI as a single pointer move, so a drag never starts. Light theme: flip
+HKCU…Personalize `AppsUseLightTheme`; high contrast: `SystemParametersInfo(SPI_SETHIGHCONTRAST)` with
+`SPIF_SENDCHANGE` only (not saved), restored in a `finally`. Restore both right after the screenshot.
+
 ## Verifying changes
 
 Builds passing doesn't mean the engine works. After a shell/interop change: publish, run it, press the

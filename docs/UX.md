@@ -130,8 +130,8 @@ how your screens are set up now." · 21 "Shortcuts are paused. Select Pause shor
 on." · 22 "You can edit again when this run finishes."
 
 ## 5.8 Risks → mitigations
-1 XAML element count: pill template ≤ 12 elements, no ThemeShadow per node, all edges in one Composition
-ShapeVisual layer, semantic zoom < 60 % hides summaries/badges. 2 Edge hit-testing: distance to Bézier with a
+1 XAML element count: pill template ≤ 12 elements, no ThemeShadow per node, all edges in one layer of a few batched paths (D-037),
+semantic zoom < 60 % hides summaries/badges. 2 Edge hit-testing: distance to Bézier with a
 12-DIP band (20 touch), hover thickens. 3 Half-built flows from autosave: engine keeps the **last valid version
 per flow** and the editor says so; only a never-valid flow is off. 4 Touch/pen: ports on selection, long-press =
 context menu, one-finger pan, marquee mouse/pen only, targets ≥ 40 DIP. 5 Text scaling: lay out from measured

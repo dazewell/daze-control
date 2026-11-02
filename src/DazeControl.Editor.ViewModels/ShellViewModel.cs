@@ -38,6 +38,28 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
     public SettingsPageViewModel Settings { get; }
 
+    /// <summary>The flow being edited (Flows › name); null on the Flows list.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsEditingFlow))]
+    public partial Canvas.FlowCanvasViewModel? Editor { get; private set; }
+
+    public bool IsEditingFlow => Editor is not null;
+
+    public void OpenFlow(string flowId)
+    {
+        if (Editor?.FlowId == flowId)
+            return;
+        CloseFlow();
+        if (Session.Current.Flows.Any(f => f.Id == flowId))
+            Editor = new Canvas.FlowCanvasViewModel(Session, flowId);
+    }
+
+    public void CloseFlow()
+    {
+        Editor?.Dispose();
+        Editor = null;
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Subtitle))]
     public partial EditorPage Page { get; set; }
@@ -67,6 +89,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _engine.StateChanged -= OnEngineStateChanged;
+        Editor?.Dispose();
         Flows.Dispose();
         Settings.Dispose();
     }

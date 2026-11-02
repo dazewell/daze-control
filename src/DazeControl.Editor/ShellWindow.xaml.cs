@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using DazeControl.Editor.ViewModels;
+using DazeControl.Editor.ViewModels.Canvas;
 using DazeControl.Editor.ViewModels.Config;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
@@ -26,6 +27,7 @@ public sealed partial class ShellWindow : Window
     private readonly DispatcherQueueTimer _watchDelay;
     private bool _closeAnyway;
     private bool _asking;
+    private FlowCanvasViewModel? _editor;
 
     public ShellWindow(ShellViewModel viewModel)
     {
@@ -44,6 +46,7 @@ public sealed partial class ShellWindow : Window
         AppWindow.Resize(new SizeInt32((int)(WidthDip * scale), (int)(HeightDip * scale)));
 
         ViewModel.Session.PropertyChanged += OnSessionChanged;
+        ViewModel.PropertyChanged += OnShellChanged;
         ShowOutsideChange();
 
         // Debounced: one save by another editor raises several events.
@@ -153,6 +156,7 @@ public sealed partial class ShellWindow : Window
         if (args.SelectedItemContainer?.Tag is not string tag || !Enum.TryParse<EditorPage>(tag, out var page))
             return;
         ViewModel.Page = page;
+        ViewModel.CloseFlow(); // Flows in the pane always means the list
         FlowsPage.Visibility = Show(page == EditorPage.Flows);
         LibraryPage.Visibility = Show(page == EditorPage.Library);
         SettingsPage.Visibility = Show(page == EditorPage.Settings);
@@ -160,6 +164,62 @@ public sealed partial class ShellWindow : Window
     }
 
     private static Visibility Show(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
+
+    private void OnEditFlow(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string id })
+            ViewModel.OpenFlow(id);
+    }
+
+    private void OnShellChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ShellViewModel.Editor))
+            return;
+        if (_editor is not null)
+            _editor.PropertyChanged -= OnEditorChanged;
+        _editor = ViewModel.Editor;
+        if (_editor is not null)
+            _editor.PropertyChanged += OnEditorChanged;
+        FlowCanvasControl.ViewModel = _editor;
+        FlowEditorPage.Visibility = Show(_editor is not null);
+        PagesScroller.Visibility = Show(_editor is null);
+        UpdateBreadcrumb();
+        if (_editor is not null)
+            FlowCanvasControl.Focus(FocusState.Programmatic);
+    }
+
+    private void OnEditorChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(FlowCanvasViewModel.FlowName):
+                UpdateBreadcrumb();
+                break;
+            case nameof(FlowCanvasViewModel.IsMissing) when _editor?.IsMissing == true:
+                ViewModel.CloseFlow(); // deleted outside the editor
+                break;
+            case nameof(FlowCanvasViewModel.ZoomText):
+                ZoomButton.Label = _editor!.ZoomText;
+                break;
+        }
+    }
+
+    private void UpdateBreadcrumb() =>
+        FlowBreadcrumb.ItemsSource = _editor is null ? null : new[] { "Flows", _editor.FlowName };
+
+    private void OnBreadcrumbClicked(BreadcrumbBar sender, BreadcrumbBarItemClickedEventArgs args)
+    {
+        if (args.Index == 0)
+            ViewModel.CloseFlow();
+    }
+
+    private void OnFit(object sender, RoutedEventArgs e) => FlowCanvasControl.Fit();
+
+    private void OnActualSize(object sender, RoutedEventArgs e) => FlowCanvasControl.ZoomToActualSize();
+
+    private void OnZoomIn(object sender, RoutedEventArgs e) => FlowCanvasControl.ZoomBy(1.25);
+
+    private void OnZoomOut(object sender, RoutedEventArgs e) => FlowCanvasControl.ZoomBy(0.8);
 
     private void OnSessionChanged(object? sender, PropertyChangedEventArgs e)
     {

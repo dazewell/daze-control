@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 
@@ -12,12 +14,27 @@ public static partial class Program
 {
     private const int AsfwAny = -1;
 
+    /// <summary><c>--config &lt;path&gt;</c>: the file this instance edits (tests, screenshots); null = the user's config.</summary>
+    public static string? ConfigPath { get; private set; }
+
     [STAThread]
-    public static int Main()
+    public static int Main(string[] args)
     {
-        // Session-local names: one editor per signed-in user.
-        using var instance = new Mutex(initiallyOwned: true, @"Local\DazeControl.Editor", out var first);
-        using var show = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\DazeControl.Editor.Show");
+        ArgumentNullException.ThrowIfNull(args);
+        var at = Array.IndexOf(args, "--config");
+        if (at >= 0)
+        {
+            // A broken test command must never fall back to the user's real file.
+            if (at + 1 >= args.Length || args[at + 1].StartsWith("--", StringComparison.Ordinal))
+                return 2;
+            ConfigPath = Path.GetFullPath(args[at + 1]);
+        }
+
+        // Session-local names: one editor per signed-in user and file, so a --config instance never hands its
+        // launch to the editor of the user's config (or the other way round).
+        var scope = ConfigPath is null ? "" : "." + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(ConfigPath.ToUpperInvariant())))[..16];
+        using var instance = new Mutex(initiallyOwned: true, @"Local\DazeControl.Editor" + scope, out var first);
+        using var show = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\DazeControl.Editor.Show" + scope);
         if (!first)
         {
             // Our process may take the foreground (the engine or Explorer started it); pass that on.

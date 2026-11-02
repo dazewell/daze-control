@@ -26,13 +26,18 @@ public partial class App : Application
     /// <summary>A second start of the editor (any thread).</summary>
     public void BringToFront() => _window?.DispatcherQueue.TryEnqueue(() => _window?.BringToFront());
 
+    /// <summary><see cref="Program.ConfigPath"/> edits another file; its backups go next to it, one folder per file.</summary>
+    private static ConfigStore OpenStore() => Program.ConfigPath is { } path
+        ? new ConfigStore(path, Path.Combine(Path.GetDirectoryName(path)!, "backups", Path.GetFileName(path)))
+        : new ConfigStore(ConfigStore.DefaultPath, ConfigStore.DefaultBackupDirectory);
+
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         var ui = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         void Post(Action action) => ui.TryEnqueue(() => action());
 
         _engine = new EngineClient();
-        var session = new ConfigSession(new ConfigStore(ConfigStore.DefaultPath, ConfigStore.DefaultBackupDirectory), TimeProvider.System, Post);
+        var session = new ConfigSession(OpenStore(), TimeProvider.System, Post);
         session.Load();
         var shell = new ShellViewModel(session, _engine, Post, LogsFolder);
         _window = new ShellWindow(shell);

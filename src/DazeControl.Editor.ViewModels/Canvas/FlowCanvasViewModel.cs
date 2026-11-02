@@ -1,0 +1,348 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using DazeControl.Core.Layout;
+using DazeControl.Core.Model;
+using DazeControl.Core.Validation;
+using DazeControl.Editor.ViewModels.Config;
+
+namespace DazeControl.Editor.ViewModels.Canvas;
+
+public enum FocusMove
+{
+    Left,
+    Right,
+    Up,
+    Down,
+}
+
+/// <summary>
+/// One flow on the canvas (UX §5.2): pills, cards and edges laid out by <see cref="FlowLayout"/> (D-020), the
+/// selection and the keyboard focus. The WinUI control only draws this and forwards gestures; every edit goes
+/// through <see cref="Edit"/>.
+/// </summary>
+public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
+{
+    public const double MinZoom = 0.5, MaxZoom = 2.0;
+
+    /// <summary>Below this, pills show only their title (UX §5.8 #1, semantic zoom).</summary>
+    public const double DetailZoom = 0.6;
+
+    public static readonly Size DefaultPillSize = new(232, 56);
+
+    private readonly ConfigSession _session;
+    private readonly Dictionary<string, Size> _measured = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
+    private FlowArrangement _arrangement = new([], [], [], new Size(96, 96));
+
+    public FlowCanvasViewModel(ConfigSession session, string flowId)
+    {
+        _session = session;
+        FlowId = flowId;
+        _session.PropertyChanged += OnSessionChanged;
+        Sync();
+    }
+
+    public string FlowId { get; }
+
+    /// <summary>Top-level pills and cards first, then card members, so members draw above their card.</summary>
+    public ObservableCollection<CanvasNodeViewModel> Nodes { get; } = [];
+
+    public ObservableCollection<CanvasEdgeViewModel> Edges { get; } = [];
+
+    [ObservableProperty]
+    public partial string FlowName { get; private set; } = "";
+
+    /// <summary>The flow was deleted (or renamed away) under the editor.</summary>
+    [ObservableProperty]
+    public partial bool IsMissing { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsEmpty { get; private set; }
+
+    [ObservableProperty]
+    public partial double ExtentWidth { get; private set; }
+
+    [ObservableProperty]
+    public partial double ExtentHeight { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowDetails), nameof(ZoomText))]
+    public partial double Zoom { get; set; } = 1;
+
+    public bool ShowDetails => Zoom >= DetailZoom;
+
+    public string ZoomText => $"{Math.Round(Zoom * 100)} %";
+
+    [ObservableProperty]
+    public partial string? FocusedId { get; private set; }
+
+    public bool CanEdit => _session.CanEdit;
+
+    public IReadOnlyCollection<string> SelectedIds => _selected;
+
+    public FlowArrangement Arrangement => _arrangement;
+
+    public Flow? Flow => _session.Current.Flows.FirstOrDefault(f => f.Id == FlowId);
+
+    public CanvasNodeViewModel? Find(string id) => Nodes.FirstOrDefault(n => n.Id == id);
+
+    /// <summary>The control measured a pill; a changed size re-lays out (text scaling, UX §5.8 #5).</summary>
+    public void ReportSize(string id, double width, double height)
+    {
+        var size = new Size(Math.Max(width, DefaultPillSize.Width), Math.Max(height, DefaultPillSize.Height));
+        if (_measured.TryGetValue(id, out var known) && Math.Abs(known.Width - size.Width) < 0.5 && Math.Abs(known.Height - size.Height) < 0.5)
+            return;
+        _measured[id] = size;
+        Sync();
+    }
+
+    /// <summary>Zoom and scroll offsets (in zoomed pixels) that show the whole flow, never above 100 %.</summary>
+    public (double Zoom, double OffsetX, double OffsetY) FitView(double viewportWidth, double viewportHeight)
+    {
+        if (viewportWidth <= 0 || viewportHeight <= 0)
+            return (1, 0, 0);
+        var zoom = Math.Clamp(Math.Min(viewportWidth / ExtentWidth, viewportHeight / ExtentHeight), MinZoom, 1);
+        return (zoom, Math.Max(0, (ExtentWidth * zoom - viewportWidth) / 2), Math.Max(0, (ExtentHeight * zoom - viewportHeight) / 2));
+    }
+
+    // ---- Selection (UX §5.2) ----
+
+    public void Select(string id)
+    {
+        _selected.Clear();
+        if (Find(id) is not null)
+            _selected.Add(id);
+        FocusedId = Find(id)?.Id ?? FocusedId;
+        ApplySelection();
+    }
+
+    /// <summary>Ctrl+click.</summary>
+    public void Toggle(string id)
+    {
+        if (Find(id) is null)
+            return;
+        if (!_selected.Remove(id))
+            _selected.Add(id);
+        FocusedId = id;
+        ApplySelection();
+    }
+
+    /// <summary>Marquee: every node touching <paramref name="area"/> (content DIP); additive with Ctrl.</summary>
+    public void SelectIn(Rect area, bool additive)
+    {
+        if (!additive)
+            _selected.Clear();
+        foreach (var node in Nodes.Where(n => n.Bounds.Intersects(area)))
+            _selected.Add(node.Id);
+        ApplySelection();
+    }
+
+    public void SelectAll()
+    {
+        foreach (var node in Nodes)
+            _selected.Add(node.Id);
+        ApplySelection();
+    }
+
+    public void ClearSelection()
+    {
+        _selected.Clear();
+        ApplySelection();
+    }
+
+    /// <summary>The topmost node under a content point: a member before its card.</summary>
+    public CanvasNodeViewModel? HitTest(Point p) =>
+        Nodes.Where(n => n.Bounds.Contains(p)).OrderBy(n => n.Kind == CanvasNodeKind.Card ? 1 : 0).FirstOrDefault();
+
+    /// <summary>The nearest edge within <paramref name="band"/> DIP (12 mouse, 20 touch; UX §5.8 #2).</summary>
+    public CanvasEdgeViewModel? HitTestEdge(Point p, double band = 12) =>
+        Edges.Select(e => (Edge: e, Distance: e.Curve.DistanceTo(p))).Where(x => x.Distance <= band)
+            .OrderBy(x => x.Distance).Select(x => x.Edge).FirstOrDefault();
+
+    // ---- Keyboard: one tab stop, roving focus (UX §5.2) ----
+
+    /// <summary>The canvas got focus: keep the last focused node, else the first one in run order.</summary>
+    public void EnsureFocus()
+    {
+        if (FocusedId is null || Find(FocusedId) is null)
+            SetFocus(Nodes.OrderBy(n => n.Column).ThenBy(n => n.Y).FirstOrDefault()?.Id);
+    }
+
+    /// <summary>Right/Left: the nearest node in the next/previous column; Up/Down: the same column.</summary>
+    public void MoveFocus(FocusMove move)
+    {
+        EnsureFocus();
+        if (FocusedId is null || Find(FocusedId) is not { } from)
+            return;
+        CanvasNodeViewModel? to = move switch
+        {
+            FocusMove.Up => Nodes.Where(n => n.Column == from.Column && n.Y < from.Y - 0.5).OrderByDescending(n => n.Y).FirstOrDefault(),
+            FocusMove.Down => Nodes.Where(n => n.Column == from.Column && n.Y > from.Y + 0.5).OrderBy(n => n.Y).FirstOrDefault(),
+            // Across columns land on a step or card, not inside a card; Up/Down then walks its members.
+            _ => Nodes.Where(n => n.Column == from.Column + (move == FocusMove.Right ? 1 : -1) && n.Kind != CanvasNodeKind.Member)
+                .OrderBy(n => Math.Abs(n.Bounds.CenterY - from.Bounds.CenterY)).FirstOrDefault(),
+        };
+        if (to is not null)
+        {
+            SetFocus(to.Id);
+            Select(to.Id);
+        }
+    }
+
+    private void SetFocus(string? id)
+    {
+        FocusedId = id;
+        foreach (var node in Nodes)
+            node.IsFocused = node.Id == id;
+    }
+
+    // ---- Reorder within a column (D-020: order in a column = order in `nodes`) ----
+
+    /// <summary>Alt+Up/Down.</summary>
+    public void MoveInColumn(string id, int delta)
+    {
+        if (Find(id) is { } node)
+            MoveToRow(id, node.Row + delta);
+    }
+
+    /// <summary>The row a dragged node would take if dropped at content y <paramref name="y"/> in its own column.</summary>
+    public int RowAt(string id, double y)
+    {
+        if (Find(id) is not { } node)
+            return 0;
+        return Siblings(node).Count(n => n.Id != id && n.Bounds.CenterY < y);
+    }
+
+    /// <summary>Puts a node at <paramref name="row"/> among its column (or card) siblings.</summary>
+    public void MoveToRow(string id, int row)
+    {
+        if (Find(id) is not { } node)
+            return;
+        var order = Siblings(node).Select(n => n.Id).ToList();
+        row = Math.Clamp(row, 0, order.Count - 1);
+        if (order.IndexOf(id) == row)
+            return;
+        order.Remove(id);
+        order.Insert(row, id);
+        if (node.CardId is { } cardId)
+        {
+            Edit(flow => flow with
+            {
+                Nodes = [.. flow.Nodes.Select(n => n is GroupNode g && g.Id == cardId
+                    ? g with { Members = [.. order, .. g.Members.Where(m => !order.Contains(m))] }
+                    : n)],
+            });
+            return;
+        }
+        // Rewrite `nodes` so this column's ids appear in the new order, each in one of the slots the column used.
+        Edit(flow =>
+        {
+            var inColumn = order.ToHashSet(StringComparer.Ordinal);
+            var queue = new Queue<string>(order);
+            var byId = flow.Nodes.GroupBy(n => n.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            return flow with
+            {
+                Nodes = [.. flow.Nodes.Select(n => inColumn.Contains(n.Id) && seen.Add(n.Id) ? byId[queue.Dequeue()] : n)],
+            };
+        });
+    }
+
+    private IEnumerable<CanvasNodeViewModel> Siblings(CanvasNodeViewModel node) =>
+        Nodes.Where(n => n.Column == node.Column && n.CardId == node.CardId).OrderBy(n => n.Row);
+
+    // ---- Edits ----
+
+    /// <summary>Applies a change to this flow (one undo entry from T7.7).</summary>
+    public void Edit(Func<Flow, Flow> change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        _session.Update(c => c with { Flows = [.. c.Flows.Select(f => f.Id == FlowId ? change(f) : f)] });
+    }
+
+    // ---- Sync ----
+
+    private void Sync()
+    {
+        var flow = Flow;
+        IsMissing = flow is null;
+        flow ??= new Flow(FlowId, "", []);
+        FlowName = flow.Name;
+        _arrangement = FlowLayout.Arrange(flow, id => _measured.GetValueOrDefault(id, DefaultPillSize));
+        ExtentWidth = _arrangement.Extent.Width;
+        ExtentHeight = _arrangement.Extent.Height;
+
+        var prefix = $"flows.{FlowId}.nodes.";
+        // Ids may contain dots ("audio.default"): the longest id the rest of the path starts with is the node.
+        var ids = flow.Nodes.Select(n => n.Id).OrderByDescending(id => id.Length).ToList();
+        var problems = _session.Problems.Where(p => p.FlowId == FlowId && p.Severity == Severity.Error && p.Path.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(p => p.Path[prefix.Length..])
+            .Select(rest => ids.FirstOrDefault(id => rest == id || rest.StartsWith(id + ".", StringComparison.Ordinal)))
+            .OfType<string>().ToHashSet(StringComparer.Ordinal);
+        var nodes = flow.Nodes.GroupBy(n => n.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        var titles = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        var boxes = _arrangement.Boxes.OrderBy(b => b.Card is null ? 0 : 1).ToList();
+        for (var i = Nodes.Count - 1; i >= 0; i--)
+        {
+            if (!boxes.Any(b => b.Id == Nodes[i].Id))
+                Nodes.RemoveAt(i);
+        }
+        for (var i = 0; i < boxes.Count; i++)
+        {
+            var box = boxes[i];
+            var vm = Find(box.Id);
+            if (vm is null)
+            {
+                vm = new CanvasNodeViewModel(box.Id);
+                Nodes.Insert(i, vm);
+            }
+            else if (Nodes.IndexOf(vm) != i)
+            {
+                Nodes.Move(Nodes.IndexOf(vm), i);
+            }
+            vm.Update(nodes[box.Id], _session.Current.Library, problems.Contains(box.Id), "");
+            vm.Place(box);
+            titles[box.Id] = vm.Title;
+        }
+        foreach (var vm in Nodes)
+        {
+            var waits = string.Join(", ", _arrangement.Edges.Where(e => e.To == vm.Id).Select(e => titles.GetValueOrDefault(e.From, e.From)));
+            if (waits.Length > 0)
+                vm.Update(nodes[vm.Id], _session.Current.Library, problems.Contains(vm.Id), waits);
+        }
+
+        var mayFail = flow.Nodes.Where(n => n.OnFailure == FailurePolicy.Ignore).Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
+        Edges.Clear();
+        foreach (var route in _arrangement.Edges)
+            Edges.Add(new CanvasEdgeViewModel(route, mayFail.Contains(route.To)));
+
+        _selected.RemoveWhere(id => Find(id) is null);
+        if (FocusedId is not null && Find(FocusedId) is null)
+            FocusedId = null;
+        SetFocus(FocusedId);
+        ApplySelection();
+        IsEmpty = Nodes.Count == 0;
+        OnPropertyChanged(nameof(Arrangement));
+    }
+
+    private void ApplySelection()
+    {
+        foreach (var node in Nodes)
+            node.IsSelected = _selected.Contains(node.Id);
+        foreach (var edge in Edges)
+            edge.IsSelected = _selected.Contains(edge.From) && _selected.Contains(edge.To);
+        OnPropertyChanged(nameof(SelectedIds));
+    }
+
+    private void OnSessionChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ConfigSession.Current) or nameof(ConfigSession.Problems))
+            Sync();
+        if (e.PropertyName == nameof(ConfigSession.CanEdit))
+            OnPropertyChanged(nameof(CanEdit));
+    }
+
+    public void Dispose() => _session.PropertyChanged -= OnSessionChanged;
+}
