@@ -61,15 +61,21 @@ public sealed class FlowRunner
         using var stepsCancel = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var running = new Dictionary<Task<StepRun>, string>();
         var results = new Dictionary<string, StepRun>();
+        var order = new Dictionary<string, int>();
 
         void Launch(IEnumerable<string> ids)
         {
             foreach (var id in ids)
-                running.Add(RunStepAsync(runId, flow, library, (StepNode)flow.FindNode(id)!, stepsCancel.Token), id);
+            {
+                // Numbered here, on the scheduler's thread, so parallel steps get a stable start order (dry run).
+                order[id] = order.Count + 1;
+                running.Add(RunStepAsync(runId, flow, library, (StepNode)flow.FindNode(id)!, startedTicks, stepsCancel.Token), id);
+            }
         }
 
         NodeResult ResultOf(string id) => results.TryGetValue(id, out var r)
-            ? new NodeResult(id, scheduler.Outcomes[id], r.Attempts, r.Error, r.Duration)
+            ? new NodeResult(id, scheduler.Outcomes[id], r.Attempts, r.Error, r.Duration, r.Start, order[id],
+                r.Retries.Count > 0 ? [.. r.Retries] : null)
             : new NodeResult(id, scheduler.Outcomes[id], Attempts: 0);
 
         void ReportFinished()
@@ -120,16 +126,24 @@ public sealed class FlowRunner
         }
     }
 
-    private readonly record struct StepRun(StepResult Result, int Attempts, string? Error, TimeSpan Duration);
+    /// <param name="Start">From the run's start.</param>
+    /// <param name="Retries">Start of each try after the first, from the run's start.</param>
+    private readonly record struct StepRun(StepResult Result, int Attempts, string? Error, TimeSpan Duration, TimeSpan Start,
+        List<TimeSpan> Retries);
 
     /// <summary>All attempts of one step. Never throws: every failure becomes a <see cref="StepRun"/>.</summary>
-    private async Task<StepRun> RunStepAsync(Guid runId, Flow flow, Library library, StepNode node, CancellationToken flowToken)
+    private async Task<StepRun> RunStepAsync(Guid runId, Flow flow, Library library, StepNode node, long runTicks,
+        CancellationToken flowToken)
     {
         await Task.Yield(); // run on the pool, never inline in the scheduler loop
         var started = _time.GetTimestamp();
+        var offset = _time.GetElapsedTime(runTicks, started);
+        List<TimeSpan> retries = [];
+        StepRun Done(StepResult result, int attempts, string? error) =>
+            new(result, attempts, error, _time.GetElapsedTime(started), offset, retries);
         var descriptor = _catalog.FirstOrDefault(d => d.Id == node.Step);
         if (descriptor is null || !_providers.TryGetValue(node.Step, out var provider))
-            return new(StepResult.Failed, 1, $"This version can't run \"{node.Step}\" steps.", TimeSpan.Zero);
+            return new(StepResult.Failed, 1, $"This version can't run \"{node.Step}\" steps.", TimeSpan.Zero, offset, retries);
 
         var timeout = node.Timeout ?? descriptor.DefaultTimeout;
         var attempts = 1 + Math.Max(0, node.Retry?.Count ?? 0);
@@ -144,21 +158,23 @@ public sealed class FlowRunner
             }
             catch (OperationCanceledException)
             {
-                return new(StepResult.Cancelled, attempt - 1, error, _time.GetElapsedTime(started));
+                return Done(StepResult.Cancelled, attempt - 1, error);
             }
             catch (ArgumentOutOfRangeException e) // a delay the timer can't hold
             {
-                return new(StepResult.Failed, attempt - 1, e.Message, _time.GetElapsedTime(started));
+                return Done(StepResult.Failed, attempt - 1, e.Message);
             }
+            if (attempt > 1)
+                retries.Add(_time.GetElapsedTime(runTicks));
             Raise(new NodeStarted(runId, flow.Id, _time.GetUtcNow(), node.Id, attempt));
             error = await AttemptAsync(provider, new StepContext(flow, node, descriptor, library, attempt), timeout, flowToken)
                 .ConfigureAwait(false);
             if (error is null)
-                return new(StepResult.Succeeded, attempt, null, _time.GetElapsedTime(started));
+                return Done(StepResult.Succeeded, attempt, null);
             if (flowToken.IsCancellationRequested)
-                return new(StepResult.Cancelled, attempt, error, _time.GetElapsedTime(started));
+                return Done(StepResult.Cancelled, attempt, error);
         }
-        return new(StepResult.Failed, attempts, error, _time.GetElapsedTime(started));
+        return Done(StepResult.Failed, attempts, error);
     }
 
     /// <returns>Null on success, else why it failed.</returns>
