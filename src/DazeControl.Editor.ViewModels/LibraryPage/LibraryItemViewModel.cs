@@ -15,6 +15,21 @@ public enum TestOutcome
 /// <summary>A test's sentence and how it went (UX §5.7 #11, #12).</summary>
 public sealed record TestResult(TestOutcome Outcome, string Message);
 
+/// <summary>A flow in a "Used by" list; opening it jumps to the flow editor.</summary>
+public sealed record FlowLink(string Id, string Name)
+{
+    public override string ToString() => Name;
+}
+
+/// <summary>One screen of a saved layout, as the Displays details show it.</summary>
+public sealed record ScreenDetail(string Name, string Port, string Resolution, string Position, string Refresh, bool Primary)
+{
+    public string PrimaryText => Primary ? "Primary" : "";
+
+    public override string ToString() =>
+        string.Join(", ", new[] { Name, Port, Resolution, Refresh, $"at {Position}", PrimaryText }.Where(t => t.Length > 0));
+}
+
 /// <summary>One settings card on the Library page: what it is, its live state, "Used by 2 flows", Test.</summary>
 public sealed partial class LibraryItemViewModel : ObservableObject
 {
@@ -33,12 +48,18 @@ public sealed partial class LibraryItemViewModel : ObservableObject
     public string Glyph { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AutomationName), nameof(TestName), nameof(RemoveName))]
+    [NotifyPropertyChangedFor(nameof(AutomationName), nameof(TestName), nameof(RemoveName), nameof(RenameName), nameof(DetailsName))]
     public partial string Title { get; internal set; } = "";
 
     public string TestName => $"Test {Title}";
 
     public string RemoveName => $"Remove {Title} from Library";
+
+    public string RenameName => $"Rename {Title}";
+
+    public string DetailsName => $"Details of {Title}";
+
+    public string UsedByName => $"{UsedByText}: show them";
 
     /// <summary>"Output", the Bluetooth address, the program's folder.</summary>
     [ObservableProperty]
@@ -53,8 +74,14 @@ public sealed partial class LibraryItemViewModel : ObservableObject
     public string Description => State.Length == 0 ? Detail : Detail.Length == 0 ? State : $"{Detail} · {State}";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(UsedByText), nameof(CanRemove), nameof(AutomationName))]
+    [NotifyPropertyChangedFor(nameof(UsedByText), nameof(CanRemove), nameof(AutomationName), nameof(IsUsed), nameof(UsedByName))]
     public partial int UsedBy { get; internal set; }
+
+    public bool IsUsed => UsedBy > 0;
+
+    /// <summary>The flows behind <see cref="UsedBy"/>, by name, for the "Used by" flyout.</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<FlowLink> UsedByFlows { get; internal set; } = [];
 
     public string UsedByText => UsedBy switch
     {
@@ -76,6 +103,30 @@ public sealed partial class LibraryItemViewModel : ObservableObject
     public partial bool Removable { get; internal set; }
 
     public bool CanRemove => Removable && UsedBy == 0;
+
+    /// <summary>Displays and Android devices, whose key is their name; flows that use it follow the new key.</summary>
+    [ObservableProperty]
+    public partial bool CanRename { get; internal set; }
+
+    /// <summary>Why the last rename didn't happen, or null.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRenameError))]
+    public partial string? RenameError { get; internal set; }
+
+    public bool HasRenameError => RenameError is not null;
+
+    /// <summary>Programs: the file can be shown in File Explorer.</summary>
+    public bool CanOpenLocation { get; internal init; }
+
+    /// <summary>A saved layout's screens, read from the capture (names and ports from the live list when plugged in).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDetails))]
+    public partial IReadOnlyList<ScreenDetail> Screens { get; internal set; } = [];
+
+    public bool HasDetails => Screens.Count > 0;
+
+    [ObservableProperty]
+    public partial bool ShowDetails { get; set; }
 
     public string AutomationName => $"{Title}, {Description}, {UsedByText}".Replace(", , ", ", ", StringComparison.Ordinal);
 
@@ -123,4 +174,6 @@ public sealed partial class LibraryItemViewModel : ObservableObject
 
     [RelayCommand]
     private void DismissResult() => Result = null;
+
+    internal void ShowResult(TestResult result) => Result = result;
 }

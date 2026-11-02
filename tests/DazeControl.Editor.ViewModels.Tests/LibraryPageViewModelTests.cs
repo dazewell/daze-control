@@ -45,6 +45,7 @@ public sealed class LibraryPageViewModelTests : IDisposable
     private readonly ManualTime _time = new();
     private readonly FakeEngine _engine = new() { IsRunning = true };
     private readonly HashSet<string> _files = new(StringComparer.OrdinalIgnoreCase) { @"C:\Tools\tv.exe", @"C:\Windows\notepad.exe" };
+    private readonly List<string> _revealed = [];
     private readonly ConfigSession _session;
     private readonly LibraryPageViewModel _page;
 
@@ -81,7 +82,7 @@ public sealed class LibraryPageViewModelTests : IDisposable
             Ops.Devices when request.Kind == "adb" => new PipeMessage { Ok = true, Devices = [] },
             _ => new PipeMessage { Ok = true },
         };
-        _page = new LibraryPageViewModel(_session, _engine, action => action(), _files.Contains, () => @"C:\Windows;C:\Other");
+        _page = new LibraryPageViewModel(_session, _engine, action => action(), _files.Contains, () => @"C:\Windows;C:\Other", _revealed.Add);
     }
 
     public void Dispose()
@@ -319,6 +320,138 @@ public sealed class LibraryPageViewModelTests : IDisposable
 
         Assert.Contains("isn't a Bluetooth address", Item(LibraryKind.Bluetooth, "technics").Problem, StringComparison.Ordinal);
         Assert.False(Item(LibraryKind.Bluetooth, "sony").HasProblem);
+    }
+
+    [Fact]
+    public void RenamingALayoutKeepsTheFlowsThatRestoreIt()
+    {
+        _session.Update(c => c with { Flows = [.. c.Flows, new Flow("desk", "Desk", [new StepNode("l", "display.layout") { With = new([KeyValuePair.Create("layout", (ParamValue)"desk")]) }])] });
+
+        Assert.True(_page.Rename(Item(LibraryKind.Display, "desk"), "  Work desk "));
+
+        Assert.Equal("Work desk", Assert.Single(_session.Current.Library.Displays).Key);
+        var step = (StepNode)_session.Current.Flows.Single(f => f.Id == "desk").Nodes[0];
+        Assert.Equal(new ScalarParam("Work desk"), step.With["layout"]);
+        Assert.Equal("Used by 1 flow", Item(LibraryKind.Display, "Work desk").UsedByText);
+        Assert.DoesNotContain(_session.Problems, p => p.FlowId == "desk");
+    }
+
+    [Theory]
+    [InlineData("", "Give it a name.")]
+    [InlineData("living-room", null)]
+    public void RenameSaysWhyItDidntHappen(string name, string? error)
+    {
+        _session.Update(c => c with { Library = c.Library with { Android = [.. c.Library.Android, new AndroidDevice("den", "10.0.0.9", new([]))] } });
+        var den = Item(LibraryKind.Android, "den");
+
+        Assert.False(_page.Rename(den, name));
+        Assert.Equal(error ?? "\"living-room\" is already in your Library.", den.RenameError);
+        Assert.Equal(["living-room", "den"], _session.Current.Library.Android.Select(d => d.Key));
+    }
+
+    [Fact]
+    public void OnlyLayoutsAndAndroidDevicesCanBeRenamed()
+    {
+        Assert.True(Item(LibraryKind.Display, "desk").CanRename);
+        Assert.True(Item(LibraryKind.Android, "living-room").CanRename);
+        Assert.False(Item(LibraryKind.Bluetooth, "technics").CanRename); // its key isn't what the card shows
+        Assert.False(_page.Rename(Item(LibraryKind.Bluetooth, "technics"), "buds"));
+        Assert.False(_page.Section(null).Items[0].CanRename);
+    }
+
+    [Fact]
+    public async Task LayoutDetailsNameAPluggedInScreenByWhatWindowsCallsItNow()
+    {
+        var desk = Item(LibraryKind.Display, "desk");
+        Assert.Equal("DELA1F2 (not connected)", Assert.Single(desk.Screens).Name); // no live list yet
+
+        await _page.RefreshAsync();
+
+        var screen = Assert.Single(Item(LibraryKind.Display, "desk").Screens);
+        Assert.Equal(("DELL", "DP-1"), (screen.Name, screen.Port));
+    }
+
+    [Fact]
+    public void LayoutDetailsShowTheCapturedModes()
+    {
+        var layout = new DisplayLayout("d", [Monitor, @"\\?\DISPLAY#GSM5B7F#x"], TwoScreens);
+
+        var screens = LibraryPageViewModel.ScreenDetails(layout, [new DeviceInfo { Name = "HDMI-2", Id = Monitor, Detail = "on" }]);
+
+        Assert.Equal(new ScreenDetail("DELA1F2", "HDMI-2", "2560 × 1440", "0, 0", "60 Hz", true), screens[0]);
+        Assert.Equal(new ScreenDetail("GSM5B7F (not connected)", "DP", "1920 × 1080", "2560, 0", "144 Hz", false), screens[1]);
+        Assert.Equal("GSM5B7F (not connected), DP, 1920 × 1080, 144 Hz, at 2560, 0", screens[1].ToString());
+    }
+
+    /// <summary>Two paths (HDMI at 60 Hz, DP at 144 Hz) and their two source modes, as CcdLayout saves them.</summary>
+    private static string TwoScreens
+    {
+        get
+        {
+            var bytes = new byte[8 + 2 * DisplayLayout.PathSize + 2 * DisplayLayout.ModeSize];
+            void Put(int offset, int value) => BitConverter.TryWriteBytes(bytes.AsSpan(offset), value);
+            Put(0, 2);
+            Put(4, 2);
+            for (var i = 0; i < 2; i++)
+            {
+                var path = 8 + i * DisplayLayout.PathSize;
+                Put(path + 12, i); // source mode index
+                Put(path + 32, -1); // no target mode
+                Put(path + 36, i == 0 ? 5 : 10); // HDMI, DP
+                Put(path + 48, i == 0 ? 60 : 144);
+                Put(path + 52, 1);
+                var mode = 8 + 2 * DisplayLayout.PathSize + i * DisplayLayout.ModeSize;
+                Put(mode, 1); // source
+                Put(mode + 16, i == 0 ? 2560 : 1920);
+                Put(mode + 20, i == 0 ? 1440 : 1080);
+                Put(mode + 28, i == 0 ? 0 : 2560);
+            }
+            return Convert.ToBase64String(bytes);
+        }
+    }
+
+    [Fact]
+    public void UsedByListsTheFlowsByName()
+    {
+        Assert.Equal([new FlowLink("a", "Connect Technics"), new FlowLink("b", "TV")], Item(LibraryKind.Bluetooth, "technics").UsedByFlows);
+        Assert.Equal([new FlowLink("a", "Connect Technics"), new FlowLink("b", "TV")], Item(null, @"C:\Tools\tv.exe").UsedByFlows);
+        Assert.Equal([new FlowLink("b", "TV")], Item(null, "notepad.exe").UsedByFlows);
+    }
+
+    [Fact]
+    public void PickingAUsedByFlowAsksTheShellToOpenIt()
+    {
+        string? opened = null;
+        _page.FlowRequested += id => opened = id;
+
+        _page.OpenFlowCommand.Execute(new FlowLink("b", "TV"));
+
+        Assert.Equal("b", opened);
+    }
+
+    [Fact]
+    public async Task OpenFileLocationShowsTheResolvedFile()
+    {
+        var notepad = Item(null, "notepad.exe");
+        Assert.True(notepad.CanOpenLocation);
+        Assert.False(Item(LibraryKind.Display, "desk").CanOpenLocation);
+
+        await _page.OpenLocationCommand.ExecuteAsync(notepad);
+
+        Assert.Equal([@"C:\Windows\notepad.exe"], _revealed);
+    }
+
+    [Fact]
+    public async Task OpenFileLocationOfAMissingFileSaysSoInstead()
+    {
+        _files.Clear();
+        var tv = Item(null, @"C:\Tools\tv.exe");
+
+        await _page.OpenLocationCommand.ExecuteAsync(tv);
+
+        Assert.Empty(_revealed);
+        Assert.True(tv.Failed);
+        Assert.Contains("Can't find this file", tv.ResultMessage, StringComparison.Ordinal);
     }
 
     [Fact]
