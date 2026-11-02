@@ -2,9 +2,9 @@
 
 ## Resume
 Current task: M9 — T9.1 live run overlay on the canvas (M8 done: T8.2/T8.3 on feat/m8-library, see `gh pr list`)
-Last green checkpoint: "wip(editor): Library page and Problems view models with tests (T8.2, T8.3)"
+Last green checkpoint: "feat(editor): Library pages with Test and the Problems list (T8.2, T8.3)"
 Next action: if the feat/m8-library PR is still open, finish its merge policy (§6). Then branch feat/m9-runs from main: T9.1 = run states on the canvas from `IEngineClient.EventReceived` (nodeStarted/nodeFinished/runFinished for this flow) in `FlowCanvasViewModel` (a per-node state the pill ring draws, UX §5.3 run states), CommandBar Run / Dry run / Stop + "Running · 2 of 4", editing locked with an InfoBar (§5.7 #22).
-Tree state: builds, 704/704 tests green · Uncommitted: none
+Tree state: builds, 706/706 tests green · Uncommitted: none
 Notes for next agent: version is 0.14.0 (the M9 PR bumps to 0.15.0). Test the editor only with `--config <scratch>/config.yaml`; a dev engine started with that config (bin/Debug engine exe, `--config`) locks the engine's bin/Debug DLLs: stop it before building. Screenshots: UIA by element name (Pivot headers, "Test <item>", "Problems (n)"), see the build skill.
 
 ---

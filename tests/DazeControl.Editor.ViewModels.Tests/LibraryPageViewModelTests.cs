@@ -241,6 +241,33 @@ public sealed class LibraryPageViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task FireTvThatAdbListsButCantUseIsACaution()
+    {
+        var answer = _engine.Answer!;
+        _engine.Answer = r => r.Kind == "adb"
+            ? new PipeMessage { Ok = true, Devices = [new DeviceInfo { Name = "192.168.1.50:5555", Detail = "unauthorized" }] }
+            : answer(r);
+        var tv = Item(LibraryKind.FireTv, "living-room");
+
+        await tv.TestCommand.ExecuteAsync(null);
+
+        Assert.True(tv.Cautioned);
+        Assert.Contains("unauthorized", tv.ResultMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AProblemOfADottedKeyStaysOnItsOwnCard()
+    {
+        _session.Update(c => c with
+        {
+            Library = c.Library with { Bluetooth = [.. c.Library.Bluetooth, new BluetoothDevice("sony.spare", "nope")] },
+        });
+
+        Assert.True(Item(LibraryKind.Bluetooth, "sony.spare").HasProblem);
+        Assert.False(Item(LibraryKind.Bluetooth, "sony").HasProblem);
+    }
+
+    [Fact]
     public async Task DisplayTestChecksEveryScreenOfTheLayoutIsConnected()
     {
         var desk = Item(LibraryKind.Display, "desk");

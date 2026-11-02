@@ -218,8 +218,11 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
 
     private string? ProblemOf(LibraryKind kind, string key)
     {
-        var prefix = $"library.{YamlSection(kind)}.{key}";
-        return _session.Problems.FirstOrDefault(p => p.Path == prefix || p.Path.StartsWith(prefix + ".", StringComparison.Ordinal))?.Message;
+        var section = $"library.{YamlSection(kind)}.";
+        // Keys may contain dots ("sony.spare"): a path belongs to the longest key it starts with.
+        var keys = LibraryDevices.Items(_session.Current.Library, kind).Select(i => i.Key).OrderByDescending(k => k.Length).ToList();
+        return _session.Problems.FirstOrDefault(p => p.Path.StartsWith(section, StringComparison.Ordinal)
+            && keys.FirstOrDefault(k => p.Path[section.Length..] == k || p.Path[section.Length..].StartsWith(k + ".", StringComparison.Ordinal)) == key)?.Message;
     }
 
     private static string YamlSection(LibraryKind kind) => kind switch
@@ -238,7 +241,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     private async Task<TestResult> TestAsync(LibraryKind? kind, string key, CancellationToken cancellationToken)
     {
         if (kind is not { } k)
-            return TestProgram(key);
+            return await Task.Run(() => TestProgram(key), cancellationToken).ConfigureAwait(false); // a network path can stall for seconds
         var library = _session.Current.Library;
         if (k == LibraryKind.Display && library.Displays.FirstOrDefault(d => d.Key == key) is { } bad && !bad.IsWellFormed())
             return new(TestOutcome.Failed, "This layout is damaged. Capture it again.");
@@ -284,6 +287,9 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
             (_, null) => new(TestOutcome.Failed, kind == LibraryKind.Bluetooth
                 ? $"Windows couldn't find {title}. Make sure it's paired, then try again."
                 : $"Windows couldn't find {title}. Make sure it's plugged in or turned on, then try again."),
+            (LibraryKind.FireTv, _) when !string.Equals(LibraryDevices.Describe(kind, device), "Connected", StringComparison.Ordinal) =>
+                new(TestOutcome.Caution, $"adb sees {title}, but it's {LibraryDevices.Describe(kind, device).ToLowerInvariant()}. "
+                    + "Allow debugging on the TV if it asks, then try again."),
             (LibraryKind.Bluetooth, _) when !string.Equals(LibraryDevices.Describe(kind, device), "Connected", StringComparison.Ordinal) =>
                 new(TestOutcome.Caution, $"Found {title}. Not connected right now. The flow will still try."),
             _ => new(TestOutcome.Worked, LibraryDevices.Describe(kind, device) is { Length: > 0 } state

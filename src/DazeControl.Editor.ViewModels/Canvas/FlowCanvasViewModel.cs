@@ -657,7 +657,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             .Select(p => (Problem: p, Node: NodeOf(flow, p.Path)))
             .Select(p => new ProblemItem(p.Problem.Severity, p.Problem.Message,
                 p.Node is null ? "Flow settings" : titles.GetValueOrDefault(p.Node, p.Node), p.Node))
-            .OrderBy(p => p.Severity).ThenBy(p => p.NodeId is null ? -1 : Find(p.NodeId) is { } n ? n.Column * 10_000 + n.Row : int.MaxValue)];
+            .OrderBy(p => p.Severity)// Column, then top edge: a card member's Row counts within its card, not the column.
+            .ThenBy(p => p.NodeId is null ? -1 : Find(p.NodeId)?.Column ?? int.MaxValue)
+            .ThenBy(p => p.NodeId is null ? 0 : Find(p.NodeId)?.Y ?? 0)];
         OnPropertyChanged(nameof(Arrangement));
     }
 

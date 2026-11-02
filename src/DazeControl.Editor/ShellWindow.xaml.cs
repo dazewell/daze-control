@@ -275,10 +275,11 @@ public sealed partial class ShellWindow : Window
         if (e.ClickedItem is not ProblemItem problem || _editor is null)
             return;
         ProblemsFlyout.Hide();
+        _editor.Show(problem); // the outline follows the selection too (OnEditorChanged)
         if (OutlineTree.Visibility == Visibility.Visible)
-            ShowOutline(false); // the canvas shows the selection best
-        _editor.Show(problem);
-        FlowCanvasControl.Focus(FocusState.Programmatic);
+            OutlineTree.Focus(FocusState.Programmatic);
+        else
+            FlowCanvasControl.Focus(FocusState.Programmatic);
     }
 
     // ---- Palette (UX §5.1, §5.2) ----
