@@ -382,8 +382,12 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         ExtentHeight = _arrangement.Extent.Height;
 
         var prefix = $"flows.{FlowId}.nodes.";
+        // Ids may contain dots ("audio.default"): the longest id the rest of the path starts with is the node.
+        var ids = flow.Nodes.Select(n => n.Id).OrderByDescending(id => id.Length).ToList();
         var problems = _session.Problems.Where(p => p.FlowId == FlowId && p.Severity == Severity.Error && p.Path.StartsWith(prefix, StringComparison.Ordinal))
-            .Select(p => p.Path[prefix.Length..].Split('.')[0]).ToHashSet(StringComparer.Ordinal);
+            .Select(p => p.Path[prefix.Length..])
+            .Select(rest => ids.FirstOrDefault(id => rest == id || rest.StartsWith(id + ".", StringComparison.Ordinal)))
+            .OfType<string>().ToHashSet(StringComparer.Ordinal);
         var nodes = flow.Nodes.GroupBy(n => n.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         var titles = new Dictionary<string, string>(StringComparer.Ordinal);
 
