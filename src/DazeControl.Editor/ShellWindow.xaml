@@ -91,219 +91,223 @@
                     </InfoBar>
                 </StackPanel>
 
-                <ScrollViewer x:Name="PagesScroller" Grid.Row="1">
-                    <Grid Padding="36,0,36,36" MaxWidth="1000" HorizontalAlignment="Stretch">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
+                <!-- Pages fill the width up to 1000 and center beyond it, like the bars above. The capped grid needs a plain
+                     stretching parent: as the scroller's direct content it was arranged past the right edge when maximized (X-003). -->
+                <ScrollViewer x:Name="PagesScroller" Grid.Row="1" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+                    <Grid>
+                        <Grid Padding="36,0,36,36" MaxWidth="1072">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
 
-                        <!-- Flows -->
-                        <StackPanel x:Name="FlowsPage" Grid.Row="1" Spacing="4">
-                            <Grid Margin="0,0,0,12">
-                                <TextBlock Text="Flows" Style="{StaticResource TitleTextBlockStyle}" />
-                                <Button HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}"
-                                        IsEnabled="{x:Bind ViewModel.Flows.CanEdit, Mode=OneWay}"
-                                        Command="{x:Bind ViewModel.Flows.NewFlowCommand}">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <FontIcon Glyph="&#xE710;" FontSize="14" />
-                                        <TextBlock Text="New flow" />
-                                    </StackPanel>
-                                </Button>
-                            </Grid>
-                            <StackPanel Visibility="{x:Bind ViewModel.Flows.IsEmpty, Mode=OneWay}" Spacing="8" Margin="0,48,0,0"
-                                        HorizontalAlignment="Center">
-                                <FontIcon Glyph="&#xE945;" FontSize="40" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <TextBlock Text="No flows yet" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
-                                <TextBlock Text="A flow is a set of steps you start with a shortcut or from the tray."
-                                           HorizontalAlignment="Center" Style="{StaticResource SettingsCardDescription}" />
+                            <!-- Flows -->
+                            <StackPanel x:Name="FlowsPage" Grid.Row="1" Spacing="4">
+                                <Grid Margin="0,0,0,12">
+                                    <TextBlock Text="Flows" Style="{StaticResource TitleTextBlockStyle}" />
+                                    <Button HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}"
+                                            IsEnabled="{x:Bind ViewModel.Flows.CanEdit, Mode=OneWay}"
+                                            Command="{x:Bind ViewModel.Flows.NewFlowCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE710;" FontSize="14" />
+                                            <TextBlock Text="New flow" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                                <StackPanel Visibility="{x:Bind ViewModel.Flows.IsEmpty, Mode=OneWay}" Spacing="8" Margin="0,48,0,0"
+                                            HorizontalAlignment="Center">
+                                    <FontIcon Glyph="&#xE945;" FontSize="40" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Text="No flows yet" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
+                                    <TextBlock Text="A flow is a set of steps you start with a shortcut or from the tray."
+                                               HorizontalAlignment="Center" Style="{StaticResource SettingsCardDescription}" />
+                                </StackPanel>
+                                <ItemsRepeater ItemsSource="{x:Bind ViewModel.Flows.Items}">
+                                    <ItemsRepeater.Layout>
+                                        <StackLayout Spacing="4" />
+                                    </ItemsRepeater.Layout>
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:FlowItemViewModel">
+                                            <Grid Style="{StaticResource SettingsCard}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}" Style="{StaticResource SettingsCardIcon}" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind Name, Mode=OneWay}" />
+                                                    <TextBlock Style="{StaticResource SettingsCardDescription}">
+                                                        <Run Text="{x:Bind Shortcut, Mode=OneWay}" /><Run Text=" · " /><Run Text="{x:Bind LastRun, Mode=OneWay}" />
+                                                    </TextBlock>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                                            Visibility="{x:Bind HasProblems, Mode=OneWay}">
+                                                    <FontIcon Glyph="&#xEA39;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                                    <TextBlock Text="{x:Bind Problems, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" />
+                                                </StackPanel>
+                                                <ToggleSwitch Grid.Column="3" IsOn="{x:Bind IsEnabled, Mode=TwoWay}" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" MinWidth="0"
+                                                              OnContent="On" OffContent="Off" AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" />
+                                                <Button Grid.Column="4" Tag="{x:Bind Id}" Click="OnEditFlow"
+                                                        AutomationProperties.Name="{x:Bind EditName, Mode=OneWay}" ToolTipService.ToolTip="Edit">
+                                                    <FontIcon Glyph="&#xE76C;" FontSize="14" />
+                                                </Button>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
                             </StackPanel>
-                            <ItemsRepeater ItemsSource="{x:Bind ViewModel.Flows.Items}">
-                                <ItemsRepeater.Layout>
-                                    <StackLayout Spacing="4" />
-                                </ItemsRepeater.Layout>
-                                <ItemsRepeater.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:FlowItemViewModel">
-                                        <Grid Style="{StaticResource SettingsCard}">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}" Style="{StaticResource SettingsCardIcon}" />
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Text="{x:Bind Name, Mode=OneWay}" />
-                                                <TextBlock Style="{StaticResource SettingsCardDescription}">
-                                                    <Run Text="{x:Bind Shortcut, Mode=OneWay}" /><Run Text=" · " /><Run Text="{x:Bind LastRun, Mode=OneWay}" />
-                                                </TextBlock>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                                                        Visibility="{x:Bind HasProblems, Mode=OneWay}">
-                                                <FontIcon Glyph="&#xEA39;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
-                                                <TextBlock Text="{x:Bind Problems, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" />
-                                            </StackPanel>
-                                            <ToggleSwitch Grid.Column="3" IsOn="{x:Bind IsEnabled, Mode=TwoWay}" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" MinWidth="0"
-                                                          OnContent="On" OffContent="Off" AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" />
-                                            <Button Grid.Column="4" Tag="{x:Bind Id}" Click="OnEditFlow"
-                                                    AutomationProperties.Name="{x:Bind EditName, Mode=OneWay}" ToolTipService.ToolTip="Edit">
-                                                <FontIcon Glyph="&#xE76C;" FontSize="14" />
-                                            </Button>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsRepeater.ItemTemplate>
-                            </ItemsRepeater>
-                        </StackPanel>
 
-                        <!-- Library (UX §5.1) -->
-                        <StackPanel x:Name="LibraryPage" Grid.Row="1" Spacing="4" Visibility="Collapsed">
-                            <TextBlock Text="Library" Style="{StaticResource PageTitle}" />
-                            <TextBlock Text="Your devices, screen layouts and programs, named once and used by any flow."
-                                       Style="{StaticResource SettingsCardDescription}" />
-                            <library:LibraryView x:Name="LibraryViewControl" />
-                        </StackPanel>
+                            <!-- Library (UX §5.1) -->
+                            <StackPanel x:Name="LibraryPage" Grid.Row="1" Spacing="4" Visibility="Collapsed">
+                                <TextBlock Text="Library" Style="{StaticResource PageTitle}" />
+                                <TextBlock Text="Your devices, screen layouts and programs, named once and used by any flow."
+                                           Style="{StaticResource SettingsCardDescription}" />
+                                <library:LibraryView x:Name="LibraryViewControl" />
+                            </StackPanel>
 
-                        <!-- Settings -->
-                        <StackPanel x:Name="SettingsPage" Grid.Row="1" Spacing="4" Visibility="Collapsed">
-                            <TextBlock Text="Settings" Style="{StaticResource PageTitle}" />
+                            <!-- Settings -->
+                            <StackPanel x:Name="SettingsPage" Grid.Row="1" Spacing="4" Visibility="Collapsed">
+                                <TextBlock Text="Settings" Style="{StaticResource PageTitle}" />
 
-                            <Grid Style="{StaticResource SettingsCard}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE7E8;" Style="{StaticResource SettingsCardIcon}" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Start with Windows" />
-                                    <TextBlock Text="{x:Bind ViewModel.Settings.StartWithWindowsNote, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
-                                </StackPanel>
-                                <ToggleSwitch Grid.Column="2" MinWidth="0" AutomationProperties.Name="Start with Windows"
-                                              IsEnabled="{x:Bind ViewModel.Settings.CanChangeStartWithWindows, Mode=OneWay}"
-                                              IsOn="{x:Bind ViewModel.Settings.StartWithWindows, Mode=TwoWay}" />
-                            </Grid>
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE7E8;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Start with Windows" />
+                                        <TextBlock Text="{x:Bind ViewModel.Settings.StartWithWindowsNote, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="2" MinWidth="0" AutomationProperties.Name="Start with Windows"
+                                                  IsEnabled="{x:Bind ViewModel.Settings.CanChangeStartWithWindows, Mode=OneWay}"
+                                                  IsOn="{x:Bind ViewModel.Settings.StartWithWindows, Mode=TwoWay}" />
+                                </Grid>
 
-                            <TextBlock Text="Pop-up" Style="{StaticResource SettingsSection}" />
-                            <Grid Style="{StaticResource SettingsCard}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE7F4;" Style="{StaticResource SettingsCardIcon}" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Position" />
-                                    <TextBlock Text="Where a run's pop-up shows on your main display" Style="{StaticResource SettingsCardDescription}" />
-                                </StackPanel>
-                                <ComboBox Grid.Column="2" MinWidth="160" AutomationProperties.Name="Pop-up position"
-                                          IsEnabled="{x:Bind ViewModel.Settings.CanEdit, Mode=OneWay}"
-                                          SelectedIndex="{x:Bind ViewModel.Settings.PopupPositionIndex, Mode=TwoWay}">
-                                    <!-- PopupPosition's order -->
-                                    <x:String>Bottom centre</x:String>
-                                    <x:String>Top centre</x:String>
-                                    <x:String>Top left</x:String>
-                                    <x:String>Top right</x:String>
-                                    <x:String>Bottom left</x:String>
-                                    <x:String>Bottom right</x:String>
-                                </ComboBox>
-                            </Grid>
-                            <Grid Style="{StaticResource SettingsCard}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE916;" Style="{StaticResource SettingsCardIcon}" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Hide after" />
-                                    <TextBlock Text="Seconds it stays after a run ends. Failures stay until you close them." Style="{StaticResource SettingsCardDescription}" />
-                                </StackPanel>
-                                <NumberBox x:Name="SecondsBox" Grid.Column="2" MinWidth="120" SpinButtonPlacementMode="Inline"
-                                           AutomationProperties.Name="Hide the pop-up after, seconds"
-                                           IsEnabled="{x:Bind ViewModel.Settings.CanEdit, Mode=OneWay}"
-                                           Value="{x:Bind ViewModel.Settings.PopupSeconds, Mode=TwoWay}" />
-                            </Grid>
+                                <TextBlock Text="Pop-up" Style="{StaticResource SettingsSection}" />
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE7F4;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Position" />
+                                        <TextBlock Text="Where a run's pop-up shows on your main display" Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <ComboBox Grid.Column="2" MinWidth="160" AutomationProperties.Name="Pop-up position"
+                                              IsEnabled="{x:Bind ViewModel.Settings.CanEdit, Mode=OneWay}"
+                                              SelectedIndex="{x:Bind ViewModel.Settings.PopupPositionIndex, Mode=TwoWay}">
+                                        <!-- PopupPosition's order -->
+                                        <x:String>Bottom centre</x:String>
+                                        <x:String>Top centre</x:String>
+                                        <x:String>Top left</x:String>
+                                        <x:String>Top right</x:String>
+                                        <x:String>Bottom left</x:String>
+                                        <x:String>Bottom right</x:String>
+                                    </ComboBox>
+                                </Grid>
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE916;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Hide after" />
+                                        <TextBlock Text="Seconds it stays after a run ends. Failures stay until you close them." Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <NumberBox x:Name="SecondsBox" Grid.Column="2" MinWidth="120" SpinButtonPlacementMode="Inline"
+                                               AutomationProperties.Name="Hide the pop-up after, seconds"
+                                               IsEnabled="{x:Bind ViewModel.Settings.CanEdit, Mode=OneWay}"
+                                               Value="{x:Bind ViewModel.Settings.PopupSeconds, Mode=TwoWay}" />
+                                </Grid>
 
-                            <TextBlock Text="Updates" Style="{StaticResource SettingsSection}" />
-                            <Grid Style="{StaticResource SettingsCard}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE895;" Style="{StaticResource SettingsCardIcon}" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Automatic updates" />
-                                    <TextBlock Text="{x:Bind ViewModel.Updates.Status, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
-                                               AutomationProperties.LiveSetting="Polite" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <Button Content="Check for updates" Click="OnCheckForUpdates"
-                                            IsEnabled="{x:Bind ViewModel.Updates.CanCheck, Mode=OneWay}" />
-                                    <Button Content="Restart now" Click="OnRestartForUpdate" Style="{StaticResource AccentButtonStyle}"
-                                            Visibility="{x:Bind ViewModel.Updates.CanRestart, Mode=OneWay}" />
-                                </StackPanel>
-                            </Grid>
+                                <TextBlock Text="Updates" Style="{StaticResource SettingsSection}" />
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE895;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Automatic updates" />
+                                        <TextBlock Text="{x:Bind ViewModel.Updates.Status, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <Button Content="Check for updates" Click="OnCheckForUpdates"
+                                                IsEnabled="{x:Bind ViewModel.Updates.CanCheck, Mode=OneWay}" />
+                                        <Button Content="Restart now" Click="OnRestartForUpdate" Style="{StaticResource AccentButtonStyle}"
+                                                Visibility="{x:Bind ViewModel.Updates.CanRestart, Mode=OneWay}" />
+                                    </StackPanel>
+                                </Grid>
 
-                            <TextBlock Text="Files" Style="{StaticResource SettingsSection}" />
-                            <Grid Style="{StaticResource SettingsCard}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE8A5;" Style="{StaticResource SettingsCardIcon}" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Configuration" />
-                                    <TextBlock Text="{x:Bind ViewModel.Settings.ConfigPath}" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
-                                </StackPanel>
-                                <Button Grid.Column="2" Content="Open folder" Click="OnOpenConfigFolder" />
-                            </Grid>
-                            <Grid Style="{StaticResource SettingsCard}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE9D9;" Style="{StaticResource SettingsCardIcon}" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Logs" />
-                                    <TextBlock Text="{x:Bind ViewModel.Settings.LogsFolder}" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
-                                </StackPanel>
-                                <Button Grid.Column="2" Content="Open folder" Click="OnOpenLogsFolder" />
-                            </Grid>
-                        </StackPanel>
+                                <TextBlock Text="Files" Style="{StaticResource SettingsSection}" />
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE8A5;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Configuration" />
+                                        <TextBlock Text="{x:Bind ViewModel.Settings.ConfigPath}" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="Open folder" Click="OnOpenConfigFolder" />
+                                </Grid>
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE9D9;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Logs" />
+                                        <TextBlock Text="{x:Bind ViewModel.Settings.LogsFolder}" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="Open folder" Click="OnOpenLogsFolder" />
+                                </Grid>
+                            </StackPanel>
 
-                        <!-- About -->
-                        <StackPanel x:Name="AboutPage" Grid.Row="1" Spacing="4" Visibility="Collapsed">
-                            <TextBlock Text="About" Style="{StaticResource PageTitle}" />
-                            <Grid Style="{StaticResource SettingsCard}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <Image Source="ms-appx:///Assets/app.png" Width="40" Height="40" Margin="0,0,16,0" VerticalAlignment="Center"
-                                       AutomationProperties.AccessibilityView="Raw" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Daze Control" />
-                                    <TextBlock x:Name="VersionText" Style="{StaticResource SettingsCardDescription}" />
-                                </StackPanel>
-                                <Button Grid.Column="2" Content="Copy details" Click="OnCopyDetails" />
-                            </Grid>
-                            <Grid Style="{StaticResource SettingsCard}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE8B7;" Style="{StaticResource SettingsCardIcon}" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="App folder" />
-                                    <TextBlock x:Name="AppFolderText" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
+                            <!-- About -->
+                            <StackPanel x:Name="AboutPage" Grid.Row="1" Spacing="4" Visibility="Collapsed">
+                                <TextBlock Text="About" Style="{StaticResource PageTitle}" />
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Image Source="ms-appx:///Assets/app.png" Width="40" Height="40" Margin="0,0,16,0" VerticalAlignment="Center"
+                                           AutomationProperties.AccessibilityView="Raw" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Daze Control" />
+                                        <TextBlock x:Name="VersionText" Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="Copy details" Click="OnCopyDetails" />
+                                </Grid>
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE8B7;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="App folder" />
+                                        <TextBlock x:Name="AppFolderText" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
                     </Grid>
                 </ScrollViewer>
 
