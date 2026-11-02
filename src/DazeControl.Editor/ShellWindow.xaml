@@ -234,7 +234,7 @@
                                 </Grid.ColumnDefinitions>
                                 <FontIcon Glyph="&#xE895;" Style="{StaticResource SettingsCardIcon}" />
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Updates" />
+                                    <TextBlock Text="Automatic updates" />
                                     <TextBlock Text="{x:Bind ViewModel.Updates.Status, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
                                                AutomationProperties.LiveSetting="Polite" />
                                 </StackPanel>
@@ -272,17 +272,6 @@
                                     <TextBlock Text="{x:Bind ViewModel.Settings.LogsFolder}" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
                                 </StackPanel>
                                 <Button Grid.Column="2" Content="Open folder" Click="OnOpenLogsFolder" />
-                            </Grid>
-                            <Grid Style="{StaticResource SettingsCard}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE895;" Style="{StaticResource SettingsCardIcon}" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Updates" />
-                                    <TextBlock Text="Updates arrive with the first release." Style="{StaticResource SettingsCardDescription}" />
-                                </StackPanel>
                             </Grid>
                         </StackPanel>
 

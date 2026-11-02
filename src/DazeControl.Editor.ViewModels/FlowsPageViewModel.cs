@@ -188,7 +188,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
             Glyph = DecodeGlyph(flow.Glyph);
             CanEdit = canEdit;
             Shortcut = flow.Hotkeys.Count == 0 ? "No shortcut" : string.Join(", ", flow.Hotkeys);
-            LastRun = lastRun is null ? "Not run yet" : $"{Describe(lastRun.Outcome)} · {lastRun.Started.ToLocalTime():g}";
+            LastRun = lastRun is null ? "Not run yet" : $"{Runs.RunWords.Chip(lastRun.Outcome)} · {lastRun.Started.ToLocalTime():g}";
             HasProblems = errors > 0;
             Problems = errors switch { 0 => "", 1 => "1 problem", _ => $"{errors} problems" };
             IsEnabled = flow.Enabled;
@@ -205,14 +205,6 @@ public sealed partial class FlowItemViewModel : ObservableObject
         && value is >= 0x20 and <= 0x10FFFF and not (>= 0xD800 and <= 0xDFFF)
             ? char.ConvertFromUtf32(value)
             : DefaultGlyph;
-
-    internal static string Describe(FlowOutcome outcome) => outcome switch
-    {
-        FlowOutcome.Succeeded => "Worked",
-        FlowOutcome.PartiallySucceeded => "Worked, with problems",
-        FlowOutcome.Failed => "Failed",
-        _ => "Stopped",
-    };
 
     partial void OnIsEnabledChanged(bool value)
     {

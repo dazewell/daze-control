@@ -109,12 +109,12 @@ public sealed class PageViewModelTests : IDisposable
         using var page = new FlowsPageViewModel(_session, _engine, a => a());
 
         _engine.Raise(new PipeEvent { Kind = EventKinds.RunFinished, FlowId = "tv" });
-        Assert.StartsWith("Failed", page.Items[1].LastRun, StringComparison.Ordinal);
+        Assert.StartsWith("Didn't finish", page.Items[1].LastRun, StringComparison.Ordinal);
 
         history = [Run(FlowOutcome.Failed, 0), Run(FlowOutcome.Succeeded, 5)];
         _engine.Raise(new PipeEvent { Kind = EventKinds.RunFinished, FlowId = "tv" });
 
-        Assert.StartsWith("Worked", page.Items[1].LastRun, StringComparison.Ordinal);
+        Assert.StartsWith("Done ·", page.Items[1].LastRun, StringComparison.Ordinal);
         Assert.Equal("Not run yet", page.Items[0].LastRun);
     }
 

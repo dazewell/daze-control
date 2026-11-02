@@ -50,6 +50,22 @@ It prints private bytes, working set and CPU time used during the window, and a 
 into ARCHITECTURE → Footprint. Budget: ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU idle. Over budget →
 stop and ask the user (CLAUDE.md).
 
+## Packaging, installing and testing updates (D-043)
+
+```powershell
+pwsh scripts/pack.ps1                          # artifacts/releases: Setup.exe, portable zip, full nupkg, feed
+pwsh scripts/install.ps1                       # pack this checkout and install it like a release
+```
+
+Test an install without touching the real one: `<Setup.exe> --silent --installto <scratch>\install` (no `-- <args>`:
+Setup panics, X-002), then start `<scratch>\install\current\DazeControl.exe <scratch>\config.yaml`. Test updates:
+`pwsh scripts/pack.ps1 -Output <scratch>\feed -Version 0.x.y` (higher than installed), set
+`$env:DAZECONTROL_UPDATE_SOURCE = '<scratch>\feed'`, run `<install>\current\dctl.exe update`, then restart the engine
+(or `<install>\Update.exe apply --silent --norestart` to test the clean exit). Remove with
+`<install>\Update.exe uninstall --silent`. Velopack's own log: `%LOCALAPPDATA%\velopack\velopack_DazeControlApp.log`.
+Never `Start-Process -Wait` on Setup in PowerShell 7: it also waits for the engine Setup starts. Never push a `v` tag
+(that publishes a release; the user decides).
+
 ## Seeing what the engine did
 
 Log: `%LOCALAPPDATA%\DazeControl\logs\engine.log` (daily `engine-yyyy-MM-dd.log` archives). Ask the running

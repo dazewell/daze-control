@@ -34,7 +34,26 @@ lives in [DECISIONS.md](DECISIONS.md).
 
 Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
 - [x] M0 Bootstrap · [x] M1 Core model + YAML · [x] M2 Runtime · [x] M3 Engine shell · [x] M4 Providers
-- [x] M5 Run pop-up · [x] M6 Editor foundation · [x] M7 Canvas · [x] M8 Inspector + Library · [x] M9 Runs · [ ] M10 Ship
+- [x] M5 Run pop-up · [x] M6 Editor foundation · [x] M7 Canvas · [x] M8 Inspector + Library · [x] M9 Runs · [x] M10 Ship
+
+## Ready for you (M10, 2026-11-02)
+
+Daze Control 0.17.0 is feature-complete for v1: engine, editor, `dctl`, per-user install with in-app updates.
+Nothing has been released yet. What's left is yours:
+
+1. **First release (needs your OK):** `release.yml` publishes only when a tag `v<Version>` is pushed (D-043), so a
+   merge never ships. To release 0.17.0: `git tag v0.17.0 origin/main` then `git push origin v0.17.0`. Or install
+   from the checkout without a release: `pwsh scripts/install.ps1`. Want every merge to release, as the OSD does?
+   Say so (D-043 "Revisit if").
+2. **24 h daily-driver soak:** install, copy `samples/user-config.yaml` to `%APPDATA%\DazeControl\config.yaml`, turn
+   on Start with Windows (editor › Settings), and use it for a day. Check `%LOCALAPPDATA%\DazeControl\logs`
+   afterwards. The idle footprint gate already passed (5.4 MB private, 0 ms CPU over 10 min).
+3. **Retire scd** once Alt+Z works for a day (T4.4 check below): turn off scd's scheduled task and stop scd.
+4. **UX checks that change system-wide settings** (not done by agents on your PC): Settings › Display › Scale at
+   100 % and 150 %, Accessibility › Text size 225 % (editor pages, canvas pills and the run pop-up grow, nothing
+   clips), and Narrator on the canvas Outline. The rest of the checklist passed at 175 % (PLAN T10.3).
+5. **Open follow-ups:** the pop-up isn't read by Narrator (T10.5); the app has no icon of its own yet (Start menu
+   and Apps list show the default exe icon); the run overlay attaches to a run already going only at its next step.
 
 ## Waiting on the user
 
