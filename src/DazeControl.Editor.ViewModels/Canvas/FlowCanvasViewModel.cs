@@ -252,7 +252,159 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     private IEnumerable<CanvasNodeViewModel> Siblings(CanvasNodeViewModel node) =>
         Nodes.Where(n => n.Column == node.Column && n.CardId == node.CardId).OrderBy(n => n.Row);
 
+    // ---- Connect (UX §5.2): drag from an output port (right) to a node's input port or body ----
+
+    /// <summary>Port hit radius in DIP: 24-DIP target (UX §5.3); touch passes 20 for the 40-DIP one.</summary>
+    public const double PortRadius = 12;
+
+    public static Point OutPort(CanvasNodeViewModel node) => new(node.X + node.Width, node.Y + node.Height / 2);
+
+    public static Point InPort(CanvasNodeViewModel node) => new(node.X, node.Y + node.Height / 2);
+
+    /// <summary>The step or card whose output port is under <paramref name="p"/>; members have none (ports on the card).</summary>
+    public CanvasNodeViewModel? OutPortAt(Point p, double radius = PortRadius) =>
+        Nodes.Where(n => n.Kind != CanvasNodeKind.Member)
+            .Select(n => (Node: n, Distance: Distance(OutPort(n), p)))
+            .Where(x => x.Distance <= radius).OrderBy(x => x.Distance).Select(x => x.Node).FirstOrDefault();
+
+    /// <summary>
+    /// Where a connect drag released at <paramref name="p"/> ends: the node under it (a member counts as its card), else
+    /// the node whose input port is within <paramref name="radius"/> (the dot overhangs the node's left edge).
+    /// </summary>
+    public CanvasNodeViewModel? ConnectTargetAt(Point p, double radius = PortRadius)
+    {
+        var node = HitTest(p) ?? Nodes.Where(n => n.Kind != CanvasNodeKind.Member)
+            .Select(n => (Node: n, Distance: Distance(InPort(n), p)))
+            .Where(x => x.Distance <= radius).OrderBy(x => x.Distance).Select(x => x.Node).FirstOrDefault();
+        return node?.CardId is { } card ? Find(card) : node;
+    }
+
+    public ConnectRefusal CanConnect(string from, string to) =>
+        Flow is { } flow ? FlowGraph.CanConnect(flow, from, to) : ConnectRefusal.Unknown;
+
+    /// <summary>Makes <paramref name="to"/> wait for <paramref name="from"/>; a refusal changes nothing.</summary>
+    public ConnectRefusal Connect(string from, string to)
+    {
+        var refusal = CanConnect(from, to);
+        if (refusal == ConnectRefusal.None)
+            Edit(flow => FlowGraph.Connect(flow, from, to));
+        return refusal;
+    }
+
+    /// <summary>What the canvas says when it refuses (UX §5.7 #3, #4); null = say nothing.</summary>
+    public static string? Explain(ConnectRefusal refusal) => refusal switch
+    {
+        ConnectRefusal.Loop => "That would make a loop. A step can't wait for something that waits for it.",
+        ConnectRefusal.SameCard => "Steps in a card start together, so they can't wait for each other.",
+        ConnectRefusal.Conditions => "These steps wait for the same step under different conditions, so they can't share a card.",
+        ConnectRefusal.FailureFallback => "A step here runs only if something fails, and this change would alter which failures count. Change or remove that \"if it fails\" connection first.",
+        ConnectRefusal.FailurePolicies => "These steps handle failure differently, so they can't share a card. Give them the same failure setting first.",
+        _ => null,
+    };
+
+    public void Disconnect(CanvasEdgeViewModel edge)
+    {
+        ArgumentNullException.ThrowIfNull(edge);
+        Edit(flow => FlowGraph.Disconnect(flow, edge.From, edge.To));
+    }
+
+    /// <summary>Edge menu: "Only if this fails" (Failure), "Whatever happens" (Always), back to Success.</summary>
+    public void SetWhen(CanvasEdgeViewModel edge, EdgeWhen when)
+    {
+        ArgumentNullException.ThrowIfNull(edge);
+        Edit(flow => FlowGraph.SetWhen(flow, edge.From, edge.To, when));
+    }
+
+    // ---- Cards (UX §5.2): Ctrl+G, Ctrl+Shift+G, drop zones ----
+
+    /// <summary>Ctrl+G / "Run together" on the selection (steps and cards, in `nodes` order); selects the card.</summary>
+    public ConnectRefusal GroupSelection()
+    {
+        if (Flow is not { } flow)
+            return ConnectRefusal.Unknown;
+        var ids = flow.Nodes.Select(n => n.Id).Where(_selected.Contains).ToList();
+        var (next, refusal) = FlowEdits.Group(flow, ids);
+        if (refusal != ConnectRefusal.None || next == flow)
+            return refusal;
+        // Only ids Group accepted (cards and loose steps); a member of another card was ignored.
+        var before = FlowLayout.CardOf(flow);
+        var cardOf = FlowLayout.CardOf(next);
+        var card = ids.Where(id => !before.ContainsKey(id))
+            .Select(id => next.FindNode(id) is GroupNode ? id : cardOf.GetValueOrDefault(id)).First(id => id is not null)!;
+        Edit(_ => next);
+        Select(card);
+        return ConnectRefusal.None;
+    }
+
+    /// <summary>Ctrl+Shift+G: every selected card; its members end up selected.</summary>
+    /// <summary>Ctrl+Shift+G on the selected cards; all or none (the first refusal wins).</summary>
+    public ConnectRefusal UngroupSelection()
+    {
+        if (Flow is not { } flow)
+            return ConnectRefusal.None;
+        var cards = flow.Nodes.OfType<GroupNode>().Where(g => _selected.Contains(g.Id)).ToList();
+        if (cards.Count == 0)
+            return ConnectRefusal.None;
+        var next = flow;
+        foreach (var card in cards)
+        {
+            (next, var refusal) = FlowEdits.Ungroup(next, card.Id);
+            if (refusal != ConnectRefusal.None)
+                return refusal;
+        }
+        Edit(_ => next);
+        _selected.Clear();
+        foreach (var member in cards.SelectMany(c => c.Members).Where(id => Find(id) is not null))
+            _selected.Add(member);
+        ApplySelection();
+        return ConnectRefusal.None;
+    }
+
+    /// <summary>Where a dragged pill would land over <paramref name="target"/> at content point <paramref name="p"/>.</summary>
+    public static DropZone ZoneAt(CanvasNodeViewModel target, Point p)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        if (p.X > target.X + target.Width * 2 / 3)
+            return DropZone.RunAfter;
+        // A card's body is all "run together"; a pill keeps thin top/bottom bands for reordering.
+        var band = target.Kind == CanvasNodeKind.Card ? 0 : target.Height / 4;
+        return p.Y >= target.Y + band && p.Y <= target.Y + target.Height - band ? DropZone.RunTogether : DropZone.None;
+    }
+
+    /// <summary>Drop <paramref name="dragged"/> on <paramref name="target"/>'s zone; a refusal changes nothing.</summary>
+    public ConnectRefusal Drop(string dragged, string target, DropZone zone)
+    {
+        if (Flow is not { } flow || zone == DropZone.None)
+            return ConnectRefusal.None;
+        var (next, refusal) = zone == DropZone.RunAfter ? FlowEdits.RunAfter(flow, dragged, target) : FlowEdits.RunTogether(flow, dragged, target);
+        if (refusal == ConnectRefusal.None && next != flow)
+            Edit(_ => next);
+        return refusal;
+    }
+
+    /// <summary>A member dropped outside its card leaves it.</summary>
+    public ConnectRefusal TakeOutOfCard(string member)
+    {
+        if (Flow is not { } flow)
+            return ConnectRefusal.Unknown;
+        var (next, refusal) = FlowEdits.TakeOut(flow, member);
+        if (refusal == ConnectRefusal.None && next != flow)
+            Edit(_ => next);
+        return refusal;
+    }
+
+    private static double Distance(Point a, Point b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
+
     // ---- Edits ----
+
+    /// <summary>"Tidy up" (UX §5.2): reorders columns to cut crossings; false when nothing changed.</summary>
+    public bool TidyUp()
+    {
+        if (Flow is not { } flow || FlowTidy.Tidy(flow) is var tidy && ReferenceEquals(tidy, flow))
+            return false;
+        Edit(_ => tidy);
+        return true;
+    }
 
     /// <summary>Applies a change to this flow (one undo entry from T7.7).</summary>
     public void Edit(Func<Flow, Flow> change)

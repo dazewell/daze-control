@@ -34,6 +34,15 @@
                     </Canvas.ChildrenTransitions>
                 </Canvas>
                 <Canvas x:Name="OverlayLayer" IsHitTestVisible="False">
+                    <!-- Valid connect target glows accent; a refused one shows critical (UX §5.2). -->
+                    <Rectangle x:Name="DropTarget" Visibility="Collapsed" StrokeThickness="2" RadiusX="30" RadiusY="30" />
+                    <Border x:Name="DropLabel" Visibility="Collapsed" CornerRadius="10" Padding="8,2,8,3"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}">
+                        <TextBlock x:Name="DropLabelText" FontSize="12" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                    </Border>
+                    <Path x:Name="ConnectPreview" Visibility="Collapsed" StrokeThickness="2" StrokeDashArray="3 2" />
+                    <Ellipse x:Name="InPortDot" Visibility="Collapsed" Width="10" Height="10" StrokeThickness="1.5" />
+                    <Ellipse x:Name="OutPortDot" Visibility="Collapsed" Width="10" Height="10" StrokeThickness="1.5" />
                     <Rectangle x:Name="FocusRing" Visibility="Collapsed" StrokeThickness="2" RadiusX="31" RadiusY="31"
                                Stroke="{ThemeResource FocusStrokeColorOuterBrush}" />
                     <Rectangle x:Name="Marquee" Visibility="Collapsed" StrokeThickness="1"
@@ -41,6 +50,8 @@
                 </Canvas>
             </Grid>
         </ScrollViewer>
+
+        <TeachingTip x:Name="RefusalTip" Title="Can't connect these" IsLightDismissEnabled="True" PreferredPlacement="Bottom" />
 
         <!-- Empty state (UX §5.2). -->
         <StackPanel x:Name="EmptyState" Visibility="Collapsed" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">

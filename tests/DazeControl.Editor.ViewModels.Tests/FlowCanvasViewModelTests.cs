@@ -255,6 +255,162 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         Assert.False(_session.HasUnsavedChanges);
     }
 
+    private static readonly string[] MemberFirstOrder = ["bt", "out", "both", "w1", "w2", "vol", "note"];
+
+    private static readonly string[] CrossedOrder = ["bt", "vol", "out", "note", "both", "w1", "w2"];
+
+    [Fact]
+    public void GroupingWithAnotherCardsMemberSelectsTheNewCard()
+    {
+        // w1 (in "both") comes first in `nodes`; Group ignores it, so the new card for vol + note is the one to select.
+        _canvas.Edit(f => f with { Nodes = [.. MemberFirstOrder.Select(id => f.FindNode(id)!)] });
+        _canvas.Select("w1");
+        _canvas.Toggle("note");
+        _canvas.Toggle("vol");
+
+        Assert.Equal(ConnectRefusal.None, _canvas.GroupSelection());
+
+        Assert.Equal("together", Assert.Single(_canvas.SelectedIds));
+        Assert.Equal(["vol", "note"], ((GroupNode)_canvas.Flow!.FindNode("together")!).Members);
+    }
+
+    [Fact]
+    public void AConnectDragEndsOnTheOverhangingHalfOfAnInputDot()
+    {
+        var port = FlowCanvasViewModel.InPort(Node("note"));
+
+        Assert.Equal("note", _canvas.ConnectTargetAt(new Point(port.X - 3, port.Y))?.Id);
+        Assert.Equal("both", _canvas.ConnectTargetAt(new Point(Node("w1").X + 5, Node("w1").Bounds.CenterY))?.Id);
+        Assert.Null(_canvas.ConnectTargetAt(new Point(port.X - 30, port.Y)));
+    }
+
+    [Fact]
+    public void TidyUpUncrossesColumnsAndSaves()
+    {
+        Assert.False(_canvas.TidyUp());
+
+        // vol also waits for the card and sits above out: bt→out and both→vol cross.
+        _canvas.Edit(f => f with
+        {
+            Nodes = [.. CrossedOrder.Select(id =>
+                f.FindNode(id) is StepNode { Id: "vol" } vol ? vol with { After = [.. vol.After, new Edge("both")] } : f.FindNode(id)!)],
+        });
+        Assert.Equal(1, FlowTidy.Crossings(_canvas.Flow!));
+
+        Assert.True(_canvas.TidyUp());
+
+        Assert.Equal(["bt", "out", "vol", "note", "both", "w1", "w2"], Order());
+        Assert.True(Node("out").Y < Node("vol").Y);
+        Assert.Equal("vol", _canvas.HitTest(new Point(Node("vol").Bounds.X + 5, Node("vol").Bounds.CenterY))?.Id);
+        Assert.True(_session.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public void DraggingFromAnOutputPortConnects()
+    {
+        var port = FlowCanvasViewModel.OutPort(Node("vol"));
+        Assert.Equal("vol", _canvas.OutPortAt(new Point(port.X + 5, port.Y - 5))?.Id);
+        Assert.Null(_canvas.OutPortAt(FlowCanvasViewModel.OutPort(Node("w1")))); // members: ports on the card
+
+        Assert.Equal(ConnectRefusal.None, _canvas.Connect("vol", "w2"));
+
+        Assert.Contains(new Edge("vol"), _canvas.Flow!.FindNode("both")!.After);
+        Assert.Contains(_canvas.Edges, e => e.From == "vol" && e.To == "both");
+    }
+
+    [Fact]
+    public void ALoopIsRefusedWithTheTeachingText()
+    {
+        var refusal = _canvas.Connect("note", "bt");
+
+        Assert.Equal(ConnectRefusal.Loop, refusal);
+        Assert.StartsWith("That would make a loop.", FlowCanvasViewModel.Explain(refusal));
+        Assert.False(_session.HasUnsavedChanges);
+        Assert.Equal(ConnectRefusal.SameCard, _canvas.CanConnect("w1", "w2"));
+    }
+
+    [Fact]
+    public void EdgeMenuChangesWhenAndRemoves()
+    {
+        var edge = _canvas.Edges.Single(e => e.To == "vol");
+
+        _canvas.SetWhen(edge, EdgeWhen.Always);
+        Assert.Equal(EdgeStyle.Always, _canvas.Edges.Single(e => e.To == "vol").Style);
+
+        _canvas.Disconnect(_canvas.Edges.Single(e => e.To == "vol"));
+        Assert.DoesNotContain(_canvas.Edges, e => e.To == "vol");
+        Assert.Equal(0, Node("vol").Column);
+    }
+
+    [Fact]
+    public void CtrlGGroupsTheSelectionAndSelectsTheCard()
+    {
+        // note runs only if out fails: out can't join a card (any member's failure would count).
+        _canvas.Select("out");
+        _canvas.Toggle("vol");
+        Assert.Equal(ConnectRefusal.FailureFallback, _canvas.GroupSelection());
+
+        _canvas.Select("vol");
+        _canvas.Toggle("both");
+        Assert.Equal(ConnectRefusal.None, _canvas.GroupSelection());
+
+        var card = Node(_canvas.SelectedIds.Single());
+        Assert.Equal("both", card.Id);
+        Assert.Equal(CanvasNodeKind.Card, card.Kind);
+        Assert.Equal(card.Id, Node("vol").CardId);
+        Assert.Contains(_canvas.Edges, e => e.From == "bt" && e.To == card.Id);
+    }
+
+    [Fact]
+    public void CtrlGRefusesStepsThatWaitForEachOther()
+    {
+        _canvas.Select("bt");
+        _canvas.Toggle("out");
+
+        Assert.Equal(ConnectRefusal.SameCard, _canvas.GroupSelection());
+        Assert.False(_session.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public void CtrlShiftGUngroupsAndSelectsTheMembers()
+    {
+        _canvas.Select("both");
+
+        _canvas.UngroupSelection();
+
+        Assert.Null(_canvas.Find("both"));
+        Assert.Equal(["w1", "w2"], _canvas.SelectedIds.Order());
+        Assert.Equal(CanvasNodeKind.Step, Node("w1").Kind);
+    }
+
+    [Fact]
+    public void DropZonesFollowThePointer()
+    {
+        var target = Node("vol");
+        Assert.Equal(DropZone.RunAfter, FlowCanvasViewModel.ZoneAt(target, new Point(target.Bounds.Right - 2, target.Bounds.CenterY)));
+        Assert.Equal(DropZone.RunTogether, FlowCanvasViewModel.ZoneAt(target, new Point(target.X + 10, target.Bounds.CenterY)));
+        Assert.Equal(DropZone.None, FlowCanvasViewModel.ZoneAt(target, new Point(target.X + 10, target.Y + 2)));
+        Assert.Equal(DropZone.RunTogether, FlowCanvasViewModel.ZoneAt(Node("both"), new Point(Node("both").X + 10, Node("both").Y + 2)));
+    }
+
+    [Fact]
+    public void DroppingAPillOnACardJoinsIt()
+    {
+        Assert.Equal(ConnectRefusal.None, _canvas.Drop("note", "both", DropZone.RunTogether));
+
+        Assert.Equal("both", Node("note").CardId);
+        Assert.Equal(["w1", "w2", "note"], ((GroupNode)_canvas.Flow!.FindNode("both")!).Members);
+    }
+
+    [Fact]
+    public void DroppingAMemberOutDissolvesATwoStepCard()
+    {
+        _canvas.TakeOutOfCard("w1");
+
+        Assert.Null(_canvas.Find("both"));
+        Assert.Null(Node("w2").CardId);
+    }
+
     [Fact]
     public void AProblemMarksTheNodeWithADottedId()
     {

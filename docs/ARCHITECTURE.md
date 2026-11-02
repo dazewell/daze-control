@@ -223,7 +223,12 @@ M8, Settings, About), cards in the OSD's settings-card style (App.xaml). All log
   Bézier + hit-test. The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
   and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
   edges batched by style, D-037) and maps pointer/keys to VM calls; zoom/scroll is a `ScrollViewer` (50–200 %).
-- `--config <path>` makes the editor edit another file (tests, screenshots); its backups go next to it.
+- Canvas edits live in Core: `FlowGraph` (connect/disconnect/`when`, refusals: exists, loop, same card) and
+  `FlowEdits` (group/ungroup, take out — a card under 2 members dissolves —, run together/after on drop).
+  `FlowTidy` ("Tidy up") cuts crossings with barycentre sweeps; nodes only trade the `nodes` slots their column
+  already holds, so the YAML diff stays small.
+- `--config <path>` makes the editor edit another file (tests, screenshots); its backups go to `backups/<file>/`
+  next to it, and its single-instance names are scoped by path.
 
 ## Adding a provider
 
@@ -263,6 +268,9 @@ T0.5 gate passed: no AOT/trim warnings; hotkey press and tray icon checked on th
 (rows above). The post-run delta covers runner, history and pipe only; re-measure with real providers (M4, M10).
 
 ## Open questions
+
+- Long canvas edges (skipping a column) are a straight Bézier and can cross a pill in the skipped column; layered
+  layouts usually route them through dummy nodes. Fix if real flows look messy.
 
 - A value of the wrong *shape* (a list where a scalar belongs, e.g. `timeout: [5s]`, `hotkeys: Alt+Z`) still
   rejects the whole file; only `with:` and `after:` are shape-tolerant so far (D-023 covers bad scalar values).
