@@ -202,6 +202,22 @@ answers "can't do that yet" until the editor. `PipeClient` copies each request t
 `Ipc/CommandLine` (unknown flag or wrong word count → exit 2, never ignored); `validate <file>`
 and, with no engine, `list`/`validate` read the YAML themselves. Exit codes 0 ok, 1 failed, 2 usage, 3 no engine.
 
+## Editor
+
+`DazeControl.Editor.exe` (WinUI 3, unpackaged, self-contained) runs only while its window is open; closing it
+ends the process. Single instance: a named mutex; a second start sets a named event and exits, and the first
+brings its window to the front. Pages (UX §5.1) are panels in one `ShellWindow` (Flows, Library placeholder until
+M8, Settings, About), cards in the OSD's settings-card style (App.xaml). All logic is in `Editor.ViewModels`:
+- `Config/ConfigStore` — config.yaml I/O: atomic write (temp + `File.Move` overwrite), one backup per editor
+  session in `%APPDATA%\DazeControlackups` (newest 10), and the text last read/written to tell outside changes.
+- `Config/ConfigSession` — every edit is `Update(c => …)`; saved 300 ms after the last one (`TimeProvider`).
+  A file that can't be read (bad YAML, newer schema) is never written (`CanEdit` false). An outside change
+  (window's FileSystemWatcher, debounced) reloads when nothing is unsaved, else waits: InfoBar Keep mine / Reload.
+- `Engine/EngineClient` — one subscribed pipe connection that also tells whether the engine runs (retry every
+  3 s while open) and one on-demand request connection; requests answer null when it isn't running.
+- `ShellViewModel`, `FlowsPageViewModel` (cards synced in place so a toggle keeps focus; last run from
+  `history`, refreshed on `runFinished`), `SettingsPageViewModel` (autostart through the engine, pop-up in config).
+
 ## Adding a provider
 
 1. Add a descriptor in `Core/Catalog/` (id, glyph, title, params as `ParamSpec`, default timeout, resources).

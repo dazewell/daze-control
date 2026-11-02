@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M6 Editor foundation — T6.1 (M5 done: PR #8)
-Last green checkpoint: 1f16ad4 "fix(engine): pop-up review — run snapshot, DPI, device loss, contrast theme"
-Next action: sync main, branch feat/m6-editor and start T6.1: WinUI shell (Mica, TitleBar, NavigationView: Flows, Library, Settings, About), unpackaged self-contained (EnableMsixTooling, OSD X-004), single instance + bring to front
-Tree state: builds, 510/510 tests green · Uncommitted: none
-Notes for next agent: version is 0.8.0. Selecting a failed run's pop-up calls EngineHost.OpenEditor() with no arguments; the run page (M9) should take a run id. Narrator support for the pop-up is T10.5. Write files with Write or python, not Bash heredocs with nested quotes.
+Current task: M7 Canvas — T7.1 (M6 merged: PR #9)
+Last green checkpoint: 92ddcf0 "fix(editor): don't claim a reload that failed"
+Next action: sync main, branch feat/m7-canvas and start T7.1: FlowCanvas control rendering nodes/cards/edges from a canvas VM in Editor.ViewModels, pan/zoom/fit; selecting a flow card opens the flow editor page (BreadcrumbBar "Flows › name")
+Tree state: builds, VM tests 27/27 green · Uncommitted: none
+Notes for next agent: version is 0.9.0. Editor shows no window → delete src/DazeControl.Editor/obj and bin first (build skill). No config.yaml on this PC yet; don't create one in the user's profile. Deferred from PR #9's self-review (minor): "Close without saving" still flushes in Closed after a plain save error; OnClosing is async void around ContentDialog.ShowAsync (guard it once a second dialog exists). New flow adds an empty flow; the templates (Blank / TV only / Audio → Headphones) are still to do, with the flow editor. Screenshots: GetWindowRect + CopyFromScreen from Windows PowerShell (outside the sandbox); light mode by flipping HKCU…Personalize AppsUseLightTheme and restoring it.
 
 ---
 
@@ -69,12 +69,12 @@ Notes for next agent: version is 0.8.0. Selecting a failed run's pop-up calls En
 - [x] T5.1 Spike: native acrylic window in AOT (DWM backdrop + D2D text, theme, DPI, no-activate) — passed, D-034 (feat/m5-popup).
 - [x] T5.2 Pop-up with progress/failure summary, position/duration, animation (honour Animation effects) (feat/m5-popup).
 
-## M6 Editor foundation
-- [ ] T6.1 WinUI shell (Mica, TitleBar, NavigationView: Flows, Library, Settings, About), unpackaged
+## M6 Editor foundation ✔ (2026-11-01)
+- [x] T6.1 WinUI shell (Mica, TitleBar, NavigationView: Flows, Library, Settings, About), unpackaged
   self-contained (`EnableMsixTooling`, OSD X-004), single instance + bring to front.
-- [ ] T6.2 EngineClient (pipe) + "engine not running" state.
-- [ ] T6.3 Config load/autosave (debounced, atomic, backups), external-change InfoBar.
-- [ ] T6.4 Flows list page; Settings + About pages.
+- [x] T6.2 EngineClient (pipe) + "engine not running" state.
+- [x] T6.3 Config load/autosave (debounced, atomic, backups), external-change InfoBar.
+- [x] T6.4 Flows list page; Settings + About pages (feat/m6-editor).
 
 ## M7 Canvas
 - [ ] T7.1 Render nodes/cards/edges from VM, pan/zoom/fit.
