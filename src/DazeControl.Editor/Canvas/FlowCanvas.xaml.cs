@@ -362,6 +362,7 @@ public sealed partial class FlowCanvas : UserControl
                 break;
             case Gesture.DragNode:
                 _dragged!.RenderTransform = new TranslateTransform { X = dx, Y = dy };
+                PreviewDrop(position);
                 break;
             case Gesture.Connect:
                 PreviewConnect(position);
@@ -387,20 +388,19 @@ public sealed partial class FlowCanvas : UserControl
             case Gesture.Press when _dragged is not null && !CtrlDown():
                 _viewModel.Select(_dragged.Node.Id); // a plain click on one of several selected narrows to it
                 break;
-            case Gesture.Connect when ConnectTarget(position) is { } target:
-                var refusal = _viewModel.Connect(_connectFrom!.Id, target.Id);
-                if (FlowCanvasViewModel.Explain(refusal) is { } why && _views.TryGetValue(target.Id, out var targetView))
-                {
-                    RefusalTip.Subtitle = why;
-                    RefusalTip.Target = targetView;
-                    RefusalTip.IsOpen = true;
-                }
+            case Gesture.Connect when ConnectTarget(position) is { } end:
+                ShowRefusal(_viewModel.Connect(_connectFrom!.Id, end.Id), end);
                 break;
             case Gesture.DragNode:
-                var id = _dragged!.Node.Id;
-                var row = _viewModel.RowAt(id, _dragged.Node.Bounds.CenterY + (position.Y - _pressContent.Y));
+                var node = _dragged!.Node;
+                var (target, zone) = DropAt(position);
                 ResetDragged();
-                _viewModel.MoveToRow(id, row);
+                if (target is not null && zone != DropZone.None)
+                    ShowRefusal(_viewModel.Drop(node.Id, target.Id, zone), target);
+                else if (node.CardId is { } card && _viewModel.Find(card) is { } own && !own.Bounds.Contains(C(position)))
+                    _viewModel.TakeOutOfCard(node.Id);
+                else
+                    _viewModel.MoveToRow(node.Id, _viewModel.RowAt(node.Id, node.Bounds.CenterY + (position.Y - _pressContent.Y)));
                 break;
             case Gesture.Marquee:
                 var rect = DazeControl.Core.Layout.Rect.FromCorners(C(_pressContent), C(position));
@@ -484,6 +484,7 @@ public sealed partial class FlowCanvas : UserControl
         }
         var refused = _viewModel!.CanConnect(_connectFrom.Id, target.Id) is not (ConnectRefusal.None or ConnectRefusal.Exists);
         DropTarget.Stroke = refused ? Theme.Brush("SystemFillColorCriticalBrush") : Theme.Selection;
+        DropTarget.StrokeDashArray = null;
         DropTarget.RadiusX = DropTarget.RadiusY = target.Kind == CanvasNodeKind.Card ? 14 : 30;
         DropTarget.Width = target.Width + 4;
         DropTarget.Height = (_views.TryGetValue(target.Id, out var view) && view.ActualHeight > 0 ? view.ActualHeight : target.Height) + 4;
@@ -491,6 +492,54 @@ public sealed partial class FlowCanvas : UserControl
         XamlCanvas.SetTop(DropTarget, target.Y - 2);
         DropTarget.Visibility = Visibility.Visible;
         ProtectedCursor = refused ? InputSystemCursor.Create(InputSystemCursorShape.UniversalNo) : null;
+    }
+
+    /// <summary>The §5.7 #3/#4 teaching tip at <paramref name="at"/>; nothing for a plain no-op.</summary>
+    private void ShowRefusal(ConnectRefusal refusal, CanvasNodeViewModel at)
+    {
+        if (FlowCanvasViewModel.Explain(refusal) is not { } why || !_views.TryGetValue(at.Id, out var view))
+            return;
+        RefusalTip.Subtitle = why;
+        RefusalTip.Target = view;
+        RefusalTip.IsOpen = true;
+    }
+
+    // ---- Drag a pill onto another: run together / run after (UX §5.2) ----
+
+    /// <summary>The pill or card under the pointer other than the dragged one (its own card counts only from outside).</summary>
+    private (CanvasNodeViewModel? Target, DropZone Zone) DropAt(Windows.Foundation.Point position)
+    {
+        var dragged = _dragged?.Node;
+        if (_viewModel is null || dragged is null || dragged.Kind == CanvasNodeKind.Card)
+            return (null, DropZone.None);
+        var target = _viewModel.Nodes
+            .Where(n => n.Id != dragged.Id && n.Id != dragged.CardId && !(n.CardId is not null && n.CardId == dragged.CardId) && n.Bounds.Contains(C(position)))
+            .OrderBy(n => n.Kind == CanvasNodeKind.Card ? 1 : 0).FirstOrDefault();
+        return target is null ? (null, DropZone.None) : (target, FlowCanvasViewModel.ZoneAt(target, C(position)));
+    }
+
+    private void PreviewDrop(Windows.Foundation.Point position)
+    {
+        var (target, zone) = DropAt(position);
+        if (target is null || zone == DropZone.None)
+        {
+            DropTarget.Visibility = DropLabel.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var height = _views.TryGetValue(target.Id, out var view) && view.ActualHeight > 0 ? view.ActualHeight : target.Height;
+        var x = zone == DropZone.RunAfter ? target.X + target.Width * 2 / 3 : target.X;
+        DropTarget.Stroke = Theme.Selection;
+        DropTarget.StrokeDashArray = Theme.Dashes(2, 2);
+        DropTarget.RadiusX = DropTarget.RadiusY = target.Kind == CanvasNodeKind.Card ? 14 : 30;
+        DropTarget.Width = (zone == DropZone.RunAfter ? target.Width / 3 : target.Width) + 4;
+        DropTarget.Height = height + 4;
+        XamlCanvas.SetLeft(DropTarget, x - 2);
+        XamlCanvas.SetTop(DropTarget, target.Y - 2);
+        DropTarget.Visibility = Visibility.Visible;
+        DropLabelText.Text = zone == DropZone.RunAfter ? "Run after" : "Drop to run together";
+        XamlCanvas.SetLeft(DropLabel, x);
+        XamlCanvas.SetTop(DropLabel, target.Y - 28);
+        DropLabel.Visibility = Visibility.Visible;
     }
 
     // ---- Context menus (right-click, long-press) ----
@@ -529,7 +578,7 @@ public sealed partial class FlowCanvas : UserControl
 
     private void EndGesture()
     {
-        ConnectPreview.Visibility = DropTarget.Visibility = Visibility.Collapsed;
+        ConnectPreview.Visibility = DropTarget.Visibility = DropLabel.Visibility = Visibility.Collapsed;
         ProtectedCursor = null;
         _connectFrom = null;
         ResetDragged();
@@ -564,6 +613,12 @@ public sealed partial class FlowCanvas : UserControl
                 break;
             case VirtualKey.Down:
                 _viewModel.MoveFocus(FocusMove.Down);
+                break;
+            case VirtualKey.G when ctrl && _viewModel.CanEdit:
+                if (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down))
+                    _viewModel.UngroupSelection();
+                else if (_viewModel.SelectedIds.FirstOrDefault() is { } first && _viewModel.Find(first) is { } anchor)
+                    ShowRefusal(_viewModel.GroupSelection(), anchor);
                 break;
             case VirtualKey.A when ctrl:
                 _viewModel.SelectAll();
