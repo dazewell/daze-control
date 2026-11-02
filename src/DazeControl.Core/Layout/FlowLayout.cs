@@ -66,10 +66,17 @@ public sealed record FlowArrangement(
 /// </summary>
 public static class FlowLayout
 {
+    /// <summary>The first node with an id wins, as in validation; later duplicates are ignored.</summary>
+    private static Flow Unique(Flow flow) =>
+        flow.Nodes.Select(n => n.Id).Distinct(StringComparer.Ordinal).Count() == flow.Nodes.Count
+            ? flow
+            : flow with { Nodes = [.. flow.Nodes.DistinctBy(n => n.Id, StringComparer.Ordinal)] };
+
     /// <summary>Card id for each member id (the first card listing a step wins, as in validation).</summary>
     public static Dictionary<string, string> CardOf(Flow flow)
     {
         ArgumentNullException.ThrowIfNull(flow);
+        flow = Unique(flow);
         var steps = flow.Nodes.OfType<StepNode>().Select(s => s.Id).ToHashSet(StringComparer.Ordinal);
         var cardOf = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var card in flow.Nodes.OfType<GroupNode>())
@@ -88,6 +95,7 @@ public static class FlowLayout
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(cardOf);
+        flow = Unique(flow);
         var ids = flow.Nodes.Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
         var seen = new HashSet<(string, string)>();
         var edges = new List<(string, string, EdgeWhen)>();
@@ -109,6 +117,8 @@ public static class FlowLayout
     /// <summary>Layer per top-level node.</summary>
     public static Dictionary<string, int> Layers(Flow flow)
     {
+        ArgumentNullException.ThrowIfNull(flow);
+        flow = Unique(flow);
         var cardOf = CardOf(flow);
         return Layers(flow, cardOf, Edges(flow, cardOf));
     }
@@ -148,6 +158,7 @@ public static class FlowLayout
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(measure);
         var o = options ?? LayoutOptions.Default;
+        flow = Unique(flow);
         var cardOf = CardOf(flow);
         var edges = Edges(flow, cardOf);
         var layers = Layers(flow, cardOf, edges);

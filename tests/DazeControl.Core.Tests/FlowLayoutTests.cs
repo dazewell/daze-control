@@ -133,4 +133,19 @@ public class FlowLayoutTests
         Assert.Empty(arrangement.Boxes);
         Assert.Equal(new Size(96, 96), arrangement.Extent);
     }
+
+    [Fact]
+    public void ADuplicateCardDoesNotHideTheFirstOnesMembers()
+    {
+        var flow = FlowOf(
+            new GroupNode("g", ["a", "b"]), new GroupNode("g", ["c", "d"]),
+            Step("a"), Step("b"), Step("c"), Step("d"));
+
+        var arrangement = Arrange(flow);
+
+        Assert.Equal("g", arrangement.Find("a")?.Card);
+        Assert.Equal("g", arrangement.Find("b")?.Card);
+        Assert.Null(arrangement.Find("c")?.Card);
+        Assert.NotNull(arrangement.Find("c"));
+    }
 }
