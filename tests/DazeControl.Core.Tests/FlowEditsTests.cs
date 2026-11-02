@@ -81,12 +81,59 @@ public class FlowEditsTests
     }
 
     [Fact]
+    public void UngroupRefusesWhileAFallbackWaitsForTheCardToFail()
+    {
+        // "If the card fails" = any step failed; per-step failure edges would need every step to fail.
+        var flow = FlowOf(new GroupNode("g", ["m1", "m2"]), Step("m1"), Step("m2"),
+            new StepNode("z", "wait") { After = [new Edge("g", EdgeWhen.Failure)] });
+
+        var (same, refusal) = FlowEdits.Ungroup(flow, "g");
+
+        Assert.Equal(ConnectRefusal.FailureFallback, refusal);
+        Assert.Same(flow, same);
+    }
+
+    [Fact]
+    public void TakingOutOfATwoStepCardKeepsAFailureFallback()
+    {
+        var flow = FlowOf(new GroupNode("g", ["m1", "m2"]), Step("m1"), Step("m2"),
+            new StepNode("z", "wait") { After = [new Edge("g", EdgeWhen.Failure)] });
+
+        var taken = FlowEdits.TakeOut(flow, "m1");
+
+        Assert.Null(taken.FindNode("g"));
+        Assert.Equal([new Edge("m2", EdgeWhen.Failure)], After(taken, "z"));
+    }
+
+    [Fact]
+    public void GroupRefusesToMergeDifferentConditionsOnOneSource()
+    {
+        var a = Step("a");
+        var ok = new StepNode("ok", "wait") { After = [E("a")] };
+        var fallback = new StepNode("fallback", "wait") { After = [new Edge("a", EdgeWhen.Failure)] };
+
+        var (same, refusal) = FlowEdits.Group(FlowOf(a, ok, fallback), ["ok", "fallback"]);
+
+        Assert.Equal(ConnectRefusal.Conditions, refusal);
+        Assert.Equal(3, same.Nodes.Count);
+    }
+
+    [Fact]
+    public void GroupRefusesWhenADependentWaitsOnMembersUnderDifferentConditions()
+    {
+        var z = new StepNode("z", "wait") { After = [E("a"), new Edge("b", EdgeWhen.Failure)] };
+
+        Assert.Equal(ConnectRefusal.Conditions, FlowEdits.Group(FlowOf(Step("a"), Step("b"), z), ["a", "b"]).Refusal);
+    }
+
+    [Fact]
     public void UngroupKeepsEdgesOnEveryMember()
     {
         var flow = FlowOf(Step("a"), new GroupNode("g", ["m1", "m2"]) { After = [E("a")] }, Step("m1"), Step("m2"), Step("z", "g"));
 
-        var ungrouped = FlowEdits.Ungroup(flow, "g");
+        var (ungrouped, refusal) = FlowEdits.Ungroup(flow, "g");
 
+        Assert.Equal(ConnectRefusal.None, refusal);
         Assert.Null(ungrouped.FindNode("g"));
         Assert.Equal([E("a")], After(ungrouped, "m1"));
         Assert.Equal([E("a")], After(ungrouped, "m2"));

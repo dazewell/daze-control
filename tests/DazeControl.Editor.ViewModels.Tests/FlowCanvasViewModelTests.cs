@@ -255,7 +255,34 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         Assert.False(_session.HasUnsavedChanges);
     }
 
+    private static readonly string[] MemberFirstOrder = ["bt", "out", "both", "w1", "w2", "vol", "note"];
+
     private static readonly string[] CrossedOrder = ["bt", "vol", "out", "note", "both", "w1", "w2"];
+
+    [Fact]
+    public void GroupingWithAnotherCardsMemberSelectsTheNewCard()
+    {
+        // w1 (in "both") comes first in `nodes`; Group ignores it, so the new card for vol + note is the one to select.
+        _canvas.Edit(f => f with { Nodes = [.. MemberFirstOrder.Select(id => f.FindNode(id)!)] });
+        _canvas.Select("w1");
+        _canvas.Toggle("note");
+        _canvas.Toggle("vol");
+
+        Assert.Equal(ConnectRefusal.None, _canvas.GroupSelection());
+
+        Assert.Equal("together", Assert.Single(_canvas.SelectedIds));
+        Assert.Equal(["vol", "note"], ((GroupNode)_canvas.Flow!.FindNode("together")!).Members);
+    }
+
+    [Fact]
+    public void AConnectDragEndsOnTheOverhangingHalfOfAnInputDot()
+    {
+        var port = FlowCanvasViewModel.InPort(Node("note"));
+
+        Assert.Equal("note", _canvas.ConnectTargetAt(new Point(port.X - 3, port.Y))?.Id);
+        Assert.Equal("both", _canvas.ConnectTargetAt(new Point(Node("w1").X + 5, Node("w1").Bounds.CenterY))?.Id);
+        Assert.Null(_canvas.ConnectTargetAt(new Point(port.X - 30, port.Y)));
+    }
 
     [Fact]
     public void TidyUpUncrossesColumnsAndSaves()

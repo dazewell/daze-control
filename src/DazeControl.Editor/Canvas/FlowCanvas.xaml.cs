@@ -41,6 +41,7 @@ public sealed partial class FlowCanvas : UserControl
     private NodeView? _dragged;
     private CanvasNodeViewModel? _connectFrom;
     private bool _spaceDown;
+    private double _portRadius = FlowCanvasViewModel.PortRadius;
 
     public FlowCanvas()
     {
@@ -142,13 +143,17 @@ public sealed partial class FlowCanvas : UserControl
                 UpdateFocusRing();
                 AnnounceFocus();
                 break;
-            case nameof(FlowCanvasViewModel.SelectedIds):
+            case nameof(FlowCanvasViewModel.SelectedIds) or nameof(FlowCanvasViewModel.CanEdit):
                 DrawEdges();
+                if (_gesture == Gesture.None)
+                    ShowPorts(null); // the dots follow the selection until the pointer hovers again
                 break;
             case nameof(FlowCanvasViewModel.Arrangement):
                 SyncNodes(); // kinds are final now (a node can turn into a card without a collection change)
                 DrawEdges();
                 UpdateFocusRing();
+                if (_gesture == Gesture.None)
+                    ShowPorts(null); // nodes moved (reorder, Tidy up): stale dots would not match OutPortAt
                 break;
         }
     }
@@ -318,6 +323,7 @@ public sealed partial class FlowCanvas : UserControl
         _panStartX = Scroller.HorizontalOffset;
         _panStartY = Scroller.VerticalOffset;
         var touch = e.Pointer.PointerDeviceType == PointerDeviceType.Touch;
+        _portRadius = touch ? 20 : FlowCanvasViewModel.PortRadius; // 40-DIP touch target (UX §5.3)
 
         if (props.IsMiddleButtonPressed || (_spaceDown && props.IsLeftButtonPressed))
         {
@@ -327,7 +333,7 @@ public sealed partial class FlowCanvas : UserControl
         {
             return; // RightTapped opens the menus
         }
-        else if (_viewModel.CanEdit && _viewModel.OutPortAt(C(point.Position), touch ? 20 : FlowCanvasViewModel.PortRadius) is { } source)
+        else if (_viewModel.CanEdit && _viewModel.OutPortAt(C(point.Position), _portRadius) is { } source)
         {
             _connectFrom = source;
             _gesture = Gesture.Connect;
@@ -474,9 +480,9 @@ public sealed partial class FlowCanvas : UserControl
     {
         if (_viewModel is null)
             return;
+        hovered ??= _viewModel.SelectedIds.Count == 1 ? _viewModel.Find(_viewModel.SelectedIds.First()) : null;
         if (hovered?.CardId is { } card)
             hovered = _viewModel.Find(card);
-        hovered ??= _viewModel.SelectedIds.Count == 1 ? _viewModel.Find(_viewModel.SelectedIds.First()) : null;
         if (hovered is null || !_viewModel.CanEdit)
         {
             InPortDot.Visibility = OutPortDot.Visibility = Visibility.Collapsed;
@@ -495,12 +501,8 @@ public sealed partial class FlowCanvas : UserControl
         dot.Visibility = Visibility.Visible;
     }
 
-    /// <summary>The node a connect drag would end on: a member counts as its card.</summary>
-    private CanvasNodeViewModel? ConnectTarget(Windows.Foundation.Point position)
-    {
-        var node = _viewModel?.HitTest(C(position));
-        return node?.CardId is { } card ? _viewModel!.Find(card) : node;
-    }
+    private CanvasNodeViewModel? ConnectTarget(Windows.Foundation.Point position) =>
+        _viewModel?.ConnectTargetAt(C(position), _portRadius);
 
     private void PreviewConnect(Windows.Foundation.Point position)
     {
@@ -656,7 +658,10 @@ public sealed partial class FlowCanvas : UserControl
                 break;
             case VirtualKey.G when ctrl && _viewModel.CanEdit:
                 if (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down))
-                    _viewModel.UngroupSelection();
+                {
+                    if (_viewModel.SelectedIds.FirstOrDefault() is { } card && _viewModel.Find(card) is { } at)
+                        ShowRefusal(_viewModel.UngroupSelection(), at);
+                }
                 else if (_viewModel.SelectedIds.FirstOrDefault() is { } first && _viewModel.Find(first) is { } anchor)
                     ShowRefusal(_viewModel.GroupSelection(), anchor);
                 break;

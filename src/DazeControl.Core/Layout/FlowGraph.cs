@@ -18,6 +18,12 @@ public enum ConnectRefusal
 
     /// <summary>An id that isn't in the flow.</summary>
     Unknown,
+
+    /// <summary>Grouping would merge "wait for X" edges with different conditions into one.</summary>
+    Conditions,
+
+    /// <summary>Ungrouping would turn "if the card fails" (any step) into "if every step fails".</summary>
+    FailureFallback,
 }
 
 /// <summary>
@@ -73,7 +79,29 @@ public static class FlowGraph
         ArgumentNullException.ThrowIfNull(flow);
         var cardOf = FlowLayout.CardOf(flow);
         var edges = FlowLayout.Edges(flow, cardOf);
-        return edges.Any(e => Reaches(edges, e.To, e.From));
+        // Kahn's topological sort: a node never freed sits on (or behind) a loop.
+        var incoming = new Dictionary<string, int>(StringComparer.Ordinal);
+        var outgoing = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (var (from, to, _) in edges)
+        {
+            incoming[to] = incoming.GetValueOrDefault(to) + 1;
+            incoming.TryAdd(from, 0);
+            if (!outgoing.TryGetValue(from, out var list))
+                outgoing[from] = list = [];
+            list.Add(to);
+        }
+        var ready = new Queue<string>(incoming.Where(p => p.Value == 0).Select(p => p.Key));
+        var freed = 0;
+        while (ready.TryDequeue(out var node))
+        {
+            freed++;
+            foreach (var next in outgoing.GetValueOrDefault(node) ?? [])
+            {
+                if (--incoming[next] == 0)
+                    ready.Enqueue(next);
+            }
+        }
+        return freed < incoming.Count;
     }
 
     private static bool Reaches(IReadOnlyList<(string From, string To, EdgeWhen When)> edges, string start, string target)

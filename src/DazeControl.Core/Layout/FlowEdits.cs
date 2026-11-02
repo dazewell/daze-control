@@ -46,9 +46,15 @@ public static class FlowEdits
         if (nodes.Any(n => n.After.Any(e => inside.Contains(Top(e.From)))))
             return (flow, ConnectRefusal.SameCard);
 
+        // One card edge per source: two different conditions on the same source can't both survive.
+        var incoming = nodes.SelectMany(n => n.After).Select(e => e with { From = Top(e.From) }).ToList();
+        if (Conflicts(incoming) || flow.Nodes.Where(n => !inside.Contains(n.Id) && !members.Contains(n.Id))
+                .Any(n => Conflicts(n.After.Where(e => inside.Contains(Top(e.From))).Select(e => e with { From = "card" }))))
+            return (flow, ConnectRefusal.Conditions);
+
         var cardId = absorbed.FirstOrDefault(id => flow.FindNode(id) is GroupNode) ?? NewCardId(flow);
         var existing = flow.FindNode(cardId) as GroupNode;
-        var after = Merge(nodes.SelectMany(n => n.After).Select(e => e with { From = Top(e.From) }));
+        var after = Merge(incoming);
         var card = new GroupNode(cardId, [.. members])
         {
             Name = existing?.Name,
@@ -72,20 +78,25 @@ public static class FlowEdits
         return FlowGraph.HasLoop(grouped) ? (flow, ConnectRefusal.Loop) : (grouped, ConnectRefusal.None);
     }
 
-    /// <summary>Ctrl+Shift+G: the card goes; its members take its edges and its dependents wait for each member.</summary>
-    public static Flow Ungroup(Flow flow, string cardId)
+    /// <summary>
+    /// Ctrl+Shift+G: the card goes; its members take its edges and its dependents wait for each member. Refused while
+    /// something runs only if the card fails: that means "any step failed", which per-step edges can't say.
+    /// </summary>
+    public static (Flow Flow, ConnectRefusal Refusal) Ungroup(Flow flow, string cardId)
     {
         ArgumentNullException.ThrowIfNull(flow);
         if (flow.FindNode(cardId) is not GroupNode card)
-            return flow;
+            return (flow, ConnectRefusal.None);
         var cardOf = FlowLayout.CardOf(flow);
         var members = card.Members.Where(m => cardOf.GetValueOrDefault(m) == cardId).ToList();
-        return flow with
+        if (members.Count > 1 && flow.Nodes.Any(n => n.After.Any(e => e.From == cardId && e.When == EdgeWhen.Failure)))
+            return (flow, ConnectRefusal.FailureFallback);
+        return (flow with
         {
             Nodes = [.. flow.Nodes.Where(n => n.Id != cardId).Select(n =>
                 members.Contains(n.Id) ? n with { After = card.After }
                 : n with { After = Merge(n.After.SelectMany(e => e.From == cardId ? members.Select(m => e with { From = m }) : [e])) })],
-        };
+        }, ConnectRefusal.None);
     }
 
     /// <summary>Drags a member out of its card: it takes the card's edges; a card left with one step dissolves.</summary>
@@ -103,7 +114,8 @@ public static class FlowEdits
                 : n.Id == cardId ? card with { Members = [.. rest] }
                 : n)],
         };
-        return rest.Count(m => cardOf.GetValueOrDefault(m) == cardId) < 2 ? Ungroup(taken, cardId) : taken;
+        // One step left: "the card failed" is "that step failed", so dissolving never changes a condition.
+        return rest.Count(m => cardOf.GetValueOrDefault(m) == cardId) < 2 ? Ungroup(taken, cardId).Flow : taken;
     }
 
     /// <summary>Drop on a pill's body: run together with it (into its card, or a new card for the two).</summary>
@@ -137,6 +149,9 @@ public static class FlowEdits
         var result = free with { Nodes = [.. free.Nodes.Select(n => n.Id == dragged ? n with { After = [new Edge(targetTop)] } : n)] };
         return FlowGraph.HasLoop(result) ? (flow, ConnectRefusal.Loop) : (result, ConnectRefusal.None);
     }
+
+    private static bool Conflicts(IEnumerable<Edge> edges) =>
+        edges.GroupBy(e => e.From, StringComparer.Ordinal).Any(g => g.Select(e => e.When).Distinct().Count() > 1);
 
     private static ValueList<Edge> Merge(IEnumerable<Edge> edges) => [.. edges.DistinctBy(e => e.From, StringComparer.Ordinal)];
 

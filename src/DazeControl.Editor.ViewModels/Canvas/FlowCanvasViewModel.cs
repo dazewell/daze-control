@@ -267,6 +267,18 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             .Select(n => (Node: n, Distance: Distance(OutPort(n), p)))
             .Where(x => x.Distance <= radius).OrderBy(x => x.Distance).Select(x => x.Node).FirstOrDefault();
 
+    /// <summary>
+    /// Where a connect drag released at <paramref name="p"/> ends: the node under it (a member counts as its card), else
+    /// the node whose input port is within <paramref name="radius"/> (the dot overhangs the node's left edge).
+    /// </summary>
+    public CanvasNodeViewModel? ConnectTargetAt(Point p, double radius = PortRadius)
+    {
+        var node = HitTest(p) ?? Nodes.Where(n => n.Kind != CanvasNodeKind.Member)
+            .Select(n => (Node: n, Distance: Distance(InPort(n), p)))
+            .Where(x => x.Distance <= radius).OrderBy(x => x.Distance).Select(x => x.Node).FirstOrDefault();
+        return node?.CardId is { } card ? Find(card) : node;
+    }
+
     public ConnectRefusal CanConnect(string from, string to) =>
         Flow is { } flow ? FlowGraph.CanConnect(flow, from, to) : ConnectRefusal.Unknown;
 
@@ -284,6 +296,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     {
         ConnectRefusal.Loop => "That would make a loop. A step can't wait for something that waits for it.",
         ConnectRefusal.SameCard => "Steps in a card start together, so they can't wait for each other.",
+        ConnectRefusal.Conditions => "These steps wait for the same step under different conditions, so they can't share a card.",
+        ConnectRefusal.FailureFallback => "Something runs only if this card fails. Change or remove that connection first.",
         _ => null,
     };
 
@@ -311,26 +325,38 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         var (next, refusal) = FlowEdits.Group(flow, ids);
         if (refusal != ConnectRefusal.None || next == flow)
             return refusal;
+        // Only ids Group accepted (cards and loose steps); a member of another card was ignored.
+        var before = FlowLayout.CardOf(flow);
         var cardOf = FlowLayout.CardOf(next);
-        var card = ids.Select(id => next.FindNode(id) is GroupNode ? id : cardOf.GetValueOrDefault(id)).First(id => id is not null)!;
+        var card = ids.Where(id => !before.ContainsKey(id))
+            .Select(id => next.FindNode(id) is GroupNode ? id : cardOf.GetValueOrDefault(id)).First(id => id is not null)!;
         Edit(_ => next);
         Select(card);
         return ConnectRefusal.None;
     }
 
     /// <summary>Ctrl+Shift+G: every selected card; its members end up selected.</summary>
-    public void UngroupSelection()
+    /// <summary>Ctrl+Shift+G on the selected cards; all or none (the first refusal wins).</summary>
+    public ConnectRefusal UngroupSelection()
     {
         if (Flow is not { } flow)
-            return;
+            return ConnectRefusal.None;
         var cards = flow.Nodes.OfType<GroupNode>().Where(g => _selected.Contains(g.Id)).ToList();
         if (cards.Count == 0)
-            return;
-        Edit(f => cards.Aggregate(f, (current, card) => FlowEdits.Ungroup(current, card.Id)));
+            return ConnectRefusal.None;
+        var next = flow;
+        foreach (var card in cards)
+        {
+            (next, var refusal) = FlowEdits.Ungroup(next, card.Id);
+            if (refusal != ConnectRefusal.None)
+                return refusal;
+        }
+        Edit(_ => next);
         _selected.Clear();
         foreach (var member in cards.SelectMany(c => c.Members).Where(id => Find(id) is not null))
             _selected.Add(member);
         ApplySelection();
+        return ConnectRefusal.None;
     }
 
     /// <summary>Where a dragged pill would land over <paramref name="target"/> at content point <paramref name="p"/>.</summary>
