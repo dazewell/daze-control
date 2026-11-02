@@ -145,9 +145,16 @@ public sealed partial class RunDetailViewModel : ObservableObject
         {
             AutomationName = $"{NodeTitle(p.Bar.NodeId)}, {Describe(p.Bar.Outcome)}, {RunWords.Seconds(p.Bar.End - p.Bar.Start)}",
         }).ToList();
-        Brackets = [.. Timeline.Brackets.Select(c => new TimelineBracketView(
-            TitleOf(Flow?.FindNode(c.CardId), "Run together"), X(c.Start), top + c.FirstLane * LaneHeight + 2,
-            Math.Max(X(c.End) - X(c.Start), MinBarWidth), (c.LastLane - c.FirstLane + 1) * LaneHeight - 4))];
+        // A bracket hugs its members' bars as fitted above, not their raw times, so it never cuts one off.
+        Brackets = [.. Timeline.Brackets.Select(c =>
+        {
+            var members = (Flow?.FindNode(c.CardId) as GroupNode)?.Members.ToHashSet(StringComparer.Ordinal);
+            var inside = bars.Where(b => members?.Contains(b.NodeId) == true).ToList();
+            var left = inside.Count > 0 ? inside.Min(b => b.X) : X(c.Start);
+            var right = inside.Count > 0 ? inside.Max(b => b.X + b.Width) : X(c.End);
+            return new TimelineBracketView(TitleOf(Flow?.FindNode(c.CardId), "Run together"), left, top + c.FirstLane * LaneHeight + 2,
+                Math.Max(right - left, MinBarWidth), (c.LastLane - c.FirstLane + 1) * LaneHeight - 4);
+        })];
         Ticks = [.. TickTimes(Timeline.Length).Select(t => new TimelineTick(X(t), RunWords.Seconds(t)))];
         Height = top + Math.Max(1, Timeline.Lanes) * LaneHeight;
         Bars = bars; // last: the view redraws on Bars, so everything else is in place by then

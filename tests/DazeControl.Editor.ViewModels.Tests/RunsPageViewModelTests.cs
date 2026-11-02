@@ -41,7 +41,8 @@ public sealed class RunsPageViewModelTests : IDisposable
     [Fact]
     public async Task RunsAreGroupedByDayNewestFirst()
     {
-        var now = _time.GetLocalNow();
+        var today = _time.GetLocalNow();
+        var now = new DateTimeOffset(today.Date.AddHours(12), today.Offset); // noon: an hour earlier is still today
         var history = new[] { Run(now.AddHours(-1)), Run(now.AddDays(-1)), Run(now.AddMinutes(-5)), Run(now.AddDays(-9)) };
         _engine.Answer = r => new PipeMessage { Ok = true, History = r.Op == Ops.History && r.Limit == 100 ? history : null };
         using var page = new RunsPageViewModel(_session, _engine, action => action(), _time);
@@ -129,6 +130,21 @@ public sealed class RunsPageViewModelTests : IDisposable
         Assert.Equal(["a", "b", "c"], bars.Select(b => b.NodeId));
         Assert.All(bars.Zip(bars.Skip(1)), p => Assert.True(p.Second.X >= p.First.X + p.First.Width + RunDetailViewModel.BarGap));
         Assert.Equal(800, bars[^1].X + bars[^1].Width, 3);
+    }
+
+    [Fact]
+    public void ABracketHugsItsMembersAfterTheyAreFittedAtTheRightEdge()
+    {
+        var flow = _session.Current.Flows[0];
+        var run = Run(_time.GetLocalNow(), seconds: 2.002, nodes:
+            [Ran("bt", 0, 2), Ran("w1", 2, 2.001, order: 2), Ran("w2", 2, 2.001, order: 3), Ran("out", 2.001, 2.002, order: 4)]);
+        var detail = new RunDetailViewModel(run, flow);
+
+        detail.Layout(800);
+
+        var bracket = Assert.Single(detail.Brackets);
+        var members = detail.Bars.Where(b => b.NodeId is "w1" or "w2").ToList();
+        Assert.All(members, m => Assert.InRange(m.X, bracket.X, bracket.X + bracket.Width - m.Width));
     }
 
     [Fact]
