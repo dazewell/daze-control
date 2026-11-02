@@ -213,6 +213,8 @@ public sealed partial class ShellWindow : Window
             ViewModel.CloseFlow();
     }
 
+    private void OnTidyUp(object sender, RoutedEventArgs e) => _editor?.TidyUp();
+
     private void OnFit(object sender, RoutedEventArgs e) => FlowCanvasControl.Fit();
 
     private void OnActualSize(object sender, RoutedEventArgs e) => FlowCanvasControl.ZoomToActualSize();

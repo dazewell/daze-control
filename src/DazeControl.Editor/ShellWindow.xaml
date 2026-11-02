@@ -294,6 +294,9 @@
                     <Grid Margin="36,0,16,4">
                         <BreadcrumbBar x:Name="FlowBreadcrumb" VerticalAlignment="Center" ItemClicked="OnBreadcrumbClicked" />
                         <CommandBar HorizontalAlignment="Right" DefaultLabelPosition="Right" Background="Transparent" IsDynamicOverflowEnabled="True">
+                            <AppBarButton Label="Tidy up" ToolTipService.ToolTip="Reorder steps so fewer lines cross" Click="OnTidyUp">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE8CB;" /></AppBarButton.Icon>
+                            </AppBarButton>
                             <AppBarButton Label="Fit" ToolTipService.ToolTip="Fit to window (Ctrl+0)" Click="OnFit">
                                 <AppBarButton.Icon><FontIcon Glyph="&#xE9A6;" /></AppBarButton.Icon>
                             </AppBarButton>

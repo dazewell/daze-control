@@ -362,6 +362,15 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     // ---- Edits ----
 
+    /// <summary>"Tidy up" (UX §5.2): reorders columns to cut crossings; false when nothing changed.</summary>
+    public bool TidyUp()
+    {
+        if (Flow is not { } flow || FlowTidy.Tidy(flow) is var tidy && ReferenceEquals(tidy, flow))
+            return false;
+        Edit(_ => tidy);
+        return true;
+    }
+
     /// <summary>Applies a change to this flow (one undo entry from T7.7).</summary>
     public void Edit(Func<Flow, Flow> change)
     {

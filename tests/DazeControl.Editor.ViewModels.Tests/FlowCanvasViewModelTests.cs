@@ -255,6 +255,27 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         Assert.False(_session.HasUnsavedChanges);
     }
 
+    private static readonly string[] CrossedOrder = ["bt", "vol", "out", "note", "both", "w1", "w2"];
+
+    [Fact]
+    public void TidyUpUncrossesColumnsAndSaves()
+    {
+        Assert.False(_canvas.TidyUp());
+
+        // vol also waits for the card and sits above out: bt→out and both→vol cross.
+        _canvas.Edit(f => f with
+        {
+            Nodes = [.. CrossedOrder.Select(id =>
+                f.FindNode(id) is StepNode { Id: "vol" } vol ? vol with { After = [.. vol.After, new Edge("both")] } : f.FindNode(id)!)],
+        });
+        Assert.Equal(1, FlowTidy.Crossings(_canvas.Flow!));
+
+        Assert.True(_canvas.TidyUp());
+
+        Assert.Equal(["bt", "out", "vol", "note", "both", "w1", "w2"], Order());
+        Assert.True(_session.HasUnsavedChanges);
+    }
+
     [Fact]
     public void DraggingFromAnOutputPortConnects()
     {
