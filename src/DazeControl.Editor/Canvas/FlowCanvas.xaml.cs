@@ -44,7 +44,7 @@ public sealed partial class FlowCanvas : UserControl
         InitializeComponent();
         ActualThemeChanged += (_, _) => RefreshAll();
         GotFocus += (_, _) => { _viewModel?.EnsureFocus(); UpdateFocusRing(); };
-        LostFocus += (_, _) => UpdateFocusRing();
+        LostFocus += (_, _) => { _spaceDown = false; UpdateFocusRing(); }; // Space released elsewhere never reaches OnKeyUp
         SizeChanged += (_, _) => { if (_fitPending) Fit(); };
         // The whole viewport takes gestures (a small flow leaves blank canvas around Host); positions are in Host's
         // coordinates. Scroll bars handle their own presses, so they never start a marquee.
@@ -114,7 +114,11 @@ public sealed partial class FlowCanvas : UserControl
         var details = _viewModel.ShowDetails;
         _viewModel.Zoom = Scroller.ZoomFactor;
         if (details != _viewModel.ShowDetails)
+        {
+            // Hiding details shrinks the pills, which would re-fit above the threshold and flicker: fit once.
+            _autoFit = false;
             RefreshAll();
+        }
     }
 
     // ---- Sync from the view model ----
@@ -355,11 +359,13 @@ public sealed partial class FlowCanvas : UserControl
                 if (_dragged is not null && _viewModel.CanEdit)
                 {
                     _gesture = Gesture.DragNode;
-                    XamlCanvas.SetZIndex(_dragged, 1);
+                    foreach (var view in DragGroup())
+                        XamlCanvas.SetZIndex(view, view == _dragged ? 1 : 2);
                 }
                 break;
             case Gesture.DragNode:
-                _dragged!.RenderTransform = new TranslateTransform { X = dx, Y = dy };
+                foreach (var view in DragGroup())
+                    view.RenderTransform = new TranslateTransform { X = dx, Y = dy };
                 break;
             case Gesture.Marquee:
                 var rect = DazeControl.Core.Layout.Rect.FromCorners(C(_pressContent), C(position));
@@ -408,10 +414,24 @@ public sealed partial class FlowCanvas : UserControl
 
     private void ResetDragged()
     {
+        foreach (var view in DragGroup())
+        {
+            view.RenderTransform = null;
+            XamlCanvas.SetZIndex(view, 0);
+        }
+    }
+
+    /// <summary>The dragged view and, for a card, its members (separate siblings in NodeLayer).</summary>
+    private IEnumerable<NodeView> DragGroup()
+    {
         if (_dragged is null)
-            return;
-        _dragged.RenderTransform = null;
-        XamlCanvas.SetZIndex(_dragged, 0);
+            yield break;
+        yield return _dragged;
+        foreach (var view in _views.Values)
+        {
+            if (view.Node.CardId == _dragged.Node.Id)
+                yield return view;
+        }
     }
 
     private void EndGesture()

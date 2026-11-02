@@ -26,9 +26,9 @@ public partial class App : Application
     /// <summary>A second start of the editor (any thread).</summary>
     public void BringToFront() => _window?.DispatcherQueue.TryEnqueue(() => _window?.BringToFront());
 
-    /// <summary><see cref="Program.ConfigPath"/> edits another file; its backups go next to it.</summary>
+    /// <summary><see cref="Program.ConfigPath"/> edits another file; its backups go next to it, one folder per file.</summary>
     private static ConfigStore OpenStore() => Program.ConfigPath is { } path
-        ? new ConfigStore(path, Path.Combine(Path.GetDirectoryName(path)!, "backups"))
+        ? new ConfigStore(path, Path.Combine(Path.GetDirectoryName(path)!, "backups", Path.GetFileName(path)))
         : new ConfigStore(ConfigStore.DefaultPath, ConfigStore.DefaultBackupDirectory);
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
