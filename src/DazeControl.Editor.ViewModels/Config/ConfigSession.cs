@@ -65,6 +65,9 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
 
     public bool HasSaveError => SaveError is not null;
 
+    /// <summary>Edits not in the file yet (pending, conflicting or failed): the window must not just close.</summary>
+    public bool HasUnsavedChanges => _dirty;
+
     public void Load()
     {
         _saveTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);

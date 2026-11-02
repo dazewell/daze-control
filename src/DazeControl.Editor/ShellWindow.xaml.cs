@@ -24,6 +24,8 @@ public sealed partial class ShellWindow : Window
 
     private readonly FileSystemWatcher? _watcher;
     private readonly DispatcherQueueTimer _watchDelay;
+    private bool _closeAnyway;
+    private bool _asking;
 
     public ShellWindow(ShellViewModel viewModel)
     {
@@ -65,6 +67,7 @@ public sealed partial class ShellWindow : Window
         }
 
         Activated += OnFirstActivated;
+        AppWindow.Closing += OnClosing;
         Closed += (_, _) =>
         {
             _watcher?.Dispose();
@@ -96,6 +99,46 @@ public sealed partial class ShellWindow : Window
             presenter.Restore();
         Activate();
         _ = SetForegroundWindow(Win32Interop.GetWindowFromWindowId(AppWindow.Id));
+    }
+
+    /// <summary>
+    /// Last chance to save: after Closed the process ends, so a conflict or a failed write is asked about here,
+    /// while the InfoBars can still offer Keep mine / Reload.
+    /// </summary>
+    private async void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (_closeAnyway)
+            return;
+        ViewModel.Session.Flush();
+        if (!ViewModel.Session.HasUnsavedChanges)
+            return;
+        args.Cancel = true;
+        if (_asking)
+            return;
+        _asking = true;
+        try
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = Content.XamlRoot,
+                Title = "Your latest changes aren't saved",
+                Content = ViewModel.Session.OutsideChange == OutsideChange.Conflict
+                    ? "config.yaml changed outside the editor. Keep yours or reload the file first, or close and lose your changes."
+                    : ViewModel.Session.SaveError,
+                PrimaryButtonText = "Close without saving",
+                CloseButtonText = "Stay",
+                DefaultButton = ContentDialogButton.Close,
+            };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                _closeAnyway = true;
+                Close();
+            }
+        }
+        finally
+        {
+            _asking = false;
+        }
     }
 
     private void OnFirstActivated(object sender, WindowActivatedEventArgs args)

@@ -241,5 +241,6 @@ public sealed class ConfigSessionTests : IDisposable
 
         Assert.Equal(OutsideChange.Conflict, _session.OutsideChange);
         Assert.Equal(theirs, File.ReadAllText(ConfigPath));
+        Assert.True(_session.HasUnsavedChanges); // the window asks before closing
     }
 }
