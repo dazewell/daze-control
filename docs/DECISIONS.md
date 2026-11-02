@@ -389,3 +389,18 @@ Status: accepted
 - Why not the Windows clipboard (YAML text): cross-config paste needs library merging and id clashes handled; no
   one asked for it yet. Why not bridge failure edges: "if B fails" can't become a condition on A.
 - Revisit if: users paste between config files, or undo across page switches is wanted.
+
+## D-040 · 2026-11-02 · "Test this step" sends the editor's config text; the engine runs that one step alone
+Status: accepted
+- Decision: the inspector sends `test-step` with the flow id, the step id and `config` = YAML of the library plus
+  that flow as on screen (unsaved values included). The engine maps it, validates just that step, and runs it as a
+  one-node flow `test:<flow>` (no edges, stop on failure) on a second `FlowRunner` sharing the providers and
+  `ResourceLocks` but raising no events: no pop-up, no history. The editor sends it on a pipe connection of its own;
+  Cancel closes that connection, which cancels the request (`cancel test:<flow>` works too, for `dctl`).
+- Why: "with on-screen values" (UX §5.4) without waiting for autosave + the engine's reload; the shared locks make a
+  test wait for a running flow that uses the same device instead of fighting it.
+- Why not by flow/node id against the engine's config: races the 300 ms save and the reload, and tests the last
+  *valid* version of a half-built flow (D-021) rather than what's shown. Why not the run connection's queue: a
+  20 s Bluetooth test would hold every other request behind it.
+- Revisit if: a config grows past the pipe's 64 KB line limit (big display layouts) — then send only the step and
+  the library items it references.

@@ -234,6 +234,16 @@ M8, Settings, About), cards in the OSD's settings-card style (App.xaml). All log
   Outline view (`FlowCanvasViewModel.Outline`, a TreeView) is the screen-reader equivalent: same selection (one row:
   showing it narrows a canvas multi-selection to the focused step, since TreeView multi-select didn't redraw its check
   boxes from code reliably), same shortcuts (`FlowCanvas.RunCommandKey`) and the same command menu (`FlowCanvas.NodeMenu`).
+- Inspector (`Inspector/InspectorViewModel`, pane 320 wide right of the canvas): one selected step → header, one
+  `ParamFieldViewModel` per `ParamSpec` (text, script, file + Browse, number/duration in seconds, toggle, choice,
+  device picker, lists and maps as lines), "If it fails" radio buttons whose hover/focus fades what wouldn't run
+  (`Affected`, via `FlowCanvasViewModel.Preview`), timing, "Test this step" (D-040); a card → name + policy; nothing
+  → the flow's settings (name, icon, tray folder, line above, shortcuts with the OSD's `HotkeyRecorder`, when
+  running, pop-up). Every change is one canvas `Edit` (one undo step); text commits on leaving the box or Enter;
+  a value equal to the default is removed from `with:`. Device pickers (`Inspector/LibraryDevices`, shared with the
+  Library page): Library items with live state from pipe `devices`, a missing key kept as "Not found on this PC",
+  then "From Windows" devices — picking one adds it to the Library under a key made from its name; displays offer
+  "Capture current layout". The list refreshes when a picker opens.
 - `--config <path>` makes the editor edit another file (tests, screenshots); its backups go to `backups/<file>/`
   next to it, and its single-instance names are scoped by path.
 
@@ -276,6 +286,9 @@ T0.5 gate passed: no AOT/trim warnings; hotkey press and tray icon checked on th
 
 ## Open questions
 
+- Inspector leftovers (M8): headers as key/value rows + "Add header" (now "Name: value" lines), a script's "Open in
+  editor", the pill ring showing a test result for 3 s, resizing the pane (280–480), and recording a chord the
+  running engine already owns (RegisterHotKey eats it, so it runs that flow instead of reaching the recorder).
 - Not built in M7 yet: "+" on a port and on an edge midpoint (menus cover both), minimap, dot grid, F2 rename and
   Ctrl+L "Runs after…" (wait for the M8 inspector), the outline's live region for run results (M9),
   multi-select in the outline.

@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M8 — T8.1 done on feat/m8-inspector (not yet a PR); next T8.2 Library pages
-Last green checkpoint: wip(editor) InspectorViewModel commit on feat/m8-inspector
-Next action: T8.2 — `LibraryPageViewModel` (Editor.ViewModels/Library) with sections Audio, Bluetooth, Displays, Fire TV, Programs; reuse `Inspector/LibraryDevices` for live state; Test = read-only check via pipe `devices`; "Used by n flows"
+Current task: M8 — T8.1 done (feat/m8-inspector, PR open, see `gh pr list`); next T8.2 Library pages
+Last green checkpoint: "feat(editor): inspector pane with step settings, policy preview and Test (T8.1)"
+Next action: if the feat/m8-inspector PR is still open, finish its merge policy (§6). Then branch feat/m8-library from main: T8.2 = `Library/LibraryPageViewModel` in Editor.ViewModels with sections Audio, Bluetooth, Displays, Fire TV, Programs (Programs = the `process.run` paths the flows use; there is no Library kind for them); reuse `Inspector/LibraryDevices` (live state, NewKey, Add); Test = read-only check via pipe `devices` (found? connected?) or file exists, never a state change; "Used by n flows" counts steps whose LibraryRef param holds the key. Replace the Library placeholder panel in ShellWindow with a Pivot. Then T8.3 Problems (CommandBar "Problems (n)" → list from `ConfigSession.Problems` for this flow; click selects the node).
 Tree state: builds, 679/679 tests green · Uncommitted: none
-Notes for next agent: version still 0.12.0 (bump to 0.13.0 in the M8 PR). Test the editor only with `--config <scratch>nfig.yaml`; a dev engine started with the same --config locks its bin/Debug DLLs (stop it before building the engine).
+Notes for next agent: version is 0.13.0 (the T8.2/T8.3 PR bumps to 0.14.0). Test the editor only with `--config <scratch>/config.yaml`; a dev engine started with that config (bin/Debug engine exe, `--config`) locks the engine's bin/Debug DLLs: stop it before building. Screenshots: UIA InvokePattern on "Edit <flow>", clicks via SetCursorPos + mouse_event (build skill).
 
 ---
 
