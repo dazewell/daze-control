@@ -207,4 +207,18 @@ public sealed class RunOverlayViewModelTests : IDisposable
 
         Assert.Equal(NodeRunState.Running, State("bt"));
     }
+
+    [Fact]
+    public void ACardsEdgesLightOnceAllItsMembersFinished()
+    {
+        _canvas.Edit(f => f with { Nodes = [.. f.Nodes.Select(n => n.Id == "note" ? n with { After = [new Core.Model.Edge("both")] } : n)] });
+        Raise(EventKinds.RunStarted);
+        Raise(EventKinds.NodeFinished, result: new NodeResult("w1", NodeOutcome.Succeeded));
+        Assert.False(_canvas.Edges.Single(e => e.From == "both").IsLit);
+
+        Raise(EventKinds.NodeFinished, result: new NodeResult("w2", NodeOutcome.Succeeded));
+
+        Assert.True(_canvas.Edges.Single(e => e.From == "both").IsLit);
+        Assert.EndsWith("Done in 0 s.", _canvas.Find("w2")!.AutomationName, StringComparison.Ordinal);
+    }
 }

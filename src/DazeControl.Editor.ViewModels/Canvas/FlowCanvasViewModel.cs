@@ -109,11 +109,14 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     {
         foreach (var node in Nodes)
             node.ShowRun(_run?.GetValueOrDefault(node.Id));
+        static bool Finished(NodeRunView? view) =>
+            view?.State is NodeRunState.Succeeded or NodeRunState.Failed or NodeRunState.FailedMayFail;
+        // A card has no state of its own: it has finished once every member has.
+        bool SourceFinished(string id) => Flow?.FindNode(id) is GroupNode card
+            ? card.Members.Count > 0 && card.Members.All(m => Finished(_run?.GetValueOrDefault(m)))
+            : Finished(_run?.GetValueOrDefault(id));
         foreach (var edge in Edges)
-        {
-            edge.IsLit = _run?.GetValueOrDefault(edge.From)?.State
-                is NodeRunState.Succeeded or NodeRunState.Failed or NodeRunState.FailedMayFail;
-        }
+            edge.IsLit = _run is not null && SourceFinished(edge.From);
         OnPropertyChanged(nameof(IsShowingRun));
     }
 

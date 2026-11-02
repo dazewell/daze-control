@@ -149,7 +149,26 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         RunState = run?.State ?? NodeRunState.None;
         RunText = run?.Text ?? "";
         OrderText = run is { Order: > 0 } ? run.Order.ToString(System.Globalization.CultureInfo.CurrentCulture) : "";
+        // Screen readers hear the run too: "Connect, Technics. Bluetooth. Step 1. Done in 1.2 s."
+        var said = new List<string>();
+        if (OrderText.Length > 0)
+            said.Add($"Step {OrderText}");
+        if (RunState != NodeRunState.None)
+            said.Add(RunWords(RunState, RunText));
+        AutomationName = said.Count == 0 ? _name : $"{_name} {string.Join(". ", said)}.";
     }
+
+    private static string RunWords(NodeRunState state, string text) => state switch
+    {
+        NodeRunState.Pending => "Waiting",
+        NodeRunState.Running => "Running",
+        NodeRunState.Succeeded => text.Length > 0 ? $"Done in {text}" : "Would work",
+        NodeRunState.FailedMayFail => $"Didn't work, the flow goes on. {text}".TrimEnd(),
+        NodeRunState.Failed => $"Didn't work. {text}".TrimEnd(),
+        _ => text.Length > 0 ? text : "Skipped",
+    };
+
+    private string _name = "";
 
     /// <summary>Screen-reader name, e.g. "Set default output, Technics. Audio. Waits for Connect Technics. May fail."</summary>
     [ObservableProperty]
@@ -216,7 +235,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             parts.Add("May fail");
         if (hasProblem)
             parts.Add("Needs fixing");
-        AutomationName = string.Join(". ", parts) + ".";
+        _name = string.Join(". ", parts) + ".";
+        AutomationName = _name;
     }
 
     /// <summary>"Technics · Default output": the library items and values the step works with, at most two.</summary>

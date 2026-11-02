@@ -116,6 +116,8 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
         {
             IsBusy = false;
         }
+        if (IsRunning)
+            return; // a hotkey started it meanwhile: the live run owns the canvas
         if (answer is not { Ok: true, Run: { } run })
         {
             Info(RunInfoSeverity.Error, "Couldn't do a dry run", answer?.Error ?? "The engine isn't running.");
