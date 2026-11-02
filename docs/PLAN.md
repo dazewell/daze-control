@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M10 — T10.1 Velopack pack/install/update + release.yml (not started; branch from main)
-Last green checkpoint: 4cef1ec "wip(editor): Runs page view with the day list, detail and timeline (T9.2)"
-Next action: read GOALS and grep DECISIONS/DEADENDS for "Velopack"/"release", then branch `feat/m10-ship` from main and start T10.1.
-Tree state: builds, 743/743 tests green · Uncommitted: none
-Notes for next agent: M9 is done (PRs #16, #17). Open follow-ups from M9 (not blockers): the run overlay attaches to a run already going only at its next NodeStarted (needs per-run state on subscribe); Outline rows don't show run state or announce run results yet.
+Current task: M10 — T10.3 UX acceptance pass (branch feat/m10-ship, no PR yet; T10.1, T10.2 done on it)
+Last green checkpoint: see `git log -1` before this commit ("wip(ship): Velopack pack, install, updates…")
+Next action: T10.3 — screenshots of the editor (Flows, canvas, Runs, Settings) and the pop-up in light, dark and high contrast, 100–175 % scale, 225 % text; check UX.md §5.9 item by item.
+Tree state: builds, 754/754 tests green · Uncommitted: none
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. Local update test: pack with -Version into a feed folder, set DAZECONTROL_UPDATE_SOURCE, run dctl update from the install (X-002: Setup can't pass app args).
 
 ---
 
@@ -97,9 +97,9 @@ Notes for next agent: M9 is done (PRs #16, #17). Open follow-ups from M9 (not bl
 - [x] T9.2 History list + parallel-lane timeline (feat/m9-runs-page, PR #17).
 
 ## M10 Ship
-- [ ] T10.1 Velopack pack/install/update + release.yml.
-- [ ] T10.2 README.
-- [ ] T10.3 UX acceptance pass against the UX.md checklist (screenshots, light/dark/high contrast, 100–175 %
+- [x] T10.1 Velopack pack/install/update + release.yml (feat/m10-ship).
+- [x] T10.2 README (feat/m10-ship).
+- [~] T10.3 UX acceptance pass against the UX.md checklist (screenshots, light/dark/high contrast, 100–175 %
   scale, text size). Includes the pop-up in a contrast theme and at 225 % text (not checked live in M5).
 - [ ] T10.5 Pop-up for Narrator: it draws everything itself, so screen readers get only the window title. Raise a
   UIA notification (or a minimal provider with an invoke for "see what happened") without activating (PR #8 review).
