@@ -42,12 +42,14 @@ public sealed class LibraryDocument
 
     public Dictionary<string, DisplayLayoutDocument>? Displays { get; set; }
 
-    /// <summary>"firetv:", like the step names (camelCase would make it "fireTv").</summary>
-    public Dictionary<string, FireTvDocument>? Firetv { get; set; }
+    public Dictionary<string, AndroidDocument>? Android { get; set; }
+
+    /// <summary>The old name of <see cref="Android"/>: read only to point at the new one, never written (D-045).</summary>
+    public Dictionary<string, AndroidDocument>? Firetv { get; set; }
 }
 
 [YamlSerializable]
-public sealed class FireTvDocument
+public sealed class AndroidDocument
 {
     public string? Address { get; set; }
 

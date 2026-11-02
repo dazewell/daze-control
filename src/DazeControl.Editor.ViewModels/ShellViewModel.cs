@@ -33,6 +33,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         Updates = new UpdatesViewModel(updates, post);
         Library = new LibraryPage.LibraryPageViewModel(session, engine, post);
         Runs = new Runs.RunsPageViewModel(session, engine, post);
+        Library.FlowRequested += OnLibraryFlowRequested;
         _engine.StateChanged += OnEngineStateChanged;
         EngineRunning = engine.IsRunning;
     }
@@ -48,6 +49,14 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     public LibraryPage.LibraryPageViewModel Library { get; }
 
     public Runs.RunsPageViewModel Runs { get; }
+
+    /// <summary>Library › "Used by" › a flow: that flow in the editor.</summary>
+    private void OnLibraryFlowRequested(string flowId)
+    {
+        OpenFlow(flowId);
+        if (Editor?.FlowId == flowId)
+            Page = EditorPage.Flows;
+    }
 
     /// <summary>"Open in editor" on the Runs page: the flow, with that run's states on the canvas.</summary>
     public void OpenRun(Core.Runs.RunRecord run)
@@ -127,6 +136,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _engine.StateChanged -= OnEngineStateChanged;
+        Library.FlowRequested -= OnLibraryFlowRequested;
         Run?.Dispose();
         Inspector?.Dispose();
         Editor?.Dispose();

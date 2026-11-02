@@ -31,12 +31,12 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
   (audio devices, KS one-shot, no admin) · `display.topology` (Win+P presets), `display.outputs` (only these
   ports on), `display.layout` (captured CCD layout) · `process.run` (exe, args[], cwd, wait, exit codes,
   kill tree on timeout) · `script.powershell` · `http.request` (Sunshine API etc., credentials by name) ·
-  `firetv.input`/`firetv.keys`/`firetv.sleep` (adb, connect retries, one chained shell call) ·
+  `android.input`/`android.keys`/`android.sleep` (adb, connect retries, one chained shell call; any adb device, D-045) ·
   `service.start`/`stop` (fails clearly without rights) · `wait` · `notify` (pop-up text) ·
   `flag.set`/`flag.check` (check fails when unmet → combine with `when: failure`).
 
 **F4 Library** — named, reusable resources referenced by steps: audio devices (match text + flow), Bluetooth
-devices (address + name), display layouts/outputs, Fire TV devices + inputs, programs, credentials (secret in
+devices (address + name), display layouts/outputs, Android devices + inputs, programs, credentials (secret in
 Windows Credential Manager, only the name in YAML). Each has a Test action.
 
 **F5 Runtime** — DAG scheduler with parallel branches, engine-wide resource locks, timeouts + cancellation

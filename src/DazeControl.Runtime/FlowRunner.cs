@@ -227,7 +227,7 @@ public sealed class FlowRunner
     }
 
     /// <summary>
-    /// The descriptor's lock names with "{param}" replaced by that param's value ("audio"). A Bluetooth or Fire TV
+    /// The descriptor's lock names with "{param}" replaced by that param's value ("audio"). A Bluetooth or Android
     /// reference becomes the device's address, so two library keys for one device share its lock ("bluetooth:B8:20:…").
     /// </summary>
     internal static IEnumerable<string> ResourcesOf(ProviderDescriptor descriptor, StepNode node, Library library) =>
@@ -242,8 +242,8 @@ public sealed class FlowRunner
     {
         { Kind: ParamKind.LibraryRef, Library: LibraryKind.Bluetooth }
             when library.Bluetooth.FirstOrDefault(d => d.Key == text) is { } device => device.Address.ToUpperInvariant(),
-        { Kind: ParamKind.LibraryRef, Library: LibraryKind.FireTv }
-            when library.FireTv.FirstOrDefault(d => d.Key == text) is { } tv => tv.Serial.ToUpperInvariant(),
+        { Kind: ParamKind.LibraryRef, Library: LibraryKind.Android }
+            when library.Android.FirstOrDefault(d => d.Key == text) is { } tv => tv.Serial.ToUpperInvariant(),
         _ => text,
     };
 

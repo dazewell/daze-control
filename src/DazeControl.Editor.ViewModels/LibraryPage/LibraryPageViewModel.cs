@@ -44,7 +44,7 @@ public sealed partial class LibrarySectionViewModel : ObservableObject
     public bool HasAvailable => Available.Count > 0;
 
     /// <summary>Devices can be added from Windows; Displays capture the current layout; Programs come from flows.</summary>
-    public bool CanAdd => Kind is LibraryKind.Audio or LibraryKind.Bluetooth or LibraryKind.FireTv;
+    public bool CanAdd => Kind is LibraryKind.Audio or LibraryKind.Bluetooth or LibraryKind.Android;
 
     public bool CanCapture => Kind == LibraryKind.Display;
 
@@ -63,7 +63,7 @@ public sealed partial class LibrarySectionViewModel : ObservableObject
 }
 
 /// <summary>
-/// The Library page (UX §5.1): Audio, Bluetooth, Displays, Fire TV and Programs as settings cards with live state,
+/// The Library page (UX §5.1): Audio, Bluetooth, Displays, Android and Programs as settings cards with live state,
 /// "Used by 2 flows" and a read-only Test. Programs are the <c>process.run</c> paths the flows use; there is no
 /// Library kind for them. UI thread only; engine answers come back through <c>post</c>.
 /// </summary>
@@ -76,18 +76,21 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     private readonly Action<Action> _post;
     private readonly Func<string, bool> _fileExists;
     private readonly Func<string?> _searchPath;
+    private readonly Action<string> _reveal;
     private readonly Dictionary<LibraryKind, IReadOnlyList<DeviceInfo>> _live = [];
 
     /// <param name="fileExists">Seam for tests; the real file system by default.</param>
     /// <param name="searchPath">PATH for programs named without a folder; the process's by default.</param>
+    /// <param name="reveal">Shows a file selected in File Explorer; the real one by default.</param>
     public LibraryPageViewModel(ConfigSession session, IEngineClient engine, Action<Action> post,
-        Func<string, bool>? fileExists = null, Func<string?>? searchPath = null)
+        Func<string, bool>? fileExists = null, Func<string?>? searchPath = null, Action<string>? reveal = null)
     {
         _session = session;
         _engine = engine;
         _post = post;
         _fileExists = fileExists ?? File.Exists;
         _searchPath = searchPath ?? (() => Environment.GetEnvironmentVariable("PATH"));
+        _reveal = reveal ?? RevealInExplorer;
         Sections =
         [
             new(LibraryKind.Audio, "Audio", LibraryDevices.Glyph(LibraryKind.Audio),
@@ -96,8 +99,8 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
                 "No Bluetooth devices yet. Add a paired one from Windows."),
             new(LibraryKind.Display, "Displays", LibraryDevices.Glyph(LibraryKind.Display),
                 "No screen layouts yet. Set your screens up the way you like, then capture the layout."),
-            new(LibraryKind.FireTv, "Fire TV", LibraryDevices.Glyph(LibraryKind.FireTv),
-                "No Fire TVs yet. Turn on network debugging on the TV, connect it with adb, then add it."),
+            new(LibraryKind.Android, "Android", LibraryDevices.Glyph(LibraryKind.Android),
+                "No Android devices yet. Turn on network debugging on the TV, connect it with adb, then add it."),
             new(null, "Programs", FlowItemViewModel.DecodeGlyph("E756"),
                 "No programs yet. Programs show up here once a flow runs one."),
         ];
@@ -114,6 +117,9 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     public LibrarySectionViewModel Section(LibraryKind? kind) => Sections.First(s => s.Kind == kind);
 
     public bool CanEdit => _session.CanEdit;
+
+    /// <summary>A "Used by" flow was picked: the shell opens it in the flow editor.</summary>
+    public event Action<string>? FlowRequested;
 
     /// <summary>Asks the engine what this PC has now, for every device kind (pipe <c>devices</c>).</summary>
     public Task RefreshAsync() => Task.WhenAll(Sections.Where(s => s.Kind is not null).Select(s => RefreshAsync(s.Kind!.Value)));
@@ -134,13 +140,17 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     // ---- Counting (UX §5.1 "Used by 2 flows") ----
 
     /// <summary>How many flows have a step whose Library setting of this kind names the key.</summary>
-    public static int UsedBy(Configuration config, LibraryKind kind, string key) =>
-        config.Flows.Count(f => f.Nodes.OfType<StepNode>().Any(step => References(step, kind, key)));
+    public static int UsedBy(Configuration config, LibraryKind kind, string key) => Users(config, kind, key).Count;
 
-    private static bool References(StepNode step, LibraryKind kind, string key) =>
-        ProviderCatalog.Find(step.Step) is { } descriptor
-        && descriptor.Params.Any(p => p.Kind == ParamKind.LibraryRef && p.Library == kind
-            && step.With.TryGetValue(p.Name, out var value) && value is ScalarParam { Text: var text } && text == key);
+    /// <summary>The flows with a step whose Library setting of this kind names the key, in file order.</summary>
+    public static IReadOnlyList<FlowLink> Users(Configuration config, LibraryKind kind, string key) =>
+        [.. config.Flows.Where(f => f.Nodes.OfType<StepNode>().Any(step => LibraryEdits.Names(step, kind, key) is not null)).Select(Link)];
+
+    /// <summary>The flows that run this program (paths compared ignoring case), in file order.</summary>
+    public static IReadOnlyList<FlowLink> ProgramUsers(Configuration config, string path) =>
+        [.. config.Flows.Where(f => f.Nodes.OfType<StepNode>().Any(step => string.Equals(ProgramPath(step), path, StringComparison.OrdinalIgnoreCase))).Select(Link)];
+
+    private static FlowLink Link(Flow flow) => new(flow.Id, flow.Name.Length > 0 ? flow.Name : flow.Id);
 
     /// <summary>The programs the flows run, each with how many flows run it (paths compared ignoring case).</summary>
     public static IReadOnlyList<(string Path, int Flows)> Programs(Configuration config) =>
@@ -170,13 +180,13 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     {
         var section = Section(kind);
         var config = _session.Current;
-        List<(string Key, string Title, string Detail, string State, int UsedBy, string? Problem)> rows;
+        List<(string Key, string Title, string Detail, string State, IReadOnlyList<FlowLink> Users, string? Problem)> rows;
+        var live = kind is { } liveKind ? _live.GetValueOrDefault(liveKind) : null;
         if (kind is { } k)
         {
-            var live = _live.GetValueOrDefault(k);
             rows = [.. LibraryDevices.Items(config.Library, k).Select(i => (i.Key, i.Title, Detail(config.Library, k, i.Key),
                 k == LibraryKind.Display ? "" : LibraryDevices.State(config.Library, k, i.Key, live),
-                UsedBy(config, k, i.Key), ProblemOf(k, i.Key)))];
+                Users(config, k, i.Key), ProblemOf(k, i.Key)))];
             section.Available = live is null || !section.CanAdd
                 ? []
                 : [.. LibraryDevices.Options(k, config.Library, live, null, required: true, canCapture: false)
@@ -184,7 +194,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         }
         else
         {
-            rows = [.. Programs(config).Select(p => (p.Path, ProgramTitle(p.Path), ProgramDetail(p.Path), "", p.Flows, (string?)null))];
+            rows = [.. Programs(config).Select(p => (p.Path, ProgramTitle(p.Path), ProgramDetail(p.Path), "", ProgramUsers(config, p.Path), (string?)null))];
         }
 
         var existing = section.Items.ToDictionary(i => i.Key, StringComparer.Ordinal);
@@ -192,13 +202,17 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         foreach (var row in rows)
         {
             if (!existing.TryGetValue(row.Key, out var item))
-                item = new LibraryItemViewModel(row.Key, section.Glyph, (i, ct) => TestAsync(kind, i.Key, ct));
+                item = new LibraryItemViewModel(row.Key, section.Glyph, (i, ct) => TestAsync(kind, i.Key, ct)) { CanOpenLocation = kind is null };
             item.Title = row.Title;
             item.Detail = row.Detail;
             item.State = row.State;
-            item.UsedBy = row.UsedBy;
+            item.UsedBy = row.Users.Count;
+            item.UsedByFlows = row.Users;
             item.Problem = row.Problem;
             item.Removable = kind is not null && CanEdit;
+            item.CanRename = kind is LibraryKind.Display or LibraryKind.Android && CanEdit;
+            if (kind == LibraryKind.Display)
+                item.Screens = ScreenDetails(config.Library.Displays.First(d => d.Key == row.Key), live);
             section.Items.Add(item);
         }
     }
@@ -208,8 +222,26 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         LibraryKind.Audio => library.Audio.First(d => d.Key == key) is var a && a.Flow == AudioFlow.Input ? "Input" : "Output",
         LibraryKind.Bluetooth => library.Bluetooth.First(d => d.Key == key).Address,
         LibraryKind.Display => LibraryDevices.State(library, kind, key, null),
-        _ => library.FireTv.First(d => d.Key == key).Address,
+        _ => library.Android.First(d => d.Key == key).Address,
     };
+
+    /// <summary>
+    /// A layout's screens from its capture. A plugged-in screen (matched by device path in the live list) shows its
+    /// name and port as Windows has them now; another shows its maker/model code and cable type.
+    /// </summary>
+    public static IReadOnlyList<ScreenDetail> ScreenDetails(DisplayLayout layout, IReadOnlyList<DeviceInfo>? live) =>
+    [
+        .. LayoutScreens.Read(layout).Select(screen =>
+        {
+            var now = live?.FirstOrDefault(d => string.Equals(d.Id, screen.Monitor, StringComparison.OrdinalIgnoreCase));
+            // The live detail is "DELL S2722QC, on" (or just "on" when Windows has no name for it).
+            var name = now?.Detail is { } detail && detail.LastIndexOf(", ", StringComparison.Ordinal) is > 0 and var comma
+                ? detail[..comma]
+                : screen.HardwareId;
+            return new ScreenDetail(now is null ? $"{name} (not connected)" : name, now?.Name ?? screen.Connection,
+                screen.Resolution, screen.Position, screen.Refresh, screen.Primary);
+        }),
+    ];
 
     private static string ProgramTitle(string path) => Path.GetFileName(path) is { Length: > 0 } name ? name : path;
 
@@ -230,7 +262,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         LibraryKind.Audio => "audio",
         LibraryKind.Bluetooth => "bluetooth",
         LibraryKind.Display => "displays",
-        _ => "firetv",
+        _ => "android",
     };
 
     // ---- Test (read-only: never connects, switches or launches anything) ----
@@ -282,12 +314,12 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         var device = LibraryDevices.Match(library, kind, key, live);
         return (kind, device) switch
         {
-            (LibraryKind.FireTv, null) => new(TestOutcome.Caution,
+            (LibraryKind.Android, null) => new(TestOutcome.Caution,
                 $"adb isn't connected to {title} right now. The flow connects first, so make sure the TV is on."),
             (_, null) => new(TestOutcome.Failed, kind == LibraryKind.Bluetooth
                 ? $"Windows couldn't find {title}. Make sure it's paired, then try again."
                 : $"Windows couldn't find {title}. Make sure it's plugged in or turned on, then try again."),
-            (LibraryKind.FireTv, _) when !string.Equals(LibraryDevices.Describe(kind, device), "Connected", StringComparison.Ordinal) =>
+            (LibraryKind.Android, _) when !string.Equals(LibraryDevices.Describe(kind, device), "Connected", StringComparison.Ordinal) =>
                 new(TestOutcome.Caution, $"adb sees {title}, but it's {LibraryDevices.Describe(kind, device).ToLowerInvariant()}. "
                     + "Allow debugging on the TV if it asks, then try again."),
             (LibraryKind.Bluetooth, _) when !string.Equals(LibraryDevices.Describe(kind, device), "Connected", StringComparison.Ordinal) =>
@@ -299,13 +331,22 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>A full path must exist; a bare name ("notepad.exe") is looked up on PATH as Windows would.</summary>
-    public TestResult TestProgram(string path)
+    public TestResult TestProgram(string path) => ProgramResult(ResolveProgram(path));
+
+    private static TestResult ProgramResult((string? File, bool OnPath) found) => found switch
+    {
+        (null, false) => new(TestOutcome.Failed, "Can't find this file. Check the path in the flows that run it."),
+        (null, true) => new(TestOutcome.Failed, "Can't find this program on PATH. Use its full path in the flows that run it."),
+        (_, false) => new(TestOutcome.Worked, "Found the program."),
+        var (file, _) => new(TestOutcome.Worked, $"Found it: {file}"),
+    };
+
+    /// <summary>The program's file (null: not found), and whether it was looked up on PATH.</summary>
+    private (string? File, bool OnPath) ResolveProgram(string path)
     {
         var expanded = Environment.ExpandEnvironmentVariables(path.Trim().Trim('"'));
         if (Path.IsPathFullyQualified(expanded))
-            return _fileExists(expanded)
-                ? new(TestOutcome.Worked, "Found the program.")
-                : new(TestOutcome.Failed, "Can't find this file. Check the path in the flows that run it.");
+            return (_fileExists(expanded) ? expanded : null, false);
         var extensions = Path.HasExtension(expanded) ? [""] : new[] { ".exe", ".cmd", ".bat", ".com" };
         foreach (var folder in (_searchPath() ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
@@ -313,10 +354,52 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
             {
                 var candidate = Path.Combine(folder, expanded + extension);
                 if (_fileExists(candidate))
-                    return new(TestOutcome.Worked, $"Found it: {candidate}");
+                    return (candidate, true);
             }
         }
-        return new(TestOutcome.Failed, "Can't find this program on PATH. Use its full path in the flows that run it.");
+        return (null, true);
+    }
+
+    /// <summary>Programs: shows the file selected in File Explorer, or says why it can't (the Test sentence).</summary>
+    [RelayCommand]
+    private async Task OpenLocationAsync(LibraryItemViewModel item)
+    {
+        var found = await Task.Run(() => ResolveProgram(item.Key)).ConfigureAwait(true); // a network path can stall
+        if (found.File is null)
+            item.ShowResult(ProgramResult(found)); // not TestProgram: that would look again, on the UI thread
+        else
+            _reveal(found.File);
+    }
+
+    private static void RevealInExplorer(string file) =>
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{file}\"") { UseShellExecute = true })?.Dispose();
+
+    /// <summary>"Used by" › a flow: opens it in the flow editor.</summary>
+    [RelayCommand]
+    private void OpenFlow(FlowLink flow) => FlowRequested?.Invoke(flow.Id);
+
+    /// <summary>
+    /// Displays and Android: a new key, with every step that named the old one following it (D-046). False, with
+    /// <see cref="LibraryItemViewModel.RenameError"/> saying why, when the name is empty or taken.
+    /// </summary>
+    public bool Rename(LibraryItemViewModel item, string newKey)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(newKey);
+        if (!CanEdit || Sections.FirstOrDefault(s => s.Items.Contains(item))?.Kind is not ({ } kind and (LibraryKind.Display or LibraryKind.Android)))
+            return false;
+        var refusal = LibraryEdits.Rename(_session.Current, kind, item.Key, newKey).Refusal;
+        item.RenameError = refusal switch
+        {
+            RenameRefusal.Empty => "Give it a name.",
+            RenameRefusal.Taken => $"\"{newKey.Trim()}\" is already in your Library.",
+            RenameRefusal.Missing => $"\"{item.Key}\" isn't in your Library anymore.",
+            _ => null,
+        };
+        if (refusal != RenameRefusal.None)
+            return false;
+        _session.Update(c => LibraryEdits.Rename(c, kind, item.Key, newKey).Config);
+        return true;
     }
 
     // ---- Add, capture, remove ----
@@ -373,7 +456,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
                 LibraryKind.Audio => c.Library with { Audio = [.. c.Library.Audio.Where(d => d.Key != item.Key)] },
                 LibraryKind.Bluetooth => c.Library with { Bluetooth = [.. c.Library.Bluetooth.Where(d => d.Key != item.Key)] },
                 LibraryKind.Display => c.Library with { Displays = [.. c.Library.Displays.Where(d => d.Key != item.Key)] },
-                _ => c.Library with { FireTv = [.. c.Library.FireTv.Where(d => d.Key != item.Key)] },
+                _ => c.Library with { Android = [.. c.Library.Android.Where(d => d.Key != item.Key)] },
             },
         });
     }

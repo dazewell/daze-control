@@ -62,6 +62,7 @@ public sealed partial class ShellWindow : Window
         LibraryViewControl.ViewModel = ViewModel.Library;
         RunsViewControl.ViewModel = ViewModel.Runs;
         RunsViewControl.OpenRequested += OnOpenRun;
+        ViewModel.Library.FlowRequested += OnLibraryFlowRequested; // after the view model's own handler, which opens it
         var scale = GetDpiForWindow(hwnd) / 96.0;
         AppWindow.Resize(new SizeInt32((int)(WidthDip * scale), (int)(HeightDip * scale)));
 
@@ -204,6 +205,22 @@ public sealed partial class ShellWindow : Window
     /// <summary>"Open in editor" on the Runs page: Flows in the pane again, without closing the flow it opens.</summary>
     private void OnOpenRun(Core.Runs.RunRecord run)
     {
+        SelectFlowsPane();
+        ViewModel.OpenRun(run);
+        UpdatePages();
+    }
+
+    /// <summary>Library › "Used by" › a flow: the view model has opened it; Flows in the pane again, like a run.</summary>
+    private void OnLibraryFlowRequested(string flowId)
+    {
+        if (ViewModel.Editor?.FlowId != flowId)
+            return;
+        SelectFlowsPane();
+        UpdatePages();
+    }
+
+    private void SelectFlowsPane()
+    {
         _navigating = true;
         try
         {
@@ -215,8 +232,6 @@ public sealed partial class ShellWindow : Window
         }
         FlowsPage.Visibility = Visibility.Visible;
         LibraryPage.Visibility = SettingsPage.Visibility = AboutPage.Visibility = Visibility.Collapsed;
-        ViewModel.OpenRun(run);
-        UpdatePages();
     }
 
     /// <summary>The flow editor, the Runs page and the scrolled pages take the same place.</summary>

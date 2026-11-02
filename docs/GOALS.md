@@ -7,7 +7,7 @@ lives in [DECISIONS.md](DECISIONS.md).
 ## User intent
 
 - Replace `scd` (C:\Projects\Copilot\system-control-daemon, .NET 9 WinForms + WPF tray daemon) with a new
-  engine in a different stack: named flows of steps (Bluetooth, audio, displays, Fire TV, Sunshine,
+  engine in a different stack: named flows of steps (Bluetooth, audio, displays, Android (Fire TV), Sunshine,
   programs…) fired by global hotkeys, the tray menu or a CLI (user, 2026-10-31).
 - Reliability and Windows 11 UX of daze-media-osd: WinUI 3, CsWin32, fail-soft, event-driven, repo-is-memory
   docs. Copy its code patterns; no shared build-time code (user, 2026-10-31; D-001).
@@ -35,6 +35,9 @@ lives in [DECISIONS.md](DECISIONS.md).
 Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
 - [x] M0 Bootstrap · [x] M1 Core model + YAML · [x] M2 Runtime · [x] M3 Engine shell · [x] M4 Providers
 - [x] M5 Run pop-up · [x] M6 Editor foundation · [x] M7 Canvas · [x] M8 Inspector + Library · [x] M9 Runs · [x] M10 Ship
+- [x] First-use fixes (user, 2026-11-02; 0.19.0): Flows list stays inside the window when maximized (X-003); Fire TV is
+  now Android, old `firetv` names are problems that name the new ones (D-045); Library layouts rename and show their
+  screens, Programs get Open file location, "Used by" opens the flows (D-046). Programs stays a derived list (D-041).
 
 ## Ready for you (M10, 2026-11-02)
 
@@ -63,8 +66,8 @@ Nothing has been released yet. What's left is yours:
   If the connect works but the output switch fails, the endpoint name may not contain "Technics EAH-AZ80"
   (offload endpoints are named "Headphones"/"Technics"): change `library.audio.technics.match`.
   When it works, scd can be stopped.
-- **Fire TV, Sunshine, services (optional, untested live):** `firetv.*` steps are tested only with fakes and a
-  dry run. To try them, add your TV under `library.firetv` (address, inputs as up/down moves, D-032). A
+- **Android (Fire TV), Sunshine, services (optional, untested live):** `android.*` steps are tested only with fakes and a
+  dry run. To try them, add your TV under `library.android` (address, inputs as up/down moves, D-032). A
   `credential:` is a Credential Manager entry named `DazeControl:<name>` (D-031). Most services can only be
   started or stopped by an admin, so `service.*` fails with a message for those (D-033).
 

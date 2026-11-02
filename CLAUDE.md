@@ -1,6 +1,6 @@
 # Daze Control
 
-Windows 11 tray engine that runs the user's flows (Bluetooth, audio, displays, Fire TV, programs…) from
+Windows 11 tray engine that runs the user's flows (Bluetooth, audio, displays, Android devices, programs…) from
 hotkeys, the tray menu or the `dctl` CLI, plus an on-demand visual flow editor. Successor to `scd`.
 C# / .NET 10: Native AOT headless engine, WinUI 3 editor (D-001). Written entirely by AI agents.
 

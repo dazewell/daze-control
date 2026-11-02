@@ -11,8 +11,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 - Editor window: WinUI 3, Mica, TitleBar (page name as subtitle), NavigationView Left 200 wide.
   Pages: **Flows** (cards: glyph, name, shortcut, last result, On toggle; select → flow editor with
   BreadcrumbBar "Flows › Connect Technics"; New flow: Blank / TV only / Audio → Headphones templates) ·
-  **Library** (Pivot: Audio, Bluetooth, Displays, Fire TV, Programs; settings cards with Test, "Used by 2
-  flows") · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, logs, updates),
+  **Library** (Pivot: Audio, Bluetooth, Displays, Android, Programs; settings cards with Test and "Used by 2
+  flows", which lists the flows and opens one; layouts and Android devices Rename (their flows follow), a layout's
+  Details list its screens; Programs add Open file location) · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, logs, updates),
   **About** (Copy details). Save errors: InfoBar on top of every page.
 - Flow editor: CommandBar (Run, Dry run, Stop, Undo, Redo, Tidy up, Canvas | Outline, Problems (n)) · left
   palette 240 (collapsible, search) · canvas · right inspector 320 (280–480). Nothing selected → inspector
@@ -53,7 +54,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   CardStrokeColorDefault; selected 2 px AccentFillColorDefault; system focus visual. Ports 10-DIP dots, 24-DIP
   hit (40 touch), on hover/selection, always on touch.
 - Glyphs (Segoe Fluent Icons; verify in the gallery): Audio E767, Bluetooth E702, Display E7F4, Process E756,
-  Script E943, HTTP E774, Fire TV E8B2, Service E912, Wait E823, Message E8BD, Flag E7C1.
+  Script E943, HTTP E774, Android E8B2, Service E912, Wait E823, Message E8BD, Flag E7C1.
 - Badges: "Stop the flow" = default, no badge · "Skip what depends on it" E893 · "Keep going" = **dashed 4/2
   border + "May fail" text chip** · retries E72C "×3" · timeout E916 "30 s" · problem E7BA caution + underline.
 - Card: radius 12, padding 12, member spacing 8, CardBackgroundFillColorSecondary; header 32 (E8FD, editable

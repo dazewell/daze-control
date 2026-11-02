@@ -276,7 +276,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         "process" => "Programs",
         "script" => "Scripts",
         "http" => "Web",
-        "firetv" => "Fire TV",
+        "android" => "Android",
         "service" => "Services",
         "wait" => "Wait",
         "notify" => "Message",

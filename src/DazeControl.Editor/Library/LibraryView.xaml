@@ -95,21 +95,84 @@
                                                            Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextWrapping="Wrap" />
                                             </StackPanel>
                                         </StackPanel>
-                                        <TextBlock Grid.Column="2" Text="{x:Bind UsedByText, Mode=OneWay}" VerticalAlignment="Center"
-                                                   Style="{StaticResource SettingsCardDescription}" />
-                                        <Button Grid.Column="3" Command="{x:Bind TestCommand}" IsEnabled="{x:Bind CanTest, Mode=OneWay}"
-                                                AutomationProperties.Name="{x:Bind TestName, Mode=OneWay}">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <ProgressRing IsActive="{x:Bind IsTesting, Mode=OneWay}" Width="14" Height="14"
-                                                              Visibility="{x:Bind IsTesting, Mode=OneWay}" />
-                                                <TextBlock Text="Test" />
-                                            </StackPanel>
-                                        </Button>
+                                        <!-- "Used by 2 flows" opens a list of them; picking one opens it in the editor. -->
+                                        <TextBlock Grid.Column="2" Text="{x:Bind UsedByText, Mode=OneWay}" VerticalAlignment="Center" Margin="0,0,12,0"
+                                                   Style="{StaticResource SettingsCardDescription}" Visibility="{x:Bind IsUnused, Mode=OneWay}" />
+                                        <HyperlinkButton Grid.Column="2" Content="{x:Bind UsedByText, Mode=OneWay}" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                         Visibility="{x:Bind IsUsed, Mode=OneWay}" AutomationProperties.Name="{x:Bind UsedByName, Mode=OneWay}" Click="OnUsedByOpen">
+                                            <FlyoutBase.AttachedFlyout>
+                                                <Flyout Placement="Bottom">
+                                                    <ListView ItemsSource="{x:Bind UsedByFlows, Mode=OneWay}" SelectionMode="None" IsItemClickEnabled="True"
+                                                              ItemClick="OnUsedByClick" MinWidth="220" AutomationProperties.Name="Flows that use it">
+                                                        <ListView.ItemTemplate>
+                                                            <DataTemplate x:DataType="vml:FlowLink">
+                                                                <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,6">
+                                                                    <FontIcon Glyph="&#xE945;" FontSize="14" />
+                                                                    <TextBlock Text="{x:Bind Name}" />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ListView.ItemTemplate>
+                                                    </ListView>
+                                                </Flyout>
+                                            </FlyoutBase.AttachedFlyout>
+                                        </HyperlinkButton>
+                                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <ToggleButton IsChecked="{x:Bind ShowDetails, Mode=TwoWay}" Visibility="{x:Bind HasDetails, Mode=OneWay}"
+                                                          ToolTipService.ToolTip="What the layout saved" AutomationProperties.Name="{x:Bind DetailsName, Mode=OneWay}">
+                                                <FontIcon Glyph="&#xE946;" FontSize="14" />
+                                            </ToggleButton>
+                                            <Button Visibility="{x:Bind CanRename, Mode=OneWay}" ToolTipService.ToolTip="Rename"
+                                                    AutomationProperties.Name="{x:Bind RenameName, Mode=OneWay}">
+                                                <FontIcon Glyph="&#xE8AC;" FontSize="14" />
+                                                <Button.Flyout>
+                                                    <Flyout Placement="Bottom">
+                                                        <StackPanel Spacing="8" MinWidth="260">
+                                                            <TextBlock Text="Flows that use it keep working." Style="{StaticResource SettingsCardDescription}" />
+                                                            <TextBox Text="{x:Bind Key}" Header="Name" KeyDown="OnRenameKeyDown" Tag="{x:Bind}" />
+                                                            <TextBlock Text="{x:Bind RenameError, Mode=OneWay}" Visibility="{x:Bind HasRenameError, Mode=OneWay}"
+                                                                       Foreground="{ThemeResource SystemFillColorCriticalBrush}" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" />
+                                                            <Button Content="Rename" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Right"
+                                                                    Click="OnRenameSave" Tag="{x:Bind}" />
+                                                        </StackPanel>
+                                                    </Flyout>
+                                                </Button.Flyout>
+                                            </Button>
+                                            <Button Visibility="{x:Bind CanOpenLocation}" Click="OnOpenLocation" Tag="{x:Bind}"
+                                                    ToolTipService.ToolTip="Open file location" AutomationProperties.Name="{x:Bind OpenLocationName, Mode=OneWay}">
+                                                <FontIcon Glyph="&#xE838;" FontSize="14" />
+                                            </Button>
+                                            <Button Command="{x:Bind TestCommand}" IsEnabled="{x:Bind CanTest, Mode=OneWay}"
+                                                    AutomationProperties.Name="{x:Bind TestName, Mode=OneWay}">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <ProgressRing IsActive="{x:Bind IsTesting, Mode=OneWay}" Width="14" Height="14"
+                                                                  Visibility="{x:Bind IsTesting, Mode=OneWay}" />
+                                                    <TextBlock Text="Test" />
+                                                </StackPanel>
+                                            </Button>
+                                        </StackPanel>
                                         <Button Grid.Column="4" Click="OnRemove" HorizontalAlignment="Right" Tag="{x:Bind}" Visibility="{x:Bind CanRemove, Mode=OneWay}"
                                                 ToolTipService.ToolTip="Remove from Library" AutomationProperties.Name="{x:Bind RemoveName, Mode=OneWay}">
                                             <FontIcon Glyph="&#xE74D;" FontSize="14" />
                                         </Button>
                                     </Grid>
+                                    <!-- Displays › details: each screen as the layout saved it. -->
+                                    <Border Visibility="{x:Bind ShowDetails, Mode=OneWay}" Padding="58,8,16,12" Margin="0,1,0,0" CornerRadius="0,0,4,4"
+                                            Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                                        <ItemsRepeater ItemsSource="{x:Bind Screens, Mode=OneWay}">
+                                            <ItemsRepeater.Layout>
+                                                <StackLayout Spacing="6" />
+                                            </ItemsRepeater.Layout>
+                                            <ItemsRepeater.ItemTemplate>
+                                                <DataTemplate x:DataType="vml:ScreenDetail">
+                                                    <!-- Name over one wrapping line, so a narrow window loses nothing. -->
+                                                    <StackPanel AutomationProperties.Name="{x:Bind}">
+                                                        <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" />
+                                                        <TextBlock Text="{x:Bind Summary}" TextWrapping="Wrap" Style="{StaticResource SettingsCardDescription}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsRepeater.ItemTemplate>
+                                        </ItemsRepeater>
+                                    </Border>
                                     <InfoBar Severity="Success" IsOpen="{x:Bind Worked, Mode=OneWay}" Message="{x:Bind ResultMessage, Mode=OneWay}"
                                              CloseButtonCommand="{x:Bind DismissResultCommand}" />
                                     <InfoBar Severity="Warning" IsOpen="{x:Bind Cautioned, Mode=OneWay}" Message="{x:Bind ResultMessage, Mode=OneWay}"

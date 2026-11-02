@@ -176,6 +176,16 @@ public sealed class PageViewModelTests : IDisposable
     }
 
     [Fact]
+    public void AUsedByFlowFromTheLibraryOpensInTheEditor()
+    {
+        using var shell = new ShellViewModel(_session, _engine, a => a(), "logs") { Page = EditorPage.Library };
+
+        shell.Library.OpenFlowCommand.Execute(new LibraryPage.FlowLink("tv", "TV"));
+
+        Assert.Equal(("tv", EditorPage.Flows), (shell.Editor?.FlowId, shell.Page));
+    }
+
+    [Fact]
     public void TheSubtitleIsThePageName()
     {
         using var shell = new ShellViewModel(_session, _engine, a => a(), "logs");

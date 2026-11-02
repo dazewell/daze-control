@@ -60,7 +60,7 @@ public static class LibraryDevices
         LibraryKind.Audio => library.Audio.Select(d => (d.Key, d.Match)),
         LibraryKind.Bluetooth => library.Bluetooth.Select(d => (d.Key, d.Name ?? d.Key)),
         LibraryKind.Display => library.Displays.Select(d => (d.Key, d.Key)),
-        _ => library.FireTv.Select(d => (d.Key, d.Key)),
+        _ => library.Android.Select(d => (d.Key, d.Key)),
     };
 
     /// <summary>The live device a Library item is, or null.</summary>
@@ -71,7 +71,7 @@ public static class LibraryDevices
             && (d.Detail ?? "").StartsWith(audio.Flow == AudioFlow.Input ? "Input" : "Output", StringComparison.Ordinal)),
         LibraryKind.Bluetooth when library.Bluetooth.FirstOrDefault(d => d.Key == key) is { } bt =>
             live.FirstOrDefault(d => string.Equals(d.Name, bt.Address, StringComparison.OrdinalIgnoreCase)),
-        LibraryKind.FireTv when library.FireTv.FirstOrDefault(d => d.Key == key) is { } tv =>
+        LibraryKind.Android when library.Android.FirstOrDefault(d => d.Key == key) is { } tv =>
             live.FirstOrDefault(d => string.Equals(d.Name, tv.Serial, StringComparison.OrdinalIgnoreCase)),
         _ => null,
     };
@@ -151,7 +151,7 @@ public static class LibraryDevices
             {
                 Bluetooth = [.. library.Bluetooth, new BluetoothDevice(key, device.Name, title == device.Name ? null : title)],
             }, key),
-            LibraryKind.FireTv => (library with { FireTv = [.. library.FireTv, new FireTvDevice(key, device.Name, new([]))] }, key),
+            LibraryKind.Android => (library with { Android = [.. library.Android, new AndroidDevice(key, device.Name, new([]))] }, key),
             _ => (library, key),
         };
     }

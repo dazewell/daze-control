@@ -267,4 +267,9 @@ public class ConfigValidatorTests
         Assert.Empty(problems);
         Assert.Equal(["typo"], ConfigValidator.FlowsWithErrors(load.Problems));
     }
+
+    [Fact]
+    public void OldFiretvStepPointsAtItsAndroidName() =>
+        Assert.Equal("\"firetv.sleep\" is now called \"android.sleep\".",
+            Single(ValidateNodes("{ id: s, step: firetv.sleep, with: { device: tv } }"), "flows.f.nodes.s.step").Message);
 }

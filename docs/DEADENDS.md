@@ -26,3 +26,11 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
   nothing is installed.
 - Evidence: `%LOCALAPPDATA%\velopack\velopack.log`, setup pid 50748, 2026-11-02.
 - Retry only if: a newer Velopack fixes it. Install without args, then start `current\DazeControl.exe <config>`.
+
+## X-003 · 2026-11-02 · A MaxWidth grid as a ScrollViewer's direct content, to cap the pages' width
+- Tried: `<ScrollViewer><Grid MaxWidth="1000" HorizontalAlignment="Stretch">` for the Flows/Library/Settings pages;
+  then also `HorizontalScrollMode="Disabled"`.
+- Failed because: maximized (1397 DIP viewport, 175 %), the grid was arranged ~430 DIP from the left at its full
+  width, so the page ran past the right edge (user's first-use report). The left offset didn't follow the cap.
+- Evidence: UIA bounds of the "Flows" title, 2026-11-02; fixed by a plain stretching Grid between the two.
+- Retry only if: never — put the cap on an element inside a stretching parent.

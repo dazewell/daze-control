@@ -3,7 +3,7 @@ using DazeControl.Ipc;
 using DazeControl.Providers.Audio;
 using DazeControl.Providers.Bluetooth;
 using DazeControl.Providers.Display;
-using DazeControl.Providers.FireTv;
+using DazeControl.Providers.Android;
 using DazeControl.Runtime.Control;
 using DazeControl.Runtime.Providers;
 
@@ -47,7 +47,7 @@ public sealed class SystemDevices(IDisplays displays, IAdb adb) : IDeviceQueries
                     Detail = (o.Monitor.Length > 0 ? o.Monitor + ", " : "") + (o.Active ? "on" : "off"),
                 })];
             case "adb":
-                var result = await adb.RunAsync(FireTvRemote.DefaultAdb, ["devices"], cancellationToken).ConfigureAwait(false);
+                var result = await adb.RunAsync(AndroidRemote.DefaultAdb, ["devices"], cancellationToken).ConfigureAwait(false);
                 if (result.ExitCode != 0)
                     throw new StepFailedException($"adb devices failed: {result.LastError}");
                 return AdbDevices(result.Output);

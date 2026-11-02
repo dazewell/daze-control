@@ -466,3 +466,28 @@ Status: accepted
   and the mark is what the app does (a flow with parallel steps).
 - Why not one step fanning out to two: it is the stock "share" glyph. Why not the old play mark: says "media".
 - Revisit if: the mark is unreadable at 16 px on a real taskbar (then drop the edges at ≤ 20 px).
+
+## D-045 · 2026-11-02 · Fire TV becomes Android, with no old-name compatibility
+Status: accepted
+- Decision: the steps are `android.input`/`android.keys`/`android.sleep`, the library section `android:`, the code
+  `Android*` in `Providers/Android`, the Library tab "Android". `firetv:` and `firetv.*` are not read: the section
+  is a file-wide problem naming `android:` and is dropped, a `firetv.x` step is a flow problem naming `android.x`.
+- Why: the steps only send basic adb commands (connect, `input keyevent`), so they work on any Android device; the
+  old name hid that (user, 2026-11-02). No one has a `firetv` entry yet (the converted scd config had none).
+- Why not accept both names: a second spelling forever, in the mapper, validator and every doc, for no user. Why not
+  rewrite old names on load: a silent edit of the user's file.
+- Revisit if: someone does lose entries to it — then add a one-time rewrite with a backup.
+
+## D-046 · 2026-11-02 · Library rename follows the flows; layout details come from the saved capture
+Status: accepted
+- Decision: layouts and Android devices get Rename: `LibraryEdits.Rename` changes the key and every step setting
+  that named it, in one edit (one undo, one save). Audio and Bluetooth don't: their cards show the device's name,
+  not the key. A layout's Details read its CCD bytes (`LayoutScreens.Read`): cable type, resolution, position,
+  refresh, primary = at (0, 0); a plugged-in screen takes its name and port from the live list, another shows the
+  maker/model code from its device path. Programs stay derived (D-041) and add Open file location (File Explorer
+  with the resolved file selected) and the same "Used by" list, which opens a flow in the editor.
+- Why: the user captured layouts named "layout", "layout-2" and couldn't tell or rename them (first-use report);
+  renaming without the refs would break the flows that restore them.
+- Why not ask the engine for details: the capture already holds every mode, and a screen that is unplugged now must
+  still be described. Why not store names at capture time: one more YAML field for what the device path already says.
+- Revisit if: the CCD struct layout changes (the Providers test fails), or users want audio/Bluetooth keys shown.
