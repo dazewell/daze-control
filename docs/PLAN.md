@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M7 — T7.5 + T7.7 + T7.8 on feat/m7-edit (one PR)
-Last green checkpoint: 1b84409 "feat(editor): connect, cards and tidy up on the flow canvas (T7.3–7.4, T7.6) (#11)"
-Next action: UI for the VM pieces already tested: palette pane + quick-add flyout (`/`, double-click, empty state) in ShellWindow/FlowCanvas; Undo/Redo CommandBar + Ctrl+Z/Y/C/V/D/Del in FlowCanvas.OnKeyDown; Outline TreeView with Canvas | Outline toggle
-Tree state: builds, VM + Core tests green · Uncommitted: none
-Notes for next agent: Core `FlowCommands` (add/insert/delete/copy/paste) and VM undo stack, palette and outline are done and tested; only WinUI wiring is left.
+Current task: M7 done on feat/m7-edit (PR open, see `gh pr list`); next M8 T8.1 Inspector
+Last green checkpoint: 7b5d3e9 "wip(editor): outline selection, reveal new steps, port click is no connect"
+Next action: if the feat/m7-edit PR is still open, finish its merge policy (§6) first. Then branch feat/m8-inspector from main: T8.1 = inspector pane 320 wide right of the canvas in ShellWindow, VM `InspectorViewModel` built from `ParamSpec` for the selected step (nothing selected → flow settings)
+Tree state: builds, 646/646 tests green · Uncommitted: none
+Notes for next agent: version is 0.12.0. M7 leftovers are listed in ARCHITECTURE → Open questions (port/edge "+", minimap, dot grid, F2, Ctrl+L, live region). Test the editor only with `--config <scratch>\config.yaml`; send Enter with SendKeys (build skill). Deferred from PR #9 (minor): "Close without saving" flushes after a plain save error; OnClosing is async void around ContentDialog.
 
 ---
 
@@ -76,15 +76,15 @@ Notes for next agent: Core `FlowCommands` (add/insert/delete/copy/paste) and VM 
 - [x] T6.3 Config load/autosave (debounced, atomic, backups), external-change InfoBar.
 - [x] T6.4 Flows list page; Settings + About pages (feat/m6-editor).
 
-## M7 Canvas
+## M7 Canvas ✔ (2026-11-02, PRs #10, #11, feat/m7-edit)
 - [x] T7.1 Render nodes/cards/edges from VM, pan/zoom/fit (feat/m7-canvas).
 - [x] T7.2 Move, select, multi-select (feat/m7-canvas).
 - [x] T7.3 Connect by port drag, cycle refusal (feat/m7-connect).
 - [x] T7.4 Cards: group/ungroup, drag pills in/out (feat/m7-connect).
-- [~] T7.5 Palette + quick-add search (feat/m7-edit).
+- [x] T7.5 Palette + quick-add search (feat/m7-edit).
 - [x] T7.6 Auto-arrange (Core layered layout, tested) + Tidy up (feat/m7-connect).
-- [~] T7.7 Undo/redo, copy/paste, delete (feat/m7-edit).
-- [~] T7.8 Outline view (keyboard + screen reader equivalent) (feat/m7-edit).
+- [x] T7.7 Undo/redo, copy/paste, delete (feat/m7-edit).
+- [x] T7.8 Outline view (keyboard + screen reader equivalent) (feat/m7-edit).
 
 ## M8 Inspector + Library
 - [ ] T8.1 Inspector from `ParamSpec` (device pickers live via pipe, hotkey recorder, file picker, durations),

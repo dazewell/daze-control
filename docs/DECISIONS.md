@@ -375,3 +375,17 @@ Status: accepted
   rewrites would surprise more than a refusal.
 - Revisit if: the refusals block common gestures (dropping a plain step on a may-fail card is refused until the
   M8 inspector can change policies).
+
+## D-039 · 2026-11-02 · Canvas delete bridges, paste runs after the selection, undo is per-flow snapshots
+Status: accepted
+- Decision: Del removes steps (a card with its members) and makes their dependents wait for what they waited
+  for, under the deleted edge's condition; an "only if it fails" edge goes with its step. Ctrl+V pastes after the
+  selection (the next column); nothing selected or Ctrl+D keeps edges from steps that still exist, so copies land
+  beside the originals. The clipboard is in-process (`CanvasClipboard`, one per window), so library refs stay keys.
+  Undo is a stack of whole-`Flow` snapshots in `FlowCanvasViewModel` (100 deep), one per `Edit` call; a change from
+  outside the canvas (reload, another page) clears it.
+- Why: layout is automatic (D-020), so "a new column to the right" (UX §5.2) can only mean "runs after
+  something"; the selection is the natural anchor. Snapshots are tiny records, so per-command inverses buy nothing.
+- Why not the Windows clipboard (YAML text): cross-config paste needs library merging and id clashes handled; no
+  one asked for it yet. Why not bridge failure edges: "if B fails" can't become a condition on A.
+- Revisit if: users paste between config files, or undo across page switches is wanted.
