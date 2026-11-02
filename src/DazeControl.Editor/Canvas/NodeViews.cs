@@ -12,7 +12,17 @@ namespace DazeControl.Editor.Canvas;
 /// <summary>Theme brushes and styles looked up in code; <see cref="FlowCanvas"/> re-applies them on a theme change.</summary>
 internal static class Theme
 {
+    private static readonly Windows.UI.ViewManagement.AccessibilitySettings Accessibility = new();
+
+    public static bool HighContrast => Accessibility.HighContrast;
+
     public static Brush Brush(string key) => (Brush)Application.Current.Resources[key];
+
+    /// <summary>The accent fill vanishes against a contrast theme's background; use the system highlight there.</summary>
+    public static Brush Selection => Brush(HighContrast ? "SystemColorHighlightColorBrush" : "AccentFillColorDefaultBrush");
+
+    /// <summary>Selected/problem outline; 3 px in a contrast theme (UX §5.3).</summary>
+    public static double Emphasis => HighContrast ? 3 : 2;
 
     public static Style Style(string key) => (Style)Application.Current.Resources[key];
 
@@ -109,9 +119,9 @@ internal sealed class PillView : NodeView
         _badge.Visibility = showDetails && Node.HasBadges ? Visibility.Visible : Visibility.Collapsed;
 
         _shape.Fill = Theme.Brush("CardBackgroundFillColorDefaultBrush");
-        _shape.Stroke = Theme.Brush(Node.IsSelected ? "AccentFillColorDefaultBrush"
-            : Node.HasProblem ? "SystemFillColorCautionBrush" : "CardStrokeColorDefaultBrush");
-        _shape.StrokeThickness = Node.IsSelected || Node.HasProblem ? 2 : 1;
+        _shape.Stroke = Node.IsSelected ? Theme.Selection
+            : Theme.Brush(Node.HasProblem ? "SystemFillColorCautionBrush" : "CardStrokeColorDefaultBrush");
+        _shape.StrokeThickness = Node.IsSelected || Node.HasProblem ? Theme.Emphasis : 1;
         _shape.StrokeDashArray = Node.MayFail ? Theme.Dashes(4, 2) : null;
     }
 
@@ -152,9 +162,9 @@ internal sealed class CardView : NodeView
         _count.Background = Theme.Brush("ControlFillColorSecondaryBrush");
         _count.Visibility = showDetails ? Visibility.Visible : Visibility.Collapsed;
         _shape.Fill = Theme.Brush("CardBackgroundFillColorSecondaryBrush");
-        _shape.Stroke = Theme.Brush(Node.IsSelected ? "AccentFillColorDefaultBrush"
-            : Node.HasProblem ? "SystemFillColorCautionBrush" : "CardStrokeColorDefaultBrush");
-        _shape.StrokeThickness = Node.IsSelected || Node.HasProblem ? 2 : 1;
+        _shape.Stroke = Node.IsSelected ? Theme.Selection
+            : Theme.Brush(Node.HasProblem ? "SystemFillColorCautionBrush" : "CardStrokeColorDefaultBrush");
+        _shape.StrokeThickness = Node.IsSelected || Node.HasProblem ? Theme.Emphasis : 1;
         _shape.StrokeDashArray = Node.MayFail ? Theme.Dashes(4, 2) : null;
     }
 

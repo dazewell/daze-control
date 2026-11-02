@@ -113,7 +113,7 @@ Status: accepted (T5.1 spike passed 2026-11-01 on 26300: real acrylic, no fallba
 
 ## D-013 · 2026-10-31 · Editor canvas is a native WinUI control
 Status: accepted
-- Decision: XAML nodes on a `Canvas`, edges as `Path`s (one Composition layer), layout computed in Core.
+- Decision: XAML nodes on a `Canvas`, edges as `Path`s (one layer, batched by style: D-037), layout computed in Core.
 - Why: native look and accessibility, one UI stack.
 - Why not WebView2 + React Flow: non-native, +100 MB, second UI stack. No mature WinUI node-editor library.
 - Revisit if: XAML element counts make large flows slow (see UX §5.8 #1).
@@ -352,3 +352,14 @@ Status: accepted (user, 2026-11-01: "Accept, merge")
   numbers stay well inside 15 MB / 35 MB / 0 ms (8.8 / 24.9 / 0).
 - Why not a GDI rewrite: more code (own alpha handling, no antialiased ring) to save ~2.5 MB.
 - Revisit if: the post-pop-up footprint grows with runs, or another feature needs that headroom.
+
+## D-037 · 2026-11-01 · Canvas edges are a few XAML paths batched by style; pills are built in code
+Status: accepted
+- Decision: all edges go into one `Canvas` layer of eight `Path`s (one per style: normal, into may-fail, if it
+  fails, always, selected, plus three arrowhead fills), each holding every edge of that style as Bézier figures.
+  Pills and cards are `Grid`s built in code (pill 10 elements, card 8), theme brushes re-read on a theme change.
+- Why: constant element count however many edges (the point of UX §5.8 #1), dashes and theme brushes for free;
+  code-built views keep the element budget visible and need no template machinery.
+- Why not a Composition `ShapeVisual` per §5.8: Bézier `CompositionPath` needs an `IGeometrySource2D`, i.e. Win2D
+  or hand-written D2D geometry interop — a dependency or a lot of interop for no visible gain.
+- Revisit if: a 100-edge flow redraws slowly (then move the paths to a `ShapeVisual` with Win2D geometry).

@@ -227,6 +227,7 @@ public sealed partial class FlowCanvas : UserControl
             if (edge.Chip is { } chip)
                 ChipLayer.Children.Add(Chip(chip, c.Midpoint, edge.Style == EdgeStyle.IfFails));
         }
+        SelectedEdges.Stroke = SelectedArrows.Fill = Theme.Selection;
         foreach (var (path, geometry) in curves)
             path.Data = geometry;
     }

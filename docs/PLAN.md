@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M7 Canvas — T7.1 (M6 merged: PR #9)
-Last green checkpoint: 92ddcf0 "fix(editor): don't claim a reload that failed"
-Next action: sync main, branch feat/m7-canvas and start T7.1: FlowCanvas control rendering nodes/cards/edges from a canvas VM in Editor.ViewModels, pan/zoom/fit; selecting a flow card opens the flow editor page (BreadcrumbBar "Flows › name")
-Tree state: builds, VM tests 27/27 green · Uncommitted: none
-Notes for next agent: version is 0.9.0. Editor shows no window → delete src/DazeControl.Editor/obj and bin first (build skill). No config.yaml on this PC yet; don't create one in the user's profile. Deferred from PR #9's self-review (minor): "Close without saving" still flushes in Closed after a plain save error; OnClosing is async void around ContentDialog.ShowAsync (guard it once a second dialog exists). New flow adds an empty flow; the templates (Blank / TV only / Audio → Headphones) are still to do, with the flow editor. Screenshots: GetWindowRect + CopyFromScreen from Windows PowerShell (outside the sandbox); light mode by flipping HKCU…Personalize AppsUseLightTheme and restoring it.
+Current task: M7 Canvas — T7.1–7.2 done on feat/m7-canvas (PR open, see `gh pr list`); next T7.3–7.4 + T7.6
+Last green checkpoint: wip(editor): FlowCanvas control and flow editor page
+Next action: if the T7.1–7.2 PR is still open, finish its merge policy (§6) first. Then branch feat/m7-connect from main: T7.3 = Core `FlowGraph.WouldCreateCycle(flow, from, to)` + tests, VM `FlowCanvasViewModel.Connect(from, to)` (refuses cycles, member ends → card, returns a refusal reason for the §5.7 #3 tip), then port overlay + port drag in `Canvas/FlowCanvas.xaml.cs`
+Tree state: builds, 564/564 tests green · Uncommitted: none
+Notes for next agent: version is 0.10.0. Test the editor only with `--config <scratch>\config.yaml` (build skill: UIA + absolute mouse_event drags, light/HC toggles). Not done yet in T7.1–7.2: dot grid, minimap, ports, "Add a step" in the empty state (T7.5), 225 % text check, edge hover. M7 PR split: T7.3–7.4 + T7.6 (Tidy up = reorder `nodes` to cut crossings; layering already exists in Core/Layout/FlowLayout), then T7.5 + T7.7–7.8. Deferred from PR #9 (minor): "Close without saving" flushes after a plain save error; OnClosing is async void around ContentDialog.
 
 ---
 
@@ -77,8 +77,8 @@ Notes for next agent: version is 0.9.0. Editor shows no window → delete src/Da
 - [x] T6.4 Flows list page; Settings + About pages (feat/m6-editor).
 
 ## M7 Canvas
-- [ ] T7.1 Render nodes/cards/edges from VM, pan/zoom/fit.
-- [ ] T7.2 Move, select, multi-select.
+- [x] T7.1 Render nodes/cards/edges from VM, pan/zoom/fit (feat/m7-canvas).
+- [x] T7.2 Move, select, multi-select (feat/m7-canvas).
 - [ ] T7.3 Connect by port drag, cycle refusal.
 - [ ] T7.4 Cards: group/ungroup, drag pills in/out.
 - [ ] T7.5 Palette + quick-add search.
