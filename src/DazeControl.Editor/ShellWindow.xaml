@@ -284,7 +284,8 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE946;" Style="{StaticResource SettingsCardIcon}" />
+                                <Image Source="ms-appx:///Assets/app.png" Width="40" Height="40" Margin="0,0,16,0" VerticalAlignment="Center"
+                                       AutomationProperties.AccessibilityView="Raw" />
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="Daze Control" />
                                     <TextBlock x:Name="VersionText" Style="{StaticResource SettingsCardDescription}" />

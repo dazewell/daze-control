@@ -241,7 +241,7 @@ Status: accepted
 - Revisit if: the editor needs runtime types itself (then split protocol records from the transport).
 
 ## D-027 · 2026-11-01 · The tray icon is drawn in code
-Status: accepted
+Status: accepted; mark changed by D-044
 - Decision: `Engine/Shell/TrayGlyph` paints the idle/busy/paused icons as 32-bit pixels at the small-icon size
   (supersampled) and makes them with `CreateIconIndirect`; no .ico files or Win32 resources.
 - Why: the AOT engine ships as one exe; a .res needs rc.exe in the build; the variants come for free. An accent
@@ -455,3 +455,14 @@ Status: accepted
   20 s Bluetooth test would hold every other request behind it.
 - Revisit if: a config grows past the pipe's 64 KB line limit (big display layouts) — then send only the step and
   the library items it references.
+
+## D-044 · 2026-11-02 · App icon: a fork-and-join flow on the OSD's violet→blue tile
+Status: accepted
+- Decision: `scripts/make-icon.ps1` draws `assets/app.ico` + `app.png`: one step fanning out to two that join
+  again (horizontal Béziers, as on the canvas), white on the OSD's gradient tile, the last step amber. Every exe
+  gets it via `ApplicationIcon` (SDK-built resource, no rc.exe), the editor window and About card from
+  `Assets\`, the installer via `vpk --icon`. The tray keeps D-027's drawn variants, now with the same mark.
+- Why: the user wanted an icon before the first release; the OSD's tile makes the two apps read as a family,
+  and the mark is what the app does (a flow with parallel steps).
+- Why not one step fanning out to two: it is the stock "share" glyph. Why not the old play mark: says "media".
+- Revisit if: the mark is unreadable at 16 px on a real taskbar (then drop the edges at ≤ 20 px).

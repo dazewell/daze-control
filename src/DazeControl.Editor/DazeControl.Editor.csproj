@@ -6,6 +6,7 @@
     <RootNamespace>DazeControl.Editor</RootNamespace>
     <AssemblyTitle>Daze Control</AssemblyTitle>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\assets\app.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI>
     <!-- Unpackaged, self-contained Windows App SDK, as in the OSD. -->
@@ -22,6 +23,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <!-- Window icon and About image, drawn by scripts/make-icon.ps1. -->
+    <Content Include="..\..\assets\app.ico;..\..\assets\app.png" Link="Assets\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- For About: ReleaseInfo throws in a self-contained app (as in the OSD). -->
     <AssemblyMetadata Include="WindowsAppSdkVersion"
                       Value="@(PackageVersion->WithMetadataValue('Identity', 'Microsoft.WindowsAppSDK')->'%(Version)')" />

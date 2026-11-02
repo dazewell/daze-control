@@ -45,6 +45,13 @@ public sealed partial class ShellWindow : Window
         SystemBackdrop = new MicaBackdrop(); // the stock backdrop handles theme switches itself (unlike OSD X-007)
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
+        var assets = Path.Combine(AppContext.BaseDirectory, "Assets");
+        AppWindow.SetIcon(Path.Combine(assets, "app.ico")); // taskbar, Alt+Tab
+        // From code with a file path: an ms-appx IconSource in XAML blanks the whole window (OSD X-006).
+        AppTitleBar.IconSource = new ImageIconSource
+        {
+            ImageSource = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(Path.Combine(assets, "app.png"))),
+        };
         SecondsBox.Minimum = SettingsPageViewModel.MinPopupSeconds;
         SecondsBox.Maximum = SettingsPageViewModel.MaxPopupSeconds;
         VersionText.Text = "Version " + ShellViewModel.Version;
