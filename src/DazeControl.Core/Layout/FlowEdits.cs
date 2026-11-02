@@ -51,6 +51,13 @@ public static class FlowEdits
         if (Conflicts(incoming) || flow.Nodes.Where(n => !inside.Contains(n.Id) && !members.Contains(n.Id))
                 .Any(n => Conflicts(n.After.Where(e => inside.Contains(Top(e.From))).Select(e => e with { From = "card" }))))
             return (flow, ConnectRefusal.Conditions);
+        // "If X fails" on an absorbed step would become "if any step in the card fails".
+        if (flow.Nodes.Any(n => n.After.Any(e => e.When == EdgeWhen.Failure && inside.Contains(Top(e.From)))))
+            return (flow, ConnectRefusal.FailureFallback);
+        // In a card only a step's own "may fail" counts; the card's policy handles every other failure (Scheduler).
+        var policies = nodes.Where(n => n is GroupNode || n.OnFailure != FailurePolicy.Ignore).Select(n => n.OnFailure).Distinct().ToList();
+        if (policies.Count > 1)
+            return (flow, ConnectRefusal.FailurePolicies);
 
         var cardId = absorbed.FirstOrDefault(id => flow.FindNode(id) is GroupNode) ?? NewCardId(flow);
         var existing = flow.FindNode(cardId) as GroupNode;
@@ -58,7 +65,7 @@ public static class FlowEdits
         var card = new GroupNode(cardId, [.. members])
         {
             Name = existing?.Name,
-            OnFailure = existing?.OnFailure ?? FailurePolicy.Stop,
+            OnFailure = policies.Count == 1 ? policies[0] : FailurePolicy.Stop,
             After = after,
         };
 
@@ -87,36 +94,47 @@ public static class FlowEdits
         ArgumentNullException.ThrowIfNull(flow);
         if (flow.FindNode(cardId) is not GroupNode card)
             return (flow, ConnectRefusal.None);
+        if (HasFailureFallback(flow, cardId))
+            return (flow, ConnectRefusal.FailureFallback);
         var cardOf = FlowLayout.CardOf(flow);
         var members = card.Members.Where(m => cardOf.GetValueOrDefault(m) == cardId).ToList();
-        if (members.Count > 1 && flow.Nodes.Any(n => n.After.Any(e => e.From == cardId && e.When == EdgeWhen.Failure)))
-            return (flow, ConnectRefusal.FailureFallback);
         return (flow with
         {
             Nodes = [.. flow.Nodes.Where(n => n.Id != cardId).Select(n =>
-                members.Contains(n.Id) ? n with { After = card.After }
+                members.Contains(n.Id) ? Leave(n, card) with { After = card.After }
                 : n with { After = Merge(n.After.SelectMany(e => e.From == cardId ? members.Select(m => e with { From = m }) : [e])) })],
         }, ConnectRefusal.None);
     }
 
-    /// <summary>Drags a member out of its card: it takes the card's edges; a card left with one step dissolves.</summary>
-    public static Flow TakeOut(Flow flow, string memberId)
+    /// <summary>
+    /// Drags a member out of its card: it takes the card's edges; a card left with one step dissolves. Refused while
+    /// something runs only if the card fails (the step's failure would stop counting).
+    /// </summary>
+    public static (Flow Flow, ConnectRefusal Refusal) TakeOut(Flow flow, string memberId)
     {
         ArgumentNullException.ThrowIfNull(flow);
         var cardOf = FlowLayout.CardOf(flow);
         if (!cardOf.TryGetValue(memberId, out var cardId) || flow.FindNode(cardId) is not GroupNode card)
-            return flow;
+            return (flow, ConnectRefusal.None);
+        if (HasFailureFallback(flow, cardId))
+            return (flow, ConnectRefusal.FailureFallback);
         var rest = card.Members.Where(m => m != memberId).ToList();
         var taken = flow with
         {
             Nodes = [.. flow.Nodes.Select(n =>
-                n.Id == memberId ? n with { After = card.After }
+                n.Id == memberId ? Leave(n, card) with { After = card.After }
                 : n.Id == cardId ? card with { Members = [.. rest] }
                 : n)],
         };
-        // One step left: "the card failed" is "that step failed", so dissolving never changes a condition.
-        return rest.Count(m => cardOf.GetValueOrDefault(m) == cardId) < 2 ? Ungroup(taken, cardId).Flow : taken;
+        return rest.Count(m => cardOf.GetValueOrDefault(m) == cardId) < 2 ? Ungroup(taken, cardId) : (taken, ConnectRefusal.None);
     }
+
+    private static bool HasFailureFallback(Flow flow, string cardId) =>
+        flow.Nodes.Any(n => n.After.Any(e => e.From == cardId && e.When == EdgeWhen.Failure));
+
+    /// <summary>A step leaving a card keeps how its failure was handled: its own "may fail", else the card's policy.</summary>
+    private static Node Leave(Node step, GroupNode card) =>
+        step.OnFailure == FailurePolicy.Ignore ? step : step with { OnFailure = card.OnFailure };
 
     /// <summary>Drop on a pill's body: run together with it (into its card, or a new card for the two).</summary>
     public static (Flow Flow, ConnectRefusal Refusal) RunTogether(Flow flow, string dragged, string target)
@@ -128,7 +146,9 @@ public static class FlowEdits
         var targetTop = cardOf.GetValueOrDefault(target, target);
         if (cardOf.GetValueOrDefault(dragged) == targetTop)
             return (flow, ConnectRefusal.None); // already in that card
-        var free = TakeOut(flow, dragged);
+        var (free, refusal) = TakeOut(flow, dragged);
+        if (refusal != ConnectRefusal.None)
+            return (flow, refusal);
         if (free.FindNode(targetTop) is null) // the drag dissolved the target's card: target is a plain step now
             targetTop = target;
         var result = Group(free, [targetTop, dragged]);
@@ -143,7 +163,9 @@ public static class FlowEdits
         var targetTop = cardOf.GetValueOrDefault(target, target);
         if (flow.FindNode(dragged) is null || flow.FindNode(target) is null || cardOf.GetValueOrDefault(dragged, dragged) == targetTop)
             return (flow, cardOf.TryGetValue(dragged, out var own) && own == targetTop ? ConnectRefusal.SameCard : ConnectRefusal.None);
-        var free = TakeOut(flow, dragged);
+        var (free, refusal) = TakeOut(flow, dragged);
+        if (refusal != ConnectRefusal.None)
+            return (flow, refusal);
         if (free.FindNode(targetTop) is null)
             targetTop = target;
         var result = free with { Nodes = [.. free.Nodes.Select(n => n.Id == dragged ? n with { After = [new Edge(targetTop)] } : n)] };

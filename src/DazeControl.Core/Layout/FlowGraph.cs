@@ -22,8 +22,11 @@ public enum ConnectRefusal
     /// <summary>Grouping would merge "wait for X" edges with different conditions into one.</summary>
     Conditions,
 
-    /// <summary>Ungrouping would turn "if the card fails" (any step) into "if every step fails".</summary>
+    /// <summary>Something runs only if a card or a step fails; the edit would change which failures count.</summary>
     FailureFallback,
+
+    /// <summary>The steps handle failure differently (stop, skip, may fail), so one card policy can't keep all.</summary>
+    FailurePolicies,
 }
 
 /// <summary>

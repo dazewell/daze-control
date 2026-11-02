@@ -345,14 +345,18 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     [Fact]
     public void CtrlGGroupsTheSelectionAndSelectsTheCard()
     {
+        // note runs only if out fails: out can't join a card (any member's failure would count).
         _canvas.Select("out");
         _canvas.Toggle("vol");
+        Assert.Equal(ConnectRefusal.FailureFallback, _canvas.GroupSelection());
 
+        _canvas.Select("vol");
+        _canvas.Toggle("both");
         Assert.Equal(ConnectRefusal.None, _canvas.GroupSelection());
 
         var card = Node(_canvas.SelectedIds.Single());
+        Assert.Equal("both", card.Id);
         Assert.Equal(CanvasNodeKind.Card, card.Kind);
-        Assert.Equal(card.Id, Node("out").CardId);
         Assert.Equal(card.Id, Node("vol").CardId);
         Assert.Contains(_canvas.Edges, e => e.From == "bt" && e.To == card.Id);
     }

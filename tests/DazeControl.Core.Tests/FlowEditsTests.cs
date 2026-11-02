@@ -94,15 +94,63 @@ public class FlowEditsTests
     }
 
     [Fact]
-    public void TakingOutOfATwoStepCardKeepsAFailureFallback()
+    public void TakeOutRefusesWhileAFallbackWaitsForTheCardToFail()
     {
+        // m1 failing would no longer count as "the card failed".
         var flow = FlowOf(new GroupNode("g", ["m1", "m2"]), Step("m1"), Step("m2"),
             new StepNode("z", "wait") { After = [new Edge("g", EdgeWhen.Failure)] });
 
-        var taken = FlowEdits.TakeOut(flow, "m1");
+        var (same, refusal) = FlowEdits.TakeOut(flow, "m1");
 
+        Assert.Equal(ConnectRefusal.FailureFallback, refusal);
+        Assert.Same(flow, same);
+    }
+
+    [Fact]
+    public void GroupRefusesWhenSomethingWaitsForAStepToFail()
+    {
+        // z ran only if a failed; in a card it would run if b failed too.
+        var z = new StepNode("z", "wait") { After = [new Edge("a", EdgeWhen.Failure)] };
+
+        Assert.Equal(ConnectRefusal.FailureFallback, FlowEdits.Group(FlowOf(Step("a"), Step("b"), z), ["a", "b"]).Refusal);
+    }
+
+    [Fact]
+    public void GroupRefusesStepsThatHandleFailureDifferently()
+    {
+        var skip = new StepNode("b", "wait") { OnFailure = FailurePolicy.Skip };
+
+        Assert.Equal(ConnectRefusal.FailurePolicies, FlowEdits.Group(FlowOf(Step("a"), skip), ["a", "b"]).Refusal);
+    }
+
+    [Fact]
+    public void GroupGivesTheCardTheStepsSharedPolicyAndKeepsMayFail()
+    {
+        var flow = FlowOf(
+            new StepNode("a", "wait") { OnFailure = FailurePolicy.Skip },
+            new StepNode("b", "wait") { OnFailure = FailurePolicy.Skip },
+            new StepNode("c", "wait") { OnFailure = FailurePolicy.Ignore });
+
+        var (grouped, refusal) = FlowEdits.Group(flow, ["a", "b", "c"]);
+
+        Assert.Equal(ConnectRefusal.None, refusal);
+        Assert.Equal(FailurePolicy.Skip, grouped.FindNode("together")!.OnFailure);
+    }
+
+    [Fact]
+    public void StepsLeavingACardKeepTheCardsPolicyUnlessTheyMayFail()
+    {
+        var flow = FlowOf(
+            new GroupNode("g", ["m1", "m2"]) { OnFailure = FailurePolicy.Ignore },
+            Step("m1"), new StepNode("m2", "wait") { OnFailure = FailurePolicy.Ignore }, Step("z", "g"));
+
+        var (taken, refusal) = FlowEdits.TakeOut(flow, "m1");
+
+        Assert.Equal(ConnectRefusal.None, refusal);
         Assert.Null(taken.FindNode("g"));
-        Assert.Equal([new Edge("m2", EdgeWhen.Failure)], After(taken, "z"));
+        Assert.Equal(FailurePolicy.Ignore, taken.FindNode("m1")!.OnFailure);
+        Assert.Equal(FailurePolicy.Ignore, taken.FindNode("m2")!.OnFailure);
+        Assert.Equal(FailurePolicy.Ignore, FlowEdits.Ungroup(flow, "g").Flow.FindNode("m1")!.OnFailure);
     }
 
     [Fact]
@@ -146,7 +194,7 @@ public class FlowEditsTests
     {
         var flow = FlowOf(Step("a"), new GroupNode("g", ["m1", "m2"]) { After = [E("a")] }, Step("m1"), Step("m2"), Step("z", "g"));
 
-        var taken = FlowEdits.TakeOut(flow, "m1");
+        var taken = FlowEdits.TakeOut(flow, "m1").Flow;
 
         Assert.Null(taken.FindNode("g"));
         Assert.Equal([E("a")], After(taken, "m1"));
@@ -158,7 +206,7 @@ public class FlowEditsTests
     {
         var flow = FlowOf(new GroupNode("g", ["m1", "m2", "m3"]), Step("m1"), Step("m2"), Step("m3"));
 
-        var taken = FlowEdits.TakeOut(flow, "m3");
+        var taken = FlowEdits.TakeOut(flow, "m3").Flow;
 
         Assert.Equal(["m1", "m2"], ((GroupNode)taken.FindNode("g")!).Members);
     }

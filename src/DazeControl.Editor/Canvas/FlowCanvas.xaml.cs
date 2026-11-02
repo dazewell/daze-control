@@ -429,7 +429,7 @@ public sealed partial class FlowCanvas : UserControl
                 if (target is not null && zone != DropZone.None)
                     ShowRefusal(_viewModel.Drop(node.Id, target.Id, zone), target);
                 else if (node.CardId is { } card && _viewModel.Find(card) is { } own && !own.Bounds.Contains(C(position)))
-                    _viewModel.TakeOutOfCard(node.Id);
+                    ShowRefusal(_viewModel.TakeOutOfCard(node.Id), own);
                 else
                     _viewModel.MoveToRow(node.Id, _viewModel.RowAt(node.Id, node.Bounds.CenterY + (position.Y - _pressContent.Y)));
                 break;

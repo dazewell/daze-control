@@ -297,7 +297,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         ConnectRefusal.Loop => "That would make a loop. A step can't wait for something that waits for it.",
         ConnectRefusal.SameCard => "Steps in a card start together, so they can't wait for each other.",
         ConnectRefusal.Conditions => "These steps wait for the same step under different conditions, so they can't share a card.",
-        ConnectRefusal.FailureFallback => "Something runs only if this card fails. Change or remove that connection first.",
+        ConnectRefusal.FailureFallback => "Something runs only if this fails, and that would change which failures count. Change or remove that connection first.",
+        ConnectRefusal.FailurePolicies => "These steps handle failure differently, so they can't share a card. Give them the same failure setting first.",
         _ => null,
     };
 
@@ -382,7 +383,15 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>A member dropped outside its card leaves it.</summary>
-    public void TakeOutOfCard(string member) => Edit(flow => FlowEdits.TakeOut(flow, member));
+    public ConnectRefusal TakeOutOfCard(string member)
+    {
+        if (Flow is not { } flow)
+            return ConnectRefusal.Unknown;
+        var (next, refusal) = FlowEdits.TakeOut(flow, member);
+        if (refusal == ConnectRefusal.None && next != flow)
+            Edit(_ => next);
+        return refusal;
+    }
 
     private static double Distance(Point a, Point b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
 
