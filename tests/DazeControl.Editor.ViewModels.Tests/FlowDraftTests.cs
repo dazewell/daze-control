@@ -218,4 +218,18 @@ public sealed class FlowDraftTests : IDisposable
         Assert.False(_canvas.HasChanges);
         Assert.Equal(8, OnDisk().Nodes.Count);
     }
+
+    [Fact]
+    public void ReloadAfterAConflictDropsTheDraftToo()
+    {
+        _canvas.AddStep("wait");
+        File.WriteAllText(_path, File.ReadAllText(_path).Replace("Connect Technics", "Theirs", StringComparison.Ordinal));
+        Assert.False(_canvas.Save());
+
+        _session.ReloadCommand.Execute(null);
+
+        Assert.False(_canvas.HasChanges);
+        Assert.Equal("Theirs", _canvas.Flow!.Name);
+        Assert.Equal(7, _canvas.Flow.Nodes.Count);
+    }
 }

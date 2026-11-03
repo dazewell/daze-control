@@ -287,7 +287,11 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
 
     /// <summary>Conflict: take the file's version and drop the edits here.</summary>
     [RelayCommand]
-    private void Reload() => Load();
+    private void Reload()
+    {
+        ClearDrafts(); // the user chose the file's version over every edit here, drafts included
+        Load();
+    }
 
     /// <summary>Conflict: write the edits here over the file.</summary>
     [RelayCommand]

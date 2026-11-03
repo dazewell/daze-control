@@ -34,13 +34,6 @@ public sealed record TrayCommandItem(TrayCommand Command, string Text, bool Chec
 /// <param name="EditorAvailable">DazeControl.Editor.exe sits next to the engine.</param>
 public sealed record TrayState(IReadOnlySet<string> Running, Func<string, string?> Shortcut, bool Paused, bool EditorAvailable);
 
-/// <summary>
-/// The tray menu as data (UX §5.6), so its rules are tested without Win32: flows in file order, folders as submenus
-/// at their first flow's place, "line above it" separators, the running bullet, a never-valid flow greyed
-/// "Name (needs fixing)"; then Open Daze Control · Pause shortcuts · Exit. Hidden: turned-off flows and flows with
-/// <c>tray.show: false</c>. A flow whose file version is broken but whose last valid version still runs (D-021)
-/// shows normally.
-/// </summary>
 /// <summary>How the user reached the tray icon (UX §5.6).</summary>
 public enum TrayGesture
 {
@@ -51,6 +44,13 @@ public enum TrayGesture
     ContextMenu,
 }
 
+/// <summary>
+/// The tray menu as data (UX §5.6), so its rules are tested without Win32: flows in file order, folders as submenus
+/// at their first flow's place, "line above it" separators, the running bullet, a never-valid flow greyed
+/// "Name (needs fixing)"; then Open Daze Control · Pause shortcuts · Exit. Hidden: turned-off flows and flows with
+/// <c>tray.show: false</c>. A flow whose file version is broken but whose last valid version still runs (D-021)
+/// shows normally.
+/// </summary>
 public static class TrayMenu
 {
     /// <summary>Select opens the editor; the menu comes on a right click, or on Select when no editor is installed.</summary>
