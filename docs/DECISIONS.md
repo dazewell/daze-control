@@ -518,3 +518,72 @@ Status: accepted
 - Why: the user expects the shell's convention, where the left click opens the app (2026-11-02).
 - Why not keep the menu on both: the editor is two clicks away for the most common thing.
 - Revisit if: the engine gains a quick panel worth a left click.
+
+## D-049 · 2026-11-02 · Desktop shortcut per flow: a .lnk to the engine with `--run <flow id>`, made by the engine
+Status: accepted (M11)
+- Decision: the shortcut targets the installed Velopack stub (`%LOCALAPPDATA%\DazeControlApp\Daze Control.exe`, which
+  survives updates and forwards args; the running exe outside an install) with `--run <flow id>`, plus the quoted
+absolute config path when the engine runs a non-default config (as `Autostart.Enable` does), named after the flow,
+  icon = the flow's glyph on the app tile, rendered by the engine (D-012's DirectWrite path) into
+  `%LOCALAPPDATA%\DazeControl\shortcuts\<safe id>.ico`; file names (.ico and .lnk) are made filename-safe (reserved
+  characters and `/` replaced, reserved device names avoided, plus a short hash of the id when anything changed),
+  while the .lnk's arguments keep the real id. The engine writes it (IShellLinkW + IPersistFile, Desktop via
+  `SHGetKnownFolderPath`, so a OneDrive desktop works). No YAML state: pipe op `shortcuts` scans the Desktop for .lnk
+  files with our target and `--run`. A second engine started by the shortcut forwards `run` (trigger "Desktop
+  shortcut") over the pipe and exits; a first one starts as usual and runs the flow after the first config load.
+  The id, not the name, is the link: renaming a flow keeps the shortcut working (the editor offers "Update"). A
+  desktop run resolves by id only, cold start and forwarded alike (the pipe `run` gets an `exactId` flag), so a
+  deleted flow's shortcut never runs another flow whose name equals that id; `dctl run` keeps its name fallback. Pause
+  shortcuts doesn't apply (a double-click is deliberate, like the tray). The uninstall hook removes our shortcuts and
+  icons.
+- Why: one double-click per flow, also when the engine isn't running (user, 2026-11-02).
+- Why not `dctl.exe run` as the target: a console window flashes. Why not `shortcut: true` in YAML kept in sync by the
+  engine: it would rewrite the desktop on every reload and bring back a shortcut the user deleted. Why not the editor
+  writing it: `dctl shortcut` would need a second copy, and the glyph renderer lives in the engine.
+- Revisit if: Start menu or taskbar pins are wanted (same .lnk in the Programs folder; a pin needs an AUMID per flow).
+
+## D-050 · 2026-11-02 · Suggestions and examples are catalog metadata (`ParamSpec.Suggest`, `ParamSpec.Examples`)
+Status: accepted (M11)
+- Decision: a `ParamSpec` may name where its values come from — `Suggest = Devices(kind)` (engine `devices`: displays,
+  services, credentials, adb), `Config(kind)` (the open config: flag names, programs, the inputs of the Android
+  device in param `device`), `Static(values)` (Android key names, one Core table the provider also maps) — and carry
+  `Examples` (title + value). The inspector renders from them: Text → editable ComboBox (free text still allowed);
+  TextList → a checklist when unordered (screens), a token list with an add box when `Ordered` (keys);
+  MultilineText/TextMap → an "Examples" menu that fills the box (Ctrl+Z undoes). Validation is unchanged: suggestions
+  never restrict a value, except where a Choice already does.
+- Why: the user wants to pick values, not type them, and to see examples for code, PowerShell and Android steps
+  (2026-11-02). Keeps "the inspector renders from `ParamSpec`" (ARCHITECTURE → Adding a provider).
+- Why not new Library kinds (screens, services, keys): the Library holds named, reusable, testable things; a screen
+  set or key list is a step's value, and a Library detour adds two clicks. Why not per-provider inspector templates:
+  every new provider would need editor code.
+- Revisit if: a value depends on more than one other param, or users want whole-step presets (e.g. "Sunshine: close
+  the app" filling address, method and credential at once).
+
+## D-051 · 2026-11-02 · "Use only these screens" is picked from the PC's screens and saves monitor names
+Status: accepted (M11)
+- Decision: the `outputs` param is a checklist of the screens plugged in now (`devices displays`: monitor name, port,
+  on/off); checking writes the monitor name, or the port when the name is empty or isn't unique under the
+  provider's matching rule. The provider matches a saved name exactly first and only then falls back to its old
+  "contains" match, so checking DP-2 "DELL U2723QE" can't turn on DP-1 "DELL U2723QE HDR". Saved entries not
+  plugged in stay checked as "Not connected right now". "Use the screens that are on now" checks exactly the active
+  ones. The provider keeps matching by port or monitor name, so hand-written and scd-style port lists still load.
+  `DeviceInfo` gains optional `Value` (what a picker writes) and `State`; additive, `protocol` stays 1.
+- Why: typing monitor names exactly as Windows spells them is error-prone (user, 2026-11-02). A name survives moving
+  a cable to another port; a port is the only tell between twin monitors.
+- Why not monitor device paths: unique but unreadable in YAML. Why not always ports: a re-cabled screen silently
+  stops matching.
+- Revisit if: twin monitors also swap ports (then write the device path, shown by name).
+
+## D-052 · 2026-11-02 · The Bluetooth list is Windows' paired devices; audio endpoints only add state
+Status: accepted (M11, fixes the user's report)
+- Decision: `devices bluetooth` lists present device nodes `BTHENUM\DEV_<addr>` (classic) and `BTHLE\DEV_<addr>` (LE)
+  through CfgMgr32 (`CM_Get_Device_ID_List`, `DEVPKEY_Device_FriendlyName`), merged by address. A device with audio
+  endpoints is "can connect here" and takes Connected from them; others are listed but not pickable for
+  connect/disconnect ("Daze Control can connect only headphones and speakers."). Connected for non-audio devices
+  comes from a devnode property if the task's check against Settings finds a reliable one, else no state is shown.
+- Why: the old list came from audio endpoints, including NOTPRESENT ones, so it showed unpaired devices and missed
+  every non-audio pairing — it matched neither Settings nor reality (X-005).
+- Why not WinRT `DeviceInformation` (the AEP list Settings itself uses): pulls the CsWinRT projection into the AOT
+  engine (size, startup, D-001); use it only if devnodes miss a device Settings shows. Why not
+  `BluetoothFindFirstDevice`: classic only, no LE devices.
+- Revisit if: connecting non-audio devices is wanted (needs `BluetoothSetServiceState`, i.e. admin, D-008).

@@ -177,6 +177,12 @@ given on the command line as the Run value's argument.
   `Shell/TrayGlyph` (idle / busy / paused, D-027); tooltip = running flows, else paused, else the last run's
   problem. Not yet: per-flow glyph bitmaps in the menu (need M5's glyph-font rendering).
 - `Runtime/Lifecycle/Autostart`: HKCU Run value `DazeControl` → engine exe (OSD port), set through the pipe op.
+- Desktop shortcuts (M11, D-049): `Program` reads `--run <flow id>` (and an optional config path, kept from the
+  creating engine) before the single-instance check; runs resolve by id only (`exactId`); a second
+  engine sends `run` (trigger "Desktop shortcut") through `PipeClient` and exits, the first queues it until the first
+  config load. `Engine/Shell/FlowShortcuts` writes/scans/removes the .lnk files (IShellLinkW) and renders
+  `shortcuts\<safe id>.ico` (filename-safe names, real id in the args) with the pop-up's DirectWrite path; the uninstall hook calls its `RemoveAll`. An unknown id
+  fails like any run of a missing flow, with the pop-up saying the shortcut's flow is gone.
 
 ## Install and updates
 
@@ -207,7 +213,8 @@ answer go to `EventReceived`, or (no handler) a queue `ReadAsync` returns first.
 `history <text>` matches a recorded flow id, then the config's id/name, then a recorded name.
 Ops (EngineController): `run` (flow id or name; `wait` → the RunRecord; `dryRun` → a runner whose steps do
 nothing, no history), `cancel`, `list`, `status`, `validate`, `history` (flow, limit), `autostart` (enable
-true/false/absent), `devices` (kind) and `capture-display-layout` (key → a `library: displays:` YAML snippet)
+true/false/absent), `shortcuts` / `create-shortcut` / `remove-shortcut` (flow id, M11, D-049), `devices` (kind; M11 adds
+`services`, `credentials` — names only, never secrets — and `DeviceInfo.Value`/`State`, D-051) and `capture-display-layout` (key → a `library: displays:` YAML snippet)
 through `Runtime/Control/IDeviceQueries` (read-only; `Providers/SystemDevices` on the real PC); `test-step`
 answers "can't do that yet" until the editor. `PipeClient` copies each request to stamp its id: a new
 `PipeRequest` field goes into that copy too (`PipeTests.EveryRequestFieldReachesTheServer` fails otherwise).
@@ -259,6 +266,9 @@ About), cards in the OSD's settings-card style (App.xaml). All logic is in `Edit
   Library page): Library items with live state from pipe `devices`, a missing key kept as "Not found on this PC",
   then "From Windows" devices — picking one adds it to the Library under a key made from its name; displays offer
   "Capture current layout". The list refreshes when a picker opens.
+  M11 (D-050): `ParamSpec.Suggest`/`Examples` add an editable ComboBox (Text), a checklist or ordered token list
+  (TextList) and an "Examples" menu (MultilineText/TextMap); `Devices(kind)` sources share `LibraryDevices`' pipe cache,
+  `Config(kind)` sources read `ConfigSession.Current` (the draft). Bluetooth devices without audio are shown disabled.
 - Library page (`LibraryPage/LibraryPageViewModel`, view `Library/LibraryView`, a Pivot): Audio, Bluetooth, Displays,
   Android from `library:` plus Programs (the `process.run` paths the flows use). Cards show live state (pipe
   `devices`, refreshed when the page opens or the engine starts), "Used by n flows" (flows with a step whose
@@ -293,7 +303,9 @@ About), cards in the OSD's settings-card style (App.xaml). All logic is in `Edit
    params, ct)`, optional `IEnumerator` for pickers); interop behind a small interface with a fake.
 3. Register in the engine composition root. A test asserts every descriptor has exactly one implementation.
 4. Tests: descriptor/param validation, YAML round-trip of a sample node, runner behaviour with the fake.
-No change to Runner, YAML mapper or editor: the inspector renders from `ParamSpec`.
+No change to Runner, YAML mapper or editor: the inspector renders from `ParamSpec`. A free-text param should say
+where its values come from (`Suggest`) or show `Examples` (D-050); a `Devices(kind)` source needs a kind in
+`IDeviceQueries` (`Providers/SystemDevices`), a `Static` table lives in Core and is shared with the provider.
 
 As built (M4): the composition root is `Providers/BuiltInProviders.Create`. Params are read with `StepParams`
 (written value, else the descriptor default). COM providers (Audio, Bluetooth) use CsWin32 without marshalling

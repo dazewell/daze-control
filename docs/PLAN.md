@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: none — second-round feedback (PR #21, 0.20.0) merged; release tag waits for the user
-Last green checkpoint: wip(editor) "If it fails, run… and a Connections list in the inspector"
-Next action: after the PR merges, nothing is queued for agents: GOALS "Ready for you" lists the user's steps (release tag, 24 h soak, retire scd, system-wide UX checks). Next agent work, if asked: T10.5 (pop-up for Narrator).
+Current task: M11 designed (docs/m11-design: D-049..D-052, X-005, UX §5.4/§5.7, PLAN → M11); implementation not started
+Last green checkpoint: docs(m11) design for desktop shortcuts, pickers and the Bluetooth list
+Next action: T11.1 (fix/bluetooth-list) first, then T11.2 → T11.3 (feat/m11-pickers) and T11.4 → T11.5 (feat/m11-shortcuts)
 Tree state: builds, 823/823 tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. Tray left click was checked with a posted NIN_SELECT (starts the editor); bringing a running editor forward needs a real click (foreground rights), not verified.
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). T11.1's expected list is in its done-when (dev PC, 2026-11-02).
 
 ---
 
@@ -113,6 +113,39 @@ Notes for next agent: release.yml is tag-only (D-043): never push a v-tag withou
   happened") without activating (PR #8 review).
 - [x] T10.4 Footprint gate passed (ARCHITECTURE → Footprint, 2026-11-02). The 24 h soak and retiring scd are the
   user's (GOALS → Waiting on the user).
+
+## M11 Shortcuts, pickers, Bluetooth list (user, 2026-11-02; design D-049..D-052, X-005)
+Order: T11.1 alone first (a bug the user sees); then T11.2 → T11.3 and T11.4 → T11.5. One PR per branch, feat
+PRs bump the minor version.
+- [ ] T11.1 Bluetooth list = Windows' paired devices (fix/bluetooth-list, D-052). `Providers/Bluetooth`: CfgMgr32
+  enumeration of present `BTHENUM\DEV_*` + `BTHLE\DEV_*` behind a seam, merged by address with the endpoint data
+  (connectable + Connected); `DeviceInfo.State`, a "not connectable" flag the editor disables (Library "Add from
+  Windows" and the step picker, #26). Check one devnode property for non-audio Connected against Settings; none
+  reliable → no state. Done when: tests on the merge with fake devnodes/endpoints (ghost endpoints dropped, LE+classic
+  of one address merged, non-audio listed not connectable); on the dev PC `dctl devices bluetooth` lists exactly MX
+  Master 3S, MX Keys Mini, Steam Ctrl, OPPO dazewell, Zone 301, WH-1000XM5, Technics EAH-AZ80 and none of SOUNDPEATS
+  H3 / Technics EAH-AZ40M2 / WF-C710N; editor screenshot of the picker.
+- [ ] T11.2 Catalog suggestions + examples (feat/m11-pickers, D-050). Core: `ParamSpec.Suggest` (Devices / Config /
+  Static), `Ordered`, `Examples`; Android key table shared with the provider; examples per UX §5.4. Ipc/Providers:
+  `devices services` (EnumServicesStatusEx, no admin), `devices credentials` (CredEnumerate `DazeControl:*`, names
+  only), `DeviceInfo.Value`; `dctl devices services|credentials`. Done when: a catalog test says every Text/TextList/
+  MultilineText/TextMap param has a Suggest or Examples (or is on a short reviewed allow-list, e.g. `notify.text`);
+  every Devices kind exists in `SystemDevices.Kinds`; key-table round-trip test with the provider.
+- [ ] T11.3 Inspector pickers (feat/m11-pickers, D-050, D-051). Editable ComboBox, checklist, token list, Examples
+  menu in `ParamFieldViewModel` + InspectorPane; `display.outputs` checklist with "Use the screens that are on now"
+  (name or port per D-051, unplugged kept checked; provider matches exact names before "contains"); Android input from the chosen device. Done when: VM tests (writes,
+  twin-name → port, unplugged kept, undo of an example), screenshots light/dark of each control, Narrator names on the
+  checklist and token list.
+- [ ] T11.4 Desktop shortcuts, engine side (feat/m11-shortcuts, D-049). `--run`, second-instance forward, queue
+  until first load, trigger "Desktop shortcut", `FlowShortcuts` (.lnk + glyph .ico), ops `shortcuts`/`create-shortcut`/
+  `remove-shortcut`, `dctl shortcut <flow> [--remove]`, uninstall hook cleanup, id-only resolution (`exactId`),
+  config path kept in the args. Done when: unit tests (args parse, scan matches only our target, name sanitising
+  incl. `/` and reserved names, a deleted flow's id never matches another flow's name); a non-default config's
+  shortcut cold-starts that config; on the dev PC a shortcut runs its flow with the engine running and
+  with it stopped (history shows "Desktop shortcut"), an installed copy's shortcut survives an update, uninstall
+  removes it.
+- [ ] T11.5 Desktop shortcuts, editor side (feat/m11-shortcuts). Flow settings row + Flows card context menu, Update
+  on an old name, engine-off state (#25), deleting a flow removes its shortcut on Save. Done when: VM tests, screenshots.
 
 ## First-use fixes (user, 2026-11-02; branch feat/first-use-fixes)
 - [x] F1 Flows list stays inside the window when maximized (X-003).
