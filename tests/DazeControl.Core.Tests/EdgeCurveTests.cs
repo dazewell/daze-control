@@ -57,3 +57,51 @@ public class EdgeCurveTests
         Assert.True(Curve.DistanceTo(new Point(230, 100)) > 12);
     }
 }
+
+/// <summary>A wrapped edge (D-060): right 16, down to the gap, left to a lane 16 before the next row, down, right in.</summary>
+public class WrappedEdgeCurveTests
+{
+    // Row end's port at (600, 76), gap middle at y 128, next row's first port at (48, 180).
+    private static readonly EdgeCurve Curve = EdgeCurve.Wrapped(new Point(600, 76), new Point(48, 180), 128);
+
+    [Fact]
+    public void TheCornersFollowTheWrappedShape()
+    {
+        Assert.Equal(
+            [new Point(600, 76), new Point(616, 76), new Point(616, 128), new Point(32, 128), new Point(32, 180), new Point(42, 180)],
+            Curve.Corners);
+        Assert.True(Curve.IsWrapped);
+    }
+
+    [Theory]
+    [InlineData(608, 76, true)]   // the step out of the port
+    [InlineData(626, 100, true)]  // beside the first drop, 10 away
+    [InlineData(300, 139, true)]  // just below the return lane
+    [InlineData(300, 145, false)] // 17 below it
+    [InlineData(20, 160, true)]   // left of the lane's drop
+    [InlineData(300, 76, false)]  // where a Bézier would have run, inside the row
+    [InlineData(46, 180, true)]   // the arrowhead
+    public void HitTestIsTheDistanceToThePolyline(double x, double y, bool within12)
+    {
+        Assert.Equal(within12, Curve.DistanceTo(new Point(x, y)) <= 12);
+    }
+
+    [Fact]
+    public void TheMidpointLiesOnTheReturnLane()
+    {
+        Assert.Equal(128, Curve.Midpoint.Y, 3);
+        Assert.InRange(Curve.Midpoint.X, 32, 616);
+    }
+
+    [Fact]
+    public void CornersAreRoundedByAtMostEight()
+    {
+        var segments = Curve.RoundedSegments().ToList();
+        Assert.Equal(5, segments.Count);
+        Assert.Equal(new Point(608, 76), segments[0].LineTo);
+        Assert.Equal(new Point(616, 84), segments[0].CurveTo);
+        // The last corner's outgoing run is 10 long, so its radius is 5.
+        Assert.Equal(new Point(37, 180), segments[3].CurveTo);
+        Assert.Null(segments[^1].Corner);
+    }
+}

@@ -26,7 +26,7 @@ public sealed partial class CanvasEdgeViewModel : ObservableObject
         From = route.From;
         To = route.To;
         When = route.When;
-        Curve = EdgeCurve.Between(route.Start, route.End);
+        Curve = route.WrapLaneY is { } lane ? EdgeCurve.Wrapped(route.Start, route.End, lane) : EdgeCurve.Between(route.Start, route.End);
         Style = route.When switch
         {
             EdgeWhen.Failure => EdgeStyle.IfFails,
