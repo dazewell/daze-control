@@ -1,7 +1,7 @@
 # Plan
 
 ## Resume
-Current task: T13.1 done (feat/m13-nav-flows): nav Flows leaves an open flow (D-047 prompt) and shows the list
+Current task: T13.1 done (feat/m13-nav-flows, PR #36): nav Flows leaves an open flow (D-047 prompt) and shows the list
 Last green checkpoint: 1010563 docs(m13b): hotkeys for [ ] \ and number-pad keys
 Next action: lane A continues with T13.2 (feat/m13-flows-card): `FlowsPageViewModel` glyph via `FlowGlyph.CodeOf` + Run/Stop; other lanes per PLAN → M13 Order
 Tree state: builds, all tests green · Uncommitted: none
@@ -35,7 +35,7 @@ Every task: tests first where the logic is pure (Core/Runtime/ViewModels), the e
 the change for UI tasks, and the docs moved from "designed" to built (UX "M13" notes reworded as current, ARCHITECTURE
 section rewritten, FEATURES where behaviour changed).
 
-- [x] T13.1 P4 **Nav "Flows" returns to the list** (feat/m13-nav-flows, PR #TBD). Cause: with a flow open, Flows is still the
+- [x] T13.1 P4 **Nav "Flows" returns to the list** (feat/m13-nav-flows, PR #36). Cause: with a flow open, Flows is still the
   selected nav item, so `SelectionChanged` never fires. Files: `Editor/ShellWindow.xaml(.cs)` (`ItemInvoked` on the
   Flows item while a flow is open → `LeaveFlowAsync` (D-047 prompt) → `CloseFlow`, show the list). Done when: in the
   running editor, Flows from an open flow shows the list; with a draft the Save / Don't save / Cancel prompt shows and
