@@ -57,7 +57,7 @@ public static class ProviderCatalog
         [
             new("outputs", ParamKind.TextList, "Screens")
             {
-                Required = true, Help = "Monitor names as Windows shows them.", Suggest = ParamSuggest.Devices("displays"),
+                Required = true, Help = "The others are turned off.", Suggest = ParamSuggest.Devices("displays"),
             },
         ])
         { Resources = ["display"] },
@@ -104,7 +104,7 @@ public static class ProviderCatalog
             Ref("device", "Android device", LibraryKind.Android),
             new("keys", ParamKind.TextList, "Keys")
             {
-                Required = true, Help = "Android key names, sent in order: home, back, dpad_down, media_play_pause.",
+                Required = true, Help = "Sent in order. Alt+Up or Alt+Down on a key's × moves it.",
                 Suggest = ParamSuggest.Static("androidKeys", AndroidKeys.Names), Ordered = true,
             },
         ])

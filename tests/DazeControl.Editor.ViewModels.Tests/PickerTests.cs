@@ -196,6 +196,16 @@ public sealed class PickerTests : IDisposable
     }
 
     [Fact]
+    public void TheSameTextPushedBackChangesNothing()
+    {
+        _canvas.Select("svc");
+
+        Field("name").Text = "Spooler "; // an editable ComboBox writes its text back on focus
+
+        Assert.False(_canvas.CanUndo);
+    }
+
+    [Fact]
     public void FlagsComeFromTheConfig()
     {
         _canvas.Select("flag");

@@ -355,7 +355,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     private static string Caption(DeviceInfo device)
     {
         var state = device.State is { Length: > 0 } s ? char.ToUpperInvariant(s[0]) + s[1..] : null;
-        string?[] parts = [device.Detail, state];
+        string?[] parts = [device.Detail == (device.Value ?? device.Name) ? null : device.Detail, state];
         return string.Join(" · ", parts.OfType<string>().Where(p => p.Length > 0));
     }
 
@@ -494,7 +494,15 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             _canvas.Edit(change);
     }
 
-    private void WriteParam(ParamFieldViewModel field, ParamValue? value) => EditStep(s => s with
+    private void WriteParam(ParamFieldViewModel field, ParamValue? value)
+    {
+        // An editable ComboBox pushes its text back on focus: the same value must not make the flow dirty.
+        if (Node is StepNode now && Equals(now.With.TryGetValue(field.Name, out var old) ? old : null, value))
+            return;
+        WriteChanged(field, value);
+    }
+
+    private void WriteChanged(ParamFieldViewModel field, ParamValue? value) => EditStep(s => s with
     {
         With = value is null
             ? new(s.With.Where(e => e.Key != field.Name))
