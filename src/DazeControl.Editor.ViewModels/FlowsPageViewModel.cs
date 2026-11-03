@@ -138,7 +138,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
 public sealed partial class FlowItemViewModel : ObservableObject
 {
     /// <summary>Segoe Fluent "Lightning bolt" when the flow names no glyph.</summary>
-    public const string DefaultGlyph = "";
+    public const string DefaultGlyph = FlowGlyph.Default;
 
     private readonly FlowsPageViewModel _page;
     private bool _syncing;
@@ -200,11 +200,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
     }
 
     /// <summary>YAML holds the code point in hex ("E7F4"); anything else falls back to the default.</summary>
-    internal static string DecodeGlyph(string? code) =>
-        int.TryParse(code, System.Globalization.NumberStyles.AllowHexSpecifier, System.Globalization.CultureInfo.InvariantCulture, out var value)
-        && value is >= 0x20 and <= 0x10FFFF and not (>= 0xD800 and <= 0xDFFF)
-            ? char.ConvertFromUtf32(value)
-            : DefaultGlyph;
+    internal static string DecodeGlyph(string? code) => FlowGlyph.Decode(code);
 
     partial void OnIsEnabledChanged(bool value)
     {

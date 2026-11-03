@@ -71,6 +71,69 @@ public sealed class EngineControllerTests : IDisposable
             CancellationToken.None);
 
     [Fact]
+    public async Task ADesktopRunRecordsItsTrigger()
+    {
+        var answer = await _controller.HandleAsync(new PipeRequest
+        {
+            Id = 7, Op = Ops.Run, Flow = "tv", Wait = true, ExactId = true, Trigger = EngineController.DesktopTrigger,
+        }, CancellationToken.None);
+
+        Assert.True(answer.Ok);
+        Assert.Equal("Desktop shortcut", answer.Run!.Trigger);
+    }
+
+    [Fact]
+    public async Task ADesktopRunNeverFallsBackToAName()
+    {
+        // A deleted flow's id may be another flow's name: the shortcut must not run that one.
+        var refused = new List<RunRefusal>();
+        _controller.RunRefused += refused.Add;
+
+        var answer = await _controller.HandleAsync(new PipeRequest { Id = 7, Op = Ops.Run, Flow = "TV only", ExactId = true },
+            CancellationToken.None);
+
+        Assert.False(answer.Ok);
+        Assert.Empty(_history.Recent);
+        var refusal = Assert.Single(refused);
+        Assert.Equal(EngineController.ShortcutFlowGone, refusal.Message);
+        Assert.Equal("Desktop shortcut", refusal.Title);
+        Assert.True((await Send(Ops.Run, "TV only", wait: true)).Ok); // dctl keeps its name fallback
+    }
+
+    [Theory]
+    [InlineData("broken", "Broken needs fixing before it can run.")]
+    [InlineData("off", "Off is turned off.")]
+    public async Task ADesktopRunThatCantStartTellsThePopup(string flow, string message)
+    {
+        var refused = new List<RunRefusal>();
+        _controller.RunRefused += refused.Add;
+
+        await _controller.HandleAsync(new PipeRequest { Id = 7, Op = Ops.Run, Flow = flow, ExactId = true }, CancellationToken.None);
+
+        Assert.Equal(message, Assert.Single(refused).Message);
+    }
+
+    [Fact]
+    public async Task ACommandLineRunThatCantStartIsNoPopup()
+    {
+        var refused = new List<RunRefusal>();
+        _controller.RunRefused += refused.Add;
+
+        await Send(Ops.Run, "nope");
+        await Send(Ops.Run, "off");
+
+        Assert.Empty(refused);
+    }
+
+    [Fact]
+    public async Task ShortcutOpsWithoutTheShellSayWhy()
+    {
+        var answer = await Send(Ops.Shortcuts);
+
+        Assert.Equal("This engine can't make desktop shortcuts.", answer.Error);
+    }
+
+    [Fact]
     public async Task RunWithWaitAnswersWithTheRecord()
     {
         var answer = await Send(Ops.Run, "tv", wait: true);

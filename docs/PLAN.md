@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M11 designed (docs/m11-design: D-049..D-052, X-005, UX §5.4/§5.7, PLAN → M11); implementation not started
-Last green checkpoint: docs(m11) design for desktop shortcuts, pickers and the Bluetooth list
-Next action: T11.1 (fix/bluetooth-list) first, then T11.2 → T11.3 (feat/m11-pickers) and T11.4 → T11.5 (feat/m11-shortcuts)
-Tree state: builds, 823/823 tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). T11.1's expected list is in its done-when (dev PC, 2026-11-02).
+Current task: T11.4 + T11.5 — desktop shortcuts (branch feat/m11-shortcuts, no PR yet); T11.1–T11.3 in a parallel session
+Last green checkpoint: b80f8c7 (main)
+Next action: Engine/Shell/FlowShortcuts (IShellLinkW store + D2D glyph icon), then Program `--run` forward/cold start
+Tree state: builds, Runtime 271/271 green · Uncommitted: none
+Notes for next agent: Runtime/Lifecycle/DesktopShortcuts holds the logic behind seams (IShellLinkStore, IFlowIconRenderer); the engine only adds COM/D2D. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4).
 
 ---
 
@@ -136,7 +136,7 @@ PRs bump the minor version.
   (name or port per D-051, unplugged kept checked; provider matches exact names before "contains"); Android input from the chosen device. Done when: VM tests (writes,
   twin-name → port, unplugged kept, undo of an example), screenshots light/dark of each control, Narrator names on the
   checklist and token list.
-- [ ] T11.4 Desktop shortcuts, engine side (feat/m11-shortcuts, D-049). `--run`, second-instance forward, queue
+- [~] T11.4 Desktop shortcuts, engine side (feat/m11-shortcuts, D-049). `--run`, second-instance forward, queue
   until first load, trigger "Desktop shortcut", `FlowShortcuts` (.lnk + glyph .ico), ops `shortcuts`/`create-shortcut`/
   `remove-shortcut`, `dctl shortcut <flow> [--remove]`, uninstall hook cleanup, id-only resolution (`exactId`),
   config path kept in the args. Done when: unit tests (args parse, scan matches only our target, name sanitising

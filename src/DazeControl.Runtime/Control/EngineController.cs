@@ -22,6 +22,10 @@ public sealed record ShellStatus(bool ShortcutsPaused, IReadOnlyList<string> Sho
 /// passes it on so the next sign-in loads the same flows.</param>
 public sealed record EngineInfo(string Version, int ProcessId, string ExePath, string ConfigPath, string? ConfigArgument = null);
 
+/// <summary>A desktop shortcut's run that couldn't start, for the pop-up (UX §5.7 #24).</summary>
+/// <param name="Title">The flow's name, or "Desktop shortcut" when the flow is gone.</param>
+public sealed record RunRefusal(string FlowId, string Title, string Message);
+
 /// <summary>
 /// Every trigger and pipe request goes through here (FEATURES F2, F8; ARCHITECTURE → IPC): finds the flow by id or
 /// name in the current config, starts it through the <see cref="FlowLauncher"/>, and answers the pipe ops. Thread-safe;
@@ -29,10 +33,16 @@ public sealed record EngineInfo(string Version, int ProcessId, string ExePath, s
 /// </summary>
 public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher launcher, RunHistory? history,
     FlowRunner dryRunner, Autostart autostart, EngineInfo info, Action<string> log, IDeviceQueries? devices = null,
-    FlowRunner? stepRunner = null)
+    FlowRunner? stepRunner = null, DesktopShortcuts? shortcuts = null)
 {
     /// <summary>A step test runs as a flow with this id prefix; <c>cancel</c> with that id stops it.</summary>
     public const string TestPrefix = "test:";
+
+    /// <summary>The trigger the history shows for a run from a desktop shortcut (D-049).</summary>
+    public const string DesktopTrigger = "Desktop shortcut";
+
+    /// <summary>UX §5.7 #24.</summary>
+    public const string ShortcutFlowGone = "This shortcut's flow isn't there anymore. You can delete the shortcut.";
 
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _tests = new(StringComparer.Ordinal);
     private volatile ShellStatus _shell = ShellStatus.Empty;
@@ -42,6 +52,12 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         get => _shell;
         set => _shell = value;
     }
+
+    /// <summary>
+    /// An <see cref="PipeRequest.ExactId"/> run (a desktop shortcut) that didn't start: nobody sees the pipe's answer, so
+    /// the shell says it in the pop-up. Any thread.
+    /// </summary>
+    public event Action<RunRefusal>? RunRefused;
 
     /// <summary>
     /// A runner whose steps do nothing, for <c>dctl run --dry-run</c> and the editor's Dry run: walks the flow's
@@ -101,6 +117,11 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                 return await CaptureDisplayLayoutAsync(request, cancellationToken).ConfigureAwait(false);
             case Ops.TestStep:
                 return await TestStepAsync(request, cancellationToken).ConfigureAwait(false);
+            case Ops.Shortcuts:
+            case Ops.CreateShortcut:
+            case Ops.RemoveShortcut:
+                // COM and file I/O off the pipe's reader: the request runs on a pool thread.
+                return await Task.Run(() => Shortcuts(request), cancellationToken).ConfigureAwait(false);
             default:
                 return PipeMessage.Fail(id, $"Unknown request \"{request.Op}\".");
         }
@@ -192,12 +213,13 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         var id = request.Id;
         if (request.DryRun && request.Config is not null)
             return await DryRunSentAsync(request, request.Trigger ?? "Editor", cancellationToken).ConfigureAwait(false);
-        if (Find(request.Flow) is not { } state)
-            return NotFound(id, request.Flow);
+        var state = request.ExactId ? FindById(request.Flow) : Find(request.Flow);
+        if (state is null)
+            return Refuse(request, request.Flow ?? "", DesktopTrigger, ShortcutFlowGone, NotFound(id, request.Flow));
         if (state.Running is not { } flow)
-            return PipeMessage.Fail(id, $"{NameOf(state)} needs fixing before it can run.");
+            return Refuse(request, state.FlowId, NameOf(state), $"{NameOf(state)} needs fixing before it can run.");
         if (!flow.Enabled)
-            return PipeMessage.Fail(id, $"{NameOf(state)} is turned off.");
+            return Refuse(request, state.FlowId, NameOf(state), $"{NameOf(state)} is turned off.");
         var trigger = request.Trigger ?? "Command line";
 
         if (request.DryRun)
@@ -247,6 +269,75 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             return PipeMessage.Fail(request.Id, $"Fix this first: {blocking.Message}");
         var dry = await dryRunner.RunAsync(WithoutRetries(flow), load.Config.Library, cancellationToken).ConfigureAwait(false);
         return new PipeMessage { Id = request.Id, Ok = true, Run = Record(dry, flow.Id, flow.Name, trigger + " (dry run)") };
+    }
+
+    /// <summary>The pipe's answer; for a desktop shortcut also the pop-up's words (D-049).</summary>
+    private PipeMessage Refuse(PipeRequest request, string flowId, string title, string message, PipeMessage? answer = null)
+    {
+        if (request.ExactId && !request.DryRun)
+        {
+            log($"run: {flowId} ({request.Trigger ?? DesktopTrigger}) refused: {message}");
+            RunRefused?.Invoke(new RunRefusal(flowId, title, message));
+        }
+        return answer ?? PipeMessage.Fail(request.Id, message);
+    }
+
+    /// <summary>
+    /// <c>shortcuts</c> lists ours; <c>create-shortcut</c> and <c>remove-shortcut</c> take a flow id or name, like
+    /// <c>dctl</c>. A removed flow's shortcut is removed by its id. Windows errors are answers, never crashes (fail-soft).
+    /// </summary>
+    private PipeMessage Shortcuts(PipeRequest request)
+    {
+        var id = request.Id;
+        if (shortcuts is null)
+            return PipeMessage.Fail(id, "This engine can't make desktop shortcuts.");
+        try
+        {
+            switch (request.Op)
+            {
+                case Ops.Shortcuts:
+                    return new PipeMessage { Id = id, Ok = true, Shortcuts = [.. shortcuts.List().Select(Describe)] };
+                case Ops.CreateShortcut:
+                {
+                    if (Find(request.Flow) is not { } state || (state.Running ?? state.Written) is not { } flow)
+                        return NotFound(id, request.Flow);
+                    var made = shortcuts.Create(flow);
+                    log($"shortcuts: {flow.Id} → {made.Path}");
+                    return new PipeMessage { Id = id, Ok = true, Shortcuts = [Describe(made)] };
+                }
+                default:
+                {
+                    if (string.IsNullOrWhiteSpace(request.Flow))
+                        return NotFound(id, request.Flow);
+                    var listed = shortcuts.List();
+                    var flowId = listed.Any(s => s.FlowId == request.Flow) ? request.Flow : Find(request.Flow)?.FlowId;
+                    if (flowId is null)
+                        return NotFound(id, request.Flow);
+                    var removed = listed.Where(s => s.FlowId == flowId).Select(Describe).ToArray();
+                    shortcuts.Remove(flowId);
+                    log($"shortcuts: {flowId} removed ({removed.Length})");
+                    return new PipeMessage { Id = id, Ok = true, Shortcuts = removed };
+                }
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+        {
+            log($"shortcuts: {request.Op} {request.Flow}: {e.Message}");
+            return PipeMessage.Fail(id, $"Windows didn't let Daze Control change the desktop: {e.Message}");
+        }
+    }
+
+    private ShortcutInfo Describe(DesktopShortcut shortcut)
+    {
+        var flow = FindById(shortcut.FlowId) is { } state ? state.Running ?? state.Written : null;
+        return new ShortcutInfo
+        {
+            FlowId = shortcut.FlowId,
+            Name = shortcut.Name,
+            Path = shortcut.Path,
+            FlowExists = flow is not null,
+            CurrentName = flow is not null && DesktopShortcuts.HasCurrentName(shortcut, flow),
+        };
     }
 
     /// <summary>A dry step that fails (missing device) must not wait out its retry delays: a preview answers at once.</summary>
@@ -346,6 +437,10 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         return flows.FirstOrDefault(f => f.FlowId == text)
             ?? flows.FirstOrDefault(f => string.Equals(NameOf(f), text, StringComparison.OrdinalIgnoreCase));
     }
+
+    /// <summary>By id only (a desktop shortcut, D-049).</summary>
+    private FlowState? FindById(string? id) =>
+        string.IsNullOrEmpty(id) ? null : config().Flows.FirstOrDefault(f => f.FlowId == id);
 
     private static string NameOf(FlowState state) => (state.Running ?? state.Written)?.Name ?? state.FlowId;
 
