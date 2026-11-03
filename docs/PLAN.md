@@ -3,7 +3,7 @@
 ## Resume
 Current task: C1 + C2 canvas fixes in PR #29 (fix/run-together-linked, D-058, D-059); M12 flow menu designed, nothing built yet
 Last green checkpoint: docs(plan): C1 done, Resume block points back at M12
-Next action: T12.2 spike S2 (no-activate menu window, needs nothing), DESIGN §5; T12.1 needs the user's Xbox pad
+Next action: after the weekly reset (2026-11-08): L1 Android inputs (paused session), then M12 spikes T12.1/T12.2; C3 (wrap long chains) needs a design pass
 Tree state: builds, 942/942 tests green · Uncommitted: none
 Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4); controller combos are "controller buttons". M12 answers from the user (2026-11-03): pads = Xbox + Steam Controller, the menu never takes focus, XInput polling only while a pad is on is acceptable. After PR #29: T12.1 spike S1 (needs the user's Xbox pad) or T12.2 spike S2 (needs nothing), DESIGN §5. T10.5 is parked as issue #26 (T12.9 shares it). The editor has no flow delete yet. FlowRunnerTests' waits fail after 30 s real time; Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone.
 
@@ -208,3 +208,16 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 ## Canvas fixes (user reports)
 - [x] C1 Linked steps can be dropped / Ctrl+G'd together; the links between them go (D-058; fix/run-together-linked, PR #29).
 - [x] C2 A new fallback switches its source from Stop to Skip, with a tip (D-059; same PR).
+- [ ] C3 Wrap long simple chains, keep complex branches apart (user, 2026-11-03; needs a design pass first, it changes
+  D-020's one-column-per-layer layout). A long run of steps with one way in and one way out should wrap onto the next
+  row (snake left→right, then a new row) instead of growing ever wider; anything that forks, joins or holds a card
+  keeps its own clearly separated columns. Design questions: when a chain counts as long (canvas width vs a step
+  count), how a wrapped edge is drawn, how wrapping interacts with drag-to-reorder and Tidy up (`FlowTidy`), and the
+  Outline order (unchanged). Done when: a D-entry superseding the relevant part of D-020, `Core/Layout/FlowLayout` tests
+  for a 10-step chain (wraps) and a fork/join flow (unchanged), screenshots.
+
+## Library fixes (user reports)
+- [ ] L1 Edit Android inputs in Library › Android (user, 2026-11-03): add, rename (refs follow), remove (off while used),
+  moves as an ordered Up/Down list; the `android.input` hint "Add inputs in the Library." becomes a link there.
+  Started as session "Fix: edit Android inputs in the Library"; it paused at the 97 % weekly limit before any change
+  (resets 2026-11-08 04:00 UTC).
