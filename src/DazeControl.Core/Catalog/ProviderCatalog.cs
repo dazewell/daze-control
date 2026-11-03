@@ -12,6 +12,16 @@ public static class ProviderCatalog
 
     private static readonly TimeSpan Short = TimeSpan.FromSeconds(10);
 
+    /// <summary>UX §5.4.</summary>
+    private static readonly ValueList<ParamExample> PowerShellExamples =
+    [
+        new("Open a website", "Start-Process 'https://example.com'"),
+        new("Start an app and wait", "Start-Process notepad -Wait"),
+        new("Close an app", "Stop-Process -Name 'Spotify' -ErrorAction SilentlyContinue"),
+        new("Lock the PC", "rundll32.exe user32.dll,LockWorkStation"),
+        new("Fail unless an app is running", "if (-not (Get-Process steam -ErrorAction SilentlyContinue)) { exit 1 }"),
+    ];
+
     public static ValueList<ProviderDescriptor> All { get; } =
     [
         new("audio.setDefault", "Set default device", Audio, Short,
@@ -45,7 +55,10 @@ public static class ProviderCatalog
         { Resources = ["display"] },
         new("display.outputs", "Use only these screens", Display, Short,
         [
-            new("outputs", ParamKind.TextList, "Screens") { Required = true, Help = "Monitor names as Windows shows them." },
+            new("outputs", ParamKind.TextList, "Screens")
+            {
+                Required = true, Help = "Monitor names as Windows shows them.", Suggest = ParamSuggest.Devices("displays"),
+            },
         ])
         { Resources = ["display"] },
         new("display.layout", "Restore screen layout", Display, Short,
@@ -60,22 +73,30 @@ public static class ProviderCatalog
             new("exitCodes", ParamKind.TextList, "Exit codes that mean success") { Default = "0" },
         ]),
         new("script.powershell", "Run PowerShell", Script, TimeSpan.FromSeconds(60),
-            [new("script", ParamKind.MultilineText, "Script") { Required = true }]),
+            [new("script", ParamKind.MultilineText, "Script") { Required = true, Examples = PowerShellExamples }]),
         new("http.request", "Web request", Http, Short,
         [
-            new("url", ParamKind.Text, "Address") { Required = true },
+            new("url", ParamKind.Text, "Address")
+            {
+                Required = true, Examples = [new("Sunshine: close the running app", "https://localhost:47990/api/apps/close")],
+            },
             new("method", ParamKind.Choice, "Method") { Choices = ["GET", "POST", "PUT", "PATCH", "DELETE"], Default = "GET" },
-            new("headers", ParamKind.TextMap, "Headers"),
-            new("body", ParamKind.MultilineText, "Body"),
+            new("headers", ParamKind.TextMap, "Headers") { Examples = [new("JSON", "Content-Type: application/json")] },
+            new("body", ParamKind.MultilineText, "Body") { Examples = [new("JSON", "{ \"key\": \"value\" }")] },
             new("credential", ParamKind.Text, "Sign in with")
             {
                 Help = "Name of a saved credential; the secret stays in Windows Credential Manager.",
+                Suggest = ParamSuggest.Devices("credentials"),
             },
         ]),
         new("android.input", "Android input", Tv, TimeSpan.FromSeconds(20),
         [
             Ref("device", "Android device", LibraryKind.Android),
-            new("input", ParamKind.Text, "Input") { Required = true, Help = "One of the inputs saved with the Android device." },
+            new("input", ParamKind.Text, "Input")
+            {
+                Required = true, Help = "One of the inputs saved with the Android device.",
+                Suggest = ParamSuggest.Config(ParamSuggest.AndroidInputs),
+            },
         ])
         { Resources = ["adb:{device}"] },
         new("android.keys", "Android keys", Tv, TimeSpan.FromSeconds(20),
@@ -84,6 +105,7 @@ public static class ProviderCatalog
             new("keys", ParamKind.TextList, "Keys")
             {
                 Required = true, Help = "Android key names, sent in order: home, back, dpad_down, media_play_pause.",
+                Suggest = ParamSuggest.Static("androidKeys", AndroidKeys.Names), Ordered = true,
             },
         ])
         { Resources = ["adb:{device}"] },
@@ -91,10 +113,10 @@ public static class ProviderCatalog
             [Ref("device", "Android device", LibraryKind.Android)])
         { Resources = ["adb:{device}"] },
         new("service.start", "Start service", Service, TimeSpan.FromSeconds(30),
-            [new("name", ParamKind.Text, "Service name") { Required = true }])
+            [new("name", ParamKind.Text, "Service name") { Required = true, Suggest = ParamSuggest.Devices("services") }])
         { Resources = ["service:{name}"] },
         new("service.stop", "Stop service", Service, TimeSpan.FromSeconds(30),
-            [new("name", ParamKind.Text, "Service name") { Required = true }])
+            [new("name", ParamKind.Text, "Service name") { Required = true, Suggest = ParamSuggest.Devices("services") }])
         { Resources = ["service:{name}"] },
         new("wait", "Wait", Wait, TimeSpan.FromHours(1),
             [new("duration", ParamKind.Duration, "How long") { Required = true }]),
@@ -102,12 +124,12 @@ public static class ProviderCatalog
             [new("text", ParamKind.Text, "Message") { Required = true }]),
         new("flag.set", "Set a flag", Flag, Short,
         [
-            new("name", ParamKind.Text, "Flag") { Required = true },
+            new("name", ParamKind.Text, "Flag") { Required = true, Suggest = ParamSuggest.Config(ParamSuggest.Flags) },
             new("value", ParamKind.Boolean, "On") { Default = "true" },
         ]),
         new("flag.check", "Check a flag", Flag, Short,
         [
-            new("name", ParamKind.Text, "Flag") { Required = true },
+            new("name", ParamKind.Text, "Flag") { Required = true, Suggest = ParamSuggest.Config(ParamSuggest.Flags) },
             new("value", ParamKind.Boolean, "Is on") { Default = "true", Help = "Fails when the flag differs; follow it with an \"if it fails\" branch." },
         ]),
     ];

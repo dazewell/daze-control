@@ -30,7 +30,7 @@ public static class Program
           status                            what the engine is doing
           history [flow] [--limit n]        recent runs, newest first
           autostart [on|off]                start the engine with Windows
-          devices audio|bluetooth|displays|adb
+          devices audio|bluetooth|displays|adb|services|credentials
                                             what steps can name on this PC
           capture-display-layout <name>     the screens as they are now, as YAML for library.displays
           update                            download a newer version; it installs at the next start

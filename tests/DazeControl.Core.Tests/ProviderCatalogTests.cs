@@ -68,4 +68,46 @@ public class ProviderCatalogTests
         Assert.Equal("bluetooth", ProviderCatalog.Find("bluetooth.connect")!.Area);
         Assert.Equal("wait", ProviderCatalog.Find("wait")!.Area);
     }
+
+    /// <summary>Free text the user is fine typing (reviewed 2026-11-02, D-050): a message, a program's own arguments.</summary>
+    private static readonly HashSet<string> TypedFreely = ["notify.text", "process.run.args", "process.run.exitCodes"];
+
+    [Fact]
+    public void EveryFreeTextParamSaysWhereItsValuesComeFrom()
+    {
+        var bare = ProviderCatalog.All
+            .SelectMany(d => d.Params.Select(p => (Path: $"{d.Id}.{p.Name}", Param: p)))
+            .Where(x => x.Param.Kind is ParamKind.Text or ParamKind.TextList or ParamKind.MultilineText or ParamKind.TextMap)
+            .Where(x => x.Param.Suggest is null && x.Param.Examples.Count == 0 && !TypedFreely.Contains(x.Path))
+            .Select(x => x.Path);
+
+        Assert.Empty(bare);
+    }
+
+    [Fact]
+    public void SuggestionsAreWellFormed()
+    {
+        foreach (var param in ProviderCatalog.All.SelectMany(d => d.Params))
+        {
+            if (param.Suggest is { } suggest)
+            {
+                Assert.NotEmpty(suggest.Kind);
+                Assert.Equal(suggest.Source == SuggestSource.Static, suggest.Values.Count > 0);
+            }
+            Assert.All(param.Examples, e => Assert.False(string.IsNullOrWhiteSpace(e.Title) || string.IsNullOrWhiteSpace(e.Value)));
+            if (param.Ordered)
+                Assert.Equal(ParamKind.TextList, param.Kind);
+        }
+    }
+
+    [Fact]
+    public void AndroidKeysAreSentInOrderFromTheSharedTable()
+    {
+        var keys = ProviderCatalog.Find("android.keys")!.Params.Single(p => p.Name == "keys");
+
+        Assert.True(keys.Ordered);
+        Assert.Equal(AndroidKeys.Names, keys.Suggest!.Values);
+        Assert.Equal("KEYCODE_HOME", AndroidKeys.Code("Home"));
+        Assert.Null(AndroidKeys.Code("teleport"));
+    }
 }

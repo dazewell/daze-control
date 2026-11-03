@@ -1,3 +1,4 @@
+using DazeControl.Core.Catalog;
 using DazeControl.Core.Model;
 using DazeControl.Providers.Android;
 using DazeControl.Runtime.Providers;
@@ -146,4 +147,8 @@ public class AndroidProviderTests
         var devices = SystemDevices.AdbDevices("* daemon started successfully\nList of devices attached\n192.168.1.50:5555\tdevice\nemulator-5554\toffline\n\n");
         Assert.Equal(["192.168.1.50:5555 connected", "emulator-5554 offline"], devices.Select(d => $"{d.Name} {d.Detail}"));
     }
+
+    [Fact]
+    public void EverySuggestedKeyIsSentAsItsTableCode() =>
+        Assert.All(AndroidKeys.Names, name => Assert.Equal(AndroidKeys.Code(name), AndroidRemote.KeyCode(name)));
 }

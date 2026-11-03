@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using DazeControl.Core.Catalog;
 using DazeControl.Core.Model;
 using DazeControl.Providers.Process;
 using DazeControl.Runtime.Providers;
@@ -85,6 +86,8 @@ public sealed class AndroidRemote(IAdb adb, TimeProvider time)
     /// <summary>"home" → "KEYCODE_HOME"; letters, digits and _ only, since the keys go into a shell command.</summary>
     public static string KeyCode(string key)
     {
+        if (AndroidKeys.Code(key) is { } code)
+            return code;
         var name = key.Trim().ToUpperInvariant();
         if (name.Length == 0 || name.Any(c => !(char.IsAsciiLetterOrDigit(c) || c == '_')))
             throw new StepFailedException($"\"{key}\" isn't an Android key name (like home, back, dpad_down).");
