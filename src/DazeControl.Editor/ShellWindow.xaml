@@ -440,7 +440,8 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <!-- Inspector (UX §5.4): 320 wide right of the canvas. -->
-                        <inspector:InspectorPane x:Name="InspectorPaneControl" Grid.Column="2" Width="320" />
+                        <inspector:InspectorPane x:Name="InspectorPaneControl" Grid.Column="2" Width="320"
+                                                 GotFocus="OnInspectorFocusChanged" LostFocus="OnInspectorFocusChanged" />
 
                         <!-- Palette (UX §5.1): 240 wide, search, step types by area; click or drag onto the canvas. -->
                         <Grid x:Name="PalettePane" Width="240" Padding="12,4,12,0" RowSpacing="8">

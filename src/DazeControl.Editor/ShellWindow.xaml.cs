@@ -36,6 +36,7 @@ public sealed partial class ShellWindow : Window
     private bool _closeAnyway;
     private bool _asking;
     private FlowCanvasViewModel? _editor;
+    private bool _textFocused;
     private RunOverlayViewModel? _run;
     private readonly StepPaletteViewModel _palette = new();
 
@@ -396,7 +397,29 @@ public sealed partial class ShellWindow : Window
             ViewModel.CloseFlow();
     }
 
-    private void OnSaveFlow(object sender, RoutedEventArgs e) => _editor?.Save();
+    // The click moved focus off an inspector box; its binding commits on LostFocus, which comes after: save after it.
+    private void OnSaveFlow(object sender, RoutedEventArgs e)
+    {
+        if (_editor is { } editor)
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => editor.Save());
+    }
+
+    /// <summary>A focused inspector box may hold an edit not committed yet: Save stays on so a click can commit it.</summary>
+    private void OnInspectorFocusChanged(object sender, RoutedEventArgs e)
+    {
+        _textFocused = FocusManager.GetFocusedElement(Content.XamlRoot) is TextBox box && IsInside(box, InspectorPaneControl);
+        UpdateDraft();
+    }
+
+    private static bool IsInside(DependencyObject element, DependencyObject ancestor)
+    {
+        for (var e = element; e is not null; e = VisualTreeHelper.GetParent(e))
+        {
+            if (ReferenceEquals(e, ancestor))
+                return true;
+        }
+        return false;
+    }
 
     /// <summary>Ctrl+S: commit a focused inspector box first (its binding updates on LostFocus), then save.</summary>
     private void OnSaveAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e)
@@ -419,7 +442,8 @@ public sealed partial class ShellWindow : Window
     private void UpdateDraft()
     {
         var changed = _editor is { HasChanges: true };
-        SaveButton.IsEnabled = CancelButton.IsEnabled = changed && _editor!.CanEdit;
+        SaveButton.IsEnabled = (changed || _textFocused) && _editor is { CanEdit: true };
+        CancelButton.IsEnabled = changed && _editor!.CanEdit;
         DraftText.Visibility = Show(changed);
         ToolTipService.SetToolTip(RunButton, changed
             ? "Run this flow as last saved. Save first to run your changes, or try them with Dry run."

@@ -161,4 +161,28 @@ public sealed class CanvasEdgeSelectionTests : IDisposable
         _canvas.HoveredEdge = null;
         Assert.Null(_canvas.HoveredEdge);
     }
+
+    [Fact]
+    public void DeletingEveryMemberWithTheEdgeIntoTheCardStillReconnects()
+    {
+        // a → card(m1, m2) → z; select m1, m2 and the edge a → card: the card goes, and z waits for a.
+        _canvas.Edit(f => f with
+        {
+            Nodes =
+            [
+                new Core.Model.StepNode("a", "wait"),
+                new Core.Model.GroupNode("card", ["m1", "m2"]) { After = [new Core.Model.Edge("a")] },
+                new Core.Model.StepNode("m1", "wait"),
+                new Core.Model.StepNode("m2", "wait"),
+                new Core.Model.StepNode("z", "wait") { After = [new Core.Model.Edge("card")] },
+            ],
+        });
+        _canvas.SelectOnly(["m1", "m2"]);
+        _canvas.SelectEdge(Edge("a", "card"), additive: true);
+
+        _canvas.DeleteSelection();
+
+        Assert.Null(_canvas.Find("card"));
+        Assert.Equal([("a", "z")], _canvas.Edges.Select(e => (e.From, e.To)));
+    }
 }

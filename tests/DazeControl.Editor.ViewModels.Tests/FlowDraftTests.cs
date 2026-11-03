@@ -187,4 +187,35 @@ public sealed class FlowDraftTests : IDisposable
         Assert.True(_session.HasUnsavedChanges);
         Assert.Equal(8, _canvas.Flow!.Nodes.Count);
     }
+
+    [Fact]
+    public void ADraftIsNotSavedOverAFileThatFailedToReload()
+    {
+        _canvas.AddStep("wait");
+        var broken = File.ReadAllText(_path).Replace("version: 1", "version: 1\nsettings: { popup: { seconds: 99 } }", StringComparison.Ordinal);
+        File.WriteAllText(_path, broken);
+        _session.CheckOutsideChange();
+        Assert.False(_session.CanEdit);
+
+        Assert.False(_canvas.Save());
+
+        Assert.Equal(broken, File.ReadAllText(_path));
+        Assert.True(_canvas.HasChanges);
+    }
+
+    [Fact]
+    public void KeepMineAfterASaveMetAnOutsideChangeWritesTheDraft()
+    {
+        _canvas.AddStep("wait");
+        File.WriteAllText(_path, File.ReadAllText(_path).Replace("Connect Technics", "Theirs", StringComparison.Ordinal));
+
+        Assert.False(_canvas.Save()); // the check right before writing finds their change
+        Assert.Equal(OutsideChange.Conflict, _session.OutsideChange);
+
+        _session.KeepMineCommand.Execute(null);
+
+        Assert.Equal(OutsideChange.None, _session.OutsideChange);
+        Assert.False(_canvas.HasChanges);
+        Assert.Equal(8, OnDisk().Nodes.Count);
+    }
 }

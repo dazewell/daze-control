@@ -30,6 +30,7 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
     private readonly ConfigStore _store;
     private readonly ITimer _saveTimer;
     private bool _dirty;
+    private string? _conflictedDraft;
 
     /// <summary>What the file has, or will have once the pending save runs: <see cref="Current"/> without drafts.</summary>
     private Configuration _saved = Configuration.Empty;
@@ -89,6 +90,7 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
     {
         _saveTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         _dirty = false;
+        _conflictedDraft = null;
         // Drafts are dropped only once a usable version is read: a failed reload must not lose them (or their marks).
         var drafts = _drafts.Select(id => Current.Flows.FirstOrDefault(f => f.Id == id)).OfType<Flow>().ToList();
         try
@@ -182,16 +184,22 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
     /// Save: the draft goes to the file now (no debounce: the user asked). False when the write failed or met an
     /// outside change: the draft and the last written version both stay, so Save can be retried and Cancel still works.
     /// </summary>
-    public bool SaveDraft(string flowId)
+    public bool SaveDraft(string flowId) => WriteDraft(flowId, overwrite: false);
+
+    private bool WriteDraft(string flowId, bool overwrite)
     {
         if (!_drafts.Contains(flowId) || Current.Flows.FirstOrDefault(f => f.Id == flowId) is not { } flow)
             return !_drafts.Contains(flowId);
+        // After a failed reload the file is broken or only partly read: writing would destroy what the user must fix.
+        if (!CanEdit)
+            return false;
         var before = _saved;
         var wasDirty = _dirty;
         _saved = WithFlow(_saved, flow);
         _dirty = true;
         _saveTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        Flush();
+        Save(overwrite);
+        _conflictedDraft = OutsideChange == OutsideChange.Conflict ? flowId : null; // "Keep mine" retries it
         if (_dirty)
         {
             _saved = before;
@@ -286,7 +294,11 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
     private void KeepMine()
     {
         OutsideChange = OutsideChange.None;
-        Save(overwrite: true);
+        if (_conflictedDraft is { } flowId && _drafts.Contains(flowId))
+            WriteDraft(flowId, overwrite: true); // the Save that met the outside change; autosaved edits go with it
+        else
+            Save(overwrite: true);
+        _conflictedDraft = null;
     }
 
     [RelayCommand]

@@ -699,12 +699,14 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         if (_selected.Count == 0 && _selectedEdges.Count == 0)
             return;
         var ids = _selected.ToList();
-        // An edge into or out of a deleted step goes with it; removing it first would change how the gap reconnects.
-        var edges = _selectedEdges.Where(e => !_selected.Contains(e.From) && !_selected.Contains(e.To)).ToList();
+        var edges = _selectedEdges.ToList();
         _selectedEdges.Clear();
         Edit(flow =>
         {
-            foreach (var (from, to) in edges)
+            // An edge at a deleted step (or a card emptied by it) goes with it; removing it first would change how the
+            // gap reconnects.
+            var gone = FlowCommands.DeletedBy(flow, ids);
+            foreach (var (from, to) in edges.Where(e => !gone.Contains(e.From) && !gone.Contains(e.To)))
                 flow = FlowGraph.Disconnect(flow, from, to);
             return ids.Count > 0 ? FlowCommands.Delete(flow, ids) : flow;
         });

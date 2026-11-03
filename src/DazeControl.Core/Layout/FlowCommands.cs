@@ -51,7 +51,8 @@ public static partial class FlowCommands
     /// makes C wait for A, under the condition B waited with. An "only if B fails" edge goes with B. A card left with
     /// one step dissolves; one left with none goes too.
     /// </summary>
-    public static Flow Delete(Flow flow, IEnumerable<string> ids)
+    /// <summary>What deleting <paramref name="ids"/> removes: them, a card's members, and a card left with no members.</summary>
+    public static HashSet<string> DeletedBy(Flow flow, IEnumerable<string> ids)
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(ids);
@@ -67,9 +68,18 @@ public static partial class FlowCommands
         }
         foreach (var card in flow.Nodes.OfType<GroupNode>())
         {
-            if (card.Members.Where(m => cardOf.GetValueOrDefault(m) == card.Id).All(gone.Contains))
+            if (gone.Count > 0 && card.Members.Where(m => cardOf.GetValueOrDefault(m) == card.Id).All(gone.Contains))
                 gone.Add(card.Id);
         }
+        return gone;
+    }
+
+    public static Flow Delete(Flow flow, IEnumerable<string> ids)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        ArgumentNullException.ThrowIfNull(ids);
+        var cardOf = FlowLayout.CardOf(flow);
+        var gone = DeletedBy(flow, ids);
         if (gone.Count == 0)
             return flow;
 
