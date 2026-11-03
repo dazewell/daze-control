@@ -25,10 +25,11 @@ internal sealed class FakeProvider : IStepProvider
         return this;
     }
 
+    /// <summary>Bounded in real time, like <see cref="FlowRunnerTests.Bound"/>: a lost signal fails this test, not the run.</summary>
     public Task Started(string step)
     {
         lock (_lock)
-            return Signal(step).Task;
+            return Signal(step).Task.WaitAsync(FlowRunnerTests.Hung);
     }
 
     public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
@@ -57,7 +58,15 @@ public sealed class FlowRunnerTests : IDisposable
     private Task<RunResult> Run(Flow flow) => RunWith(flow, TestContext.Current.CancellationToken);
 
     private Task<RunResult> RunWith(Flow flow, CancellationToken token) =>
-        new FlowRunner([_provider], _time).RunAsync(flow, Library.Empty, token);
+        Bound(new FlowRunner([_provider], _time).RunAsync(flow, Library.Empty, token));
+
+    /// <summary>
+    /// Real-time ceiling on every wait (ManualTime never moves by itself): a run that never finishes fails its own test
+    /// with a TimeoutException instead of stalling the whole test run (seen once locally, 2026-11-03, not reproduced).
+    /// </summary>
+    internal static readonly TimeSpan Hung = TimeSpan.FromSeconds(30);
+
+    internal static Task<T> Bound<T>(Task<T> task) => task.WaitAsync(Hung);
 
     public void Dispose() => _time.Dispose();
 
@@ -68,8 +77,8 @@ public sealed class FlowRunnerTests : IDisposable
     {
         var events = new List<RunEvent>();
         var flow = Flow(Step("a"));
-        await new FlowRunner([_provider], _time, events: e => { lock (events) events.Add(e); })
-            .RunAsync(flow, Library.Empty, TestContext.Current.CancellationToken);
+        await Bound(new FlowRunner([_provider], _time, events: e => { lock (events) events.Add(e); })
+            .RunAsync(flow, Library.Empty, TestContext.Current.CancellationToken));
 
         Assert.Same(flow, Assert.Single(events.OfType<RunStarted>()).Flow);
     }
@@ -273,7 +282,7 @@ public sealed class FlowRunnerTests : IDisposable
     [Fact]
     public async Task UnknownStepTypeFailsItsStep()
     {
-        var result = await new FlowRunner([], _time).RunAsync(Flow(Step("a", "onFailure: ignore")), Library.Empty, TestContext.Current.CancellationToken);
+        var result = await Bound(new FlowRunner([], _time).RunAsync(Flow(Step("a", "onFailure: ignore")), Library.Empty, TestContext.Current.CancellationToken));
 
         Assert.Contains("can't run \"notify\"", Node(result, "a").Error, StringComparison.Ordinal);
     }
