@@ -262,7 +262,10 @@ About), cards in the OSD's settings-card style (App.xaml). All logic is in `Edit
   boxes from code reliably), same shortcuts (`FlowCanvas.RunCommandKey`) and the same command menu (`FlowCanvas.NodeMenu`).
 - Inspector (`Inspector/InspectorViewModel`, pane 320 wide right of the canvas): one selected step → header, one
   `ParamFieldViewModel` per `ParamSpec` (text, script, file + Browse, number/duration in seconds, toggle, choice,
-  device picker, lists and maps as lines), "If it fails" radio buttons whose hover/focus fades what wouldn't run
+  device picker, lists and maps as lines; M11 from `Suggest`/`Ordered`/`Examples`, D-050: editable ComboBox of
+  `SuggestionItem`s, screens checklist `ScreenChoices` sharing `Core/Layout/ScreenMatch` with the provider (D-051),
+  key tokens, an "Examples" menu; an editable ComboBox writes its text back on focus, so `WriteParam` drops writes
+  that change nothing), "If it fails" radio buttons whose hover/focus fades what wouldn't run
   (`Affected`, via `FlowCanvasViewModel.Preview`), timing, "Test this step" (D-040); a card → name + policy; nothing
   → the flow's settings (name, icon, tray folder, line above, shortcuts with the OSD's `HotkeyRecorder`, when
   running, pop-up). Every change is one canvas `Edit` (one undo step); text commits on leaving the box or Enter;

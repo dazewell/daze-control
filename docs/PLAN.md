@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M11 — T11.1 merged (#23, 0.20.1); T11.4/T11.5 desktop shortcuts (PR #24, 0.21.0); next T11.2 → T11.3 (feat/m11-pickers)
-Last green checkpoint: 4872024 "fix(shortcuts): refuse another config's run…" + merge of main (#23)
-Next action: T11.2 — `ParamSpec.Suggest`/`Ordered`/`Examples` in Core/Catalog, then the catalog coverage test
-Tree state: builds, all tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). Desktop shortcuts on an installed copy (survives an update, uninstall removes it) are unverified: GOALS → follow-ups. The editor has no flow delete yet.
+Current task: M11 — T11.1 (#23), T11.4/T11.5 (#24) merged; T11.2 + T11.3 pickers done (feat/m11-pickers, PR #25, 0.22.0)
+Last green checkpoint: 9fed620 "fix(pickers): repeated screen entries, matching order, generic sign-ins, engine restart"
+Next action: merge PR #25 per repo-workflow §6 (both Copilot reviews done, their findings fixed) once CI is green; then the M11 wrap-up in PLAN
+Tree state: builds; Core 305, Editor 226, Providers 112 green; Runtime 273/281 locally (8 FlowRunnerTests hang, see notes) · Uncommitted: none
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). Desktop shortcuts on an installed copy (survives an update, uninstall removes it) are unverified: GOALS → follow-ups. The editor has no flow delete yet. Runtime.Tests: 8 FlowRunnerTests (from CancelledRunStartsNoStep on) hung locally on 2026-11-03 even alone, engine stopped, no Runtime change on the branch; CI runs them green. Runtime.Tests can also hang when another session's tests use the per-user pipe at the same time: rerun alone. The dev engine's pipe is per user: stop the installed engine (restart C:\Users\dazewell\AppData\Local\DazeControlApp\current\DazeControl.exe after). Android input's "Add inputs in the Library" is plain text, not yet a link.
 
 ---
 
@@ -124,18 +124,18 @@ PRs bump the minor version.
   reliable → no state. Done when: tests on the merge with fake devnodes/endpoints (ghost endpoints dropped, LE+classic
   of one address merged, non-audio listed not connectable); on the dev PC `dctl devices bluetooth` lists exactly MX
   Master 3S, MX Keys Mini, Steam Ctrl, OPPO dazewell, Zone 301, WH-1000XM5, Technics EAH-AZ80 and none of SOUNDPEATS
-  H3 / Technics EAH-AZ40M2 / WF-C710N; editor screenshot of the picker. (fix/bluetooth-list)
-- [ ] T11.2 Catalog suggestions + examples (feat/m11-pickers, D-050). Core: `ParamSpec.Suggest` (Devices / Config /
+  H3 / Technics EAH-AZ40M2 / WF-C710N; editor screenshot of the picker. (fix/bluetooth-list, PR #23)
+- [x] T11.2 Catalog suggestions + examples (feat/m11-pickers, D-050). Core: `ParamSpec.Suggest` (Devices / Config /
   Static), `Ordered`, `Examples`; Android key table shared with the provider; examples per UX §5.4. Ipc/Providers:
   `devices services` (EnumServicesStatusEx, no admin), `devices credentials` (CredEnumerate `DazeControl:*`, names
   only), `DeviceInfo.Value`; `dctl devices services|credentials`. Done when: a catalog test says every Text/TextList/
   MultilineText/TextMap param has a Suggest or Examples (or is on a short reviewed allow-list, e.g. `notify.text`);
   every Devices kind exists in `SystemDevices.Kinds`; key-table round-trip test with the provider.
-- [ ] T11.3 Inspector pickers (feat/m11-pickers, D-050, D-051). Editable ComboBox, checklist, token list, Examples
+- [x] T11.3 Inspector pickers (feat/m11-pickers, D-050, D-051). Editable ComboBox, checklist, token list, Examples
   menu in `ParamFieldViewModel` + InspectorPane; `display.outputs` checklist with "Use the screens that are on now"
   (name or port per D-051, unplugged kept checked; provider matches exact names before "contains"); Android input from the chosen device. Done when: VM tests (writes,
   twin-name → port, unplugged kept, undo of an example), screenshots light/dark of each control, Narrator names on the
-  checklist and token list.
+  checklist and token list. (feat/m11-pickers, PR #25; T11.2 too)
 - [x] T11.4 Desktop shortcuts, engine side (feat/m11-shortcuts, D-049; installed-copy update/uninstall unverified, GOALS). `--run`, second-instance forward, queue
   until first load, trigger "Desktop shortcut", `FlowShortcuts` (.lnk + glyph .ico), ops `shortcuts`/`create-shortcut`/
   `remove-shortcut`, `dctl shortcut <flow> [--remove]`, uninstall hook cleanup, id-only resolution (`exactId`),

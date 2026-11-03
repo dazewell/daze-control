@@ -91,6 +91,100 @@ public sealed partial class InspectorPane : UserControl
             item.IsEnabled = option.IsEnabled;
     }
 
+    public static string ExamplesName(string title) => $"Examples for {title}";
+
+    private void OnSuggestionsOpened(object? sender, object e)
+    {
+        if ((sender as FrameworkElement)?.Tag is ParamFieldViewModel { Spec.Suggest: { Source: Core.Catalog.SuggestSource.Devices } suggest })
+            _ = _viewModel?.RefreshSuggestionsAsync(suggest.Kind);
+    }
+
+    private void OnUseScreensOnNow(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is ParamFieldViewModel field && _viewModel is not null)
+            _ = _viewModel.UseScreensOnNowAsync(field);
+    }
+
+    private void OnRemoveToken(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is KeyTokenViewModel { Owner: { } field } token)
+            field.RemoveToken(token);
+    }
+
+    private void OnTokenKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        var alt = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu)
+            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+        if (!alt || e.Key is not (VirtualKey.Up or VirtualKey.Down) || (sender as FrameworkElement)?.Tag is not KeyTokenViewModel { Owner: { } field } token)
+            return;
+        var list = Ancestor<ItemsControl>((DependencyObject)sender);
+        var to = token.Index + (e.Key == VirtualKey.Up ? -1 : 1);
+        field.MoveToken(token, e.Key == VirtualKey.Up ? -1 : 1);
+        e.Handled = true;
+        // The rows are rebuilt, so the focused × is gone: focus the moved key's × to allow another move.
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            list?.UpdateLayout();
+            if (list?.ContainerFromIndex(to) is DependencyObject row && Descendant<Button>(row) is { } remove)
+                remove.Focus(FocusState.Keyboard);
+        });
+    }
+
+    private static T? Ancestor<T>(DependencyObject? node) where T : class
+    {
+        while (node is not null and not T)
+            node = VisualTreeHelper.GetParent(node);
+        return node as T;
+    }
+
+    private static T? Descendant<T>(DependencyObject node) where T : class
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
+        {
+            var child = VisualTreeHelper.GetChild(node, i);
+            if ((child as T ?? Descendant<T>(child)) is { } found)
+                return found;
+        }
+        return null;
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnKeyTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput && sender.Tag is ParamFieldViewModel field)
+            sender.ItemsSource = field.KeySuggestions(sender.Text);
+    }
+
+    private void OnKeyBoxFocused(object sender, RoutedEventArgs e)
+    {
+        if (sender is AutoSuggestBox { Tag: ParamFieldViewModel field } box)
+            box.ItemsSource = field.KeySuggestions(box.Text);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnKeySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        if (sender.Tag is not ParamFieldViewModel field)
+            return;
+        field.AddToken(args.ChosenSuggestion as string ?? args.QueryText);
+        sender.Text = "";
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnExamplesOpening(object? sender, object e)
+    {
+        if (sender is not MenuFlyout { Target: FrameworkElement { Tag: ParamFieldViewModel field } } menu)
+            return;
+        menu.Items.Clear();
+        foreach (var example in field.Examples)
+        {
+            var item = new MenuFlyoutItem { Text = example.Title };
+            ToolTipService.SetToolTip(item, example.Value);
+            item.Click += (_, _) => field.ApplyExample(example);
+            menu.Items.Add(item);
+        }
+    }
+
     private void OnDevicesOpened(object? sender, object e)
     {
         if ((sender as FrameworkElement)?.Tag is ParamFieldViewModel { Spec.Library: { } kind })

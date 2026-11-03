@@ -195,7 +195,8 @@ public sealed class DeviceInfo
     /// <summary>"Output, default", "DELL S2722QC, on"; Bluetooth: the device's name in Windows.</summary>
     public string? Detail { get; init; }
 
-    /// <summary>Bluetooth: "connected" or "not connected"; null when Windows doesn't say.</summary>
+    /// <summary>Bluetooth: "connected" or "not connected" (null when Windows doesn't say); screens "on" or "off";
+    /// services "running", "stopped", "paused" or "changing".</summary>
     public string? State { get; init; }
 
     /// <summary>Bluetooth: paired, but without audio, so Daze Control can't connect it (D-052).</summary>
@@ -203,6 +204,9 @@ public sealed class DeviceInfo
     public bool NotConnectable { get; init; }
 
     public string? Id { get; init; }
+
+    /// <summary>What a suggestion picker writes into a step (D-051): a service's name, a screen's monitor name.</summary>
+    public string? Value { get; init; }
 }
 
 /// <summary>A desktop shortcut that runs a flow (D-049).</summary>

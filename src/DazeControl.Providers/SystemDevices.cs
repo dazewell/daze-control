@@ -4,6 +4,8 @@ using DazeControl.Providers.Audio;
 using DazeControl.Providers.Bluetooth;
 using DazeControl.Providers.Display;
 using DazeControl.Providers.Android;
+using DazeControl.Providers.Http;
+using DazeControl.Providers.Service;
 using DazeControl.Runtime.Control;
 using DazeControl.Runtime.Providers;
 
@@ -12,7 +14,7 @@ namespace DazeControl.Providers;
 /// <summary>The real PC's devices, read-only, for <c>dctl devices</c> and <c>dctl capture-display-layout</c>.</summary>
 public sealed class SystemDevices(IDisplays displays, IAdb adb, IPairedBluetooth paired) : IDeviceQueries
 {
-    public IReadOnlyList<string> Kinds { get; } = ["audio", "bluetooth", "displays", "adb"];
+    public IReadOnlyList<string> Kinds { get; } = ["audio", "bluetooth", "displays", "adb", "services", "credentials"];
 
     public async Task<IReadOnlyList<DeviceInfo>> ListAsync(string kind, CancellationToken cancellationToken)
     {
@@ -41,7 +43,14 @@ public sealed class SystemDevices(IDisplays displays, IAdb adb, IPairedBluetooth
                     Name = o.Port,
                     Id = o.DevicePath.Length > 0 ? o.DevicePath : null,
                     Detail = (o.Monitor.Length > 0 ? o.Monitor + ", " : "") + (o.Active ? "on" : "off"),
+                    State = o.Active ? "on" : "off",
+                    Value = o.Monitor.Length > 0 ? o.Monitor : null,
                 })];
+            case "services":
+                return await Task.Run(ServiceList.List, cancellationToken).ConfigureAwait(false);
+            case "credentials":
+                return [.. (await Task.Run(WindowsCredentials.Names, cancellationToken).ConfigureAwait(false))
+                    .Select(name => new DeviceInfo { Name = name, Detail = "Saved in Windows", Value = name })];
             case "adb":
                 var result = await adb.RunAsync(AndroidRemote.DefaultAdb, ["devices"], cancellationToken).ConfigureAwait(false);
                 if (result.ExitCode != 0)

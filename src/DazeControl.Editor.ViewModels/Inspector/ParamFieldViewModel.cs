@@ -44,9 +44,41 @@ public sealed partial class ParamFieldViewModel : ObservableObject
         _ => Spec.Default ?? (Spec.Required ? "" : "Optional"),
     };
 
-    public bool IsText => Kind is ParamKind.Text;
+    public bool IsText => Kind is ParamKind.Text && Spec.Suggest is null;
 
-    public bool IsMultiline => Kind is ParamKind.MultilineText or ParamKind.TextList or ParamKind.TextMap;
+    /// <summary>Text with suggestions: an editable ComboBox, typing stays allowed (D-050).</summary>
+    public bool IsSuggestText => Kind is ParamKind.Text && Spec.Suggest is not null;
+
+    /// <summary>An unordered list picked from the PC (screens): a checklist (D-051).</summary>
+    public bool IsChecklist => Kind is ParamKind.TextList && Spec.Suggest is not null && !Spec.Ordered;
+
+    /// <summary>An ordered list picked from a table (Android keys): tokens in send order plus an add box.</summary>
+    public bool IsTokenList => Kind is ParamKind.TextList && Spec.Suggest is not null && Spec.Ordered;
+
+    public bool IsMultiline => Kind is ParamKind.MultilineText or ParamKind.TextMap || Kind is ParamKind.TextList && Spec.Suggest is null;
+
+    public bool HasExamples => Spec.Examples.Count > 0;
+
+    public IReadOnlyList<Core.Catalog.ParamExample> Examples => Spec.Examples;
+
+    /// <summary>Editable ComboBox rows (services, saved sign-ins, flags, the device's inputs).</summary>
+    public ObservableCollection<SuggestionItem> Suggestions { get; } = [];
+
+    /// <summary>Shown when there's nothing to suggest yet: "Add inputs in the Library".</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSuggestionHint))]
+    public partial string SuggestionHint { get; private set; } = "";
+
+    public bool HasSuggestionHint => SuggestionHint.Length > 0;
+
+    public ObservableCollection<ScreenCheckViewModel> Screens { get; } = [];
+
+    public ObservableCollection<KeyTokenViewModel> Tokens { get; } = [];
+
+    /// <summary>The list as the step has it (checklist and tokens).</summary>
+    private List<string> _items = [];
+
+    private IReadOnlyList<Ipc.DeviceInfo>? _liveScreens;
 
     /// <summary>Scripts and bodies: monospace, 8 lines (UX §5.4).</summary>
     public bool IsCode => Kind is ParamKind.MultilineText;
@@ -131,11 +163,14 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                         ?? Devices.FirstOrDefault(o => o.Source == DeviceSource.None);
                     break;
                 case ParamKind.TextList:
-                    Text = value switch
+                    _items = value switch
                     {
-                        ListParam list => string.Join(Environment.NewLine, list.Items),
-                        _ => scalar ?? "",
+                        ListParam list => [.. list.Items.OfType<ScalarParam>().Select(i => i.Text)],
+                        _ => scalar is { Length: > 0 } one ? [one] : [],
                     };
+                    Text = string.Join(Environment.NewLine, _items);
+                    RebuildScreens();
+                    RebuildTokens();
                     break;
                 case ParamKind.TextMap:
                     Text = value is MapParam map ? string.Join(Environment.NewLine, map.Entries.Select(e => $"{e.Key}: {e.Value}")) : "";
@@ -174,6 +209,107 @@ public sealed partial class ParamFieldViewModel : ObservableObject
         {
             _loading = false;
         }
+    }
+
+    /// <summary>Fills the box with an example; the write is one undo step (D-050).</summary>
+    public void ApplyExample(Core.Catalog.ParamExample example) => Text = example.Value;
+
+    internal void SetSuggestions(IEnumerable<SuggestionItem> items, string hint)
+    {
+        var rows = items.ToList();
+        if (!Suggestions.SequenceEqual(rows))
+        {
+            Suggestions.Clear();
+            foreach (var row in rows)
+                Suggestions.Add(row);
+        }
+        SuggestionHint = rows.Count == 0 ? hint : "";
+    }
+
+    /// <summary>The engine's screens (null: not known); rebuilds the checklist around the step's entries.</summary>
+    internal void SetScreens(IReadOnlyList<Ipc.DeviceInfo>? live)
+    {
+        _liveScreens = live;
+        RebuildScreens();
+    }
+
+    /// <summary>#27: checks exactly the screens that are on now.</summary>
+    public void UseScreensOnNow()
+    {
+        if (!IsChecklist || _liveScreens is null)
+            return;
+        foreach (var row in Screens)
+            row.Load(row.Plugged && row.On);
+        WriteItems(ScreenChoices.Entries(Screens));
+    }
+
+    /// <summary>Android keys: matches for the add box, the table's order.</summary>
+    public IReadOnlyList<string> KeySuggestions(string query) =>
+        [.. (Spec.Suggest?.Values ?? []).Where(k => k.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase))];
+
+    public void AddToken(string text)
+    {
+        var key = text.Trim();
+        if (key.Length > 0)
+            WriteItems([.. _items, key]);
+    }
+
+    public void RemoveToken(KeyTokenViewModel token)
+    {
+        if (token.Index < _items.Count)
+            WriteItems([.. _items.Where((_, i) => i != token.Index)]);
+    }
+
+    /// <summary>Alt+Up/Down: moves a key one place in the send order.</summary>
+    public void MoveToken(KeyTokenViewModel token, int by)
+    {
+        var to = token.Index + by;
+        if (token.Index >= _items.Count || to < 0 || to >= _items.Count)
+            return;
+        var items = _items.ToList();
+        (items[token.Index], items[to]) = (items[to], items[token.Index]);
+        WriteItems(items);
+    }
+
+    private void WriteItems(List<string> items)
+    {
+        _items = items;
+        RebuildTokens();
+        if (!IsChecklist)
+            RebuildScreens();
+        _write(this, items.Count > 0 ? new ListParam([.. items.Select(i => (ParamValue)i)]) : null);
+    }
+
+    private void RebuildScreens()
+    {
+        if (!IsChecklist)
+            return;
+        var rows = ScreenChoices.Rows(_liveScreens, _items);
+        if (rows.Count == Screens.Count && rows.Zip(Screens).All(p => p.First.Title == p.Second.Title
+                && p.First.Caption == p.Second.Caption && p.First.Value == p.Second.Value))
+        {
+            for (var i = 0; i < rows.Count; i++)
+            {
+                Screens[i].Entry = rows[i].Entry;
+                Screens[i].Load(rows[i].IsChecked);
+            }
+            return;
+        }
+        Screens.Clear();
+        foreach (var row in rows)
+        {
+            row.Toggled = () => WriteItems(ScreenChoices.Entries(Screens));
+            Screens.Add(row);
+        }
+    }
+
+    private void RebuildTokens()
+    {
+        if (!IsTokenList)
+            return;
+        Tokens.Clear();
+        for (var i = 0; i < _items.Count; i++)
+            Tokens.Add(new KeyTokenViewModel(_items[i], i, _items.Count) { Owner = this });
     }
 
     partial void OnTextChanged(string value)

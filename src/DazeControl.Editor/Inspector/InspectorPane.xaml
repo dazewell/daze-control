@@ -35,6 +35,14 @@
                 </StackPanel>
             </Grid>
         </DataTemplate>
+
+        <!-- Suggestion rows: value + caption (UX §5.4, D-050). -->
+        <DataTemplate x:Key="SuggestionTemplate" x:DataType="vmi:SuggestionItem">
+            <StackPanel AutomationProperties.Name="{x:Bind AutomationName}">
+                <TextBlock Text="{x:Bind Value}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{x:Bind Caption}" Visibility="{x:Bind HasCaption}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
+            </StackPanel>
+        </DataTemplate>
     </UserControl.Resources>
 
     <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
@@ -100,6 +108,57 @@
                                 <TextBlock Text="{x:Bind Title}" Style="{StaticResource FieldTitle}" />
                                 <TextBox Visibility="{x:Bind IsText}" Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder}"
                                          AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" KeyDown="OnCommitOnEnter" />
+                                <ComboBox Visibility="{x:Bind IsSuggestText}" IsEditable="True" ItemsSource="{x:Bind Suggestions}"
+                                          Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder}"
+                                          ItemTemplate="{StaticResource SuggestionTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
+                                          DropDownOpened="OnSuggestionsOpened" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
+                                <TextBlock Text="{x:Bind SuggestionHint, Mode=OneWay}" Visibility="{x:Bind HasSuggestionHint, Mode=OneWay}"
+                                           Style="{StaticResource SettingsCardDescription}" Margin="0,4,0,0" />
+                                <!-- Screens: a checklist of what's plugged in (D-051). -->
+                                <StackPanel Visibility="{x:Bind IsChecklist}" Spacing="2">
+                                    <ItemsControl ItemsSource="{x:Bind Screens}" AutomationProperties.Name="{x:Bind Title}" IsTabStop="False">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vmi:ScreenCheckViewModel">
+                                                <CheckBox IsChecked="{x:Bind IsChecked, Mode=TwoWay}" AutomationProperties.Name="{x:Bind AutomationName}">
+                                                    <StackPanel>
+                                                        <TextBlock Text="{x:Bind Title}" />
+                                                        <TextBlock Text="{x:Bind Caption}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
+                                                    </StackPanel>
+                                                </CheckBox>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <HyperlinkButton Content="Use the screens that are on now" Tag="{x:Bind}" Click="OnUseScreensOnNow" Padding="0,4" />
+                                </StackPanel>
+                                <!-- Android keys: tokens in send order; Alt+Up/Down on a token's remove button moves it. -->
+                                <StackPanel Visibility="{x:Bind IsTokenList}" Spacing="4">
+                                    <ItemsControl ItemsSource="{x:Bind Tokens}" AutomationProperties.Name="{x:Bind Title}" IsTabStop="False">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Spacing="4" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vmi:KeyTokenViewModel">
+                                                <Grid ColumnSpacing="8" Padding="10,2,2,2" CornerRadius="{StaticResource ControlCornerRadius}"
+                                                      Background="{ThemeResource ControlFillColorSecondaryBrush}" AutomationProperties.Name="{x:Bind AutomationName}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind Text}" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas" />
+                                                    <Button Grid.Column="1" Tag="{x:Bind}" Click="OnRemoveToken" KeyDown="OnTokenKeyDown" Padding="6"
+                                                            Background="Transparent" BorderThickness="0" AutomationProperties.Name="{x:Bind RemoveName}"
+                                                            ToolTipService.ToolTip="Remove (Alt+Up or Alt+Down moves it)">
+                                                        <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                                    </Button>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <AutoSuggestBox PlaceholderText="Add a key" Tag="{x:Bind}" TextChanged="OnKeyTextChanged"
+                                                    QuerySubmitted="OnKeySubmitted" GotFocus="OnKeyBoxFocused" AutomationProperties.Name="Add a key" />
+                                </StackPanel>
                                 <TextBox Visibility="{x:Bind IsMultiline}" Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder}"
                                          AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="64" MaxHeight="176"
                                          ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -128,6 +187,12 @@
                                 <ComboBox Visibility="{x:Bind IsDevice}" ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}"
                                           ItemTemplate="{StaticResource DeviceTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
                                           DropDownOpened="OnDevicesOpened" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
+                                <DropDownButton Visibility="{x:Bind HasExamples}" Content="Examples" Tag="{x:Bind}" Margin="0,6,0,0"
+                                                AutomationProperties.Name="{x:Bind local:InspectorPane.ExamplesName(Title)}">
+                                    <DropDownButton.Flyout>
+                                        <MenuFlyout Placement="BottomEdgeAlignedLeft" Opening="OnExamplesOpening" />
+                                    </DropDownButton.Flyout>
+                                </DropDownButton>
                                 <TextBlock Text="{x:Bind Error, Mode=OneWay}" Visibility="{x:Bind HasError, Mode=OneWay}" Style="{StaticResource FieldError}" />
                                 <TextBlock Text="{x:Bind Help}" Visibility="{x:Bind HasHelp}" Style="{StaticResource SettingsCardDescription}" Margin="0,4,0,0" />
                             </StackPanel>

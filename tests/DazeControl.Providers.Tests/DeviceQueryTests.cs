@@ -1,5 +1,8 @@
+using DazeControl.Core.Catalog;
 using DazeControl.Core.Yaml;
 using DazeControl.Providers.Bluetooth;
+using DazeControl.Providers.Http;
+using DazeControl.Providers.Service;
 using DazeControl.Runtime.Providers;
 
 namespace DazeControl.Providers.Tests;
@@ -69,6 +72,48 @@ public class DeviceQueryTests
     [Fact]
     public void PairedNameFallsBackToTheEndpoints() =>
         Assert.Equal("Zone 301", Assert.Single(BluetoothList.Merge([new("4473D6E42902", "", null)], [("44:73:D6:E4:29:02", "Zone 301", false)])).Detail);
+
+    [Fact]
+    public void EveryDevicesSuggestionHasAKindTheEngineLists()
+    {
+        var kinds = BuiltInProviders.Devices().Kinds;
+        var wanted = ProviderCatalog.All.SelectMany(d => d.Params).Select(p => p.Suggest)
+            .Where(s => s?.Source == SuggestSource.Devices).Select(s => s!.Kind).Distinct();
+
+        Assert.All(wanted, kind => Assert.Contains(kind, kinds));
+    }
+
+    [Fact]
+    public async Task ServicesAreListedByNameReadOnly()
+    {
+        var services = await BuiltInProviders.Devices().ListAsync("services", TestContext.Current.CancellationToken);
+
+        var rpc = Assert.Single(services, s => string.Equals(s.Name, "RpcSs", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("running", rpc.State);
+        Assert.Equal(rpc.Name, rpc.Value);
+        Assert.False(string.IsNullOrEmpty(rpc.Detail));
+    }
+
+    [Fact]
+    public async Task CredentialsAreListedByNameOnly()
+    {
+        var credentials = await BuiltInProviders.Devices().ListAsync("credentials", TestContext.Current.CancellationToken);
+
+        Assert.All(credentials, c =>
+        {
+            Assert.DoesNotContain(WindowsCredentials.TargetPrefix, c.Name, StringComparison.Ordinal);
+            Assert.Equal(c.Name, c.Value);
+            Assert.Equal("Saved in Windows", c.Detail);
+            Assert.Null(c.State);
+        });
+    }
+
+    [Theory]
+    [InlineData(1u, "stopped")]
+    [InlineData(4u, "running")]
+    [InlineData(7u, "paused")]
+    [InlineData(2u, "changing")]
+    public void ServiceStatesUseTheInspectorsWords(uint state, string words) => Assert.Equal(words, ServiceList.State(state));
 
     [Fact]
     public async Task UnknownKindFails() =>

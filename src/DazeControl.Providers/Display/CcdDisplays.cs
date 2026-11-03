@@ -1,3 +1,4 @@
+using DazeControl.Core.Layout;
 using DazeControl.Core.Model;
 using DazeControl.Runtime.Providers;
 using Windows.Win32;
@@ -36,20 +37,20 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
 
     public IReadOnlyList<string> UseOnly(IReadOnlyList<string> outputs, CancellationToken cancellationToken)
     {
-        var ports = ByPort(QueryAllPaths());
+        // Same order as Outputs(), which the editor's checklist matches against (D-051).
+        var ports = ByPort(QueryAllPaths()).Where(p => p.Output.Available)
+            .OrderBy(p => p.Output.Port, StringComparer.OrdinalIgnoreCase).ToList();
         var missing = new List<string>();
         var chosen = new List<DISPLAYCONFIG_PATH_INFO>();
         foreach (var name in outputs)
         {
-            var match = ports.FirstOrDefault(p => p.Output.Available
-                && (p.Output.Port.Equals(name, StringComparison.OrdinalIgnoreCase)
-                    || (p.Output.Monitor.Length > 0 && p.Output.Monitor.Contains(name, StringComparison.OrdinalIgnoreCase))));
-            if (match.Output is null)
+            var index = ScreenMatch.IndexOf(name, ports, p => p.Output.Port, p => p.Output.Monitor);
+            if (index < 0)
             {
                 missing.Add(name);
                 continue;
             }
-            var path = match.Path;
+            var path = ports[index].Path;
             path.flags |= PathActive;
             // Let Windows pick modes and positions: the database restores this set's last layout (scd behaviour).
             path.sourceInfo.modeInfoIdx = ModeIdxInvalid;

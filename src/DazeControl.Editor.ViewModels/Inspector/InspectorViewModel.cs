@@ -65,6 +65,9 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     private readonly Func<string, bool> _fileExists;
     private readonly DesktopShortcutStore _desktop;
     private readonly Dictionary<LibraryKind, IReadOnlyList<DeviceInfo>> _live = [];
+
+    /// <summary>The engine's lists behind <c>Suggest = Devices(kind)</c>: displays, services, credentials.</summary>
+    private readonly Dictionary<string, IReadOnlyList<DeviceInfo>> _suggested = new(StringComparer.Ordinal);
     private IReadOnlyList<string> _shortcutProblems = [];
     private CancellationTokenSource? _test;
     private bool _loading;
@@ -378,6 +381,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             HasFields = Fields.Count > 0;
             foreach (var kind in Fields.Where(f => f.IsDevice).Select(f => f.Spec.Library).OfType<LibraryKind>().Distinct())
                 _ = RefreshDevicesAsync(kind);
+            foreach (var kind in Fields.Select(f => f.Spec.Suggest).Where(s => s?.Source == SuggestSource.Devices).Select(s => s!.Kind).Distinct())
+                _ = RefreshSuggestionsAsync(kind);
         }
         var path = $"flows.{FlowId}.nodes.{step.Id}.with.";
         foreach (var field in Fields)
@@ -391,7 +396,87 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                 ?? (errors.Any(p => p.Path == path[..^1] && p.Message.EndsWith($"({field.Name}: …).", StringComparison.Ordinal))
                     ? field.IsDevice ? "Choose a device." : "Fill this in." : null);
             field.Load(value, problem);
+            Suggest(field, step);
         }
+    }
+
+    /// <summary>Fills a field's suggestions from what's known now: the engine's last list or the open config.</summary>
+    private void Suggest(ParamFieldViewModel field, StepNode step)
+    {
+        switch (field.Spec.Suggest)
+        {
+            case { Source: SuggestSource.Devices, Kind: var kind } when field.IsChecklist:
+                field.SetScreens(_suggested.GetValueOrDefault(kind));
+                break;
+            case { Source: SuggestSource.Devices, Kind: var kind }:
+                field.SetSuggestions(_suggested.GetValueOrDefault(kind)?.Select(d => new SuggestionItem(d.Value ?? d.Name, Caption(d))) ?? [],
+                    "");
+                break;
+            case { Source: SuggestSource.Config, Kind: ParamSuggest.Flags }:
+                field.SetSuggestions(FlagNames(_session.Current), "");
+                break;
+            case { Source: SuggestSource.Config, Kind: ParamSuggest.AndroidInputs }:
+                var device = step.With.TryGetValue("device", out var key) && key is ScalarParam s
+                    ? _session.Current.Library.Android.FirstOrDefault(d => d.Key == s.Text)
+                    : null;
+                field.SetSuggestions(device?.Inputs.Keys.Select(i => new SuggestionItem(i, "")) ?? [],
+                    device is null ? "Choose the Android device first." : "Add inputs in the Library.");
+                break;
+        }
+    }
+
+    /// <summary>"Print Spooler · Running", "Saved in Windows".</summary>
+    private static string Caption(DeviceInfo device)
+    {
+        var state = device.State is { Length: > 0 } s ? char.ToUpperInvariant(s[0]) + s[1..] : null;
+        string?[] parts = [device.Detail == (device.Value ?? device.Name) ? null : device.Detail, state];
+        return string.Join(" · ", parts.OfType<string>().Where(p => p.Length > 0));
+    }
+
+    /// <summary>Flag names the config's steps use, with "Used in 2 flows".</summary>
+    internal static List<SuggestionItem> FlagNames(Configuration config) =>
+    [
+        .. config.Flows
+            .SelectMany(f => f.Nodes.OfType<StepNode>()
+                .Where(n => n.Step.StartsWith("flag.", StringComparison.Ordinal) && n.With.TryGetValue("name", out var v) && v is ScalarParam)
+                .Select(n => (Flow: f.Id, Name: ((ScalarParam)n.With["name"]).Text)))
+            .Where(x => x.Name.Length > 0)
+            .GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
+            .Select(g => (Name: g.Key, Flows: g.Select(x => x.Flow).Distinct().Count()))
+            .Select(f => new SuggestionItem(f.Name, f.Flows == 1 ? "Used in 1 flow" : $"Used in {f.Flows} flows")),
+    ];
+
+    /// <summary>Asks the engine for a suggestion list (on load and each time a drop-down opens).</summary>
+    /// <summary>#27 from what's on now, not the last list; no change when the engine doesn't answer.</summary>
+    public async Task UseScreensOnNowAsync(ParamFieldViewModel field)
+    {
+        if (field.Spec.Suggest is { Source: SuggestSource.Devices, Kind: var kind } && await RefreshSuggestionsAsync(kind).ConfigureAwait(false))
+            _post(field.UseScreensOnNow); // queued after the refresh's own update
+    }
+
+    public async Task<bool> RefreshSuggestionsAsync(string kind)
+    {
+        var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.Devices, Kind = kind }).ConfigureAwait(false);
+        if (answer is not { Ok: true, Devices: { } devices })
+            return false;
+        _post(() =>
+        {
+            _suggested[kind] = devices;
+            if (Node is not StepNode step)
+                return;
+            _loading = true;
+            try
+            {
+                foreach (var field in Fields.Where(f => f.Spec.Suggest is { Source: SuggestSource.Devices } s && s.Kind == kind))
+                    Suggest(field, step);
+            }
+            finally
+            {
+                _loading = false;
+            }
+        });
+        return true;
     }
 
     private void LoadCard(GroupNode card)
@@ -491,7 +576,15 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             _canvas.Edit(change);
     }
 
-    private void WriteParam(ParamFieldViewModel field, ParamValue? value) => EditStep(s => s with
+    private void WriteParam(ParamFieldViewModel field, ParamValue? value)
+    {
+        // An editable ComboBox pushes its text back on focus: the same value must not make the flow dirty.
+        if (Node is StepNode now && Equals(now.With.TryGetValue(field.Name, out var old) ? old : null, value))
+            return;
+        WriteChanged(field, value);
+    }
+
+    private void WriteChanged(ParamFieldViewModel field, ParamValue? value) => EditStep(s => s with
     {
         With = value is null
             ? new(s.With.Where(e => e.Key != field.Name))
@@ -842,6 +935,9 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             _ = RefreshShortcutProblemsAsync();
             foreach (var kind in Fields.Select(f => f.Spec.Library).OfType<LibraryKind>().Distinct())
                 _ = RefreshDevicesAsync(kind);
+            // The screens checklist has no drop-down to retry from.
+            foreach (var kind in Fields.Select(f => f.Spec.Suggest).Where(s => s?.Source == SuggestSource.Devices).Select(s => s!.Kind).Distinct())
+                _ = RefreshSuggestionsAsync(kind);
         }
     });
 
