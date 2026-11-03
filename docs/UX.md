@@ -17,7 +17,8 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   **About** (Copy details). Save errors: InfoBar on top of every page.
 - Flow editor: "Not saved" + **Save** (accent, Ctrl+S) + **Cancel** beside the breadcrumb (D-047): edits are a
   draft until Save; Cancel throws it away; leaving the flow (breadcrumb, nav pane, closing the window) with a draft
-  asks "Save your changes to <flow>?" Save / Don't save / Cancel. Run runs the saved version (its tooltip says so);
+  asks "Save your changes to <flow>?" Save / Don't save / Cancel. **Flows** in the nav pane while a flow is open
+  goes back to the list (after that prompt; Cancel stays in the flow). Run runs the saved version (its tooltip says so);
   Dry run and Test this step use what's on screen. Library and Settings keep autosaving (300 ms).
   CommandBar (Run, Dry run, Stop, Undo, Redo, Tidy up (M13: Layout, §5.2), Canvas | Outline, Problems (n)) · left
   palette 240 (collapsible, search) · canvas · right inspector 320 (280–480). Nothing selected → inspector
@@ -25,8 +26,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 - **M13 (designed):** the Flows card's icon is the flow's own glyph, else its first step's (`FlowGlyph.CodeOf`, as in
   flow settings). The card's chevron becomes a plain **Run** button ("Stop" while that flow runs; off with #62); the
   card is one keyboard stop that opens the flow (Enter/Space, Narrator "Open Connect Technics"); its context menu
-  adds Open and Run (#66, D-070). **Flows** in the nav pane while a flow is open goes back to the list (the D-047
-  prompt first if there's a draft). The nav pane collapses: the toggle above the items shrinks it to a 48-DIP icon
+  adds Open and Run (#66, D-070). The nav pane collapses: the toggle above the items shrinks it to a 48-DIP icon
   strip with tooltips, remembered on this PC (D-068).
 
 ## 5.2 Canvas interaction
