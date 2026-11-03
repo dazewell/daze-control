@@ -22,7 +22,7 @@
 
         <!-- Device picker rows: glyph + name + state (UX §5.4). -->
         <DataTemplate x:Key="DeviceTemplate" x:DataType="vmi:DeviceOption">
-            <Grid ColumnSpacing="10" AutomationProperties.Name="{x:Bind AutomationName}">
+            <Grid ColumnSpacing="10" AutomationProperties.Name="{x:Bind AutomationName}" Loaded="OnDeviceRowLoaded">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
@@ -30,7 +30,7 @@
                 <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="1">
                     <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="{x:Bind Caption}" Visibility="{x:Bind HasCaption}" Style="{StaticResource SettingsCardDescription}" />
+                    <TextBlock Text="{x:Bind Caption}" Visibility="{x:Bind HasCaption}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
                 </StackPanel>
             </Grid>
         </DataTemplate>

@@ -10,7 +10,7 @@ using DazeControl.Runtime.Providers;
 namespace DazeControl.Providers;
 
 /// <summary>The real PC's devices, read-only, for <c>dctl devices</c> and <c>dctl capture-display-layout</c>.</summary>
-public sealed class SystemDevices(IDisplays displays, IAdb adb) : IDeviceQueries
+public sealed class SystemDevices(IDisplays displays, IAdb adb, IPairedBluetooth paired) : IDeviceQueries
 {
     public IReadOnlyList<string> Kinds { get; } = ["audio", "bluetooth", "displays", "adb"];
 
@@ -32,12 +32,8 @@ public sealed class SystemDevices(IDisplays displays, IAdb adb) : IDeviceQueries
                 }
                 return list;
             case "bluetooth":
-                var paired = await KsBluetoothAudio.ListAsync(cancellationToken).ConfigureAwait(false);
-                return [.. paired.Select(d => new DeviceInfo
-                {
-                    Name = d.Address,
-                    Detail = (d.Name.Length > 0 ? d.Name + ", " : "") + (d.Connected ? "connected" : "not connected"),
-                })];
+                var audioEndpoints = await KsBluetoothAudio.ListAsync(cancellationToken).ConfigureAwait(false);
+                return BluetoothList.Merge(await Task.Run(paired.Present, cancellationToken).ConfigureAwait(false), audioEndpoints);
             case "displays":
                 // A GPU reports every port it has; only those with a screen plugged in are worth naming.
                 return [.. displays.Outputs().Where(o => o.Available).Select(o => new DeviceInfo

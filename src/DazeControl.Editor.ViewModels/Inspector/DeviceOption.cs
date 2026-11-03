@@ -26,6 +26,9 @@ public sealed record DeviceOption(DeviceSource Source, string? Key, string Title
     /// <summary>Windows: the live device it came from.</summary>
     public DeviceInfo? Device { get; init; }
 
+    /// <summary>False: shown but can't be picked (a paired Bluetooth device without audio, D-052).</summary>
+    public bool IsEnabled { get; init; } = true;
+
     public bool HasCaption => Caption.Length > 0;
 
     public string AutomationName => HasCaption ? $"{Title}, {Caption}" : Title;
@@ -36,6 +39,9 @@ public sealed record DeviceOption(DeviceSource Source, string? Key, string Title
 public static class LibraryDevices
 {
     public const string NotFound = "Not found on this PC";
+
+    /// <summary>UX microcopy #26.</summary>
+    public const string NotConnectable = "Daze Control can connect only headphones and speakers.";
 
     /// <summary>The engine's name for each kind's live list (<c>dctl devices</c>).</summary>
     public static string PipeKind(LibraryKind kind) => kind switch
@@ -89,23 +95,16 @@ public static class LibraryDevices
         return Match(library, kind, key, live) is { } device ? Describe(kind, device) : NotFound;
     }
 
-    /// <summary>A live device's state in sentence case, without the name Bluetooth puts first.</summary>
+    /// <summary>A live device's state in sentence case; Bluetooth's is its own field (its detail is the name).</summary>
     public static string Describe(LibraryKind kind, DeviceInfo device)
     {
-        var detail = device.Detail ?? "";
-        if (kind == LibraryKind.Bluetooth && detail.LastIndexOf(", ", StringComparison.Ordinal) is >= 0 and var comma)
-            detail = detail[(comma + 2)..];
+        var detail = (kind == LibraryKind.Bluetooth ? device.State : device.Detail) ?? "";
         return detail.Length == 0 ? "" : char.ToUpperInvariant(detail[0]) + detail[1..];
     }
 
     /// <summary>What to call a live device: Bluetooth lists the address as its name and the friendly name in the detail.</summary>
-    public static string Title(LibraryKind kind, DeviceInfo device)
-    {
-        var detail = device.Detail ?? "";
-        return kind == LibraryKind.Bluetooth && detail.LastIndexOf(", ", StringComparison.Ordinal) is > 0 and var comma
-            ? detail[..comma]
-            : device.Name;
-    }
+    public static string Title(LibraryKind kind, DeviceInfo device) =>
+        kind == LibraryKind.Bluetooth && device.Detail is { Length: > 0 } name ? name : device.Name;
 
     /// <summary>The picker's rows: none (optional), Library items, a missing key, then this PC's other devices.</summary>
     public static List<DeviceOption> Options(LibraryKind kind, Library library, IReadOnlyList<DeviceInfo>? live, string? current,
@@ -127,7 +126,11 @@ public static class LibraryDevices
                     continue;
                 var caption = Describe(kind, device);
                 options.Add(new(DeviceSource.Windows, null, Title(kind, device),
-                    caption.Length > 0 ? "From Windows · " + caption : "From Windows", glyph) { Device = device });
+                    device.NotConnectable ? NotConnectable : caption.Length > 0 ? "From Windows · " + caption : "From Windows", glyph)
+                {
+                    Device = device,
+                    IsEnabled = !device.NotConnectable,
+                });
             }
         }
         if (kind == LibraryKind.Display && canCapture)

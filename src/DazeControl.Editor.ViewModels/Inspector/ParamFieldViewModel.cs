@@ -222,10 +222,18 @@ public sealed partial class ParamFieldViewModel : ObservableObject
             _write(this, Scalar(value));
     }
 
-    partial void OnDeviceChanged(DeviceOption? value)
+    partial void OnDeviceChanged(DeviceOption? oldValue, DeviceOption? newValue)
     {
-        if (_loading || value is null)
+        if (_loading || newValue is not { } value)
             return;
+        if (!value.IsEnabled)
+        {
+            // The drop-down greys the row out; keyboard selection can still land on it.
+            _loading = true;
+            Device = oldValue;
+            _loading = false;
+            return;
+        }
         switch (value.Source)
         {
             case DeviceSource.None:

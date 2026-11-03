@@ -73,6 +73,20 @@ public sealed partial class InspectorPane : UserControl
             field.Text = file.Path;
     }
 
+    private void OnDeviceRowLoaded(object sender, RoutedEventArgs e) => DisableRow(sender);
+
+    /// <summary>A row that can't be picked (#26) disables its drop-down or list item, which also greys it out.</summary>
+    internal static void DisableRow(object row)
+    {
+        if (row is not FrameworkElement { DataContext: DeviceOption option } element)
+            return;
+        DependencyObject? parent = element;
+        while (parent is not null and not Microsoft.UI.Xaml.Controls.Primitives.SelectorItem)
+            parent = VisualTreeHelper.GetParent(parent);
+        if (parent is Control item)
+            item.IsEnabled = option.IsEnabled;
+    }
+
     private void OnDevicesOpened(object? sender, object e)
     {
         if ((sender as FrameworkElement)?.Tag is ParamFieldViewModel { Spec.Library: { } kind })

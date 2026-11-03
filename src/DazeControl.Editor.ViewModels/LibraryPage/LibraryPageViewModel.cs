@@ -409,7 +409,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     private void Add(DeviceOption option)
     {
         var section = Sections.FirstOrDefault(s => s.Available.Contains(option));
-        if (!CanEdit || section?.Kind is not { } kind || option.Device is not { } device)
+        if (!CanEdit || !option.IsEnabled || section?.Kind is not { } kind || option.Device is not { } device)
             return;
         section.Note = null;
         _session.Update(c => c with { Library = LibraryDevices.Add(c.Library, kind, device).Library });
