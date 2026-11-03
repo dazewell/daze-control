@@ -22,7 +22,8 @@ What Daze Control does, stack-independent. Source: the 2026-10-31 plan §2. Stat
 - Validation: no cycles, refs exist, params match descriptors, cards hold ≥ 2 members, no edges into members.
   An invalid flow is disabled with its problems listed; every other flow keeps working.
 
-**F2 Triggers** — v1: global hotkey, tray item, CLI (`dctl run`), editor Run/Test. Later: device events (BT
+**F2 Triggers** — v1: global hotkey, tray item, CLI (`dctl run`), editor Run/Test, desktop shortcut per flow
+(`DazeControl.exe --run <flow>`, starts the engine when needed, D-049). Later: device events (BT
 connected, display change), schedule, session unlock/resume, app start.
 
 **F3 Providers (step types)** — each declares id, glyph, title, typed params, default timeout, resources it
@@ -46,10 +47,12 @@ on every step, retries, run events stream, run history (last 100, persisted), dr
 settings, honours "Animation effects"); tray tooltip/glyph shows the last run's failure.
 
 **F7 Editor** — flows list, DAG canvas, inspector, library, settings, about; Save/Cancel for flows, autosave elsewhere (D-047); live pickers and Test
-via the engine; live run view and history timeline; undo/redo; accessible outline view. Spec: §5.
+via the engine; suggestions and examples for every free-text value (screens, services, Android keys and inputs,
+flags, credentials, programs, script snippets; D-050, D-051); "Add to desktop" per flow (D-049); live run view and history timeline; undo/redo; accessible outline view. Spec: §5.
 
 **F8 CLI** — `dctl run <flow> [--wait] [--dry-run]`, `list`, `validate [file]`, `status`,
-`devices audio|bluetooth|displays|adb`, `capture-display-layout <name>`, `history [flow]`.
+`devices audio|bluetooth|displays|adb|services|credentials`, `capture-display-layout <name>`, `history [flow]`,
+`shortcut <flow> [--remove]`. `devices bluetooth` = the PC's paired devices, as Settings lists them (D-052).
 
 **F9 Ops** — per-user install + in-app updates, start with Windows (HKCU Run), single instance, rolling logs
 (7 days), crash capture, no admin, config backups (last 10).

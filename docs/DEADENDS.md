@@ -44,3 +44,11 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
   wrong node; deleting one of two stacked cards left the other where it was, off its edge's end.
 - Evidence: user's second-round report, 2026-11-02; `CanvasRelayoutTests` show the view model was right throughout.
 - Retry only if: never — subscribe for the view's life (`Detach` on removal), order by `Canvas.ZIndex`.
+
+## X-005 · 2026-11-02 · Listing Bluetooth devices from audio endpoints (ACTIVE | UNPLUGGED | NOTPRESENT)
+- Tried: `dctl devices bluetooth` and the editor's pickers grouped audio endpoints by the address in their path.
+- Failed because: Windows keeps the endpoints of devices that were unpaired, so SOUNDPEATS H3, Technics EAH-AZ40M2
+  and WF-C710N showed as "not connected", while paired non-audio devices (MX Master 3S, MX Keys Mini, Steam
+  controller, a phone) never appeared (user's report, 2026-11-02).
+- Evidence: `dctl devices bluetooth` vs `Get-PnpDevice` `BTHENUM\DEV_*` / `BTHLE\DEV_*` on the dev PC, 2026-11-02.
+- Retry only if: never as the list's source (D-052). Endpoints stay right for connecting and its state (D-023).

@@ -18,6 +18,9 @@ lives in [DECISIONS.md](DECISIONS.md).
 - Separate app in `C:\Projects\scd-rewamp`, own repo (user, 2026-10-31).
 - ADRs in a file; clean, testable, extensible code (user, 2026-10-31).
 - The plan must survive usage caps: an agent always knows where the last one stopped (user, 2026-10-31; D-018).
+- After v0.20.0 (user, 2026-11-02): a desktop shortcut per flow (D-049); pick values instead of typing them —
+  "Use only these screens" from the PC's screens, and pickers or examples for every free-text value (PowerShell,
+  Android, code…) (D-050, D-051); the Bluetooth list must match Windows' own (D-052). Design first, same standards.
 - Working name **Daze Control** (namespace `DazeControl`, exe `DazeControl.exe`, CLI `dctl.exe`); the user may rename it.
 
 ## Must keep from scd
@@ -43,24 +46,22 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
   run…" and a Connections list in the inspector; a click on a flow's card opens it; Library Remove always shows (off
   with a reason when in use); canvas pills follow the re-layout after same-column links and deletes (X-004); edges can be hovered, clicked,
   marquee-selected, deleted and right-clicked (UX §5.8 #2), with "+"/"×" above the midpoint.
+- [ ] M11 Desktop shortcuts, pickers and examples, Bluetooth list (designed 2026-11-02, D-049..D-052; PLAN → M11).
 
-## Ready for you (M10, 2026-11-02)
+## Ready for you (2026-11-02)
 
-Daze Control 0.17.0 is feature-complete for v1: engine, editor, `dctl`, per-user install with in-app updates.
-Nothing has been released yet. What's left is yours:
+v0.20.0 is released (GitHub Releases; installed copies update themselves). What's left is yours:
 
-1. **First release (needs your OK):** `release.yml` publishes only when a tag `v<Version>` is pushed (D-043), so a
-   merge never ships. To release 0.17.0: `git tag v0.17.0 origin/main` then `git push origin v0.17.0`. Or install
-   from the checkout without a release: `pwsh scripts/install.ps1`. Want every merge to release, as the OSD does?
-   Say so (D-043 "Revisit if").
-2. **24 h daily-driver soak:** install, copy `samples/user-config.yaml` to `%APPDATA%\DazeControl\config.yaml`, turn
+1. **24 h daily-driver soak:** install, copy `samples/user-config.yaml` to `%APPDATA%\DazeControl\config.yaml`, turn
    on Start with Windows (editor › Settings), and use it for a day. Check `%LOCALAPPDATA%\DazeControl\logs`
    afterwards. The idle footprint gate already passed (5.4 MB private, 0 ms CPU over 10 min).
-3. **Retire scd** once Alt+Z works for a day (T4.4 check below): turn off scd's scheduled task and stop scd.
-4. **UX checks that change system-wide settings** (not done by agents on your PC): Settings › Display › Scale at
+2. **Retire scd** once Alt+Z works for a day (T4.4 check below): turn off scd's scheduled task and stop scd.
+3. **UX checks that change system-wide settings** (not done by agents on your PC): Settings › Display › Scale at
    100 % and 150 %, Accessibility › Text size 225 % (editor pages, canvas pills and the run pop-up grow, nothing
    clips), and Narrator on the canvas Outline. The rest of the checklist passed at 175 % (PLAN T10.3).
-5. **Open follow-ups:** the pop-up isn't read by Narrator (T10.5); the run overlay attaches to a run already going only at its next step.
+4. **Releases** stay yours: `release.yml` publishes only on a `v<Version>` tag (D-043).
+5. **Open follow-ups:** the pop-up isn't read by Narrator (T10.5); the run overlay attaches to a run already going
+   only at its next step; a tray left click bringing an open editor forward is unverified with a real click.
 
 ## Waiting on the user
 

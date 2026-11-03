@@ -99,6 +99,25 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   ("Worked in 1.2 s" / error + "Show details" expander); the pill ring shows it for 3 s.
 - Flow settings: name, icon (glyph GridView flyout), tray folder (editable ComboBox) + "Line above it",
   shortcuts list + "Add shortcut", "If it's already running": Ignore it / Run it after / Start over, pop-up toggle.
+  M11: a **Desktop shortcut** row: "Add to desktop" (#23); once there "On your desktop" + "Remove"; if the
+  shortcut still has an old name, "Update". Engine not running → button off with #25. The Flows list card's context
+  menu has the same "Add to desktop" / "Remove from desktop". Deleting a flow says "Its desktop shortcut goes too."
+  and removes it on Save. "Shortcut" alone keeps meaning a hotkey; the file is always "desktop shortcut".
+- **Suggestions and examples** (M11, D-050): every free-text value offers what the PC or the config has —
+  Text: editable ComboBox, items glyph + name + Caption (service: display name · Running; credential: "Saved in
+  Windows"; flag: "Used in 2 flows"; program: its folder); typing stays allowed. Screens (`display.outputs`):
+  checklist rows name + Caption "DP-3 · On now", plus "Use the screens that are on now" (#27); saved but unplugged
+  rows stay checked with #8. Android keys: token list in send order (× per token, Alt+Up/Down reorders) + an
+  AutoSuggestBox "Add a key" (home, back, dpad_up/down/left/right/center, enter, menu, media_play_pause,
+  media_next, media_previous, volume_up/down/mute, power, wakeup, sleep, settings, tv_input). Android input: the
+  chosen device's inputs, none yet → hyperlink "Add inputs in the Library". Code boxes: DropDownButton "Examples"
+  under the box; picking fills it (replaces, Ctrl+Z undoes). Examples — PowerShell: "Open a website"
+  `Start-Process 'https://example.com'` · "Start an app and wait" `Start-Process notepad -Wait` · "Close an app"
+  `Stop-Process -Name 'Spotify' -ErrorAction SilentlyContinue` · "Lock the PC" `rundll32.exe user32.dll,LockWorkStation`
+  · "Fail unless an app is running" `if (-not (Get-Process steam -ErrorAction SilentlyContinue)) { exit 1 }`
+  (pairs with "If it fails, run…"). Web request: address "Sunshine: close the running app"
+  `https://localhost:47990/api/apps/close`; headers `Content-Type: application/json`; body `{ "key": "value" }`.
+- Bluetooth pickers list Windows' paired devices (D-052); ones without audio are disabled with #26.
 
 ## 5.5 Runs
 - Live: canvas overlays states; CommandBar "Running · 2 of 4" + Stop; finished pill summary becomes its
@@ -141,7 +160,10 @@ didn't work." · 16 "Connect Technics didn't finish. Bluetooth didn't connect in
 is already running, so this press was ignored." · 18 "Another app uses Alt+Z. Try another one." · 19
 "Couldn't save your changes" / "They'll work until you quit the app." · 20 "Capture current layout" / "Saves
 how your screens are set up now." · 21 "Shortcuts are paused. Select Pause shortcuts again to turn them back
-on." · 22 "You can edit again when this run finishes."
+on." · 22 "You can edit again when this run finishes." · 23 "Add to desktop" / "Puts a shortcut on your desktop
+that runs this flow." · 24 "This shortcut's flow isn't there anymore. You can delete the shortcut." · 25 "Start Daze
+Control to add a desktop shortcut." · 26 "Daze Control can connect only headphones and speakers." · 27 "Use the
+screens that are on now"
 
 ## 5.8 Risks → mitigations
 1 XAML element count: pill template ≤ 12 elements, no ThemeShadow per node, all edges in one layer of a few batched paths (D-037),
@@ -168,3 +190,5 @@ contrast: solid background, no dots.
 - Animation effects off: no motion anywhere, static running ring.
 - Tray: right-aligned shortcuts, running bullet, invalid flow greyed "(needs fixing)".
 - All strings sentence case, no jargon.
+- M11: a desktop shortcut shows the flow's glyph and runs it with the engine stopped and running; every free-text
+  param has a picker or an Examples menu; the Bluetooth picker matches Settings › Bluetooth & devices.
