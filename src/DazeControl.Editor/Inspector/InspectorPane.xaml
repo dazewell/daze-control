@@ -22,7 +22,8 @@
 
         <!-- Device picker rows: glyph + name + state (UX §5.4). -->
         <DataTemplate x:Key="DeviceTemplate" x:DataType="vmi:DeviceOption">
-            <Grid ColumnSpacing="10" AutomationProperties.Name="{x:Bind AutomationName}" Loaded="OnDeviceRowLoaded">
+            <Grid ColumnSpacing="10" AutomationProperties.Name="{x:Bind AutomationName}" Loaded="OnDeviceRowLoaded"
+                  DataContextChanged="OnDeviceRowDataContextChanged">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />

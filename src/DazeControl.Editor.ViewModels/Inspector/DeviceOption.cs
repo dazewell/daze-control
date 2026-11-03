@@ -115,7 +115,14 @@ public static class LibraryDevices
         if (!required)
             options.Add(new(DeviceSource.None, null, "Current default device", "", glyph));
         foreach (var (key, title) in Items(library, kind))
-            options.Add(new(DeviceSource.Library, key, title, State(library, kind, key, live), glyph));
+        {
+            // A paired keyboard put in the Library by hand still can't be connected (D-052).
+            var notConnectable = live is not null && Match(library, kind, key, live) is { NotConnectable: true };
+            options.Add(new(DeviceSource.Library, key, title, notConnectable ? NotConnectable : State(library, kind, key, live), glyph)
+            {
+                IsEnabled = !notConnectable,
+            });
+        }
         if (!string.IsNullOrEmpty(current) && !library.Contains(kind, current))
             options.Add(new(DeviceSource.Missing, current, current, NotFound, glyph));
         if (live is not null && kind != LibraryKind.Display)
