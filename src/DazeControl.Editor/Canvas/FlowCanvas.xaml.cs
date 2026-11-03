@@ -82,6 +82,8 @@ public sealed partial class FlowCanvas : UserControl
             }
             _viewModel = value;
             NodeLayer.Children.Clear();
+            foreach (var view in _views.Values)
+                view.Detach();
             _views.Clear();
             if (_viewModel is null)
                 return;
@@ -176,24 +178,22 @@ public sealed partial class FlowCanvas : UserControl
         EmptyState.Visibility = _viewModel.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>Cards first so members draw above them (the view model's order).</summary>
+    /// <summary>
+    /// One view per node; members draw above cards by ZIndex. Views are never moved within the layer: a removed and
+    /// re-added element can miss its node's changes (X-004), which left pills drawn where they no longer were.
+    /// </summary>
     private void SyncNodes()
     {
         if (_viewModel is null)
             return;
         var live = _viewModel.Nodes.Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
         foreach (var id in _views.Keys.Where(id => !live.Contains(id)).ToList())
+            RemoveView(id);
+        foreach (var node in _viewModel.Nodes)
         {
-            NodeLayer.Children.Remove(_views[id]);
-            _views.Remove(id);
-        }
-        for (var i = 0; i < _viewModel.Nodes.Count; i++)
-        {
-            var node = _viewModel.Nodes[i];
             if (_views.TryGetValue(node.Id, out var view) && view.IsCard != (node.Kind == CanvasNodeKind.Card))
             {
-                NodeLayer.Children.Remove(view);
-                _views.Remove(node.Id);
+                RemoveView(node.Id);
                 view = null;
             }
             if (view is null)
@@ -201,17 +201,20 @@ public sealed partial class FlowCanvas : UserControl
                 view = node.Kind == CanvasNodeKind.Card ? new CardView(node) : new PillView(node);
                 if (view is PillView pill)
                     pill.SizeChanged += (_, _) => Report(pill);
-                view.Refresh(_viewModel.ShowDetails);
                 _views[node.Id] = view;
+                NodeLayer.Children.Add(view);
             }
-            var at = NodeLayer.Children.IndexOf(view);
-            if (at != i)
-            {
-                if (at >= 0)
-                    NodeLayer.Children.RemoveAt(at);
-                NodeLayer.Children.Insert(Math.Min(i, NodeLayer.Children.Count), view);
-            }
+            XamlCanvas.SetZIndex(view, node.Kind == CanvasNodeKind.Member ? 1 : 0);
+            view.Refresh(_viewModel.ShowDetails); // places it: the layout may have moved it without a change event reaching it
         }
+    }
+
+    private void RemoveView(string id)
+    {
+        var view = _views[id];
+        view.Detach();
+        NodeLayer.Children.Remove(view);
+        _views.Remove(id);
     }
 
     private void Report(PillView pill)
