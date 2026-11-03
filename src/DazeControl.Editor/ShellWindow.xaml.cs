@@ -149,6 +149,8 @@ public sealed partial class ShellWindow : Window
     /// <summary>True when nothing is unsaved, or the user chose to lose it. False while the question is already up.</summary>
     private async Task<bool> ConfirmLosingChangesAsync()
     {
+        if (!await LeaveFlowAsync())
+            return false;
         ViewModel.Session.Flush();
         if (!ViewModel.Session.HasUnsavedChanges)
             return true;
@@ -183,10 +185,56 @@ public sealed partial class ShellWindow : Window
         _ = ViewModel.Settings.RefreshAutostartAsync();
     }
 
-    private void OnNavigationSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    /// <summary>
+    /// Leaving the open flow with a draft asks Save / Don't save / Cancel (D-047). True when the editor may close:
+    /// nothing was unsaved, or the draft was saved or thrown away.
+    /// </summary>
+    private async Task<bool> LeaveFlowAsync()
+    {
+        if (_editor is not { HasChanges: true } editor)
+            return true;
+        if (_asking)
+            return false;
+        _asking = true;
+        try
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = Content.XamlRoot,
+                Title = $"Save your changes to {editor.FlowName}?",
+                Content = "If you don't, the flow stays as you last saved it.",
+                PrimaryButtonText = "Save",
+                SecondaryButtonText = "Don't save",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Primary,
+            };
+            switch (await dialog.ShowAsync())
+            {
+                case ContentDialogResult.Primary:
+                    editor.Save();
+                    return !ViewModel.Session.HasUnwrittenChanges; // a failed write keeps the edits and says so
+                case ContentDialogResult.Secondary:
+                    editor.Discard();
+                    return true;
+                default:
+                    return false;
+            }
+        }
+        finally
+        {
+            _asking = false;
+        }
+    }
+
+    private async void OnNavigationSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (_navigating || args.SelectedItemContainer?.Tag is not string tag || !Enum.TryParse<EditorPage>(tag, out var page))
             return;
+        if (!await LeaveFlowAsync())
+        {
+            SelectFlowsPane(); // stay in the editor
+            return;
+        }
         ViewModel.Page = page;
         ViewModel.CloseFlow(); // Flows in the pane always means the list
         FlowsPage.Visibility = Show(page == EditorPage.Flows);
@@ -271,6 +319,7 @@ public sealed partial class ShellWindow : Window
         if (ViewModel.Inspector is { } inspector)
             _ = inspector.RefreshShortcutProblemsAsync();
         UpdateHistory();
+        UpdateDraft();
         UpdateOutline();
         UpdateProblems();
         UpdatePages();
@@ -294,6 +343,10 @@ public sealed partial class ShellWindow : Window
                 break;
             case nameof(FlowCanvasViewModel.CanUndo) or nameof(FlowCanvasViewModel.CanRedo) or nameof(FlowCanvasViewModel.CanEdit):
                 UpdateHistory();
+                UpdateDraft();
+                break;
+            case nameof(FlowCanvasViewModel.HasChanges):
+                UpdateDraft();
                 break;
             case nameof(FlowCanvasViewModel.Outline):
                 UpdateOutline();
@@ -310,10 +363,24 @@ public sealed partial class ShellWindow : Window
     private void UpdateBreadcrumb() =>
         FlowBreadcrumb.ItemsSource = _editor is null ? null : new[] { "Flows", _editor.FlowName };
 
-    private void OnBreadcrumbClicked(BreadcrumbBar sender, BreadcrumbBarItemClickedEventArgs args)
+    private async void OnBreadcrumbClicked(BreadcrumbBar sender, BreadcrumbBarItemClickedEventArgs args)
     {
-        if (args.Index == 0)
+        if (args.Index == 0 && await LeaveFlowAsync())
             ViewModel.CloseFlow();
+    }
+
+    private void OnSaveFlow(object sender, RoutedEventArgs e) => _editor?.Save();
+
+    private void OnCancelFlow(object sender, RoutedEventArgs e) => _editor?.Discard();
+
+    private void UpdateDraft()
+    {
+        var changed = _editor is { HasChanges: true };
+        SaveButton.IsEnabled = CancelButton.IsEnabled = changed && _editor!.CanEdit;
+        DraftText.Visibility = Show(changed);
+        ToolTipService.SetToolTip(RunButton, changed
+            ? "Run this flow as last saved. Save first to run your changes, or try them with Dry run."
+            : "Run this flow now");
     }
 
     // ---- Runs on the canvas (UX §5.5) ----

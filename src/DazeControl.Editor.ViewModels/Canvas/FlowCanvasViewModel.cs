@@ -123,6 +123,34 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool CanUndo { get; private set; }
 
+    /// <summary>Edits not saved yet (D-047): Save writes them, Cancel throws them away.</summary>
+    public bool HasChanges => _session.HasDraft(FlowId);
+
+    /// <summary>Save (Ctrl+S): the draft goes to config.yaml, and the engine picks it up.</summary>
+    public void Save()
+    {
+        if (!HasChanges)
+            return;
+        _session.SaveDraft(FlowId);
+        ClearHistory(); // undo stays inside a draft
+    }
+
+    /// <summary>Cancel / Discard: back to the saved flow.</summary>
+    public void Discard()
+    {
+        if (!HasChanges)
+            return;
+        _session.DiscardDraft(FlowId);
+        ClearHistory();
+    }
+
+    private void ClearHistory()
+    {
+        _undo.Clear();
+        _redo.Clear();
+        UpdateHistory();
+    }
+
     [ObservableProperty]
     public partial bool CanRedo { get; private set; }
 
@@ -517,7 +545,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         _editing = true;
         try
         {
-            _session.Update(c => c with { Flows = [.. c.Flows.Select(f => f.Id == FlowId ? change(f) : f)] });
+            _session.UpdateDraft(FlowId, change);
         }
         finally
         {
@@ -741,10 +769,10 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         {
             // Reloaded from disk or changed on another page: undo would bring back a version made outside this canvas.
             _known = Flow;
-            _undo.Clear();
-            _redo.Clear();
-            UpdateHistory();
+            ClearHistory();
         }
+        if (e.PropertyName == nameof(ConfigSession.Drafts))
+            OnPropertyChanged(nameof(HasChanges));
         if (e.PropertyName is nameof(ConfigSession.Current) or nameof(ConfigSession.Problems))
             Sync();
         if (e.PropertyName == nameof(ConfigSession.CanEdit))

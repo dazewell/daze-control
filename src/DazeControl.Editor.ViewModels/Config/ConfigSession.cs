@@ -17,9 +17,11 @@ public enum OutsideChange
 }
 
 /// <summary>
-/// The configuration being edited. Every edit goes through <see cref="Update"/>; the file is written
-/// <see cref="SaveDelay"/> after the last one (UX §5.2). UI thread only: timer callbacks come back through
-/// <c>post</c>. A file that can't be read at all is never overwritten (<see cref="CanEdit"/>).
+/// The configuration being edited. Library and settings edits go through <see cref="Update"/>; the file is written
+/// <see cref="SaveDelay"/> after the last one. Edits to a flow open in the editor go through <see cref="UpdateDraft"/>
+/// and stay a draft until <see cref="SaveDraft"/> (D-047): <see cref="Current"/> shows drafts, the file never has them.
+/// UI thread only: timer callbacks come back through <c>post</c>. A file that can't be read at all is never
+/// overwritten (<see cref="CanEdit"/>).
 /// </summary>
 public sealed partial class ConfigSession : ObservableObject, IDisposable
 {
@@ -28,6 +30,10 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
     private readonly ConfigStore _store;
     private readonly ITimer _saveTimer;
     private bool _dirty;
+
+    /// <summary>What the file has, or will have once the pending save runs: <see cref="Current"/> without drafts.</summary>
+    private Configuration _saved = Configuration.Empty;
+    private readonly HashSet<string> _drafts = new(StringComparer.Ordinal);
 
     /// <param name="post">Runs an action on the UI thread (the dispatcher; inline in tests).</param>
     public ConfigSession(ConfigStore store, TimeProvider time, Action<Action> post)
@@ -65,13 +71,26 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
 
     public bool HasSaveError => SaveError is not null;
 
-    /// <summary>Edits not in the file yet (pending, conflicting or failed): the window must not just close.</summary>
-    public bool HasUnsavedChanges => _dirty;
+    /// <summary>Edits not in the file yet (pending, conflicting, failed, or a draft): the window must not just close.</summary>
+    public bool HasUnsavedChanges => _dirty || _drafts.Count > 0;
+
+    /// <summary>Edits not in the file yet apart from drafts: pending, conflicting or failed.</summary>
+    public bool HasUnwrittenChanges => _dirty;
+
+    /// <summary>Flows with a draft (edited, not saved), in no order.</summary>
+    public IReadOnlyCollection<string> Drafts => _drafts;
+
+    public bool HasDraft(string flowId) => _drafts.Contains(flowId);
+
+    /// <summary>The flow as saved (null for a flow that exists only as a draft, or not at all).</summary>
+    public Flow? SavedFlow(string flowId) => _saved.Flows.FirstOrDefault(f => f.Id == flowId);
 
     public void Load()
     {
         _saveTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         _dirty = false;
+        var drafts = _drafts.Select(id => Current.Flows.FirstOrDefault(f => f.Id == id)).OfType<Flow>().ToList();
+        ClearDrafts();
         try
         {
             var load = _store.Load();
@@ -79,15 +98,21 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
             if (load.Config is { } config && mappingError is null)
             {
                 LoadError = null;
-                Current = config;
-                Problems = [.. load.Problems, .. ConfigValidator.Validate(config, load.Problems)];
+                _saved = config;
+                // A reload (another program wrote the file) keeps the editor's drafts on top of the new version.
+                Current = drafts.Aggregate(config, WithFlow);
+                foreach (var draft in drafts.Where(d => SavedFlow(d.Id) != d))
+                    _drafts.Add(draft.Id);
+                Problems = [.. load.Problems, .. ConfigValidator.Validate(Current, load.Problems)];
                 CanEdit = true;
+                if (_drafts.Count > 0)
+                    OnPropertyChanged(nameof(Drafts));
             }
             else if (load.Config is { } partial)
             {
                 // Mapping dropped what it couldn't read; saving would delete it from the file.
                 LoadError = $"config.yaml has errors, so the editor won't change it until they're fixed by hand. {mappingError!.Path}: {mappingError.Message}";
-                Current = partial;
+                Current = _saved = partial;
                 Problems = [.. load.Problems, .. ConfigValidator.Validate(partial, load.Problems)];
                 CanEdit = false;
             }
@@ -106,7 +131,10 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
         OutsideChange = OutsideChange.None;
     }
 
-    /// <summary>Applies an edit now and schedules the save.</summary>
+    /// <summary>
+    /// Applies an edit now and schedules the save. It applies to the saved version and to <see cref="Current"/> alike,
+    /// so a Library rename reaches a draft too, while the draft's own edits stay out of the file.
+    /// </summary>
     public void Update(Func<Configuration, Configuration> change)
     {
         ArgumentNullException.ThrowIfNull(change);
@@ -115,11 +143,81 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
         var next = change(Current);
         if (next == Current)
             return;
+        var saved = _drafts.Count == 0 ? next : change(_saved);
+        var gone = _drafts.Where(id => next.Flows.All(f => f.Id != id)).ToList(); // a removed flow has no draft left
+        foreach (var id in gone)
+            _drafts.Remove(id);
+        if (saved != _saved)
+        {
+            _saved = saved;
+            _dirty = true;
+            _saveTimer.Change(SaveDelay, Timeout.InfiniteTimeSpan);
+        }
+        Show(next);
+        if (gone.Count > 0)
+            OnPropertyChanged(nameof(Drafts));
+    }
+
+    /// <summary>An edit to one flow in the editor: shown everywhere, written only by <see cref="SaveDraft"/>.</summary>
+    public void UpdateDraft(string flowId, Func<Flow, Flow> change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        if (!CanEdit || Current.Flows.FirstOrDefault(f => f.Id == flowId) is not { } flow)
+            return;
+        var next = change(flow);
+        if (next == flow)
+            return;
+        // Undoing back to the saved version leaves nothing to save.
+        if (next == SavedFlow(flowId))
+            _drafts.Remove(flowId);
+        else
+            _drafts.Add(flowId);
+        Show(WithFlow(Current, next));
+        OnPropertyChanged(nameof(Drafts));
+    }
+
+    /// <summary>Save: the draft goes to the file now (no debounce: the user asked).</summary>
+    public void SaveDraft(string flowId)
+    {
+        if (!_drafts.Remove(flowId) || Current.Flows.FirstOrDefault(f => f.Id == flowId) is not { } flow)
+            return;
+        _saved = WithFlow(_saved, flow);
+        _dirty = true;
+        OnPropertyChanged(nameof(Drafts));
+        _saveTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        Flush();
+    }
+
+    /// <summary>Cancel / Discard: the flow goes back to its saved version.</summary>
+    public void DiscardDraft(string flowId)
+    {
+        if (!_drafts.Remove(flowId))
+            return;
+        Show(SavedFlow(flowId) is { } saved
+            ? WithFlow(Current, saved)
+            : Current with { Flows = [.. Current.Flows.Where(f => f.Id != flowId)] });
+        OnPropertyChanged(nameof(Drafts));
+    }
+
+    private void Show(Configuration next)
+    {
         Current = next;
         Problems = ConfigValidator.Validate(next);
-        _dirty = true;
-        _saveTimer.Change(SaveDelay, Timeout.InfiniteTimeSpan);
     }
+
+    private void ClearDrafts()
+    {
+        if (_drafts.Count == 0)
+            return;
+        _drafts.Clear();
+        OnPropertyChanged(nameof(Drafts));
+    }
+
+    /// <summary>The configuration with <paramref name="flow"/> in place of the one with its id (added at the end if none).</summary>
+    private static Configuration WithFlow(Configuration config, Flow flow) =>
+        config.Flows.Any(f => f.Id == flow.Id)
+            ? config with { Flows = [.. config.Flows.Select(f => f.Id == flow.Id ? flow : f)] }
+            : config with { Flows = [.. config.Flows, flow] };
 
     /// <summary>Writes pending edits now (window closing, a timer firing).</summary>
     public void Flush() => Save(overwrite: false);
@@ -137,7 +235,7 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
         }
         try
         {
-            _store.Save(Current);
+            _store.Save(_saved);
             _dirty = false;
             SaveError = null;
         }

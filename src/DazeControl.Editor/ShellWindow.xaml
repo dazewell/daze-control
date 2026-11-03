@@ -331,10 +331,23 @@
                     <Grid Margin="36,0,16,4" ColumnSpacing="16">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <BreadcrumbBar x:Name="FlowBreadcrumb" VerticalAlignment="Center" ItemClicked="OnBreadcrumbClicked" />
-                        <CommandBar Grid.Column="1" HorizontalAlignment="Right" DefaultLabelPosition="Right" Background="Transparent" IsDynamicOverflowEnabled="True">
+                        <!-- Save / Cancel (D-047): flow edits are a draft until Save. -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock x:Name="DraftText" Text="Not saved" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+                            <Button x:Name="SaveButton" Content="Save" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" Click="OnSaveFlow"
+                                    ToolTipService.ToolTip="Save your changes to this flow (Ctrl+S)">
+                                <Button.KeyboardAccelerators>
+                                    <KeyboardAccelerator Modifiers="Control" Key="S" />
+                                </Button.KeyboardAccelerators>
+                            </Button>
+                            <Button x:Name="CancelButton" Content="Cancel" IsEnabled="False" Click="OnCancelFlow"
+                                    ToolTipService.ToolTip="Throw away your changes since the last save" />
+                        </StackPanel>
+                        <CommandBar Grid.Column="2" HorizontalAlignment="Right" DefaultLabelPosition="Right" Background="Transparent" IsDynamicOverflowEnabled="True">
                             <!-- Runs (UX §5.5): Run / Dry run, or "Running · 2 of 4" + Stop while it runs. -->
                             <AppBarButton x:Name="RunButton" Label="Run" ToolTipService.ToolTip="Run this flow now" Click="OnRun">
                                 <AppBarButton.Icon><FontIcon Glyph="&#xE768;" /></AppBarButton.Icon>
