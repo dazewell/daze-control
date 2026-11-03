@@ -160,6 +160,35 @@
                         </StackPanel>
                     </RadioButton>
                 </RadioButtons>
+                <!-- A fallback without hunting for an edge's menu: a new step, or one already in the flow, runs only if this fails. -->
+                <DropDownButton x:Name="FallbackButton" Margin="0,8,0,0" IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}"
+                                ToolTipService.ToolTip="Add a step that runs only if this one fails">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE7BA;" FontSize="14" />
+                        <TextBlock Text="If it fails, run…" />
+                    </StackPanel>
+                    <DropDownButton.Flyout>
+                        <MenuFlyout x:Name="FallbackMenu" Placement="Bottom" Opening="OnFallbackMenuOpening" />
+                    </DropDownButton.Flyout>
+                </DropDownButton>
+
+                <!-- Connections: each edge at this step with its condition (UX §5.4). -->
+                <StackPanel Visibility="{x:Bind ViewModel.HasConnections, Mode=OneWay}" Spacing="8">
+                    <TextBlock Text="Connections" Style="{StaticResource InspectorSection}" />
+                    <ContentControl IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" IsTabStop="False" HorizontalContentAlignment="Stretch">
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Connections}" IsTabStop="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vmi:ConnectionViewModel">
+                                <StackPanel Spacing="4" Margin="0,0,0,8">
+                                    <TextBlock Text="{x:Bind Text}" TextTrimming="CharacterEllipsis" />
+                                    <ComboBox ItemsSource="{x:Bind vmi:ConnectionViewModel.Conditions}" SelectedIndex="{x:Bind WhenIndex, Mode=TwoWay}"
+                                              HorizontalAlignment="Stretch" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    </ContentControl>
+                </StackPanel>
 
                 <!-- Timing -->
                 <ContentControl IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" IsTabStop="False" HorizontalContentAlignment="Stretch">

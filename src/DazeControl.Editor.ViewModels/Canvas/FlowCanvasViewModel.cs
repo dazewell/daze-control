@@ -418,6 +418,54 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         Edit(flow => FlowGraph.SetWhen(flow, edge.From, edge.To, when));
     }
 
+    // ---- "If it fails, run…" (UX §5.4): fallbacks without hunting for an edge's menu ----
+
+    /// <summary>A new step that runs only if <paramref name="from"/> (its card for a member) fails; selected. One undo step.</summary>
+    public string? AddFallback(string from, string step)
+    {
+        if (Flow is null || !CanEdit || Flow.FindNode(from) is null)
+            return null;
+        string? id = null;
+        Edit(flow =>
+        {
+            (var next, id) = FlowCommands.Add(flow, step, [from]);
+            return next with
+            {
+                Nodes = [.. next.Nodes.Select(n => n.Id == id ? n with { After = [.. n.After.Select(e => e with { When = EdgeWhen.Failure })] } : n)],
+            };
+        });
+        SelectOnly(id is null ? [] : [id]);
+        return id;
+    }
+
+    /// <summary>Makes <paramref name="to"/> run only if <paramref name="from"/> fails: a new edge, or the existing one changed.</summary>
+    public ConnectRefusal LinkFallback(string from, string to)
+    {
+        if (Flow is not { } flow)
+            return ConnectRefusal.Unknown;
+        var refusal = FlowGraph.CanConnect(flow, from, to);
+        if (refusal == ConnectRefusal.Exists)
+            Edit(f => FlowGraph.SetWhen(f, FlowGraph.TopLevel(f, from), FlowGraph.TopLevel(f, to), EdgeWhen.Failure));
+        else if (refusal == ConnectRefusal.None)
+            Edit(f => FlowGraph.Connect(f, from, to, EdgeWhen.Failure));
+        return refusal is ConnectRefusal.Exists ? ConnectRefusal.None : refusal;
+    }
+
+    /// <summary>
+    /// Steps and cards that could run only if <paramref name="from"/> fails: not itself, not its own card, nothing it
+    /// waits for (a loop), and not one that already does.
+    /// </summary>
+    public IReadOnlyList<CanvasNodeViewModel> FallbackCandidates(string from)
+    {
+        if (Flow is not { } flow || flow.FindNode(from) is null)
+            return [];
+        var source = FlowGraph.TopLevel(flow, from);
+        var failing = Edges.Where(e => e.From == source && e.When == EdgeWhen.Failure).Select(e => e.To).ToHashSet(StringComparer.Ordinal);
+        return [.. Nodes.Where(n => n.Kind != CanvasNodeKind.Member && !failing.Contains(n.Id)
+                && FlowGraph.CanConnect(flow, from, n.Id) is ConnectRefusal.None or ConnectRefusal.Exists)
+            .OrderBy(n => n.Column).ThenBy(n => n.Row)];
+    }
+
     // ---- Cards (UX §5.2): Ctrl+G, Ctrl+Shift+G, drop zones ----
 
     /// <summary>Ctrl+G / "Run together" on the selection (steps and cards, in `nodes` order); selects the card.</summary>

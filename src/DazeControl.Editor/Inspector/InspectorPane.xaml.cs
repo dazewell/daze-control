@@ -1,3 +1,4 @@
+using DazeControl.Editor.ViewModels.Canvas;
 using DazeControl.Editor.ViewModels.Inspector;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -85,6 +86,37 @@ public sealed partial class InspectorPane : UserControl
     }
 
     private void OnPolicyLeave(object sender, RoutedEventArgs e) => _viewModel?.PreviewPolicy(null);
+
+    /// <summary>"If it fails, run…": a new step by area, or a step already in the flow (built when it opens).</summary>
+    private void OnFallbackMenuOpening(object? sender, object e)
+    {
+        FallbackMenu.Items.Clear();
+        if (_viewModel is not { } vm)
+            return;
+        var add = new MenuFlyoutSubItem { Text = "A new step", Icon = new FontIcon { Glyph = "" } };
+        foreach (var area in StepPaletteViewModel.All.GroupBy(i => i.Area))
+        {
+            var group = new MenuFlyoutSubItem { Text = area.Key };
+            foreach (var item in area)
+            {
+                var menuItem = new MenuFlyoutItem { Text = item.Title, Icon = new FontIcon { Glyph = item.Glyph } };
+                menuItem.Click += (_, _) => vm.AddFallback(item.Step);
+                group.Items.Add(menuItem);
+            }
+            add.Items.Add(group);
+        }
+        FallbackMenu.Items.Add(add);
+        if (vm.FallbackTargets.Count == 0)
+            return;
+        FallbackMenu.Items.Add(new MenuFlyoutSeparator());
+        FallbackMenu.Items.Add(new MenuFlyoutItem { Text = "A step in this flow", IsEnabled = false });
+        foreach (var target in vm.FallbackTargets)
+        {
+            var menuItem = new MenuFlyoutItem { Text = target.Title };
+            menuItem.Click += (_, _) => vm.LinkFallback(target.Id);
+            FallbackMenu.Items.Add(menuItem);
+        }
+    }
 
     private void OnGlyphClick(object sender, ItemClickEventArgs e)
     {

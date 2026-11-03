@@ -61,6 +61,9 @@
                        Style="{StaticResource SettingsCardDescription}" />
             <Button Content="Add a step" HorizontalAlignment="Center" Margin="0,8,0,0" Style="{StaticResource AccentButtonStyle}"
                     Click="OnAddFirstStep" />
+            <TextBlock HorizontalAlignment="Center" Margin="0,16,0,0" MaxWidth="420" TextWrapping="Wrap" TextAlignment="Center"
+                       Style="{StaticResource SettingsCardDescription}"
+                       Text="Tip: to run a step only when another one fails, select that step and choose If it fails, run… on the right." />
         </StackPanel>
 
     </Grid>

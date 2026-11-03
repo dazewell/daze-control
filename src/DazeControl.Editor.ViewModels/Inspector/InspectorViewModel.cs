@@ -269,6 +269,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                         LoadFlow(flow);
                     break;
             }
+            LoadConnections();
         }
         finally
         {
