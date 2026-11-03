@@ -223,7 +223,9 @@ brings its window to the front. Pages (UX §5.1) are panels in one `ShellWindow`
 About), cards in the OSD's settings-card style (App.xaml). All logic is in `Editor.ViewModels`:
 - `Config/ConfigStore` — config.yaml I/O: atomic write (temp + `File.Move` overwrite), one backup per editor
   session in `%APPDATA%\DazeControl\backups` (newest 10), and the text last read/written to tell outside changes.
-- `Config/ConfigSession` — every edit is `Update(c => …)`; saved 300 ms after the last one (`TimeProvider`).
+- `Config/ConfigSession` — Library/Settings edits are `Update(c => …)`, saved 300 ms after the last one
+  (`TimeProvider`); the open flow's edits are `UpdateDraft` until `SaveDraft`/`DiscardDraft` (D-047): it keeps the
+  saved configuration beside `Current` and writes only that.
   A file that can't be read (bad YAML, newer schema) is never written (`CanEdit` false). An outside change
   (window's FileSystemWatcher, debounced) reloads when nothing is unsaved, else waits: InfoBar Keep mine / Reload.
 - `Engine/EngineClient` — one subscribed pipe connection that also tells whether the engine runs (retry every

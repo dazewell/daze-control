@@ -38,6 +38,10 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
 - [x] First-use fixes (user, 2026-11-02; 0.19.0): Flows list stays inside the window when maximized (X-003); Fire TV is
   now Android, old `firetv` names are problems that name the new ones (D-045); Library layouts rename and show their
   screens, Programs get Open file location, "Used by" opens the flows (D-046). Programs stays a derived list (D-041).
+- [x] Second-round feedback (user, 2026-11-02; 0.20.0): flow edits are a draft with Save / Cancel, Library and
+  Settings keep autosaving (D-047); tray left click opens the editor, right click the menu (D-048); "If it fails,
+  run…" and a Connections list in the inspector; a click on a flow's card opens it; Library Remove always shows (off
+  with a reason when in use); canvas pills follow the re-layout after same-column links and deletes (X-004).
 
 ## Ready for you (M10, 2026-11-02)
 

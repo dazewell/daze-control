@@ -9,13 +9,17 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 ## 5.1 Information architecture
 - Engine (tray) owns hotkeys, tray menu, run pop-up and the YAML file; it works without the editor.
 - Editor window: WinUI 3, Mica, TitleBar (page name as subtitle), NavigationView Left 200 wide.
-  Pages: **Flows** (cards: glyph, name, shortcut, last result, On toggle; select → flow editor with
+  Pages: **Flows** (cards: glyph, name, shortcut, last result, On toggle; a click on the card (not the toggle) → flow editor with
   BreadcrumbBar "Flows › Connect Technics"; New flow: Blank / TV only / Audio → Headphones templates) ·
   **Library** (Pivot: Audio, Bluetooth, Displays, Android, Programs; settings cards with Test and "Used by 2
   flows", which lists the flows and opens one; layouts and Android devices Rename (their flows follow), a layout's
   Details list its screens; Programs add Open file location) · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, logs, updates),
   **About** (Copy details). Save errors: InfoBar on top of every page.
-- Flow editor: CommandBar (Run, Dry run, Stop, Undo, Redo, Tidy up, Canvas | Outline, Problems (n)) · left
+- Flow editor: "Not saved" + **Save** (accent, Ctrl+S) + **Cancel** beside the breadcrumb (D-047): edits are a
+  draft until Save; Cancel throws it away; leaving the flow (breadcrumb, nav pane, closing the window) with a draft
+  asks "Save your changes to <flow>?" Save / Don't save / Cancel. Run runs the saved version (its tooltip says so);
+  Dry run and Test this step use what's on screen. Library and Settings keep autosaving (300 ms).
+  CommandBar (Run, Dry run, Stop, Undo, Redo, Tidy up, Canvas | Outline, Problems (n)) · left
   palette 240 (collapsible, search) · canvas · right inspector 320 (280–480). Nothing selected → inspector
   shows the flow's settings (no extra dialog).
 
@@ -33,10 +37,11 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   (stacked in one column, edges kept); drag pills in/out/between cards. No nested cards; edges between
   members refused.
 - Fallback edges (`when: failure`): edge context menu "Only if this fails" → edge drawn critical-dashed with an
-  "If it fails" chip; `always` → "Whatever happens" chip.
+  "If it fails" chip; `always` → "Whatever happens" chip. The same without the edge menu: the inspector's
+  "If it fails, run…" and Connections (§5.4); the empty state's tip points there.
 - Selection: click, Ctrl+click, marquee (mouse/pen), Ctrl+A. Ctrl+C/V/D copy nodes + inner edges + library
   refs, paste into a new column to the right. Del; deleting B in A→B→C reconnects A→C; deleting a card
-  deletes its members. Undo/redo Ctrl+Z/Y, one entry per gesture; autosave debounced 300 ms.
+  deletes its members. Undo/redo Ctrl+Z/Y, one entry per gesture, within the draft (Save or Cancel clears it).
 - Navigate: wheel scroll, Shift+wheel horizontal, Ctrl+wheel/pinch zoom 50–200 %, Space+drag / middle-drag /
   one-finger pan, Ctrl+0 fit, Ctrl+1 100 %; minimap 160×100 bottom-right only when content overflows.
 - Empty state: centred glyph, title, line, "Add a step" button.
@@ -83,6 +88,10 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 - Failure policy: RadioButtons with descriptions — "Stop the flow" (default) "Nothing after this runs." ·
   "Skip what depends on it" "Steps that wait for this one are skipped. Others carry on." · "Keep going" "This
   step may fail, and the flow carries on." Hover/focus previews: affected nodes dim on the canvas.
+  Below it **"If it fails, run…"** (DropDownButton): "A new step ›" area › step (added after this step with
+  `when: failure`, selected) or a step already in the flow (no loops; an existing edge becomes a fallback).
+- Connections: one row per edge at the step ("Runs after Connect", "Show a message runs after this") with a
+  ComboBox "When it works" / "Only if it fails" / "Whatever happens".
 - Timing: "Try again" 0–10, "Wait between tries" s, "Give up after" s + "No limit".
 - Test: runs this step alone with on-screen values; "Testing…" + ProgressRing + Cancel; result InfoBar
   ("Worked in 1.2 s" / error + "Show details" expander); the pill ring shows it for 3 s.
@@ -100,6 +109,8 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   editor" shows that run on the canvas. Keep the last 100 runs.
 
 ## 5.6 Tray menu and run pop-up
+- Clicks (user, 2026-11-02): left click, or Enter/Space on the focused icon, opens the editor (starts it or brings
+  it to the front); right click, or Shift+F10/Apps, opens the menu. No editor installed: every gesture opens the menu.
 - Menu (native, dark/light): flows in YAML order with icon bitmaps and right-aligned shortcut (`\t`), folders as
   submenus, separators; running flow gets MFT_RADIOCHECK bullet (picking it applies "If it's already
   running"); invalid flow greyed "TV only (needs fixing)"; then separator · Open Daze Control · Pause
