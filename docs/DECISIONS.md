@@ -673,3 +673,30 @@ Status: accepted (M12 design)
   Why not a "hold one button" trigger: games hold buttons all the time. Why not the editor reading the pad (WGI):
   a second backend that can see pads the engine can't.
 - Revisit if: users want long-press triggers (then `Hold View` with a ≥ 1 s threshold).
+
+## D-058 · 2026-11-03 · "Run together" on linked steps drops the links between them instead of refusing
+Status: accepted (supersedes the "edges between members refused" part of UX §5.2 for Ctrl+G and drops)
+- Decision: Ctrl+G removes edges between the steps it groups; a body drop also removes the dragged step's links
+  on any path to or from the target (a → b → c, c onto a: [a c] → b). Outer edges move to the card as before; one
+  undo step. A removed `failure`/`always` link is said in a tip beside the card (§5.7 #45). Still refused: loops
+  through other steps (Ctrl+G), nested cards, and an edge a user draws between members (§5.7 #4, `CanConnect`).
+- Why: the user (2026-11-03) drags steps together to fix a wrong sequence; refusing because of that sequence
+  made the gesture useless. The drop names which step moves, so its path links are the ones to cut.
+- Why not refusing with a "remove the link first" tip: the old behaviour, reported as the bug. Why not cutting
+  every link of the dragged step: its unrelated waits (x → b) would vanish silently. Why not refusing fallback
+  links: the user still means "together"; the tip makes the behaviour change visible and Undo restores it.
+- Revisit if: users expect the dragged step's dependents to be re-linked to its old predecessors (as Delete does).
+
+## D-059 · 2026-11-03 · A new fallback switches its source from "Stop the flow" to "Skip what depends on it"
+Status: accepted
+- Decision: when an edge from a step or card becomes `when: failure` (inspector "If it fails, run…", Connections,
+  edge menu) and the source's policy is `stop`, the editor sets `skip` in the same undo step and says so (§5.7 #46).
+  `skip`/`ignore` chosen by the user stay; removing the last fallback doesn't switch back.
+- Why: user, 2026-11-03: a fallback link should change the step's behaviour by itself. Under D-024 a fallback
+  already handles the failure, so `stop` + fallback runs exactly like `skip` + fallback (SchedulerTests
+  `WithAFallbackStopAndSkipRunTheSame`): the fallback runs, dependents that needed success are skipped, the rest go
+  on. The inspector said "Stop the flow · Nothing after this runs", which was false; now it shows what happens.
+- Why not `ignore` ("Keep going", the user's word): it counts the failure as done, so the success dependents run
+  too, which breaks "try X, else Y" (the fallback and the normal path would both run). Why not leaving the policy and
+  only fixing the inspector's wording: the user asked for the setting to follow, and the YAML then says it too.
+- Revisit if: users want "run the fallback, then stop the flow" (D-024's revisit), which needs `stop` to mean that.

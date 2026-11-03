@@ -32,10 +32,11 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 - Connect: drag from output port (right) to an input port / node body (left); valid targets glow accent; a
   cycle shows not-allowed + teaching tip (§5.7 #3), never creates the edge.
 - Parallel vs sequence: fan-out = "at the same time". Dragging a pill over another shows two drop zones:
-  right third "Run after", body "Run together" (makes a card).
+  right third "Run after", body "Run together" (makes a card). Linked steps may be dropped together: the drop
+  fixes the order, so the dragged step's links on a path to or from the target go (D-058).
 - Cards: select ≥ 2 → Ctrl+G / "Run together" (members' outer edges move to the card); Ctrl+Shift+G ungroups
-  (stacked in one column, edges kept); drag pills in/out/between cards. No nested cards; edges between
-  members refused.
+  (stacked in one column, edges kept); drag pills in/out/between cards. No nested cards; grouping linked steps drops the
+  links between them (a dropped fallback is said beside the card, D-058); a new edge between members is refused (§5.7 #4).
 - Fallback edges (`when: failure`): edge context menu "Only if this fails" → edge drawn critical-dashed with an
   "If it fails" chip; `always` → "Whatever happens" chip. The same without the edge menu: the inspector's
   "If it fails, run…" and Connections (§5.4); the empty state's tip points there.
@@ -92,6 +93,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   step may fail, and the flow carries on." Hover/focus previews: affected nodes dim on the canvas.
   Below it **"If it fails, run…"** (DropDownButton): "A new step ›" area › step (added after this step with
   `when: failure`, selected) or a step already in the flow (no loops; an existing edge becomes a fallback).
+  Any new fallback (this menu, Connections, the edge menu) turns "Stop the flow" into "Skip what depends on it",
+  which is what the run does then (D-024), in the same undo step, with a tip (§5.7 #46); Skip and Keep going stay,
+  and removing the fallback doesn't switch back (D-059).
 - Connections: one row per edge at the step ("Runs after Connect", "Show a message runs after this") with a
   ComboBox "When it works" / "Only if it fails" / "Whatever happens".
 - Timing: "Try again" 0–10, "Wait between tries" s, "Give up after" s + "No limit".
@@ -179,7 +183,9 @@ flow uses View + Menu. Try another one." · 37 "Use at least two buttons, so a g
 38 "A menu can't list its own flow." · 39 "That would make a loop: Couch waits for TV menu, which waits for Couch."
 · 40 "Couch TV isn't there anymore. Remove it from the menu." · 41 "Wait for it to finish" / "Steps after the menu
 wait for the picked flow, and stop if it fails." · 42 "You picked Couch TV. Testing doesn't run it." · 43 "Start
-Daze Control to record controller buttons." · 44 "Nothing picked"
+Daze Control to record controller buttons." · 44 "Nothing picked" · 45 "These steps start together now, so the "if it fails" or
+"whatever happens" connection between them is gone." · 46 "If this fails, its fallback runs and the flow carries
+on, so it's set to "Skip what depends on it" now."
 
 ## 5.8 Risks → mitigations
 1 XAML element count: pill template ≤ 12 elements, no ThemeShadow per node, all edges in one layer of a few batched paths (D-037),

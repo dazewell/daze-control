@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M12 flow menu designed (docs/m12-flow-menu, docs/flow-menu/DESIGN.md, D-053..D-057); nothing built yet
-Last green checkpoint: 23893d5 test(runtime): bound FlowRunnerTests waits in real time
-Next action: T12.1 spike S1 (needs the user's Xbox pad plugged in) or T12.2 spike S2 (needs nothing), DESIGN §5
-Tree state: builds, 924/924 tests green (docs-only change) · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4); controller combos are "controller buttons". M12 answers from the user (2026-11-03): pads = Xbox + Steam Controller, the menu never takes focus, XInput polling only while a pad is on is acceptable. T10.5 is parked as issue #26 (T12.9 shares it). The editor has no flow delete yet. FlowRunnerTests' waits fail after 30 s real time; Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. Android input's "Add inputs in the Library" is plain text, not yet a link.
+Current task: C1 + C2 canvas fixes in PR #29 (fix/run-together-linked, D-058, D-059); M12 flow menu designed, nothing built yet
+Last green checkpoint: docs(plan): C1 done, Resume block points back at M12
+Next action: T12.2 spike S2 (no-activate menu window, needs nothing), DESIGN §5; T12.1 needs the user's Xbox pad
+Tree state: builds, 942/942 tests green · Uncommitted: none
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4); controller combos are "controller buttons". M12 answers from the user (2026-11-03): pads = Xbox + Steam Controller, the menu never takes focus, XInput polling only while a pad is on is acceptable. After PR #29: T12.1 spike S1 (needs the user's Xbox pad) or T12.2 spike S2 (needs nothing), DESIGN §5. T10.5 is parked as issue #26 (T12.9 shares it). The editor has no flow delete yet. FlowRunnerTests' waits fail after 30 s real time; Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone.
 
 ---
 
@@ -204,3 +204,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 - [x] F2 Fire TV → Android everywhere, clean rename (D-045).
 - [x] F3 Library › Displays: rename (refs follow) and details of the saved screens (D-046).
 - [x] F4 Library › Programs: Open file location, "Used by" opens the flows (D-046; Programs stays derived, D-041).
+
+## Canvas fixes (user reports)
+- [x] C1 Linked steps can be dropped / Ctrl+G'd together; the links between them go (D-058; fix/run-together-linked, PR #29).
+- [x] C2 A new fallback switches its source from Stop to Skip, with a tip (D-059; same PR).

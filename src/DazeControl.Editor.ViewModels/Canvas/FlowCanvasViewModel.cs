@@ -456,11 +456,52 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         Edit(flow => FlowGraph.Disconnect(flow, edge.From, edge.To));
     }
 
-    /// <summary>Edge menu: "Only if this fails" (Failure), "Whatever happens" (Always), back to Success.</summary>
+    /// <summary>
+    /// Edge menu and Connections: "Only if this fails" (Failure), "Whatever happens" (Always), back to Success. A
+    /// fallback switches its source off "Stop the flow" (<see cref="WithFallbackPolicy"/>).
+    /// </summary>
     public void SetWhen(CanvasEdgeViewModel edge, EdgeWhen when)
     {
         ArgumentNullException.ThrowIfNull(edge);
-        Edit(flow => FlowGraph.SetWhen(flow, edge.From, edge.To, when));
+        EditFallback(edge.From, flow => FlowGraph.SetWhen(flow, edge.From, edge.To, when));
+    }
+
+    /// <summary>A canvas note (not a refusal) to show beside <see cref="CanvasNote.At"/>: the edit is done.</summary>
+    public event EventHandler<CanvasNote>? Noted;
+
+    private void Note(string text, string at) => Noted?.Invoke(this, new CanvasNote(text, at));
+
+    public const string FallbackPolicyNote =
+        "If this fails, its fallback runs and the flow carries on, so it's set to \"Skip what depends on it\" now.";
+
+    /// <summary>
+    /// A step or card with an "if it fails" link and "Stop the flow" runs the fallback and goes on (D-024), which is
+    /// what "Skip what depends on it" says, so the policy shows that (D-059). Skip and Keep going stay as chosen.
+    /// </summary>
+    public static Flow WithFallbackPolicy(Flow flow, string source)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        var top = FlowGraph.TopLevel(flow, source);
+        var cardOf = FlowLayout.CardOf(flow);
+        if (flow.FindNode(top) is not { OnFailure: FailurePolicy.Stop }
+            || !FlowLayout.Edges(flow, cardOf).Any(e => e.From == top && e.When == EdgeWhen.Failure))
+            return flow;
+        return flow with { Nodes = [.. flow.Nodes.Select(n => n.Id == top ? n with { OnFailure = FailurePolicy.Skip } : n)] };
+    }
+
+    /// <summary>One undo step: <paramref name="change"/> plus the fallback policy of <paramref name="source"/>; noted.</summary>
+    private void EditFallback(string source, Func<Flow, Flow> change)
+    {
+        var switched = false;
+        Edit(flow =>
+        {
+            var changed = change(flow);
+            var next = WithFallbackPolicy(changed, source);
+            switched = !ReferenceEquals(next, changed);
+            return next;
+        });
+        if (switched && Flow is { } after)
+            Note(FallbackPolicyNote, FlowGraph.TopLevel(after, source));
     }
 
     // ---- "If it fails, run…" (UX §5.4): fallbacks without hunting for an edge's menu ----
@@ -471,7 +512,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         if (Flow is null || !CanEdit || Flow.FindNode(from) is null)
             return null;
         string? id = null;
-        Edit(flow =>
+        EditFallback(from, flow =>
         {
             (var next, id) = FlowCommands.Add(flow, step, [from]);
             return next with
@@ -490,9 +531,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             return ConnectRefusal.Unknown;
         var refusal = FlowGraph.CanConnect(flow, from, to);
         if (refusal == ConnectRefusal.Exists)
-            Edit(f => FlowGraph.SetWhen(f, FlowGraph.TopLevel(f, from), FlowGraph.TopLevel(f, to), EdgeWhen.Failure));
+            EditFallback(from, f => FlowGraph.SetWhen(f, FlowGraph.TopLevel(f, from), FlowGraph.TopLevel(f, to), EdgeWhen.Failure));
         else if (refusal == ConnectRefusal.None)
-            Edit(f => FlowGraph.Connect(f, from, to, EdgeWhen.Failure));
+            EditFallback(from, f => FlowGraph.Connect(f, from, to, EdgeWhen.Failure));
         return refusal is ConnectRefusal.Exists ? ConnectRefusal.None : refusal;
     }
 
@@ -513,13 +554,16 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     // ---- Cards (UX §5.2): Ctrl+G, Ctrl+Shift+G, drop zones ----
 
+    public const string DroppedFallbackNote =
+        "These steps start together now, so the \"if it fails\" or \"whatever happens\" connection between them is gone.";
+
     /// <summary>Ctrl+G / "Run together" on the selection (steps and cards, in `nodes` order); selects the card.</summary>
     public ConnectRefusal GroupSelection()
     {
         if (Flow is not { } flow)
             return ConnectRefusal.Unknown;
         var ids = flow.Nodes.Select(n => n.Id).Where(_selected.Contains).ToList();
-        var (next, refusal) = FlowEdits.Group(flow, ids);
+        var (next, refusal, droppedFallback) = FlowEdits.Group(flow, ids);
         if (refusal != ConnectRefusal.None || next == flow)
             return refusal;
         // Only ids Group accepted (cards and loose steps); a member of another card was ignored.
@@ -529,6 +573,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             .Select(id => next.FindNode(id) is GroupNode ? id : cardOf.GetValueOrDefault(id)).First(id => id is not null)!;
         Edit(_ => next);
         Select(card);
+        if (droppedFallback)
+            Note(DroppedFallbackNote, card);
         return ConnectRefusal.None;
     }
 
@@ -572,9 +618,15 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     {
         if (Flow is not { } flow || zone == DropZone.None)
             return ConnectRefusal.None;
-        var (next, refusal) = zone == DropZone.RunAfter ? FlowEdits.RunAfter(flow, dragged, target) : FlowEdits.RunTogether(flow, dragged, target);
+        var (next, refusal, droppedFallback) = zone == DropZone.RunAfter
+            ? new GroupResult(FlowEdits.RunAfter(flow, dragged, target).Flow, FlowEdits.RunAfter(flow, dragged, target).Refusal)
+            : FlowEdits.RunTogether(flow, dragged, target);
         if (refusal == ConnectRefusal.None && next != flow)
+        {
             Edit(_ => next);
+            if (droppedFallback)
+                Note(DroppedFallbackNote, FlowGraph.TopLevel(next, dragged));
+        }
         return refusal;
     }
 
@@ -886,3 +938,6 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     public void Dispose() => _session.PropertyChanged -= OnSessionChanged;
 }
+
+/// <summary>Something the canvas says beside node <paramref name="At"/> after an edit went through.</summary>
+public sealed record CanvasNote(string Text, string At);

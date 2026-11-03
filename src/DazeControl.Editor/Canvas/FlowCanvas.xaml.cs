@@ -94,6 +94,7 @@ public sealed partial class FlowCanvas : UserControl
             {
                 _viewModel.PropertyChanged -= OnViewModelChanged;
                 _viewModel.Nodes.CollectionChanged -= OnNodesChanged;
+                _viewModel.Noted -= OnNoted;
             }
             _viewModel = value;
             NodeLayer.Children.Clear();
@@ -104,6 +105,7 @@ public sealed partial class FlowCanvas : UserControl
                 return;
             _viewModel.PropertyChanged += OnViewModelChanged;
             _viewModel.Nodes.CollectionChanged += OnNodesChanged;
+            _viewModel.Noted += OnNoted;
             SyncNodes();
             DrawEdges();
             UpdateExtent();
@@ -891,8 +893,18 @@ public sealed partial class FlowCanvas : UserControl
             ShowTip(why, null);
     }
 
-    private void ShowTip(string text, FrameworkElement? target)
+    /// <summary>An edit went through but changed more than it shows (D-058, D-059): said beside the node once laid out.</summary>
+    private void OnNoted(object? sender, CanvasNote note) => DispatcherQueue.TryEnqueue(() =>
     {
+        if (!Shown)
+            ShowTip(note.Text, FallbackTarget, title: "");
+        else if (_views.TryGetValue(note.At, out var view))
+            ShowTip(note.Text, view, title: "");
+    });
+
+    private void ShowTip(string text, FrameworkElement? target, string title = "Can't connect these")
+    {
+        RefusalTip.Title = title;
         RefusalTip.Subtitle = text;
         RefusalTip.Target = target;
         RefusalTip.IsOpen = true;

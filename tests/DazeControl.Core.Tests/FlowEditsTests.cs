@@ -1,5 +1,6 @@
 using DazeControl.Core.Layout;
 using DazeControl.Core.Model;
+using DazeControl.Core.Validation;
 
 namespace DazeControl.Core.Tests;
 
@@ -13,6 +14,12 @@ public class FlowEditsTests
     private static ValueList<Edge> After(Flow flow, string id) => flow.FindNode(id)!.After;
 
     private static Edge E(string from) => new(from);
+
+    /// <summary>The flow's graph errors (no loops, no edges into or between members); the steps' settings aside.</summary>
+    private static IEnumerable<string> GraphErrors(Flow flow) =>
+        ConfigValidator.Validate(new Configuration { Flows = [flow] })
+            .Where(p => p.Severity == Severity.Error && !p.Path.Contains(".with", StringComparison.Ordinal))
+            .Select(p => $"{p.Path}: {p.Message}");
 
     [Fact]
     public void GroupMovesOuterEdgesToTheCard()
@@ -32,14 +39,35 @@ public class FlowEditsTests
     }
 
     [Fact]
-    public void GroupRefusesStepsThatWaitForEachOther()
+    public void GroupDropsTheLinkBetweenStepsThatWaitForEachOther()
     {
-        var flow = FlowOf(Step("a"), Step("b", "a"));
+        // x → a → b → y: grouping a and b fixes the sequence to x → [a b] → y (D-058).
+        var flow = FlowOf(Step("x"), Step("a", "x"), Step("b", "a"), Step("y", "b"));
 
-        var (result, refusal) = FlowEdits.Group(flow, ["a", "b"]);
+        var (result, refusal, droppedFallback) = FlowEdits.Group(flow, ["a", "b"]);
 
-        Assert.Equal(ConnectRefusal.SameCard, refusal);
-        Assert.Same(flow, result);
+        Assert.Equal(ConnectRefusal.None, refusal);
+        Assert.False(droppedFallback);
+        Assert.Equal(["a", "b"], ((GroupNode)result.FindNode("together")!).Members);
+        Assert.Equal([E("x")], After(result, "together"));
+        Assert.Empty(After(result, "a"));
+        Assert.Empty(After(result, "b"));
+        Assert.Equal([E("together")], After(result, "y"));
+        Assert.Empty(GraphErrors(result));
+    }
+
+    [Fact]
+    public void GroupSaysWhenItDropsAFallbackBetweenTheSteps()
+    {
+        // b runs only if a fails; together they both just run, which the canvas must say.
+        var flow = FlowOf(Step("a"), new StepNode("b", "wait") { After = [new Edge("a", EdgeWhen.Failure)] });
+
+        var (result, refusal, droppedFallback) = FlowEdits.Group(flow, ["a", "b"]);
+
+        Assert.Equal(ConnectRefusal.None, refusal);
+        Assert.True(droppedFallback);
+        Assert.Empty(After(result, "together"));
+        Assert.Empty(GraphErrors(result));
     }
 
     [Fact]
@@ -243,6 +271,101 @@ public class FlowEditsTests
         Assert.Equal(ConnectRefusal.None, refusal);
         Assert.Equal(["b", "c"], ((GroupNode)result.FindNode("together")!).Members);
         Assert.Equal([E("a")], After(result, "together"));
+    }
+
+    [Fact]
+    public void RunTogetherOntoTheStepItWaitsFor()
+    {
+        var flow = FlowOf(Step("x"), Step("a", "x"), Step("b", "a"), Step("y", "b"));
+
+        var (result, refusal) = FlowEdits.RunTogether(flow, "b", "a");
+
+        Assert.Equal(ConnectRefusal.None, refusal);
+        Assert.Equal(["a", "b"], ((GroupNode)result.FindNode("together")!).Members);
+        Assert.Equal([E("x")], After(result, "together"));
+        Assert.Equal([E("together")], After(result, "y"));
+        Assert.Empty(GraphErrors(result));
+    }
+
+    [Fact]
+    public void RunTogetherOntoAStepThatWaitsForIt()
+    {
+        // a → b, dragging a onto b.
+        var flow = FlowOf(Step("a"), Step("b", "a"), Step("y", "b"));
+
+        var (result, refusal) = FlowEdits.RunTogether(flow, "a", "b");
+
+        Assert.Equal(ConnectRefusal.None, refusal);
+        Assert.Equal(["b", "a"], ((GroupNode)result.FindNode("together")!).Members);
+        Assert.Empty(After(result, "together"));
+        Assert.Equal([E("together")], After(result, "y"));
+        Assert.Empty(GraphErrors(result));
+    }
+
+    [Fact]
+    public void RunTogetherAtTheEndOfAChainLeavesTheStepInBetweenAfterTheCard()
+    {
+        // a → b → c, dragging c onto a: c leaves its place after b, so [a c] → b.
+        var flow = FlowOf(Step("a"), Step("b", "a"), Step("c", "b"));
+
+        var (result, refusal) = FlowEdits.RunTogether(flow, "c", "a");
+
+        Assert.Equal(ConnectRefusal.None, refusal);
+        Assert.Equal(["a", "c"], ((GroupNode)result.FindNode("together")!).Members);
+        Assert.Empty(After(result, "together"));
+        Assert.Equal([E("together")], After(result, "b"));
+        Assert.Empty(GraphErrors(result));
+    }
+
+    [Fact]
+    public void RunTogetherAtTheStartOfAChainLeavesTheStepInBetweenBeforeTheCard()
+    {
+        // a → b → c, dragging a onto c: a leaves its place before b, so b → [c a].
+        var flow = FlowOf(Step("a"), Step("b", "a"), Step("c", "b"));
+
+        var (result, refusal) = FlowEdits.RunTogether(flow, "a", "c");
+
+        Assert.Equal(ConnectRefusal.None, refusal);
+        Assert.Empty(After(result, "b"));
+        Assert.Equal([E("b")], After(result, "together"));
+        Assert.Empty(GraphErrors(result));
+    }
+
+    [Fact]
+    public void RunTogetherIntoACardThatWaitsForTheStep()
+    {
+        // a → [m1 m2], dragging a into the card.
+        var flow = FlowOf(Step("a"), new GroupNode("g", ["m1", "m2"]) { After = [E("a")] }, Step("m1"), Step("m2"));
+
+        var (result, refusal) = FlowEdits.RunTogether(flow, "a", "m1");
+
+        Assert.Equal(ConnectRefusal.None, refusal);
+        Assert.Equal(["m1", "m2", "a"], ((GroupNode)result.FindNode("g")!).Members);
+        Assert.Empty(After(result, "g"));
+        Assert.Empty(GraphErrors(result));
+    }
+
+    [Fact]
+    public void RunTogetherSaysWhenItDropsAFallback()
+    {
+        var flow = FlowOf(Step("a"), new StepNode("b", "wait") { After = [new Edge("a", EdgeWhen.Always)] });
+
+        var (result, refusal, droppedFallback) = FlowEdits.RunTogether(flow, "b", "a");
+
+        Assert.Equal(ConnectRefusal.None, refusal);
+        Assert.True(droppedFallback);
+        Assert.Empty(GraphErrors(result));
+    }
+
+    [Fact]
+    public void RunTogetherKeepsTheDraggedStepsOtherLinks()
+    {
+        // x → b and a → b: dropping b onto a drops only a → b; the card still waits for x.
+        var flow = FlowOf(Step("x"), Step("a"), Step("b", "x", "a"));
+
+        var (result, _) = FlowEdits.RunTogether(flow, "b", "a");
+
+        Assert.Equal([E("x")], After(result, "together"));
     }
 
     [Fact]
