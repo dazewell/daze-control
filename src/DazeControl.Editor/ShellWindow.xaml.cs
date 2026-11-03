@@ -12,6 +12,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
@@ -297,6 +298,33 @@ public sealed partial class ShellWindow : Window
     {
         if (sender is FrameworkElement { Tag: string id })
             ViewModel.OpenFlow(id);
+    }
+
+    /// <summary>A click on a flow's card opens it, unless it landed on the On switch or a button inside the card.</summary>
+    private void OnFlowCardTapped(object sender, TappedRoutedEventArgs e)
+    {
+        for (var element = e.OriginalSource as DependencyObject; element is not null && !ReferenceEquals(element, sender); element = VisualTreeHelper.GetParent(element))
+        {
+            if (element is ToggleSwitch or ButtonBase)
+                return;
+        }
+        if (sender is FrameworkElement { Tag: string id })
+        {
+            e.Handled = true;
+            ViewModel.OpenFlow(id);
+        }
+    }
+
+    private void OnFlowCardPointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Grid card)
+            card.Background = (Brush)Application.Current.Resources["CardBackgroundFillColorSecondaryBrush"];
+    }
+
+    private void OnFlowCardPointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Grid card)
+            card.ClearValue(Panel.BackgroundProperty); // back to the SettingsCard style's fill
     }
 
     private void OnShellChanged(object? sender, PropertyChangedEventArgs e)

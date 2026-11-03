@@ -82,8 +82,7 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="Auto" />
-                                            <!-- Fixed, so Test lines up whether or not Remove shows. -->
-                                            <ColumnDefinition Width="40" />
+                                            <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <FontIcon Glyph="{x:Bind Glyph}" Style="{StaticResource SettingsCardIcon}" />
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -150,10 +149,16 @@
                                                 </StackPanel>
                                             </Button>
                                         </StackPanel>
-                                        <Button Grid.Column="4" Click="OnRemove" HorizontalAlignment="Right" Tag="{x:Bind}" Visibility="{x:Bind CanRemove, Mode=OneWay}"
-                                                ToolTipService.ToolTip="Remove from Library" AutomationProperties.Name="{x:Bind RemoveName, Mode=OneWay}">
-                                            <FontIcon Glyph="&#xE74D;" FontSize="14" />
-                                        </Button>
+                                        <!-- Always there for removable kinds, so every row lines up; off while a flow uses it. The tooltip
+                                             sits on a wrapper because a disabled button shows none. -->
+                                        <Border Grid.Column="4" Margin="4,0,0,0" Background="Transparent" VerticalAlignment="Center"
+                                                Visibility="{x:Bind Removable, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind RemoveTip, Mode=OneWay}">
+                                            <Button Click="OnRemove" Tag="{x:Bind}" IsEnabled="{x:Bind CanRemove, Mode=OneWay}"
+                                                    AutomationProperties.Name="{x:Bind RemoveName, Mode=OneWay}"
+                                                    AutomationProperties.HelpText="{x:Bind RemoveTip, Mode=OneWay}">
+                                                <FontIcon Glyph="&#xE74D;" FontSize="14" />
+                                            </Button>
+                                        </Border>
                                     </Grid>
                                     <!-- Displays › details: each screen as the layout saved it. -->
                                     <Border Visibility="{x:Bind ShowDetails, Mode=OneWay}" Padding="58,8,16,12" Margin="0,1,0,0" CornerRadius="0,0,4,4"

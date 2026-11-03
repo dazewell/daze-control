@@ -41,8 +41,22 @@ public sealed record TrayState(IReadOnlySet<string> Running, Func<string, string
 /// <c>tray.show: false</c>. A flow whose file version is broken but whose last valid version still runs (D-021)
 /// shows normally.
 /// </summary>
+/// <summary>How the user reached the tray icon (UX §5.6).</summary>
+public enum TrayGesture
+{
+    /// <summary>Left click, or Enter/Space on the focused icon.</summary>
+    Select,
+
+    /// <summary>Right click, or Shift+F10/Apps on the focused icon.</summary>
+    ContextMenu,
+}
+
 public static class TrayMenu
 {
+    /// <summary>Select opens the editor; the menu comes on a right click, or on Select when no editor is installed.</summary>
+    public static bool OpensEditor(TrayGesture gesture, bool editorInstalled) =>
+        gesture == TrayGesture.Select && editorInstalled;
+
     public static IReadOnlyList<TrayEntry> Build(ConfigSnapshot snapshot, TrayState state)
     {
         var top = new List<TrayEntry>();

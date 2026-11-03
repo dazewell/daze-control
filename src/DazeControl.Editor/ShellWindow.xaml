@@ -127,7 +127,9 @@
                                     </ItemsRepeater.Layout>
                                     <ItemsRepeater.ItemTemplate>
                                         <DataTemplate x:DataType="vm:FlowItemViewModel">
-                                            <Grid Style="{StaticResource SettingsCard}">
+                                            <!-- A click anywhere but the switch and the button opens the flow; the Edit button stays for the keyboard. -->
+                                            <Grid Style="{StaticResource SettingsCard}" Tag="{x:Bind Id}" Tapped="OnFlowCardTapped"
+                                                  PointerEntered="OnFlowCardPointerEntered" PointerExited="OnFlowCardPointerExited">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />

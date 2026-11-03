@@ -128,6 +128,10 @@ public sealed class LibraryPageViewModelTests : IDisposable
         Assert.Equal("1 screen", Item(LibraryKind.Display, "desk").Detail);
         Assert.False(Item(LibraryKind.Bluetooth, "technics").CanRemove);
         Assert.True(Item(LibraryKind.Bluetooth, "sony").CanRemove);
+        // Remove shows on every row of a removable kind; in use, it is off and says why.
+        Assert.True(Item(LibraryKind.Bluetooth, "technics").Removable);
+        Assert.Equal("Used by 1 flow. Remove it from that flow first.", Item(LibraryKind.Bluetooth, "technics").RemoveTip);
+        Assert.Equal("Remove from Library", Item(LibraryKind.Bluetooth, "sony").RemoveTip);
     }
 
     [Fact]
