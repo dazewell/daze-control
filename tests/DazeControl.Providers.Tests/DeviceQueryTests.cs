@@ -24,6 +24,52 @@ public class DeviceQueryTests
     public void DeviceNameIsTheSharedPart() =>
         Assert.Equal("Technics EAH-AZ80", KsBluetoothAudio.DeviceName(["Headset (Technics EAH-AZ80 Hands-Free)", "Headphones (Technics EAH-AZ80)"]));
 
+    [Theory]
+    [InlineData(@"BTHLE\DEV_D9E08EC29685\7&38A9E24E&0&D9E08EC29685", "D9E08EC29685")]
+    [InlineData(@"BTHENUM\DEV_8099e72aaba1\7&2B3B0905&0&BLUETOOTHDEVICE_8099E72AABA1", "8099E72AABA1")]
+    [InlineData(@"BTHENUM\{0000110b-0000-1000-8000-00805f9b34fb}_VID&0001009e\7&2F&0&B8208EED48FC_C00000000", null)]
+    [InlineData(@"BTHLE\DEV_D9E08EC2968\x", null)]
+    public void PairedAddressComesFromTheDeviceNode(string id, string? address) =>
+        Assert.Equal(address, CfgMgrPairedBluetooth.AddressOf(id));
+
+    [Fact]
+    public void PairedListDropsEndpointsOfUnpairedDevices()
+    {
+        var list = BluetoothList.Merge([new("B8208EED48FC", "Technics EAH-AZ80", false)],
+            [("B8:20:8E:ED:48:FC", "Technics EAH-AZ80", true), ("11:22:33:44:55:66", "SOUNDPEATS H3", false)]);
+
+        var technics = Assert.Single(list);
+        Assert.Equal("B8:20:8E:ED:48:FC", technics.Name);
+        Assert.Equal("Technics EAH-AZ80", technics.Detail);
+        Assert.Equal("connected", technics.State); // the endpoints say, not the node
+        Assert.False(technics.NotConnectable);
+    }
+
+    [Fact]
+    public void PairedListMergesTheLeAndClassicNodesOfOneDevice()
+    {
+        var list = BluetoothList.Merge([new("9CAA5D2F5E60", "OPPO dazewell", false), new("9caa5d2f5e60", "OPPO dazewell", true)], []);
+
+        var phone = Assert.Single(list);
+        Assert.Equal("9C:AA:5D:2F:5E:60", phone.Name);
+        Assert.Equal("connected", phone.State);
+    }
+
+    [Fact]
+    public void PairedListKeepsDevicesWithoutAudioAsNotConnectable()
+    {
+        var list = BluetoothList.Merge([new("D9E08EC29685", "MX Master 3S", true), new("D30C5D7D6020", "MX Keys Mini", null),
+            new("8099E72AABA1", "WH-1000XM5", false)], [("80:99:E7:2A:AB:A1", "WH-1000XM5", false)]);
+
+        Assert.Equal(["MX Keys Mini", "MX Master 3S", "WH-1000XM5"], list.Select(d => d.Detail));
+        Assert.Equal([true, true, false], list.Select(d => d.NotConnectable));
+        Assert.Equal([null, "connected", "not connected"], list.Select(d => d.State));
+    }
+
+    [Fact]
+    public void PairedNameFallsBackToTheEndpoints() =>
+        Assert.Equal("Zone 301", Assert.Single(BluetoothList.Merge([new("4473D6E42902", "", null)], [("44:73:D6:E4:29:02", "Zone 301", false)])).Detail);
+
     [Fact]
     public async Task UnknownKindFails() =>
         await Assert.ThrowsAsync<StepFailedException>(() => BuiltInProviders.Devices().ListAsync("toaster", TestContext.Current.CancellationToken));
@@ -39,7 +85,12 @@ public class DeviceQueryTests
         if (DevPc && kind != "bluetooth")
             Assert.NotEmpty(devices);
         if (DevPc && kind == "bluetooth")
-            Assert.Contains(devices, d => d.Name == "B8:20:8E:ED:48:FC"); // the user's Technics
+        {
+            // Settings → Bluetooth & devices on the dev PC, 2026-11-02 (D-052, X-005).
+            Assert.Equal(["MX Keys Mini", "MX Master 3S", "OPPO dazewell", "Steam Ctrl (BT) FXA996140073A", "Technics EAH-AZ80", "WH-1000XM5", "Zone 301"],
+                devices.Select(d => d.Detail));
+            Assert.Equal([true, true, true, true, false, false, false], devices.Select(d => d.NotConnectable));
+        }
         if (DevPc && kind == "audio")
             Assert.Single(devices, d => d.Detail == "Output, default");
     }

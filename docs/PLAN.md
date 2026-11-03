@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M11 designed (docs/m11-design: D-049..D-052, X-005, UX §5.4/§5.7, PLAN → M11); implementation not started
-Last green checkpoint: docs(m11) design for desktop shortcuts, pickers and the Bluetooth list
-Next action: T11.1 (fix/bluetooth-list) first, then T11.2 → T11.3 (feat/m11-pickers) and T11.4 → T11.5 (feat/m11-shortcuts)
-Tree state: builds, 823/823 tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). T11.1's expected list is in its done-when (dev PC, 2026-11-02).
+Current task: T11.1 Bluetooth paired list done (fix/bluetooth-list, 0.20.1); next T11.2 → T11.3 (feat/m11-pickers)
+Last green checkpoint: b80f8c7 docs(m11) design for desktop shortcuts, pickers and the Bluetooth list (#22)
+Next action: T11.2 — `ParamSpec.Suggest`/`Ordered`/`Examples` in Core/Catalog, then the catalog coverage test
+Tree state: builds, 833/833 tests green (DAZE_DEV_PC=1) · Uncommitted: none
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). feat/m11-shortcuts runs in parallel (Protocol ops, Engine/Program.cs, Flows page): expect Resume/Version conflicts.
 
 ---
 
@@ -117,14 +117,14 @@ Notes for next agent: release.yml is tag-only (D-043): never push a v-tag withou
 ## M11 Shortcuts, pickers, Bluetooth list (user, 2026-11-02; design D-049..D-052, X-005)
 Order: T11.1 alone first (a bug the user sees); then T11.2 → T11.3 and T11.4 → T11.5. One PR per branch, feat
 PRs bump the minor version.
-- [ ] T11.1 Bluetooth list = Windows' paired devices (fix/bluetooth-list, D-052). `Providers/Bluetooth`: CfgMgr32
+- [x] T11.1 Bluetooth list = Windows' paired devices (fix/bluetooth-list, D-052). `Providers/Bluetooth`: CfgMgr32
   enumeration of present `BTHENUM\DEV_*` + `BTHLE\DEV_*` behind a seam, merged by address with the endpoint data
   (connectable + Connected); `DeviceInfo.State`, a "not connectable" flag the editor disables (Library "Add from
   Windows" and the step picker, #26). Check one devnode property for non-audio Connected against Settings; none
   reliable → no state. Done when: tests on the merge with fake devnodes/endpoints (ghost endpoints dropped, LE+classic
   of one address merged, non-audio listed not connectable); on the dev PC `dctl devices bluetooth` lists exactly MX
   Master 3S, MX Keys Mini, Steam Ctrl, OPPO dazewell, Zone 301, WH-1000XM5, Technics EAH-AZ80 and none of SOUNDPEATS
-  H3 / Technics EAH-AZ40M2 / WF-C710N; editor screenshot of the picker.
+  H3 / Technics EAH-AZ40M2 / WF-C710N; editor screenshot of the picker. (fix/bluetooth-list)
 - [ ] T11.2 Catalog suggestions + examples (feat/m11-pickers, D-050). Core: `ParamSpec.Suggest` (Devices / Config /
   Static), `Ordered`, `Examples`; Android key table shared with the provider; examples per UX §5.4. Ipc/Providers:
   `devices services` (EnumServicesStatusEx, no admin), `devices credentials` (CredEnumerate `DazeControl:*`, names

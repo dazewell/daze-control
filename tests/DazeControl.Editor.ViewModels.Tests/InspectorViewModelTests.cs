@@ -34,8 +34,9 @@ public sealed class InspectorViewModelTests : IDisposable
                 Ok = true,
                 Devices =
                 [
-                    new DeviceInfo { Name = "B8:20:8E:ED:48:FC", Detail = "Technics, connected" },
-                    new DeviceInfo { Name = "11:22:33:44:55:66", Detail = "WH-1000XM4, not connected" },
+                    new DeviceInfo { Name = "B8:20:8E:ED:48:FC", Detail = "Technics", State = "connected" },
+                    new DeviceInfo { Name = "11:22:33:44:55:66", Detail = "WH-1000XM4", State = "not connected" },
+                    new DeviceInfo { Name = "D9:E0:8E:C2:96:85", Detail = "MX Master 3S", State = "connected", NotConnectable = true },
                 ],
             },
             _ => new PipeMessage { Ok = true },
@@ -169,7 +170,7 @@ public sealed class InspectorViewModelTests : IDisposable
         _canvas.Select("bt");
 
         var options = Field("device").Devices;
-        Assert.Equal([DeviceSource.Library, DeviceSource.Windows], options.Select(o => o.Source));
+        Assert.Equal([DeviceSource.Library, DeviceSource.Windows, DeviceSource.Windows], options.Select(o => o.Source));
         Assert.Equal("Technics", options[0].Title);
         Assert.Equal("Connected", options[0].Caption);
         Assert.Equal("WH-1000XM4", options[1].Title);
@@ -178,11 +179,39 @@ public sealed class InspectorViewModelTests : IDisposable
     }
 
     [Fact]
+    public void ABluetoothDeviceWithoutAudioIsListedButCantBePicked()
+    {
+        _canvas.Select("bt");
+        var mouse = Field("device").Devices.Single(o => o.Title == "MX Master 3S");
+
+        Assert.False(mouse.IsEnabled);
+        Assert.Equal(LibraryDevices.NotConnectable, mouse.Caption);
+        Field("device").Device = mouse;
+
+        Assert.DoesNotContain(_session.Current.Library.Bluetooth, d => d.Address == "D9:E0:8E:C2:96:85");
+        Assert.Equal("Technics", Field("device").Device!.Title);
+    }
+
+    [Fact]
+    public void ALibraryDeviceWithoutAudioIsShownButCantBePicked()
+    {
+        var library = new Library { Bluetooth = [new BluetoothDevice("technics", "B8:20:8E:ED:48:FC", "Technics"),
+            new BluetoothDevice("mouse", "D9:E0:8E:C2:96:85", "MX Master 3S")] };
+        var live = new List<DeviceInfo> { new() { Name = "D9:E0:8E:C2:96:85", Detail = "MX Master 3S", NotConnectable = true } };
+
+        var mouse = LibraryDevices.Options(LibraryKind.Bluetooth, library, live, "technics", required: true, canCapture: false)
+            .Single(o => o.Key == "mouse");
+
+        Assert.False(mouse.IsEnabled);
+        Assert.Equal(LibraryDevices.NotConnectable, mouse.Caption);
+    }
+
+    [Fact]
     public void PickingAWindowsDeviceAddsItToTheLibrarySilently()
     {
         _canvas.Select("bt");
 
-        Field("device").Device = Field("device").Devices.Single(o => o.Source == DeviceSource.Windows);
+        Field("device").Device = Field("device").Devices.Single(o => o.Title == "WH-1000XM4");
 
         var added = Assert.Single(_session.Current.Library.Bluetooth, d => d.Address == "11:22:33:44:55:66");
         Assert.Equal("wh-1000xm4", added.Key);

@@ -64,9 +64,9 @@ public sealed class LibraryPageViewModelTests : IDisposable
                 Ok = true,
                 Devices =
                 [
-                    new DeviceInfo { Name = "B8:20:8E:ED:48:FC", Detail = "Technics, connected" },
-                    new DeviceInfo { Name = "80:99:E7:2A:AB:A1", Detail = "Sony, not connected" },
-                    new DeviceInfo { Name = "11:22:33:44:55:66", Detail = "WH-1000XM4, not connected" },
+                    new DeviceInfo { Name = "B8:20:8E:ED:48:FC", Detail = "Technics", State = "connected" },
+                    new DeviceInfo { Name = "80:99:E7:2A:AB:A1", Detail = "Sony", State = "not connected" },
+                    new DeviceInfo { Name = "11:22:33:44:55:66", Detail = "WH-1000XM4", State = "not connected" },
                 ],
             },
             Ops.Devices when request.Kind == "audio" => new PipeMessage
@@ -145,6 +145,23 @@ public sealed class LibraryPageViewModelTests : IDisposable
         var available = Assert.Single(_page.Section(LibraryKind.Bluetooth).Available);
         Assert.Equal("WH-1000XM4", available.Title);
         Assert.Empty(_page.Section(LibraryKind.Display).Available); // layouts are captured, not added
+    }
+
+    [Fact]
+    public async Task AddFromWindowsShowsABluetoothDeviceWithoutAudioDisabled()
+    {
+        var answer = _engine.Answer;
+        _engine.Answer = request => request.Kind == "bluetooth"
+            ? new PipeMessage { Ok = true, Devices = [new DeviceInfo { Name = "D3:0C:5D:7D:60:20", Detail = "MX Keys Mini", NotConnectable = true }] }
+            : answer!(request);
+        await _page.RefreshAsync();
+        var keyboard = Assert.Single(_page.Section(LibraryKind.Bluetooth).Available);
+
+        _page.AddCommand.Execute(keyboard);
+
+        Assert.False(keyboard.IsEnabled);
+        Assert.Equal(LibraryDevices.NotConnectable, keyboard.Caption);
+        Assert.DoesNotContain(_session.Current.Library.Bluetooth, d => d.Address == "D3:0C:5D:7D:60:20");
     }
 
     [Fact]

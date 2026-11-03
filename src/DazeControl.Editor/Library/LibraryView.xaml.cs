@@ -34,6 +34,12 @@ public sealed partial class LibraryView : UserControl
             _viewModel.SelectedIndex = SectionsPivot.SelectedIndex;
     }
 
+    private void OnDeviceRowLoaded(object sender, RoutedEventArgs e) => Inspector.InspectorPane.DisableRow(sender);
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnDeviceRowDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs e) =>
+        Inspector.InspectorPane.DisableRow(sender);
+
     private void OnAddClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is DeviceOption option)
