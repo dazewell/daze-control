@@ -256,6 +256,10 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   (`EdgeRoute.WrapLaneY` set). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
   and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
   edges batched by style, D-037) and maps pointer/keys to VM calls; zoom/scroll is a `ScrollViewer` (50–200 %).
+  Right-drag pan (D-069): `Canvas/RightDragPan` (pure, tested) arms on a mouse right press, pans once the pointer
+  leaves the system drag rectangle (`GetSystemMetricsForDpi(SM_CX/CYDRAG)` at the XAML root's DPI, in DIP), and
+  swallows the one `RightTapped` after a pan. The canvas captures only once panning, so a still click's `RightTapped`
+  still arrives; an armed press is dropped on `PointerExited` (no capture = no release outside).
 - Canvas edits live in Core: `FlowGraph` (connect/disconnect/`when`, refusals: exists, loop, same card) and
   `FlowEdits` (group/ungroup, take out — a card under 2 members dissolves —, run together/after on drop).
   `FlowTidy` ("Tidy up") cuts crossings with barycentre sweeps; nodes only trade the `nodes` slots their column
@@ -361,7 +365,7 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   D-064: `IFlowStarter` shared with menus, `FlowRunner.RunNestedAsync`, call-graph validation, `$input` refs);
   fallback outcomes (D-065: `NodeOutcome.NotNeeded`, `FlowShape.Fallbacks`, `Outcomes.Summarize` counts handled
   failures as fine); layout segments after a wrapped block (D-066) and the Layout menu's `LayoutOptions` (D-067);
-  `EditorSettingsStore` / `editor.json` (D-068); right-drag pan (D-069); Flows card Run (D-070). Each task rewrites the
+  `EditorSettingsStore` / `editor.json` (D-068); Flows card Run (D-070). Each task rewrites the
   section it changes (Config's "ends PartiallySucceeded (D-024)" sentence goes with T13.7).
 
 - Library leftovers: editing an Android device's inputs and an audio match in place; renaming audio and Bluetooth keys

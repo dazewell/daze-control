@@ -51,9 +51,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   refs, paste into a new column to the right. Del; deleting B in A→B→C reconnects A→C; deleting a card
   deletes its members. Undo/redo Ctrl+Z/Y, one entry per gesture, within the draft (Save or Cancel clears it).
 - Navigate: wheel scroll, Shift+wheel horizontal, Ctrl+wheel/pinch zoom 50–200 %, Space+drag / middle-drag /
-  one-finger pan, Ctrl+0 fit, Ctrl+1 100 %; minimap 160×100 bottom-right only when content overflows. M13: right-drag
-  pans too, over pills and edges as well; a right click that doesn't move past the system drag distance still opens
-  the menu (D-069).
+  right-drag / one-finger pan, Ctrl+0 fit, Ctrl+1 100 %; minimap 160×100 bottom-right only when content overflows.
+  Right-drag pans over pills and edges too, without selecting them; a right click that doesn't leave the system drag
+  rectangle still opens the menu (D-069).
 - Empty state: centred glyph, title, line, "Add a step" button.
 - Keyboard: canvas is one tab stop with roving focus; Right/Left = next/previous step, Up/Down = same column;
   Enter → inspector; F2 rename; Alt+Up/Down reorder; Alt+Right into the adjacent card; Ctrl+L "Runs after…"

@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Runtime.InteropServices;
 using System.ComponentModel;
 using DazeControl.Core.Layout;
 using DazeControl.Core.Model;
@@ -34,13 +35,14 @@ public sealed partial class FlowCanvas : UserControl
     private bool _fitPending;
     private bool _autoFit;
 
-    private enum Gesture { None, Press, DragNode, Marquee, Pan, Connect }
+    private enum Gesture { None, Press, DragNode, Marquee, Pan, Connect, RightPan }
 
     private Gesture _gesture;
     private uint _pointerId;
     private Windows.Foundation.Point _pressContent;
     private Windows.Foundation.Point _pressScreen;
     private double _panStartX, _panStartY;
+    private RightDragPan? _rightPan;
     private NodeView? _dragged;
     private CanvasNodeViewModel? _connectFrom;
     private CanvasEdgeViewModel? _controlsEdge;
@@ -65,6 +67,8 @@ public sealed partial class FlowCanvas : UserControl
         Root.PointerCaptureLost += (_, _) => EndGesture();
         Root.PointerExited += (_, _) =>
         {
+            if (_gesture == Gesture.RightPan && _rightPan is { IsPanning: false })
+                EndGesture(); // armed without capture: a release outside would never reach Root
             if (_gesture != Gesture.None)
                 return;
             ShowPorts(null);
@@ -429,6 +433,7 @@ public sealed partial class FlowCanvas : UserControl
         if (_viewModel is null || _gesture != Gesture.None)
             return;
         var point = e.GetCurrentPoint(Host);
+        _rightPan = null; // a swallow no RightTapped consumed must not eat this press's menu
         var props = point.Properties;
         Focus(FocusState.Pointer);
         UpdateFocusRing(); // the ring is for keyboard focus only
@@ -447,7 +452,14 @@ public sealed partial class FlowCanvas : UserControl
         }
         else if (props.IsRightButtonPressed)
         {
-            return; // RightTapped opens the menus
+            if (e.Pointer.PointerDeviceType == PointerDeviceType.Mouse)
+            {
+                // Armed only: a still click falls through to RightTapped (the menus); capture waits for the pan (D-069).
+                _rightPan = NewRightPan();
+                _rightPan.Arm(_pressScreen.X, _pressScreen.Y);
+                _gesture = Gesture.RightPan;
+            }
+            return;
         }
         else if (_viewModel.CanEdit && _viewModel.OutPortAt(C(point.Position), _portRadius) is { } source)
         {
@@ -504,6 +516,14 @@ public sealed partial class FlowCanvas : UserControl
         double dx = position.X - _pressContent.X, dy = position.Y - _pressContent.Y;
         switch (_gesture)
         {
+            case Gesture.RightPan:
+                var started = _rightPan!.IsPanning;
+                if (!_rightPan.Move(screen.X, screen.Y))
+                    break;
+                if (!started)
+                    Root.CapturePointer(e.Pointer);
+                Scroller.ChangeView(_panStartX - (screen.X - _pressScreen.X), _panStartY - (screen.Y - _pressScreen.Y), null, disableAnimation: true);
+                break;
             case Gesture.Pan:
                 Scroller.ChangeView(_panStartX - (screen.X - _pressScreen.X), _panStartY - (screen.Y - _pressScreen.Y), null, disableAnimation: true);
                 break;
@@ -538,6 +558,18 @@ public sealed partial class FlowCanvas : UserControl
     {
         if (_viewModel is null || e.Pointer.PointerId != _pointerId)
             return;
+        if (_gesture == Gesture.RightPan)
+        {
+            var panned = _rightPan!.IsPanning;
+            _rightPan.Release();
+            EndGesture();
+            if (panned)
+            {
+                Root.ReleasePointerCapture(e.Pointer);
+                e.Handled = true;
+            }
+            return; // unhandled after a still click, so RightTapped still comes
+        }
         var position = e.GetCurrentPoint(Host).Position;
         switch (_gesture)
         {
@@ -842,6 +874,11 @@ public sealed partial class FlowCanvas : UserControl
 
     private void OnRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
+        if (_rightPan is { } pan && !pan.TakeMenu())
+        {
+            e.Handled = true; // the release of a right-drag pan (D-069); handled also stops the ContextRequested after it
+            return;
+        }
         if (_viewModel is null || !_viewModel.CanEdit)
             return;
         var position = e.GetPosition(Host);
@@ -953,6 +990,19 @@ public sealed partial class FlowCanvas : UserControl
         return menu;
     }
 
+    /// <summary>A right-drag gesture with the system drag rectangle for this window's DPI, in DIP (D-069).</summary>
+    private RightDragPan NewRightPan()
+    {
+        var dpi = (uint)Math.Round((XamlRoot?.RasterizationScale ?? 1) * 96);
+        var (width, height) = RightDragPan.DragRectDip(GetSystemMetricsForDpi(SmCxDrag, dpi), GetSystemMetricsForDpi(SmCyDrag, dpi), dpi);
+        return new RightDragPan(width, height);
+    }
+
+    private const int SmCxDrag = 68, SmCyDrag = 69;
+
+    [LibraryImport("user32.dll")]
+    private static partial int GetSystemMetricsForDpi(int nIndex, uint dpi);
+
     private void EndGesture()
     {
         ConnectPreview.Visibility = DropTarget.Visibility = DropLabel.Visibility = Visibility.Collapsed;
@@ -960,6 +1010,7 @@ public sealed partial class FlowCanvas : UserControl
         _connectFrom = null;
         ResetDragged();
         _dragged = null;
+        _rightPan?.Cancel();
         _gesture = Gesture.None;
         Marquee.Visibility = Visibility.Collapsed;
     }
