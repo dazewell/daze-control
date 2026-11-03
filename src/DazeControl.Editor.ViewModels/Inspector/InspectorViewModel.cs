@@ -64,6 +64,9 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     private readonly Action<Action> _post;
     private readonly Func<string, bool> _fileExists;
     private readonly Dictionary<LibraryKind, IReadOnlyList<DeviceInfo>> _live = [];
+
+    /// <summary>The engine's lists behind <c>Suggest = Devices(kind)</c>: displays, services, credentials.</summary>
+    private readonly Dictionary<string, IReadOnlyList<DeviceInfo>> _suggested = new(StringComparer.Ordinal);
     private IReadOnlyList<string> _shortcutProblems = [];
     private CancellationTokenSource? _test;
     private bool _loading;
@@ -304,6 +307,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             HasFields = Fields.Count > 0;
             foreach (var kind in Fields.Where(f => f.IsDevice).Select(f => f.Spec.Library).OfType<LibraryKind>().Distinct())
                 _ = RefreshDevicesAsync(kind);
+            foreach (var kind in Fields.Select(f => f.Spec.Suggest).Where(s => s?.Source == SuggestSource.Devices).Select(s => s!.Kind).Distinct())
+                _ = RefreshSuggestionsAsync(kind);
         }
         var path = $"flows.{FlowId}.nodes.{step.Id}.with.";
         foreach (var field in Fields)
@@ -317,7 +322,79 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                 ?? (errors.Any(p => p.Path == path[..^1] && p.Message.EndsWith($"({field.Name}: …).", StringComparison.Ordinal))
                     ? field.IsDevice ? "Choose a device." : "Fill this in." : null);
             field.Load(value, problem);
+            Suggest(field, step);
         }
+    }
+
+    /// <summary>Fills a field's suggestions from what's known now: the engine's last list or the open config.</summary>
+    private void Suggest(ParamFieldViewModel field, StepNode step)
+    {
+        switch (field.Spec.Suggest)
+        {
+            case { Source: SuggestSource.Devices, Kind: var kind } when field.IsChecklist:
+                field.SetScreens(_suggested.GetValueOrDefault(kind));
+                break;
+            case { Source: SuggestSource.Devices, Kind: var kind }:
+                field.SetSuggestions(_suggested.GetValueOrDefault(kind)?.Select(d => new SuggestionItem(d.Value ?? d.Name, Caption(d))) ?? [],
+                    "");
+                break;
+            case { Source: SuggestSource.Config, Kind: ParamSuggest.Flags }:
+                field.SetSuggestions(FlagNames(_session.Current), "");
+                break;
+            case { Source: SuggestSource.Config, Kind: ParamSuggest.AndroidInputs }:
+                var device = step.With.TryGetValue("device", out var key) && key is ScalarParam s
+                    ? _session.Current.Library.Android.FirstOrDefault(d => d.Key == s.Text)
+                    : null;
+                field.SetSuggestions(device?.Inputs.Keys.Select(i => new SuggestionItem(i, "")) ?? [],
+                    device is null ? "Choose the Android device first." : "Add inputs in the Library.");
+                break;
+        }
+    }
+
+    /// <summary>"Print Spooler · Running", "Saved in Windows".</summary>
+    private static string Caption(DeviceInfo device)
+    {
+        var state = device.State is { Length: > 0 } s ? char.ToUpperInvariant(s[0]) + s[1..] : null;
+        string?[] parts = [device.Detail, state];
+        return string.Join(" · ", parts.OfType<string>().Where(p => p.Length > 0));
+    }
+
+    /// <summary>Flag names the config's steps use, with "Used in 2 flows".</summary>
+    internal static List<SuggestionItem> FlagNames(Configuration config) =>
+    [
+        .. config.Flows
+            .SelectMany(f => f.Nodes.OfType<StepNode>()
+                .Where(n => n.Step.StartsWith("flag.", StringComparison.Ordinal) && n.With.TryGetValue("name", out var v) && v is ScalarParam)
+                .Select(n => (Flow: f.Id, Name: ((ScalarParam)n.With["name"]).Text)))
+            .Where(x => x.Name.Length > 0)
+            .GroupBy(x => x.Name, StringComparer.Ordinal)
+            .OrderBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
+            .Select(g => (Name: g.Key, Flows: g.Select(x => x.Flow).Distinct().Count()))
+            .Select(f => new SuggestionItem(f.Name, f.Flows == 1 ? "Used in 1 flow" : $"Used in {f.Flows} flows")),
+    ];
+
+    /// <summary>Asks the engine for a suggestion list (on load and each time a drop-down opens).</summary>
+    public async Task RefreshSuggestionsAsync(string kind)
+    {
+        var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.Devices, Kind = kind }).ConfigureAwait(false);
+        if (answer is not { Ok: true, Devices: { } devices })
+            return;
+        _post(() =>
+        {
+            _suggested[kind] = devices;
+            if (Node is not StepNode step)
+                return;
+            _loading = true;
+            try
+            {
+                foreach (var field in Fields.Where(f => f.Spec.Suggest is { Source: SuggestSource.Devices } s && s.Kind == kind))
+                    Suggest(field, step);
+            }
+            finally
+            {
+                _loading = false;
+            }
+        });
     }
 
     private void LoadCard(GroupNode card)
