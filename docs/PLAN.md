@@ -5,7 +5,7 @@ Current task: none — M13 designed (PR docs/m13-design: D-061..D-070, flow-call
 Last green checkpoint: 038d321 wip(docs): M13 design - decisions, flow-calls design, UX
 Next action: T13.1 (feat/m13-nav-flows): handle `ItemInvoked` on the Flows nav item while a flow is open in Editor/ShellWindow.xaml.cs → LeaveFlowAsync → CloseFlow. Lanes that can start at the same time: T13.4, T13.5, T13.7 (PLAN → M13 Order)
 Tree state: builds, all tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user's live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails; mention it to the user when T13.7 lands. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone.
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user's live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails; mention it to the user when T13.7 lands. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
 
 ---
 
@@ -101,6 +101,36 @@ section rewritten, FEATURES where behaviour changed).
   bracket, Open in editor), `ShellWindow` (Open this flow with the D-047 prompt). Done when: ViewModel tests; running
   editor builds DESIGN §1 B by mouse and keyboard, runs it, shows one Runs entry with nested lanes; screenshots;
   flow-calls/DESIGN.md moved into ARCHITECTURE/UX/FEATURES and cut to its open questions (D-053 rule).
+
+## M13b Hotkeys: more keys, and "taken" explained (user, 2026-11-03; design D-071..D-073, X-007, UX §5.7 H1–H8)
+The user asked for Win+[, Win+], Win+\ and Num1, Num2…, and why keys stay unassignable after another app stopped.
+Cause, found on the dev PC: Win+[ ] \ were refused by `Hotkey.TryCreate`, and the recorder's `Rejected` event had
+no listener, so nothing happened. Win+[ and Win+] are also held by `C:\Projects\Autohotkey\SwitchDisplay.ahk`,
+still running. A failed chord was retried only on the next reload, and recording the same chord again doesn't
+reload. The engine's own chords never reach the recorder. Order: T13b.1 first, then T13b.2 and T13b.3 in either
+order (they touch different files). Can run alongside M13 (no shared files except the docs).
+- [ ] T13b.1 **Model.** `Core/Input/Hotkey.cs` (names, `TryCreate`: punctuation VKs, Num0–Num9 alone, Shift+Num
+  refused; `ToString`; `TryParse` accepts "Numpad1"), a `Rejection` reason enum for the recorder, the new
+  `Core/Input/WindowsShortcuts.cs` (Windows 11's own Win+key list), and the `ConfigValidator` message ("use Win,
+  Ctrl or Alt plus a letter, number, F1–F24 or a key like [, or a number pad key like Num1"). Tests:
+  `Core.Tests` HotkeyTests (parse/format every new key, both directions; `Win+\` and `Win+[` YAML round trip
+  through `ConfigYaml`; letters alone still refused). Branch `feat/m13b-hotkey-keys`. Done when: tests green,
+  0 AOT/trim warnings, the engine registers `Win+\`, `Ctrl+Num1` and `Num5` from a hand-written config.yaml
+  (manual check on the dev PC, with the shortcuts removed afterwards).
+- [ ] T13b.2 **Recorder.** `Editor/Inspector/HotkeyRecorder.xaml.cs` (`Rejected` carries the reason; Num Lock off =
+  a pad navigation key with `IsExtendedKey` false → H3; modifiers let go with no key → H7),
+  `Editor.ViewModels/Inspector/InspectorViewModel.cs` + the inspector XAML (the reason under the box, the H8 tip
+  for a number-pad key alone). Branch `feat/m13b-recorder`. Done when: ViewModel tests for each reason → its text;
+  screenshots of H1, H3 and H8 (light and dark); Narrator reads the note.
+- [ ] T13b.3 **Engine.** Pipe op `record-hotkey` (`Ipc/Protocol.cs`, `Runtime/Control/EngineController`, editor
+  engine client, `HotkeyRecorder.RecordingChanged` → op); `Runtime/Triggers/HotkeyTable` (recording flag apart from
+  Pause; `RetryFailures()`, called when recording ends, on Resume and when the tray menu opens; a
+  `shortcutsChanged` event when the failures change, and the inspector refreshes on it);
+  `Engine/Shell/GlobalHotkey` (1409 → H5 when on `WindowsShortcuts`, else H6); `EngineHost` and `TrayIcon` wiring.
+  Branch `feat/m13b-engine-hotkeys`. Done when: `Runtime.Tests` with the fake registrar (recording unregisters and
+  re-registers all; a chord that failed and is free now is registered after recording ends, after Resume and when
+  the menu opens; a dropped connection ends recording); the editor can record a chord the engine already owns;
+  `scripts/measure.ps1` idle numbers unchanged.
 
 ## M0 Bootstrap ✔ (2026-10-31; T0.1–T0.4 on main, T0.5 PR #1)
 - [x] T0.1 `git init`, `.gitignore`; ask the user before `gh repo create` (name, private?).

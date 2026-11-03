@@ -61,3 +61,13 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
 - Evidence: PLAN M13 P7; `FlowCanvasViewModel.TidyUp` returns false and `ShellWindow.OnTidyUp` ignores it.
 - Retry only if: never as the only layout command. It lives on as "Untangle lines" in the Layout menu, off with its
   reason when it can't help (D-067).
+
+## X-007 · 2026-11-03 · Telling who holds a shortcut from `RegisterHotKey`'s error
+- Tried: registering Win+[, Win+], Win+E, Win+L, Win+A, Win+1, Win+; Win+. Win+, Win+= on the dev PC (thread hotkeys,
+  `hWnd` null, all unregistered afterwards), to tell Windows' own shortcuts from other apps'.
+- Failed because: every one fails with the same 1409 (ERROR_HOTKEY_ALREADY_REGISTERED), whoever holds it, and no
+  Win32 API maps a chord to its owner. Win+[ / Win+] were AutoHotkey (`SwitchDisplay.ahk`), found only by reading
+  its scripts. Also: a chord another app catches with a keyboard hook (AutoHotkey `$#]::`) still registers for us,
+  but never fires.
+- Evidence: scratch spike `hk.ps1`, 2026-11-03 (Win+\, Win+-, Ctrl+Alt+[, Num keys registered fine).
+- Retry only if: Windows adds an owner query. Until then, use a fixed list of Windows' shortcuts (D-073).
