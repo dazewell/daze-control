@@ -49,6 +49,9 @@ internal sealed unsafe class TrayIcon : IDisposable
     /// <summary>A fixed item was picked. Raised on the message thread.</summary>
     public event Action<TrayCommand>? CommandChosen;
 
+    /// <summary>The icon was clicked or activated: true = handled, false = show the menu. Message thread.</summary>
+    public Func<TrayGesture, bool>? Selected { get; set; }
+
     /// <summary>Redraws the icon and tooltip if they changed.</summary>
     public void Update(TrayGlyphKind kind, string tooltip)
     {
@@ -123,10 +126,16 @@ internal sealed unsafe class TrayIcon : IDisposable
     {
         if (message == CallbackMessage)
         {
-            // Version 4: LOWORD(lParam) is the event, wParam the anchor in screen coordinates. Left click and
-            // keyboard activation (Enter/Space on the focused icon) open the menu too: the tray has nothing else to show.
+            // Version 4: LOWORD(lParam) is the event, wParam the anchor in screen coordinates. A left click or
+            // Enter/Space is NIN_SELECT/NIN_KEYSELECT; a right click or Shift+F10/Apps is WM_CONTEXTMENU (UX §5.6).
             var notification = (uint)(lParam.Value & 0xFFFF);
-            if (notification is PInvoke.WM_CONTEXTMENU or PInvoke.NIN_SELECT or NinKeySelect)
+            TrayGesture? gesture = notification switch
+            {
+                PInvoke.NIN_SELECT or NinKeySelect => TrayGesture.Select,
+                PInvoke.WM_CONTEXTMENU => TrayGesture.ContextMenu,
+                _ => null,
+            };
+            if (gesture is { } g && !(Selected?.Invoke(g) ?? false))
                 ShowMenu((short)(wParam.Value & 0xFFFF), (short)((wParam.Value >> 16) & 0xFFFF));
             return true;
         }

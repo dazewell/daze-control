@@ -56,6 +56,10 @@ public sealed partial class CanvasEdgeViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsSelected { get; internal set; }
 
+    /// <summary>Under the pointer (set through <see cref="FlowCanvasViewModel.HoveredEdge"/>).</summary>
+    [ObservableProperty]
+    public partial bool IsHovered { get; internal set; }
+
     /// <summary>During a run: accent once its source finished (UX §5.3).</summary>
     [ObservableProperty]
     public partial bool IsLit { get; internal set; }

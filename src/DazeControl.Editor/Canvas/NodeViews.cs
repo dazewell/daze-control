@@ -43,15 +43,13 @@ internal abstract class NodeView : Grid
     {
         Node = node;
         IsHitTestVisible = true;
-        // Reordering removes and re-adds a view, so it subscribes whenever it is in the tree.
-        Loaded += (_, _) =>
-        {
-            node.PropertyChanged -= OnNodeChanged;
-            node.PropertyChanged += OnNodeChanged;
-            OnNodeChanged(node, new PropertyChangedEventArgs(null));
-        };
-        Unloaded += (_, _) => node.PropertyChanged -= OnNodeChanged;
+        // Subscribed for the view's whole life, not on Loaded/Unloaded: when an element leaves and re-enters the
+        // tree in one frame, Unloaded can arrive after Loaded and the view stopped following its node (X-004).
+        node.PropertyChanged += OnNodeChanged;
     }
+
+    /// <summary>The canvas dropped this view for good.</summary>
+    public void Detach() => Node.PropertyChanged -= OnNodeChanged;
 
     protected override AutomationPeer OnCreateAutomationPeer() => new NodePeer(this);
 

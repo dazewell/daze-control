@@ -491,3 +491,30 @@ Status: accepted
 - Why not ask the engine for details: the capture already holds every mode, and a screen that is unplugged now must
   still be described. Why not store names at capture time: one more YAML field for what the device path already says.
 - Revisit if: the CCD struct layout changes (the Providers test fails), or users want audio/Bluetooth keys shown.
+
+## D-047 · 2026-11-02 · Flow edits are a draft until Save; Library and Settings keep autosaving
+Status: accepted (supersedes UX §5.1/§5.2 "autosave debounced 300 ms" for flow edits)
+- Decision: `ConfigSession` keeps the saved configuration beside `Current`. Canvas and inspector edits to the open
+  flow go through `UpdateDraft`: shown everywhere (canvas, Problems, Dry run, Test this step), never written.
+  Save (Ctrl+S) writes the draft at once; Cancel / "Don't save" puts the saved flow back; leaving the flow or
+  closing the window with a draft asks Save / Don't save / Cancel. Undo stays inside the draft (Save and Cancel
+  clear it; undoing back to the saved flow leaves nothing to save). `Update` (Library, Settings, the Flows list's
+  On switch, New flow) applies to both versions and still autosaves after 300 ms, so a Library rename reaches the
+  draft and the file alike. A reload from disk keeps the draft on top of the new file.
+- Why: the user wants to experiment without fear of breaking a working flow (2026-11-02). Library items and
+  settings are single values with no half-built state, and their pages have no place for a Save bar.
+- Why not autosave plus "Revert to saved": the engine reloads every 300 ms save, so a half-built flow would run
+  (or keep its last valid version, D-021) mid-experiment. Why not a draft file next to config.yaml: one more file
+  to reconcile, and nothing outside the editor needs a draft.
+- Effect on D-021: the editor no longer writes half-built flows by itself, but a user can still save one, so the
+  engine keeps the last valid version per flow. D-040's "on-screen values" now means the draft.
+- Revisit if: users lose drafts to a crash (then persist the draft), or want Save on the Library too.
+
+## D-048 · 2026-11-02 · Tray: left click opens the editor, right click the menu
+Status: accepted
+- Decision: NIN_SELECT/NIN_KEYSELECT (left click, Enter/Space) start the editor or bring it forward
+  (`AllowSetForegroundWindow(ASFW_ANY)` first, so its running instance may take the foreground); WM_CONTEXTMENU
+  (right click, Shift+F10/Apps) shows the menu. Without an installed editor every gesture shows the menu.
+- Why: the user expects the shell's convention, where the left click opens the app (2026-11-02).
+- Why not keep the menu on both: the editor is two clicks away for the most common thing.
+- Revisit if: the engine gains a quick panel worth a left click.

@@ -80,7 +80,7 @@ public sealed partial class LibraryItemViewModel : ObservableObject
     public string Description => State.Length == 0 ? Detail : Detail.Length == 0 ? State : $"{Detail} · {State}";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(UsedByText), nameof(CanRemove), nameof(AutomationName), nameof(IsUsed), nameof(IsUnused), nameof(UsedByName))]
+    [NotifyPropertyChangedFor(nameof(UsedByText), nameof(CanRemove), nameof(RemoveTip), nameof(AutomationName), nameof(IsUsed), nameof(IsUnused), nameof(UsedByName))]
     public partial int UsedBy { get; internal set; }
 
     public bool IsUsed => UsedBy > 0;
@@ -111,6 +111,14 @@ public sealed partial class LibraryItemViewModel : ObservableObject
     public partial bool Removable { get; internal set; }
 
     public bool CanRemove => Removable && UsedBy == 0;
+
+    /// <summary>Why Remove is off while a flow uses it (UX §5.7 voice); the button always shows, so rows line up.</summary>
+    public string RemoveTip => UsedBy switch
+    {
+        0 => "Remove from Library",
+        1 => "Used by 1 flow. Remove it from that flow first.",
+        _ => $"Used by {UsedBy} flows. Remove it from those flows first.",
+    };
 
     /// <summary>Displays and Android devices, whose key is their name; flows that use it follow the new key.</summary>
     [ObservableProperty]

@@ -127,7 +127,9 @@
                                     </ItemsRepeater.Layout>
                                     <ItemsRepeater.ItemTemplate>
                                         <DataTemplate x:DataType="vm:FlowItemViewModel">
-                                            <Grid Style="{StaticResource SettingsCard}">
+                                            <!-- A click anywhere but the switch and the button opens the flow; the Edit button stays for the keyboard. -->
+                                            <Grid Style="{StaticResource SettingsCard}" Tag="{x:Bind Id}" Tapped="OnFlowCardTapped"
+                                                  PointerEntered="OnFlowCardPointerEntered" PointerExited="OnFlowCardPointerExited">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
@@ -323,6 +325,10 @@
 
                 <!-- Flow editor (UX §5.1): Flows › name, commands, palette, canvas or outline. The inspector comes with M8. -->
                 <Grid x:Name="FlowEditorPage" Grid.Row="1" Visibility="Collapsed">
+                    <Grid.KeyboardAccelerators>
+                        <!-- Here, not on the Save button: it must also work while Save is still off (a text box not committed yet). -->
+                        <KeyboardAccelerator Modifiers="Control" Key="S" Invoked="OnSaveAccelerator" />
+                    </Grid.KeyboardAccelerators>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -331,10 +337,19 @@
                     <Grid Margin="36,0,16,4" ColumnSpacing="16">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <BreadcrumbBar x:Name="FlowBreadcrumb" VerticalAlignment="Center" ItemClicked="OnBreadcrumbClicked" />
-                        <CommandBar Grid.Column="1" HorizontalAlignment="Right" DefaultLabelPosition="Right" Background="Transparent" IsDynamicOverflowEnabled="True">
+                        <!-- Save / Cancel (D-047): flow edits are a draft until Save. -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock x:Name="DraftText" Text="Not saved" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+                            <Button x:Name="SaveButton" Content="Save" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" Click="OnSaveFlow"
+                                    ToolTipService.ToolTip="Save your changes to this flow (Ctrl+S)" AutomationProperties.AcceleratorKey="Control+S" />
+                            <Button x:Name="CancelButton" Content="Cancel" IsEnabled="False" Click="OnCancelFlow"
+                                    ToolTipService.ToolTip="Throw away your changes since the last save" />
+                        </StackPanel>
+                        <CommandBar Grid.Column="2" HorizontalAlignment="Right" DefaultLabelPosition="Right" Background="Transparent" IsDynamicOverflowEnabled="True">
                             <!-- Runs (UX §5.5): Run / Dry run, or "Running · 2 of 4" + Stop while it runs. -->
                             <AppBarButton x:Name="RunButton" Label="Run" ToolTipService.ToolTip="Run this flow now" Click="OnRun">
                                 <AppBarButton.Icon><FontIcon Glyph="&#xE768;" /></AppBarButton.Icon>
@@ -425,7 +440,8 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <!-- Inspector (UX §5.4): 320 wide right of the canvas. -->
-                        <inspector:InspectorPane x:Name="InspectorPaneControl" Grid.Column="2" Width="320" />
+                        <inspector:InspectorPane x:Name="InspectorPaneControl" Grid.Column="2" Width="320"
+                                                 GotFocus="OnInspectorFocusChanged" LostFocus="OnInspectorFocusChanged" />
 
                         <!-- Palette (UX §5.1): 240 wide, search, step types by area; click or drag onto the canvas. -->
                         <Grid x:Name="PalettePane" Width="240" Padding="12,4,12,0" RowSpacing="8">

@@ -13,6 +13,7 @@ using DazeControl.Providers.Basic;
 using DazeControl.Runtime.Providers;
 using DazeControl.Runtime.Tray;
 using DazeControl.Runtime.Triggers;
+using Windows.Win32;
 
 namespace DazeControl.Engine;
 
@@ -61,6 +62,13 @@ internal sealed class EngineHost : IDisposable
         _tray = new TrayIcon(_window, AppInfo.ProductName, BuildMenu);
         _tray.FlowChosen += flowId => _controller!.TriggerAsync(flowId, "Tray");
         _tray.CommandChosen += OnTrayCommand;
+        _tray.Selected = gesture =>
+        {
+            if (!TrayMenu.OpensEditor(gesture, File.Exists(_editorPath)))
+                return false;
+            OpenEditor();
+            return true;
+        };
         _hotkeys = new GlobalHotkey(_window);
         _hotkeyTable = new HotkeyTable(_hotkeys);
         _hotkeys.Pressed += OnHotkey;
@@ -174,6 +182,8 @@ internal sealed class EngineHost : IDisposable
     /// <summary>The editor brings its own window to the front (single instance, T6.1).</summary>
     private void OpenEditor()
     {
+        // The tray click made us the foreground's owner; pass that on, so the running editor can come to the front.
+        PInvoke.AllowSetForegroundWindow(unchecked((uint)-1)); // ASFW_ANY
         try
         {
             using var _ = Process.Start(new ProcessStartInfo(_editorPath) { UseShellExecute = false });

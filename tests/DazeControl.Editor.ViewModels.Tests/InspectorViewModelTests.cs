@@ -1,3 +1,4 @@
+using DazeControl.Core.Layout;
 using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
 using DazeControl.Core.Yaml;
@@ -439,5 +440,59 @@ public sealed class InspectorViewModelTests : IDisposable
         _engine.SetRunning(true);
 
         Assert.Contains(Field("layout").Devices, o => o.Source == DeviceSource.Capture);
+    }
+
+    // ---- "If it fails, run…" and Connections (second-round feedback) ----
+
+    [Fact]
+    public void IfItFailsRunAddsAStepThatRunsOnlyOnFailure()
+    {
+        _canvas.Select("vol");
+        var id = _inspector.AddFallback("notify");
+
+        Assert.NotNull(id);
+        Assert.Equal(EdgeWhen.Failure, Step(id!).After.Single(e => e.From == "vol").When);
+        Assert.Equal([id!], _canvas.SelectedIds);
+        Assert.Equal("If it fails", _canvas.Edges.Single(e => e.To == id).Chip);
+        _canvas.Undo(); // one gesture, one undo step
+        Assert.Null(_canvas.Flow!.FindNode(id!));
+    }
+
+    [Fact]
+    public void IfItFailsRunLinksAStepAlreadyInTheFlow()
+    {
+        _canvas.Select("vol");
+        Assert.Contains(_inspector.FallbackTargets, t => t.Id == "both");
+        Assert.DoesNotContain(_inspector.FallbackTargets, t => t.Id == "bt"); // vol waits for it: a loop
+        Assert.DoesNotContain(_inspector.FallbackTargets, t => t.Id == "vol");
+
+        Assert.Equal(ConnectRefusal.None, _inspector.LinkFallback("both"));
+        Assert.Equal(EdgeWhen.Failure, _canvas.Edges.Single(e => e.From == "vol" && e.To == "both").When);
+        Assert.Equal(ConnectRefusal.Loop, _inspector.LinkFallback("bt"));
+    }
+
+    [Fact]
+    public void IfItFailsRunTurnsAnExistingEdgeIntoAFallback()
+    {
+        _canvas.Select("bt");
+        Assert.Contains(_inspector.FallbackTargets, t => t.Id == "vol");
+        Assert.Equal(ConnectRefusal.None, _inspector.LinkFallback("vol"));
+        Assert.Equal(EdgeWhen.Failure, Step("vol").After.Single().When);
+        Assert.DoesNotContain(_inspector.FallbackTargets, t => t.Id == "vol");
+    }
+
+    [Fact]
+    public void ConnectionsListTheEdgesAndChangeTheirCondition()
+    {
+        _canvas.Select("out");
+        Assert.Equal(["Runs after Connect", "Show a message runs after this"], _inspector.Connections.Select(c => c.Text));
+        var fallback = _inspector.Connections[1];
+        Assert.Equal(1, fallback.WhenIndex);
+
+        fallback.WhenIndex = 2; // "Whatever happens"
+        Assert.Equal(EdgeWhen.Always, Step("note").After.Single().When);
+
+        _inspector.Connections[0].WhenIndex = 1;
+        Assert.Equal(EdgeWhen.Failure, Step("out").After.Single().When);
     }
 }

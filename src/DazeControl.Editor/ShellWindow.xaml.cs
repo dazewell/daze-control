@@ -12,6 +12,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
@@ -35,6 +36,7 @@ public sealed partial class ShellWindow : Window
     private bool _closeAnyway;
     private bool _asking;
     private FlowCanvasViewModel? _editor;
+    private bool _textFocused;
     private RunOverlayViewModel? _run;
     private readonly StepPaletteViewModel _palette = new();
 
@@ -149,6 +151,8 @@ public sealed partial class ShellWindow : Window
     /// <summary>True when nothing is unsaved, or the user chose to lose it. False while the question is already up.</summary>
     private async Task<bool> ConfirmLosingChangesAsync()
     {
+        if (!await LeaveFlowAsync())
+            return false;
         ViewModel.Session.Flush();
         if (!ViewModel.Session.HasUnsavedChanges)
             return true;
@@ -183,10 +187,55 @@ public sealed partial class ShellWindow : Window
         _ = ViewModel.Settings.RefreshAutostartAsync();
     }
 
-    private void OnNavigationSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    /// <summary>
+    /// Leaving the open flow with a draft asks Save / Don't save / Cancel (D-047). True when the editor may close:
+    /// nothing was unsaved, or the draft was saved or thrown away.
+    /// </summary>
+    private async Task<bool> LeaveFlowAsync()
+    {
+        if (_editor is not { HasChanges: true } editor)
+            return true;
+        if (_asking)
+            return false;
+        _asking = true;
+        try
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = Content.XamlRoot,
+                Title = $"Save your changes to {editor.FlowName}?",
+                Content = "If you don't, the flow stays as you last saved it.",
+                PrimaryButtonText = "Save",
+                SecondaryButtonText = "Don't save",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Primary,
+            };
+            switch (await dialog.ShowAsync())
+            {
+                case ContentDialogResult.Primary:
+                    return editor.Save(); // a failed write keeps the draft and says so
+                case ContentDialogResult.Secondary:
+                    editor.Discard();
+                    return true;
+                default:
+                    return false;
+            }
+        }
+        finally
+        {
+            _asking = false;
+        }
+    }
+
+    private async void OnNavigationSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (_navigating || args.SelectedItemContainer?.Tag is not string tag || !Enum.TryParse<EditorPage>(tag, out var page))
             return;
+        if (!await LeaveFlowAsync())
+        {
+            SelectFlowsPane(); // stay in the editor
+            return;
+        }
         ViewModel.Page = page;
         ViewModel.CloseFlow(); // Flows in the pane always means the list
         FlowsPage.Visibility = Show(page == EditorPage.Flows);
@@ -251,6 +300,33 @@ public sealed partial class ShellWindow : Window
             ViewModel.OpenFlow(id);
     }
 
+    /// <summary>A click on a flow's card opens it, unless it landed on the On switch or a button inside the card.</summary>
+    private void OnFlowCardTapped(object sender, TappedRoutedEventArgs e)
+    {
+        for (var element = e.OriginalSource as DependencyObject; element is not null && !ReferenceEquals(element, sender); element = VisualTreeHelper.GetParent(element))
+        {
+            if (element is ToggleSwitch or ButtonBase)
+                return;
+        }
+        if (sender is FrameworkElement { Tag: string id })
+        {
+            e.Handled = true;
+            ViewModel.OpenFlow(id);
+        }
+    }
+
+    private void OnFlowCardPointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Grid card)
+            card.Background = (Brush)Application.Current.Resources["CardBackgroundFillColorSecondaryBrush"];
+    }
+
+    private void OnFlowCardPointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Grid card)
+            card.ClearValue(Panel.BackgroundProperty); // back to the SettingsCard style's fill
+    }
+
     private void OnShellChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(ShellViewModel.Editor))
@@ -271,6 +347,7 @@ public sealed partial class ShellWindow : Window
         if (ViewModel.Inspector is { } inspector)
             _ = inspector.RefreshShortcutProblemsAsync();
         UpdateHistory();
+        UpdateDraft();
         UpdateOutline();
         UpdateProblems();
         UpdatePages();
@@ -294,6 +371,10 @@ public sealed partial class ShellWindow : Window
                 break;
             case nameof(FlowCanvasViewModel.CanUndo) or nameof(FlowCanvasViewModel.CanRedo) or nameof(FlowCanvasViewModel.CanEdit):
                 UpdateHistory();
+                UpdateDraft();
+                break;
+            case nameof(FlowCanvasViewModel.HasChanges):
+                UpdateDraft();
                 break;
             case nameof(FlowCanvasViewModel.Outline):
                 UpdateOutline();
@@ -310,10 +391,63 @@ public sealed partial class ShellWindow : Window
     private void UpdateBreadcrumb() =>
         FlowBreadcrumb.ItemsSource = _editor is null ? null : new[] { "Flows", _editor.FlowName };
 
-    private void OnBreadcrumbClicked(BreadcrumbBar sender, BreadcrumbBarItemClickedEventArgs args)
+    private async void OnBreadcrumbClicked(BreadcrumbBar sender, BreadcrumbBarItemClickedEventArgs args)
     {
-        if (args.Index == 0)
+        if (args.Index == 0 && await LeaveFlowAsync())
             ViewModel.CloseFlow();
+    }
+
+    // The click moved focus off an inspector box; its binding commits on LostFocus, which comes after: save after it.
+    private void OnSaveFlow(object sender, RoutedEventArgs e)
+    {
+        if (_editor is { } editor)
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => editor.Save());
+    }
+
+    /// <summary>A focused inspector box may hold an edit not committed yet: Save stays on so a click can commit it.</summary>
+    private void OnInspectorFocusChanged(object sender, RoutedEventArgs e)
+    {
+        _textFocused = FocusManager.GetFocusedElement(Content.XamlRoot) is TextBox box && IsInside(box, InspectorPaneControl);
+        UpdateDraft();
+    }
+
+    private static bool IsInside(DependencyObject element, DependencyObject ancestor)
+    {
+        for (var e = element; e is not null; e = VisualTreeHelper.GetParent(e))
+        {
+            if (ReferenceEquals(e, ancestor))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>Ctrl+S: commit a focused inspector box first (its binding updates on LostFocus), then save.</summary>
+    private void OnSaveAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e)
+    {
+        e.Handled = true;
+        if (_editor is not { CanEdit: true } editor)
+            return;
+        if (FocusManager.GetFocusedElement(Content.XamlRoot) is not TextBox)
+        {
+            editor.Save();
+            return;
+        }
+        _ = FlowCanvasControl.Focus(FocusState.Programmatic) || FocusManager.TryMoveFocus(FocusNavigationDirection.Next, new FindNextElementOptions { SearchRoot = Content.XamlRoot.Content });
+        // LostFocus (and with it the binding) arrives after this handler: save once it has.
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => editor.Save());
+    }
+
+    private void OnCancelFlow(object sender, RoutedEventArgs e) => _editor?.Discard();
+
+    private void UpdateDraft()
+    {
+        var changed = _editor is { HasChanges: true };
+        SaveButton.IsEnabled = (changed || _textFocused) && _editor is { CanEdit: true };
+        CancelButton.IsEnabled = changed && _editor!.CanEdit;
+        DraftText.Visibility = Show(changed);
+        ToolTipService.SetToolTip(RunButton, changed
+            ? "Run this flow as last saved. Save first to run your changes, or try them with Dry run."
+            : "Run this flow now");
     }
 
     // ---- Runs on the canvas (UX §5.5) ----

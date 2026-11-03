@@ -34,3 +34,13 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
   width, so the page ran past the right edge (user's first-use report). The left offset didn't follow the cap.
 - Evidence: UIA bounds of the "Flows" title, 2026-11-02; fixed by a plain stretching Grid between the two.
 - Retry only if: never — put the cap on an element inside a stretching parent.
+
+## X-004 · 2026-11-02 · Canvas views that subscribe to their node on Loaded/Unloaded and reorder by remove + insert
+- Tried: `NodeView` subscribed to its `CanvasNodeViewModel` in `Loaded` and unsubscribed in `Unloaded`; `FlowCanvas`
+  kept draw order (cards under members) by removing and re-inserting a view whenever the view model's order changed.
+- Failed because: re-inserting in the same frame can deliver `Unloaded` after `Loaded`, so the view stayed
+  unsubscribed and drew at its old place while hit tests, ports and edges used the new layout. Linking two pills in
+  one column (the target moves a column right) left them drawn on top of each other and every later drag hit the
+  wrong node; deleting one of two stacked cards left the other where it was, off its edge's end.
+- Evidence: user's second-round report, 2026-11-02; `CanvasRelayoutTests` show the view model was right throughout.
+- Retry only if: never — subscribe for the view's life (`Detach` on removal), order by `Canvas.ZIndex`.

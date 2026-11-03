@@ -45,7 +45,7 @@ on every step, retries, run events stream, run history (last 100, persisted), dr
 **F6 Feedback** — run pop-up (no-activate, acrylic, flow name, progress, failure summary, position/duration
 settings, honours "Animation effects"); tray tooltip/glyph shows the last run's failure.
 
-**F7 Editor** — flows list, DAG canvas, inspector, library, settings, about; autosave; live pickers and Test
+**F7 Editor** — flows list, DAG canvas, inspector, library, settings, about; Save/Cancel for flows, autosave elsewhere (D-047); live pickers and Test
 via the engine; live run view and history timeline; undo/redo; accessible outline view. Spec: §5.
 
 **F8 CLI** — `dctl run <flow> [--wait] [--dry-run]`, `list`, `validate [file]`, `status`,

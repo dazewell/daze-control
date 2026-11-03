@@ -143,4 +143,12 @@ public sealed class TrayMenuTests
     {
         Assert.Equal(expected, TrayMenu.Problem("TV", outcome));
     }
+
+    [Theory]
+    [InlineData(TrayGesture.Select, true, true)]
+    [InlineData(TrayGesture.Select, false, false)] // no editor: the menu is all there is
+    [InlineData(TrayGesture.ContextMenu, true, false)]
+    [InlineData(TrayGesture.ContextMenu, false, false)]
+    public void ALeftClickOpensTheEditorAndARightClickTheMenu(TrayGesture gesture, bool editorInstalled, bool opensEditor) =>
+        Assert.Equal(opensEditor, TrayMenu.OpensEditor(gesture, editorInstalled));
 }

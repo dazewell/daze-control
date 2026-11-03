@@ -190,4 +190,14 @@ public class FlowCommandsTests
 
         Assert.Equal([E("together")], After(pasted, "b-2"));
     }
+
+    [Fact]
+    public void DeletedByNamesACardEmptiedByTheDelete()
+    {
+        var flow = FlowOf(Step("a"), new GroupNode("card", ["m1", "m2"]) { After = [E("a")] }, Step("m1"), Step("m2"), Step("z", "card"));
+
+        Assert.Equal(["card", "m1", "m2"], FlowCommands.DeletedBy(flow, ["m1", "m2"]).Order(StringComparer.Ordinal));
+        Assert.Equal(["m1"], FlowCommands.DeletedBy(flow, ["m1"]));
+        Assert.Empty(FlowCommands.DeletedBy(flow, ["nope"]));
+    }
 }

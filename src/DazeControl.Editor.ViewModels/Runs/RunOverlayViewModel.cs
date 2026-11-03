@@ -216,7 +216,8 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
         _states.Clear();
         _steps.Clear();
         _done = 0;
-        foreach (var step in _canvas.Flow?.Nodes.OfType<StepNode>() ?? [])
+        // A live run executes the saved flow, not the draft on screen (D-047).
+        foreach (var step in (_canvas.SavedFlow ?? _canvas.Flow)?.Nodes.OfType<StepNode>() ?? [])
         {
             _steps.Add(step.Id);
             _states[step.Id] = new NodeRunView(NodeRunState.Pending);

@@ -33,6 +33,21 @@
                         </TransitionCollection>
                     </Canvas.ChildrenTransitions>
                 </Canvas>
+                <!-- "+"/"×" at the hovered or selected edge's midpoint (UX §5.3). -->
+                <Canvas>
+                    <StackPanel x:Name="EdgeControls" Visibility="Collapsed" Orientation="Horizontal" Spacing="8">
+                        <Button Width="24" Height="24" Padding="0" CornerRadius="12" Background="{ThemeResource SolidBackgroundFillColorTertiaryBrush}"
+                                BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" Click="OnInsertOnEdge"
+                                ToolTipService.ToolTip="Add a step here" AutomationProperties.Name="Add a step on this connection">
+                            <FontIcon Glyph="&#xE710;" FontSize="10" />
+                        </Button>
+                        <Button Width="24" Height="24" Padding="0" CornerRadius="12" Background="{ThemeResource SolidBackgroundFillColorTertiaryBrush}"
+                                BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" Click="OnRemoveEdge"
+                                ToolTipService.ToolTip="Remove connection" AutomationProperties.Name="Remove this connection">
+                            <FontIcon Glyph="&#xE711;" FontSize="10" />
+                        </Button>
+                    </StackPanel>
+                </Canvas>
                 <Canvas x:Name="OverlayLayer" IsHitTestVisible="False">
                     <!-- Valid connect target glows accent; a refused one shows critical (UX §5.2). -->
                     <Rectangle x:Name="DropTarget" Visibility="Collapsed" StrokeThickness="2" RadiusX="30" RadiusY="30" />
@@ -61,6 +76,9 @@
                        Style="{StaticResource SettingsCardDescription}" />
             <Button Content="Add a step" HorizontalAlignment="Center" Margin="0,8,0,0" Style="{StaticResource AccentButtonStyle}"
                     Click="OnAddFirstStep" />
+            <TextBlock HorizontalAlignment="Center" Margin="0,16,0,0" MaxWidth="420" TextWrapping="Wrap" TextAlignment="Center"
+                       Style="{StaticResource SettingsCardDescription}"
+                       Text="Tip: to run a step only when another one fails, select that step and choose If it fails, run… on the right." />
         </StackPanel>
 
     </Grid>

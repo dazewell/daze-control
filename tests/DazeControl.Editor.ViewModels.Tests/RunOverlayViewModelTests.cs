@@ -221,4 +221,14 @@ public sealed class RunOverlayViewModelTests : IDisposable
         Assert.True(_canvas.Edges.Single(e => e.From == "both").IsLit);
         Assert.EndsWith("Done in 0 s.", _canvas.Find("w2")!.AutomationName, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void ALiveRunTracksTheSavedFlowNotTheDraft()
+    {
+        _canvas.AddStep("wait"); // unsaved: Run executes the saved flow (D-047)
+
+        Raise(EventKinds.RunStarted);
+
+        Assert.Equal("Running · 0 of 6", _run.Status);
+    }
 }
