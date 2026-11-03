@@ -31,7 +31,7 @@
                                         <ListView.ItemTemplate>
                                             <DataTemplate x:DataType="vmi:DeviceOption">
                                                 <Grid ColumnSpacing="10" Padding="0,6" AutomationProperties.Name="{x:Bind AutomationName}"
-                                                      Loaded="OnDeviceRowLoaded">
+                                                      Loaded="OnDeviceRowLoaded" DataContextChanged="OnDeviceRowDataContextChanged">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="*" />

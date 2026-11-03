@@ -75,6 +75,10 @@ public sealed partial class InspectorPane : UserControl
 
     private void OnDeviceRowLoaded(object sender, RoutedEventArgs e) => DisableRow(sender);
 
+    // A recycled container shows another device without a new Loaded.
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnDeviceRowDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs e) => DisableRow(sender);
+
     /// <summary>A row that can't be picked (#26) disables its drop-down or list item, which also greys it out.</summary>
     internal static void DisableRow(object row)
     {

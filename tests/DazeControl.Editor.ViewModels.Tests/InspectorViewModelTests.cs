@@ -193,6 +193,20 @@ public sealed class InspectorViewModelTests : IDisposable
     }
 
     [Fact]
+    public void ALibraryDeviceWithoutAudioIsShownButCantBePicked()
+    {
+        var library = new Library { Bluetooth = [new BluetoothDevice("technics", "B8:20:8E:ED:48:FC", "Technics"),
+            new BluetoothDevice("mouse", "D9:E0:8E:C2:96:85", "MX Master 3S")] };
+        var live = new List<DeviceInfo> { new() { Name = "D9:E0:8E:C2:96:85", Detail = "MX Master 3S", NotConnectable = true } };
+
+        var mouse = LibraryDevices.Options(LibraryKind.Bluetooth, library, live, "technics", required: true, canCapture: false)
+            .Single(o => o.Key == "mouse");
+
+        Assert.False(mouse.IsEnabled);
+        Assert.Equal(LibraryDevices.NotConnectable, mouse.Caption);
+    }
+
+    [Fact]
     public void PickingAWindowsDeviceAddsItToTheLibrarySilently()
     {
         _canvas.Select("bt");
