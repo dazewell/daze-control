@@ -1,9 +1,9 @@
 # Plan
 
 ## Resume
-Current task: none — M13 designed (PR docs/m13-design: D-061..D-070, flow-calls/DESIGN.md, UX #47–#66, PLAN T13.1–T13.10)
-Last green checkpoint: 038d321 wip(docs): M13 design - decisions, flow-calls design, UX
-Next action: T13.1 (feat/m13-nav-flows): handle `ItemInvoked` on the Flows nav item while a flow is open in Editor/ShellWindow.xaml.cs → LeaveFlowAsync → CloseFlow. Lanes that can start at the same time: T13.4, T13.5, T13.7 (PLAN → M13 Order)
+Current task: T13.4 done (feat/m13-right-drag): right-drag pans the canvas, a still right click opens the menu (D-069)
+Last green checkpoint: 1010563 docs(m13b): hotkeys for [ ] \ and number-pad keys (#34)
+Next action: the next open M13 task in its lane (PLAN → M13 Order); lane B (canvas input) has no more tasks
 Tree state: builds, all tests green · Uncommitted: none
 Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user's live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails; mention it to the user when T13.7 lands. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
 
@@ -54,7 +54,7 @@ section rewritten, FEATURES where behaviour changed).
   `ShellWindow.xaml` (`IsPaneToggleButtonVisible`, `IsPaneOpen` two-way, `CompactPaneLength` 48). Done when: store
   tests (missing / corrupt / round-trip / debounce); running editor collapses to icons with tooltips and reopens
   collapsed after a restart; Narrator names the toggle.
-- [ ] T13.4 P1 **Right-drag pans the canvas** (feat/m13-right-drag, D-069). Files: `Editor/Canvas/FlowCanvas.xaml.cs`
+- [x] T13.4 P1 **Right-drag pans the canvas** (feat/m13-right-drag, D-069). Files: `Editor/Canvas/FlowCanvas.xaml.cs`
   (pointer pressed/moved/released, `OnRightTapped` and context requests swallowed after a pan), a pure gesture helper
   in `Editor.ViewModels/Canvas` (arm → pan past the system drag rectangle → swallow), `GetSystemMetricsForDpi` via
   `LibraryImport`, converted to DIP. Done when: helper tests (below threshold = menu, past = pan + no menu, DPI scaling); running editor:
