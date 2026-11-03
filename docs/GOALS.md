@@ -26,6 +26,10 @@ lives in [DECISIONS.md](DECISIONS.md).
   start a flow (so one combo opens the menu, the pad picks). Designed first as its own sub-project
   ([flow-menu/DESIGN.md](flow-menu/DESIGN.md), D-053..D-057). Pads: an Xbox controller and the Steam Controller (through
   Steam). The menu never takes focus; polling a pad only while one is on is acceptable (all 2026-11-03).
+- Priority after v0.23.0 (user, 2026-11-03), before all other planned work (PLAN M13, design first). The editor:
+  right-drag panning, a better layout after wrapped chains, flow icons in the Flows list, nav "Flows" returns to the
+  list, a "Run" button on each flow card, a working or reworked Tidy up, a collapsible nav pane. Flows: a step that
+  runs another flow (no loops). Fallback steps that weren't needed count as neither progress nor a warning.
 - Working name **Daze Control** (namespace `DazeControl`, exe `DazeControl.exe`, CLI `dctl.exe`); the user may rename it.
 
 ## Must keep from scd

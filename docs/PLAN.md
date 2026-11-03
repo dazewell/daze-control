@@ -1,9 +1,9 @@
 # Plan
 
 ## Resume
-Current task: C3 wrap long simple chains — built, PR open on feat/canvas-wrap (D-060, 0.23.0)
-Last green checkpoint: 4e70865 "wip(layout): wrap long spine runs into rows; wrapped edge shape and hit-test"
-Next action: merge the C3 PR per repo-workflow §6 if not yet merged; then after the weekly reset (2026-11-08): L1 Android inputs (paused session), then M12 spikes T12.1/T12.2
+Current task: none — v0.23.0 released (2026-11-03, C3 in); M13 recorded, not designed yet
+Last green checkpoint: docs(plan) M13 priority list
+Next action: M13 FIRST (user, 2026-11-03: before everything else): one design session for P1–P9 with the usual standards (D-entries, UX, microcopy, ARCHITECTURE, tasks with done-when; one AskUserQuestion), merge the design, then one implementation session per task. After M13: L1 Android inputs, then M12 spikes T12.1/T12.2
 Tree state: builds, all tests green · Uncommitted: none
 Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). M12 answers from the user (2026-11-03): pads = Xbox + Steam Controller, the menu never takes focus, XInput polling only while a pad is on. T10.5 is parked as issue #26. The editor has no flow delete yet. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone.
 
@@ -16,6 +16,51 @@ Notes for next agent: release.yml is tag-only (D-043): never push a v-tag withou
   here, so a search-and-replace of the block can't clobber it).
 
 ---
+
+## M13 Priority: editor and flow updates (user, 2026-11-03) — before everything else below
+The user's list after v0.23.0. **Design first, with the usual standards** (as for M11/M12): one design pass for the
+whole milestone before any code. It adds D-entries with why / why not / revisit, UX §5 additions and microcopy in the
+D-026 voice, ARCHITECTURE notes, DEADENDS where research rules something out, and then these tasks rewritten with
+files, branches and done-when. Ask the user only for decisions that are truly theirs, all together in one
+AskUserQuestion. P6 is the big one and may need its own design section like `docs/flow-menu/`; P6 and M12's menu
+both "run another flow" (D-054), so design them to share one model. Items, in the user's order:
+- [ ] P1 **Pan by holding the right mouse button and dragging** the canvas inside its viewport, so no horizontal
+  scrolling is needed. A short right click still opens the context menu: tell them apart by a movement threshold.
+  Today: Space+drag, middle-drag and one-finger pan (UX §5.2).
+- [ ] P2 **Wrapping leaves a long empty link and unused vertical space** (D-060 follow-up). After a wrapped linear
+  part, a very long connection runs to the next step that has a branch attached, so the wrap saves little and much
+  vertical space stays unused. Rethink placement after a wrapped block (e.g. continue the branchy part under the
+  block, or let D-060's "next column after the block" go), with screenshots of the user's case. This may supersede
+  part of D-060.
+- [ ] P3 **The Flows list doesn't show the icon set in the flow** (flow `glyph`); the card should show it.
+- [ ] P4 **Left nav "Flows" while in the flow editor goes back to the list**, with the existing Save / Don't save /
+  Cancel prompt when there's a draft (D-047).
+- [ ] P5 **Run a flow from the Flows list:** replace the card's ">" button with a plain button labelled "Run". Opening
+  the flow stays a click on the card (second-round feedback).
+- [ ] P6 **A step that runs another flow** (call a flow from any flow; no infinite loops: validation refuses direct
+  and indirect cycles through flow calls, and the runtime guards depth too). The user's goal is to compose typical
+  things into one step. Examples to design against:
+  - "wake the TV; connect to Android if not connected; once connected, send this key";
+  - "make this audio device default; if that fails, connect it over Bluetooth, and if that works make it default,
+    if not, try another device (with the same chain there)".
+
+  Decide: wait for the called flow's result vs fire and forget; how its outcome maps to the step (success/failure
+  edges); whether `whenRunning` of the called flow applies; resource locks across nested runs (D-010); history and
+  run view nesting; the pop-up's progress; editor picking a flow and showing "Runs flow X"; possibly parameters
+  (e.g. which device) so one chain serves several devices — or say why not.
+- [ ] P7 **Tidy up visibly does nothing.** The user never saw it change the canvas. Find out why: `FlowTidy` only
+  swaps rows inside columns to cut crossings, so for most flows nothing moves. Decide what Tidy up should be, e.g.
+  offer different layouts for the current flow (compact, wide, wrapped), or remove it.
+- [ ] P8 **Fallback steps don't count as progress or as a warning.** A step reached only by an "if it fails" link
+  (`when: failure`) is a "finally"-style cleanup. When everything worked it's skipped, and that's normal. So:
+  - it's not counted in the pop-up's "n of m" total, and not counted when it's skipped;
+  - its skip is not a warning: no "Done, with a problem"; the flow is Succeeded, not PartiallySucceeded, when the
+    only non-successes are skipped fallbacks;
+  - the same goes for the Runs page and the tray.
+
+  Check D-003's outcome rules and the run pop-up (UX §5.6) wording, and record the new rule as a D-entry.
+- [ ] P9 **The left nav panel can collapse** (NavigationView compact/minimal pane with the toggle button; remember
+  the state per viewer in the editor's settings).
 
 ## M0 Bootstrap ✔ (2026-10-31; T0.1–T0.4 on main, T0.5 PR #1)
 - [x] T0.1 `git init`, `.gitignore`; ask the user before `gh repo create` (name, private?).
