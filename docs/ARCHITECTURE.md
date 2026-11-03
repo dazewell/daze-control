@@ -172,6 +172,9 @@ given on the command line as the Run value's argument.
 - `Runtime/Triggers/HotkeyTable`: chord → flow from `RunnableFlows`, applied as a diff on each reload (unchanged
   chords stay registered), first flow wins a chord, a chord that fails (another app) fails alone and is retried
   on the next reload; Pause unregisters all (not persisted). Failures → `status` ("Alt+Z: Another app uses…").
+  M13b (designed, D-071..D-073): keys add punctuation (VK_OEM_*, US names) and Num0–Num9 (alone allowed, no
+  Shift, Num Lock on); `record-hotkey` pauses all chords while the editor records; failures are retried when
+  recording ends, on Resume and when the tray menu opens. Still `RegisterHotKey` only: no keyboard hook.
 - `Runtime/Tray/TrayMenu`: the menu as data (UX §5.6), rendered by `Engine/Shell/TrayIcon` each time it opens
   (left or right click), dark/light like the taskbar (uxtheme #135/#136). Icon drawn in code by
   `Shell/TrayGlyph` (idle / busy / paused, D-027); tooltip = running flows, else paused, else the last run's
@@ -363,7 +366,7 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   (their cards show the device's name, not the key, D-046).
 - Inspector leftovers (M8): headers as key/value rows + "Add header" (now "Name: value" lines), a script's "Open in
   editor", the pill ring showing a test result for 3 s, resizing the pane (280–480), and recording a chord the
-  running engine already owns (RegisterHotKey eats it, so it runs that flow instead of reaching the recorder).
+  running engine already owns (RegisterHotKey eats it, so it runs that flow instead of reaching the recorder); designed in M13b: D-072).
 - Not built in M7 yet: "+" on a port and on an edge midpoint (menus cover both), minimap, dot grid, F2 rename and
   Ctrl+L "Runs after…" (wait for the M8 inspector), the outline's live region for run results (M9),
   multi-select in the outline.

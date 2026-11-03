@@ -102,7 +102,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 - Device picker: ComboBox items glyph + name + Caption state ("Connected" / "Not connected" / "Unplugged");
   Library items first, then "From Windows" live group (picking adds to Library silently); missing ref stays
   selected as "Not found on this PC"; refreshes live while open.
-- Hotkey: OSD HotkeyRecorder with its conflict note. File: TextBox + Browse, inline "Can't find this file."
+- Hotkey: OSD HotkeyRecorder with its conflict note. M13b (D-071..D-073): it also takes [ ] \ ; ' , . / ` - = and
+  Num0–Num9 (alone or with Win/Ctrl/Alt); a refused or taken key shows why under the box (§5.7 H1–H7), and a
+  number-pad shortcut alone shows the H8 tip under its row. File: TextBox + Browse, inline "Can't find this file."
   Number+unit: NumberBox + suffix ("s"; stored as ms). Key/value rows + "Add header". Script: monospace 8 lines
   + "Open in editor".
 - Failure policy: RadioButtons with descriptions — "Stop the flow" (default) "Nothing after this runs." ·
@@ -233,6 +235,13 @@ default: Technics" · 61 "Steps that used Output now use Technics." · 62 Run of
 steps" "After 8 steps" "Never" · "Spacing" "Compact" "Normal" "Roomy" · "Line up" "Centred" "Along the top" · "Lines"
 "Curved" "Right angles" · "Untangle lines" (off: "No lines cross" / "Can't untangle these any further") · "Reset
 layout" · 64 "Running inside Headphones." · 65 "Would run Make it the default." · 66 Flows card menu "Open" · "Run"
+M13b shortcut keys (own numbering, so M13's new numbers don't clash): H1 "That key can't be a shortcut. Try a
+letter, a number, F1–F24, a key like [ or \, or a number pad key." · H2 "Add Win, Ctrl or Alt, so the shortcut doesn't
+get in the way of your typing." · H3 "Turn on Num Lock to use the number pad." · H4 "Shift doesn't work with number
+pad keys. Use Win, Ctrl or Alt instead." · H5 "Windows uses Win+E. Try another one." · H6 "Another app uses Win+[.
+If you closed it, check the tray: it may still be running. Try another one." (replaces #18) · H7 "Nothing came
+through. Another app may be using those keys." · H8 "While Num Lock is on, Num1 runs this flow instead of typing 1.
+Turn Num Lock off or pause shortcuts to type numbers."
 
 ## 5.8 Risks → mitigations
 1 XAML element count: pill template ≤ 12 elements, no ThemeShadow per node, all edges in one layer of a few batched paths (D-037),
@@ -269,3 +278,6 @@ contrast: solid background, no dots.
   shows the flow's icon and runs it with Run (keyboard: Tab to the card, Enter opens); nav Flows leaves the editor;
   the collapsed nav pane survives a restart; Connect Technics with Technics on says "Done" and "n of m" never counts
   the Sony branch; "Run a flow" shows one pop-up and one Runs entry with the nested lanes.
+- M13b: Win+\ , Ctrl+Num1 and Num5 record and run a flow; Win+[ with SwitchDisplay.ahk running shows H6 (or H7),
+  and after that app quits, clicking into the box and out again (or opening the tray menu) clears the note
+  without a restart; Num Lock off shows H3.

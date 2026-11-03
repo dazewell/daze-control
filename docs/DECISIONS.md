@@ -873,3 +873,57 @@ Status: accepted (M13 design; user, 2026-11-03)
   to run from the list. The Edit button existed only for the keyboard, which the card now covers.
 - Why not an accent Run button: one accent per page (New flow). Why not icon only (▶): the user asked for the word.
 - Revisit if: users start flows by accident from the list (then confirm for flows without a pop-up).
+
+## D-071 · 2026-11-03 · Shortcut keys: [ ] \ and the other punctuation keys, and number-pad digits (alone too)
+Status: accepted (design M13b, user 2026-11-03; not built)
+- Decision: `Core/Input/Hotkey` takes, besides A–Z, 0–9 and F1–F24, the punctuation keys by virtual-key code with
+  US names: `[` `]` `\` `;` `'` `,` `.` `/` `` ` `` `-` `=` (VK_OEM_4, 6, 5, 1, 7, COMMA, PERIOD, 2, 3, MINUS, PLUS),
+  and the number pad's digits `Num0`–`Num9` (VK_NUMPAD0–9; "Numpad1" parses too, `Num1` is canonical). Win, Ctrl
+  or Alt stays required, except for `Num0`–`Num9`, which may stand alone (user: "Alone too"). Shift with a Num
+  key is refused. Num keys need Num Lock on (user); with it off the pad sends End, Down… and nothing fires. YAML
+  stores the US name whatever the layout; the YAML writer may quote `Win+[` (round trip tested).
+- Why: the user wants Win+[ ] \ and Num1… (2026-11-03). `RegisterHotKey` takes all of them with no hook (spike,
+  dev PC: Win+\, Ctrl+Alt+[, Num0/1/5 alone, Ctrl/Alt/Win+Num1 all registered). It is VK based, so the stored key
+  stays the same when the user switches layouts. Shift is refused because with Num Lock on Windows turns
+  Shift+Num1 into End, so the shortcut could never fire. A bare Num key swallows that digit in every app while
+  Num Lock is on (the user accepted this; Num Lock off or Pause shortcuts gives the digits back).
+- Why not a low-level keyboard hook (to work with Num Lock off, or tell the pad's End from the real End): it would
+  stay resident and see every key press. That goes against idle = zero, it looks like a keylogger to antivirus,
+  and Windows drops slow hooks. Why not the layout's character as the name (`ß` on German): the name would change
+  with the layout while the key doesn't. Why not bare punctuation or letters too: they'd take normal typing.
+- Revisit if: someone on a non-US layout finds the names confusing (then show `MapVirtualKey`'s character in the
+  editor and keep the US name in YAML), or the user wants number-pad keys with Num Lock off.
+
+## D-072 · 2026-11-03 · Recording pauses the engine's shortcuts; failed shortcuts are retried on user actions
+Status: accepted (design M13b, item 5 of the user's 2026-11-03 request; not built)
+- Decision: the recorder tells the engine when it starts and stops recording (pipe op `record-hotkey`
+  `{on: true|false}`, like M12's `record-gamepad`). While on, `HotkeyTable` unregisters every keyboard shortcut
+  (its own flag, apart from the tray's Pause, not shown in the tray). The pause ends on `off`, when the editor's
+  pipe connection drops, or when the editor exits. It ends with a `Sync`, which registers every wanted chord
+  again, including the ones that failed. Failed chords are retried on user actions too: opening the tray menu,
+  Resume, and every reload (as now). When a retry changes the failures, the engine sends a `shortcutsChanged`
+  event and the editor reads `status` again, so the "Another app uses…" note goes away at the next of these
+  actions after the other app has let the key go (not at the moment it quits). No timer, no polling.
+- Why (evidence, dev PC, 2026-11-03): a failed chord was only retried on the next reload. Recording the same chord
+  again changes nothing (`InspectorViewModel.SetShortcut` skips an equal list), so nothing is saved, nothing reloads,
+  and the note stays until the engine restarts, even after the other app quits. The engine's own registered chords
+  never reach the recorder either: `RegisterHotKey` takes the keystroke, so the flow runs instead (an ARCHITECTURE
+  leftover). `RecordingChanged` had no subscriber.
+- Why not retry on a timer: idle = zero. Why not have the editor test the key with its own `RegisterHotKey`: that
+  races with the engine, which is the owner, and still can't see past the other app.
+- Revisit if: a chord is held by an app that grabs it again whenever we let go (then keep ours during recording).
+
+## D-073 · 2026-11-03 · "Taken" vs "not supported": the recorder says which, and names Windows when it's Windows
+Status: accepted (design M13b; not built)
+- Decision: the recorder's `Rejected` event carries a reason. The inspector shows it under the box (UX §5.7 H1–H4):
+  the key can't be a shortcut, a modifier is missing, Num Lock is off (a number-pad navigation key: `VirtualKey`
+  End/Down/… with `KeyStatus.IsExtendedKey` false), or Shift with a Num key. A chord the engine can't register
+  (error 1409) gets "Windows uses…" (H5) when it's on a fixed list of Windows 11's own Win shortcuts in
+  `Core/Input/WindowsShortcuts`, else "Another app uses…" with the tray hint (H6). Modifiers that were held and let
+  go without any key arriving get H7 ("Nothing came through"), since another app's chord never reaches us.
+- Why: in the user's case, Win+[ did nothing in the recorder. `Hotkey.TryCreate` refused it and nobody listened to
+  `Rejected`, which looked like "taken". Once supported, it is taken: `C:\Projects\Autohotkey\SwitchDisplay.ahk`,
+  still running since 2026-10-15, binds `#[` and `#]` (both 1409 in the spike; Win+\ was free).
+- Why not name the app that holds the key: Windows has no API for it (X-007). Why not the error code alone: Windows
+  and apps both give 1409 (X-007).
+- Revisit if: the Windows list goes wrong after a Windows update (the generic "Another app…" is the safe fallback).
