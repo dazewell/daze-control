@@ -68,7 +68,7 @@ public sealed class DesktopShortcutTests : IDisposable
 
         await inspector.AddToDesktopCommand.ExecuteAsync(null);
 
-        Assert.Contains(_engine.Requests, r => r is { Op: Ops.CreateShortcut, Flow: "f" });
+        Assert.Contains(_engine.Requests, r => r is { Op: Ops.CreateShortcut, Flow: "f", ExactId: true } && r.ConfigPath == _session.Path);
         Assert.True(inspector.HasDesktopShortcut);
         Assert.Equal("On your desktop", inspector.DesktopStatus);
         Assert.True(inspector.CanRemoveFromDesktop);

@@ -58,12 +58,12 @@ public sealed class PipeRequest
     /// <summary>run: answer when the run has finished, with its record.</summary>
     public bool Wait { get; init; }
 
-    /// <summary>run: <see cref="Flow"/> is an id, never a name (a desktop shortcut, D-049): a deleted flow's shortcut
-    /// must not run another flow called like that id.</summary>
+    /// <summary>run, create-shortcut, remove-shortcut: <see cref="Flow"/> is an id, never a name (a desktop shortcut or
+    /// the editor, D-049): a deleted flow's id must not reach another flow called like that id.</summary>
     public bool ExactId { get; init; }
 
-    /// <summary>run (desktop shortcut): the full path of the config the shortcut is for. The engine and its pipe are per
-    /// user, not per config: an engine running another config refuses the run instead of starting its own flow.</summary>
+    /// <summary>run (desktop shortcut) and the shortcut ops (editor): the full path of the config meant. The engine and
+    /// its pipe are per user, not per config: an engine running another config refuses instead of using its own flows.</summary>
     public string? ConfigPath { get; init; }
 
     /// <summary>run: walk the flow with steps that do nothing (no history, no locks).</summary>

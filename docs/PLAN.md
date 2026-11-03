@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T11.4 + T11.5 — desktop shortcuts (branch feat/m11-shortcuts, PR pending); T11.1–T11.3 in a parallel session
-Last green checkpoint: 2b7bf8c "wip(editor): desktop shortcut row in flow settings and the Flows card menu"
-Next action: open the PR, request Copilot, merge per repo-workflow §6
-Tree state: builds, 877/877 tests green, AOT publish clean · Uncommitted: none
-Notes for next agent: verified on the dev PC with Debug and AOT engines (forward, cold start with a non-default config, #24 pop-up, editor row states); an installed copy's update/uninstall path is unverified (GOALS → follow-ups). The editor has no flow delete, so T11.5's "delete removes on Save" has nothing to hook into yet.
+Current task: M11 — T11.4/T11.5 desktop shortcuts merged (PR #24, 0.21.0); T11.1 PR #23 and T11.2/T11.3 (feat/m11-pickers) in the parallel session
+Last green checkpoint: 4872024 "fix(shortcuts): refuse another config's run…"
+Next action: T11.2 on feat/m11-pickers (if its session stopped), else M11 is done once #23 and the pickers PR merge
+Tree state: builds, 882/882 tests green, AOT publish clean · Uncommitted: none
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. Desktop shortcuts on an installed copy (survives an update, uninstall removes it) are unverified: GOALS → follow-ups. The editor has no flow delete yet.
 
 ---
 

@@ -27,7 +27,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         _session = session;
         _engine = engine;
         _post = post;
-        _desktop = desktop ?? new DesktopShortcutStore(engine);
+        _desktop = desktop ?? new DesktopShortcutStore(engine, session.Path);
         _session.PropertyChanged += OnSessionChanged;
         _engine.EventReceived += OnEngineEvent;
         _engine.StateChanged += OnEngineStateChanged;

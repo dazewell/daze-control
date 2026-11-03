@@ -6,7 +6,8 @@ namespace DazeControl.Editor.ViewModels.Engine;
 /// The desktop shortcuts as the engine last reported them (D-049), shared by the Flows list and the flow settings so
 /// a change in one shows in the other. The engine writes them; without it there's nothing to show (UX §5.7 #25).
 /// </summary>
-public sealed class DesktopShortcutStore(IEngineClient engine)
+/// <param name="configPath">The file the editor has open; the engine refuses when it runs another one.</param>
+public sealed class DesktopShortcutStore(IEngineClient engine, string? configPath = null)
 {
     /// <summary>UX §5.7 #23.</summary>
     public const string AddText = "Add to desktop";
@@ -28,7 +29,7 @@ public sealed class DesktopShortcutStore(IEngineClient engine)
     /// <summary>Asks the engine; with no engine, no shortcuts are known.</summary>
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        var answer = await engine.SendAsync(new PipeRequest { Op = Ops.Shortcuts }, cancellationToken).ConfigureAwait(false);
+        var answer = await engine.SendAsync(new PipeRequest { Op = Ops.Shortcuts, ConfigPath = configPath }, cancellationToken).ConfigureAwait(false);
         var byFlow = new Dictionary<string, ShortcutInfo>(StringComparer.Ordinal);
         foreach (var shortcut in answer is { Ok: true } ? answer.Shortcuts ?? [] : [])
             byFlow.TryAdd(shortcut.FlowId, shortcut);
@@ -38,10 +39,10 @@ public sealed class DesktopShortcutStore(IEngineClient engine)
 
     /// <summary>Adds the flow's shortcut, or renames it to the flow's name (Update). Null when it worked, else why not.</summary>
     public Task<string?> AddAsync(string flowId, CancellationToken cancellationToken = default) =>
-        ChangeAsync(new PipeRequest { Op = Ops.CreateShortcut, Flow = flowId }, cancellationToken);
+        ChangeAsync(new PipeRequest { Op = Ops.CreateShortcut, Flow = flowId, ExactId = true, ConfigPath = configPath }, cancellationToken);
 
     public Task<string?> RemoveAsync(string flowId, CancellationToken cancellationToken = default) =>
-        ChangeAsync(new PipeRequest { Op = Ops.RemoveShortcut, Flow = flowId }, cancellationToken);
+        ChangeAsync(new PipeRequest { Op = Ops.RemoveShortcut, Flow = flowId, ExactId = true, ConfigPath = configPath }, cancellationToken);
 
     private async Task<string?> ChangeAsync(PipeRequest request, CancellationToken cancellationToken)
     {

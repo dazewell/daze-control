@@ -78,7 +78,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         _engine = engine;
         _post = post;
         _fileExists = fileExists ?? (p => File.Exists(p) || Directory.Exists(p));
-        _desktop = desktop ?? new DesktopShortcutStore(engine);
+        _desktop = desktop ?? new DesktopShortcutStore(engine, session.Path);
         _desktop.Changed += OnDesktopChanged;
         _session.PropertyChanged += OnSessionChanged;
         _canvas.PropertyChanged += OnCanvasChanged;

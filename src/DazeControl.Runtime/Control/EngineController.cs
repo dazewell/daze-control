@@ -294,6 +294,9 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         var id = request.Id;
         if (shortcuts is null)
             return PipeMessage.Fail(id, "This engine can't make desktop shortcuts.");
+        // The editor may have another file open than the engine runs: its ids would reach the wrong flows' shortcuts.
+        if (request.ConfigPath is { } wanted && !SameFile(wanted, info.ConfigPath))
+            return PipeMessage.Fail(id, $"Daze Control is running the flows in {info.ConfigPath}, not this file.");
         try
         {
             switch (request.Op)
@@ -302,7 +305,8 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                     return new PipeMessage { Id = id, Ok = true, Shortcuts = [.. shortcuts.List().Select(Describe)] };
                 case Ops.CreateShortcut:
                 {
-                    if (Find(request.Flow) is not { } state || (state.Running ?? state.Written) is not { } flow)
+                    var found = request.ExactId ? FindById(request.Flow) : Find(request.Flow);
+                    if (found is not { } state || (state.Running ?? state.Written) is not { } flow)
                         return NotFound(id, request.Flow);
                     var made = shortcuts.Create(flow);
                     log($"shortcuts: {flow.Id} → {made.Path}");
@@ -313,7 +317,8 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                     if (string.IsNullOrWhiteSpace(request.Flow))
                         return NotFound(id, request.Flow);
                     var listed = shortcuts.List();
-                    var flowId = listed.Any(s => s.FlowId == request.Flow) ? request.Flow : Find(request.Flow)?.FlowId;
+                    // The editor names an id: a shortcut already gone is removed, never another flow found by name.
+                    var flowId = request.ExactId || listed.Any(s => s.FlowId == request.Flow) ? request.Flow : Find(request.Flow)?.FlowId;
                     if (flowId is null)
                         return NotFound(id, request.Flow);
                     var removed = listed.Where(s => s.FlowId == flowId).Select(Describe).ToArray();
