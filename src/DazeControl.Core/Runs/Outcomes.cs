@@ -91,8 +91,8 @@ public static class Outcomes
                 .Where(n => n.After.Any(e => e.From == unit && e.When == EdgeWhen.Failure))
                 .SelectMany(n => n is GroupNode card ? card.Members.AsEnumerable() : [n.Id])
                 .Select(id => byId.GetValueOrDefault(id))
-                .Where(r => r is { Order: > 0 })
-                .OrderBy(r => r!.Order)
+                .Where(r => r is { Order: > 0 } or { Attempts: > 0 })
+                .OrderBy(r => r!.Order == 0 ? int.MaxValue : r.Order)
                 .FirstOrDefault();
             if (started is not null)
                 return (failure.NodeId, started.NodeId);

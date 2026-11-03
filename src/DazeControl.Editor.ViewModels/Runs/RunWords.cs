@@ -1,4 +1,5 @@
 using System.Globalization;
+using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
 using DazeControl.Editor.ViewModels.Canvas;
 
@@ -22,12 +23,15 @@ public static class RunWords
         _ => "Stopped",
     };
 
-    /// <summary>The run's result sentence (§5.7 #13, #14, #16).</summary>
+    /// <summary>The run's result sentence (§5.7 #13, #14, #16, #48).</summary>
     /// <param name="title">A node id → the name the user knows it by.</param>
-    public static string Sentence(RunRecord run, Func<string, string> title)
+    /// <param name="flow">The flow as it is now, to tell a failure its fallback fixed; null when it's gone.</param>
+    public static string Sentence(RunRecord run, Func<string, string> title, Flow? flow = null)
     {
         ArgumentNullException.ThrowIfNull(run);
         ArgumentNullException.ThrowIfNull(title);
+        if (run.Outcome == FlowOutcome.Succeeded && flow is not null && Outcomes.Fix(flow, run.Nodes) is { } fix)
+            return $"{run.FlowName} worked. {Fixed(fix, title)}";
         var failed = run.Nodes.FirstOrDefault(n => n.Outcome is NodeOutcome.Failed or NodeOutcome.FailedIgnored);
         var reason = failed?.Error is { } error ? " " + Sentence(FirstLine(error)) : "";
         return run.Outcome switch
@@ -41,6 +45,13 @@ public static class RunWords
         };
     }
 
+    /// <summary>#48: "Connect Technics didn't work, so Connect Sony ran instead."</summary>
+    public static string Fixed((string Failed, string Fallback) fix, Func<string, string> title)
+    {
+        ArgumentNullException.ThrowIfNull(title);
+        return $"{title(fix.Failed)} didn't work, so {title(fix.Fallback)} ran instead.";
+    }
+
     /// <summary>A pill's text once its step finished: its duration, or what happened.</summary>
     public static NodeRunView View(NodeResult node, bool showDuration = true, int order = 0)
     {
@@ -52,6 +63,7 @@ public static class RunWords
             NodeOutcome.Failed => new(NodeRunState.Failed, "Didn't work" + took, order),
             NodeOutcome.FailedIgnored => new(NodeRunState.FailedMayFail, "Didn't work" + took, order),
             NodeOutcome.Skipped => new(NodeRunState.Skipped, "Skipped", order),
+            NodeOutcome.NotNeeded => new(NodeRunState.Skipped, "Not needed", order), // #47
             _ => new(NodeRunState.Skipped, "Stopped", order),
         };
     }

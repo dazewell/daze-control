@@ -11,8 +11,11 @@ namespace DazeControl.Editor.ViewModels.Runs;
 public sealed record TimelineBarView(string NodeId, string Title, NodeOutcome Outcome, double X, double Y, double Width,
     IReadOnlyList<double> Notches)
 {
-    /// <summary>A may-fail step that failed: dashed caution (UX §5.5).</summary>
-    public bool IsMayFailFailed => Outcome == NodeOutcome.FailedIgnored;
+    /// <summary>A failure its fallback took over (D-065): dashed caution like a may-fail one.</summary>
+    public bool IsHandled { get; init; }
+
+    /// <summary>A may-fail step that failed, or a failure its fallback took over: dashed caution (UX §5.5).</summary>
+    public bool IsMayFailFailed => Outcome == NodeOutcome.FailedIgnored || (IsHandled && Outcome == NodeOutcome.Failed);
 
     public string AutomationName { get; init; } = "";
 
@@ -35,6 +38,7 @@ public sealed partial class RunDetailViewModel : ObservableObject
     public const double LaneHeight = 28, BarHeight = 20, MinBarWidth = 4, AxisHeight = 20, BarGap = 2;
 
     private readonly Dictionary<string, string> _titles;
+    private readonly IReadOnlySet<string> _handled;
 
     public RunDetailViewModel(RunRecord record, Flow? flow)
     {
@@ -43,13 +47,15 @@ public sealed partial class RunDetailViewModel : ObservableObject
         Flow = flow;
         _titles = record.Nodes.ToDictionary(n => n.NodeId, n => TitleOf(flow?.FindNode(n.NodeId), n.NodeId), StringComparer.Ordinal);
         Timeline = Build(record, flow);
-        Sentence = RunWords.Sentence(record, NodeTitle);
+        Sentence = RunWords.Sentence(record, NodeTitle, flow);
+        _handled = flow is null ? new HashSet<string>() : FlowShape.WithFallback(flow);
         // Before 0.15 nothing recorded when steps started: every bar would sit at zero.
         HasTimeline = record.Nodes.Any(n => n.Order > 0);
         // A card has no attempts of its own even when it ran; its outcome says whether it was skipped.
-        NotRun = [.. record.Nodes.Where(n => n.Attempts == 0 && n.Outcome is NodeOutcome.Skipped or NodeOutcome.Cancelled
+        NotRun = [.. record.Nodes.Where(n => n.Attempts == 0
+                && n.Outcome is NodeOutcome.Skipped or NodeOutcome.Cancelled or NodeOutcome.NotNeeded
                 && flow?.FindNode(n.NodeId) is not GroupNode)
-            .Select(n => $"{NodeTitle(n.NodeId)}: {(n.Outcome == NodeOutcome.Cancelled ? "stopped before it started" : "skipped")}")];
+            .Select(n => $"{NodeTitle(n.NodeId)}: {NotRunWords(n.Outcome)}")];
         Layout(600);
     }
 
@@ -143,6 +149,7 @@ public sealed partial class RunDetailViewModel : ObservableObject
         var bars = placed.Select(p => new TimelineBarView(p.Bar.NodeId, NodeTitle(p.Bar.NodeId), p.Bar.Outcome, p.X,
             top + p.Bar.Lane * LaneHeight + (LaneHeight - BarHeight) / 2, p.W, [.. p.Bar.Notches.Select(n => Math.Clamp(X(n) - p.X, 0, p.W))])
         {
+            IsHandled = _handled.Contains(p.Bar.NodeId),
             AutomationName = $"{NodeTitle(p.Bar.NodeId)}, {Describe(p.Bar.Outcome)}, {RunWords.Seconds(p.Bar.End - p.Bar.Start)}",
         }).ToList();
         // A bracket hugs its members' bars as fitted above, not their raw times, so it never cuts one off.
@@ -190,7 +197,15 @@ public sealed partial class RunDetailViewModel : ObservableObject
         NodeOutcome.Failed => "didn't work",
         NodeOutcome.FailedIgnored => "didn't work, the flow went on",
         NodeOutcome.Skipped => "skipped",
+        NodeOutcome.NotNeeded => "not needed",
         _ => "stopped",
+    };
+
+    private static string NotRunWords(NodeOutcome outcome) => outcome switch
+    {
+        NodeOutcome.Cancelled => "stopped before it started",
+        NodeOutcome.NotNeeded => "not needed", // #47
+        _ => "skipped",
     };
 
     private string NodeTitle(string id) => _titles.GetValueOrDefault(id, id);

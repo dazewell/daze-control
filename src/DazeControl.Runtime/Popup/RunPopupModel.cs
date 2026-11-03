@@ -24,7 +24,7 @@ public enum PopupTone
 /// <param name="Status">Right of the name, short: "2 of 3" while running, "Done" on success, else empty.</param>
 /// <param name="Headline">Row 3's first line in the tone's colour when the outcome needs more words than the
 /// status column holds ("Done, with a problem", "Didn't finish"); null otherwise.</param>
-/// <param name="Progress">Finished nodes / all nodes, 0–1.</param>
+/// <param name="Progress">Finished nodes / nodes counted, 0–1 (fallbacks count once they start, D-065).</param>
 /// <param name="Detail">Row 3: the current step while running, then the outcome in plain words (≤ 2 lines).</param>
 /// <param name="Hint">Row 4, failure only: "Select to see what happened".</param>
 /// <param name="HideAfter">Null while running; how long the finished pop-up stays.</param>
@@ -58,13 +58,14 @@ public sealed class RunPopupModel
             flow = started.Flow ?? flow;
             if (flow is null || !flow.Popup)
                 return false;
-            _runs[started.RunId] = new RunTrack(flow, started.NodeCount, started.At);
+            _runs[started.RunId] = new RunTrack(flow, started.At);
         }
         if (!_runs.TryGetValue(e.RunId, out var run))
             return false;
         switch (e)
         {
             case NodeStarted node:
+                run.Count(node.NodeId);
                 run.Running.Remove(node.NodeId);
                 run.Running.Add(node.NodeId);
                 break;
@@ -96,7 +97,7 @@ public sealed class RunPopupModel
 
     private static PopupView Progress(Guid runId, string flowId, RunTrack run)
     {
-        var done = run.Finished.Count;
+        var done = run.Done;
         var detail = run.Running.Count switch
         {
             0 => done == 0 ? "Starting…" : "Working…",
@@ -116,6 +117,11 @@ public sealed class RunPopupModel
         var problem = run.Finished.FirstOrDefault(r => r.Outcome is NodeOutcome.Failed or NodeOutcome.FailedIgnored);
         return outcome switch
         {
+            // A failure its fallback fixed is the plan working: "Done", in the normal tone (#48, D-065).
+            FlowOutcome.Succeeded when Outcomes.Fix(run.Flow, run.Finished) is { } fix => view with
+            {
+                Detail = $"{run.NameOf(fix.Failed)} didn't work, so {run.NameOf(fix.Fallback)} ran instead.",
+            },
             FlowOutcome.PartiallySucceeded => view with
             {
                 Status = "",
@@ -166,15 +172,42 @@ public sealed class RunPopupModel
         return $"{(int)took.TotalMinutes} min {took.Seconds} s";
     }
 
-    private sealed class RunTrack(Flow flow, int total, DateTimeOffset started)
+    /// <summary>
+    /// "n of m" counts the flow's nodes except fallbacks, which join m when one of their steps starts (D-065): a
+    /// fallback that wasn't needed counts for nothing.
+    /// </summary>
+    private sealed class RunTrack
     {
-        public Flow Flow { get; } = flow;
-        public int Total { get; } = Math.Max(total, 1);
-        public DateTimeOffset Started { get; } = started;
+        private readonly IReadOnlySet<string> _fallbacks;
+        private readonly HashSet<string> _counted;
+
+        public RunTrack(Flow flow, DateTimeOffset started)
+        {
+            Flow = flow;
+            Started = started;
+            _fallbacks = FlowShape.Fallbacks(flow);
+            _counted = [.. flow.Nodes.Select(n => n.Id).Where(id => !_fallbacks.Contains(id))];
+        }
+
+        public Flow Flow { get; }
+        public DateTimeOffset Started { get; }
         public List<string> Running { get; } = [];
         public List<NodeResult> Finished { get; } = [];
 
-        public double Fraction => Math.Clamp((double)Finished.Count / Total, 0, 1);
+        public int Total => Math.Max(_counted.Count, 1);
+
+        public int Done => Finished.Count(r => _counted.Contains(r.NodeId));
+
+        public double Fraction => Math.Clamp((double)Done / Total, 0, 1);
+
+        /// <summary>A step started: a fallback (and its card) counts from now on.</summary>
+        public void Count(string stepId)
+        {
+            if (!_fallbacks.Contains(stepId))
+                return;
+            _counted.Add(stepId);
+            _counted.Add(FlowShape.UnitOf(Flow, stepId));
+        }
 
         /// <summary>The node's own name, else its provider's title, else its id.</summary>
         public string NameOf(string nodeId) => Flow.FindNode(nodeId) switch

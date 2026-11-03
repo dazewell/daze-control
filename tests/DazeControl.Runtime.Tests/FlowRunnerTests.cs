@@ -93,6 +93,24 @@ public sealed class FlowRunnerTests : IDisposable
         Assert.All(result.Nodes, n => Assert.Equal(NodeOutcome.Succeeded, n.Outcome));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TheConnectTechnicsShapeEndsDoneEitherWay(bool technicsFails)
+    {
+        // The user's flow on fake steps (D-065): Technics, else Sony and the speakers.
+        if (technicsFails)
+            _provider.On("bt", (_, _) => FakeProvider.Fail("Technics isn't in range."));
+
+        var result = await Run(Flow(Step("bt", "onFailure: skip"), Step("out", "after: [bt]"),
+            Step("connect", "after: [{ id: bt, when: failure }]"), Step("setDefault", "after: [connect]")));
+
+        Assert.Equal(FlowOutcome.Succeeded, result.Outcome);
+        Assert.Equal(technicsFails ? NodeOutcome.Skipped : NodeOutcome.Succeeded, Node(result, "out").Outcome);
+        Assert.Equal(technicsFails ? NodeOutcome.Succeeded : NodeOutcome.NotNeeded, Node(result, "setDefault").Outcome);
+        Assert.Equal(technicsFails ? 1 : 0, Node(result, "connect").Attempts);
+    }
+
     [Fact]
     public async Task FailureMessageReachesTheResultAndTheFallbackRuns()
     {
