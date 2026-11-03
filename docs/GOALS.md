@@ -41,7 +41,8 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
 - [x] Second-round feedback (user, 2026-11-02; 0.20.0): flow edits are a draft with Save / Cancel, Library and
   Settings keep autosaving (D-047); tray left click opens the editor, right click the menu (D-048); "If it fails,
   run…" and a Connections list in the inspector; a click on a flow's card opens it; Library Remove always shows (off
-  with a reason when in use); canvas pills follow the re-layout after same-column links and deletes (X-004).
+  with a reason when in use); canvas pills follow the re-layout after same-column links and deletes (X-004); edges can be hovered, clicked,
+  marquee-selected, deleted and right-clicked (UX §5.8 #2), with "+"/"×" above the midpoint.
 
 ## Ready for you (M10, 2026-11-02)
 

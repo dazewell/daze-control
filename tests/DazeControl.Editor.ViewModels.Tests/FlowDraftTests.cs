@@ -29,6 +29,8 @@ public sealed class FlowDraftTests : IDisposable
         _canvas.Dispose();
         _session.Dispose();
         _time.Dispose();
+        foreach (var file in Directory.EnumerateFiles(_folder, "*", SearchOption.AllDirectories))
+            File.SetAttributes(file, FileAttributes.Normal); // backups of a read-only file are read-only too
         Directory.Delete(_folder, recursive: true);
     }
 
@@ -132,6 +134,57 @@ public sealed class FlowDraftTests : IDisposable
 
         Assert.Equal(OutsideChange.Reloaded, _session.OutsideChange);
         Assert.True(_canvas.HasChanges);
+        Assert.Equal(8, _canvas.Flow!.Nodes.Count);
+    }
+
+    [Fact]
+    public void AFailedSaveKeepsTheDraftItsUndoAndTheSavedVersion()
+    {
+        var before = OnDisk();
+        _canvas.AddStep("wait");
+        File.SetAttributes(_path, FileAttributes.ReadOnly);
+        try
+        {
+            Assert.False(_canvas.Save());
+
+            Assert.True(_session.HasSaveError);
+            Assert.True(_canvas.HasChanges);
+            Assert.True(_canvas.CanUndo);
+            Assert.Equal(before, _session.SavedFlow("f"));
+
+            _canvas.Discard(); // Cancel still goes back to what the file has
+            Assert.Equal(before.Nodes.Count, _canvas.Flow!.Nodes.Count);
+        }
+        finally
+        {
+            File.SetAttributes(_path, FileAttributes.Normal);
+        }
+    }
+
+    [Fact]
+    public void ASaveRetriedAfterAFailureWrites()
+    {
+        _canvas.AddStep("wait");
+        File.SetAttributes(_path, FileAttributes.ReadOnly);
+        Assert.False(_canvas.Save());
+        File.SetAttributes(_path, FileAttributes.Normal);
+
+        Assert.True(_canvas.Save());
+
+        Assert.False(_canvas.HasChanges);
+        Assert.Equal(8, OnDisk().Nodes.Count);
+    }
+
+    [Fact]
+    public void AnUnreadableReloadKeepsTheDraft()
+    {
+        _canvas.AddStep("wait");
+        File.WriteAllText(_path, "flows: [unclosed");
+        _session.CheckOutsideChange();
+
+        Assert.True(_session.HasLoadError);
+        Assert.True(_canvas.HasChanges);
+        Assert.True(_session.HasUnsavedChanges);
         Assert.Equal(8, _canvas.Flow!.Nodes.Count);
     }
 }

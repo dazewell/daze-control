@@ -33,6 +33,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     private readonly ConfigSession _session;
     private readonly Dictionary<string, Size> _measured = new(StringComparer.Ordinal);
     private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
+    private readonly HashSet<(string From, string To)> _selectedEdges = [];
     private readonly CanvasClipboard _clipboard;
     private readonly List<Flow> _undo = [], _redo = [];
     private FlowArrangement _arrangement = new([], [], [], new Size(96, 96));
@@ -127,12 +128,15 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     public bool HasChanges => _session.HasDraft(FlowId);
 
     /// <summary>Save (Ctrl+S): the draft goes to config.yaml, and the engine picks it up.</summary>
-    public void Save()
+    /// <summary>False when the write failed: the draft and its undo history stay for another try.</summary>
+    public bool Save()
     {
         if (!HasChanges)
-            return;
-        _session.SaveDraft(FlowId);
+            return true;
+        if (!_session.SaveDraft(FlowId))
+            return false;
         ClearHistory(); // undo stays inside a draft
+        return true;
     }
 
     /// <summary>Cancel / Discard: back to the saved flow.</summary>
@@ -185,6 +189,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     public Flow? Flow => _session.Current.Flows.FirstOrDefault(f => f.Id == FlowId);
 
+    /// <summary>The flow as last saved: what Run executes (D-047); the draft is <see cref="Flow"/>.</summary>
+    public Flow? SavedFlow => _session.SavedFlow(FlowId);
+
     public Library Library => _session.Current.Library;
 
     public CanvasNodeViewModel? Find(string id) => Nodes.FirstOrDefault(n => n.Id == id);
@@ -214,6 +221,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     public void Select(string id)
     {
         _selected.Clear();
+        _selectedEdges.Clear();
         if (Find(id) is not null)
             _selected.Add(id);
         FocusedId = Find(id)?.Id ?? FocusedId;
@@ -231,14 +239,50 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         ApplySelection();
     }
 
-    /// <summary>Marquee: every node touching <paramref name="area"/> (content DIP); additive with Ctrl.</summary>
+    /// <summary>
+    /// Marquee: every node touching <paramref name="area"/> (content DIP) and every edge with both ends inside it;
+    /// additive with Ctrl.
+    /// </summary>
     public void SelectIn(Rect area, bool additive)
     {
         if (!additive)
+        {
             _selected.Clear();
+            _selectedEdges.Clear();
+        }
         foreach (var node in Nodes.Where(n => n.Bounds.Intersects(area)))
             _selected.Add(node.Id);
+        foreach (var edge in Edges.Where(e => area.Contains(e.Curve.Start) && area.Contains(e.Curve.Tip)))
+            _selectedEdges.Add((edge.From, edge.To));
         ApplySelection();
+    }
+
+    /// <summary>A click on an edge (UX §5.8 #2): selects it alone; Ctrl adds or removes it.</summary>
+    public void SelectEdge(CanvasEdgeViewModel edge, bool additive = false)
+    {
+        ArgumentNullException.ThrowIfNull(edge);
+        if (!additive)
+        {
+            _selected.Clear();
+            _selectedEdges.Clear();
+        }
+        if (!_selectedEdges.Remove((edge.From, edge.To)))
+            _selectedEdges.Add((edge.From, edge.To));
+        ApplySelection();
+    }
+
+    /// <summary>Edges picked themselves (a click or the marquee), not just lit because both ends are selected.</summary>
+    public IReadOnlyList<CanvasEdgeViewModel> SelectedEdges => [.. Edges.Where(e => _selectedEdges.Contains((e.From, e.To)))];
+
+    /// <summary>The edge under the pointer, drawn thicker in accent with its "+"/"×" controls (UX §5.3); null for none.</summary>
+    public CanvasEdgeViewModel? HoveredEdge
+    {
+        get => Edges.FirstOrDefault(e => e.IsHovered);
+        set
+        {
+            foreach (var edge in Edges)
+                edge.IsHovered = ReferenceEquals(edge, value);
+        }
     }
 
     public void SelectAll()
@@ -251,6 +295,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     public void ClearSelection()
     {
         _selected.Clear();
+        _selectedEdges.Clear();
         ApplySelection();
     }
 
@@ -648,13 +693,21 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         return id;
     }
 
-    /// <summary>Del: the selection, reconnecting around it.</summary>
+    /// <summary>Del: the selected steps, reconnecting around them, and the selected edges. One undo step.</summary>
     public void DeleteSelection()
     {
-        if (_selected.Count == 0)
+        if (_selected.Count == 0 && _selectedEdges.Count == 0)
             return;
         var ids = _selected.ToList();
-        Edit(flow => FlowCommands.Delete(flow, ids));
+        // An edge into or out of a deleted step goes with it; removing it first would change how the gap reconnects.
+        var edges = _selectedEdges.Where(e => !_selected.Contains(e.From) && !_selected.Contains(e.To)).ToList();
+        _selectedEdges.Clear();
+        Edit(flow =>
+        {
+            foreach (var (from, to) in edges)
+                flow = FlowGraph.Disconnect(flow, from, to);
+            return ids.Count > 0 ? FlowCommands.Delete(flow, ids) : flow;
+        });
     }
 
     /// <summary>Ctrl+C; false when nothing is selected.</summary>
@@ -698,6 +751,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     public void SelectOnly(IEnumerable<string> ids)
     {
         _selected.Clear();
+        _selectedEdges.Clear();
         foreach (var id in ids.Where(id => Find(id) is not null))
             _selected.Add(id);
         if (_selected.Count > 0)
@@ -758,6 +812,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             Edges.Add(new CanvasEdgeViewModel(route, mayFail.Contains(route.To)));
 
         _selected.RemoveWhere(id => Find(id) is null);
+        _selectedEdges.RemoveWhere(k => !Edges.Any(e => e.From == k.From && e.To == k.To));
         if (FocusedId is not null && Find(FocusedId) is null)
             FocusedId = null;
         SetFocus(FocusedId);
@@ -807,7 +862,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         foreach (var node in Nodes)
             node.IsSelected = _selected.Contains(node.Id);
         foreach (var edge in Edges)
-            edge.IsSelected = _selected.Contains(edge.From) && _selected.Contains(edge.To);
+            edge.IsSelected = _selectedEdges.Contains((edge.From, edge.To)) || (_selected.Contains(edge.From) && _selected.Contains(edge.To));
         OnPropertyChanged(nameof(SelectedIds));
     }
 

@@ -39,7 +39,8 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 - Fallback edges (`when: failure`): edge context menu "Only if this fails" → edge drawn critical-dashed with an
   "If it fails" chip; `always` → "Whatever happens" chip. The same without the edge menu: the inspector's
   "If it fails, run…" and Connections (§5.4); the empty state's tip points there.
-- Selection: click, Ctrl+click, marquee (mouse/pen), Ctrl+A. Ctrl+C/V/D copy nodes + inner edges + library
+- Selection: click, Ctrl+click, marquee (mouse/pen), Ctrl+A. An edge is clicked within 12 DIP of its curve (20 touch)
+  and selected alone (Ctrl adds); the marquee takes edges with both ends inside; Del removes a selected edge. Ctrl+C/V/D copy nodes + inner edges + library
   refs, paste into a new column to the right. Del; deleting B in A→B→C reconnects A→C; deleting a card
   deletes its members. Undo/redo Ctrl+Z/Y, one entry per gesture, within the draft (Save or Cancel clears it).
 - Navigate: wheel scroll, Shift+wheel horizontal, Ctrl+wheel/pinch zoom 50–200 %, Space+drag / middle-drag /
@@ -66,7 +67,8 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   name default "Run together", count chip); ports on the card only; drag-over = 2 px dashed accent + "Drop to run
   together".
 - Edges: horizontal Béziers, 6-DIP arrowhead; normal 1.5 px ControlStrongStrokeColorDefault; into a may-fail
-  node dashed 4/4; skipped dotted 1/3 TextFillColorDisabled; hover/selected 2 px accent with "+"/"×" at midpoint;
+  node dashed 4/4; skipped dotted 1/3 TextFillColorDisabled; hover/selected 2 px accent with "+"/"×" just above the midpoint
+  (not on it, so a click on the line still selects);
   during a run an edge turns accent once its source finished.
 - Run states (shape + glyph, never colour alone): Pending empty ring · Running indeterminate ProgressRing accent ·
   Succeeded SystemFillColorSuccess E73E · Failed SystemFillColorCritical E711 + critical border · May-fail failed

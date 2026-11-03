@@ -1,10 +1,10 @@
 # Plan
 
 ## Resume
-Current task: second-round feedback on feat/second-feedback — PR open, waiting for CI and Copilot review (merge policy §6)
+Current task: second-round feedback on feat/second-feedback, PR #21 — Copilot round 1 fixed with clickable edges; waiting for review round 2 (merge policy §6)
 Last green checkpoint: wip(editor) "If it fails, run… and a Connections list in the inspector"
 Next action: after the PR merges, nothing is queued for agents: GOALS "Ready for you" lists the user's steps (release tag, 24 h soak, retire scd, system-wide UX checks). Next agent work, if asked: T10.5 (pop-up for Narrator).
-Tree state: builds, 797/797 tests green · Uncommitted: none
+Tree state: builds, 818/818 tests green · Uncommitted: none
 Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. Tray left click was checked with a posted NIN_SELECT (starts the editor); bringing a running editor forward needs a real click (foreground rights), not verified.
 
 ---

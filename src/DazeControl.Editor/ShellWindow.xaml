@@ -325,6 +325,10 @@
 
                 <!-- Flow editor (UX §5.1): Flows › name, commands, palette, canvas or outline. The inspector comes with M8. -->
                 <Grid x:Name="FlowEditorPage" Grid.Row="1" Visibility="Collapsed">
+                    <Grid.KeyboardAccelerators>
+                        <!-- Here, not on the Save button: it must also work while Save is still off (a text box not committed yet). -->
+                        <KeyboardAccelerator Modifiers="Control" Key="S" Invoked="OnSaveAccelerator" />
+                    </Grid.KeyboardAccelerators>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -341,11 +345,7 @@
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <TextBlock x:Name="DraftText" Text="Not saved" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
                             <Button x:Name="SaveButton" Content="Save" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" Click="OnSaveFlow"
-                                    ToolTipService.ToolTip="Save your changes to this flow (Ctrl+S)">
-                                <Button.KeyboardAccelerators>
-                                    <KeyboardAccelerator Modifiers="Control" Key="S" />
-                                </Button.KeyboardAccelerators>
-                            </Button>
+                                    ToolTipService.ToolTip="Save your changes to this flow (Ctrl+S)" AutomationProperties.AcceleratorKey="Control+S" />
                             <Button x:Name="CancelButton" Content="Cancel" IsEnabled="False" Click="OnCancelFlow"
                                     ToolTipService.ToolTip="Throw away your changes since the last save" />
                         </StackPanel>

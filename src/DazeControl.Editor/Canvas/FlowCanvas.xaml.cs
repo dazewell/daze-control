@@ -43,6 +43,10 @@ public sealed partial class FlowCanvas : UserControl
     private double _panStartX, _panStartY;
     private NodeView? _dragged;
     private CanvasNodeViewModel? _connectFrom;
+    private CanvasEdgeViewModel? _controlsEdge;
+    private const double EdgeControlsWidth = 56;
+    private const double EdgeControlsHeight = 24;
+    private const double EdgeControlsLift = 10;
     private bool _spaceDown;
     private double _portRadius = FlowCanvasViewModel.PortRadius;
 
@@ -59,7 +63,18 @@ public sealed partial class FlowCanvas : UserControl
         Root.PointerMoved += OnPointerMoved;
         Root.PointerReleased += OnPointerReleased;
         Root.PointerCaptureLost += (_, _) => EndGesture();
-        Root.PointerExited += (_, _) => { if (_gesture == Gesture.None) ShowPorts(null); };
+        Root.PointerExited += (_, _) =>
+        {
+            if (_gesture != Gesture.None)
+                return;
+            ShowPorts(null);
+            if (_viewModel?.HoveredEdge is not null)
+            {
+                _viewModel.HoveredEdge = null;
+                ProtectedCursor = null;
+                DrawEdges();
+            }
+        };
         Root.RightTapped += OnRightTapped;
         Root.DoubleTapped += OnDoubleTapped;
         Root.AllowDrop = true; // palette drags (OLE between controls; never for gestures inside the canvas, UX §5.8 #7)
@@ -245,11 +260,13 @@ public sealed partial class FlowCanvas : UserControl
             [NormalArrows] = new(), [IfFailsArrows] = new(), [SelectedArrows] = new(),
         };
         ChipLayer.Children.Clear();
+        var controlled = EdgeWithControls();
         foreach (var edge in _viewModel.Edges)
         {
             var c = edge.Curve;
-            // During a run an edge turns accent once its source finished (UX §5.3).
-            var path = edge.IsSelected || edge.IsLit ? SelectedEdges : edge.Style switch
+            // During a run an edge turns accent once its source finished; hover/selected is 2 px accent (UX §5.3).
+            var accent = edge.IsSelected || edge.IsHovered || edge.IsLit;
+            var path = accent ? SelectedEdges : edge.Style switch
             {
                 EdgeStyle.IntoMayFail => MayFailEdges,
                 EdgeStyle.IfFails => IfFailsEdges,
@@ -260,7 +277,7 @@ public sealed partial class FlowCanvas : UserControl
             figure.Segments.Add(new BezierSegment { Point1 = P(c.Control1), Point2 = P(c.Control2), Point3 = P(c.End) });
             curves[path].Figures.Add(figure);
 
-            var arrows = edge.IsSelected || edge.IsLit ? SelectedArrows : edge.Style == EdgeStyle.IfFails ? IfFailsArrows : NormalArrows;
+            var arrows = accent ? SelectedArrows : edge.Style == EdgeStyle.IfFails ? IfFailsArrows : NormalArrows;
             var arrow = new PathFigure { StartPoint = P(c.Tip), IsClosed = true, IsFilled = true };
             arrow.Segments.Add(new LineSegment { Point = new(c.End.X, c.End.Y - 3.5) });
             arrow.Segments.Add(new LineSegment { Point = new(c.End.X, c.End.Y + 3.5) });
@@ -269,9 +286,70 @@ public sealed partial class FlowCanvas : UserControl
             if (edge.Chip is { } chip)
                 ChipLayer.Children.Add(Chip(chip, c.Midpoint, edge.Style == EdgeStyle.IfFails));
         }
+        ShowEdgeControls(controlled);
         SelectedEdges.Stroke = SelectedArrows.Fill = Theme.Selection;
         foreach (var (path, geometry) in curves)
             path.Data = geometry;
+    }
+
+    /// <summary>The edge that gets "+"/"×" at its midpoint: the hovered one, else the one edge picked by itself.</summary>
+    private CanvasEdgeViewModel? EdgeWithControls()
+    {
+        if (_viewModel is not { CanEdit: true, IsShowingRun: false } vm)
+            return null;
+        return vm.HoveredEdge ?? (vm.SelectedEdges is [var only] ? only : null);
+    }
+
+    /// <summary>"+" inserts a step on the edge, "×" removes it (UX §5.3).</summary>
+    private void ShowEdgeControls(CanvasEdgeViewModel? edge)
+    {
+        _controlsEdge = edge;
+        if (edge is null)
+        {
+            EdgeControls.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var mid = edge.Curve.Midpoint;
+        XamlCanvas.SetLeft(EdgeControls, mid.X - EdgeControlsWidth / 2);
+        // Above the line, so a click on the line itself still selects the edge.
+        XamlCanvas.SetTop(EdgeControls, mid.Y - EdgeControlsLift - EdgeControlsHeight);
+        EdgeControls.Visibility = Visibility.Visible;
+    }
+
+    private void OnInsertOnEdge(object sender, RoutedEventArgs e)
+    {
+        if (_controlsEdge is { } edge)
+            ShowQuickAdd(P(edge.Curve.Midpoint), null, edge);
+    }
+
+    private void OnRemoveEdge(object sender, RoutedEventArgs e)
+    {
+        if (_controlsEdge is { } edge)
+            _viewModel?.Disconnect(edge);
+    }
+
+    /// <summary>Hover follows the pointer within the 12-DIP band; over the "+"/"×" pair it stays on their edge.</summary>
+    private void HoverEdge(Windows.Foundation.Point position)
+    {
+        if (_viewModel is null)
+            return;
+        CanvasEdgeViewModel? edge;
+        if (EdgeControls.Visibility == Visibility.Visible && _controlsEdge is { } shown && OverEdgeControls(position))
+            edge = shown;
+        else
+            edge = _viewModel.HitTest(C(position)) is null ? _viewModel.HitTestEdge(C(position)) : null;
+        if (ReferenceEquals(edge, _viewModel.HoveredEdge))
+            return;
+        _viewModel.HoveredEdge = edge;
+        ProtectedCursor = edge is null ? null : InputSystemCursor.Create(InputSystemCursorShape.Hand);
+        DrawEdges();
+    }
+
+    private bool OverEdgeControls(Windows.Foundation.Point position)
+    {
+        double left = XamlCanvas.GetLeft(EdgeControls), top = XamlCanvas.GetTop(EdgeControls);
+        // Includes the gap down to the line, so moving from the line up to the pair keeps the hover.
+        return position.X >= left - 4 && position.X <= left + EdgeControlsWidth + 4 && position.Y >= top - 4 && position.Y <= top + EdgeControlsHeight + EdgeControlsLift + 4;
     }
 
     private static Border Chip(string text, CorePoint at, bool critical)
@@ -281,7 +359,7 @@ public sealed partial class FlowCanvas : UserControl
             CornerRadius = new CornerRadius(10),
             Padding = new Thickness(8, 1, 8, 2),
             BorderThickness = new Thickness(1),
-            Background = Theme.Brush("CardBackgroundFillColorDefaultBrush"),
+            Background = Theme.Brush("SolidBackgroundFillColorTertiaryBrush"), // opaque: the edge runs under it
             BorderBrush = Theme.Brush(critical ? "SystemFillColorCriticalBrush" : "CardStrokeColorDefaultBrush"),
             Child = new TextBlock { Text = text, FontSize = 11, Foreground = Theme.Brush(critical ? "SystemFillColorCriticalBrush" : "TextFillColorSecondaryBrush") },
         };
@@ -361,6 +439,12 @@ public sealed partial class FlowCanvas : UserControl
             _dragged = _views.GetValueOrDefault(node.Id);
             _gesture = Gesture.Press;
         }
+        else if ((props.IsLeftButtonPressed || touch) && _viewModel.HitTestEdge(C(point.Position), touch ? 20 : 12) is { } edge)
+        {
+            _viewModel.SelectEdge(edge, additive: CtrlDown()); // UX §5.8 #2; Del removes it, right-click has its menu
+            e.Handled = true;
+            return;
+        }
         else if (touch)
         {
             _viewModel.ClearSelection();
@@ -383,7 +467,10 @@ public sealed partial class FlowCanvas : UserControl
             return;
         if (_gesture == Gesture.None)
         {
-            ShowPorts(_viewModel.HitTest(C(e.GetCurrentPoint(Host).Position)));
+            var at = e.GetCurrentPoint(Host).Position;
+            ShowPorts(_viewModel.HitTest(C(at)));
+            if (e.Pointer.PointerDeviceType != PointerDeviceType.Touch)
+                HoverEdge(at);
             return;
         }
         if (e.Pointer.PointerId != _pointerId)
@@ -744,6 +831,8 @@ public sealed partial class FlowCanvas : UserControl
         }
         else if (_viewModel.HitTestEdge(C(position), touch ? 20 : 12) is { } edge)
         {
+            if (!edge.IsSelected)
+                _viewModel.SelectEdge(edge); // the accent shows which edge the menu is for
             EdgeMenu(edge, position).ShowAt(Host, position);
             e.Handled = true;
         }

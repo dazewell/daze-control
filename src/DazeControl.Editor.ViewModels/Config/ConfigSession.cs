@@ -89,8 +89,8 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
     {
         _saveTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         _dirty = false;
+        // Drafts are dropped only once a usable version is read: a failed reload must not lose them (or their marks).
         var drafts = _drafts.Select(id => Current.Flows.FirstOrDefault(f => f.Id == id)).OfType<Flow>().ToList();
-        ClearDrafts();
         try
         {
             var load = _store.Load();
@@ -98,6 +98,7 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
             if (load.Config is { } config && mappingError is null)
             {
                 LoadError = null;
+                ClearDrafts();
                 _saved = config;
                 // A reload (another program wrote the file) keeps the editor's drafts on top of the new version.
                 Current = drafts.Aggregate(config, WithFlow);
@@ -112,7 +113,8 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
             {
                 // Mapping dropped what it couldn't read; saving would delete it from the file.
                 LoadError = $"config.yaml has errors, so the editor won't change it until they're fixed by hand. {mappingError!.Path}: {mappingError.Message}";
-                Current = _saved = partial;
+                _saved = partial;
+                Current = drafts.Aggregate(partial, WithFlow);
                 Problems = [.. load.Problems, .. ConfigValidator.Validate(partial, load.Problems)];
                 CanEdit = false;
             }
@@ -176,16 +178,31 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Drafts));
     }
 
-    /// <summary>Save: the draft goes to the file now (no debounce: the user asked).</summary>
-    public void SaveDraft(string flowId)
+    /// <summary>
+    /// Save: the draft goes to the file now (no debounce: the user asked). False when the write failed or met an
+    /// outside change: the draft and the last written version both stay, so Save can be retried and Cancel still works.
+    /// </summary>
+    public bool SaveDraft(string flowId)
     {
-        if (!_drafts.Remove(flowId) || Current.Flows.FirstOrDefault(f => f.Id == flowId) is not { } flow)
-            return;
+        if (!_drafts.Contains(flowId) || Current.Flows.FirstOrDefault(f => f.Id == flowId) is not { } flow)
+            return !_drafts.Contains(flowId);
+        var before = _saved;
+        var wasDirty = _dirty;
         _saved = WithFlow(_saved, flow);
         _dirty = true;
-        OnPropertyChanged(nameof(Drafts));
         _saveTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         Flush();
+        if (_dirty)
+        {
+            _saved = before;
+            _dirty = wasDirty;
+            if (wasDirty)
+                _saveTimer.Change(SaveDelay, Timeout.InfiniteTimeSpan); // the autosaved edits still go when they can
+            return false;
+        }
+        _drafts.Remove(flowId);
+        OnPropertyChanged(nameof(Drafts));
+        return true;
     }
 
     /// <summary>Cancel / Discard: the flow goes back to its saved version.</summary>

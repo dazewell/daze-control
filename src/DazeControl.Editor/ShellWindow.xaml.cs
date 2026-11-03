@@ -212,8 +212,7 @@ public sealed partial class ShellWindow : Window
             switch (await dialog.ShowAsync())
             {
                 case ContentDialogResult.Primary:
-                    editor.Save();
-                    return !ViewModel.Session.HasUnwrittenChanges; // a failed write keeps the edits and says so
+                    return editor.Save(); // a failed write keeps the draft and says so
                 case ContentDialogResult.Secondary:
                     editor.Discard();
                     return true;
@@ -398,6 +397,22 @@ public sealed partial class ShellWindow : Window
     }
 
     private void OnSaveFlow(object sender, RoutedEventArgs e) => _editor?.Save();
+
+    /// <summary>Ctrl+S: commit a focused inspector box first (its binding updates on LostFocus), then save.</summary>
+    private void OnSaveAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e)
+    {
+        e.Handled = true;
+        if (_editor is not { CanEdit: true } editor)
+            return;
+        if (FocusManager.GetFocusedElement(Content.XamlRoot) is not TextBox)
+        {
+            editor.Save();
+            return;
+        }
+        _ = FlowCanvasControl.Focus(FocusState.Programmatic) || FocusManager.TryMoveFocus(FocusNavigationDirection.Next, new FindNextElementOptions { SearchRoot = Content.XamlRoot.Content });
+        // LostFocus (and with it the binding) arrives after this handler: save once it has.
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => editor.Save());
+    }
 
     private void OnCancelFlow(object sender, RoutedEventArgs e) => _editor?.Discard();
 
