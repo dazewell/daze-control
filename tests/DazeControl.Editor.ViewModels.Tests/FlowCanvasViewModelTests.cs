@@ -367,6 +367,15 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         DazeControl.Core.Validation.ConfigValidator.Validate(_session.Current with { Flows = [_canvas.Flow!] })
             .Where(p => p.Severity == DazeControl.Core.Validation.Severity.Error).Select(p => $"{p.Path}: {p.Message}");
 
+    private List<CanvasNote> Notes()
+    {
+        var notes = new List<CanvasNote>();
+        _canvas.Noted += (_, note) => notes.Add(note);
+        return notes;
+    }
+
+    private FailurePolicy Policy(string id) => _canvas.Flow!.FindNode(id)!.OnFailure;
+
     private GroupNode Card(string memberId) =>
         Assert.IsType<GroupNode>(_canvas.Flow!.FindNode(Node(memberId).CardId ?? throw new InvalidOperationException(memberId)));
 
@@ -374,6 +383,7 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     public void CtrlGOnLinkedStepsDropsTheLinkInOneUndoStep()
     {
         var original = _canvas.Flow;
+        var notes = Notes();
         _canvas.Select("bt");
         _canvas.Toggle("vol");
 
@@ -383,7 +393,7 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         Assert.Equal(["bt", "vol"], card.Members);
         Assert.Empty(card.After);
         Assert.Contains(_canvas.Edges, e => e.From == card.Id && e.To == "out");
-        Assert.Null(_canvas.TakeEditNote());
+        Assert.Empty(notes);
         Assert.Empty(DraftErrors());
         _canvas.Undo();
         Assert.Equal(original, _canvas.Flow);
@@ -415,17 +425,70 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     {
         // bt → out →(if it fails) note; note dropped onto bt: [bt note] → out, and the fallback is gone.
         var original = _canvas.Flow;
+        var notes = Notes();
 
         Assert.Equal(ConnectRefusal.None, _canvas.Drop("note", "bt", DropZone.RunTogether));
 
         var card = Card("note");
         Assert.Equal(["bt", "note"], card.Members);
         Assert.Contains(_canvas.Edges, e => e.From == card.Id && e.To == "out");
-        Assert.Equal(FlowCanvasViewModel.DroppedFallbackNote, _canvas.TakeEditNote());
-        Assert.Null(_canvas.TakeEditNote()); // said once
+        Assert.Equal([new CanvasNote(FlowCanvasViewModel.DroppedFallbackNote, card.Id)], notes);
         Assert.Empty(DraftErrors());
         _canvas.Undo();
         Assert.Equal(original, _canvas.Flow);
+    }
+
+    [Fact]
+    public void AddingAFallbackSwitchesStopToSkipInOneUndoStep()
+    {
+        var original = _canvas.Flow;
+        var notes = Notes();
+
+        var id = _canvas.AddFallback("bt", "notify");
+
+        Assert.NotNull(id);
+        Assert.Equal(FailurePolicy.Skip, Policy("bt"));
+        Assert.Equal([new CanvasNote(FlowCanvasViewModel.FallbackPolicyNote, "bt")], notes);
+        _canvas.Undo();
+        Assert.Equal(original, _canvas.Flow);
+    }
+
+    [Fact]
+    public void OnlyIfThisFailsOnAnEdgeSwitchesStopToSkipAndRemovingItKeepsSkip()
+    {
+        var notes = Notes();
+
+        _canvas.SetWhen(_canvas.Edges.Single(e => e.From == "bt" && e.To == "vol"), EdgeWhen.Failure);
+        Assert.Equal(FailurePolicy.Skip, Policy("bt"));
+        Assert.Single(notes);
+
+        _canvas.SetWhen(_canvas.Edges.Single(e => e.From == "bt" && e.To == "vol"), EdgeWhen.Success);
+        Assert.Equal(FailurePolicy.Skip, Policy("bt"));
+        Assert.Single(notes);
+        Assert.Empty(DraftErrors());
+    }
+
+    [Fact]
+    public void LinkingAFallbackKeepsAChosenPolicy()
+    {
+        var notes = Notes();
+        _canvas.Edit(f => f with { Nodes = [.. f.Nodes.Select(n => n.Id == "bt" ? n with { OnFailure = FailurePolicy.Skip } : n)] });
+
+        Assert.Equal(ConnectRefusal.None, _canvas.LinkFallback("out", "vol")); // out: Keep going
+        _canvas.SetWhen(_canvas.Edges.Single(e => e.From == "bt" && e.To == "vol"), EdgeWhen.Failure);
+
+        Assert.Equal(FailurePolicy.Ignore, Policy("out"));
+        Assert.Equal(FailurePolicy.Skip, Policy("bt"));
+        Assert.Empty(notes);
+    }
+
+    [Fact]
+    public void AFallbackFromAMemberSwitchesItsCard()
+    {
+        Assert.Equal(ConnectRefusal.None, _canvas.LinkFallback("w1", "vol"));
+
+        Assert.Equal(FailurePolicy.Skip, Policy("both"));
+        Assert.Equal(FailurePolicy.Stop, Policy("w1"));
     }
 
     [Fact]

@@ -94,6 +94,7 @@ public sealed partial class FlowCanvas : UserControl
             {
                 _viewModel.PropertyChanged -= OnViewModelChanged;
                 _viewModel.Nodes.CollectionChanged -= OnNodesChanged;
+                _viewModel.Noted -= OnNoted;
             }
             _viewModel = value;
             NodeLayer.Children.Clear();
@@ -104,6 +105,7 @@ public sealed partial class FlowCanvas : UserControl
                 return;
             _viewModel.PropertyChanged += OnViewModelChanged;
             _viewModel.Nodes.CollectionChanged += OnNodesChanged;
+            _viewModel.Noted += OnNoted;
             SyncNodes();
             DrawEdges();
             UpdateExtent();
@@ -636,12 +638,10 @@ public sealed partial class FlowCanvas : UserControl
         ProtectedCursor = refused ? InputSystemCursor.Create(InputSystemCursorShape.UniversalNo) : null;
     }
 
-    /// <summary>
-    /// The §5.7 #3/#4 teaching tip at <paramref name="at"/>, or after a done edit its note (D-058); nothing for a plain no-op.
-    /// </summary>
+    /// <summary>The §5.7 #3/#4 teaching tip at <paramref name="at"/>; nothing for a plain no-op.</summary>
     private void ShowRefusal(ConnectRefusal refusal, CanvasNodeViewModel at)
     {
-        if (Explain(refusal) is not { } why)
+        if (FlowCanvasViewModel.Explain(refusal) is not { } why)
             return;
         if (!Shown)
             ShowTip(why, FallbackTarget);
@@ -889,15 +889,22 @@ public sealed partial class FlowCanvas : UserControl
     {
         if (at is not null)
             ShowRefusal(refusal, at);
-        else if (Explain(refusal) is { } why)
+        else if (FlowCanvasViewModel.Explain(refusal) is { } why)
             ShowTip(why, null);
     }
 
-    private string? Explain(ConnectRefusal refusal) =>
-        refusal == ConnectRefusal.None ? _viewModel?.TakeEditNote() : FlowCanvasViewModel.Explain(refusal);
-
-    private void ShowTip(string text, FrameworkElement? target)
+    /// <summary>An edit went through but changed more than it shows (D-058, D-059): said beside the node once laid out.</summary>
+    private void OnNoted(object? sender, CanvasNote note) => DispatcherQueue.TryEnqueue(() =>
     {
+        if (!Shown)
+            ShowTip(note.Text, FallbackTarget, title: "");
+        else if (_views.TryGetValue(note.At, out var view))
+            ShowTip(note.Text, view, title: "");
+    });
+
+    private void ShowTip(string text, FrameworkElement? target, string title = "Can't connect these")
+    {
+        RefusalTip.Title = title;
         RefusalTip.Subtitle = text;
         RefusalTip.Target = target;
         RefusalTip.IsOpen = true;

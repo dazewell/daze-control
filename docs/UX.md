@@ -93,6 +93,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   step may fail, and the flow carries on." Hover/focus previews: affected nodes dim on the canvas.
   Below it **"If it fails, run…"** (DropDownButton): "A new step ›" area › step (added after this step with
   `when: failure`, selected) or a step already in the flow (no loops; an existing edge becomes a fallback).
+  Any new fallback (this menu, Connections, the edge menu) turns "Stop the flow" into "Skip what depends on it",
+  which is what the run does then (D-024), in the same undo step, with a tip (§5.7 #46); Skip and Keep going stay,
+  and removing the fallback doesn't switch back (D-059).
 - Connections: one row per edge at the step ("Runs after Connect", "Show a message runs after this") with a
   ComboBox "When it works" / "Only if it fails" / "Whatever happens".
 - Timing: "Try again" 0–10, "Wait between tries" s, "Give up after" s + "No limit".
@@ -181,7 +184,8 @@ flow uses View + Menu. Try another one." · 37 "Use at least two buttons, so a g
 · 40 "Couch TV isn't there anymore. Remove it from the menu." · 41 "Wait for it to finish" / "Steps after the menu
 wait for the picked flow, and stop if it fails." · 42 "You picked Couch TV. Testing doesn't run it." · 43 "Start
 Daze Control to record controller buttons." · 44 "Nothing picked" · 45 "These steps start together now, so the "if it fails" or
-"whatever happens" connection between them is gone."
+"whatever happens" connection between them is gone." · 46 "If this fails, its fallback runs and the flow carries
+on, so it's set to "Skip what depends on it" now."
 
 ## 5.8 Risks → mitigations
 1 XAML element count: pill template ≤ 12 elements, no ThemeShadow per node, all edges in one layer of a few batched paths (D-037),

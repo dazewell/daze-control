@@ -686,3 +686,17 @@ Status: accepted (supersedes the "edges between members refused" part of UX §5.
   every link of the dragged step: its unrelated waits (x → b) would vanish silently. Why not refusing fallback
   links: the user still means "together"; the tip makes the behaviour change visible and Undo restores it.
 - Revisit if: users expect the dragged step's dependents to be re-linked to its old predecessors (as Delete does).
+
+## D-059 · 2026-11-03 · A new fallback switches its source from "Stop the flow" to "Skip what depends on it"
+Status: accepted
+- Decision: when an edge from a step or card becomes `when: failure` (inspector "If it fails, run…", Connections,
+  edge menu) and the source's policy is `stop`, the editor sets `skip` in the same undo step and says so (§5.7 #46).
+  `skip`/`ignore` chosen by the user stay; removing the last fallback doesn't switch back.
+- Why: user, 2026-11-03: a fallback link should change the step's behaviour by itself. Under D-024 a fallback
+  already handles the failure, so `stop` + fallback runs exactly like `skip` + fallback (SchedulerTests
+  `WithAFallbackStopAndSkipRunTheSame`): the fallback runs, dependents that needed success are skipped, the rest go
+  on. The inspector said "Stop the flow · Nothing after this runs", which was false; now it shows what happens.
+- Why not `ignore` ("Keep going", the user's word): it counts the failure as done, so the success dependents run
+  too, which breaks "try X, else Y" (the fallback and the normal path would both run). Why not leaving the policy and
+  only fixing the inspector's wording: the user asked for the setting to follow, and the YAML then says it too.
+- Revisit if: users want "run the fallback, then stop the flow" (D-024's revisit), which needs `stop` to mean that.

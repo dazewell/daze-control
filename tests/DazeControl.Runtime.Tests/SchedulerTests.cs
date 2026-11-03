@@ -90,6 +90,26 @@ public class SchedulerTests
         Assert.Equal(FlowOutcome.PartiallySucceeded, scheduler.Result);
     }
 
+    [Theory]
+    [InlineData("stop")]
+    [InlineData("skip")]
+    public void WithAFallbackStopAndSkipRunTheSame(string policy)
+    {
+        // D-059: the editor switches a fallback's source from stop to skip; the run must not change.
+        var scheduler = new Scheduler(Flow(
+            Step("hp", $"onFailure: {policy}"),
+            Step("buds", "after: [{ id: hp, when: failure }]"),
+            Step("eq", "after: [hp]"),
+            Step("other")));
+
+        Run(scheduler, ("hp", StepResult.Failed));
+
+        Assert.False(scheduler.IsStopped);
+        AssertOutcomes(scheduler, ("hp", NodeOutcome.Failed), ("buds", NodeOutcome.Succeeded),
+            ("eq", NodeOutcome.Skipped), ("other", NodeOutcome.Succeeded));
+        Assert.Equal(FlowOutcome.PartiallySucceeded, scheduler.Result);
+    }
+
     [Fact]
     public void FailureEdgeFromASuccessIsSkipped()
     {
