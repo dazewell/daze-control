@@ -121,6 +121,8 @@
                                     <TextBlock Text="A flow is a set of steps you start with a shortcut or from the tray."
                                                HorizontalAlignment="Center" Style="{StaticResource SettingsCardDescription}" />
                                 </StackPanel>
+                                <InfoBar Severity="Error" Title="Desktop shortcut" Message="{x:Bind ViewModel.Flows.DesktopError, Mode=OneWay}"
+                                         IsOpen="{x:Bind ViewModel.Flows.HasDesktopError, Mode=OneWay}" IsClosable="False" />
                                 <ItemsRepeater ItemsSource="{x:Bind ViewModel.Flows.Items}">
                                     <ItemsRepeater.Layout>
                                         <StackLayout Spacing="4" />
@@ -130,6 +132,16 @@
                                             <!-- A click anywhere but the switch and the button opens the flow; the Edit button stays for the keyboard. -->
                                             <Grid Style="{StaticResource SettingsCard}" Tag="{x:Bind Id}" Tapped="OnFlowCardTapped"
                                                   PointerEntered="OnFlowCardPointerEntered" PointerExited="OnFlowCardPointerExited">
+                                                <Grid.ContextFlyout>
+                                                    <MenuFlyout>
+                                                        <MenuFlyoutItem Text="{x:Bind DesktopMenuText, Mode=OneWay}" Tag="{x:Bind Id}" Click="OnFlowDesktopClick"
+                                                                        IsEnabled="{x:Bind CanChangeDesktop, Mode=OneWay}">
+                                                            <MenuFlyoutItem.Icon>
+                                                                <FontIcon Glyph="&#xE8A7;" />
+                                                            </MenuFlyoutItem.Icon>
+                                                        </MenuFlyoutItem>
+                                                    </MenuFlyout>
+                                                </Grid.ContextFlyout>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />

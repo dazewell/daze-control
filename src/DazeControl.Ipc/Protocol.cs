@@ -39,6 +39,9 @@ public static class Ops
     public const string Devices = "devices";
     public const string TestStep = "test-step";
     public const string CaptureDisplayLayout = "capture-display-layout";
+    public const string Shortcuts = "shortcuts";
+    public const string CreateShortcut = "create-shortcut";
+    public const string RemoveShortcut = "remove-shortcut";
 }
 
 public sealed class PipeRequest
@@ -54,6 +57,14 @@ public sealed class PipeRequest
 
     /// <summary>run: answer when the run has finished, with its record.</summary>
     public bool Wait { get; init; }
+
+    /// <summary>run, create-shortcut, remove-shortcut: <see cref="Flow"/> is an id, never a name (a desktop shortcut or
+    /// the editor, D-049): a deleted flow's id must not reach another flow called like that id.</summary>
+    public bool ExactId { get; init; }
+
+    /// <summary>run (desktop shortcut) and the shortcut ops (editor): the full path of the config meant. The engine and
+    /// its pipe are per user, not per config: an engine running another config refuses instead of using its own flows.</summary>
+    public string? ConfigPath { get; init; }
 
     /// <summary>run: walk the flow with steps that do nothing (no history, no locks).</summary>
     public bool DryRun { get; init; }
@@ -108,6 +119,9 @@ public sealed class PipeMessage
 
     /// <summary>capture-display-layout: a <c>library:</c> snippet to paste into config.yaml.</summary>
     public string? Yaml { get; init; }
+
+    /// <summary>shortcuts: all of ours on the desktop; create-shortcut: the one written; remove-shortcut: those removed.</summary>
+    public ShortcutInfo[]? Shortcuts { get; init; }
 
     public static PipeMessage Fail(int id, string error) => new() { Id = id, Error = error };
 }
@@ -189,6 +203,23 @@ public sealed class DeviceInfo
     public bool NotConnectable { get; init; }
 
     public string? Id { get; init; }
+}
+
+/// <summary>A desktop shortcut that runs a flow (D-049).</summary>
+public sealed class ShortcutInfo
+{
+    public string FlowId { get; init; } = "";
+
+    /// <summary>What the desktop shows (the file name without ".lnk").</summary>
+    public string Name { get; init; } = "";
+
+    public string Path { get; init; } = "";
+
+    /// <summary>The flow is in the config.</summary>
+    public bool FlowExists { get; init; }
+
+    /// <summary>The shortcut is called what the flow is called now; false → the editor offers "Update".</summary>
+    public bool CurrentName { get; init; }
 }
 
 public static class EventKinds

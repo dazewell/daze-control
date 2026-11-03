@@ -8,6 +8,9 @@ namespace DazeControl.Ipc;
 /// </summary>
 public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bool Wait, bool DryRun, int? Limit)
 {
+    /// <summary>shortcut: take the flow's desktop shortcut away instead of adding it.</summary>
+    public bool Remove { get; init; }
+
     private sealed record Shape(int MinWords, int MaxWords, string WordsError, params string[] Flags);
 
     private static readonly Dictionary<string, Shape> Shapes = new(StringComparer.Ordinal)
@@ -22,6 +25,7 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         ["devices"] = new(1, 1, "devices needs one kind: audio, bluetooth, displays or adb."),
         ["capture-display-layout"] = new(1, 1, "capture-display-layout needs a name for the layout."),
         ["update"] = new(0, 0, "update takes no arguments."),
+        ["shortcut"] = new(1, 1, "shortcut needs one flow.", "--remove"),
     };
 
     /// <exception cref="CommandLineException">The command, a flag or the words don't fit.</exception>
@@ -30,7 +34,7 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         if (!Shapes.TryGetValue(command, out var shape))
             throw new CommandLineException($"Unknown command \"{command}\".");
         var words = new List<string>();
-        bool wait = false, dryRun = false;
+        bool wait = false, dryRun = false, remove = false;
         int? limit = null;
         for (var i = 0; i < rest.Count; i++)
         {
@@ -50,6 +54,9 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
                 case "--dry-run":
                     dryRun = true;
                     break;
+                case "--remove":
+                    remove = true;
+                    break;
                 case "--limit":
                     if (limit is not null || i + 1 >= rest.Count
                         || !int.TryParse(rest[++i], NumberStyles.None, CultureInfo.InvariantCulture, out var n) || n < 1)
@@ -60,7 +67,7 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         }
         if (words.Count < shape.MinWords || words.Count > shape.MaxWords)
             throw new CommandLineException(shape.WordsError);
-        return new CommandLine(command, words, wait, dryRun, limit);
+        return new CommandLine(command, words, wait, dryRun, limit) { Remove = remove };
     }
 
     /// <summary>The first word, if any.</summary>

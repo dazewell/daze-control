@@ -270,6 +270,22 @@
                 </ItemsControl>
                 <HyperlinkButton Content="Add shortcut" Command="{x:Bind ViewModel.AddShortcutCommand, Mode=OneWay}" Padding="0,4" />
 
+                <!-- D-049, UX §5.4: "Shortcut" alone is a hotkey; the .lnk is always the desktop shortcut. -->
+                <TextBlock Text="Desktop shortcut" Style="{StaticResource InspectorSection}" />
+                <TextBlock Text="{x:Bind ViewModel.DesktopStatus, Mode=OneWay}" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}" />
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                    <Button Content="Add to desktop" Command="{x:Bind ViewModel.AddToDesktopCommand, Mode=OneWay}"
+                            IsEnabled="{x:Bind ViewModel.CanAddToDesktop, Mode=OneWay}" Visibility="{x:Bind ViewModel.ShowAddToDesktop, Mode=OneWay}" />
+                    <Button Content="Update" Command="{x:Bind ViewModel.AddToDesktopCommand, Mode=OneWay}"
+                            Visibility="{x:Bind ViewModel.CanUpdateDesktop, Mode=OneWay}"
+                            ToolTipService.ToolTip="Give the desktop shortcut this flow's name" />
+                    <Button Content="Remove" Command="{x:Bind ViewModel.RemoveFromDesktopCommand, Mode=OneWay}"
+                            IsEnabled="{x:Bind ViewModel.CanRemoveFromDesktop, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasDesktopShortcut, Mode=OneWay}"
+                            AutomationProperties.Name="Remove desktop shortcut" />
+                </StackPanel>
+                <TextBlock Text="{x:Bind ViewModel.DesktopError, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasDesktopError, Mode=OneWay}"
+                           TextWrapping="Wrap" Style="{StaticResource FieldError}" />
+
                 <TextBlock Text="If it's already running" Style="{StaticResource InspectorSection}" />
                 <RadioButtons SelectedIndex="{x:Bind ViewModel.WhenRunningIndex, Mode=TwoWay}" AutomationProperties.Name="If it's already running">
                     <RadioButton Content="Ignore it" />

@@ -33,6 +33,7 @@ public static class Program
           devices audio|bluetooth|displays|adb
                                             what steps can name on this PC
           capture-display-layout <name>     the screens as they are now, as YAML for library.displays
+          shortcut <flow> [--remove]        put a desktop shortcut that runs the flow (or take it away)
           update                            download a newer version; it installs at the next start
         Exit codes: 0 ok, 1 failed, 2 usage, 3 the engine isn't running.
         """;
@@ -117,11 +118,24 @@ public static class Program
                     Console.Out.Write(m.Yaml);
                     return Ok;
                 }).ConfigureAwait(false);
+            case "shortcut":
+                return await SendAsync(new PipeRequest { Op = line.Remove ? Ops.RemoveShortcut : Ops.CreateShortcut, Flow = line.Word },
+                    m => PrintShortcut(m, line.Remove)).ConfigureAwait(false);
             case "update":
                 return await UpdateAsync().ConfigureAwait(false);
             default:
                 throw new UnreachableException();
         }
+    }
+
+    private static int PrintShortcut(PipeMessage message, bool removed)
+    {
+        var shortcuts = message.Shortcuts ?? [];
+        if (removed)
+            Console.Out.WriteLine(shortcuts.Length == 0 ? "It had no desktop shortcut." : $"Removed {string.Join(", ", shortcuts.Select(s => s.Path))}");
+        else
+            Console.Out.WriteLine($"On your desktop: {shortcuts.FirstOrDefault()?.Path}");
+        return Ok;
     }
 
     /// <summary>Checks GitHub Releases and downloads a newer release; the engine applies it at its next start (D-043).</summary>

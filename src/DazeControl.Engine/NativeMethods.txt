@@ -95,3 +95,16 @@ GetSysColor
 SYS_COLOR_INDEX
 FindWindow
 AllowSetForegroundWindow
+CoCreateInstance
+CoInitializeEx
+CoUninitialize
+IShellLinkW
+ShellLink
+IPersistFile
+STGM
+SLGP_FLAGS
+ID2D1DCRenderTarget
+CreateCompatibleDC
+DeleteDC
+SelectObject
+SHChangeNotify

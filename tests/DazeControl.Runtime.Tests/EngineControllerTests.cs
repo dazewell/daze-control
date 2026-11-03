@@ -71,6 +71,146 @@ public sealed class EngineControllerTests : IDisposable
             CancellationToken.None);
 
     [Fact]
+    public async Task ADesktopRunRecordsItsTrigger()
+    {
+        var answer = await _controller.HandleAsync(new PipeRequest
+        {
+            Id = 7, Op = Ops.Run, Flow = "tv", Wait = true, ExactId = true, Trigger = EngineController.DesktopTrigger,
+        }, CancellationToken.None);
+
+        Assert.True(answer.Ok);
+        Assert.Equal("Desktop shortcut", answer.Run!.Trigger);
+    }
+
+    [Fact]
+    public async Task ADesktopRunNeverFallsBackToAName()
+    {
+        // A deleted flow's id may be another flow's name: the shortcut must not run that one.
+        var refused = new List<RunRefusal>();
+        _controller.RunRefused += refused.Add;
+
+        var answer = await _controller.HandleAsync(new PipeRequest { Id = 7, Op = Ops.Run, Flow = "TV only", ExactId = true },
+            CancellationToken.None);
+
+        Assert.False(answer.Ok);
+        Assert.Empty(_history.Recent);
+        var refusal = Assert.Single(refused);
+        Assert.Equal(EngineController.ShortcutFlowGone, refusal.Message);
+        Assert.Equal("Desktop shortcut", refusal.Title);
+        Assert.True((await Send(Ops.Run, "TV only", wait: true)).Ok); // dctl keeps its name fallback
+    }
+
+    [Theory]
+    [InlineData("broken", "Broken needs fixing before it can run.")]
+    [InlineData("off", "Off is turned off.")]
+    public async Task ADesktopRunThatCantStartTellsThePopup(string flow, string message)
+    {
+        var refused = new List<RunRefusal>();
+        _controller.RunRefused += refused.Add;
+
+        await _controller.HandleAsync(new PipeRequest { Id = 7, Op = Ops.Run, Flow = flow, ExactId = true }, CancellationToken.None);
+
+        Assert.Equal(message, Assert.Single(refused).Message);
+    }
+
+    [Fact]
+    public async Task ADesktopRunForAnotherConfigIsRefused()
+    {
+        // One engine per user, whatever its config: a shortcut made by another config's engine must not run "tv" here.
+        var refused = new List<RunRefusal>();
+        _controller.RunRefused += refused.Add;
+
+        var answer = await _controller.HandleAsync(new PipeRequest
+        {
+            Id = 7, Op = Ops.Run, Flow = "tv", ExactId = true, ConfigPath = @"D:\other.yaml",
+        }, CancellationToken.None);
+
+        Assert.False(answer.Ok);
+        Assert.Empty(_history.Recent);
+        Assert.Contains(@"D:\other.yaml", Assert.Single(refused).Message, StringComparison.Ordinal);
+        Assert.True((await _controller.HandleAsync(new PipeRequest
+        {
+            Id = 8, Op = Ops.Run, Flow = "tv", ExactId = true, Wait = true, ConfigPath = Path.GetFullPath("c.yaml"),
+        }, CancellationToken.None)).Ok);
+    }
+
+    [Fact]
+    public async Task ACommandLineRunThatCantStartIsNoPopup()
+    {
+        var refused = new List<RunRefusal>();
+        _controller.RunRefused += refused.Add;
+
+        await Send(Ops.Run, "nope");
+        await Send(Ops.Run, "off");
+
+        Assert.Empty(refused);
+    }
+
+    [Fact]
+    public async Task EditorShortcutOpsAreIdOnlyAndForThisConfigOnly()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "dc-ctl-" + Guid.NewGuid().ToString("N"));
+        var desktop = Path.Combine(root, "Desktop");
+        Directory.CreateDirectory(desktop);
+        try
+        {
+            var shortcuts = new DesktopShortcuts(new ShortcutPlaces(desktop, Path.Combine(root, "icons"), @"C:\x\DazeControl.exe",
+                [@"C:\x\DazeControl.exe"], null, Path.GetFullPath("c.yaml")), new MemoryLinks(), new NoIcons());
+            var controller = new EngineController(ReadConfig, _launcher, _history, EngineController.CreateDryRunner(_time),
+                new Autostart(_root + @"\Run", _root + @"\Approved"), new EngineInfo("1.2.3", 42, @"C:\x\DazeControl.exe", "c.yaml"),
+                _ => { }, shortcuts: shortcuts);
+            Task<PipeMessage> Op(string op, string flow, bool exact, string? config = null) =>
+                controller.HandleAsync(new PipeRequest { Id = 1, Op = op, Flow = flow, ExactId = exact, ConfigPath = config }, CancellationToken.None);
+
+            Assert.False((await Op(Ops.CreateShortcut, "TV only", exact: true)).Ok); // a name, not an id
+            Assert.True((await Op(Ops.CreateShortcut, "TV only", exact: false)).Ok); // dctl keeps the name
+            Assert.Empty((await Op(Ops.RemoveShortcut, "TV only", exact: true)).Shortcuts!); // gone id: nothing else removed
+            Assert.Single((await Op(Ops.Shortcuts, "", exact: false)).Shortcuts!);
+            Assert.False((await Op(Ops.Shortcuts, "", exact: false, config: @"D:\other.yaml")).Ok);
+            Assert.False((await Op(Ops.RemoveShortcut, "tv", exact: true, config: @"D:\other.yaml")).Ok);
+            Assert.Single((await Op(Ops.RemoveShortcut, "tv", exact: true, config: Path.GetFullPath("c.yaml"))).Shortcuts!);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private sealed class MemoryLinks : IShellLinkStore
+    {
+        private readonly Dictionary<string, ShellLinkData> _files = new(StringComparer.OrdinalIgnoreCase);
+
+        public IEnumerable<string> Links(string directory) => Directory.EnumerateFiles(directory, "*.lnk");
+
+        public ShellLinkData? Read(string path) => _files.GetValueOrDefault(path);
+
+        public void Write(string path, ShellLinkData link)
+        {
+            File.WriteAllText(path, "");
+            _files[path] = link;
+        }
+
+        public void Delete(string path)
+        {
+            File.Delete(path);
+            _files.Remove(path);
+        }
+    }
+
+    private sealed class NoIcons : IFlowIconRenderer
+    {
+        public void Write(string path, string glyph) => throw new IOException("no icons in tests");
+    }
+
+    [Fact]
+    public async Task ShortcutOpsWithoutTheShellSayWhy()
+    {
+        var answer = await Send(Ops.Shortcuts);
+
+        Assert.Equal("This engine can't make desktop shortcuts.", answer.Error);
+    }
+
+    [Fact]
     public async Task RunWithWaitAnswersWithTheRecord()
     {
         var answer = await Send(Ops.Run, "tv", wait: true);

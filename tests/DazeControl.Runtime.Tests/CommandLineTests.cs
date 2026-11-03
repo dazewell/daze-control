@@ -11,6 +11,7 @@ public class CommandLineTests
     [InlineData("run", "tv", "--limit", "3")]
     [InlineData("history", "--wait")]
     [InlineData("status", "-v")]
+    [InlineData("run", "tv", "--remove")]
     public void UnknownFlagIsAUsageError(params string[] args) =>
         Assert.Throws<CommandLineException>(() => Parse(args));
 
@@ -26,6 +27,8 @@ public class CommandLineTests
     [InlineData("devices")]
     [InlineData("capture-display-layout")]
     [InlineData("capture-display-layout", "a", "b")]
+    [InlineData("shortcut")]
+    [InlineData("shortcut", "a", "b")]
     [InlineData("nope")]
     public void WrongWordCountIsAUsageError(params string[] args) =>
         Assert.Throws<CommandLineException>(() => Parse(args));
@@ -46,6 +49,15 @@ public class CommandLineTests
         Assert.Equal("tv", line.Word);
         Assert.True(line.DryRun);
         Assert.True(line.Wait);
+    }
+
+    [Fact]
+    public void ShortcutReadsRemove()
+    {
+        Assert.False(Parse("shortcut", "tv").Remove);
+        var line = Parse("shortcut", "--remove", "tv");
+        Assert.Equal("tv", line.Word);
+        Assert.True(line.Remove);
     }
 
     [Fact]

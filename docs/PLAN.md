@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T11.1 Bluetooth paired list done (fix/bluetooth-list, 0.20.1); next T11.2 → T11.3 (feat/m11-pickers)
-Last green checkpoint: b80f8c7 docs(m11) design for desktop shortcuts, pickers and the Bluetooth list (#22)
+Current task: M11 — T11.1 merged (#23, 0.20.1); T11.4/T11.5 desktop shortcuts (PR #24, 0.21.0); next T11.2 → T11.3 (feat/m11-pickers)
+Last green checkpoint: 4872024 "fix(shortcuts): refuse another config's run…" + merge of main (#23)
 Next action: T11.2 — `ParamSpec.Suggest`/`Ordered`/`Examples` in Core/Catalog, then the catalog coverage test
-Tree state: builds, 833/833 tests green (DAZE_DEV_PC=1) · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). feat/m11-shortcuts runs in parallel (Protocol ops, Engine/Program.cs, Flows page): expect Resume/Version conflicts.
+Tree state: builds, all tests green, AOT publish clean · Uncommitted: none
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). Desktop shortcuts on an installed copy (survives an update, uninstall removes it) are unverified: GOALS → follow-ups. The editor has no flow delete yet.
 
 ---
 
@@ -136,7 +136,7 @@ PRs bump the minor version.
   (name or port per D-051, unplugged kept checked; provider matches exact names before "contains"); Android input from the chosen device. Done when: VM tests (writes,
   twin-name → port, unplugged kept, undo of an example), screenshots light/dark of each control, Narrator names on the
   checklist and token list.
-- [ ] T11.4 Desktop shortcuts, engine side (feat/m11-shortcuts, D-049). `--run`, second-instance forward, queue
+- [x] T11.4 Desktop shortcuts, engine side (feat/m11-shortcuts, D-049; installed-copy update/uninstall unverified, GOALS). `--run`, second-instance forward, queue
   until first load, trigger "Desktop shortcut", `FlowShortcuts` (.lnk + glyph .ico), ops `shortcuts`/`create-shortcut`/
   `remove-shortcut`, `dctl shortcut <flow> [--remove]`, uninstall hook cleanup, id-only resolution (`exactId`),
   config path kept in the args. Done when: unit tests (args parse, scan matches only our target, name sanitising
@@ -144,7 +144,7 @@ PRs bump the minor version.
   shortcut cold-starts that config; on the dev PC a shortcut runs its flow with the engine running and
   with it stopped (history shows "Desktop shortcut"), an installed copy's shortcut survives an update, uninstall
   removes it.
-- [ ] T11.5 Desktop shortcuts, editor side (feat/m11-shortcuts). Flow settings row + Flows card context menu, Update
+- [x] T11.5 Desktop shortcuts, editor side (feat/m11-shortcuts; the editor has no flow delete yet, so nothing to remove on Save). Flow settings row + Flows card context menu, Update
   on an old name, engine-off state (#25), deleting a flow removes its shortcut on Save. Done when: VM tests, screenshots.
 
 ## First-use fixes (user, 2026-11-02; branch feat/first-use-fixes)
