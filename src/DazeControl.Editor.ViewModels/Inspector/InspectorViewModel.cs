@@ -853,6 +853,9 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             _ = RefreshShortcutProblemsAsync();
             foreach (var kind in Fields.Select(f => f.Spec.Library).OfType<LibraryKind>().Distinct())
                 _ = RefreshDevicesAsync(kind);
+            // The screens checklist has no drop-down to retry from.
+            foreach (var kind in Fields.Select(f => f.Spec.Suggest).Where(s => s?.Source == SuggestSource.Devices).Select(s => s!.Kind).Distinct())
+                _ = RefreshSuggestionsAsync(kind);
         }
     });
 

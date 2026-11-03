@@ -75,7 +75,8 @@ public static class ScreenChoices
     public static List<ScreenCheckViewModel> Rows(IReadOnlyList<DeviceInfo>? live, IReadOnlyList<string> entries)
     {
         live ??= [];
-        var matched = entries.ToDictionary(e => e, e => ScreenMatch.IndexOf(e, live, d => d.Name, Monitor), StringComparer.Ordinal);
+        var matched = entries.Distinct(StringComparer.Ordinal)
+            .ToDictionary(e => e, e => ScreenMatch.IndexOf(e, live, d => d.Name, Monitor), StringComparer.Ordinal);
         var rows = new List<ScreenCheckViewModel>();
         for (var i = 0; i < live.Count; i++)
         {

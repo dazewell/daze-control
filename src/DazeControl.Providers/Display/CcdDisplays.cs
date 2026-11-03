@@ -37,7 +37,9 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
 
     public IReadOnlyList<string> UseOnly(IReadOnlyList<string> outputs, CancellationToken cancellationToken)
     {
-        var ports = ByPort(QueryAllPaths()).Where(p => p.Output.Available).ToList();
+        // Same order as Outputs(), which the editor's checklist matches against (D-051).
+        var ports = ByPort(QueryAllPaths()).Where(p => p.Output.Available)
+            .OrderBy(p => p.Output.Port, StringComparer.OrdinalIgnoreCase).ToList();
         var missing = new List<string>();
         var chosen = new List<DISPLAYCONFIG_PATH_INFO>();
         foreach (var name in outputs)

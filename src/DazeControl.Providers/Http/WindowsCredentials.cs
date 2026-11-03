@@ -54,7 +54,9 @@ public sealed unsafe partial class WindowsCredentials : ICredentialStore
             for (var i = 0; i < count; i++)
             {
                 var target = new string(list[i]->TargetName);
-                if (target.StartsWith(TargetPrefix, StringComparison.OrdinalIgnoreCase) && target.Length > TargetPrefix.Length)
+                // Read() asks for generic credentials only: offer just those.
+                if (list[i]->Type == (uint)CRED_TYPE.CRED_TYPE_GENERIC
+                    && target.StartsWith(TargetPrefix, StringComparison.OrdinalIgnoreCase) && target.Length > TargetPrefix.Length)
                     names.Add(target[TargetPrefix.Length..]);
             }
             return [.. names.Order(StringComparer.CurrentCultureIgnoreCase)];

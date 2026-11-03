@@ -97,6 +97,15 @@ public sealed class PickerTests : IDisposable
     }
 
     [Fact]
+    public void ARepeatedScreenEntryShowsOnce()
+    {
+        var rows = ScreenChoices.Rows(_screens, ["DP-1", "DP-1", "Old TV", "Old TV"]);
+
+        Assert.Equal(["DELL S2722QC", "LG TV", "Old TV"], rows.Select(r => r.Title));
+        Assert.Equal([true, false, true], rows.Select(r => r.IsChecked));
+    }
+
+    [Fact]
     public void CheckingAScreenWritesItsMonitorName()
     {
         _canvas.Select("screens");
