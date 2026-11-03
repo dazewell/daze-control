@@ -19,6 +19,7 @@ fresh agent make a worse decision without it?* If not, cut it.
 | A choice + reasons + rejected alternatives | `docs/DECISIONS.md` | Append-only log |
 | Something tried that failed | `docs/DEADENDS.md` | Append-only log |
 | Bulky research behind a decision (tables, sources) | `docs/research/<yyyy-mm>-<topic>.md` | Snapshot, never maintained |
+| A large feature designed before it's built (D-053) | `docs/<feature>/DESIGN.md` | Spec of what's still open; each task moves what it built into ARCHITECTURE/UX/FEATURES and cuts it there. Decisions, tasks and strings stay in the shared files |
 | A quirk tied to one line of code | Code comment, pointing to D-/X- id | One line |
 
 Rule of thumb: ARCHITECTURE and GOALS answer "what is", DECISIONS and DEADENDS answer "why / why not".

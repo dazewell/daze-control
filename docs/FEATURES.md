@@ -14,7 +14,8 @@ What Daze Control does, stack-independent. Source: the 2026-10-31 plan §2. Stat
   applies to what follows it. No nested cards.
 - A failed node with an outgoing `failure` edge has *handled* its failure: its `stop`/`skip` policy is not
   applied, the fallback runs and the flow goes on; its `success` dependents are still skipped. The flow then
-  ends PartiallySucceeded ("Done, with a problem") (D-024).
+  ends PartiallySucceeded ("Done, with a problem") (D-024). M13 changes this (D-065, designed): a fixed failure ends
+  Succeeded, and a fallback that wasn't needed is "Not needed", not a skip.
 - Outcomes: node Succeeded / Failed / FailedIgnored / Skipped / Cancelled; flow Succeeded /
   PartiallySucceeded / Failed / Cancelled.
 - Flow settings: name, glyph, tray (show, folder, separator), hotkeys, `whenRunning` (ignore / queue /

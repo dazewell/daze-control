@@ -19,9 +19,15 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   draft until Save; Cancel throws it away; leaving the flow (breadcrumb, nav pane, closing the window) with a draft
   asks "Save your changes to <flow>?" Save / Don't save / Cancel. Run runs the saved version (its tooltip says so);
   Dry run and Test this step use what's on screen. Library and Settings keep autosaving (300 ms).
-  CommandBar (Run, Dry run, Stop, Undo, Redo, Tidy up, Canvas | Outline, Problems (n)) · left
+  CommandBar (Run, Dry run, Stop, Undo, Redo, Tidy up (M13: Layout, §5.2), Canvas | Outline, Problems (n)) · left
   palette 240 (collapsible, search) · canvas · right inspector 320 (280–480). Nothing selected → inspector
   shows the flow's settings (no extra dialog).
+- **M13 (designed):** the Flows card's icon is the flow's own glyph, else its first step's (`FlowGlyph.CodeOf`, as in
+  flow settings). The card's chevron becomes a plain **Run** button ("Stop" while that flow runs; off with #62); the
+  card is one keyboard stop that opens the flow (Enter/Space, Narrator "Open Connect Technics"); its context menu
+  adds Open and Run (#66, D-070). **Flows** in the nav pane while a flow is open goes back to the list (the D-047
+  prompt first if there's a draft). The nav pane collapses: the toggle above the items shrinks it to a 48-DIP icon
+  strip with tooltips, remembered on this PC (D-068).
 
 ## 5.2 Canvas interaction
 - **Layout is always automatic** (D-020): left→right columns (one per layer), gaps 64 between columns, 16
@@ -45,7 +51,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   refs, paste into a new column to the right. Del; deleting B in A→B→C reconnects A→C; deleting a card
   deletes its members. Undo/redo Ctrl+Z/Y, one entry per gesture, within the draft (Save or Cancel clears it).
 - Navigate: wheel scroll, Shift+wheel horizontal, Ctrl+wheel/pinch zoom 50–200 %, Space+drag / middle-drag /
-  one-finger pan, Ctrl+0 fit, Ctrl+1 100 %; minimap 160×100 bottom-right only when content overflows.
+  one-finger pan, Ctrl+0 fit, Ctrl+1 100 %; minimap 160×100 bottom-right only when content overflows. M13: right-drag
+  pans too, over pills and edges as well; a right click that doesn't move past the system drag distance still opens
+  the menu (D-069).
 - Empty state: centred glyph, title, line, "Add a step" button.
 - Keyboard: canvas is one tab stop with roving focus; Right/Left = next/previous step, Up/Down = same column;
   Enter → inspector; F2 rename; Alt+Up/Down reorder; Alt+Right into the adjacent card; Ctrl+L "Runs after…"
@@ -55,7 +63,13 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   every canvas command; live region announces run results (≤ 1/s); canvas exposes the same names.
 
 - Long simple chains (more than 5 boxes, no forks or joins) wrap onto new rows like text; forks, joins and
-  side-by-side branches keep their own columns (D-060).
+  side-by-side branches keep their own columns (D-060). M13: whatever follows a wrapped chain starts on a new line
+  under it, at its left edge, joined like the wrapped rows (D-066).
+- **Layout** (M13, replaces Tidy up, D-067): a CommandBar flyout, per flow on this PC, applied at once (not a flow
+  edit, no undo): Wrap long chains (After 3 steps / After 5 steps / After 8 steps / Never) · Spacing (Compact /
+  Normal / Roomy) · Line up (Centred / Along the top) · Lines (Curved / Right angles) · separator · **Untangle lines**
+  (reorders steps within columns, a flow edit with undo; off with its reason when it can't help) · Reset layout.
+  Radio items show the current choice; strings #63.
 
 ## 5.3 Visual language
 - Pill: min 232×56, max width 320, grows taller with text size. CornerRadius 28; the left cap is the status
@@ -125,6 +139,14 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   (pairs with "If it fails, run…"). Web request: address "Sunshine: close the running app"
   `https://localhost:47990/api/apps/close`; headers `Content-Type: application/json`; body `{ "key": "value" }`.
 - Bluetooth pickers list Windows' paired devices (D-052); ones without audio are disabled with #26.
+- **Run a flow** (M13, designed; [flow-calls/DESIGN.md](flow-calls/DESIGN.md) §6): **Flow** ComboBox (glyph + name +
+  caption: the inputs it takes, "Turned off", "Needs fixing"; its own flow and loop-making flows off with #49/#50);
+  **Wait for it to finish** toggle, on by default (#55); **Inputs**: a device picker per input of the chosen flow,
+  first item "Its default: Technics", then "From this flow's inputs" (#60); **Open this flow** link. Pill: the called
+  flow's glyph, title "Run Make it the default", summary the given devices or "Doesn't wait".
+- **Inputs** (M13) in flow settings: "Add an input" (#60) → rows name · kind (Audio device / Bluetooth device / Android
+  device / Screen layout) · default (device picker) · ×. Device pickers in that flow get a group "This flow's inputs".
+  Removing a used input writes its default into the steps, with tip #61.
 - **Menu step** (M12, designed; full spec [flow-menu/DESIGN.md](flow-menu/DESIGN.md) §3.7): Choices = token list of
   flows (glyph + name, ×, Alt+Up/Down, "Add a flow", own flow not offered, a missing one caution with #40), Title,
   Layout List / Grid, Size Normal / Large "For a TV across the room", Close after (s), "Wait for it to finish" (#41).
@@ -140,6 +162,10 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   parallel steps get separate lanes), bars 20 DIP radius 4 by state, may-fail-failed dashed caution, a card is a
   bracket over its members' lanes, retries are notches, min bar width 4; select bar → its log lines; "Open in
   editor" shows that run on the canvas. Keep the last 100 runs.
+- M13: a fallback that wasn't needed shows "Not needed" (#47), not a skip, and no bar; a failure its fallback fixed
+  is a caution-dashed bar and the run says "Worked" with #48 (D-065). A "Run a flow" bar that waited has a chevron;
+  expanded, the called flow's lanes show indented under a bracket with its name, and "Open in editor" on them opens
+  that flow (D-062). Live: a flow running inside another shows its states with InfoBar #64.
 
 ## 5.6 Tray menu and run pop-up
 - Clicks (user, 2026-11-02): left click, or Enter/Space on the focused icon, opens the editor (starts it or brings
@@ -159,6 +185,10 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   didn't work, so it went on without it." Failure: critical glyph, "Didn't finish", first failure in plain
   words (≤ 2 lines), Row 4 "Select to see what happened" (opens the run),
   stays 6 s and is clickable (still never activates on show).
+- M13 (D-065, D-062): "n of m" leaves out fallbacks until one starts (then m grows by it); a fallback that wasn't
+  needed counts for nothing. A failure its fallback fixed ends "Done" with #48 on row 3, in the normal tone. A flow
+  run by "Run a flow" (waiting) is one step of its caller: row 3 shows "Make it the default · Connecting Sony…"
+  (#59) and the bar moves within that step; the called flow shows no pop-up of its own.
 
 ## 5.7 Microcopy (the OSD's D-026 voice: plain, friendly, sentence case)
 1 "This flow is empty" / "Add a step to start. Drag one from the left, or double-click anywhere." · 2 "No flows
@@ -188,7 +218,21 @@ flow uses View + Menu. Try another one." · 37 "Use at least two buttons, so a g
 wait for the picked flow, and stop if it fails." · 42 "You picked Couch TV. Testing doesn't run it." · 43 "Start
 Daze Control to record controller buttons." · 44 "Nothing picked" · 45 "These steps start together now, so the "if it fails" or
 "whatever happens" connection between them is gone." · 46 "If this fails, its fallback runs and the flow carries
-on, so it's set to "Skip what depends on it" now."
+on, so it's set to "Skip what depends on it" now." · M13: 47 "Not needed" · 48 "Connect Technics didn't work, so
+Connect Sony ran instead." · 49 "A flow can't run itself." · 50 "That would make a loop: Headphones runs Make it the
+default, which runs Headphones." · 51 "Make it the default isn't there anymore. Pick another flow." · 52 "Make it the
+default is turned off, so this step will fail. Turn it on in Flows." · 53 "Didn't run Make it the default: it's
+already running further up, so that would loop." · 54 "Flows ran inside each other more than 8 deep, so this one
+stopped." · 55 "Wait for it to finish" / on: "Steps after this wait for it, and its result decides what runs next." /
+off: "It starts on its own, and this flow carries on at once." · 56 "Make it the default didn't finish: Bluetooth
+didn't connect in 20 s." · 57 "Make it the default didn't finish in 10 min." · 58 "Make it the default was already
+running, so it wasn't started again." · 59 "Make it the default · Connecting Sony…" · 60 "Add an input" / "Lets
+another flow pick the device when it runs this one." · groups "This flow's inputs" / "From this flow's inputs" · "Its
+default: Technics" · 61 "Steps that used Output now use Technics." · 62 Run off: "Start Daze Control to run flows." ·
+"Turn it on to run it." · "Fix its problems to run it." · 63 "Layout" · "Wrap long chains" "After 3 steps" "After 5
+steps" "After 8 steps" "Never" · "Spacing" "Compact" "Normal" "Roomy" · "Line up" "Centred" "Along the top" · "Lines"
+"Curved" "Right angles" · "Untangle lines" (off: "No lines cross" / "Can't untangle these any further") · "Reset
+layout" · 64 "Running inside Headphones." · 65 "Would run Make it the default." · 66 Flows card menu "Open" · "Run"
 
 ## 5.8 Risks → mitigations
 1 XAML element count: pill template ≤ 12 elements, no ThemeShadow per node, all edges in one layer of a few batched paths (D-037),
@@ -220,3 +264,8 @@ contrast: solid background, no dots.
 - M12: the menu shows over a borderless game without changing the foreground window; focus is readable from 3 m
   (Large, light/dark/high contrast, not colour alone); pad, keys and mouse each pick and close; nothing picked shows
   no pop-up; animation effects off = no motion; 225 % text doesn't clip rows or tiles.
+- M13: right-drag pans and a still right click opens the menu; a 7-step chain then a fork leaves no long empty line
+  (the fork starts under the chain); every Layout choice changes the canvas visibly on a sample flow; the Flows card
+  shows the flow's icon and runs it with Run (keyboard: Tab to the card, Enter opens); nav Flows leaves the editor;
+  the collapsed nav pane survives a restart; Connect Technics with Technics on says "Done" and "n of m" never counts
+  the Sony branch; "Run a flow" shows one pop-up and one Runs entry with the nested lanes.

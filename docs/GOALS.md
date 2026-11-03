@@ -26,10 +26,13 @@ lives in [DECISIONS.md](DECISIONS.md).
   start a flow (so one combo opens the menu, the pad picks). Designed first as its own sub-project
   ([flow-menu/DESIGN.md](flow-menu/DESIGN.md), D-053..D-057). Pads: an Xbox controller and the Steam Controller (through
   Steam). The menu never takes focus; polling a pad only while one is on is acceptable (all 2026-11-03).
-- Priority after v0.23.0 (user, 2026-11-03), before all other planned work (PLAN M13, design first). The editor:
-  right-drag panning, a better layout after wrapped chains, flow icons in the Flows list, nav "Flows" returns to the
-  list, a "Run" button on each flow card, a working or reworked Tidy up, a collapsible nav pane. Flows: a step that
-  runs another flow (no loops). Fallback steps that weren't needed count as neither progress nor a warning.
+- Priority after v0.23.0 (user, 2026-11-03), before all other planned work (PLAN M13, designed 2026-11-03,
+  D-061..D-070). The editor: right-drag panning, a better layout after wrapped chains (what follows goes on a new
+  line under it), flow icons in the Flows list, nav "Flows" returns to the list, a "Run" button on each flow card,
+  Tidy up reworked into a Layout menu with more strategies ("make it wider"), a collapsible nav pane. Flows: a step
+  that runs another flow (no loops), with device inputs so one chain serves several devices (in P6 itself). Fallback
+  steps that weren't needed count as neither progress nor a warning, and a failure its fallback fixed ends "Done"
+  (all user answers 2026-11-03).
 - Working name **Daze Control** (namespace `DazeControl`, exe `DazeControl.exe`, CLI `dctl.exe`); the user may rename it.
 
 ## Must keep from scd
@@ -59,6 +62,7 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
   Desktop shortcuts done (T11.4/T11.5, 0.21.0): Flow settings › Desktop shortcut, the Flows card's menu, `dctl shortcut`.
 - [x] Canvas: long simple chains wrap onto rows of 5 like text; forks, joins and parallel branches keep their
   columns (user, 2026-11-03; D-060; 0.23.0).
+- [ ] M13 Editor and flow updates P1–P9 (designed 2026-11-03, D-061..D-070; PLAN → M13), before everything else.
 - [ ] M12 Flow menu + controller trigger (designed 2026-11-03, D-053..D-057; PLAN → M12). Starts with two spikes:
   controller input at 0 idle CPU (needs your Xbox pad plugged in) and the menu over games without taking focus.
 

@@ -52,9 +52,10 @@ flows:
   trigger text "Menu · Couch", its own `whenRunning`, run record and pop-up. The menu closes at once.
 - The step succeeds once the launch was accepted; its summary is "Picked Couch TV". Steps after the menu run in
   parallel with the picked flow.
-- `wait: true`: the step waits for the picked flow and takes its outcome (Failed when it failed or didn't start,
-  with its reason); the step's timeout then covers the picked flow too (default timeout 10 min).
-- A pick that `whenRunning: ignore` drops: the step succeeds with "Couch TV was already running, so this pick was
+- `wait: true` (D-061): the picked flow runs **nested** inside the menu flow's run, as `flow.run` does
+  ([flow-calls/DESIGN.md](../flow-calls/DESIGN.md) §3): no `whenRunning`, no record or pop-up of its own (the menu
+  flow's pop-up shows it), and the step takes its outcome; the step's timeout covers it (default 10 min).
+- Launch picks only (`wait: false`): a pick that `whenRunning: ignore` drops: the step succeeds with "Couch TV was already running, so this pick was
   ignored." (#17 pattern) and the run pop-up says it.
 - **Nothing picked** ends the flow quietly: the menu node is Cancelled with "Nothing picked" (#44), nothing after it
   runs (`always` edges included, as with any cancel), the flow outcome is Cancelled, and **no** run pop-up shows (the
@@ -88,7 +89,8 @@ branch on the pick. Branching is what the menu items are. Recorded as `NodeResul
   - an unknown flow id → warning, the item is dropped at run time, editor shows "isn't there anymore" (#40);
     the menu flow itself stays runnable (fail-soft);
   - a duplicate item → warning, the second is dropped;
-  - `wait: true` items that reach back to the menu's flow through other `wait: true` menus → error (#39);
+  - `wait: true` items that reach back to the menu's flow (through `wait: true` menus or `flow.run` steps) → error
+    (#39), checked with flow calls on one call graph (D-063);
   - 0 items or more than 12 → error; `closeAfter` outside 5 s..10 min → error;
   - a `gamepad:` chord that doesn't parse, has < 2 or > 4 buttons or names Guide → error on the flow.
 - A menu flow with only disabled or broken items still shows (#28) rather than fail silently.
@@ -112,8 +114,8 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
 ### 3.2 Step contract and runner
 - `MenuProvider.ExecuteAsync`: builds the `MenuModel` from `items` + the current snapshot (runnable / running /
   off / needs fixing per flow) → `IMenuPresenter.ShowAsync(model, ct)` → `Picked(flowId)` | `Closed(reason)`.
-  Picked → `IFlowStarter.StartAsync(flowId, "Menu · <name>", wait, ct)` → Started | Ignored | Refused(reason) |
-  Finished(RunResult). The provider sits in Runtime (it needs the controller); Engine fills the presenter.
+  Picked → `IFlowStarter` (shared with `flow.run`, D-061): Start → Started | Ignored | Refused(reason); Wait → a
+  nested run's result (D-062). The provider sits in Runtime (it needs the controller); Engine fills the presenter.
 - Contract additions (both small, both tested in Runtime.Tests):
   - `StepContext.SetSummary(string)` → `NodeResult.Summary` and NodeFinished's text ("Picked Couch TV"). Other
     providers may use it later; null = today's behaviour.
@@ -248,7 +250,7 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
 ### 4.4 States and wording (D-026 voice; numbers in UX §5.7)
 - Empty (all choices off): the rows show their reasons, plus a line "Nothing here can run right now" / "Turn on or
   fix these flows in Daze Control." (#28). B/Esc closes.
-- Picked flow already running: its caption says "Running"; picking applies its "If it's already running"; ignore →
+- Picked flow already running: its caption says "Running"; a launch pick (`wait: false`) applies its "If it's already running", a nested one (`wait: true`) just runs; ignore →
   run pop-up #17-style for the menu pick (§2.2).
 - Picked flow became invalid between show and pick: the menu closes, pop-up "Couch TV didn't start. It needs
   fixing." (#33). Deleted: dropped from the menu at show time.
