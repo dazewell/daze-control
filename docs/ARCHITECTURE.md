@@ -177,12 +177,16 @@ given on the command line as the Run value's argument.
   `Shell/TrayGlyph` (idle / busy / paused, D-027); tooltip = running flows, else paused, else the last run's
   problem. Not yet: per-flow glyph bitmaps in the menu (need M5's glyph-font rendering).
 - `Runtime/Lifecycle/Autostart`: HKCU Run value `DazeControl` → engine exe (OSD port), set through the pipe op.
-- Desktop shortcuts (M11, D-049): `Program` reads `--run <flow id>` (and an optional config path, kept from the
-  creating engine) before the single-instance check; runs resolve by id only (`exactId`); a second
-  engine sends `run` (trigger "Desktop shortcut") through `PipeClient` and exits, the first queues it until the first
-  config load. `Engine/Shell/FlowShortcuts` writes/scans/removes the .lnk files (IShellLinkW) and renders
-  `shortcuts\<safe id>.ico` (filename-safe names, real id in the args) with the pop-up's DirectWrite path; the uninstall hook calls its `RemoveAll`. An unknown id
-  fails like any run of a missing flow, with the pop-up saying the shortcut's flow is gone.
+- Desktop shortcuts (M11, D-049): `Runtime/Lifecycle/EngineArguments` parses `[--run <flow id>] [config]` before the
+  single-instance check; a second engine sends `run` (`exactId`, trigger "Desktop shortcut") through `PipeClient`
+  and exits without logging; the first runs it right after the constructor's (synchronous) first config load. The
+  rules live in `Runtime/Lifecycle/DesktopShortcuts` (scan = our target + `--run` + same config; names via
+  `ShortcutNames`; `IconFile` writes the .ico) behind two seams that `Engine/Shell/FlowShortcuts` fills: `ShellLinkStore`
+  (IShellLinkW + IPersistFile, each call on a fresh MTA thread) and `FlowIconRenderer` (glyph coverage from a software
+  D2D DC target over `TrayGlyph.PaintTile`; d2d1/DWrite loaded and freed per call). Target = the Velopack stub when
+  `current\..\Update.exe` and `Daze Control.exe` exist, else this exe. `EngineController.RunRefused` → "Didn't start"
+  pop-up (#24 for a gone flow). The uninstall hook calls `RemoveAll` (any config, plus the icon folder). Editor:
+  `Engine/DesktopShortcutStore`, shared by the Flows card menu and the flow settings row.
 
 ## Install and updates
 
@@ -218,7 +222,7 @@ true/false/absent), `shortcuts` / `create-shortcut` / `remove-shortcut` (flow id
 through `Runtime/Control/IDeviceQueries` (read-only; `Providers/SystemDevices` on the real PC); `test-step`
 answers "can't do that yet" until the editor. `PipeClient` copies each request to stamp its id: a new
 `PipeRequest` field goes into that copy too (`PipeTests.EveryRequestFieldReachesTheServer` fails otherwise).
-`dctl` (`src/DazeControl.Cli`): run/cancel/list/validate/status/history/autostart/devices/capture-display-layout/update, parsed strictly by
+`dctl` (`src/DazeControl.Cli`): run/cancel/list/validate/status/history/autostart/devices/capture-display-layout/shortcut/update, parsed strictly by
 `Ipc/CommandLine` (unknown flag or wrong word count → exit 2, never ignored); `validate <file>`
 and, with no engine, `list`/`validate` read the YAML themselves. Exit codes 0 ok, 1 failed, 2 usage, 3 no engine.
 

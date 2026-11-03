@@ -47,6 +47,7 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
   with a reason when in use); canvas pills follow the re-layout after same-column links and deletes (X-004); edges can be hovered, clicked,
   marquee-selected, deleted and right-clicked (UX §5.8 #2), with "+"/"×" above the midpoint.
 - [ ] M11 Desktop shortcuts, pickers and examples, Bluetooth list (designed 2026-11-02, D-049..D-052; PLAN → M11).
+  Desktop shortcuts done (T11.4/T11.5, 0.21.0): Flow settings › Desktop shortcut, the Flows card's menu, `dctl shortcut`.
 
 ## Ready for you (2026-11-02)
 
@@ -61,7 +62,10 @@ v0.20.0 is released (GitHub Releases; installed copies update themselves). What'
    clips), and Narrator on the canvas Outline. The rest of the checklist passed at 175 % (PLAN T10.3).
 4. **Releases** stay yours: `release.yml` publishes only on a `v<Version>` tag (D-043).
 5. **Open follow-ups:** the pop-up isn't read by Narrator (T10.5); the run overlay attaches to a run already going
-   only at its next step; a tray left click bringing an open editor forward is unverified with a real click.
+   only at its next step; a tray left click bringing an open editor forward is unverified with a real click;
+   desktop shortcuts (0.21.0) were checked with Debug and AOT engines, not yet with an installed copy: after the next
+   release, check that a shortcut survives an update and that uninstall removes it. The editor can't delete flows
+   yet, so "deleting a flow removes its shortcut on Save" waits for that feature (a gone flow's shortcut says so, #24).
 
 ## Waiting on the user
 

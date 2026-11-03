@@ -540,6 +540,11 @@ absolute config path when the engine runs a non-default config (as `Autostart.En
 - Why not `dctl.exe run` as the target: a console window flashes. Why not `shortcut: true` in YAML kept in sync by the
   engine: it would rewrite the desktop on every reload and bring back a shortcut the user deleted. Why not the editor
   writing it: `dctl shortcut` would need a second copy, and the glyph renderer lives in the engine.
+- Built (T11.4/T11.5, 0.21.0): the scan also matches the config (a link without one = the default config), so each
+  engine lists only its own; a name taken by a file that isn't this flow's shortcut gets " (2)" and up, never an
+  overwrite; the icon is the flow's glyph, else its first step's (`FlowGlyph.CodeOf`, as the flow settings show it);
+  a desktop run that can't start (flow gone, off, needs fixing) shows a "Didn't start" pop-up, since nobody reads the
+  pipe's answer. .ico entries are 32-bit BMP (no PNG encoder in the AOT engine; ~350 KB per flow).
 - Revisit if: Start menu or taskbar pins are wanted (same .lnk in the Programs folder; a pin needs an AUMID per flow).
 
 ## D-050 · 2026-11-02 · Suggestions and examples are catalog metadata (`ParamSpec.Suggest`, `ParamSpec.Examples`)
