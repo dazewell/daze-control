@@ -21,6 +21,11 @@ lives in [DECISIONS.md](DECISIONS.md).
 - After v0.20.0 (user, 2026-11-02): a desktop shortcut per flow (D-049); pick values instead of typing them —
   "Use only these screens" from the PC's screens, and pickers or examples for every free-text value (PowerShell,
   Android, code…) (D-050, D-051); the Bluetooth list must match Windows' own (D-052). Design first, same standards.
+- A **flow menu** (user, 2026-11-03): a step pops up a menu "in our OSD format" on top of all windows; each button runs
+  another flow, shown with that flow's icon and name; it works with a controller, and a controller button combo can
+  start a flow (so one combo opens the menu, the pad picks). Designed first as its own sub-project
+  ([flow-menu/DESIGN.md](flow-menu/DESIGN.md), D-053..D-057). Pads: an Xbox controller and the Steam Controller (through
+  Steam). The menu never takes focus; polling a pad only while one is on is acceptable (all 2026-11-03).
 - Working name **Daze Control** (namespace `DazeControl`, exe `DazeControl.exe`, CLI `dctl.exe`); the user may rename it.
 
 ## Must keep from scd
@@ -48,6 +53,8 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
   marquee-selected, deleted and right-clicked (UX §5.8 #2), with "+"/"×" above the midpoint.
 - [ ] M11 Desktop shortcuts, pickers and examples, Bluetooth list (designed 2026-11-02, D-049..D-052; PLAN → M11).
   Desktop shortcuts done (T11.4/T11.5, 0.21.0): Flow settings › Desktop shortcut, the Flows card's menu, `dctl shortcut`.
+- [ ] M12 Flow menu + controller trigger (designed 2026-11-03, D-053..D-057; PLAN → M12). Starts with two spikes:
+  controller input at 0 idle CPU (needs your Xbox pad plugged in) and the menu over games without taking focus.
 
 ## Ready for you (2026-11-03)
 

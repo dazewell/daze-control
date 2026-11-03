@@ -595,3 +595,77 @@ Status: accepted (M11, fixes the user's report)
   engine (size, startup, D-001); use it only if devnodes miss a device Settings shows. Why not
   `BluetoothFindFirstDevice`: classic only, no LE devices.
 - Revisit if: connecting non-audio devices is wanted (needs `BluetoothSetServiceState`, i.e. admin, D-008).
+
+## D-053 · 2026-11-03 · The flow menu is designed as a sub-project: `docs/flow-menu/DESIGN.md` + shared ADRs and PLAN M12
+Status: accepted (M12 design)
+- Decision: the feature's spec (features, architecture, UX, spikes) lives in one file, `docs/flow-menu/DESIGN.md`;
+  its decisions stay in this file (D-053..), its tasks in PLAN → M12, its strings in UX §5.7 (#28–#44). Each M12 task
+  moves what it built into ARCHITECTURE/UX and cuts it from DESIGN.md, which ends as the list of what's still open.
+- Why: the user wants this large feature designed as its own sub-project before any code (2026-11-03); a folder keeps
+  ~200 lines of not-yet-true design out of ARCHITECTURE ("current state only").
+- Why not a full doc set in the folder (own DECISIONS/PLAN): splits the D-xxx sequence and the Resume block, so
+  `grep DECISIONS` and the `resume` skill would miss it. Why not an "M12" section in each shared doc (as M11 did):
+  ARCHITECTURE would describe code that doesn't exist, and the design is twice M11's size.
+- Revisit if: a second sub-project appears (then make `docs/<name>/DESIGN.md` the rule in `knowledge-log`).
+
+## D-054 · 2026-11-03 · A menu pick launches the flow (its `whenRunning`); `wait` nests; nothing picked stops quietly
+Status: accepted (M12 design)
+- Decision: `menu.show` lists 1–12 flow ids; a pick starts that flow through `EngineController` like the tray (trigger
+  "Menu · <menu flow>", its own `whenRunning`, history, pop-up) and the step succeeds with the summary "Picked …".
+  `wait: true` makes the step wait for the picked flow and take its outcome. Closing without a pick (B, Esc, click
+  outside, close timer, the flow stopped) cancels the menu node and the flow, and shows no pop-up
+  (`StepEndsFlowException`, `RunFinished.Quiet`). Submenus are items whose flow has a menu; no in-window submenus.
+  Validation: own flow → error; unknown or duplicate item → warning, dropped; a `wait` loop → error.
+- Why: launch reuses every existing rule (whenRunning, locks, history) and needs no recursion guard: the first menu's
+  run ends before the next menu shows, so menus may point at each other ("Back" = the parent's flow). A user closing
+  the menu isn't a failure, so no "Didn't finish".
+- Why not always nest: the child's queue/restart rules and timeouts compound, cycles become runtime recursion, and
+  the parent run stays open while the user plays. Why not the pick as the step's outcome for edges: edges know
+  success/failure/always only; the items already are the branches. Why not "nothing picked = failure": a red pop-up
+  for pressing B.
+- Revisit if: users want a flow to continue differently per pick (then an edge `when: picked <id>`).
+
+## D-055 · 2026-11-03 · The menu window never activates: borrowed keys via RegisterHotKey, a pass-through mouse hook
+Status: accepted (M12 design; user, 2026-11-03: "Never take focus"; spike S2 gates it)
+- Decision: `Engine/Shell/FlowMenu` on the run pop-up's surface (D-034, cut out as `AcrylicSurface`), no-activate and
+  topmost, centred on the foreground window's monitor. While open only: Up/Down/Left/Right/Enter/Space/Esc/Tab/Home/
+  End/1–9 are `RegisterHotKey`s on the message window, a `WH_MOUSE_LL` hook (never swallows) spots a click outside;
+  all are released on every close path. True exclusive full-screen (`QUNS_RUNNING_D3D_FULL_SCREEN`) → the step fails
+  with #32 before showing.
+- Why: keeps the hard rule (never take focus); a game or video in front keeps running; hotkeys are what the engine
+  already uses (`GlobalHotkey`), work over elevated windows and are freed by the OS if the engine dies.
+- Why not activating the menu: breaks the hard rule (user declined), minimizes exclusive full-screen games, and the
+  foreground lock refuses it after a controller trigger anyway. Why not `WH_KEYBOARD_LL`: a slow callback gets the hook
+  dropped silently, and UIPI hides elevated windows' keys. Why not `CreateWindowInBand` (Game Bar's band): needs
+  uiAccess, signing and Program Files (admin, D-008). Why not WinUI: memory (D-001).
+- Revisit if: S2 shows hotkeys don't reach us over a game (then ask the user about focus), or Windows offers a
+  documented overlay band.
+
+## D-056 · 2026-11-03 · Controller input: GameInput callbacks if they idle at 0, else XInput polling only while a pad is on
+Status: proposed (M12 design; spike S1 decides; user, 2026-11-03: polling while a pad is on is acceptable)
+- Decision: `Engine/Input/GamepadSource` reads Xbox/XInput pads. First choice: the inbox `GameInput.dll` (present on
+  the dev PC, 0.2309.26100, no redist) with reading + device callbacks and background input. Fallback: `xinput1_4`
+  polled at 20 Hz while only chords listen and 60 Hz while a menu is open, on connected slots only, and only while a
+  pad is connected (device-interface notifications, suspend/resume). Nothing loads unless a runnable flow has a
+  `gamepad:` chord or a menu shows. Steam Controller: through Steam's desktop layout (keys), no code.
+- Why: the user's pads are an Xbox controller and the Steam Controller (2026-11-03); D-009 wants 0 CPU idle, and the
+  dev PC is a laptop on battery, so the zero-cost path goes first and polling is bounded to "a pad is on".
+- Why not Windows.Gaming.Input: CsWinRT in the AOT engine (D-052's reasons), it polls too, and desktop apps get no
+  readings without focus. Why not Raw Input/HID: per-pad report parsing, and pads that report at 250 Hz+ nonstop
+  wake the engine more than polling. Why not `XInputGetKeystroke`: still a poll. Why not a filter driver (HidHide) to
+  hide presses from games: admin and a third-party driver (D-008).
+- Revisit if: S1 fails both gates (then ask the user), or PlayStation pads become a goal (GameInput or HID).
+
+## D-057 · 2026-11-03 · Controller trigger: `gamepad:` chords of 2–4 buttons, fired on release, recorded by the engine
+Status: accepted (M12 design)
+- Decision: flow key `gamepad: [View+Menu]` (Xbox names A B X Y LB RB LT RT View Menu LS RS Up Down Left Right,
+  canonical order); no Guide, no single buttons. A chord fires when its buttons were held together, with no other
+  button, and the first one is let go. Hotkey rules apply (enabled valid flows, later clash gets a problem, Pause
+  shortcuts pauses them). The editor records through the engine (`record-gamepad`), which pauses chords meanwhile.
+- Why: on release, a chord that is part of a longer one never fires early, and the menu opens with the buttons up
+  (so the chord's A can't pick). Two buttons minimum keeps games from starting flows by accident. Recording in the
+  engine means what you record is what the engine sees, with one backend (D-056).
+- Why not firing on press: `View+Menu` would fire inside `View+Menu+A`, and held buttons would leak into the menu.
+  Why not a "hold one button" trigger: games hold buttons all the time. Why not the editor reading the pad (WGI):
+  a second backend that can see pads the engine can't.
+- Revisit if: users want long-press triggers (then `Hold View` with a ≥ 1 s threshold).

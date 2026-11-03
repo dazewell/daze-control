@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: none — M11 merged (#22–#25) and released as v0.22.0 (2026-11-03); fix/runner-test-hang bounds FlowRunnerTests' waits
-Last green checkpoint: test(runtime) real-time ceiling on FlowRunnerTests waits
-Next action: nothing queued for agents. T10.5 is parked as issue #26 (user, 2026-11-03); the user tests desktop shortcuts on the installed copy themselves
-Tree state: builds, 924/924 tests green (dotnet test --solution, 28 s) · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). The editor has no flow delete yet. FlowRunnerTests hung once locally (2026-11-03, from CancelledRunStartsNoStep on, during two parallel sessions); not reproduced alone, under 12 parallel copies or via dotnet test, so its waits now fail after 30 s real time and name the test. Runtime.Tests can also stall when another session's tests use the per-user pipe at the same time: rerun alone. Android input's "Add inputs in the Library" is plain text, not yet a link.
+Current task: M12 flow menu designed (docs/m12-flow-menu, docs/flow-menu/DESIGN.md, D-053..D-057); nothing built yet
+Last green checkpoint: 23893d5 test(runtime): bound FlowRunnerTests waits in real time
+Next action: T12.1 spike S1 (needs the user's Xbox pad plugged in) or T12.2 spike S2 (needs nothing), DESIGN §5
+Tree state: builds, 924/924 tests green (docs-only change) · Uncommitted: none
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4); controller combos are "controller buttons". M12 answers from the user (2026-11-03): pads = Xbox + Steam Controller, the menu never takes focus, XInput polling only while a pad is on is acceptable. T10.5 is parked as issue #26 (T12.9 shares it). The editor has no flow delete yet. FlowRunnerTests' waits fail after 30 s real time; Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. Android input's "Add inputs in the Library" is plain text, not yet a link.
 
 ---
 
@@ -146,6 +146,54 @@ PRs bump the minor version.
   removes it.
 - [x] T11.5 Desktop shortcuts, editor side (feat/m11-shortcuts; the editor has no flow delete yet, so nothing to remove on Save). Flow settings row + Flows card context menu, Update
   on an old name, engine-off state (#25), deleting a flow removes its shortcut on Save. Done when: VM tests, screenshots.
+
+## M12 Flow menu + controller trigger (user, 2026-11-03; design docs/flow-menu/DESIGN.md, D-053..D-057)
+Order: T12.1 and T12.2 (spikes, gates) first, either order; then T12.3 → T12.4 → T12.5, T12.6, T12.7 → T12.8 →
+T12.9 → T12.10. One PR per task unless two share a branch; feat PRs bump the minor version. Each task moves what it
+built from DESIGN.md into ARCHITECTURE/UX (D-053).
+- [ ] T12.1 Spike S1: controller input in AOT (spike/gamepad-input, DESIGN §5). Done when: gate (a)–(g) answered on
+  the dev PC with the user's Xbox pad (ask the user to plug it in; Steam on and off); D-056 set to accepted with the
+  backend and numbers; Footprint rows added; probe deleted or left in `spikes/` untracked by the solution.
+- [ ] T12.2 Spike S2: no-activate menu window over apps and games (spike/menu-window, DESIGN §5). Done when: gate
+  (a)–(e) answered with the throwaway D3D11 app in three modes, screenshots of the menu over each; D-055 updated
+  with what held; a failed (a) stops M12 and goes to the user.
+- [ ] T12.3 Core: `menu.show` descriptor, `GamepadChord`, `Flow.Gamepad`, `ParamSpec.RefersTo = Flow`, validation
+  (feat/m12-core, DESIGN §2.5, §3.5). Done when: YAML round-trip of DESIGN §2.1's flow; chord parse/format tests
+  (order, `+` spacing, Guide/one button/5 buttons refused); validator tests for own flow, unknown and duplicate item,
+  `wait` loop, 0/13 items, `closeAfter` range, `timeout` ≤ `closeAfter`, chord clash (later flow); a flow rename
+  rewrites menu items (Core edit + test); catalog test still passes (items has Suggest).
+- [ ] T12.4 Runtime: `MenuProvider`, `IMenuPresenter`, `IFlowStarter` in `EngineController`, `StepContext.SetSummary`,
+  `StepEndsFlowException` + `RunFinished.Quiet`, resource `menu`, dry run and test-step (feat/m12-runtime, DESIGN
+  §3.2). Done when: Runtime.Tests with a fake presenter: pick launches with trigger "Menu · Couch" and summary; ignore
+  while running; `wait` takes a failed child's outcome; nothing picked → node and flow Cancelled, quiet, `always`
+  edges don't run; two menus serialize on `menu`; dry run doesn't show; test-step returns the pick without a run.
+- [ ] T12.5 Runtime: pure `MenuModel` + `GamepadChordRecognizer` + `GamepadTable` (feat/m12-runtime, DESIGN §2.4,
+  §3.4, §4.3). Done when: tests with `ManualTime`: list/grid moves (no wrap, 2D), repeat 400/120 ms, stick hysteresis,
+  released-since-open, 1–9, close timer restarts on input and ends as cancel, last pick focused first, Steam dedupe
+  (key within 100 ms of the same pad move dropped); chord fires on first release only for the exact set, never inside
+  a longer chord; table diff on reload, Pause, `record-gamepad` pausing chords.
+- [ ] T12.6 Engine: `GamepadSource` (S1's backend) + `DeviceArrival` + suspend/resume, loaded only when needed; ops
+  `devices gamepads`, `record-gamepad`; `dctl devices gamepads` (feat/m12-gamepad). Done when: unit tests on the seams
+  (no chord → never started; last pad gone → stopped); on the dev PC a chord on a test flow runs it with another app
+  in front and history says "Controller · View + Menu"; `dctl devices gamepads` lists the pad; footprint per DESIGN
+  §3.8 measured (no chord; chord + no pad; pad on) and recorded.
+- [ ] T12.7 Engine: `AcrylicSurface` cut from `RunPopup`, `FlowMenu` (list, grid, large, focus visual, hint row,
+  close countdown, empty state), `MenuKeys`, mouse hook, placement, full-screen check, animation and high contrast
+  (feat/m12-menu-window, DESIGN §3.3, §4). Done when: RunPopup unchanged (screenshots before/after); screenshots of
+  the menu light/dark/high contrast, list and grid, normal and large, empty state, at 175 % scale; `dctl run` of a
+  menu flow navigated by keys, mouse and the pad on the dev PC; foreground window unchanged; keys free after each
+  close path (a test app registers Up); footprint after 10 menus within D-036.
+- [ ] T12.8 Editor: `menu.show` inspector (flow token list, title, layout, size, close after, wait), Test shows the
+  menu, "Controller buttons" recorder, "Controller menu" template, trigger texts (feat/m12-editor, DESIGN §3.7). Done
+  when: VM tests (add/remove/reorder items, own flow not offered, missing flow chip, recorder states incl. engine off
+  and no pad, template content); screenshots light/dark of the inspector and the recorder; Narrator names on the
+  token list and recorder.
+- [ ] T12.9 Narrator: UIA notifications from the menu without focus, sharing issue #26's provider (feat/m12-narrator).
+  Done when: Narrator reads "Couch menu, 4 choices. Connect TV, 1 of 4." on open and the new choice on each move,
+  the foreground window unchanged; #26's pop-up announcement may land in the same PR.
+- [ ] T12.10 Acceptance + docs fold-in (DESIGN §4, UX §5.9 M12). Done when: the checklist's M12 lines pass on the dev
+  PC (or are listed as the user's), README has the Steam Controller recipe and the known limits (DESIGN §4.6),
+  DESIGN.md holds only what's still open, GOALS status current.
 
 ## First-use fixes (user, 2026-11-02; branch feat/first-use-fixes)
 - [x] F1 Flows list stays inside the window when maximized (X-003).
