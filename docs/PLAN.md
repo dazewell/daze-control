@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M11 — T11.1 (#23), T11.4/T11.5 (#24) merged; T11.2 + T11.3 pickers done (feat/m11-pickers, PR #25, 0.22.0)
-Last green checkpoint: 9fed620 "fix(pickers): repeated screen entries, matching order, generic sign-ins, engine restart"
-Next action: merge PR #25 per repo-workflow §6 (both Copilot reviews done, their findings fixed) once CI is green; then the M11 wrap-up in PLAN
-Tree state: builds; Core 305, Editor 226, Providers 112 green; Runtime 273/281 locally (8 FlowRunnerTests hang, see notes) · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). Desktop shortcuts on an installed copy (survives an update, uninstall removes it) are unverified: GOALS → follow-ups. The editor has no flow delete yet. Runtime.Tests: 8 FlowRunnerTests (from CancelledRunStartsNoStep on) hung locally on 2026-11-03 even alone, engine stopped, no Runtime change on the branch; CI runs them green. Runtime.Tests can also hang when another session's tests use the per-user pipe at the same time: rerun alone. The dev engine's pipe is per user: stop the installed engine (restart C:\Users\dazewell\AppData\Local\DazeControlApp\current\DazeControl.exe after). Android input's "Add inputs in the Library" is plain text, not yet a link.
+Current task: none — M11 merged (#22–#25) and released as v0.22.0 (2026-11-03); fix/runner-test-hang bounds FlowRunnerTests' waits
+Last green checkpoint: test(runtime) real-time ceiling on FlowRunnerTests waits
+Next action: nothing queued for agents. T10.5 is parked as issue #26 (user, 2026-11-03); the user tests desktop shortcuts on the installed copy themselves
+Tree state: builds, 924/924 tests green (dotnet test --solution, 28 s) · Uncommitted: none
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). The editor has no flow delete yet. FlowRunnerTests hung once locally (2026-11-03, from CancelledRunStartsNoStep on, during two parallel sessions); not reproduced alone, under 12 parallel copies or via dotnet test, so its waits now fail after 30 s real time and name the test. Runtime.Tests can also stall when another session's tests use the per-user pipe at the same time: rerun alone. Android input's "Add inputs in the Library" is plain text, not yet a link.
 
 ---
 
@@ -108,7 +108,7 @@ Notes for next agent: release.yml is tag-only (D-043): never push a v-tag withou
   first step), run list cut the duration off, a stale "Updates arrive with the first release" card.
   Not checked (system-wide settings on the user's PC, or not re-run this pass): 100–150 % scale, 225 % text (editor
   and pop-up), Narrator/Outline, Tab order, drag-into-cycle tip, empty states, animation effects off, tray menu.
-- [ ] T10.5 Pop-up for Narrator (deferred past M10, not in the ship brief): it draws everything itself, so screen
+- [ ] T10.5 Pop-up for Narrator — parked as issue #26 (user, 2026-11-03). Deferred past M10, not in the ship brief: it draws everything itself, so screen
   readers get only the window title. Raise a UIA notification (or a minimal provider with an invoke for "see what
   happened") without activating (PR #8 review).
 - [x] T10.4 Footprint gate passed (ARCHITECTURE → Footprint, 2026-11-02). The 24 h soak and retiring scd are the

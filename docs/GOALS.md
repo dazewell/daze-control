@@ -49,9 +49,9 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
 - [ ] M11 Desktop shortcuts, pickers and examples, Bluetooth list (designed 2026-11-02, D-049..D-052; PLAN → M11).
   Desktop shortcuts done (T11.4/T11.5, 0.21.0): Flow settings › Desktop shortcut, the Flows card's menu, `dctl shortcut`.
 
-## Ready for you (2026-11-02)
+## Ready for you (2026-11-03)
 
-v0.20.0 is released (GitHub Releases; installed copies update themselves). What's left is yours:
+v0.22.0 is released (GitHub Releases; installed copies update themselves). What's left is yours:
 
 1. **24 h daily-driver soak:** install, copy `samples/user-config.yaml` to `%APPDATA%\DazeControl\config.yaml`, turn
    on Start with Windows (editor › Settings), and use it for a day. Check `%LOCALAPPDATA%\DazeControl\logs`
@@ -61,11 +61,10 @@ v0.20.0 is released (GitHub Releases; installed copies update themselves). What'
    100 % and 150 %, Accessibility › Text size 225 % (editor pages, canvas pills and the run pop-up grow, nothing
    clips), and Narrator on the canvas Outline. The rest of the checklist passed at 175 % (PLAN T10.3).
 4. **Releases** stay yours: `release.yml` publishes only on a `v<Version>` tag (D-043).
-5. **Open follow-ups:** the pop-up isn't read by Narrator (T10.5); the run overlay attaches to a run already going
-   only at its next step; a tray left click bringing an open editor forward is unverified with a real click;
-   desktop shortcuts (0.21.0) were checked with Debug and AOT engines, not yet with an installed copy: after the next
-   release, check that a shortcut survives an update and that uninstall removes it. The editor can't delete flows
-   yet, so "deleting a flow removes its shortcut on Save" waits for that feature (a gone flow's shortcut says so, #24).
+5. **Open follow-ups:** desktop shortcuts on an installed copy (survive an update, uninstall removes them) — you'll
+   test them (2026-11-03). The editor can't delete flows yet, so "deleting a flow removes its shortcut on Save" waits
+   for that feature. Parked: the pop-up for Narrator (issue #26). Settled by you (2026-11-03): a tray left click brings
+   an open editor forward; the live view joining a running flow at its next step is fine for now.
 
 ## Waiting on the user
 
