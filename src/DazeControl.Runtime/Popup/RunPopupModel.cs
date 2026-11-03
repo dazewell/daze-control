@@ -81,6 +81,19 @@ public sealed class RunPopupModel
         return true;
     }
 
+    /// <summary>
+    /// A desktop shortcut's run that didn't start (D-049): nobody sees the pipe's answer, so the pop-up says it. Shown as
+    /// a failure that stays readable; not clickable (there's no run to open).
+    /// </summary>
+    public PopupView Refused(string flowId, string title, string message, PopupSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        var duration = TimeSpan.FromSeconds(settings.Seconds);
+        Current = new PopupView(Guid.Empty, flowId, title, "", "Didn't start", 0, message, null, PopupTone.Failed,
+            duration > FailureMinimum ? duration : FailureMinimum, false);
+        return Current;
+    }
+
     private static PopupView Progress(Guid runId, string flowId, RunTrack run)
     {
         var done = run.Finished.Count;

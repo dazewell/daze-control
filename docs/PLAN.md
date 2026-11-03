@@ -2,9 +2,9 @@
 
 ## Resume
 Current task: T11.4 + T11.5 — desktop shortcuts (branch feat/m11-shortcuts, no PR yet); T11.1–T11.3 in a parallel session
-Last green checkpoint: b80f8c7 (main)
-Next action: Engine/Shell/FlowShortcuts (IShellLinkW store + D2D glyph icon), then Program `--run` forward/cold start
-Tree state: builds, Runtime 271/271 green · Uncommitted: none
+Last green checkpoint: bdd6bcb "wip(runtime): desktop shortcut logic…"
+Next action: T11.5 editor — EngineClient ops in a FlowShortcutsViewModel-ish helper, Flow settings row (InspectorViewModel) + Flows card context menu
+Tree state: builds, all tests green; engine verified in Debug (forward, cold start, #24 pop-up, dctl) · Uncommitted: none
 Notes for next agent: Runtime/Lifecycle/DesktopShortcuts holds the logic behind seams (IShellLinkStore, IFlowIconRenderer); the engine only adds COM/D2D. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4).
 
 ---

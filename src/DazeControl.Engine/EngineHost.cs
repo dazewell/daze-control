@@ -21,11 +21,13 @@ namespace DazeControl.Engine;
 /// <param name="ConfigArgument">The config given on the command line; null for the default one.</param>
 internal sealed record EnginePaths(string Config, string History, string Logs, string? ConfigArgument = null)
 {
+    public static string DefaultConfig =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppInfo.FolderName, "config.yaml");
+
     public static EnginePaths Default(string? config = null)
     {
-        var roaming = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppInfo.FolderName);
         var local = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppInfo.FolderName);
-        return new(config ?? Path.Combine(roaming, "config.yaml"), Path.Combine(local, "history.jsonl"), Log.DefaultDirectory, config);
+        return new(config ?? DefaultConfig, Path.Combine(local, "history.jsonl"), Log.DefaultDirectory, config);
     }
 }
 
@@ -96,16 +98,21 @@ internal sealed class EngineHost : IDisposable
             EngineController.CreateDryRunner(TimeProvider.System), new Autostart(),
             new EngineInfo(version, Environment.ProcessId, exe, paths.Config, paths.ConfigArgument), Log.Info, devices,
             // Step tests share the providers and locks but raise no run events: no pop-up, no history.
-            new FlowRunner(stepProviders, TimeProvider.System, locks));
+            new FlowRunner(stepProviders, TimeProvider.System, locks),
+            FlowShortcuts.Create(paths.ConfigArgument, EnginePaths.DefaultConfig, Log.Info));
+        _controller.RunRefused += refusal => _window.Post(() => ShowRefusal(refusal));
         _pipe = new PipeServer(Protocol.CurrentPipeName(), _controller.HandleAsync, (what, e) => Log.Error(what, e));
         _pipe.Start();
         Apply(_config.Current);
     }
 
     /// <summary>Runs the message loop until Exit (tray or WM_CLOSE), then winds the runs down.</summary>
-    public void Run()
+    /// <param name="runFlowId">A desktop shortcut's flow (<c>--run</c>, D-049): it runs now that the config is loaded.</param>
+    public void Run(string? runFlowId = null)
     {
         Log.Info("engine: ready");
+        if (runFlowId is not null)
+            _ = RunFromDesktopAsync(runFlowId);
         MessageWindow.RunMessageLoop();
         Log.Info("engine: exiting");
         _hotkeyTable.Clear();
@@ -234,6 +241,37 @@ internal sealed class EngineHost : IDisposable
             var settings = _config.Current.Settings.Popup;
             if (_popupModel.Apply(e, null, settings) && _popupModel.Current is { } view)
                 _popup.Show(view, settings.Position);
+        }
+        catch (Exception failure)
+        {
+            Log.Error("popup: not shown", failure);
+        }
+    }
+
+    /// <summary>A shortcut that started this engine: the same request a second engine forwards over the pipe.</summary>
+    private async Task RunFromDesktopAsync(string flowId)
+    {
+        try
+        {
+            await _controller.HandleAsync(DesktopRun(flowId), CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            Log.Error($"run: {flowId} from a desktop shortcut", e);
+        }
+    }
+
+    /// <summary>Id only, never a name (D-049); no wait: the pop-up and history tell the rest.</summary>
+    public static PipeRequest DesktopRun(string flowId) =>
+        new() { Op = Ops.Run, Flow = flowId, ExactId = true, Trigger = EngineController.DesktopTrigger };
+
+    /// <summary>On the message thread.</summary>
+    private void ShowRefusal(RunRefusal refusal)
+    {
+        try
+        {
+            var settings = _config.Current.Settings.Popup;
+            _popup.Show(_popupModel.Refused(refusal.FlowId, refusal.Title, refusal.Message, settings), settings.Position);
         }
         catch (Exception failure)
         {

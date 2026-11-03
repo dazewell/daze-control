@@ -25,8 +25,26 @@ internal static class Installer
             .OnBeforeUpdateFastCallback(_ => StopRunningEngine())
             // Uninstall has already killed the engine by now (velopack log, 2026-11-02): only clean up after it.
             // Only a Run value that starts this install; a Debug copy's entry isn't ours to remove.
-            .OnBeforeUninstallFastCallback(_ => new Autostart().DisableIfUnder(AppContext.BaseDirectory))
+            .OnBeforeUninstallFastCallback(_ =>
+            {
+                new Autostart().DisableIfUnder(AppContext.BaseDirectory);
+                RemoveDesktopShortcuts();
+            })
             .Run();
+
+    /// <summary>Our desktop shortcuts (any config) and their icons (D-049). Uninstall goes on if Windows refuses.</summary>
+    private static void RemoveDesktopShortcuts()
+    {
+        try
+        {
+            FlowShortcuts.Create(null, EnginePaths.DefaultConfig).RemoveAll();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+        {
+            // Velopack logs a hook's output; our own log must not be written from a hook.
+            Console.Error.WriteLine($"desktop shortcuts not removed: {e.Message}");
+        }
+    }
 
     /// <summary>WM_CLOSE to the engine's window (tray Exit's path), then waits for its single-instance mutex.</summary>
     private static void StopRunningEngine()
