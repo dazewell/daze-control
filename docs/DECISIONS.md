@@ -206,7 +206,7 @@ Status: accepted
 - Revisit if: YamlDotNet gains per-property error recovery.
 
 ## D-024 · 2026-10-31 · An outgoing `when: failure` edge handles the failure
-Status: accepted
+Status: accepted; its last sentence (a handled failure → PartiallySucceeded) superseded by D-065
 - Decision: a failed node with at least one outgoing `when: failure` edge doesn't apply its `stop`/`skip`
   policy: the fallback runs and the flow carries on. Its `success` edges still don't fire, so dependents that
   needed success are skipped. A node with no failure edge keeps its policy. A handled failure makes the flow
@@ -597,7 +597,7 @@ Status: accepted (M11, fixes the user's report)
 - Revisit if: connecting non-audio devices is wanted (needs `BluetoothSetServiceState`, i.e. admin, D-008).
 
 ## D-053 · 2026-11-03 · The flow menu is designed as a sub-project: `docs/flow-menu/DESIGN.md` + shared ADRs and PLAN M12
-Status: accepted (M12 design)
+Status: accepted (M12 design); its revisit came true with flow calls (D-061): `docs/<name>/DESIGN.md` is now the rule for large designs (`knowledge-log`)
 - Decision: the feature's spec (features, architecture, UX, spikes) lives in one file, `docs/flow-menu/DESIGN.md`;
   its decisions stay in this file (D-053..), its tasks in PLAN → M12, its strings in UX §5.7 (#28–#44). Each M12 task
   moves what it built into ARCHITECTURE/UX and cuts it from DESIGN.md, which ends as the list of what's still open.
@@ -609,7 +609,7 @@ Status: accepted (M12 design)
 - Revisit if: a second sub-project appears (then make `docs/<name>/DESIGN.md` the rule in `knowledge-log`).
 
 ## D-054 · 2026-11-03 · A menu pick launches the flow (its `whenRunning`); `wait` nests; nothing picked stops quietly
-Status: accepted (M12 design)
+Status: accepted (M12 design); `wait: true` amended by D-061 (it nests instead of launching and awaiting)
 - Decision: `menu.show` lists 1–12 flow ids; a pick starts that flow through `EngineController` like the tray (trigger
   "Menu · <menu flow>", its own `whenRunning`, history, pop-up) and the step succeeds with the summary "Picked …".
   `wait: true` makes the step wait for the picked flow and take its outcome. Closing without a pick (B, Esc, click
@@ -702,7 +702,7 @@ Status: accepted
 - Revisit if: users want "run the fallback, then stop the flow" (D-024's revisit), which needs `stop` to mean that.
 
 ## D-060 · 2026-11-03 · Long simple chains wrap onto new rows; forks, joins and their branches never wrap
-Status: accepted (built in C3, 0.23.0; supersedes D-020's "one column per layer" for wrapped chains only)
+Status: accepted (built in C3, 0.23.0; supersedes D-020's "one column per layer" for wrapped chains only); placement after a block superseded by D-066
 - Decision: after layering, ordering and `FlowTidy`, a last placement pass in `Core/Layout/FlowLayout` finds
   **spine runs**: maximal sequences of consecutive layers that each hold exactly one box (a step or a card), where
   every box in the run, both ends included, has at most one incoming and one outgoing edge, each box's edge goes to
@@ -725,3 +725,149 @@ Status: accepted (built in C3, 0.23.0; supersedes D-020's "one column per layer"
   Why not snake (alternate rows right-to-left): arrows pointing left read as going back. Why not wrap whole branches:
   a fork's columns are what show it runs in parallel.
 - Revisit if: users want width-based wrapping or a per-flow "don't wrap" switch.
+
+## D-061 · 2026-11-03 · "Run another flow" is one model with two modes: Start it (launch) or Wait for it (nested)
+Status: accepted (M13 design; amends D-054's `wait`)
+- Decision: a new step `flow.run` (Flow › Run a flow, [flow-calls/DESIGN.md](flow-calls/DESIGN.md)) and `menu.show`
+  share one seam, `IFlowStarter` (Runtime), with two modes. **Start** (`wait: false`, the menu's default): a launch
+  through `FlowLauncher` exactly as D-054 says (own `whenRunning`, record, pop-up). **Wait** (`wait: true`, the step's
+  default): a nested run inside the caller's run (D-062); the step takes its outcome. Menus with `wait: true` now nest
+  too, instead of launching and awaiting.
+- Why: the user wants typical things composed into one step (2026-11-03); a building block called by several flows
+  is a subroutine, so it belongs to the caller's run (one pop-up, one record, no `whenRunning` refusing the second
+  caller). Launch stays right where a person picks or where the caller doesn't care. One seam keeps menus and calls
+  from drifting apart.
+- Why not launch-and-await for Wait (D-054 as written): `whenRunning: ignore` would refuse a building block that
+  another flow is using, two pop-ups would show for one press, and history would split one action in two. Why not
+  nest only (no Start): fire-and-forget is the menu's main case, and "start the TV flow, carry on" is useful in flows.
+- Revisit if: users expect a waited flow's `whenRunning` to queue concurrent callers (then a per-flow "one at a time
+  even when called" switch).
+
+## D-062 · 2026-11-03 · Nested runs: no `whenRunning`, no lock held by the caller, one record and one pop-up
+Status: accepted (M13 design)
+- Decision: `FlowRunner.RunNestedAsync` runs the called flow's runnable version (D-021) on a new `Scheduler` with
+  `ParentRunId`/`ParentNodeId`; no launcher slot. The `flow.run` step declares no resources; nested steps lock per
+  attempt as usual (D-010). Outcome → step: Succeeded → Succeeded; PartiallySucceeded → Succeeded plus a problem for
+  the caller's run; Failed → Failed (#56); quiet stop → the caller ends quietly; timeout (default 10 min) → Failed and
+  the nested run is cancelled. History: one top record, `NodeResult.Called` nests results. Pop-up: the top run's
+  only; the call counts as one step and row 3 shows the nested step (#59). A turned-off flow is never run by a call.
+- Why: locks held only around attempts and never while waiting mean nesting can't deadlock; one record and one
+  pop-up match "one step" in the user's words. Partial → Succeeded keeps "try X else Y" from treating a may-fail
+  hiccup inside X as X failing.
+- Why not the call step holding the called flow's resources: unknown before it runs (conditional branches), and it
+  would block the nested steps themselves. Why not separate history records linked by id: the Runs list would show
+  building blocks as unrelated runs. Why not Partial → Failed: a skipped "may fail" extra inside a block would trigger
+  the caller's fallback for a block that did its job.
+- Revisit if: lock waits inside nested runs show up in history (then show "Waiting for Technics" in the pop-up).
+
+## D-063 · 2026-11-03 · Flow-call loops are refused by validation and stopped at run time (call chain, depth 8)
+Status: accepted (M13 design; user, 2026-11-03: "no infinite loops")
+- Decision: `ConfigValidator` builds the call graph from every `flow.run` (both modes) and every `menu.show` item with
+  `wait: true`; its own flow → error #49, any cycle → error #50 on each step in it. Menu items without `wait` don't
+  count. At run time each run carries its call chain; a call to a flow already on it fails (#53), a chain over 8 fails
+  (#54). Start-mode calls pass the chain to the launched run; a person's trigger starts a fresh one.
+- Why: validation catches every loop in one config, but D-021 can run an old version of one flow beside a new version
+  of another, a mix validation never sees; the chain check is exact, the depth cap bounds anything else. Start-mode
+  loops count because nothing stops them (A starts B starts A, forever).
+- Why not runtime only: the user would meet the loop as a failed run instead of a problem in the editor. Why not
+  validation only: the D-021 mix above. Why not counting menu picks: a person picks every time, and "Back" items are
+  loops by design (D-054); a chain through picks would stop Back working after 8 hops.
+- Revisit if: someone needs recursion on purpose (retry-until loops); then a bounded "repeat" step, not calls.
+
+## D-064 · 2026-11-03 · Flow inputs are Library devices with defaults; steps use `$name`; calls pass `inputs:`
+Status: accepted (M13 design; user, 2026-11-03: inputs ship inside P6)
+- Decision: `Flow.Inputs` = name → (`LibraryKind`, label, default key, required). A `LibraryRef` param of the same
+  kind may hold `$name`; the runner resolves it (caller's value, else the default) before resources are filled.
+  `flow.run` passes `inputs:` (TextMap: Library keys or the caller's own `$name`). Validation checks kinds, names and
+  keys like any library ref; `LibraryEdits.Rename` rewrites defaults and passed values.
+- Why: the user's chain ("make it default, else connect it") must serve Technics and Sony without copies. Typed
+  Library inputs keep every value checkable before a run and reuse the device pickers; required defaults keep every
+  trigger (hotkey, tray, menu, desktop shortcut) working with no caller.
+- Why not free-text substitution (`{x}` in any value): every ParamKind's validation and pickers would have to accept
+  placeholders, and a typo becomes a run-time failure. Why not optional defaults: a flow that only works when called
+  would need a new "can't run on its own" state everywhere. Why not a copy of the flow per device: the user chose
+  inputs (2026-11-03).
+- Revisit if: users need text inputs (a key, a message) or values passed back (then outputs).
+
+## D-065 · 2026-11-03 · A fallback that wasn't needed is "Not needed"; a failure its fallback fixed ends "Done"
+Status: accepted (M13 design; user, 2026-11-03; supersedes D-024's "a handled failure makes the flow
+PartiallySucceeded")
+- Decision: a **fallback step** is a unit with an incoming `when: failure` edge, or an incoming `when: success` edge
+  from a fallback step (members follow their card), computed in Core (`FlowShape.Fallbacks`). When the Scheduler
+  would skip one, it ends **NotNeeded** (new `NodeOutcome`; fires `always` like Skipped). Counting: "n of m" leaves
+  fallback steps out of m until one starts. Summary: Succeeded when every unit is Succeeded, NotNeeded, or Failed /
+  FailedIgnored with an outgoing failure edge (handled); otherwise as before. Pop-up: "Done" + #48 when a fallback
+  fixed it. Runs: "Worked", the handled bar caution-dashed, NotNeeded rows "Not needed" (#47). The tray's problem
+  notification follows the outcome.
+- Why: the user's Connect Technics flow said "Done, with a problem" every time the headphones simply worked, because
+  the unneeded Sony branch was Skipped; a fallback is a "finally"-style plan, not a warning. A fixed failure is the
+  plan working, and P6 needs "Make it the default" to count as worked when its fallback did the job (user's choice).
+- Why not hiding fallback steps from results: the Runs page should still show what could have run. Why not a flag on
+  Skipped instead of a new outcome: every consumer (pop-up, Runs, canvas, tray) would need the flow to tell them
+  apart, and history outlives flow edits.
+- Revisit if: users miss being told that a fallback was used (then a quiet caption, not a warning tone).
+
+## D-066 · 2026-11-03 · After a wrapped chain, what follows starts on a new line under it
+Status: accepted (M13 design; user, 2026-11-03; supersedes D-060's "whatever follows the run starts in the column
+after the block's right edge, top-aligned with its last row")
+- Decision: `FlowLayout` lays columns out in **segments** split at wrapped spine runs. The segment after a block
+  starts at the block's left x, its top one `WrapRowGap` under the block's bottom, its columns centred among
+  themselves; the edge into it is a wrap edge (D-060's shape: right 16, down to the gap's middle, left to the return
+  lane, down to the target port, right 16). Later segments repeat the rule. The rest of D-060 stays.
+- Why: a long empty line ran from a short last row to the next step, and the space under the block stayed unused
+  (user, 2026-11-03); reading like text keeps the width bounded by the block.
+- Why not continuing on the last row (the other option shown to the user): compact only when the last row is short,
+  as wide as before when it's full. Why not starting the new line at the far left: its wrap edge would run under
+  everything before the block.
+- Revisit if: users want the following part beside a short last row (then a "fits in the row" special case).
+
+## D-067 · 2026-11-03 · Tidy up becomes a Layout menu: wrap, spacing, alignment, line style, untangle
+Status: accepted (M13 design; user, 2026-11-03: "a layout menu… a couple more strategies… make it wider")
+- Decision: the CommandBar's Tidy up becomes **Layout** (flyout, §5.7 #63): Wrap long chains after 3 / 5 (default)
+  / 8 steps / Never; Spacing Compact (40/8) / Normal (64/16) / Roomy (96/32); Line up Centred / Along the top; Lines
+  Curved / Right angles (orthogonal, 8-DIP corners, D-060's router); Untangle lines (the old `FlowTidy`, off with a
+  reason when it can't help, X-006); Reset layout. Choices are per flow, per PC, in `editor.json` (D-068), applied at
+  once with the reflow animation; they are not flow edits (no draft, no undo). Untangle stays a flow edit (it
+  reorders `nodes`). All map to `LayoutOptions`; layout stays automatic and deterministic (D-020).
+- Why: these are the knobs layered-graph tools offer (Graphviz `nodesep`/`ranksep`/`splines`, ELK layered spacing,
+  edge routing and node placement, yEd's hierarchical layout) that fit a left-to-right step graph; "wider" is Roomy
+  or Never.
+- Why not top-to-bottom direction now: ports, drop zones ("right third = Run after"), keyboard (Right = next) and the
+  wrap all assume left to right, roughly a second canvas. Why not organic, circular or tree layouts: not
+  deterministic, or wrong for joins; a layout must not jump between opens. Why not in YAML: it's how one PC views a
+  flow, and every toggle would hot-reload the engine.
+- Revisit if: the user asks for top-to-bottom (own task) or wants layouts to follow the config to another PC.
+
+## D-068 · 2026-11-03 · Editor view state lives in `%LOCALAPPDATA%\DazeControl\editor.json`
+Status: accepted (M13 design)
+- Decision: `Editor.ViewModels/Config/EditorSettingsStore`: STJ source-generated, read once at start (missing or bad
+  → defaults, logged), written atomically 300 ms after a change. Holds the nav pane's open state (P9) and per-flow
+  layout choices (D-067). The engine never reads it.
+- Why: the editor is unpackaged (Velopack), so `ApplicationData.LocalSettings` has no package identity to use; view
+  state isn't configuration, and writing config.yaml would make the engine reload.
+- Why not the registry: harder to back up and inspect; only autostart lives there (D-015).
+- Revisit if: view state must follow the user to another PC (then roaming `%APPDATA%`).
+
+## D-069 · 2026-11-03 · Right-drag pans the canvas; a right click that doesn't move still opens the menu
+Status: accepted (M13 design; user, 2026-11-03)
+- Decision: in `FlowCanvas`, a mouse right press arms a pan; once the pointer leaves the system drag rectangle
+  (`GetSystemMetrics(SM_CXDRAG/SM_CYDRAG)`, in DIP) it captures, pans like middle-drag with the same cursor, and the
+  release swallows `RightTapped`/`ContextRequested`. Released inside the rectangle → the context menu as today, for
+  whatever is under the pointer. Works over pills and edges without selecting them. Pen and touch unchanged.
+- Why: the user pans without scrolling sideways; diagram tools (Visio, draw.io, Miro) pan on right-drag and keep the
+  click for the menu, and the system drag rectangle is how Windows tells a click from a drag.
+- Why not a fixed pixel threshold: ignores the system setting and DPI. Why not a hold delay: slower, and unlike
+  other tools.
+- Revisit if: users report menus not opening after small hand tremors (then a larger threshold for right only).
+
+## D-070 · 2026-11-03 · The Flows card runs with a "Run" button; the card itself opens the flow
+Status: accepted (M13 design; user, 2026-11-03)
+- Decision: the card's Edit chevron becomes a plain **Run** button (engine `run`, trigger "Editor", the saved
+  version); while that flow runs it reads **Stop**. Off with a reason (#62): engine not running, flow turned off,
+  never valid. The card becomes one keyboard stop that opens the flow on Enter/Space and exposes Invoke ("Open
+  Connect Technics"); the On switch and Run stay their own stops. Its context menu adds Open and Run. The card's icon
+  is `FlowGlyph.CodeOf` (own glyph, else its first step's), as in flow settings and desktop shortcuts (P3).
+- Why: a click on the card already opens it (second-round feedback); the chevron read as "open", and the user wants
+  to run from the list. The Edit button existed only for the keyboard, which the card now covers.
+- Why not an accent Run button: one accent per page (New flow). Why not icon only (▶): the user asked for the word.
+- Revisit if: users start flows by accident from the list (then confirm for flows without a pop-up).
