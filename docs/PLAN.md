@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T11.1 Bluetooth paired list done (fix/bluetooth-list, 0.20.1); next T11.2 → T11.3 (feat/m11-pickers)
-Last green checkpoint: b80f8c7 docs(m11) design for desktop shortcuts, pickers and the Bluetooth list (#22)
-Next action: T11.2 — `ParamSpec.Suggest`/`Ordered`/`Examples` in Core/Catalog, then the catalog coverage test
-Tree state: builds, 833/833 tests green (DAZE_DEV_PC=1) · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). feat/m11-shortcuts runs in parallel (Protocol ops, Engine/Program.cs, Flows page): expect Resume/Version conflicts.
+Current task: T11.3 inspector pickers (feat/m11-pickers, 0.21.0, no PR yet); T11.1 merged (#23), T11.2 done on this branch
+Last green checkpoint: test(core): screens match an exact name before a containing one
+Next action: run the dev editor on a scratch config with display.outputs / android.keys / service.start / script.powershell steps; screenshots light+dark of checklist, token list, suggestion box, Examples menu; Narrator names; then open the PR
+Tree state: builds, 853/853 tests green (DAZE_DEV_PC=1) · Uncommitted: none
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. feat/m11-shortcuts runs in parallel (Protocol ops, Engine/Program.cs, Flows page): expect Resume/Version conflicts, keep both, bump above main. Runtime.Tests can hang when another session's tests use the per-user pipe at the same time: rerun alone. The dev engine's pipe is per user: stop the installed engine (restart C:\Users\dazewell\AppData\Local\DazeControlApp\current\DazeControl.exe after).
 
 ---
 
@@ -124,14 +124,14 @@ PRs bump the minor version.
   reliable → no state. Done when: tests on the merge with fake devnodes/endpoints (ghost endpoints dropped, LE+classic
   of one address merged, non-audio listed not connectable); on the dev PC `dctl devices bluetooth` lists exactly MX
   Master 3S, MX Keys Mini, Steam Ctrl, OPPO dazewell, Zone 301, WH-1000XM5, Technics EAH-AZ80 and none of SOUNDPEATS
-  H3 / Technics EAH-AZ40M2 / WF-C710N; editor screenshot of the picker. (fix/bluetooth-list)
-- [ ] T11.2 Catalog suggestions + examples (feat/m11-pickers, D-050). Core: `ParamSpec.Suggest` (Devices / Config /
+  H3 / Technics EAH-AZ40M2 / WF-C710N; editor screenshot of the picker. (fix/bluetooth-list, PR #23)
+- [x] T11.2 Catalog suggestions + examples (feat/m11-pickers, D-050). Core: `ParamSpec.Suggest` (Devices / Config /
   Static), `Ordered`, `Examples`; Android key table shared with the provider; examples per UX §5.4. Ipc/Providers:
   `devices services` (EnumServicesStatusEx, no admin), `devices credentials` (CredEnumerate `DazeControl:*`, names
   only), `DeviceInfo.Value`; `dctl devices services|credentials`. Done when: a catalog test says every Text/TextList/
   MultilineText/TextMap param has a Suggest or Examples (or is on a short reviewed allow-list, e.g. `notify.text`);
   every Devices kind exists in `SystemDevices.Kinds`; key-table round-trip test with the provider.
-- [ ] T11.3 Inspector pickers (feat/m11-pickers, D-050, D-051). Editable ComboBox, checklist, token list, Examples
+- [~] T11.3 Inspector pickers (feat/m11-pickers, D-050, D-051). Editable ComboBox, checklist, token list, Examples
   menu in `ParamFieldViewModel` + InspectorPane; `display.outputs` checklist with "Use the screens that are on now"
   (name or port per D-051, unplugged kept checked; provider matches exact names before "contains"); Android input from the chosen device. Done when: VM tests (writes,
   twin-name → port, unplugged kept, undo of an example), screenshots light/dark of each control, Narrator names on the
