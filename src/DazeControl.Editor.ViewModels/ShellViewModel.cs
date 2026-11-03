@@ -28,7 +28,8 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         Session = session;
         _engine = engine;
         _post = post;
-        Flows = new FlowsPageViewModel(session, engine, post);
+        Desktop = new Engine.DesktopShortcutStore(engine);
+        Flows = new FlowsPageViewModel(session, engine, post, Desktop);
         Settings = new SettingsPageViewModel(session, engine, post, logsFolder);
         Updates = new UpdatesViewModel(updates, post);
         Library = new LibraryPage.LibraryPageViewModel(session, engine, post);
@@ -39,6 +40,9 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     }
 
     public ConfigSession Session { get; }
+
+    /// <summary>Desktop shortcuts, shared by the Flows list and the open flow's settings.</summary>
+    public Engine.DesktopShortcutStore Desktop { get; }
 
     public FlowsPageViewModel Flows { get; }
 
@@ -92,7 +96,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         if (!Session.Current.Flows.Any(f => f.Id == flowId))
             return;
         var editor = new Canvas.FlowCanvasViewModel(Session, flowId, _clipboard);
-        Inspector = new Inspector.InspectorViewModel(Session, editor, _engine, _post);
+        Inspector = new Inspector.InspectorViewModel(Session, editor, _engine, _post, desktop: Desktop);
         Run = new Runs.RunOverlayViewModel(editor, _engine, _post);
         Editor = editor;
     }

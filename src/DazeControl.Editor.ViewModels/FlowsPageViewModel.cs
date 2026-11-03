@@ -22,16 +22,56 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     private readonly Action<Action> _post;
     private Dictionary<string, RunRecord> _lastRuns = [];
 
-    public FlowsPageViewModel(ConfigSession session, IEngineClient engine, Action<Action> post)
+    public FlowsPageViewModel(ConfigSession session, IEngineClient engine, Action<Action> post, DesktopShortcutStore? desktop = null)
     {
         _session = session;
         _engine = engine;
         _post = post;
+        _desktop = desktop ?? new DesktopShortcutStore(engine);
         _session.PropertyChanged += OnSessionChanged;
         _engine.EventReceived += OnEngineEvent;
         _engine.StateChanged += OnEngineStateChanged;
+        _desktop.Changed += OnDesktopChanged;
         Sync();
+        _ = RefreshDesktopAsync();
     }
+
+    private readonly DesktopShortcutStore _desktop;
+
+    /// <summary>Why the last Add to desktop / Remove from desktop didn't work; null when it did.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDesktopError))]
+    public partial string? DesktopError { get; set; }
+
+    public bool HasDesktopError => DesktopError is not null;
+
+    /// <summary>The card's context menu (UX §5.4): adds the flow's desktop shortcut, or removes the one it has.</summary>
+    public async Task ToggleDesktopAsync(string flowId)
+    {
+        DesktopError = null;
+        var error = _desktop.Of(flowId) is null
+            ? await _desktop.AddAsync(flowId).ConfigureAwait(false)
+            : await _desktop.RemoveAsync(flowId).ConfigureAwait(false);
+        _post(() => DesktopError = error);
+    }
+
+    private async Task RefreshDesktopAsync()
+    {
+        try
+        {
+            await _desktop.RefreshAsync().ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is IOException or OperationCanceledException)
+        {
+            // The engine went away mid-request: StateChanged follows.
+        }
+    }
+
+    private void OnDesktopChanged() => _post(() =>
+    {
+        foreach (var item in Items)
+            item.UpdateDesktop(_desktop.Of(item.Id) is not null, _desktop.EngineRunning);
+    });
 
     public ObservableCollection<FlowItemViewModel> Items { get; } = [];
 
@@ -93,6 +133,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             if (existing is null)
             {
                 existing = new FlowItemViewModel(this, flow.Id);
+                existing.UpdateDesktop(_desktop.Of(flow.Id) is not null, _desktop.EngineRunning);
                 Items.Insert(i, existing);
             }
             else if (Items.IndexOf(existing) != i)
@@ -125,6 +166,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     {
         if (_engine.IsRunning)
             _ = RefreshRunsAsync();
+        _ = RefreshDesktopAsync();
     }
 
     public void Dispose()
@@ -132,6 +174,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         _session.PropertyChanged -= OnSessionChanged;
         _engine.EventReceived -= OnEngineEvent;
         _engine.StateChanged -= OnEngineStateChanged;
+        _desktop.Changed -= OnDesktopChanged;
     }
 }
 
@@ -174,6 +217,25 @@ public sealed partial class FlowItemViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool IsEnabled { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DesktopMenuText))]
+    public partial bool HasDesktopShortcut { get; private set; }
+
+    /// <summary>The context menu's item: "Add to desktop" (#23), "Remove from desktop", or #25 (off) without the engine.</summary>
+    public string DesktopMenuText => !CanChangeDesktop ? DesktopShortcutStore.EngineOffText
+        : HasDesktopShortcut ? "Remove from desktop" : DesktopShortcutStore.AddText;
+
+    /// <summary>Only the engine writes shortcuts.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DesktopMenuText))]
+    public partial bool CanChangeDesktop { get; private set; }
+
+    internal void UpdateDesktop(bool hasShortcut, bool engineRunning)
+    {
+        HasDesktopShortcut = hasShortcut;
+        CanChangeDesktop = engineRunning;
+    }
 
     /// <summary>False while the file is read-only for the editor.</summary>
     [ObservableProperty]

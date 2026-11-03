@@ -68,7 +68,7 @@ public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkSt
         try
         {
             Directory.CreateDirectory(places.IconFolder);
-            icons.Write(icon, FlowGlyph.Decode(flow.Glyph));
+            icons.Write(icon, FlowGlyph.Decode(FlowGlyph.CodeOf(flow)));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
         {

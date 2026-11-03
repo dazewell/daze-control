@@ -300,6 +300,13 @@ public sealed partial class ShellWindow : Window
             ViewModel.OpenFlow(id);
     }
 
+    /// <summary>The card's context menu: Add to desktop / Remove from desktop (D-049).</summary>
+    private void OnFlowDesktopClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string id })
+            _ = ViewModel.Flows.ToggleDesktopAsync(id);
+    }
+
     /// <summary>A click on a flow's card opens it, unless it landed on the On switch or a button inside the card.</summary>
     private void OnFlowCardTapped(object sender, TappedRoutedEventArgs e)
     {

@@ -2,8 +2,8 @@
 
 ## Resume
 Current task: T11.4 + T11.5 — desktop shortcuts (branch feat/m11-shortcuts, no PR yet); T11.1–T11.3 in a parallel session
-Last green checkpoint: bdd6bcb "wip(runtime): desktop shortcut logic…"
-Next action: T11.5 editor — EngineClient ops in a FlowShortcutsViewModel-ish helper, Flow settings row (InspectorViewModel) + Flows card context menu
+Last green checkpoint: b873973 "wip(engine): --run forward/cold start, FlowShortcuts…"
+Next action: editor screenshots (Debug engine run from a copy, scratch config), AOT publish check, then docs + 0.21.0 + PR
 Tree state: builds, all tests green; engine verified in Debug (forward, cold start, #24 pop-up, dctl) · Uncommitted: none
 Notes for next agent: Runtime/Lifecycle/DesktopShortcuts holds the logic behind seams (IShellLinkStore, IFlowIconRenderer); the engine only adds COM/D2D. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4).
 
@@ -144,7 +144,7 @@ PRs bump the minor version.
   shortcut cold-starts that config; on the dev PC a shortcut runs its flow with the engine running and
   with it stopped (history shows "Desktop shortcut"), an installed copy's shortcut survives an update, uninstall
   removes it.
-- [ ] T11.5 Desktop shortcuts, editor side (feat/m11-shortcuts). Flow settings row + Flows card context menu, Update
+- [~] T11.5 Desktop shortcuts, editor side (feat/m11-shortcuts). Flow settings row + Flows card context menu, Update
   on an old name, engine-off state (#25), deleting a flow removes its shortcut on Save. Done when: VM tests, screenshots.
 
 ## First-use fixes (user, 2026-11-02; branch feat/first-use-fixes)
