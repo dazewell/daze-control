@@ -211,7 +211,8 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 - [ ] C3 Wrap long simple chains, keep complex branches apart (user, 2026-11-03; design D-060, branch feat/canvas-wrap).
   `FlowLayout` wrap pass for spine runs > `WrapAfter` (5), `EdgeCurve` wrapped-edge shape + hit-test, canvas draws it,
   fit/zoom from wrapped bounds, Right/Left across a row break. Done when: `FlowLayout` tests — a 10-step chain gives
-  rows of 5/5 and the next step after the block; a chain beside a parallel branch doesn't wrap; a fork/join flow is
+  rows of 5/5 and the next step after the block; a chain beside a parallel branch doesn't wrap; a fork whose long arm runs beside a direct edge to its join doesn't
+  wrap; a join never starts a run; a fork/join flow is
   unchanged; a card inside a chain counts as one box; wrapped-edge hit-test; drag-reorder and Tidy up on a wrapped
   flow keep `nodes` as before; screenshots light/dark at 175 %.
 

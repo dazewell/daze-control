@@ -704,14 +704,17 @@ Status: accepted
 ## D-060 · 2026-11-03 · Long simple chains wrap onto new rows; forks, joins and their branches never wrap
 Status: accepted (design for C3; supersedes D-020's "one column per layer" for wrapped chains only)
 - Decision: after layering, ordering and `FlowTidy`, a last placement pass in `Core/Layout/FlowLayout` finds
-  **spine runs**: maximal sequences of consecutive layers that each hold exactly one box (a step or a card), linked
-  one to the next by a single edge (one way out of each, one way in to the next; any `when`). A run longer than
+  **spine runs**: maximal sequences of consecutive layers that each hold exactly one box (a step or a card), where
+  every box in the run, both ends included, has at most one incoming and one outgoing edge, each box's edge goes to
+  the next box (any `when`), and no other edge crosses the run's layers (a fork's long arm beside a direct edge to
+  its join is not a run, and a join never starts one). A run longer than
   `LayoutOptions.WrapAfter` boxes (default 5) is cut into rows of `WrapAfter`, placed like text: every row reads left
   to right from the run's first column, rows stacked downwards with a 48-DIP gap. Whatever follows the run starts
   in the column after the block's right edge, top-aligned with its last row. Nothing that forks, joins or runs side by
   side with another branch is ever wrapped, so complex parts keep their separate columns (D-020 as before).
-- Wrapped edge: from the row's last output port, right 16, down to the middle of the gap, left to the next row's
-  start column, down to the first input port's height, right into it; orthogonal with 8-DIP corners, styled by
+- Wrapped edge: from the row's last output port, right 16, down to the middle of the gap, left to a return lane 16
+  DIP left of the next row's start column, down to the first input port's height, then right 16 into the port (so
+  the corner and arrowhead have a straight approach); orthogonal with 8-DIP corners, styled by
   `when` like any edge. `EdgeCurve` gains this shape for hit-tests (UX §5.8 #2).
 - Unchanged: YAML (no coordinates), layers and `nodes` order, Outline order, keyboard order (Right/Left = next or
   previous step in run order, so Right from a row's end goes to the next row's start), drag zones (computed from
