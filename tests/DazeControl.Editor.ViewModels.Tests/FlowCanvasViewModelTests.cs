@@ -209,6 +209,30 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     }
 
     [Fact]
+    public void RightAndLeftCrossARowBreakOfAWrappedChain()
+    {
+        var steps = string.Join('\n', Enumerable.Range(1, 7).Select(i =>
+            $"      - {{ id: s{i}, step: wait, with: {{ duration: 1s }}{(i > 1 ? $", after: [s{i - 1}]" : "")} }}"));
+        var path = Path.Combine(_folder, "chain.yaml");
+        File.WriteAllText(path, "version: 1\nflows:\n  c:\n    name: Chain\n    nodes:\n" + steps + "\n");
+        using var session = new ConfigSession(new ConfigStore(path, Path.Combine(_folder, "chain-backups"), _time), _time, action => action());
+        session.Load();
+        Assert.True(session.CanEdit, string.Join("; ", session.Problems));
+        using var canvas = new FlowCanvasViewModel(session, "c");
+        Assert.True(canvas.Find("s6")!.Y > canvas.Find("s5")!.Y, "s6 starts the second row");
+
+        canvas.EnsureFocus();
+        for (var i = 0; i < 4; i++)
+            canvas.MoveFocus(FocusMove.Right);
+        Assert.Equal("s5", canvas.FocusedId);
+        canvas.MoveFocus(FocusMove.Right);
+        Assert.Equal("s6", canvas.FocusedId);
+        canvas.MoveFocus(FocusMove.Left);
+        Assert.Equal("s5", canvas.FocusedId);
+        Assert.Single(canvas.Edges, e => e.Curve.IsWrapped);
+    }
+
+    [Fact]
     public void ArrowKeysRoveBetweenColumnsAndRows()
     {
         _canvas.EnsureFocus();

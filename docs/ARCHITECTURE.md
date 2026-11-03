@@ -245,8 +245,10 @@ About), cards in the OSD's settings-card style (App.xaml). All logic is in `Edit
   `history`, refreshed on `runFinished`), `SettingsPageViewModel` (autostart through the engine, pop-up in config).
 - Flow editor (M7): Flows › name opens `Canvas/FlowCanvasViewModel` for one flow. Layout is `Core/Layout/FlowLayout`
   (D-020): layer = longest path from a start, rows = `nodes` order, cards stack members; edges naming a member
-  are drawn from/to its card; cycles and dangling ids are ignored so half-built flows still draw. `EdgeCurve` is the
-  Bézier + hit-test. The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
+  are drawn from/to its card; cycles and dangling ids are ignored so half-built flows still draw. A last pass wraps
+  spine runs longer than `LayoutOptions.WrapAfter` into rows (D-060); wrapped boxes keep their layer as `Column`, so
+  keys, Tidy up and `nodes` don't see the wrap. `EdgeCurve` is the Bézier + hit-test, or the orthogonal wrapped edge
+  (`EdgeRoute.WrapLaneY` set). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
   and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
   edges batched by style, D-037) and maps pointer/keys to VM calls; zoom/scroll is a `ScrollViewer` (50–200 %).
 - Canvas edits live in Core: `FlowGraph` (connect/disconnect/`when`, refusals: exists, loop, same card) and

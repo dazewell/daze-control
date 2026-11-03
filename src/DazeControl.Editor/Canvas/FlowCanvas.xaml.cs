@@ -276,7 +276,20 @@ public sealed partial class FlowCanvas : UserControl
                 _ => NormalEdges,
             };
             var figure = new PathFigure { StartPoint = P(c.Start), IsClosed = false, IsFilled = false };
-            figure.Segments.Add(new BezierSegment { Point1 = P(c.Control1), Point2 = P(c.Control2), Point3 = P(c.End) });
+            if (c.IsWrapped)
+            {
+                // Orthogonal with rounded corners across a row break (D-060).
+                foreach (var (lineTo, corner, curveTo) in c.RoundedSegments())
+                {
+                    figure.Segments.Add(new LineSegment { Point = P(lineTo) });
+                    if (corner is { } k)
+                        figure.Segments.Add(new QuadraticBezierSegment { Point1 = P(k), Point2 = P(curveTo) });
+                }
+            }
+            else
+            {
+                figure.Segments.Add(new BezierSegment { Point1 = P(c.Control1), Point2 = P(c.Control2), Point3 = P(c.End) });
+            }
             curves[path].Figures.Add(figure);
 
             var arrows = accent ? SelectedArrows : edge.Style == EdgeStyle.IfFails ? IfFailsArrows : NormalArrows;
@@ -312,6 +325,15 @@ public sealed partial class FlowCanvas : UserControl
             return;
         }
         var mid = edge.Curve.Midpoint;
+        if (edge.Curve.IsWrapped)
+        {
+            // The row gap is too low to lift them above the lane (D-060): centre them on the lane, right of the chip.
+            var lane = edge.Curve.Corners;
+            XamlCanvas.SetLeft(EdgeControls, (mid.X + lane[2].X) / 2 - EdgeControlsWidth / 2);
+            XamlCanvas.SetTop(EdgeControls, mid.Y - EdgeControlsHeight / 2);
+            EdgeControls.Visibility = Visibility.Visible;
+            return;
+        }
         XamlCanvas.SetLeft(EdgeControls, mid.X - EdgeControlsWidth / 2);
         // Above the line, so a click on the line itself still selects the edge.
         XamlCanvas.SetTop(EdgeControls, mid.Y - EdgeControlsLift - EdgeControlsHeight);

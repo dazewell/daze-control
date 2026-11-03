@@ -53,6 +53,8 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
   marquee-selected, deleted and right-clicked (UX §5.8 #2), with "+"/"×" above the midpoint.
 - [ ] M11 Desktop shortcuts, pickers and examples, Bluetooth list (designed 2026-11-02, D-049..D-052; PLAN → M11).
   Desktop shortcuts done (T11.4/T11.5, 0.21.0): Flow settings › Desktop shortcut, the Flows card's menu, `dctl shortcut`.
+- [x] Canvas: long simple chains wrap onto rows of 5 like text; forks, joins and parallel branches keep their
+  columns (user, 2026-11-03; D-060; 0.23.0).
 - [ ] M12 Flow menu + controller trigger (designed 2026-11-03, D-053..D-057; PLAN → M12). Starts with two spikes:
   controller input at 0 idle CPU (needs your Xbox pad plugged in) and the menu over games without taking focus.
 

@@ -39,6 +39,11 @@ public sealed record LayoutOptions
     public double CardHeader { get; init; } = 32;
 
     public double MemberSpacing { get; init; } = 8;
+
+    /// <summary>A spine run longer than this many boxes wraps onto rows of this many (D-060).</summary>
+    public int WrapAfter { get; init; } = 5;
+
+    public double WrapRowGap { get; init; } = 48;
 }
 
 /// <param name="Card">The card a member sits in; null for a top-level step or a card.</param>
@@ -47,7 +52,8 @@ public sealed record LayoutOptions
 public sealed record NodeBox(string Id, Rect Bounds, int Column, int Row, string? Card);
 
 /// <summary>An edge between two top-level boxes; an edge naming a card member is drawn from/to its card.</summary>
-public sealed record EdgeRoute(string From, string To, EdgeWhen When, Point Start, Point End);
+/// <param name="WrapLaneY">Set on an edge from a wrapped row's end to the next row's start: the gap's middle (D-060).</param>
+public sealed record EdgeRoute(string From, string To, EdgeWhen When, Point Start, Point End, double? WrapLaneY = null);
 
 /// <param name="Columns">Top-level ids per column, top to bottom.</param>
 public sealed record FlowArrangement(
@@ -62,7 +68,7 @@ public sealed record FlowArrangement(
 /// <summary>
 /// The canvas layout, always automatic (D-020): one column per layer left→right, a node's layer = 1 + the
 /// highest layer it waits for, order within a column = order in <see cref="Flow.Nodes"/>. Columns are centred on
-/// the tallest. Works on invalid flows too (autosave keeps half-built ones): cycles and unknown ids are ignored.
+/// the tallest; long simple chains wrap onto rows (D-060). Works on invalid flows too (autosave keeps half-built ones): cycles and unknown ids are ignored.
 /// </summary>
 public static class FlowLayout
 {
@@ -190,30 +196,66 @@ public static class FlowLayout
         }
         var heights = columns.Select(c => c.Sum(id => sizes[id].Height) + o.RowGap * Math.Max(0, c.Count - 1)).ToList();
         var tallest = heights.Count == 0 ? 0 : heights.Max();
+        var runs = SpineRuns(columns, edges, layers, o.WrapAfter);
 
         var boxes = new List<NodeBox>();
-        var x = o.Padding;
+        void Place(string id, double x, double y, int column, int row)
+        {
+            var size = sizes[id];
+            boxes.Add(new NodeBox(id, new Rect(x, y, size.Width, size.Height), column, row, null));
+            if (!membersOf.TryGetValue(id, out var members))
+                return;
+            var my = y + o.CardHeader + o.CardPadding;
+            for (var m = 0; m < members.Count; m++)
+            {
+                var h = measure(members[m]).Height;
+                boxes.Add(new NodeBox(members[m], new Rect(x + o.CardPadding, my, size.Width - 2 * o.CardPadding, h), column, m, id));
+                my += h + o.MemberSpacing;
+            }
+        }
+
+        var wrapLanes = new Dictionary<(string, string), double>();
+        var cursor = o.Padding;
+        var dy = 0.0; // after a wrapped block, what follows is top-aligned with its last row
         for (var c = 0; c < columns.Count; c++)
         {
-            var y = o.Padding + (tallest - heights[c]) / 2;
-            for (var r = 0; r < columns[c].Count; r++)
+            if (!runs.TryGetValue(c, out var length))
             {
-                var id = columns[c][r];
-                var size = sizes[id];
-                boxes.Add(new NodeBox(id, new Rect(x, y, size.Width, size.Height), c, r, null));
-                if (membersOf.TryGetValue(id, out var members))
+                var y = o.Padding + (tallest - heights[c]) / 2 + dy;
+                for (var r = 0; r < columns[c].Count; r++)
                 {
-                    var my = y + o.CardHeader + o.CardPadding;
-                    for (var m = 0; m < members.Count; m++)
-                    {
-                        var h = measure(members[m]).Height;
-                        boxes.Add(new NodeBox(members[m], new Rect(x + o.CardPadding, my, size.Width - 2 * o.CardPadding, h), c, m, id));
-                        my += h + o.MemberSpacing;
-                    }
+                    Place(columns[c][r], cursor, y, c, r);
+                    y += sizes[columns[c][r]].Height + o.RowGap;
                 }
-                y += size.Height + o.RowGap;
+                cursor += (columns[c].Count == 0 ? 0 : columns[c].Max(id => sizes[id].Width)) + o.ColumnGap;
+                continue;
             }
-            x += (columns[c].Count == 0 ? 0 : columns[c].Max(id => sizes[id].Width)) + o.ColumnGap;
+
+            // A spine run: rows of WrapAfter boxes like text, slots aligned across rows (D-060).
+            var ids = Enumerable.Range(c, length).Select(l => columns[l][0]).ToList();
+            var rows = ids.Chunk(o.WrapAfter).ToList();
+            var slotWidths = Enumerable.Range(0, o.WrapAfter)
+                .Select(k => rows.Where(row => k < row.Length).Max(row => sizes[row[k]].Width)).ToList();
+            var rowTop = o.Padding + (tallest - sizes[ids[0]].Height) / 2 + dy;
+            for (var r = 0; r < rows.Count; r++)
+            {
+                var rowHeight = rows[r].Max(id => sizes[id].Height);
+                var x = cursor;
+                for (var k = 0; k < rows[r].Length; k++)
+                {
+                    Place(rows[r][k], x, rowTop + (rowHeight - sizes[rows[r][k]].Height) / 2, c + r * o.WrapAfter + k, 0);
+                    x += slotWidths[k] + o.ColumnGap;
+                }
+                if (r + 1 < rows.Count)
+                {
+                    wrapLanes[(rows[r][^1], rows[r + 1][0])] = rowTop + rowHeight + o.WrapRowGap / 2;
+                    rowTop += rowHeight + o.WrapRowGap;
+                }
+            }
+            cursor += slotWidths.Sum() + o.ColumnGap * o.WrapAfter;
+            c += length - 1;
+            if (c + 1 < columns.Count)
+                dy = rowTop - (o.Padding + (tallest - heights[c + 1]) / 2);
         }
 
         var byId = boxes.Where(b => b.Card is null).ToDictionary(b => b.Id, b => b.Bounds, StringComparer.Ordinal);
@@ -221,11 +263,52 @@ public static class FlowLayout
         foreach (var (from, to, when) in edges)
         {
             if (byId.TryGetValue(from, out var a) && byId.TryGetValue(to, out var b))
-                routes.Add(new EdgeRoute(from, to, when, new Point(a.Right, a.CenterY), new Point(b.X, b.CenterY)));
+                routes.Add(new EdgeRoute(from, to, when, new Point(a.Right, a.CenterY), new Point(b.X, b.CenterY),
+                    wrapLanes.TryGetValue((from, to), out var lane) ? lane : null));
         }
 
         var right = boxes.Count == 0 ? o.Padding : boxes.Max(b => b.Bounds.Right);
         var bottom = boxes.Count == 0 ? o.Padding : boxes.Max(b => b.Bounds.Bottom);
         return new FlowArrangement(boxes, routes, columns, new Size(right + o.Padding, bottom + o.Padding));
+    }
+
+    /// <summary>
+    /// Spine runs longer than <paramref name="wrapAfter"/> as first layer → length (D-060): consecutive layers of one
+    /// box each, every box with at most one edge in and one out, and no other edge spanning the run's layers.
+    /// </summary>
+    private static Dictionary<int, int> SpineRuns(
+        List<List<string>> columns, IReadOnlyList<(string From, string To, EdgeWhen When)> edges, Dictionary<string, int> layers, int wrapAfter)
+    {
+        var runs = new Dictionary<int, int>();
+        if (wrapAfter < 1)
+            return runs;
+        var inCount = new Dictionary<string, int>(StringComparer.Ordinal);
+        var outCount = new Dictionary<string, int>(StringComparer.Ordinal);
+        var crossed = new bool[columns.Count];
+        foreach (var (from, to, _) in edges)
+        {
+            inCount[to] = inCount.GetValueOrDefault(to) + 1;
+            outCount[from] = outCount.GetValueOrDefault(from) + 1;
+            if (!layers.TryGetValue(from, out var a) || !layers.TryGetValue(to, out var b))
+                continue;
+            for (var l = Math.Min(a, b) + 1; l < Math.Max(a, b); l++)
+                crossed[l] = true;
+        }
+        bool Eligible(int l) => columns[l].Count == 1 && !crossed[l]
+            && inCount.GetValueOrDefault(columns[l][0]) <= 1 && outCount.GetValueOrDefault(columns[l][0]) <= 1;
+
+        var start = -1;
+        for (var l = 0; l <= columns.Count; l++)
+        {
+            // A box continues the run only if its one edge in comes from the previous box (a layer > 0 always has one).
+            var continues = l < columns.Count && Eligible(l) && start >= 0
+                && edges.Any(e => e.From == columns[l - 1][0] && e.To == columns[l][0]);
+            if (continues)
+                continue;
+            if (start >= 0 && l - start > wrapAfter)
+                runs[start] = l - start;
+            start = l < columns.Count && Eligible(l) ? l : -1;
+        }
+        return runs;
     }
 }
