@@ -52,3 +52,12 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
   controller, a phone) never appeared (user's report, 2026-11-02).
 - Evidence: `dctl devices bluetooth` vs `Get-PnpDevice` `BTHENUM\DEV_*` / `BTHLE\DEV_*` on the dev PC, 2026-11-02.
 - Retry only if: never as the list's source (D-052). Endpoints stay right for connecting and its state (D-023).
+
+## X-006 · 2026-11-03 · "Tidy up" as a button that only reorders steps within their columns
+- Tried: `Core/Layout/FlowTidy` (M7): barycentre sweeps that swap the `nodes` order inside each column to cut edge
+  crossings; the CommandBar button applied it, and did nothing at all (no tip) when no order had fewer crossings.
+- Failed because: the user's flows are chains and small forks with no crossings, and D-060's wrapped chains hold one
+  box per column, so there is nothing to swap; the user never saw it change the canvas (2026-11-03).
+- Evidence: PLAN M13 P7; `FlowCanvasViewModel.TidyUp` returns false and `ShellWindow.OnTidyUp` ignores it.
+- Retry only if: never as the only layout command. It lives on as "Untangle lines" in the Layout menu, off with its
+  reason when it can't help (D-067).

@@ -352,6 +352,12 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 
 - Designed, not built: the flow menu and controller input (M12) — [flow-menu/DESIGN.md](flow-menu/DESIGN.md)
   §3 (D-053..D-057). Each M12 task moves its part into the sections above.
+- Designed, not built (M13, PLAN → M13): flow calls and inputs — [flow-calls/DESIGN.md](flow-calls/DESIGN.md) (D-061..
+  D-064: `IFlowStarter` shared with menus, `FlowRunner.RunNestedAsync`, call-graph validation, `$input` refs);
+  fallback outcomes (D-065: `NodeOutcome.NotNeeded`, `FlowShape.Fallbacks`, `Outcomes.Summarize` counts handled
+  failures as fine); layout segments after a wrapped block (D-066) and the Layout menu's `LayoutOptions` (D-067);
+  `EditorSettingsStore` / `editor.json` (D-068); right-drag pan (D-069); Flows card Run (D-070). Each task rewrites the
+  section it changes (Config's "ends PartiallySucceeded (D-024)" sentence goes with T13.7).
 
 - Library leftovers: editing an Android device's inputs and an audio match in place; renaming audio and Bluetooth keys
   (their cards show the device's name, not the key, D-046).
@@ -363,7 +369,8 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   multi-select in the outline.
 
 - Long canvas edges (skipping a column) are a straight Bézier and can cross a pill in the skipped column; layered
-  layouts usually route them through dummy nodes. Fix if real flows look messy.
+  layouts usually route them through dummy nodes. Fix if real flows look messy. The Layout menu's "Right angles"
+  (D-067) routes orthogonally but doesn't dodge pills either.
 
 - A value of the wrong *shape* (a list where a scalar belongs, e.g. `timeout: [5s]`, `hotkeys: Alt+Z`) still
   rejects the whole file; only `with:` and `after:` are shape-tolerant so far (D-023 covers bad scalar values).

@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: none — v0.23.0 released (2026-11-03, C3 in); M13 recorded, not designed yet
-Last green checkpoint: docs(plan) M13 priority list
-Next action: M13 FIRST (user, 2026-11-03: before everything else): one design session for P1–P9 with the usual standards (D-entries, UX, microcopy, ARCHITECTURE, tasks with done-when; one AskUserQuestion), merge the design, then one implementation session per task. After M13: L1 Android inputs, then M12 spikes T12.1/T12.2
+Current task: none — M13 designed (PR docs/m13-design: D-061..D-070, flow-calls/DESIGN.md, UX #47–#66, PLAN T13.1–T13.10)
+Last green checkpoint: 038d321 wip(docs): M13 design - decisions, flow-calls design, UX
+Next action: T13.1 (feat/m13-nav-flows): handle `ItemInvoked` on the Flows nav item while a flow is open in Editor/ShellWindow.xaml.cs → LeaveFlowAsync → CloseFlow. Lanes that can start at the same time: T13.4, T13.5, T13.7 (PLAN → M13 Order)
 Tree state: builds, all tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). M12 answers from the user (2026-11-03): pads = Xbox + Steam Controller, the menu never takes focus, XInput polling only while a pad is on. T10.5 is parked as issue #26. The editor has no flow delete yet. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone.
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user's live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails; mention it to the user when T13.7 lands. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone.
 
 ---
 
@@ -18,49 +18,89 @@ Notes for next agent: release.yml is tag-only (D-043): never push a v-tag withou
 ---
 
 ## M13 Priority: editor and flow updates (user, 2026-11-03) — before everything else below
-The user's list after v0.23.0. **Design first, with the usual standards** (as for M11/M12): one design pass for the
-whole milestone before any code. It adds D-entries with why / why not / revisit, UX §5 additions and microcopy in the
-D-026 voice, ARCHITECTURE notes, DEADENDS where research rules something out, and then these tasks rewritten with
-files, branches and done-when. Ask the user only for decisions that are truly theirs, all together in one
-AskUserQuestion. P6 is the big one and may need its own design section like `docs/flow-menu/`; P6 and M12's menu
-both "run another flow" (D-054), so design them to share one model. Items, in the user's order:
-- [ ] P1 **Pan by holding the right mouse button and dragging** the canvas inside its viewport, so no horizontal
-  scrolling is needed. A short right click still opens the context menu: tell them apart by a movement threshold.
-  Today: Space+drag, middle-drag and one-finger pan (UX §5.2).
-- [ ] P2 **Wrapping leaves a long empty link and unused vertical space** (D-060 follow-up). After a wrapped linear
-  part, a very long connection runs to the next step that has a branch attached, so the wrap saves little and much
-  vertical space stays unused. Rethink placement after a wrapped block (e.g. continue the branchy part under the
-  block, or let D-060's "next column after the block" go), with screenshots of the user's case. This may supersede
-  part of D-060.
-- [ ] P3 **The Flows list doesn't show the icon set in the flow** (flow `glyph`); the card should show it.
-- [ ] P4 **Left nav "Flows" while in the flow editor goes back to the list**, with the existing Save / Don't save /
-  Cancel prompt when there's a draft (D-047).
-- [ ] P5 **Run a flow from the Flows list:** replace the card's ">" button with a plain button labelled "Run". Opening
-  the flow stays a click on the card (second-round feedback).
-- [ ] P6 **A step that runs another flow** (call a flow from any flow; no infinite loops: validation refuses direct
-  and indirect cycles through flow calls, and the runtime guards depth too). The user's goal is to compose typical
-  things into one step. Examples to design against:
-  - "wake the TV; connect to Android if not connected; once connected, send this key";
-  - "make this audio device default; if that fails, connect it over Bluetooth, and if that works make it default,
-    if not, try another device (with the same chain there)".
+Designed 2026-11-03 (PR: docs/m13-design): D-061..D-070, UX §5.1–§5.9 "M13" notes and #47–#66, X-006,
+[flow-calls/DESIGN.md](flow-calls/DESIGN.md) for P6. User answers (2026-11-03): a failure its fallback fixed ends
+"Done"; device inputs ship inside P6; Tidy up becomes a Layout menu with several strategies; after a wrapped chain the
+next part goes on a new line under it. P-numbers are the user's items; T-numbers are the tasks.
 
-  Decide: wait for the called flow's result vs fire and forget; how its outcome maps to the step (success/failure
-  edges); whether `whenRunning` of the called flow applies; resource locks across nested runs (D-010); history and
-  run view nesting; the pop-up's progress; editor picking a flow and showing "Runs flow X"; possibly parameters
-  (e.g. which device) so one chain serves several devices — or say why not.
-- [ ] P7 **Tidy up visibly does nothing.** The user never saw it change the canvas. Find out why: `FlowTidy` only
-  swaps rows inside columns to cut crossings, so for most flows nothing moves. Decide what Tidy up should be, e.g.
-  offer different layouts for the current flow (compact, wide, wrapped), or remove it.
-- [ ] P8 **Fallback steps don't count as progress or as a warning.** A step reached only by an "if it fails" link
-  (`when: failure`) is a "finally"-style cleanup. When everything worked it's skipped, and that's normal. So:
-  - it's not counted in the pop-up's "n of m" total, and not counted when it's skipped;
-  - its skip is not a warning: no "Done, with a problem"; the flow is Succeeded, not PartiallySucceeded, when the
-    only non-successes are skipped fallbacks;
-  - the same goes for the Runs page and the tray.
+**Order** (one fresh session per task, one PR each; feat PRs bump the minor against `main` at merge time, so parallel
+PRs resolve `Directory.Build.props` by taking main's number + 1): T13.1 → T13.2 → T13.3 → T13.4 → T13.5 → T13.6 →
+T13.7 → T13.8 → T13.9 → T13.10. **Independent lanes** (no shared files, may run at once):
+- Lane A, editor shell (`ShellWindow.xaml(.cs)`): T13.1 → T13.2 → T13.3, then T13.6 (also needs T13.5).
+- Lane B, canvas input (`FlowCanvas.xaml.cs`): T13.4.
+- Lane C, layout (`Core/Layout`): T13.5 (then T13.6 in lane A).
+- Lane D, outcomes and flow calls (Core/Runtime): T13.7 → T13.8 → T13.9, then T13.10 once lane A is done (it
+  touches the inspector, Runs view and `ShellWindow`).
+Every task: tests first where the logic is pure (Core/Runtime/ViewModels), the editor actually run and a screenshot of
+the change for UI tasks, and the docs moved from "designed" to built (UX "M13" notes reworded as current, ARCHITECTURE
+section rewritten, FEATURES where behaviour changed).
 
-  Check D-003's outcome rules and the run pop-up (UX §5.6) wording, and record the new rule as a D-entry.
-- [ ] P9 **The left nav panel can collapse** (NavigationView compact/minimal pane with the toggle button; remember
-  the state per viewer in the editor's settings).
+- [ ] T13.1 P4 **Nav "Flows" returns to the list** (feat/m13-nav-flows). Cause: with a flow open, Flows is still the
+  selected nav item, so `SelectionChanged` never fires. Files: `Editor/ShellWindow.xaml(.cs)` (`ItemInvoked` on the
+  Flows item while a flow is open → `LeaveFlowAsync` (D-047 prompt) → `CloseFlow`, show the list). Done when: in the
+  running editor, Flows from an open flow shows the list; with a draft the Save / Don't save / Cancel prompt shows and
+  Cancel stays in the flow; screenshots; no regressions in nav between other pages.
+- [ ] T13.2 P3 + P5 **Flows card: the flow's icon and a Run button** (feat/m13-flows-card, D-070). Cause of P3: the
+  card decodes `flow.Glyph` only (lightning when unset), while flow settings show `FlowGlyph.CodeOf` (own, else the
+  first step's). Files: `Editor.ViewModels/FlowsPageViewModel.cs` (glyph via `FlowGlyph.CodeOf`; `Run`/`Stop`
+  commands through `IEngineClient` with trigger "Editor"; `CanRun` + reason #62; running state from engine events),
+  `Editor/ShellWindow.xaml(.cs)` (Run button replaces the chevron; the card one focus stop, Enter/Space open, UIA
+  Invoke "Open <name>"; context menu Open / Run / desktop item), the Runs page list glyph if it has the same bug.
+  Done when: ViewModel tests (glyph fallback, Run off reasons, Run ↔ Stop); running editor: icons match flow settings,
+  Run starts the saved version and the pop-up shows, keyboard Tab/Enter opens; screenshots light/dark.
+- [ ] T13.3 P9 **Collapsible nav pane + `editor.json`** (feat/m13-nav-collapse, D-068). Files: new
+  `Editor.ViewModels/Config/EditorSettingsStore.cs` (+ STJ context; `%LOCALAPPDATA%\DazeControl\editor.json`, atomic
+  write 300 ms after a change on `TimeProvider`, bad file → defaults + log), `ShellViewModel.cs` (`IsNavPaneOpen`),
+  `ShellWindow.xaml` (`IsPaneToggleButtonVisible`, `IsPaneOpen` two-way, `CompactPaneLength` 48). Done when: store
+  tests (missing / corrupt / round-trip / debounce); running editor collapses to icons with tooltips and reopens
+  collapsed after a restart; Narrator names the toggle.
+- [ ] T13.4 P1 **Right-drag pans the canvas** (feat/m13-right-drag, D-069). Files: `Editor/Canvas/FlowCanvas.xaml.cs`
+  (pointer pressed/moved/released, `OnRightTapped` and context requests swallowed after a pan), a pure gesture helper
+  in `Editor.ViewModels/Canvas` (arm → pan past the system drag rectangle → swallow), `GetSystemMetrics` via
+  `LibraryImport`. Done when: helper tests (below threshold = menu, past = pan + no menu, DPI scaling); running editor:
+  right-drag over empty canvas, a pill and an edge pans without selecting; a still right click opens each menu.
+- [ ] T13.5 P2 **New line after a wrapped chain** (feat/m13-wrap-newline, D-066). Files: `Core/Layout/FlowLayout.cs`
+  (segments split at wrapped runs; the next segment at the block's x, one `WrapRowGap` under it, centred among
+  itself; its entry edge gets `WrapLaneY`), `Core/Layout/EdgeCurve.cs` (wrap edge into a target lower than the lane),
+  `Core.Tests` layout tests. Done when: tests for a 7-chain + fork (fork x = block x, top below the block, no overlap,
+  extent width = block width), two blocks in a row, a block first and last; screenshot of that flow in the editor;
+  ARCHITECTURE's layout text says it.
+- [ ] T13.6 P7 **Layout menu replaces Tidy up** (feat/m13-layout-menu, D-067; after T13.3 and T13.5). Files:
+  `Core/Layout/FlowLayout.cs` (`LayoutOptions`: `WrapAfter` 0 = never, spacing presets, `Align` Centre/Top, `Lines`
+  Curved/RightAngles), `EdgeCurve.cs` (orthogonal router for every edge), `Editor.ViewModels/Canvas/
+  FlowCanvasViewModel.cs` (per-flow options from `EditorSettingsStore`, `CanUntangle` + reason via `FlowTidy`),
+  `Editor/ShellWindow.xaml(.cs)` (Layout flyout #63), `EditorSettingsStore` (layouts by flow id). Done when: layout tests
+  per option; untangle off on a chain with "No lines cross"; running editor: each choice visibly changes a sample flow
+  and survives a restart; Untangle undoes with Ctrl+Z; screenshots of Compact / Roomy / Right angles.
+- [ ] T13.7 P8 **Fallbacks that weren't needed; fixed failures end Done** (feat/m13-fallback-outcomes, D-065). Files:
+  `Core/Runs/Outcomes.cs` (`NotNeeded`; `Summarize` with handled failures), new `Core/Model/FlowShape.cs`
+  (`Fallbacks`), `Runtime/Scheduling/Scheduler.cs`, `Runtime/Popup/RunPopupModel.cs` ("n of m", #48), `Runtime/Tray/
+  TrayMenu.cs`, `Ipc/Protocol.cs`, editor run words / Runs timeline / canvas live captions (#47), FEATURES F1,
+  ARCHITECTURE Config + Runtime. Done when: Scheduler tests on the user's Connect Technics shape (Technics works →
+  Succeeded, Sony branch NotNeeded; Technics fails and Sony works → Succeeded; both fail → Failed), a chain after a
+  fallback, a join of normal + fallback; pop-up model tests ("1 of 2", Done + #48); history round-trip with NotNeeded;
+  `dctl run --dry-run` and a fake-provider run of that flow; AOT publish with zero warnings.
+- [ ] T13.8 P6a **`flow.run`: nested runs, loops, history, pop-up** (feat/m13-flow-run, D-061..D-063; after T13.7).
+  Files: `Core/Catalog/ProviderCatalog.cs` (`flow.run`; adds `ParamSpec.RefersTo = Flow`, which M12's T12.3 then
+  reuses), `Core/Validation/ConfigValidator.cs` (call graph incl. `menu.show` wait items when they exist),
+  `Core/Runs` (`NodeResult.Called`, `CalledRun`, events' `ParentRunId`), `Runtime/Control/IFlowStarter.cs` +
+  `Runtime/Providers/FlowProvider.cs`, `Runtime/FlowRunner.cs` (`RunNestedAsync`, call chain, depth 8),
+  `Runtime/FlowLauncher.cs` (chain for start mode), `RunHistory`/`HistoryJson`, `RunPopupModel` (fold nested, #59),
+  `Ipc/Protocol.cs`, `Engine/EngineHost.cs` wiring. Done when: tests for every row of DESIGN §2.2, both modes, own flow
+  / cycle / unknown / turned-off validation, chain and depth guards (incl. a D-021 old+new mix), two parallel calls of
+  one flow both running, a nested step's lock blocking a top-level one; `dctl run` of DESIGN §1's shapes with safe
+  steps (notify, wait, flags); AOT zero warnings; `scripts/measure.ps1` idle unchanged.
+- [ ] T13.9 P6b **Flow inputs** (feat/m13-flow-inputs, D-064). Files: `Core/Model` (`Flow.Inputs`, `FlowInput`),
+  `Core/Yaml` DTO + mapper (`inputs:`), `ConfigValidator` (`$name` kinds, defaults, call `inputs:`), `Runtime/FlowRunner`
+  (resolve before resources), `Editor.ViewModels/.../LibraryEdits` rename. Done when: YAML round-trip of DESIGN §1 B;
+  validator tests (unknown input, wrong kind, `$` outside a LibraryRef, bad default, bad passed value, pass-through);
+  runtime test: scenario B with fakes runs Technics then Sony and locks per device; rename test.
+- [ ] T13.10 P6c **Editor for flow calls and inputs** (feat/m13-flow-run-editor; after T13.9 and lane A). Files:
+  `Editor.ViewModels/Inspector` + `Editor/Inspector` (Run a flow inspector, flow settings Inputs, device picker groups,
+  #49–#61), `Canvas` pill (called flow's glyph, title, summary, live #59, InfoBar #64), `Runs` (nested lanes under a
+  bracket, Open in editor), `ShellWindow` (Open this flow with the D-047 prompt). Done when: ViewModel tests; running
+  editor builds DESIGN §1 B by mouse and keyboard, runs it, shows one Runs entry with nested lanes; screenshots;
+  flow-calls/DESIGN.md moved into ARCHITECTURE/UX/FEATURES and cut to its open questions (D-053 rule).
 
 ## M0 Bootstrap ✔ (2026-10-31; T0.1–T0.4 on main, T0.5 PR #1)
 - [x] T0.1 `git init`, `.gitignore`; ask the user before `gh repo create` (name, private?).
@@ -193,6 +233,8 @@ PRs bump the minor version.
   on an old name, engine-off state (#25), deleting a flow removes its shortcut on Save. Done when: VM tests, screenshots.
 
 ## M12 Flow menu + controller trigger (user, 2026-11-03; design docs/flow-menu/DESIGN.md, D-053..D-057)
+After M13: a menu's `wait: true` nests (D-061) and its loops share M13's call graph (D-063); `ParamSpec.RefersTo`
+comes from T13.8.
 Order: T12.1 and T12.2 (spikes, gates) first, either order; then T12.3 → T12.4 → T12.5, T12.6, T12.7 → T12.8 →
 T12.9 → T12.10. One PR per task unless two share a branch; feat PRs bump the minor version. Each task moves what it
 built from DESIGN.md into ARCHITECTURE/UX (D-053).
