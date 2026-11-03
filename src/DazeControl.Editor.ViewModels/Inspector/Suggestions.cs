@@ -55,6 +55,11 @@ public sealed partial class ScreenCheckViewModel(string title, string caption, s
 /// <summary>One key of an ordered list (android.keys): "home, 1 of 3".</summary>
 public sealed record KeyTokenViewModel(string Text, int Index, int Count)
 {
+    /// <summary>The list it belongs to, for the row's remove and move keys.</summary>
+    public ParamFieldViewModel? Owner { get; init; }
+
+    public string RemoveName => $"Remove {Text}";
+
     public string AutomationName => $"{Text}, {Index + 1} of {Count}";
 }
 

@@ -87,6 +87,69 @@ public sealed partial class InspectorPane : UserControl
             item.IsEnabled = option.IsEnabled;
     }
 
+    public static string ExamplesName(string title) => $"Examples for {title}";
+
+    private void OnSuggestionsOpened(object? sender, object e)
+    {
+        if ((sender as FrameworkElement)?.Tag is ParamFieldViewModel { Spec.Suggest: { Source: Core.Catalog.SuggestSource.Devices } suggest })
+            _ = _viewModel?.RefreshSuggestionsAsync(suggest.Kind);
+    }
+
+    private void OnUseScreensOnNow(object sender, RoutedEventArgs e) => ((sender as FrameworkElement)?.Tag as ParamFieldViewModel)?.UseScreensOnNow();
+
+    private void OnRemoveToken(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is KeyTokenViewModel { Owner: { } field } token)
+            field.RemoveToken(token);
+    }
+
+    private void OnTokenKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        var alt = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu)
+            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+        if (!alt || e.Key is not (VirtualKey.Up or VirtualKey.Down) || (sender as FrameworkElement)?.Tag is not KeyTokenViewModel { Owner: { } field } token)
+            return;
+        field.MoveToken(token, e.Key == VirtualKey.Up ? -1 : 1);
+        e.Handled = true;
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnKeyTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput && sender.Tag is ParamFieldViewModel field)
+            sender.ItemsSource = field.KeySuggestions(sender.Text);
+    }
+
+    private void OnKeyBoxFocused(object sender, RoutedEventArgs e)
+    {
+        if (sender is AutoSuggestBox { Tag: ParamFieldViewModel field } box)
+            box.ItemsSource = field.KeySuggestions(box.Text);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnKeySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        if (sender.Tag is not ParamFieldViewModel field)
+            return;
+        field.AddToken(args.ChosenSuggestion as string ?? args.QueryText);
+        sender.Text = "";
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnExamplesOpening(object? sender, object e)
+    {
+        if (sender is not MenuFlyout { Target: FrameworkElement { Tag: ParamFieldViewModel field } } menu)
+            return;
+        menu.Items.Clear();
+        foreach (var example in field.Examples)
+        {
+            var item = new MenuFlyoutItem { Text = example.Title };
+            ToolTipService.SetToolTip(item, example.Value);
+            item.Click += (_, _) => field.ApplyExample(example);
+            menu.Items.Add(item);
+        }
+    }
+
     private void OnDevicesOpened(object? sender, object e)
     {
         if ((sender as FrameworkElement)?.Tag is ParamFieldViewModel { Spec.Library: { } kind })

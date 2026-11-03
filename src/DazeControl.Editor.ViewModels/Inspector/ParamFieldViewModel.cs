@@ -298,7 +298,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
             return;
         Tokens.Clear();
         for (var i = 0; i < _items.Count; i++)
-            Tokens.Add(new KeyTokenViewModel(_items[i], i, _items.Count));
+            Tokens.Add(new KeyTokenViewModel(_items[i], i, _items.Count) { Owner = this });
     }
 
     partial void OnTextChanged(string value)
