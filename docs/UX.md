@@ -54,6 +54,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   name e.g. "Set default output, Technics. Audio. Waits for Connect Technics. May fail."; its context menu has
   every canvas command; live region announces run results (≤ 1/s); canvas exposes the same names.
 
+- Long simple chains (more than 5 boxes, no forks or joins) wrap onto new rows like text; forks, joins and
+  side-by-side branches keep their own columns (D-060).
+
 ## 5.3 Visual language
 - Pill: min 232×56, max width 320, grows taller with text size. CornerRadius 28; the left cap is the status
   ring (32 DIP, inset 12, 16-DIP provider glyph). Title BodyStrong 1 line; summary Caption secondary ("Technics ·

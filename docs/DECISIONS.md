@@ -700,3 +700,25 @@ Status: accepted
   too, which breaks "try X, else Y" (the fallback and the normal path would both run). Why not leaving the policy and
   only fixing the inspector's wording: the user asked for the setting to follow, and the YAML then says it too.
 - Revisit if: users want "run the fallback, then stop the flow" (D-024's revisit), which needs `stop` to mean that.
+
+## D-060 · 2026-11-03 · Long simple chains wrap onto new rows; forks, joins and their branches never wrap
+Status: accepted (design for C3; supersedes D-020's "one column per layer" for wrapped chains only)
+- Decision: after layering, ordering and `FlowTidy`, a last placement pass in `Core/Layout/FlowLayout` finds
+  **spine runs**: maximal sequences of consecutive layers that each hold exactly one box (a step or a card), linked
+  one to the next by a single edge (one way out of each, one way in to the next; any `when`). A run longer than
+  `LayoutOptions.WrapAfter` boxes (default 5) is cut into rows of `WrapAfter`, placed like text: every row reads left
+  to right from the run's first column, rows stacked downwards with a 48-DIP gap. Whatever follows the run starts
+  in the column after the block's right edge, top-aligned with its last row. Nothing that forks, joins or runs side by
+  side with another branch is ever wrapped, so complex parts keep their separate columns (D-020 as before).
+- Wrapped edge: from the row's last output port, right 16, down to the middle of the gap, left to the next row's
+  start column, down to the first input port's height, right into it; orthogonal with 8-DIP corners, styled by
+  `when` like any edge. `EdgeCurve` gains this shape for hit-tests (UX §5.8 #2).
+- Unchanged: YAML (no coordinates), layers and `nodes` order, Outline order, keyboard order (Right/Left = next or
+  previous step in run order, so Right from a row's end goes to the next row's start), drag zones (computed from
+  boxes), Tidy up (works on layers before the wrap pass). Fit/zoom use the wrapped bounds.
+- Why: a 10-step chain needs ten columns and scrolls sideways, while it has no structure to show (user, 2026-11-03).
+  Count-based so the layout doesn't jump when the window is resized, and stays testable.
+- Why not wrap at the window width: re-layout on every resize, and the same flow looks different on two screens.
+  Why not snake (alternate rows right-to-left): arrows pointing left read as going back. Why not wrap whole branches:
+  a fork's columns are what show it runs in parallel.
+- Revisit if: users want width-based wrapping or a per-flow "don't wrap" switch.
