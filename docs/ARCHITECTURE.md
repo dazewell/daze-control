@@ -177,10 +177,11 @@ given on the command line as the Run value's argument.
   `Shell/TrayGlyph` (idle / busy / paused, D-027); tooltip = running flows, else paused, else the last run's
   problem. Not yet: per-flow glyph bitmaps in the menu (need M5's glyph-font rendering).
 - `Runtime/Lifecycle/Autostart`: HKCU Run value `DazeControl` → engine exe (OSD port), set through the pipe op.
-- Desktop shortcuts (M11, D-049): `Program` reads `--run <flow id>` before the single-instance check; a second
+- Desktop shortcuts (M11, D-049): `Program` reads `--run <flow id>` (and an optional config path, kept from the
+  creating engine) before the single-instance check; runs resolve by id only (`exactId`); a second
   engine sends `run` (trigger "Desktop shortcut") through `PipeClient` and exits, the first queues it until the first
   config load. `Engine/Shell/FlowShortcuts` writes/scans/removes the .lnk files (IShellLinkW) and renders
-  `shortcuts\<id>.ico` with the pop-up's DirectWrite path; the uninstall hook calls its `RemoveAll`. An unknown id
+  `shortcuts\<safe id>.ico` (filename-safe names, real id in the args) with the pop-up's DirectWrite path; the uninstall hook calls its `RemoveAll`. An unknown id
   fails like any run of a missing flow, with the pop-up saying the shortcut's flow is gone.
 
 ## Install and updates

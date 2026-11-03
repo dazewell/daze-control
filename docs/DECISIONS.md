@@ -522,13 +522,18 @@ Status: accepted
 ## D-049 · 2026-11-02 · Desktop shortcut per flow: a .lnk to the engine with `--run <flow id>`, made by the engine
 Status: accepted (M11)
 - Decision: the shortcut targets the installed Velopack stub (`%LOCALAPPDATA%\DazeControlApp\Daze Control.exe`, which
-  survives updates and forwards args; the running exe outside an install) with `--run <flow id>`, named after the flow,
+  survives updates and forwards args; the running exe outside an install) with `--run <flow id>`, plus the quoted
+absolute config path when the engine runs a non-default config (as `Autostart.Enable` does), named after the flow,
   icon = the flow's glyph on the app tile, rendered by the engine (D-012's DirectWrite path) into
-  `%LOCALAPPDATA%\DazeControl\shortcuts\<id>.ico`. The engine writes it (IShellLinkW + IPersistFile, Desktop via
+  `%LOCALAPPDATA%\DazeControl\shortcuts\<safe id>.ico`; file names (.ico and .lnk) are made filename-safe (reserved
+  characters and `/` replaced, reserved device names avoided, plus a short hash of the id when anything changed),
+  while the .lnk's arguments keep the real id. The engine writes it (IShellLinkW + IPersistFile, Desktop via
   `SHGetKnownFolderPath`, so a OneDrive desktop works). No YAML state: pipe op `shortcuts` scans the Desktop for .lnk
   files with our target and `--run`. A second engine started by the shortcut forwards `run` (trigger "Desktop
   shortcut") over the pipe and exits; a first one starts as usual and runs the flow after the first config load.
-  The id, not the name, is the link: renaming a flow keeps the shortcut working (the editor offers "Update"). Pause
+  The id, not the name, is the link: renaming a flow keeps the shortcut working (the editor offers "Update"). A
+  desktop run resolves by id only, cold start and forwarded alike (the pipe `run` gets an `exactId` flag), so a
+  deleted flow's shortcut never runs another flow whose name equals that id; `dctl run` keeps its name fallback. Pause
   shortcuts doesn't apply (a double-click is deliberate, like the tray). The uninstall hook removes our shortcuts and
   icons.
 - Why: one double-click per flow, also when the engine isn't running (user, 2026-11-02).
@@ -557,7 +562,9 @@ Status: accepted (M11)
 ## D-051 · 2026-11-02 · "Use only these screens" is picked from the PC's screens and saves monitor names
 Status: accepted (M11)
 - Decision: the `outputs` param is a checklist of the screens plugged in now (`devices displays`: monitor name, port,
-  on/off); checking writes the monitor name, or the port when two plugged-in screens share a name. Saved entries not
+  on/off); checking writes the monitor name, or the port when the name is empty or isn't unique under the
+  provider's matching rule. The provider matches a saved name exactly first and only then falls back to its old
+  "contains" match, so checking DP-2 "DELL U2723QE" can't turn on DP-1 "DELL U2723QE HDR". Saved entries not
   plugged in stay checked as "Not connected right now". "Use the screens that are on now" checks exactly the active
   ones. The provider keeps matching by port or monitor name, so hand-written and scd-style port lists still load.
   `DeviceInfo` gains optional `Value` (what a picker writes) and `State`; additive, `protocol` stays 1.

@@ -133,13 +133,15 @@ PRs bump the minor version.
   every Devices kind exists in `SystemDevices.Kinds`; key-table round-trip test with the provider.
 - [ ] T11.3 Inspector pickers (feat/m11-pickers, D-050, D-051). Editable ComboBox, checklist, token list, Examples
   menu in `ParamFieldViewModel` + InspectorPane; `display.outputs` checklist with "Use the screens that are on now"
-  (name or port per D-051, unplugged kept checked); Android input from the chosen device. Done when: VM tests (writes,
+  (name or port per D-051, unplugged kept checked; provider matches exact names before "contains"); Android input from the chosen device. Done when: VM tests (writes,
   twin-name → port, unplugged kept, undo of an example), screenshots light/dark of each control, Narrator names on the
   checklist and token list.
 - [ ] T11.4 Desktop shortcuts, engine side (feat/m11-shortcuts, D-049). `--run`, second-instance forward, queue
   until first load, trigger "Desktop shortcut", `FlowShortcuts` (.lnk + glyph .ico), ops `shortcuts`/`create-shortcut`/
-  `remove-shortcut`, `dctl shortcut <flow> [--remove]`, uninstall hook cleanup. Done when: unit tests (args parse,
-  scan matches only our target, name sanitising); on the dev PC a shortcut runs its flow with the engine running and
+  `remove-shortcut`, `dctl shortcut <flow> [--remove]`, uninstall hook cleanup, id-only resolution (`exactId`),
+  config path kept in the args. Done when: unit tests (args parse, scan matches only our target, name sanitising
+  incl. `/` and reserved names, a deleted flow's id never matches another flow's name); a non-default config's
+  shortcut cold-starts that config; on the dev PC a shortcut runs its flow with the engine running and
   with it stopped (history shows "Desktop shortcut"), an installed copy's shortcut survives an update, uninstall
   removes it.
 - [ ] T11.5 Desktop shortcuts, editor side (feat/m11-shortcuts). Flow settings row + Flows card context menu, Update
