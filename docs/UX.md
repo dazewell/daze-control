@@ -118,6 +118,11 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   (pairs with "If it fails, run…"). Web request: address "Sunshine: close the running app"
   `https://localhost:47990/api/apps/close`; headers `Content-Type: application/json`; body `{ "key": "value" }`.
 - Bluetooth pickers list Windows' paired devices (D-052); ones without audio are disabled with #26.
+- **Menu step** (M12, designed; full spec [flow-menu/DESIGN.md](flow-menu/DESIGN.md) §3.7): Choices = token list of
+  flows (glyph + name, ×, Alt+Up/Down, "Add a flow", own flow not offered, a missing one caution with #40), Title,
+  Layout List / Grid, Size Normal / Large "For a TV across the room", Close after (s), "Wait for it to finish" (#41).
+  "Test this step" shows the real menu and runs nothing (#42). Flow settings: **Controller buttons** chips under
+  Shortcuts + "Add buttons" recorder (#34–#37, #43). "Controller buttons" is the name; "shortcut" stays a hotkey.
 
 ## 5.5 Runs
 - Live: canvas overlays states; CommandBar "Running · 2 of 4" + Stop; finished pill summary becomes its
@@ -137,6 +142,8 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   running"); invalid flow greyed "TV only (needs fixing)"; then separator · Open Daze Control · Pause
   shortcuts (checked) · separator · Exit. Icon variants busy / paused; tooltip "Daze Control · Running
   Connect Technics".
+- Flow menu (M12, designed): the pop-up's surface as a no-focus menu of flows, centred on the foreground window's
+  screen; layout, focus visual and input map in [flow-menu/DESIGN.md](flow-menu/DESIGN.md) §4.
 - Pop-up: 340 wide, padding 16, spacing 12, radius 8, acrylic, no-activate, the OSD's six positions. Row 1 (min
   28): glyph 20 | name BodyStrong | status Caption "2 of 3" on 20/*/44 columns · Row 2: 4-px determinate track
   (finished nodes) · Row 3: Caption current step "Connecting Technics…". ~104 DIP, grows with text size.
@@ -163,7 +170,16 @@ how your screens are set up now." · 21 "Shortcuts are paused. Select Pause shor
 on." · 22 "You can edit again when this run finishes." · 23 "Add to desktop" / "Puts a shortcut on your desktop
 that runs this flow." · 24 "This shortcut's flow isn't there anymore. You can delete the shortcut." · 25 "Start Daze
 Control to add a desktop shortcut." · 26 "Daze Control can connect only headphones and speakers." · 27 "Use the
-screens that are on now"
+screens that are on now" · M12 flow menu: 28 "Nothing here can run right now" / "Turn on or fix these flows in
+Daze Control." · 29 captions "Running" · "Needs fixing" · "Turned off" · 30 hints "Ⓐ Run  Ⓑ Close" / "Enter Run · Esc
+Close" · 31 "Closing in 5 s" · 32 "The menu can't show over this full-screen game. Switch the game to borderless or
+windowed, then try again." · 33 "Couch TV didn't start. It needs fixing." · 34 "Press the buttons together on your
+controller, then let go." · 35 "Daze Control doesn't see a controller. Turn one on and try again." · 36 "Another
+flow uses View + Menu. Try another one." · 37 "Use at least two buttons, so a game doesn't start it by accident." ·
+38 "A menu can't list its own flow." · 39 "That would make a loop: Couch waits for TV menu, which waits for Couch."
+· 40 "Couch TV isn't there anymore. Remove it from the menu." · 41 "Wait for it to finish" / "Steps after the menu
+wait for the picked flow, and stop if it fails." · 42 "You picked Couch TV. Testing doesn't run it." · 43 "Start
+Daze Control to record controller buttons." · 44 "Nothing picked"
 
 ## 5.8 Risks → mitigations
 1 XAML element count: pill template ≤ 12 elements, no ThemeShadow per node, all edges in one layer of a few batched paths (D-037),
@@ -192,3 +208,6 @@ contrast: solid background, no dots.
 - All strings sentence case, no jargon.
 - M11: a desktop shortcut shows the flow's glyph and runs it with the engine stopped and running; every free-text
   param has a picker or an Examples menu; the Bluetooth picker matches Settings › Bluetooth & devices.
+- M12: the menu shows over a borderless game without changing the foreground window; focus is readable from 3 m
+  (Large, light/dark/high contrast, not colour alone); pad, keys and mouse each pick and close; nothing picked shows
+  no pop-up; animation effects off = no motion; 225 % text doesn't clip rows or tiles.

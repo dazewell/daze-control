@@ -23,7 +23,8 @@ What Daze Control does, stack-independent. Source: the 2026-10-31 plan §2. Stat
   An invalid flow is disabled with its problems listed; every other flow keeps working.
 
 **F2 Triggers** — v1: global hotkey, tray item, CLI (`dctl run`), editor Run/Test, desktop shortcut per flow
-(`DazeControl.exe --run <flow>`, starts the engine when needed, D-049). Later: device events (BT
+(`DazeControl.exe --run <flow>`, starts the engine when needed, D-049). M12 (designed): controller buttons
+(`gamepad: [View+Menu]`, D-057) and a pick in a flow menu (D-054). Later: device events (BT
 connected, display change), schedule, session unlock/resume, app start.
 
 **F3 Providers (step types)** — each declares id, glyph, title, typed params, default timeout, resources it
@@ -34,7 +35,8 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
   kill tree on timeout) · `script.powershell` · `http.request` (Sunshine API etc., credentials by name) ·
   `android.input`/`android.keys`/`android.sleep` (adb, connect retries, one chained shell call; any adb device, D-045) ·
   `service.start`/`stop` (fails clearly without rights) · `wait` · `notify` (pop-up text) ·
-  `flag.set`/`flag.check` (check fails when unmet → combine with `when: failure`).
+  `flag.set`/`flag.check` (check fails when unmet → combine with `when: failure`) · M12 (designed): `menu.show` — a
+  no-focus menu of flows over every window, controller/keyboard/mouse, picking launches the flow (D-054, D-055).
 
 **F4 Library** — named, reusable resources referenced by steps: audio devices (match text + flow), Bluetooth
 devices (address + name), display layouts/outputs, Android devices + inputs, programs, credentials (secret in
@@ -52,7 +54,7 @@ flags, credentials, programs, script snippets; D-050, D-051); "Add to desktop" p
 
 **F8 CLI** — `dctl run <flow> [--wait] [--dry-run]`, `list`, `validate [file]`, `status`,
 `devices audio|bluetooth|displays|adb|services|credentials`, `capture-display-layout <name>`, `history [flow]`,
-`shortcut <flow> [--remove]`. `devices bluetooth` = the PC's paired devices, as Settings lists them (D-052).
+`shortcut <flow> [--remove]`; M12: `devices gamepads`. `devices bluetooth` = the PC's paired devices, as Settings lists them (D-052).
 
 **F9 Ops** — per-user install + in-app updates, start with Windows (HKCU Run), single instance, rolling logs
 (7 days), crash capture, no admin, config backups (last 10).

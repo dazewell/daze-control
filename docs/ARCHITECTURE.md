@@ -348,6 +348,9 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 
 ## Open questions
 
+- Designed, not built: the flow menu and controller input (M12) — [flow-menu/DESIGN.md](flow-menu/DESIGN.md)
+  §3 (D-053..D-057). Each M12 task moves its part into the sections above.
+
 - Library leftovers: editing an Android device's inputs and an audio match in place; renaming audio and Bluetooth keys
   (their cards show the device's name, not the key, D-046).
 - Inspector leftovers (M8): headers as key/value rows + "Add header" (now "Name: value" lines), a script's "Open in
