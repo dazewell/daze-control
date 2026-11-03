@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T11.3 inspector pickers (feat/m11-pickers, 0.21.0, no PR yet); T11.1 merged (#23), T11.2 done on this branch
-Last green checkpoint: test(core): screens match an exact name before a containing one
-Next action: run the dev editor on a scratch config with display.outputs / android.keys / service.start / script.powershell steps; screenshots light+dark of checklist, token list, suggestion box, Examples menu; Narrator names; then open the PR
-Tree state: builds, 853/853 tests green (DAZE_DEV_PC=1) · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. feat/m11-shortcuts runs in parallel (Protocol ops, Engine/Program.cs, Flows page): expect Resume/Version conflicts, keep both, bump above main. Runtime.Tests can hang when another session's tests use the per-user pipe at the same time: rerun alone. The dev engine's pipe is per user: stop the installed engine (restart C:\Users\dazewell\AppData\Local\DazeControlApp\current\DazeControl.exe after).
+Current task: T11.2 + T11.3 pickers done (feat/m11-pickers, 0.21.0), PR open; T11.1 merged (#23); T11.4/T11.5 in the parallel shortcuts session
+Last green checkpoint: feat(inspector): skip no-op writes, sharper picker help and captions
+Next action: merge the pickers PR per repo-workflow §6; then T11.4 → T11.5 if feat/m11-shortcuts hasn't landed them
+Tree state: builds, 854/854 tests green (DAZE_DEV_PC=1) · Uncommitted: none
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. feat/m11-shortcuts runs in parallel (Protocol ops, Engine/Program.cs, Flows page): expect Resume/Version conflicts, keep both, bump above main. Runtime.Tests can hang when another session's tests use the per-user pipe at the same time: rerun alone. The dev engine's pipe is per user: stop the installed engine (restart C:\Users\dazewell\AppData\Local\DazeControlApp\current\DazeControl.exe after). Android input's "Add inputs in the Library" is plain text, not yet a link.
 
 ---
 
@@ -131,11 +131,11 @@ PRs bump the minor version.
   only), `DeviceInfo.Value`; `dctl devices services|credentials`. Done when: a catalog test says every Text/TextList/
   MultilineText/TextMap param has a Suggest or Examples (or is on a short reviewed allow-list, e.g. `notify.text`);
   every Devices kind exists in `SystemDevices.Kinds`; key-table round-trip test with the provider.
-- [~] T11.3 Inspector pickers (feat/m11-pickers, D-050, D-051). Editable ComboBox, checklist, token list, Examples
+- [x] T11.3 Inspector pickers (feat/m11-pickers, D-050, D-051). Editable ComboBox, checklist, token list, Examples
   menu in `ParamFieldViewModel` + InspectorPane; `display.outputs` checklist with "Use the screens that are on now"
   (name or port per D-051, unplugged kept checked; provider matches exact names before "contains"); Android input from the chosen device. Done when: VM tests (writes,
   twin-name → port, unplugged kept, undo of an example), screenshots light/dark of each control, Narrator names on the
-  checklist and token list.
+  checklist and token list. (feat/m11-pickers; T11.2 too)
 - [ ] T11.4 Desktop shortcuts, engine side (feat/m11-shortcuts, D-049). `--run`, second-instance forward, queue
   until first load, trigger "Desktop shortcut", `FlowShortcuts` (.lnk + glyph .ico), ops `shortcuts`/`create-shortcut`/
   `remove-shortcut`, `dctl shortcut <flow> [--remove]`, uninstall hook cleanup, id-only resolution (`exactId`),
