@@ -284,8 +284,19 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     {
         if (!IsChecklist)
             return;
+        var rows = ScreenChoices.Rows(_liveScreens, _items);
+        if (rows.Count == Screens.Count && rows.Zip(Screens).All(p => p.First.Title == p.Second.Title
+                && p.First.Caption == p.Second.Caption && p.First.Value == p.Second.Value))
+        {
+            for (var i = 0; i < rows.Count; i++)
+            {
+                Screens[i].Entry = rows[i].Entry;
+                Screens[i].Load(rows[i].IsChecked);
+            }
+            return;
+        }
         Screens.Clear();
-        foreach (var row in ScreenChoices.Rows(_liveScreens, _items))
+        foreach (var row in rows)
         {
             row.Toggled = () => WriteItems(ScreenChoices.Entries(Screens));
             Screens.Add(row);

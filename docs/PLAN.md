@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T11.2 + T11.3 pickers done (feat/m11-pickers, 0.21.0), PR open; T11.1 merged (#23); T11.4/T11.5 in the parallel shortcuts session
-Last green checkpoint: feat(inspector): skip no-op writes, sharper picker help and captions
-Next action: merge the pickers PR per repo-workflow §6; then T11.4 → T11.5 if feat/m11-shortcuts hasn't landed them
-Tree state: builds, 854/854 tests green (DAZE_DEV_PC=1) · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. feat/m11-shortcuts runs in parallel (Protocol ops, Engine/Program.cs, Flows page): expect Resume/Version conflicts, keep both, bump above main. Runtime.Tests can hang when another session's tests use the per-user pipe at the same time: rerun alone. The dev engine's pipe is per user: stop the installed engine (restart C:\Users\dazewell\AppData\Local\DazeControlApp\current\DazeControl.exe after). Android input's "Add inputs in the Library" is plain text, not yet a link.
+Current task: M11 — T11.1 (#23), T11.4/T11.5 (#24) merged; T11.2 + T11.3 pickers done (feat/m11-pickers, PR #25, 0.22.0)
+Last green checkpoint: 9fed620 "fix(pickers): repeated screen entries, matching order, generic sign-ins, engine restart"
+Next action: merge PR #25 per repo-workflow §6 (both Copilot reviews done, their findings fixed) once CI is green; then the M11 wrap-up in PLAN
+Tree state: builds; Core 305, Editor 226, Providers 112 green; Runtime 273/281 locally (8 FlowRunnerTests hang, see notes) · Uncommitted: none
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). Desktop shortcuts on an installed copy (survives an update, uninstall removes it) are unverified: GOALS → follow-ups. The editor has no flow delete yet. Runtime.Tests: 8 FlowRunnerTests (from CancelledRunStartsNoStep on) hung locally on 2026-11-03 even alone, engine stopped, no Runtime change on the branch; CI runs them green. Runtime.Tests can also hang when another session's tests use the per-user pipe at the same time: rerun alone. The dev engine's pipe is per user: stop the installed engine (restart C:\Users\dazewell\AppData\Local\DazeControlApp\current\DazeControl.exe after). Android input's "Add inputs in the Library" is plain text, not yet a link.
 
 ---
 
@@ -135,8 +135,8 @@ PRs bump the minor version.
   menu in `ParamFieldViewModel` + InspectorPane; `display.outputs` checklist with "Use the screens that are on now"
   (name or port per D-051, unplugged kept checked; provider matches exact names before "contains"); Android input from the chosen device. Done when: VM tests (writes,
   twin-name → port, unplugged kept, undo of an example), screenshots light/dark of each control, Narrator names on the
-  checklist and token list. (feat/m11-pickers; T11.2 too)
-- [ ] T11.4 Desktop shortcuts, engine side (feat/m11-shortcuts, D-049). `--run`, second-instance forward, queue
+  checklist and token list. (feat/m11-pickers, PR #25; T11.2 too)
+- [x] T11.4 Desktop shortcuts, engine side (feat/m11-shortcuts, D-049; installed-copy update/uninstall unverified, GOALS). `--run`, second-instance forward, queue
   until first load, trigger "Desktop shortcut", `FlowShortcuts` (.lnk + glyph .ico), ops `shortcuts`/`create-shortcut`/
   `remove-shortcut`, `dctl shortcut <flow> [--remove]`, uninstall hook cleanup, id-only resolution (`exactId`),
   config path kept in the args. Done when: unit tests (args parse, scan matches only our target, name sanitising
@@ -144,7 +144,7 @@ PRs bump the minor version.
   shortcut cold-starts that config; on the dev PC a shortcut runs its flow with the engine running and
   with it stopped (history shows "Desktop shortcut"), an installed copy's shortcut survives an update, uninstall
   removes it.
-- [ ] T11.5 Desktop shortcuts, editor side (feat/m11-shortcuts). Flow settings row + Flows card context menu, Update
+- [x] T11.5 Desktop shortcuts, editor side (feat/m11-shortcuts; the editor has no flow delete yet, so nothing to remove on Save). Flow settings row + Flows card context menu, Update
   on an old name, engine-off state (#25), deleting a flow removes its shortcut on Save. Done when: VM tests, screenshots.
 
 ## First-use fixes (user, 2026-11-02; branch feat/first-use-fixes)

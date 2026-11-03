@@ -99,7 +99,11 @@ public sealed partial class InspectorPane : UserControl
             _ = _viewModel?.RefreshSuggestionsAsync(suggest.Kind);
     }
 
-    private void OnUseScreensOnNow(object sender, RoutedEventArgs e) => ((sender as FrameworkElement)?.Tag as ParamFieldViewModel)?.UseScreensOnNow();
+    private void OnUseScreensOnNow(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is ParamFieldViewModel field && _viewModel is not null)
+            _ = _viewModel.UseScreensOnNowAsync(field);
+    }
 
     private void OnRemoveToken(object sender, RoutedEventArgs e)
     {
@@ -113,8 +117,35 @@ public sealed partial class InspectorPane : UserControl
             .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
         if (!alt || e.Key is not (VirtualKey.Up or VirtualKey.Down) || (sender as FrameworkElement)?.Tag is not KeyTokenViewModel { Owner: { } field } token)
             return;
+        var list = Ancestor<ItemsControl>((DependencyObject)sender);
+        var to = token.Index + (e.Key == VirtualKey.Up ? -1 : 1);
         field.MoveToken(token, e.Key == VirtualKey.Up ? -1 : 1);
         e.Handled = true;
+        // The rows are rebuilt, so the focused × is gone: focus the moved key's × to allow another move.
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            list?.UpdateLayout();
+            if (list?.ContainerFromIndex(to) is DependencyObject row && Descendant<Button>(row) is { } remove)
+                remove.Focus(FocusState.Keyboard);
+        });
+    }
+
+    private static T? Ancestor<T>(DependencyObject? node) where T : class
+    {
+        while (node is not null and not T)
+            node = VisualTreeHelper.GetParent(node);
+        return node as T;
+    }
+
+    private static T? Descendant<T>(DependencyObject node) where T : class
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
+        {
+            var child = VisualTreeHelper.GetChild(node, i);
+            if ((child as T ?? Descendant<T>(child)) is { } found)
+                return found;
+        }
+        return null;
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]

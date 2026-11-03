@@ -37,6 +37,20 @@ public sealed class RunPopupModelTests
     }
 
     [Fact]
+    public void ARefusedDesktopRunIsAReadableFailureThatIsntClickable()
+    {
+        var model = new RunPopupModel();
+
+        var view = model.Refused("gone", "Desktop shortcut", "This shortcut's flow isn't there anymore.", Settings);
+
+        Assert.Same(view, model.Current);
+        Assert.Equal(PopupTone.Failed, view.Tone);
+        Assert.Equal("Didn't start", view.Headline);
+        Assert.Equal(RunPopupModel.FailureMinimum, view.HideAfter);
+        Assert.False(view.Clickable);
+    }
+
+    [Fact]
     public void RunningShowsCountAndCurrentStep()
     {
         var model = Started();

@@ -63,6 +63,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     private readonly IEngineClient _engine;
     private readonly Action<Action> _post;
     private readonly Func<string, bool> _fileExists;
+    private readonly DesktopShortcutStore _desktop;
     private readonly Dictionary<LibraryKind, IReadOnlyList<DeviceInfo>> _live = [];
 
     /// <summary>The engine's lists behind <c>Suggest = Devices(kind)</c>: displays, services, credentials.</summary>
@@ -73,18 +74,22 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     private string? _stepType;
 
     public InspectorViewModel(ConfigSession session, FlowCanvasViewModel canvas, IEngineClient engine, Action<Action> post,
-        Func<string, bool>? fileExists = null)
+        Func<string, bool>? fileExists = null, DesktopShortcutStore? desktop = null)
     {
         _session = session;
         _canvas = canvas;
         _engine = engine;
         _post = post;
         _fileExists = fileExists ?? (p => File.Exists(p) || Directory.Exists(p));
+        _desktop = desktop ?? new DesktopShortcutStore(engine, session.Path);
+        _desktop.Changed += OnDesktopChanged;
         _session.PropertyChanged += OnSessionChanged;
         _canvas.PropertyChanged += OnCanvasChanged;
         _engine.StateChanged += OnEngineStateChanged;
         _engine.EventReceived += OnEngineEvent;
         Load();
+        UpdateDesktop();
+        _ = RefreshDesktopAsync();
     }
 
     public string FlowId => _canvas.FlowId;
@@ -230,6 +235,75 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool ShowPopup { get; set; }
 
+    // ---- Desktop shortcut (flow settings, D-049, UX §5.4) ----
+
+    /// <summary>"Puts a shortcut…" (#23), "On your desktop", "On your desktop as “Old name”", or #25 without the engine.</summary>
+    [ObservableProperty]
+    public partial string DesktopStatus { get; private set; } = DesktopShortcutStore.AddHelp;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowAddToDesktop))]
+    public partial bool HasDesktopShortcut { get; private set; }
+
+    public bool ShowAddToDesktop => !HasDesktopShortcut;
+
+    [ObservableProperty]
+    public partial bool CanAddToDesktop { get; private set; }
+
+    /// <summary>The shortcut still has the flow's old name: "Update" renames it.</summary>
+    [ObservableProperty]
+    public partial bool CanUpdateDesktop { get; private set; }
+
+    [ObservableProperty]
+    public partial bool CanRemoveFromDesktop { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDesktopError))]
+    public partial string? DesktopError { get; private set; }
+
+    public bool HasDesktopError => DesktopError is not null;
+
+    [RelayCommand]
+    private Task AddToDesktopAsync() => ChangeDesktopAsync(() => _desktop.AddAsync(FlowId));
+
+    [RelayCommand]
+    private Task RemoveFromDesktopAsync() => ChangeDesktopAsync(() => _desktop.RemoveAsync(FlowId));
+
+    private async Task ChangeDesktopAsync(Func<Task<string?>> change)
+    {
+        DesktopError = null;
+        var error = await change().ConfigureAwait(false);
+        _post(() => DesktopError = error);
+    }
+
+    private async Task RefreshDesktopAsync()
+    {
+        try
+        {
+            await _desktop.RefreshAsync().ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is IOException or OperationCanceledException)
+        {
+            // The engine went away mid-request: StateChanged follows and shows #25.
+        }
+    }
+
+    private void OnDesktopChanged() => _post(UpdateDesktop);
+
+    private void UpdateDesktop()
+    {
+        var running = _desktop.EngineRunning;
+        var shortcut = _desktop.Of(FlowId);
+        HasDesktopShortcut = shortcut is not null;
+        CanAddToDesktop = running && shortcut is null;
+        CanUpdateDesktop = running && shortcut is { CurrentName: false };
+        CanRemoveFromDesktop = running && shortcut is not null;
+        DesktopStatus = !running ? DesktopShortcutStore.EngineOffText
+            : shortcut is null ? DesktopShortcutStore.AddHelp
+            : shortcut.CurrentName ? "On your desktop"
+            : $"On your desktop as “{shortcut.Name}”";
+    }
+
     private Flow? Flow => _canvas.Flow;
 
     private Node? Node => NodeId is null ? null : Flow?.FindNode(NodeId);
@@ -367,18 +441,25 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                 .Where(n => n.Step.StartsWith("flag.", StringComparison.Ordinal) && n.With.TryGetValue("name", out var v) && v is ScalarParam)
                 .Select(n => (Flow: f.Id, Name: ((ScalarParam)n.With["name"]).Text)))
             .Where(x => x.Name.Length > 0)
-            .GroupBy(x => x.Name, StringComparer.Ordinal)
+            .GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
             .OrderBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
             .Select(g => (Name: g.Key, Flows: g.Select(x => x.Flow).Distinct().Count()))
             .Select(f => new SuggestionItem(f.Name, f.Flows == 1 ? "Used in 1 flow" : $"Used in {f.Flows} flows")),
     ];
 
     /// <summary>Asks the engine for a suggestion list (on load and each time a drop-down opens).</summary>
-    public async Task RefreshSuggestionsAsync(string kind)
+    /// <summary>#27 from what's on now, not the last list; no change when the engine doesn't answer.</summary>
+    public async Task UseScreensOnNowAsync(ParamFieldViewModel field)
+    {
+        if (field.Spec.Suggest is { Source: SuggestSource.Devices, Kind: var kind } && await RefreshSuggestionsAsync(kind).ConfigureAwait(false))
+            _post(field.UseScreensOnNow); // queued after the refresh's own update
+    }
+
+    public async Task<bool> RefreshSuggestionsAsync(string kind)
     {
         var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.Devices, Kind = kind }).ConfigureAwait(false);
         if (answer is not { Ok: true, Devices: { } devices })
-            return;
+            return false;
         _post(() =>
         {
             _suggested[kind] = devices;
@@ -395,6 +476,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                 _loading = false;
             }
         });
+        return true;
     }
 
     private void LoadCard(GroupNode card)
@@ -813,8 +895,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     internal static string Seconds(TimeSpan time) =>
         string.Create(CultureInfo.CurrentCulture, $"{Math.Round(time.TotalSeconds, time.TotalSeconds < 10 ? 1 : 0)} s");
 
-    private static string FirstGlyph(Flow flow) =>
-        flow.Nodes.OfType<StepNode>().Select(s => ProviderCatalog.Find(s.Step)?.Glyph).OfType<string>().FirstOrDefault() ?? "E8FD";
+    private static string FirstGlyph(Flow flow) => Core.Model.FlowGlyph.FirstStepCode(flow);
 
     private static List<GlyphOption> BuildGlyphs()
     {
@@ -848,6 +929,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(EngineRunning));
         OnPropertyChanged(nameof(CanTest));
         Load(); // "Capture current layout" comes and goes with the engine
+        _ = RefreshDesktopAsync();
         if (EngineRunning)
         {
             _ = RefreshShortcutProblemsAsync();
@@ -863,7 +945,10 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     private void OnEngineEvent(PipeEvent e)
     {
         if (e.Kind == EventKinds.ConfigReloaded)
+        {
             _ = RefreshShortcutProblemsAsync();
+            _ = RefreshDesktopAsync(); // a saved rename makes the shortcut's name old
+        }
     }
 
     public void Dispose()
@@ -874,6 +959,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         _canvas.PropertyChanged -= OnCanvasChanged;
         _engine.StateChanged -= OnEngineStateChanged;
         _engine.EventReceived -= OnEngineEvent;
+        _desktop.Changed -= OnDesktopChanged;
         ClearFields();
     }
 }

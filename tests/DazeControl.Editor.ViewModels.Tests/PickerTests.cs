@@ -26,7 +26,7 @@ public sealed class PickerTests : IDisposable
           g:
             name: Other
             nodes:
-              - { id: check, step: flag.check, with: { name: gaming } }
+              - { id: check, step: flag.check, with: { name: Gaming } }
         """;
 
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "DazeControl.Tests-" + Guid.NewGuid().ToString("N"));
@@ -113,6 +113,33 @@ public sealed class PickerTests : IDisposable
         Field("outputs").Screens.Single(s => s.Title == "LG TV").IsChecked = true;
 
         Assert.Equal(["DELL S2722QC", "LG TV", "Old TV"], Items("screens", "outputs"));
+    }
+
+    [Fact]
+    public void CheckingAScreenKeepsItsRowSoFocusStaysOnIt()
+    {
+        _canvas.Select("screens");
+        var row = Field("outputs").Screens.Single(s => s.Title == "LG TV");
+
+        row.IsChecked = true;
+
+        Assert.Same(row, Field("outputs").Screens.Single(s => s.Title == "LG TV"));
+        Assert.True(row.IsChecked);
+    }
+
+    [Fact]
+    public async Task UseTheScreensOnNowAsksTheEngineFirst()
+    {
+        _canvas.Select("screens");
+        _screens =
+        [
+            new() { Name = "DP-1", Detail = "DELL S2722QC, off", State = "off", Value = "DELL S2722QC" },
+            new() { Name = "HDMI-1", Detail = "LG TV, on", State = "on", Value = "LG TV" },
+        ];
+
+        await _inspector.UseScreensOnNowAsync(Field("outputs"));
+
+        Assert.Equal(["LG TV"], Items("screens", "outputs"));
     }
 
     [Fact]

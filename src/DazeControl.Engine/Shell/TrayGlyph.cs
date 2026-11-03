@@ -67,7 +67,13 @@ internal static unsafe class TrayGlyph
     }
 
     /// <summary>Straight-alpha ARGB, row-major, top-down.</summary>
-    internal static uint[] Paint(TrayGlyphKind kind, int size)
+    internal static uint[] Paint(TrayGlyphKind kind, int size) => Paint(size, (u, v) => Sample(kind, u, v));
+
+    /// <summary>The app tile alone (violet→blue, rounded), for a desktop shortcut's icon under a flow's glyph (D-049).</summary>
+    internal static uint[] PaintTile(int size) =>
+        Paint(size, (u, v) => InRoundedSquare(u, v, inset: 0.04, radius: 0.24) ? Lerp(Violet, Blue, Math.Clamp((u + v) / 2, 0, 1)) : 0);
+
+    private static uint[] Paint(int size, Func<double, double, uint> sample)
     {
         var pixels = new uint[size * size];
         for (var y = 0; y < size; y++)
@@ -81,7 +87,7 @@ internal static unsafe class TrayGlyph
                     {
                         var u = (x + (sx + 0.5) / Samples) / size;
                         var v = (y + (sy + 0.5) / Samples) / size;
-                        var c = Sample(kind, u, v);
+                        var c = sample(u, v);
                         var alpha = (c >> 24) / 255.0;
                         a += alpha;
                         r += alpha * ((c >> 16) & 0xFF);

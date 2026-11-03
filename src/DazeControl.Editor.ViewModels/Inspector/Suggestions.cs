@@ -30,7 +30,7 @@ public sealed partial class ScreenCheckViewModel(string title, string caption, s
     public string Value { get; } = value;
 
     /// <summary>The step's entry that already means this screen, kept as written.</summary>
-    public string? Entry { get; } = entry;
+    public string? Entry { get; internal set; } = entry;
 
     public bool Plugged { get; } = plugged;
 
