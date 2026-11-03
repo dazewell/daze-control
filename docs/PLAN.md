@@ -166,7 +166,9 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   `StepEndsFlowException` + `RunFinished.Quiet`, resource `menu`, dry run and test-step (feat/m12-runtime, DESIGN
   §3.2). Done when: Runtime.Tests with a fake presenter: pick launches with trigger "Menu · Couch" and summary; ignore
   while running; `wait` takes a failed child's outcome; nothing picked → node and flow Cancelled, quiet, `always`
-  edges don't run; two menus serialize on `menu`; dry run doesn't show; test-step returns the pick without a run.
+  edges don't run; two menus serialize on the presenter gate; a `wait: true` parent picking a submenu flow shows the
+  child's menu (gate released before the launch) and takes its outcome; "Back" to a parent that is still running
+  follows its `whenRunning`; dry run doesn't show; test-step returns the pick without a run.
 - [ ] T12.5 Runtime: pure `MenuModel` + `GamepadChordRecognizer` + `GamepadTable` (feat/m12-runtime, DESIGN §2.4,
   §3.4, §4.3). Done when: tests with `ManualTime`: list/grid moves (no wrap, 2D), repeat 400/120 ms, stick hysteresis,
   released-since-open, 1–9, close timer restarts on input and ends as cancel, last pick focused first, Steam dedupe
@@ -174,7 +176,9 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   a longer chord; table diff on reload, Pause, `record-gamepad` pausing chords.
 - [ ] T12.6 Engine: `GamepadSource` (S1's backend) + `DeviceArrival` + suspend/resume, loaded only when needed; ops
   `devices gamepads`, `record-gamepad`; `dctl devices gamepads` (feat/m12-gamepad). Done when: unit tests on the seams
-  (no chord → never started; last pad gone → stopped); on the dev PC a chord on a test flow runs it with another app
+  (no chord → never started; last pad gone → stopped; `record-gamepad` with no chord in the config starts the source,
+  records the first chord and releases it on answer, timeout and client gone; `devices gamepads` lists a pad with no
+  chord configured); on the dev PC a chord on a test flow runs it with another app
   in front and history says "Controller · View + Menu"; `dctl devices gamepads` lists the pad; footprint per DESIGN
   §3.8 measured (no chord; chord + no pad; pad on) and recorded.
 - [ ] T12.7 Engine: `AcrylicSurface` cut from `RunPopup`, `FlowMenu` (list, grid, large, focus visual, hint row,

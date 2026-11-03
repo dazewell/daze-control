@@ -77,8 +77,12 @@ branch on the pick. Branching is what the menu items are. Recorded as `NodeResul
   hotkey. The docs (README) say how; no code.
 
 ### 2.5 Menus inside menus; validation (D-054)
-- A submenu is an item whose flow has a menu step. With launch semantics the first menu's run ends before the
-  next menu shows, so menus can point at each other (a "Back" item is just the parent's flow): no runtime recursion.
+- A submenu is an item whose flow has a menu step. With launch semantics the first menu's run ends right after the
+  pick, so menus can point at each other (a "Back" item is just the parent's flow): no runtime recursion.
+- "Back" is an ordinary pick, so it follows the parent's `whenRunning`: it reopens the parent only when the parent's
+  run has ended, i.e. the menu is its last step and it doesn't `wait`. A parent still running (later steps, or
+  `wait: true`) applies its policy (ignore → #17 pop-up; queue → it reopens when that run ends; restart → it reopens
+  now). The editor's Back pattern ("Controller menu" template) keeps the menu as the flow's last step.
 - Validation (Core `ConfigValidator`):
   - an item that is the menu's own flow → error "A menu can't list its own flow." (#38);
   - an unknown flow id → warning, the item is dropped at run time, editor shows "isn't there anymore" (#40);
@@ -115,8 +119,11 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
     providers may use it later; null = today's behaviour.
   - `StepEndsFlowException` (quiet stop): the runner marks the node Cancelled with its message, stops the flow
     (Cancelled), and `RunFinished.Quiet = true` tells the pop-up model to show nothing.
-- Resource lock `menu` (D-010): one menu on screen engine-wide; a second menu step waits for it (counts toward its
-  timeout). The same flow pressed again is its `whenRunning` (default for new menu flows: ignore).
+- One menu on screen engine-wide: the presenter owns a `menu` gate held **only around `ShowAsync`**, released
+  before the picked flow starts or is awaited; a second menu step waits for the gate (counts toward its timeout).
+  Not a descriptor resource (D-010): those are held for the whole attempt, so a `wait: true` parent would hold it
+  while its child's menu waits for it — a deadlock until the timeout. The same flow pressed again is its
+  `whenRunning` (default for new menu flows: ignore).
 - Timeout: descriptor default 10 min, validator requires `timeout` > `closeAfter`. The close timer is the
   presenter's (`TimeProvider`), not the step timeout: running out of time is a cancel, not a failure.
 - Dry run: doesn't show; summary "Would show 4 choices". Test this step (D-040): shows the real menu; a pick
@@ -158,7 +165,9 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
 - Decision shape (D-056): GameInput callbacks if spike S1 passes, else XInput polling **only while an XInput pad is
   connected** (user, 2026-11-03: accepted, ~0.1 % CPU and a little battery while a pad is on; 0 with none):
   20 Hz while only chords listen, 60 Hz while a menu is open, only the connected slots (an empty slot stalls).
-- Nothing gamepad-related loads unless a runnable flow has a `gamepad:` chord or a menu is open. With chords,
+- Nothing gamepad-related loads unless a runnable flow has a `gamepad:` chord, a menu is open, or a request needs
+  it: `record-gamepad` is a temporary consumer (source started for it, released on answer, timeout or client gone),
+  and `devices gamepads` enumerates once on demand without starting the reader. With chords,
   `Input/DeviceArrival` registers a device-interface notification on the message window (HID + XUSB interface
   classes) and starts/stops the source as pads come and go; sleep/resume (`RegisterSuspendResumeNotification`)
   stops and restarts it. We never send output (rumble, LEDs), so pads still time out and sleep on their own.
@@ -182,7 +191,8 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
 ### 3.6 IPC and CLI
 - `devices gamepads` → `DeviceInfo` per connected pad (name, slot, "Connected", battery level when known).
   `dctl devices gamepads`.
-- `record-gamepad` (timeout ≤ 15 s, cancel on client gone): pauses gamepad chords, answers the next chord
+- `record-gamepad` (timeout ≤ 15 s, cancel on client gone): starts the source if nothing else holds it (so the first
+  chord of a config can be recorded), pauses gamepad chords, answers the next chord
   (canonical text) or "no controller" / timed out. The editor's recorder uses it, so what you record is what the
   engine sees. Additive; `protocol` stays 1.
 - `test-step` for `menu.show` shows the menu and answers the pick (§3.2).

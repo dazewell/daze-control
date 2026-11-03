@@ -615,7 +615,10 @@ Status: accepted (M12 design)
   `wait: true` makes the step wait for the picked flow and take its outcome. Closing without a pick (B, Esc, click
   outside, close timer, the flow stopped) cancels the menu node and the flow, and shows no pop-up
   (`StepEndsFlowException`, `RunFinished.Quiet`). Submenus are items whose flow has a menu; no in-window submenus.
-  Validation: own flow → error; unknown or duplicate item → warning, dropped; a `wait` loop → error.
+  Validation: own flow → error; unknown or duplicate item → warning, dropped; a `wait` loop → error. One menu on
+  screen: a presenter gate held only while the menu shows, never a step resource (a `wait` parent would hold it while
+  its child's menu waits: deadlock, PR #28 review). "Back" (an item = the parent's flow) follows the parent's
+  `whenRunning`, so it reopens the parent only once that run has ended.
 - Why: launch reuses every existing rule (whenRunning, locks, history) and needs no recursion guard: the first menu's
   run ends before the next menu shows, so menus may point at each other ("Back" = the parent's flow). A user closing
   the menu isn't a failure, so no "Didn't finish".
@@ -647,7 +650,8 @@ Status: proposed (M12 design; spike S1 decides; user, 2026-11-03: polling while 
   the dev PC, 0.2309.26100, no redist) with reading + device callbacks and background input. Fallback: `xinput1_4`
   polled at 20 Hz while only chords listen and 60 Hz while a menu is open, on connected slots only, and only while a
   pad is connected (device-interface notifications, suspend/resume). Nothing loads unless a runnable flow has a
-  `gamepad:` chord or a menu shows. Steam Controller: through Steam's desktop layout (keys), no code.
+  `gamepad:` chord, a menu shows, or `record-gamepad` runs (a temporary consumer, released when it answers, times out
+  or its client goes); `devices gamepads` enumerates once on demand. Steam Controller: through Steam's desktop layout (keys), no code.
 - Why: the user's pads are an Xbox controller and the Steam Controller (2026-11-03); D-009 wants 0 CPU idle, and the
   dev PC is a laptop on battery, so the zero-cost path goes first and polling is bounded to "a pad is on".
 - Why not Windows.Gaming.Input: CsWinRT in the AOT engine (D-052's reasons), it polls too, and desktop apps get no
