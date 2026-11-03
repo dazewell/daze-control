@@ -56,8 +56,8 @@ section rewritten, FEATURES where behaviour changed).
   collapsed after a restart; Narrator names the toggle.
 - [ ] T13.4 P1 **Right-drag pans the canvas** (feat/m13-right-drag, D-069). Files: `Editor/Canvas/FlowCanvas.xaml.cs`
   (pointer pressed/moved/released, `OnRightTapped` and context requests swallowed after a pan), a pure gesture helper
-  in `Editor.ViewModels/Canvas` (arm → pan past the system drag rectangle → swallow), `GetSystemMetrics` via
-  `LibraryImport`. Done when: helper tests (below threshold = menu, past = pan + no menu, DPI scaling); running editor:
+  in `Editor.ViewModels/Canvas` (arm → pan past the system drag rectangle → swallow), `GetSystemMetricsForDpi` via
+  `LibraryImport`, converted to DIP. Done when: helper tests (below threshold = menu, past = pan + no menu, DPI scaling); running editor:
   right-drag over empty canvas, a pill and an edge pans without selecting; a still right click opens each menu.
 - [ ] T13.5 P2 **New line after a wrapped chain** (feat/m13-wrap-newline, D-066). Files: `Core/Layout/FlowLayout.cs`
   (segments split at wrapped runs; the next segment at the block's x, one `WrapRowGap` under it, centred among

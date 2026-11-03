@@ -80,18 +80,25 @@ instead." (#48). Both fail → "Didn't finish" with Sony's reason (#56).
 | Called flow ended | This step | Edges / this run |
 |---|---|---|
 | Succeeded (incl. a failure its fallback fixed) | Succeeded, summary "Ran Make it the default" | success, always |
-| PartiallySucceeded (a may-fail or skipped part) | Succeeded; this run gets the problem ("Done, with a problem" names the inner step) | success, always |
+| PartiallySucceeded (a may-fail or skipped part) | Succeeded, with `Called.Outcome` = PartiallySucceeded (see below) | success, always |
 | Failed | Failed, error #56 (its first failure in its words) | failure, always; policy as any step |
 | Ended quietly (a menu inside it: nothing picked, D-054) | Cancelled; this run ends quietly too | none (as any cancel) |
 | Timed out / this run cancelled | Failed #57 / Cancelled; the nested run is cancelled (process trees killed) | as any step |
 | Not runnable (turned off, never valid, missing) | Failed with #52/#33/#51 | failure, always |
 - Start mode: Started → Succeeded; ignored by its `whenRunning` → Succeeded with #58 (not a failure, as for menu
   picks); refused → Failed with the reason.
+- **A partial nested result** stays a problem without becoming a failure: the call node's `NodeResult` is Succeeded
+  (success edges fire, no failure edge, no policy), and `Outcomes.Summarize` counts a Succeeded node whose
+  `Called.Outcome` is PartiallySucceeded as a problem, so the caller ends PartiallySucceeded unless it fails for its
+  own reasons (a fixed failure in the caller doesn't hide it). Pop-up "Done, with a problem", row 3 #14's pattern
+  with the called flow's name first ("Make it the default: Connect didn't work, so it went on without it."); the
+  tray's problem notification and the Runs chip follow the caller's outcome; history keeps both outcomes.
 
 ### 2.3 Which version runs
-The called flow's runnable version from the current `ConfigSnapshot` (valid and enabled, else its last valid version,
-D-021) with the `Library` that version was validated with. A turned-off flow is never run by a call (same as menus,
-#29 "Turned off"): its On switch means "don't run", whoever asks. Building blocks stay out of the tray with the
+The called flow's runnable version from the current `ConfigSnapshot` with the `Library` that version was validated
+with: the file's version if valid, else its last valid version (D-021 applies to an **invalid definition** only). A
+turned-off flow has no runnable version and is never run by a call, old version or not: the step fails with #52
+(same as menus, #29 "Turned off"); its On switch means "don't run", whoever asks. Building blocks stay out of the tray with the
 existing `tray: { show: false }`.
 
 ## 3. Nested runs (D-062)

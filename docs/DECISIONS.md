@@ -776,7 +776,8 @@ Status: accepted (M13 design; user, 2026-11-03: "no infinite loops")
 
 ## D-064 · 2026-11-03 · Flow inputs are Library devices with defaults; steps use `$name`; calls pass `inputs:`
 Status: accepted (M13 design; user, 2026-11-03: inputs ship inside P6)
-- Decision: `Flow.Inputs` = name → (`LibraryKind`, label, default key, required). A `LibraryRef` param of the same
+- Decision: `Flow.Inputs` = name → (`LibraryKind`, label, default key); the default is always given (YAML `kind`,
+  `name`, `default`; no "required" flag, every input is optional for a caller). A `LibraryRef` param of the same
   kind may hold `$name`; the runner resolves it (caller's value, else the default) before resources are filled.
   `flow.run` passes `inputs:` (TextMap: Library keys or the caller's own `$name`). Validation checks kinds, names and
   keys like any library ref; `LibraryEdits.Rename` rewrites defaults and passed values.
@@ -851,7 +852,8 @@ Status: accepted (M13 design)
 ## D-069 · 2026-11-03 · Right-drag pans the canvas; a right click that doesn't move still opens the menu
 Status: accepted (M13 design; user, 2026-11-03)
 - Decision: in `FlowCanvas`, a mouse right press arms a pan; once the pointer leaves the system drag rectangle
-  (`GetSystemMetrics(SM_CXDRAG/SM_CYDRAG)`, in DIP) it captures, pans like middle-drag with the same cursor, and the
+  (`GetSystemMetricsForDpi(SM_CXDRAG/SM_CYDRAG, dpi)` for the window's DPI, converted to DIP as px × 96 / dpi, since
+  pointer positions are DIP) it captures, pans like middle-drag with the same cursor, and the
   release swallows `RightTapped`/`ContextRequested`. Released inside the rectangle → the context menu as today, for
   whatever is under the pointer. Works over pills and edges without selecting them. Pen and touch unchanged.
 - Why: the user pans without scrolling sideways; diagram tools (Visio, draw.io, Miro) pan on right-drag and keep the

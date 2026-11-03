@@ -55,7 +55,7 @@ flows:
 - `wait: true` (D-061): the picked flow runs **nested** inside the menu flow's run, as `flow.run` does
   ([flow-calls/DESIGN.md](../flow-calls/DESIGN.md) §3): no `whenRunning`, no record or pop-up of its own (the menu
   flow's pop-up shows it), and the step takes its outcome; the step's timeout covers it (default 10 min).
-- A pick that `whenRunning: ignore` drops: the step succeeds with "Couch TV was already running, so this pick was
+- Launch picks only (`wait: false`): a pick that `whenRunning: ignore` drops: the step succeeds with "Couch TV was already running, so this pick was
   ignored." (#17 pattern) and the run pop-up says it.
 - **Nothing picked** ends the flow quietly: the menu node is Cancelled with "Nothing picked" (#44), nothing after it
   runs (`always` edges included, as with any cancel), the flow outcome is Cancelled, and **no** run pop-up shows (the
@@ -250,7 +250,7 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
 ### 4.4 States and wording (D-026 voice; numbers in UX §5.7)
 - Empty (all choices off): the rows show their reasons, plus a line "Nothing here can run right now" / "Turn on or
   fix these flows in Daze Control." (#28). B/Esc closes.
-- Picked flow already running: its caption says "Running"; picking applies its "If it's already running"; ignore →
+- Picked flow already running: its caption says "Running"; a launch pick (`wait: false`) applies its "If it's already running", a nested one (`wait: true`) just runs; ignore →
   run pop-up #17-style for the menu pick (§2.2).
 - Picked flow became invalid between show and pick: the menu closes, pop-up "Couch TV didn't start. It needs
   fixing." (#33). Deleted: dropped from the menu at show time.
