@@ -66,7 +66,8 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
         return new EdgeCurve(start, new Point(start.X + reach, start.Y), new Point(end.X - reach, end.Y), end, tip);
     }
 
-    public Point Midpoint => At(0.5);
+    /// <summary>The curve's middle; a wrapped edge's is the return lane's middle, so chips stay in the row gap.</summary>
+    public Point Midpoint => WrapLaneY is { } lane ? new((Start.X + WrapStep + Tip.X - WrapStep) / 2, lane) : At(0.5);
 
     public Point At(double t)
     {

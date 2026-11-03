@@ -89,8 +89,10 @@ public class WrappedEdgeCurveTests
     [Fact]
     public void TheMidpointLiesOnTheReturnLane()
     {
-        Assert.Equal(128, Curve.Midpoint.Y, 3);
-        Assert.InRange(Curve.Midpoint.X, 32, 616);
+        Assert.Equal(new Point(324, 128), Curve.Midpoint);
+        // Even when a tall card makes the drops longer than the lane.
+        var tall = EdgeCurve.Wrapped(new Point(300, 100), new Point(48, 600), 400);
+        Assert.Equal(new Point(174, 400), tall.Midpoint);
     }
 
     [Fact]

@@ -325,6 +325,15 @@ public sealed partial class FlowCanvas : UserControl
             return;
         }
         var mid = edge.Curve.Midpoint;
+        if (edge.Curve.IsWrapped)
+        {
+            // The row gap is too low to lift them above the lane (D-060): centre them on the lane, right of the chip.
+            var lane = edge.Curve.Corners;
+            XamlCanvas.SetLeft(EdgeControls, (mid.X + lane[2].X) / 2 - EdgeControlsWidth / 2);
+            XamlCanvas.SetTop(EdgeControls, mid.Y - EdgeControlsHeight / 2);
+            EdgeControls.Visibility = Visibility.Visible;
+            return;
+        }
         XamlCanvas.SetLeft(EdgeControls, mid.X - EdgeControlsWidth / 2);
         // Above the line, so a click on the line itself still selects the edge.
         XamlCanvas.SetTop(EdgeControls, mid.Y - EdgeControlsLift - EdgeControlsHeight);
