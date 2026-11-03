@@ -62,6 +62,10 @@ public sealed class PipeRequest
     /// must not run another flow called like that id.</summary>
     public bool ExactId { get; init; }
 
+    /// <summary>run (desktop shortcut): the full path of the config the shortcut is for. The engine and its pipe are per
+    /// user, not per config: an engine running another config refuses the run instead of starting its own flow.</summary>
+    public string? ConfigPath { get; init; }
+
     /// <summary>run: walk the flow with steps that do nothing (no history, no locks).</summary>
     public bool DryRun { get; init; }
 

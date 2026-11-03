@@ -114,6 +114,27 @@ public sealed class EngineControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task ADesktopRunForAnotherConfigIsRefused()
+    {
+        // One engine per user, whatever its config: a shortcut made by another config's engine must not run "tv" here.
+        var refused = new List<RunRefusal>();
+        _controller.RunRefused += refused.Add;
+
+        var answer = await _controller.HandleAsync(new PipeRequest
+        {
+            Id = 7, Op = Ops.Run, Flow = "tv", ExactId = true, ConfigPath = @"D:\other.yaml",
+        }, CancellationToken.None);
+
+        Assert.False(answer.Ok);
+        Assert.Empty(_history.Recent);
+        Assert.Contains(@"D:\other.yaml", Assert.Single(refused).Message, StringComparison.Ordinal);
+        Assert.True((await _controller.HandleAsync(new PipeRequest
+        {
+            Id = 8, Op = Ops.Run, Flow = "tv", ExactId = true, Wait = true, ConfigPath = Path.GetFullPath("c.yaml"),
+        }, CancellationToken.None)).Ok);
+    }
+
+    [Fact]
     public async Task ACommandLineRunThatCantStartIsNoPopup()
     {
         var refused = new List<RunRefusal>();

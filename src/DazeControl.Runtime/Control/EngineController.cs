@@ -213,6 +213,9 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         var id = request.Id;
         if (request.DryRun && request.Config is not null)
             return await DryRunSentAsync(request, request.Trigger ?? "Editor", cancellationToken).ConfigureAwait(false);
+        if (request.ConfigPath is { } wanted && !SameFile(wanted, info.ConfigPath))
+            return Refuse(request, request.Flow ?? "", DesktopTrigger,
+                $"This shortcut is for the flows in {wanted}, but Daze Control is running {info.ConfigPath}.");
         var state = request.ExactId ? FindById(request.Flow) : Find(request.Flow);
         if (state is null)
             return Refuse(request, request.Flow ?? "", DesktopTrigger, ShortcutFlowGone, NotFound(id, request.Flow));
@@ -436,6 +439,18 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         var flows = config().Flows;
         return flows.FirstOrDefault(f => f.FlowId == text)
             ?? flows.FirstOrDefault(f => string.Equals(NameOf(f), text, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool SameFile(string a, string b)
+    {
+        try
+        {
+            return string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
     }
 
     /// <summary>By id only (a desktop shortcut, D-049).</summary>

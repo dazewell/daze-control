@@ -262,8 +262,9 @@ internal sealed class EngineHost : IDisposable
     }
 
     /// <summary>Id only, never a name (D-049); no wait: the pop-up and history tell the rest.</summary>
-    public static PipeRequest DesktopRun(string flowId) =>
-        new() { Op = Ops.Run, Flow = flowId, ExactId = true, Trigger = EngineController.DesktopTrigger };
+    /// <param name="configPath">The shortcut's config (full path), when forwarded to an engine that may run another.</param>
+    public static PipeRequest DesktopRun(string flowId, string? configPath = null) =>
+        new() { Op = Ops.Run, Flow = flowId, ExactId = true, Trigger = EngineController.DesktopTrigger, ConfigPath = configPath };
 
     /// <summary>On the message thread.</summary>
     private void ShowRefusal(RunRefusal refusal)

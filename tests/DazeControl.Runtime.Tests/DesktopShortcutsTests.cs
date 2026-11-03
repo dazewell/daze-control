@@ -109,7 +109,7 @@ public sealed class DesktopShortcutsTests : IDisposable
         var link = _links.Files[made.Path];
         Assert.Equal(Stub, link.Target);
         Assert.Equal("--run \"tv\"", link.Arguments);
-        Assert.Equal(Path.Combine(Icons, "tv.ico"), link.IconPath);
+        Assert.StartsWith(Path.Combine(Icons, "tv "), link.IconPath, StringComparison.Ordinal);
         Assert.Equal("\uE7F4", _icons.Written[link.IconPath!]);
     }
 
@@ -183,8 +183,8 @@ public sealed class DesktopShortcutsTests : IDisposable
         Assert.Equal(1, shortcuts.Remove("a"));
 
         Assert.Equal(["b"], shortcuts.List().Select(s => s.FlowId));
-        Assert.False(File.Exists(Path.Combine(Icons, "a.ico")));
-        Assert.True(File.Exists(Path.Combine(Icons, "b.ico")));
+        Assert.False(File.Exists(shortcuts.IconPath("a")));
+        Assert.True(File.Exists(shortcuts.IconPath("b")));
     }
 
     [Fact]
@@ -219,6 +219,33 @@ public sealed class DesktopShortcutsTests : IDisposable
         Assert.Equal("tv/hifi", EngineArguments.Parse(EngineArguments.Split(link.Arguments)).RunFlowId);
         Assert.DoesNotContain('/', Path.GetFileName(link.IconPath!));
         Assert.Equal("tv/hifi", Make().List().Single().FlowId);
+    }
+
+    [Fact]
+    public void CaseOnlyIdsAndOtherConfigsGetTheirOwnIcons()
+    {
+        var lower = Make().IconPath("tv");
+        Assert.NotEqual(lower, Make().IconPath("TV"));
+        Assert.NotEqual(lower, Make(@"D:\other.yaml").IconPath("tv"));
+        Assert.Equal(lower, Make(DefaultConfig).IconPath("tv")); // the default config, named or not
+    }
+
+    [Fact]
+    public void AFolderWithTheNameIsNeverUsed()
+    {
+        Directory.CreateDirectory(Path.Combine(Desktop, "TV.lnk"));
+
+        Assert.Equal(Path.Combine(Desktop, "TV (2).lnk"), Make().Create(Flow("tv", "TV")).Path);
+    }
+
+    [Fact]
+    public async Task ConcurrentCreatesOfTwoSameNamedFlowsDontOverwrite()
+    {
+        var shortcuts = Make();
+
+        await Task.WhenAll(Enumerable.Range(0, 8).Select(i => Task.Run(() => shortcuts.Create(Flow("f" + i, "TV")))));
+
+        Assert.Equal(8, shortcuts.List().Select(s => s.Path).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
     /// <summary>Links as real (empty) files, so the Desktop scan and the name clash check see them.</summary>

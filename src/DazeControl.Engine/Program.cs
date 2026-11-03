@@ -26,7 +26,7 @@ public static class Program
         if (instance is null)
         {
             if (arguments.RunFlowId is { } flowId)
-                ForwardRun(flowId);
+                ForwardRun(flowId, ConfigPathOf(arguments) ?? EnginePaths.DefaultConfig);
             return 0;
         }
         Log.Initialize(Log.DefaultDirectory);
@@ -56,7 +56,7 @@ public static class Program
             installed = false;
         }
 
-        var paths = EnginePaths.Default(arguments.Config is { } config ? Path.GetFullPath(config) : null);
+        var paths = EnginePaths.Default(ConfigPathOf(arguments));
         Log.Info($"engine: config {paths.Config}");
         using var host = new EngineHost(paths, notifier => BuiltInProviders.Create(TimeProvider.System, notifier), BuiltInProviders.Devices());
         using var updates = installed
@@ -74,7 +74,10 @@ public static class Program
     /// A desktop shortcut while the engine runs (D-049): hand the run to it and exit. Writes nothing (the log is the
     /// running engine's); a run that can't start is the running engine's pop-up.
     /// </summary>
-    private static void ForwardRun(string flowId)
+    private static string? ConfigPathOf(EngineArguments arguments) =>
+        arguments.Config is { } config ? Path.GetFullPath(config) : null;
+
+    private static void ForwardRun(string flowId, string configPath)
     {
         try
         {
@@ -85,7 +88,7 @@ public static class Program
                 if (client is null)
                     return;
                 await using (client.ConfigureAwait(false))
-                    await client.SendAsync(EngineHost.DesktopRun(flowId), cancel.Token).ConfigureAwait(false);
+                    await client.SendAsync(EngineHost.DesktopRun(flowId, configPath), cancel.Token).ConfigureAwait(false);
             }).Wait();
         }
         catch (AggregateException)

@@ -52,8 +52,15 @@ public sealed record ShortcutPlaces(string Desktop, string IconFolder, string Ta
 /// </summary>
 public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkStore links, IFlowIconRenderer icons, Action<string>? log = null)
 {
+    /// <summary>Pipe requests run concurrently: scan, pick a name, write and delete happen as one step.</summary>
+    private readonly Lock _gate = new();
+
     /// <summary>Our shortcuts for this engine's config, in file-name order.</summary>
-    public IReadOnlyList<DesktopShortcut> List() => [.. Scan(anyConfig: false).OrderBy(s => s.Path, StringComparer.OrdinalIgnoreCase)];
+    public IReadOnlyList<DesktopShortcut> List()
+    {
+        lock (_gate)
+            return [.. Scan(anyConfig: false).OrderBy(s => s.Path, StringComparer.OrdinalIgnoreCase)];
+    }
 
     /// <summary>
     /// Writes the flow's shortcut under its current name, replacing the one it had (an old name), and returns it. An icon
@@ -62,9 +69,15 @@ public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkSt
     public DesktopShortcut Create(Flow flow)
     {
         ArgumentNullException.ThrowIfNull(flow);
+        lock (_gate)
+            return CreateLocked(flow);
+    }
+
+    private DesktopShortcut CreateLocked(Flow flow)
+    {
         var mine = Scan(anyConfig: false).Where(s => s.FlowId == flow.Id).ToList();
         var path = FreePath(flow, mine);
-        string? icon = Path.Combine(places.IconFolder, ShortcutNames.SafeName(flow.Id, "flow") + ".ico");
+        string? icon = IconPath(flow.Id);
         try
         {
             Directory.CreateDirectory(places.IconFolder);
@@ -85,24 +98,42 @@ public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkSt
     /// <summary>Removes the flow's shortcuts (and its icon); how many there were.</summary>
     public int Remove(string flowId)
     {
-        var mine = Scan(anyConfig: false).Where(s => s.FlowId == flowId).ToList();
-        foreach (var shortcut in mine)
-            links.Delete(shortcut.Path);
-        // Another config's shortcut for the same id may still use the icon.
-        if (mine.Count > 0 && !Scan(anyConfig: true).Any(s => s.FlowId == flowId))
-            DeleteIcon(flowId);
-        return mine.Count;
+        lock (_gate)
+        {
+            var mine = Scan(anyConfig: false).Where(s => s.FlowId == flowId).ToList();
+            foreach (var shortcut in mine)
+                links.Delete(shortcut.Path);
+            // The icon's name carries this config and the exact id: no other shortcut uses it.
+            if (mine.Count > 0)
+                DeleteIcon(flowId);
+            return mine.Count;
+        }
     }
 
     /// <summary>Uninstall: every shortcut of ours, whatever its config, and the icon folder.</summary>
     public int RemoveAll()
     {
-        var all = Scan(anyConfig: true).ToList();
-        foreach (var shortcut in all)
-            links.Delete(shortcut.Path);
-        if (Directory.Exists(places.IconFolder))
-            Directory.Delete(places.IconFolder, recursive: true);
-        return all.Count;
+        lock (_gate)
+        {
+            var all = Scan(anyConfig: true).ToList();
+            foreach (var shortcut in all)
+                links.Delete(shortcut.Path);
+            if (Directory.Exists(places.IconFolder))
+                Directory.Delete(places.IconFolder, recursive: true);
+            return all.Count;
+        }
+    }
+
+    /// <summary>
+    /// The flow's .ico: its id made safe, plus a hash of this config and the exact id, so <c>tv</c> and <c>TV</c>, or one
+    /// id in two configs, never share (or delete) each other's icon.
+    /// </summary>
+    internal string IconPath(string flowId)
+    {
+        var config = Path.GetFullPath(places.ConfigArgument ?? places.DefaultConfig).ToUpperInvariant();
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(config + "\n" + flowId));
+        var stem = ShortcutNames.SafeName(flowId, "flow");
+        return Path.Combine(places.IconFolder, $"{stem} {Convert.ToHexStringLower(hash.AsSpan(0, 4))}.ico");
     }
 
     /// <summary>True when the shortcut is called what the flow is called now (or that plus " (2)" for a clash).</summary>
@@ -123,7 +154,8 @@ public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkSt
         for (var n = 1; n < 100; n++)
         {
             var path = Path.Combine(places.Desktop, (n == 1 ? name : $"{name} ({n})") + ".lnk");
-            if (mine.Any(s => SamePath(s.Path, path)) || !File.Exists(path))
+            // A folder called "TV.lnk" takes the name too.
+            if (mine.Any(s => SamePath(s.Path, path)) || !(File.Exists(path) || Directory.Exists(path)))
                 return path;
         }
         throw new IOException($"Too many files on the desktop are called {name}.");
@@ -153,7 +185,7 @@ public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkSt
 
     private void DeleteIcon(string flowId)
     {
-        var icon = Path.Combine(places.IconFolder, ShortcutNames.SafeName(flowId, "flow") + ".ico");
+        var icon = IconPath(flowId);
         try
         {
             File.Delete(icon);
