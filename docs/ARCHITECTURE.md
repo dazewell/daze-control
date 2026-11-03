@@ -315,6 +315,8 @@ As built (M4): the composition root is `Providers/BuiltInProviders.Create`. Para
 (written value, else the descriptor default). COM providers (Audio, Bluetooth) use CsWin32 without marshalling
 and run each call on a short-lived MTA thread (`ComThread`), which turns a failed HRESULT into a step failure;
 waits for a device use a hand-made IMMNotificationClient vtable (`CoreAudioEndpoints.DeviceChangeClient`).
+`devices bluetooth` (D-052): `Bluetooth/PairedBluetooth` reads present `BTHENUM`/`BTHLE` devnodes through CfgMgr32
+(`LibraryImport`, seam `IPairedBluetooth`); `BluetoothList.Merge` adds the endpoints' Connected and `NotConnectable`.
 
 ## Footprint (measured by `scripts/measure.ps1`)
 

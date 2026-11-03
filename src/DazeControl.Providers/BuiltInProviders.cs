@@ -15,7 +15,7 @@ namespace DazeControl.Providers;
 public static class BuiltInProviders
 {
     /// <summary>What <c>dctl devices</c> and <c>dctl capture-display-layout</c> read.</summary>
-    public static IDeviceQueries Devices() => new SystemDevices(new CcdDisplays(), new AdbProcess());
+    public static IDeviceQueries Devices() => new SystemDevices(new CcdDisplays(), new AdbProcess(), new CfgMgrPairedBluetooth());
 
     public static IReadOnlyList<IStepProvider> Create(TimeProvider time, INotifier notifier)
     {

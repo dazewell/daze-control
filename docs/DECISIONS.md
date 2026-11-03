@@ -587,7 +587,8 @@ Status: accepted (M11, fixes the user's report)
   through CfgMgr32 (`CM_Get_Device_ID_List`, `DEVPKEY_Device_FriendlyName`), merged by address. A device with audio
   endpoints is "can connect here" and takes Connected from them; others are listed but not pickable for
   connect/disconnect ("Daze Control can connect only headphones and speakers."). Connected for non-audio devices
-  comes from a devnode property if the task's check against Settings finds a reliable one, else no state is shown.
+  comes from the devnode's undocumented `{83DA6326-97A6-4088-9453-A1923F573B29} 15` (bool): it matched Settings' AEP
+  `IsConnected` on all 8 nodes of the dev PC (T11.1, 2026-11-02); missing → no state shown.
 - Why: the old list came from audio endpoints, including NOTPRESENT ones, so it showed unpaired devices and missed
   every non-audio pairing — it matched neither Settings nor reality (X-005).
 - Why not WinRT `DeviceInformation` (the AEP list Settings itself uses): pulls the CsWinRT projection into the AOT

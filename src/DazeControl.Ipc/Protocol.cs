@@ -192,8 +192,15 @@ public sealed class DeviceInfo
     /// <summary>What a step's <c>with:</c> takes: an endpoint name, a Bluetooth address, a port.</summary>
     public string Name { get; init; } = "";
 
-    /// <summary>"Output, default", "Connected", "DELL S2722QC, on".</summary>
+    /// <summary>"Output, default", "DELL S2722QC, on"; Bluetooth: the device's name in Windows.</summary>
     public string? Detail { get; init; }
+
+    /// <summary>Bluetooth: "connected" or "not connected"; null when Windows doesn't say.</summary>
+    public string? State { get; init; }
+
+    /// <summary>Bluetooth: paired, but without audio, so Daze Control can't connect it (D-052).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool NotConnectable { get; init; }
 
     public string? Id { get; init; }
 }

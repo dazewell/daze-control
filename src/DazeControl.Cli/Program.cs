@@ -233,7 +233,12 @@ public static class Program
         if (message.Devices is not { Length: > 0 })
             Console.Out.WriteLine("None found.");
         foreach (var device in message.Devices ?? [])
-            Console.Out.WriteLine(device.Detail is { } detail ? $"{device.Name} — {detail}" : device.Name);
+        {
+            // "D9:E0:8E:C2:96:85 — MX Master 3S, connected, can't connect from here"
+            string?[] parts = [device.Detail, device.State, device.NotConnectable ? "can't connect from here" : null];
+            var detail = string.Join(", ", parts.OfType<string>());
+            Console.Out.WriteLine(detail.Length > 0 ? $"{device.Name} — {detail}" : device.Name);
+        }
         return Ok;
     }
 
