@@ -13,7 +13,10 @@ public enum ConnectRefusal
     /// <summary>"That would make a loop. A step can't wait for something that waits for it."</summary>
     Loop,
 
-    /// <summary>"Steps in a card start together, so they can't wait for each other."</summary>
+    /// <summary>
+    /// "Steps in a card start together, so they can't wait for each other." Only for an explicit link inside a card:
+    /// grouping linked steps drops their links instead (D-058).
+    /// </summary>
     SameCard,
 
     /// <summary>An id that isn't in the flow.</summary>

@@ -636,10 +636,12 @@ public sealed partial class FlowCanvas : UserControl
         ProtectedCursor = refused ? InputSystemCursor.Create(InputSystemCursorShape.UniversalNo) : null;
     }
 
-    /// <summary>The §5.7 #3/#4 teaching tip at <paramref name="at"/>; nothing for a plain no-op.</summary>
+    /// <summary>
+    /// The §5.7 #3/#4 teaching tip at <paramref name="at"/>, or after a done edit its note (D-058); nothing for a plain no-op.
+    /// </summary>
     private void ShowRefusal(ConnectRefusal refusal, CanvasNodeViewModel at)
     {
-        if (FlowCanvasViewModel.Explain(refusal) is not { } why)
+        if (Explain(refusal) is not { } why)
             return;
         if (!Shown)
             ShowTip(why, FallbackTarget);
@@ -887,9 +889,12 @@ public sealed partial class FlowCanvas : UserControl
     {
         if (at is not null)
             ShowRefusal(refusal, at);
-        else if (FlowCanvasViewModel.Explain(refusal) is { } why)
+        else if (Explain(refusal) is { } why)
             ShowTip(why, null);
     }
+
+    private string? Explain(ConnectRefusal refusal) =>
+        refusal == ConnectRefusal.None ? _viewModel?.TakeEditNote() : FlowCanvasViewModel.Explain(refusal);
 
     private void ShowTip(string text, FrameworkElement? target)
     {

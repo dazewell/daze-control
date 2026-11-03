@@ -513,15 +513,33 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     // ---- Cards (UX §5.2): Ctrl+G, Ctrl+Shift+G, drop zones ----
 
+    private string? _editNote;
+
+    /// <summary>
+    /// What the last <see cref="GroupSelection"/> or <see cref="Drop"/> changed beyond the card, said beside it once;
+    /// null = nothing to say (D-058).
+    /// </summary>
+    public string? TakeEditNote()
+    {
+        var note = _editNote;
+        _editNote = null;
+        return note;
+    }
+
+    public const string DroppedFallbackNote =
+        "These steps start together now, so the \"if it fails\" or \"whatever happens\" connection between them is gone.";
+
     /// <summary>Ctrl+G / "Run together" on the selection (steps and cards, in `nodes` order); selects the card.</summary>
     public ConnectRefusal GroupSelection()
     {
         if (Flow is not { } flow)
             return ConnectRefusal.Unknown;
+        _editNote = null;
         var ids = flow.Nodes.Select(n => n.Id).Where(_selected.Contains).ToList();
-        var (next, refusal) = FlowEdits.Group(flow, ids);
+        var (next, refusal, droppedFallback) = FlowEdits.Group(flow, ids);
         if (refusal != ConnectRefusal.None || next == flow)
             return refusal;
+        _editNote = droppedFallback ? DroppedFallbackNote : null;
         // Only ids Group accepted (cards and loose steps); a member of another card was ignored.
         var before = FlowLayout.CardOf(flow);
         var cardOf = FlowLayout.CardOf(next);
@@ -570,11 +588,17 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     /// <summary>Drop <paramref name="dragged"/> on <paramref name="target"/>'s zone; a refusal changes nothing.</summary>
     public ConnectRefusal Drop(string dragged, string target, DropZone zone)
     {
+        _editNote = null;
         if (Flow is not { } flow || zone == DropZone.None)
             return ConnectRefusal.None;
-        var (next, refusal) = zone == DropZone.RunAfter ? FlowEdits.RunAfter(flow, dragged, target) : FlowEdits.RunTogether(flow, dragged, target);
+        var (next, refusal, droppedFallback) = zone == DropZone.RunAfter
+            ? new GroupResult(FlowEdits.RunAfter(flow, dragged, target).Flow, FlowEdits.RunAfter(flow, dragged, target).Refusal)
+            : FlowEdits.RunTogether(flow, dragged, target);
         if (refusal == ConnectRefusal.None && next != flow)
+        {
             Edit(_ => next);
+            _editNote = droppedFallback ? DroppedFallbackNote : null;
+        }
         return refusal;
     }
 

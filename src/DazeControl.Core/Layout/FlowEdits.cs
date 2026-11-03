@@ -4,8 +4,23 @@ using DazeControl.Core.Model;
 namespace DazeControl.Core.Layout;
 
 /// <summary>
+/// The outcome of a "run together" edit: the new flow, or the old one with a refusal. <paramref name="DroppedFallback"/>
+/// says an "if it fails" / "whatever happens" link between steps that now start together was removed (D-058).
+/// </summary>
+public readonly record struct GroupResult(Flow Flow, ConnectRefusal Refusal, bool DroppedFallback = false)
+{
+    public static implicit operator GroupResult((Flow Flow, ConnectRefusal Refusal) result) => new(result.Flow, result.Refusal);
+
+    public void Deconstruct(out Flow flow, out ConnectRefusal refusal)
+    {
+        flow = Flow;
+        refusal = Refusal;
+    }
+}
+
+/// <summary>
 /// Card and sequence edits behind the canvas gestures (UX §5.2), pure so they are tested here. Each returns the
-/// new flow, or the old one with a refusal when the result would be a loop or a card whose steps wait for each other.
+/// new flow, or the old one with a refusal when the result would be a loop or would change which failures count.
 /// </summary>
 public static class FlowEdits
 {
@@ -14,9 +29,10 @@ public static class FlowEdits
     /// <summary>
     /// "Run together" (Ctrl+G): one card holding <paramref name="ids"/>' steps in that order. Cards among them merge in
     /// (the first one keeps its id); members of other cards and unknown ids are ignored. The members' outer edges move
-    /// to the card and whatever waited for a member waits for the card.
+    /// to the card and whatever waited for a member waits for the card. Links between the steps go: they start together
+    /// now, which is how a wrong sequence gets fixed (D-058).
     /// </summary>
-    public static (Flow Flow, ConnectRefusal Refusal) Group(Flow flow, IEnumerable<string> ids)
+    public static GroupResult Group(Flow flow, IEnumerable<string> ids)
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(ids);
@@ -38,26 +54,25 @@ public static class FlowEdits
             }
         }
         if (members.Count < 2)
-            return (flow, ConnectRefusal.None);
+            return new(flow, ConnectRefusal.None);
 
         string Top(string id) => cardOf.GetValueOrDefault(id, id);
         var inside = absorbed.ToHashSet(StringComparer.Ordinal);
         var nodes = absorbed.Select(id => flow.FindNode(id)!).ToList();
-        if (nodes.Any(n => n.After.Any(e => inside.Contains(Top(e.From)))))
-            return (flow, ConnectRefusal.SameCard);
+        var inner = nodes.SelectMany(n => n.After).Where(e => inside.Contains(Top(e.From))).ToList();
 
         // One card edge per source: two different conditions on the same source can't both survive.
-        var incoming = nodes.SelectMany(n => n.After).Select(e => e with { From = Top(e.From) }).ToList();
+        var incoming = nodes.SelectMany(n => n.After).Where(e => !inside.Contains(Top(e.From))).Select(e => e with { From = Top(e.From) }).ToList();
         if (Conflicts(incoming) || flow.Nodes.Where(n => !inside.Contains(n.Id) && !members.Contains(n.Id))
                 .Any(n => Conflicts(n.After.Where(e => inside.Contains(Top(e.From))).Select(e => e with { From = "card" }))))
-            return (flow, ConnectRefusal.Conditions);
+            return new(flow, ConnectRefusal.Conditions);
         // "If X fails" on an absorbed step would become "if any step in the card fails".
-        if (flow.Nodes.Any(n => n.After.Any(e => e.When == EdgeWhen.Failure && inside.Contains(Top(e.From)))))
-            return (flow, ConnectRefusal.FailureFallback);
+        if (flow.Nodes.Any(n => !inside.Contains(n.Id) && n.After.Any(e => e.When == EdgeWhen.Failure && inside.Contains(Top(e.From)))))
+            return new(flow, ConnectRefusal.FailureFallback);
         // In a card only a step's own "may fail" counts; the card's policy handles every other failure (Scheduler).
         var policies = nodes.Where(n => n is GroupNode || n.OnFailure != FailurePolicy.Ignore).Select(n => n.OnFailure).Distinct().ToList();
         if (policies.Count > 1)
-            return (flow, ConnectRefusal.FailurePolicies);
+            return new(flow, ConnectRefusal.FailurePolicies);
 
         var cardId = absorbed.FirstOrDefault(id => flow.FindNode(id) is GroupNode) ?? NewCardId(flow);
         var existing = flow.FindNode(cardId) as GroupNode;
@@ -82,7 +97,9 @@ public static class FlowEdits
                 result.Add(node with { After = Merge(node.After.Select(e => inside.Contains(Top(e.From)) ? e with { From = cardId } : e)) });
         }
         var grouped = flow with { Nodes = [.. result] };
-        return FlowGraph.HasLoop(grouped) ? (flow, ConnectRefusal.Loop) : (grouped, ConnectRefusal.None);
+        return FlowGraph.HasLoop(grouped)
+            ? new(flow, ConnectRefusal.Loop)
+            : new(grouped, ConnectRefusal.None, inner.Any(e => e.When != EdgeWhen.Success));
     }
 
     /// <summary>
@@ -139,23 +156,46 @@ public static class FlowEdits
     private static Node Leave(Node step, GroupNode card) =>
         step.OnFailure == FailurePolicy.Ignore ? step : step with { OnFailure = card.OnFailure };
 
-    /// <summary>Drop on a pill's body: run together with it (into its card, or a new card for the two).</summary>
-    public static (Flow Flow, ConnectRefusal Refusal) RunTogether(Flow flow, string dragged, string target)
+    /// <summary>
+    /// Drop on a pill's body: run together with it (into its card, or a new card for the two). The dragged step leaves
+    /// its place in any sequence with the target: its links on a path to or from the target go (D-058).
+    /// </summary>
+    public static GroupResult RunTogether(Flow flow, string dragged, string target)
     {
         ArgumentNullException.ThrowIfNull(flow);
         if (flow.FindNode(dragged) is not StepNode || dragged == target)
-            return (flow, ConnectRefusal.None);
+            return new(flow, ConnectRefusal.None);
         var cardOf = FlowLayout.CardOf(flow);
         var targetTop = cardOf.GetValueOrDefault(target, target);
         if (cardOf.GetValueOrDefault(dragged) == targetTop)
-            return (flow, ConnectRefusal.None); // already in that card
+            return new(flow, ConnectRefusal.None); // already in that card
         var (free, refusal) = TakeOut(flow, dragged);
         if (refusal != ConnectRefusal.None)
-            return (flow, refusal);
+            return new(flow, refusal);
         if (free.FindNode(targetTop) is null) // the drag dissolved the target's card: target is a plain step now
             targetTop = target;
-        var result = Group(free, [targetTop, dragged]);
-        return result.Refusal == ConnectRefusal.None ? result : (flow, result.Refusal);
+
+        // What runs after the target can't come before the dragged step, nor what leads to the target after it.
+        var freeCardOf = FlowLayout.CardOf(free);
+        string Top(string id) => freeCardOf.GetValueOrDefault(id, id);
+        var afterTarget = FlowGraph.Downstream(free, targetTop);
+        bool LeadsToTarget(string id) => id == targetTop || FlowGraph.Downstream(free, id).Contains(targetTop);
+        var dropped = new List<Edge>();
+        var unlinked = free with
+        {
+            Nodes = [.. free.Nodes.Select(n =>
+            {
+                var cut = n.Id == dragged
+                    ? n.After.Where(e => Top(e.From) == targetTop || afterTarget.Contains(Top(e.From))).ToList()
+                    : n.After.Where(e => e.From == dragged && LeadsToTarget(n.Id)).ToList();
+                dropped.AddRange(cut);
+                return cut.Count == 0 ? n : n with { After = [.. n.After.Except(cut)] };
+            })],
+        };
+        var result = Group(unlinked, [targetTop, dragged]);
+        return result.Refusal == ConnectRefusal.None
+            ? result with { DroppedFallback = result.DroppedFallback || dropped.Any(e => e.When != EdgeWhen.Success) }
+            : new(flow, result.Refusal);
     }
 
     /// <summary>Drop on a pill's right third: run after it (the dragged step then waits only for it).</summary>

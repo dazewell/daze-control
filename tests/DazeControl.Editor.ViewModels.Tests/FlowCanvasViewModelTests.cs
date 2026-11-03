@@ -362,14 +362,78 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         Assert.Contains(_canvas.Edges, e => e.From == "bt" && e.To == card.Id);
     }
 
-    [Fact]
-    public void CtrlGRefusesStepsThatWaitForEachOther()
-    {
-        _canvas.Select("bt");
-        _canvas.Toggle("out");
+    /// <summary>The draft's errors, as the engine would see it once saved.</summary>
+    private IEnumerable<string> DraftErrors() =>
+        DazeControl.Core.Validation.ConfigValidator.Validate(_session.Current with { Flows = [_canvas.Flow!] })
+            .Where(p => p.Severity == DazeControl.Core.Validation.Severity.Error).Select(p => $"{p.Path}: {p.Message}");
 
-        Assert.Equal(ConnectRefusal.SameCard, _canvas.GroupSelection());
-        Assert.False(_session.HasUnsavedChanges);
+    private GroupNode Card(string memberId) =>
+        Assert.IsType<GroupNode>(_canvas.Flow!.FindNode(Node(memberId).CardId ?? throw new InvalidOperationException(memberId)));
+
+    [Fact]
+    public void CtrlGOnLinkedStepsDropsTheLinkInOneUndoStep()
+    {
+        var original = _canvas.Flow;
+        _canvas.Select("bt");
+        _canvas.Toggle("vol");
+
+        Assert.Equal(ConnectRefusal.None, _canvas.GroupSelection());
+
+        var card = Card("vol");
+        Assert.Equal(["bt", "vol"], card.Members);
+        Assert.Empty(card.After);
+        Assert.Contains(_canvas.Edges, e => e.From == card.Id && e.To == "out");
+        Assert.Null(_canvas.TakeEditNote());
+        Assert.Empty(DraftErrors());
+        _canvas.Undo();
+        Assert.Equal(original, _canvas.Flow);
+    }
+
+    [Fact]
+    public void DroppingAStepOntoTheStepItWaitsForMakesACard()
+    {
+        Assert.Equal(ConnectRefusal.None, _canvas.Drop("vol", "bt", DropZone.RunTogether));
+
+        Assert.Equal(["bt", "vol"], Card("vol").Members);
+        Assert.Equal(CanvasNodeKind.Card, Node(Card("vol").Id).Kind);
+        Assert.Empty(DraftErrors());
+        Assert.True(_canvas.CanUndo);
+    }
+
+    [Fact]
+    public void DroppingAStepOntoAStepThatWaitsForItMakesACard()
+    {
+        Assert.Equal(ConnectRefusal.None, _canvas.Drop("bt", "vol", DropZone.RunTogether));
+
+        Assert.Equal(["vol", "bt"], Card("bt").Members);
+        Assert.Empty(Card("bt").After);
+        Assert.Empty(DraftErrors());
+    }
+
+    [Fact]
+    public void DroppingTheEndOfAChainOntoItsStartSaysTheFallbackIsGone()
+    {
+        // bt → out →(if it fails) note; note dropped onto bt: [bt note] → out, and the fallback is gone.
+        var original = _canvas.Flow;
+
+        Assert.Equal(ConnectRefusal.None, _canvas.Drop("note", "bt", DropZone.RunTogether));
+
+        var card = Card("note");
+        Assert.Equal(["bt", "note"], card.Members);
+        Assert.Contains(_canvas.Edges, e => e.From == card.Id && e.To == "out");
+        Assert.Equal(FlowCanvasViewModel.DroppedFallbackNote, _canvas.TakeEditNote());
+        Assert.Null(_canvas.TakeEditNote()); // said once
+        Assert.Empty(DraftErrors());
+        _canvas.Undo();
+        Assert.Equal(original, _canvas.Flow);
+    }
+
+    [Fact]
+    public void ALinkInsideACardIsStillRefused()
+    {
+        Assert.Equal(ConnectRefusal.None, _canvas.Drop("vol", "bt", DropZone.RunTogether));
+
+        Assert.Equal(ConnectRefusal.SameCard, _canvas.Connect("bt", "vol"));
     }
 
     [Fact]
