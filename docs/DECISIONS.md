@@ -702,7 +702,7 @@ Status: accepted
 - Revisit if: users want "run the fallback, then stop the flow" (D-024's revisit), which needs `stop` to mean that.
 
 ## D-060 · 2026-11-03 · Long simple chains wrap onto new rows; forks, joins and their branches never wrap
-Status: accepted (design for C3; supersedes D-020's "one column per layer" for wrapped chains only)
+Status: accepted (built in C3, 0.23.0; supersedes D-020's "one column per layer" for wrapped chains only)
 - Decision: after layering, ordering and `FlowTidy`, a last placement pass in `Core/Layout/FlowLayout` finds
   **spine runs**: maximal sequences of consecutive layers that each hold exactly one box (a step or a card), where
   every box in the run, both ends included, has at most one incoming and one outgoing edge, each box's edge goes to

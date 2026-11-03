@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: C3 wrap long simple chains (branch feat/canvas-wrap, D-060)
-Last green checkpoint: a479a6e (main) — this commit adds the Core wrap pass, EdgeCurve.Wrapped and tests
-Next action: FlowCanvas.xaml.cs RedrawEdges: draw `c.IsWrapped` edges from `RoundedSegments()` (Line + QuadraticBezier); then screenshots light/dark 175 %, docs, bump 0.23.0, PR
-Tree state: builds, Core + ViewModels tests green · Uncommitted: none
-Notes for next agent: NodeBox.Column stays the layer for wrapped boxes, so Right/Left already crosses row breaks. release.yml is tag-only (D-043): never push a v-tag. L1 Android inputs and M12 spikes wait for the weekly reset (2026-11-08).
+Current task: C3 wrap long simple chains — built, PR open on feat/canvas-wrap (D-060, 0.23.0)
+Last green checkpoint: 4e70865 "wip(layout): wrap long spine runs into rows; wrapped edge shape and hit-test"
+Next action: merge the C3 PR per repo-workflow §6 if not yet merged; then after the weekly reset (2026-11-08): L1 Android inputs (paused session), then M12 spikes T12.1/T12.2
+Tree state: builds, all tests green · Uncommitted: none
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. "Shortcut" in the UI means a hotkey; the .lnk is always "desktop shortcut" (UX §5.4). M12 answers from the user (2026-11-03): pads = Xbox + Steam Controller, the menu never takes focus, XInput polling only while a pad is on. T10.5 is parked as issue #26. The editor has no flow delete yet. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone.
 
 ---
 
@@ -208,7 +208,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 ## Canvas fixes (user reports)
 - [x] C1 Linked steps can be dropped / Ctrl+G'd together; the links between them go (D-058; fix/run-together-linked, PR #29).
 - [x] C2 A new fallback switches its source from Stop to Skip, with a tip (D-059; same PR).
-- [~] C3 Wrap long simple chains, keep complex branches apart (user, 2026-11-03; design D-060, branch feat/canvas-wrap).
+- [x] C3 Wrap long simple chains, keep complex branches apart (user, 2026-11-03; design D-060, branch feat/canvas-wrap, 0.23.0).
   `FlowLayout` wrap pass for spine runs > `WrapAfter` (5), `EdgeCurve` wrapped-edge shape + hit-test, canvas draws it,
   fit/zoom from wrapped bounds, Right/Left across a row break. Done when: `FlowLayout` tests — a 10-step chain gives
   rows of 5/5 and the next step after the block; a chain beside a parallel branch doesn't wrap; a fork whose long arm runs beside a direct edge to its join doesn't
