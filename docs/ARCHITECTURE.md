@@ -386,6 +386,11 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 
 ## Open questions
 
+- Display, after Duplicate (F5 live run 2026-11-03, notes `f5-display/fix-runs/`): leaving Duplicate, the next one or
+  two switches can be undone by Windows seconds later, `display.topology` included (Extend → Duplicate; "use only"
+  DELL passed its check, then both came back on). The DELL's target id changes 0x1009038 → 0x9038 then, which looks
+  like a hot-plug restore. Not fixed: a settle wait (WM_DISPLAYCHANGE, timeout) before `DisplayCheck` is the first
+  thing to try, then a second check.
 - Designed, not built: the flow menu and controller input (M12) — [flow-menu/DESIGN.md](flow-menu/DESIGN.md)
   §3 (D-053..D-057). Each M12 task moves its part into the sections above.
 - Designed, not built (M13, PLAN → M13): flow calls and inputs — [flow-calls/DESIGN.md](flow-calls/DESIGN.md) (D-061..

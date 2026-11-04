@@ -1001,6 +1001,8 @@ live test OK'd; built in F5, fix/m13-display-restore). Refines D-019.
   first, remaps source ids per adapter, and, when Windows refuses the layout from where the screens are now (error 87),
   switches to the layout's set first and then applies it. `display.topology` (Win+P presets) is unchanged: it was right
   in every case.
+  Screens are matched by the monitor's device path and use its lowest target id: this PC's driver gives the DELL a
+  second id (0x1009038) while duplicating, and using it broke Dual from Duplicate (live run, F5).
 - Why: the live test (PLAN F5) showed "Use only these screens" making up an arrangement, leaving the laptop on and
   duplicated while reporting success, and "Restore screen layout" refused from that state. A step that says
   Succeeded when the screens are wrong is worse than one that fails (the fallback can fix it, D-065).

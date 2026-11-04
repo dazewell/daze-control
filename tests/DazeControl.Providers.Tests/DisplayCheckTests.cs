@@ -66,12 +66,14 @@ public class DisplayCheckTests
         Assert.Equal([0u, 0u], DisplayCheck.AssignSources([new(Gpu, Int, 0, null), new(Other, Dell, 1, null)], twoGpus)!);
     }
 
-    private static ScreenState Laptop(uint source = 0, int x = -2880) => new("ATNA40HQ05-0", Gpu, Int, source, 2880, 1800, x, 0);
+    private const string IntPath = @"\\?\DISPLAY#SDC422A#4&17058f2d&0&UID8388688", DellPath = @"\\?\DISPLAY#DELA1CF#4&17058f2d&0&UID36920";
 
-    private static ScreenState DellNow(uint source = 1, int x = 0) => new("DELL S2722QC", Gpu, Dell, source, 3840, 2160, x, 0);
+    private static ScreenState Laptop(uint source = 0, int x = -2880) => new("ATNA40HQ05-0", IntPath, Gpu, source, 2880, 1800, x, 0);
 
-    private static readonly ScreenWant WantLaptop = new("ATNA40HQ05-0", Gpu, Int, 0, (2880, 1800, -2880, 0));
-    private static readonly ScreenWant WantDell = new("DELL S2722QC", Gpu, Dell, 1, (3840, 2160, 0, 0));
+    private static ScreenState DellNow(uint source = 1, int x = 0) => new("DELL S2722QC", DellPath, Gpu, source, 3840, 2160, x, 0);
+
+    private static readonly ScreenWant WantLaptop = new("ATNA40HQ05-0", IntPath, 0, (2880, 1800, -2880, 0));
+    private static readonly ScreenWant WantDell = new("DELL S2722QC", DellPath, 1, (3840, 2160, 0, 0));
 
     [Fact]
     public void TheUsersExtendMatchesDual() =>
@@ -105,6 +107,11 @@ public class DisplayCheckTests
         Assert.Equal("Windows set up the screens differently: ATNA40HQ05-0 isn't where Dual puts it.",
             DisplayCheck.Differences([WantLaptop, WantDell], [Laptop(0, 0), DellNow(1, 2880)], "Dual"));
     }
+
+    [Fact]
+    public void ScreensMatchByMonitorNotTargetId() =>
+        // Live matrix: from Duplicate the DELL was offered as target 0x1009038 and came back as 0x9038.
+        Assert.Null(DisplayCheck.Differences([WantLaptop, WantDell with { Monitor = DellPath.ToUpperInvariant() }], [Laptop(), DellNow()], "Dual"));
 
     [Fact]
     public void UseOnlyDoesntCheckPositions() =>

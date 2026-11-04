@@ -10,6 +10,7 @@ param(
     [switch]$Go
 )
 $ErrorActionPreference = 'Continue'
+$Flows = @($Flows | ForEach-Object { $_ -split ',' } | Where-Object { $_ })  # pwsh -File passes "a,b" as one string
 $root = Split-Path $PSScriptRoot -Parent
 $bin = "net10.0-windows10.0.26100.0\win-x64"
 $engine = "$root\src\DazeControl.Engine\bin\Debug\$bin\DazeControl.exe"

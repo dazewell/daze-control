@@ -42,11 +42,14 @@ internal static unsafe class CcdLayout
 
         // Where each monitor is now: device path → (adapter, target id) among all current paths.
         var now = new Dictionary<string, (LUID Adapter, uint Target)>(StringComparer.OrdinalIgnoreCase);
-        foreach (var path in Query(QUERY_DISPLAY_CONFIG_FLAGS.QDC_ALL_PATHS).Paths)
+        var all = CcdDisplays.QueryAllPaths();
+        foreach (var path in all)
         {
             var target = Target(path.targetInfo.adapterId, path.targetInfo.id);
-            if (target.DevicePath.Length > 0 && path.targetInfo.targetAvailable)
-                now.TryAdd(target.DevicePath, (path.targetInfo.adapterId, path.targetInfo.id));
+            // The lowest target id is the screen's own: some drivers add a second one while it duplicates (0x1009038).
+            if (target.DevicePath.Length > 0 && path.targetInfo.targetAvailable
+                && (!now.TryGetValue(target.DevicePath, out var seen) || path.targetInfo.id < seen.Target))
+                now[target.DevicePath] = (path.targetInfo.adapterId, path.targetInfo.id);
         }
 
         var missing = layout.Monitors.Where(m => !now.ContainsKey(m)).ToList();
@@ -55,9 +58,8 @@ internal static unsafe class CcdLayout
 
         // Sources: the saved ids may not be free (or offered) where the screens are now, which Windows refuses with
         // error 87. Screens that shared a source when captured (a duplicate) share one again; the rest get their own.
-        var all = CcdDisplays.QueryAllPaths();
-        var names = CcdDisplays.ByPort(all).ToDictionary(p => (CcdDisplays.Key(p.Path.targetInfo.adapterId), p.Path.targetInfo.id),
-            p => CcdDisplays.Name(p.Output));
+        var names = CcdDisplays.ByPort(all).Where(p => p.Output.DevicePath.Length > 0).GroupBy(p => p.Output.DevicePath, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => CcdDisplays.Name(g.First().Output), StringComparer.OrdinalIgnoreCase);
         var groups = new List<(uint, int, uint)>();
         var requests = new SourceRequest[paths.Length];
         for (var i = 0; i < paths.Length; i++)
@@ -85,8 +87,7 @@ internal static unsafe class CcdLayout
             var place = path.sourceInfo.modeInfoIdx < modes.Length
                 && modes[path.sourceInfo.modeInfoIdx].infoType == DISPLAYCONFIG_MODE_INFO_TYPE.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE
                 ? modes[path.sourceInfo.modeInfoIdx].Anonymous.sourceMode : default;
-            wanted.Add(new ScreenWant(names.GetValueOrDefault((CcdDisplays.Key(adapter), target), $"Screen {target}"),
-                CcdDisplays.Key(adapter), target, requests[i].Group,
+            wanted.Add(new ScreenWant(names.GetValueOrDefault(layout.Monitors[i], $"Screen {i + 1}"), layout.Monitors[i], requests[i].Group,
                 place.width > 0 ? ((int)place.width, (int)place.height, place.position.x, place.position.y) : null));
             path.sourceInfo.adapterId = adapter;
             path.sourceInfo.id = sources[i];

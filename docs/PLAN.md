@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M13 fixes planned (docs/m13-fixes-plan, PR #42): F1–F5 from the user's v0.29.0 feedback, D-074..D-077, X-008, X-009. T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done
-Last green checkpoint: 8fca795 docs(m13): plan the v0.29.0 feedback fixes F1-F4 (D-074..D-076, X-008)
-Next action: the M13 fixes F1–F5 in parallel (PLAN → M13 fixes; one session each: feat/m13-wheel-zoom, fix/m13-flow-run-picker, fix/m13-ctrl-s-hint, feat/m13-flow-delete-rename, fix/m13-display-restore); then T13.3 (feat/m13-nav-collapse: `EditorSettingsStore` tests first), T13.9 (feat/m13-flow-inputs) and T13b.1 (feat/m13b-hotkey-keys)
+Current task: M13 fixes F1–F5 (PR #42 plan). F5 done (fix/m13-display-restore: source per screen, `SDC_TOPOLOGY_SUPPLIED` first, `DisplayCheck` after every write, live matrix passed). T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done
+Last green checkpoint: fc5bc3b wip(display): a source per screen, saved arrangement first, check after every write (F5, D-077)
+Next action: the M13 fixes F1–F5 in parallel (PLAN → M13 fixes; one session each: feat/m13-wheel-zoom, fix/m13-flow-run-picker, fix/m13-ctrl-s-hint, feat/m13-flow-delete-rename; F5 done); then T13.3 (feat/m13-nav-collapse: `EditorSettingsStore` tests first), T13.9 (feat/m13-flow-inputs) and T13b.1 (feat/m13b-hotkey-keys)
 Tree state: builds, all tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. F5's live display matrix changes the user's screens: ask the user first every time, save and restore, restart the installed engine (`%LOCALAPPDATA%\DazeControlApp\current\DazeControl.exe`). This PC's installed app was 0.22.0 on 2026-11-03 (0.23.0 downloaded, applies on the next engine start): check `sq.version` before chasing a "missing" feature. Right-drag (D-069) works as built; F1 adds wheel zoom and pan room. T13.6 must key per-flow layouts by id and follow F4's rename (D-075). T13.10 builds on F2's flow picker. The user's live Connect Technics flow: `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails (told in T13.7; "Skip what depends on it" fixes it). Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers: `flow.run` `inputs` param (T13.9); #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config; Runs-page nested lanes; measure.ps1 can't run while the installed engine holds the pipe.
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. Live display tests: `scripts/display-check.ps1` (read-only without `-Go`); with `-Go` it changes the user's screens: ask the user first every time (it saves, restores, restarts the installed engine). This PC's installed app was 0.22.0 on 2026-11-03 (0.23.0 downloaded, applies on the next engine start): check `sq.version` before chasing a "missing" feature. Right-drag (D-069) works as built; F1 adds wheel zoom and pan room. T13.6 must key per-flow layouts by id and follow F4's rename (D-075). T13.10 builds on F2's flow picker. The user's live Connect Technics flow: `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails (told in T13.7; "Skip what depends on it" fixes it). Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers: `flow.run` `inputs` param (T13.9); #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config; Runs-page nested lanes; measure.ps1 can't run while the installed engine holds the pipe.
 ---
 
 ## Workflow (usage-cap-proof, D-018)
@@ -78,7 +78,7 @@ number + 1).
   `morning`, a caller's step follows, its desktop shortcut still runs it, the engine log names `morning`; Delete then
   Undo restores it with its hotkey working; screenshots.
 
-- [~] F5 **Display steps do what they say, or fail** (fix/m13-display-restore, built, live matrix pending the user's OK; D-077, X-009). Live test on the user's
+- [x] F5 **Display steps do what they say, or fail** (fix/m13-display-restore, PR: see branch; live matrix passed 2026-11-03 21:10 with the user's OK, screens restored; open: switches undone after Duplicate, ARCHITECTURE → Open questions; D-077, X-009). Live test on the user's
   PC (2026-11-03, laptop panel INT-0 + DELL on HDMI-0; log and scripts in the coordinator's notes folder,
   `f5-display/`): "Project" (`display.topology`) is right every time, and "Restore screen layout" is right from a
   normal state. Three failures, all in `CcdDisplays.UseOnly` and `CcdLayout.Apply`:

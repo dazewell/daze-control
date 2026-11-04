@@ -9,11 +9,14 @@ internal readonly record struct CcdPath(long Adapter, uint Source, uint Target);
 /// </summary>
 internal readonly record struct SourceRequest(long Adapter, uint Target, int Group, uint? Preferred);
 
-/// <summary>A screen as Windows has it on now.</summary>
-internal sealed record ScreenState(string Name, long Adapter, uint Target, uint Source, int Width, int Height, int X, int Y);
+/// <summary>
+/// A screen as Windows has it on now. <paramref name="Monitor"/> identifies it (the monitor's device path): some drivers
+/// give one screen a second target id while it duplicates (seen: 0x9038 and 0x1009038), so target ids don't.
+/// </summary>
+internal sealed record ScreenState(string Name, string Monitor, long Adapter, uint Source, int Width, int Height, int X, int Y);
 
 /// <summary>Where a screen should end up (<paramref name="Place"/> only for a layout: width, height, x, y).</summary>
-internal sealed record ScreenWant(string Name, long Adapter, uint Target, int Group, (int Width, int Height, int X, int Y)? Place = null);
+internal sealed record ScreenWant(string Name, string Monitor, int Group, (int Width, int Height, int X, int Y)? Place = null);
 
 /// <summary>
 /// The pure halves of the display writes (D-077): which source each screen gets, and whether what Windows did matches
@@ -74,7 +77,7 @@ internal static class DisplayCheck
     public static string? Differences(IReadOnlyList<ScreenWant> wanted, IReadOnlyList<ScreenState> now, string? layout = null)
     {
         const string Prefix = "Windows set up the screens differently: ";
-        static bool Same(ScreenWant w, ScreenState s) => w.Adapter == s.Adapter && w.Target == s.Target;
+        static bool Same(ScreenWant w, ScreenState s) => string.Equals(w.Monitor, s.Monitor, StringComparison.OrdinalIgnoreCase);
 
         foreach (var want in wanted)
             if (!now.Any(s => Same(want, s)))

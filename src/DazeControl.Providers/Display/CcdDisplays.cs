@@ -70,7 +70,7 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
         cancellationToken.ThrowIfCancellationRequested();
         SwitchSet(paths, validateOnly, "switch the screens");
         if (!validateOnly)
-            Verify([.. chosen.Select((c, i) => new ScreenWant(Name(c.Output), Key(c.Path.targetInfo.adapterId), c.Path.targetInfo.id, i))], null);
+            Verify([.. chosen.Select((c, i) => new ScreenWant(Name(c.Output), Identity(c.Path.targetInfo.adapterId, c.Path.targetInfo.id), i))], null);
         return [];
     }
 
@@ -109,7 +109,6 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
     /// <summary>The screens on now, each with its source mode (resolution and position).</summary>
     internal static List<ScreenState> ActiveScreens()
     {
-        var names = ByPort(QueryAllPaths()).ToDictionary(p => (Key(p.Path.targetInfo.adapterId), p.Path.targetInfo.id), p => Name(p.Output));
         var (paths, modes) = CcdLayout.Query(QUERY_DISPLAY_CONFIG_FLAGS.QDC_ONLY_ACTIVE_PATHS);
         var screens = new List<ScreenState>(paths.Length);
         foreach (var path in paths)
@@ -118,8 +117,8 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
             var index = path.sourceInfo.modeInfoIdx;
             var source = index < modes.Length && modes[index].infoType == DISPLAYCONFIG_MODE_INFO_TYPE.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE
                 ? modes[index].Anonymous.sourceMode : default;
-            screens.Add(new ScreenState(names.GetValueOrDefault((adapter, path.targetInfo.id), $"Screen {path.targetInfo.id}"),
-                adapter, path.targetInfo.id, path.sourceInfo.id, (int)source.width, (int)source.height, source.position.x, source.position.y));
+            screens.Add(new ScreenState(Name(Describe(path)),
+                Identity(path.targetInfo.adapterId, path.targetInfo.id), adapter, path.sourceInfo.id, (int)source.width, (int)source.height, source.position.x, source.position.y));
         }
         return screens;
     }
@@ -127,6 +126,10 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
     /// <summary>Every source → target pair Windows offers.</summary>
     internal static List<CcdPath> Offered(DISPLAYCONFIG_PATH_INFO[] all) =>
         [.. all.Select(p => new CcdPath(Key(p.sourceInfo.adapterId), p.sourceInfo.id, p.targetInfo.id)).Distinct()];
+
+    /// <summary>What a screen is across target ids: its monitor's device path (else adapter and target).</summary>
+    internal static string Identity(LUID adapter, uint target) =>
+        CcdLayout.Target(adapter, target).DevicePath is { Length: > 0 } device ? device : $"{Key(adapter)}:{target}";
 
     internal static long Key(LUID adapter) => ((long)adapter.HighPart << 32) | adapter.LowPart;
 
@@ -158,10 +161,15 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
             var index = result.FindIndex(r => r.Output.Port.Equals(output.Port, StringComparison.OrdinalIgnoreCase)
                 && r.Path.targetInfo.adapterId.Equals(path.targetInfo.adapterId));
             if (index < 0)
+            {
                 result.Add((output, path));
-            else if ((output.Active && !result[index].Output.Active)
-                || (output.Available && !result[index].Output.Available && !result[index].Output.Active))
-                result[index] = (output, path);
+                continue;
+            }
+            // Several paths per port: one per source, and on some drivers a second target id while duplicating
+            // (0x9038 and 0x1009038). Keep the lowest id, the screen's own, and its best state across them.
+            var (kept, keptPath) = result[index];
+            var (best, bestPath) = path.targetInfo.id < keptPath.targetInfo.id ? (output, path) : (kept, keptPath);
+            result[index] = (best with { Active = kept.Active || output.Active, Available = kept.Available || output.Available }, bestPath);
         }
         var adapters = result.Select(r => r.Path.targetInfo.adapterId).Distinct().ToList();
         return [.. result.Select(r => (r.Output with
