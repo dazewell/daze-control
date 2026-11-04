@@ -185,7 +185,7 @@ of that kind, then the Library); picking another flow drops entries it doesn't t
 and loop-making ones off with `ConfigValidator.CallProblem` (#49/#50). Pill: called flow's glyph, "Run <name>", passed
 devices or "Doesn't wait". Live: `RunOverlayViewModel` tracks nested runs from `ParentRunId` (the call's pill shows the
 nested current step, #59; a flow running inside another says so, #64). Runs page: a call bar's chevron
-(`RunDetailViewModel.ToggleCall`) adds the nested lanes under a bracket (ids "call/step"; one level, deeper calls stay
+(`RunDetailViewModel.ToggleCall`) adds the nested lanes under a bracket (ids are the call and step joined by U+001F; one level, deeper calls stay
 bars), and "Open in editor" on a nested bar opens the called flow with that nested run.
 Flow inputs (D-064, T13.9): `Flow.Inputs` (name → `FlowInput(kind, label, default)`, YAML `inputs:`); a `LibraryRef`
 setting holds `$name`. `FlowInputs.Apply` runs first in `RunCoreAsync` and replaces every `$name` (step settings and the

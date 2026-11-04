@@ -306,15 +306,15 @@ public sealed class RunsPageViewModelTests : IDisposable
 
         var bars = detail.Bars.ToDictionary(b => b.NodeId);
         Assert.True(bars["bt"].IsExpanded);
-        Assert.True(bars["bt/set"].IsNested);
-        Assert.Equal("Set it", bars["bt/set"].Title);
-        Assert.Equal(bars["bt"].X, bars["bt/set"].X); // at its call's time
-        Assert.True(bars["bt/set"].Y > bars["bt"].Y);
+        Assert.True(bars["bt" + RunDetailViewModel.Nested + "set"].IsNested);
+        Assert.Equal("Set it", bars["bt" + RunDetailViewModel.Nested + "set"].Title);
+        Assert.Equal(bars["bt"].X, bars["bt" + RunDetailViewModel.Nested + "set"].X); // at its call's time
+        Assert.True(bars["bt" + RunDetailViewModel.Nested + "set"].Y > bars["bt"].Y);
         var bracket = Assert.Single(detail.Brackets);
         Assert.Equal("Make it the default", bracket.Title);
         Assert.Equal(RunDetailViewModel.AxisHeight + 2 * RunDetailViewModel.LaneHeight, detail.Height);
 
-        detail.SelectedBar = bars["bt/set"];
+        detail.SelectedBar = bars["bt" + RunDetailViewModel.Nested + "set"];
         Assert.Equal(["Set it: didn't work", "Started at 0 s, took 1 s.", "Not plugged in"], detail.SelectedLines);
         Assert.True(detail.CanOpenInEditor);
         Assert.Equal("make", detail.RecordToOpen.FlowId);

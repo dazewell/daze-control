@@ -229,12 +229,15 @@ public sealed partial class InspectorViewModel
     }
 
     /// <summary>Another flow picked: inputs the new one doesn't take, or takes as another kind, are dropped with it.</summary>
-    private static StepNode KeepPassedInputs(StepNode step, Configuration config)
+    private static StepNode KeepPassedInputs(StepNode step, StepNode before, Configuration config)
     {
         if (!step.With.TryGetValue(FlowInputs.Param, out var value) || value is not MapParam map)
             return step;
         var called = ConfigValidator.CalledFlow(step) is { } id ? config.Flows.FirstOrDefault(f => f.Id == id) : null;
-        var kept = map.Entries.Where(e => called is not null && called.Inputs.ContainsKey(e.Key)).ToList();
+        var old = ConfigValidator.CalledFlow(before) is { } was ? config.Flows.FirstOrDefault(f => f.Id == was) : null;
+        // Same name and same kind: a device of another kind (or the caller's input of another kind) would be wrong.
+        var kept = map.Entries.Where(e => called is not null && called.Inputs.TryGetValue(e.Key, out var input)
+            && (old?.Inputs.TryGetValue(e.Key, out var prior) != true || prior!.Kind == input.Kind)).ToList();
         return kept.Count == map.Entries.Count ? step
             : step with
             {

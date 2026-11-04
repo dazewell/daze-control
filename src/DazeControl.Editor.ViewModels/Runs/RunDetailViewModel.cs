@@ -48,8 +48,9 @@ public sealed partial class RunDetailViewModel : ObservableObject
     private readonly Dictionary<string, string> _titles;
     private readonly HashSet<string> _handled;
 
-    /// <summary>Separates a call's id from its called flow's step ids in nested bars ("technics/connect").</summary>
-    public const char Nested = '/';
+    /// <summary>Separates a call's id from its called flow's step ids in nested bars: a control character, so no node
+    /// id can contain it.</summary>
+    public const char Nested = '';
 
     private readonly Func<string, Flow?> _flowOf;
     private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);

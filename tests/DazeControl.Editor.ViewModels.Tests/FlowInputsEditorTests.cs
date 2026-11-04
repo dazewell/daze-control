@@ -280,6 +280,23 @@ public sealed class FlowInputsEditorTests : IDisposable
     }
 
     [Fact]
+    public void PickingAFlowWhoseInputHasAnotherKindDropsWhatWasPassed()
+    {
+        _session.Update(c => c with
+        {
+            Flows = [.. c.Flows, new Flow("other", "Other", [new StepNode("x", "notify") { With = new([new("text", (ParamValue)"x")]) }])
+            {
+                Inputs = new([KeyValuePair.Create("output", new FlowInput(LibraryKind.Bluetooth, "Output", "sony"))]),
+            }],
+        });
+        _canvas.Select("call");
+
+        Field("flow").Device = Field("flow").Devices.Single(d => d.Key == "other");
+
+        Assert.False(Step("call").With.ContainsKey(FlowInputs.Param));
+    }
+
+    [Fact]
     public void WithNoFlowChosenTheInputsSayToChooseOneFirst()
     {
         _canvas.Edit(f => f with { Nodes = [.. f.Nodes, new StepNode("empty", Core.Catalog.ProviderCatalog.RunFlowId)] });

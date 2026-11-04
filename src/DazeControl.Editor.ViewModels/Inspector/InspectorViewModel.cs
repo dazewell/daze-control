@@ -677,7 +677,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                 ? new(s.With.Where(e => e.Key != field.Name))
                 : new([.. s.With, new KeyValuePair<string, ParamValue>(field.Name, value)]),
         };
-        return field.IsFlowRef && s.Step == ProviderCatalog.RunFlowId ? KeepPassedInputs(written, _session.Current) : written;
+        return field.IsFlowRef && s.Step == ProviderCatalog.RunFlowId ? KeepPassedInputs(written, s, _session.Current) : written;
     });
 
     /// <summary>A device from Windows joins the Library under a new key; a capture becomes a new layout.</summary>

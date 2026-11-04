@@ -289,7 +289,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     }
 
     /// <summary>The flow the step is in (its inputs name <c>$name</c> values).</summary>
-    private static Flow? OwnerOf(StepNode step, Configuration config) => config.Flows.FirstOrDefault(f => f.Nodes.Contains(step));
+    /// <remarks>By reference: steps are records, and two flows may hold equal ones.</remarks>
+    private static Flow? OwnerOf(StepNode step, Configuration config) =>
+        config.Flows.FirstOrDefault(f => f.Nodes.Any(n => ReferenceEquals(n, step))) ?? config.Flows.FirstOrDefault(f => f.Nodes.Contains(step));
 
     private static string LibraryName(Library library, LibraryKind? kind, string key) => kind switch
     {
