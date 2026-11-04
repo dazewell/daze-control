@@ -326,7 +326,8 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   `FlowEdits` (group/ungroup, take out — a card under 2 members dissolves —, run together/after on drop).
   `FlowTidy` (Layout › "Untangle lines", was Tidy up, X-006) cuts crossings with barycentre sweeps; nodes only
   trade the `nodes` slots their column already holds, so the YAML diff stays small. `FlowTidy.Check` → `UntangleState`
-  (Helps / NoCrossings / NoBetterOrder) sets `CanUntangle` and the reason shown on the off item. `FlowCommands` (add, insert on an edge, delete with bridging, copy,
+  (Helps / NoCrossings / NoBetterOrder) sets `CanUntangle` and the reason shown on the off item; the VM works it out
+  when the menu asks, cached per flow version and Line up (the sweeps are quadratic in edges, too dear for every Sync). `FlowCommands` (add, insert on an edge, delete with bridging, copy,
   paste) backs the edit commands (D-039).
 - Flow editor commands: undo/redo are whole-flow snapshots in the canvas VM (D-039). Palette and quick-add
   (`/`, double-click, the empty state's button, "Add a step…" menus) share `StepPaletteViewModel.Search`; the palette

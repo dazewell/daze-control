@@ -64,10 +64,11 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     {
         if (oldId != FlowId)
             return;
-        _settings?.RenameFlow(oldId, newId); // the view choices follow (D-075); the shell's own call is then a no-op
+        // The view choices follow (D-075; the shell's own call is then a no-op). No Sync here: the session may not
+        // hold the new id yet, and a flow that looks missing closes the editor; its Current change syncs.
+        _settings?.RenameFlow(oldId, newId);
         FlowId = newId;
         OnPropertyChanged(nameof(FlowId));
-        Sync();
     }
 
     /// <summary>Top-level pills and cards first, then card members, so members draw above their card.</summary>
@@ -702,23 +703,46 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         Sync();
     }
 
-    /// <summary>Layout › Reset layout: this flow back to the default choices.</summary>
+    /// <summary>Layout › Reset layout: this flow back to the default choices; keys a newer editor wrote are kept.</summary>
     public void ResetLayout()
     {
+        static void Clear(FlowViewSettings v) => (v.WrapAfter, v.Spacing, v.Align, v.Lines) = (null, null, null, null);
         if (_settings is null)
-            _localView = new FlowViewSettings();
+            Clear(_localView);
         else if (_settings.Settings.Flows.ContainsKey(FlowId))
         {
             var id = FlowId;
-            _settings.Update(s => s.Flows.Remove(id));
+            _settings.Update(s =>
+            {
+                if (!s.Flows.TryGetValue(id, out var view))
+                    return;
+                Clear(view);
+                if (view.IsDefault)
+                    s.Flows.Remove(id);
+            });
         }
         Sync();
     }
 
-    /// <summary>Whether Untangle lines would change anything (X-006: it's off with a reason when it can't).</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanUntangle), nameof(UntangleReason))]
-    public partial UntangleState UntangleState { get; private set; }
+    private (Flow? Flow, LayoutAlign Align, UntangleState State) _untangle;
+
+    /// <summary>
+    /// Whether Untangle lines would change anything (X-006: it's off with a reason when it can't). Worked out when
+    /// asked (the Layout menu opening), once per flow version and Line up, not on every Sync: it runs the sweeps.
+    /// </summary>
+    public UntangleState UntangleState
+    {
+        get
+        {
+            var flow = Flow;
+            var align = LayoutOptions.Align;
+            if (flow is null)
+                return UntangleState.NoCrossings;
+            if (!ReferenceEquals(_untangle.Flow, flow) || _untangle.Align != align)
+                _untangle = (flow, align, FlowTidy.Check(flow, align));
+            return _untangle.State;
+        }
+    }
 
     public bool CanUntangle => CanEdit && UntangleState == UntangleState.Helps;
 
@@ -733,7 +757,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     /// <summary>Layout › "Untangle lines": reorders columns to cut crossings, a flow edit with undo; false when nothing changed.</summary>
     public bool Untangle()
     {
-        if (Flow is not { } flow || FlowTidy.Tidy(flow, LayoutOptions.Align) is var tidy && ReferenceEquals(tidy, flow))
+        if (!CanEdit || Flow is not { } flow || FlowTidy.Tidy(flow, LayoutOptions.Align) is var tidy && ReferenceEquals(tidy, flow))
             return false;
         Edit(_ => tidy);
         return true;
@@ -950,7 +974,6 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         Edges.Clear();
         foreach (var route in _arrangement.Edges)
             Edges.Add(new CanvasEdgeViewModel(route, mayFail.Contains(route.To), options.Lines));
-        UntangleState = FlowTidy.Check(flow, options.Align);
 
         _selected.RemoveWhere(id => Find(id) is null);
         _selectedEdges.RemoveWhere(k => !Edges.Any(e => e.From == k.From && e.To == k.To));

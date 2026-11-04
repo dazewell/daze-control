@@ -183,5 +183,19 @@ public sealed class LayoutMenuTests : IDisposable
 
         Assert.Equal(UntangleState.Helps, _canvas.UntangleState);
         Assert.False(_canvas.CanUntangle);
+        Assert.False(_canvas.Untangle()); // the menu was open when the run started: nothing changes, no "picked"
+        Assert.Equal(Crossed, _canvas.Flow!.Nodes.Select(n => n.Id));
+    }
+
+    [Fact]
+    public void ResetKeepsKeysANewerEditorWrote()
+    {
+        _canvas.SetLayout(spacing: LayoutSpacing.Roomy);
+        _store.Update(s => s.Flows["f"].Other = new() { ["zoom"] = System.Text.Json.JsonDocument.Parse("1.5").RootElement });
+
+        _canvas.ResetLayout();
+
+        Assert.Equal(LayoutOptions.Default, _canvas.LayoutOptions);
+        Assert.True(_store.Settings.Flows["f"].Other!.ContainsKey("zoom"));
     }
 }
