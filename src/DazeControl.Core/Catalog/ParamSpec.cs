@@ -56,13 +56,20 @@ public sealed record ParamSuggest(SuggestSource Source, string Kind)
     public ValueList<string> Values { get; init; } = [];
 
     /// <summary>Config kinds (<see cref="SuggestSource.Config"/>).</summary>
-    public const string Flags = "flags", AndroidInputs = "androidInputs";
+    public const string Flags = "flags", AndroidInputs = "androidInputs", Flows = "flows";
 
     public static ParamSuggest Devices(string kind) => new(SuggestSource.Devices, kind);
 
     public static ParamSuggest Config(string kind) => new(SuggestSource.Config, kind);
 
     public static ParamSuggest Static(string kind, ValueList<string> values) => new(SuggestSource.Static, kind) { Values = values };
+}
+
+/// <summary>What else in the config a param's value names, so a rename can rewrite it and validation can follow it.</summary>
+public enum ConfigRef
+{
+    /// <summary>A flow's YAML key (<c>flow.run</c>; M12's <c>menu.show</c> items reuse it).</summary>
+    Flow,
 }
 
 /// <summary>A value the inspector can fill in: "Lock the PC" → <c>rundll32.exe user32.dll,LockWorkStation</c>.</summary>
@@ -95,6 +102,9 @@ public sealed record ParamSpec(string Name, ParamKind Kind, string Title)
 
     /// <summary>Values that show how to fill a free-text param; the inspector's "Examples" menu.</summary>
     public ValueList<ParamExample> Examples { get; init; } = [];
+
+    /// <summary>The value is the key of another part of the config (a flow).</summary>
+    public ConfigRef? RefersTo { get; init; }
 
     public int? Min { get; init; }
 

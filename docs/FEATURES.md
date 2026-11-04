@@ -39,7 +39,9 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
   kill tree on timeout) · `script.powershell` · `http.request` (Sunshine API etc., credentials by name) ·
   `android.input`/`android.keys`/`android.sleep` (adb, connect retries, one chained shell call; any adb device, D-045) ·
   `service.start`/`stop` (fails clearly without rights) · `wait` · `notify` (pop-up text) ·
-  `flag.set`/`flag.check` (check fails when unmet → combine with `when: failure`) · M12 (designed): `menu.show` — a
+  `flag.set`/`flag.check` (check fails when unmet → combine with `when: failure`) · `flow.run` (Run a flow, D-061):
+  waits for the called flow by default (its result is the step's, one pop-up and one history record, loops refused
+  and stopped at 8 deep) or just starts it (`wait: false`) · M12 (designed): `menu.show` — a
   no-focus menu of flows over every window, controller/keyboard/mouse, picking launches the flow (D-054, D-055).
 
 **F4 Library** — named, reusable resources referenced by steps: audio devices (match text + flow), Bluetooth

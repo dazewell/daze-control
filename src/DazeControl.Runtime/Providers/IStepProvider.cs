@@ -7,7 +7,11 @@ namespace DazeControl.Runtime.Providers;
 /// One attempt of one step. <paramref name="Attempt"/> starts at 1. Params are as written (<see cref="StepNode.With"/>);
 /// validation already checked them against <paramref name="Descriptor"/>.
 /// </summary>
-public sealed record StepContext(Flow Flow, StepNode Node, ProviderDescriptor Descriptor, Library Library, int Attempt);
+public sealed record StepContext(Flow Flow, StepNode Node, ProviderDescriptor Descriptor, Library Library, int Attempt)
+{
+    /// <summary>Flow ids from the top run down to this flow (D-063): a start-mode <c>flow.run</c> passes it on.</summary>
+    public IReadOnlyList<string> Chain { get; init; } = [Flow.Id];
+}
 
 /// <summary>
 /// Runs one step type (ARCHITECTURE → Adding a provider). Success = the task completes; failure = it throws

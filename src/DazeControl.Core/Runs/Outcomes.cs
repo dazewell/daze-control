@@ -38,7 +38,23 @@ public enum FlowOutcome
 /// <param name="Order">1 for the first step started in the run, 2 for the next…; 0 when it never started (and before 0.15).</param>
 /// <param name="Retries">When each try after the first started, from the run's start (the timeline's notches).</param>
 public sealed record NodeResult(string NodeId, NodeOutcome Outcome, int Attempts = 1, string? Error = null,
-    TimeSpan Duration = default, TimeSpan Start = default, int Order = 0, TimeSpan[]? Retries = null);
+    TimeSpan Duration = default, TimeSpan Start = default, int Order = 0, TimeSpan[]? Retries = null)
+{
+    /// <summary>A <c>flow.run</c> step that waited: the nested run it made (its last try), recursively (D-062).
+    /// Null for every other step, and in runs recorded before 0.28.</summary>
+    public CalledRun? Called { get; init; }
+
+    /// <summary>Succeeded, but the flow it ran ended with a problem: a problem for the caller (DESIGN §2.2).</summary>
+    public bool IsPartialCall => Outcome == NodeOutcome.Succeeded && Called?.Outcome == FlowOutcome.PartiallySucceeded;
+}
+
+/// <summary>The nested run of a <c>flow.run</c> step (D-062), kept inside the caller's history record.</summary>
+/// <param name="RunId">Same id as the nested run's events.</param>
+/// <param name="FlowId">The called flow's YAML key.</param>
+/// <param name="FlowName">Its name at the time.</param>
+/// <param name="Outcome">How the nested run ended.</param>
+/// <param name="Nodes">One result per node of the called flow, in flow order.</param>
+public sealed record CalledRun(Guid RunId, string FlowId, string FlowName, FlowOutcome Outcome, NodeResult[] Nodes);
 
 public static class Outcomes
 {
@@ -50,8 +66,16 @@ public static class Outcomes
     /// over (the unit has a failure edge), or a skip that only follows from such a failure (D-065).</param>
     /// <param name="cancelled">The run was cancelled from outside (user, <c>whenRunning: restart</c>, exit).</param>
     /// <param name="stopped">A node failed with policy <c>stop</c> and ended the run.</param>
+    /// <param name="partialCall">A <c>flow.run</c> step succeeded but the flow it ran had a problem
+    /// (<see cref="NodeResult.IsPartialCall"/>): the run ends PartiallySucceeded at best (DESIGN §2.2).</param>
     public static FlowOutcome Summarize(IEnumerable<(NodeOutcome Outcome, bool Handled)> nodes, bool cancelled = false,
-        bool stopped = false)
+        bool stopped = false, bool partialCall = false)
+    {
+        var outcome = SummarizeNodes(nodes, cancelled, stopped);
+        return outcome == FlowOutcome.Succeeded && partialCall ? FlowOutcome.PartiallySucceeded : outcome;
+    }
+
+    private static FlowOutcome SummarizeNodes(IEnumerable<(NodeOutcome Outcome, bool Handled)> nodes, bool cancelled, bool stopped)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         if (cancelled)

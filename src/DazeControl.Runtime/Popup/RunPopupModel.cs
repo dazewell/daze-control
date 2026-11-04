@@ -43,6 +43,9 @@ public sealed class RunPopupModel
 
     private readonly Dictionary<Guid, RunTrack> _runs = [];
 
+    /// <summary>Nested runs (D-062) by RunId: the top run and its call step they fold into.</summary>
+    private readonly Dictionary<Guid, (Guid Top, string Call, RunTrack Track)> _nested = [];
+
     /// <summary>What to show now; null = nothing (no run yet, or the run asked for no pop-up).</summary>
     public PopupView? Current { get; private set; }
 
@@ -53,6 +56,9 @@ public sealed class RunPopupModel
     /// <returns>True when <see cref="Current"/> changed and the pop-up should redraw.</returns>
     public bool Apply(RunEvent e, Flow? flow, PopupSettings settings)
     {
+        ArgumentNullException.ThrowIfNull(e);
+        if (e.ParentRunId is { } parent)
+            return ApplyNested(e, parent);
         if (e is RunStarted started)
         {
             flow = started.Flow ?? flow;
@@ -83,6 +89,48 @@ public sealed class RunPopupModel
     }
 
     /// <summary>
+    /// Only the top run has a pop-up: a nested run's current step is the call step's detail ("Make it the default ·
+    /// Connecting Sony…", #59) and its progress moves the bar within the call step's share.
+    /// </summary>
+    private bool ApplyNested(RunEvent e, Guid parent)
+    {
+        (Guid Top, string Call)? owner = _runs.ContainsKey(parent) ? (parent, e.ParentNodeId ?? "")
+            : _nested.TryGetValue(parent, out var up) ? (up.Top, up.Call) : null;
+        if (owner is not var (topId, call) || !_runs.TryGetValue(topId, out var top))
+            return false;
+        if (e is RunStarted { Flow: { } calledFlow } started)
+        {
+            _nested[started.RunId] = (topId, call, new RunTrack(calledFlow, started.At));
+            top.CalledFlows[started.RunId] = calledFlow;
+        }
+        if (!_nested.TryGetValue(e.RunId, out var nested))
+            return false;
+        var direct = parent == topId;
+        switch (e)
+        {
+            case NodeStarted node:
+                nested.Track.Count(node.NodeId);
+                top.NestedDetail[call] = $"{nested.Track.Flow.Name} · {nested.Track.NameOf(node.NodeId)}…";
+                break;
+            case NodeFinished node:
+                nested.Track.Finished.Add(node.Result);
+                if (direct)
+                    top.NestedFraction[call] = nested.Track.Fraction;
+                break;
+            case RunFinished:
+                _nested.Remove(e.RunId);
+                if (direct)
+                {
+                    top.NestedDetail.Remove(call);
+                    top.NestedFraction.Remove(call);
+                }
+                break;
+        }
+        Current = Progress(topId, top.Flow.Id, top);
+        return true;
+    }
+
+    /// <summary>
     /// A desktop shortcut's run that didn't start (D-049): nobody sees the pipe's answer, so the pop-up says it. Shown as
     /// a failure that stays readable; not clickable (there's no run to open).
     /// </summary>
@@ -101,8 +149,8 @@ public sealed class RunPopupModel
         var detail = run.Running.Count switch
         {
             0 => done == 0 ? "Starting…" : "Working…",
-            1 => run.NameOf(run.Running[0]) + "…",
-            var n => $"{run.NameOf(run.Running[0])}… and {n - 1} more",
+            1 => run.Current(run.Running[0]),
+            var n => $"{run.Current(run.Running[0])} and {n - 1} more",
         };
         return new PopupView(runId, flowId, run.Flow.Name, $"{done} of {run.Total}", null, run.Fraction, detail, null,
             PopupTone.Running, null, false);
@@ -114,7 +162,7 @@ public sealed class RunPopupModel
         var duration = TimeSpan.FromSeconds(settings.Seconds);
         var view = new PopupView(runId, flowId, run.Flow.Name, "Done", null, 1, "Took " + Seconds(took), null,
             PopupTone.Succeeded, duration, false);
-        var problem = run.Finished.FirstOrDefault(r => r.Outcome is NodeOutcome.Failed or NodeOutcome.FailedIgnored);
+        var problem = run.Finished.FirstOrDefault(r => r.Outcome is NodeOutcome.Failed or NodeOutcome.FailedIgnored || r.IsPartialCall);
         return outcome switch
         {
             // A failure its fallback fixed is the plan working: "Done", in the normal tone (#48, D-065).
@@ -127,9 +175,7 @@ public sealed class RunPopupModel
                 Status = "",
                 Headline = "Done, with a problem",
                 Tone = PopupTone.Partial,
-                Detail = problem is null
-                    ? "Some steps were skipped."
-                    : $"{run.NameOf(problem.NodeId)} didn't work, so it went on without it.",
+                Detail = problem is null ? "Some steps were skipped." : Problem(run, problem),
             },
             FlowOutcome.Failed => view with
             {
@@ -154,6 +200,19 @@ public sealed class RunPopupModel
             },
             _ => view,
         };
+    }
+
+    /// <summary>"Connect didn't work, so it went on without it." (#14); a call names its flow first, recursively.</summary>
+    private static string Problem(RunTrack run, NodeResult problem)
+    {
+        if (!problem.IsPartialCall)
+            return $"{run.NameOf(problem.NodeId)} didn't work, so it went on without it.";
+        var called = problem.Called!;
+        var inner = called.Nodes.FirstOrDefault(r => r.Outcome is NodeOutcome.Failed or NodeOutcome.FailedIgnored || r.IsPartialCall);
+        var track = new RunTrack(run.CalledFlows.GetValueOrDefault(called.RunId) ?? new Flow(called.FlowId, called.FlowName, []), run.Started);
+        foreach (var flow in run.CalledFlows)
+            track.CalledFlows[flow.Key] = flow.Value;
+        return $"{called.FlowName}: " + (inner is null ? "some steps were skipped." : Problem(track, inner));
     }
 
     /// <summary>The first failure in plain words: the provider's reason, or "X didn't work." without one.</summary>
@@ -194,11 +253,23 @@ public sealed class RunPopupModel
         public List<string> Running { get; } = [];
         public List<NodeResult> Finished { get; } = [];
 
+        /// <summary>Call step → its nested run's current step (#59).</summary>
+        public Dictionary<string, string> NestedDetail { get; } = [];
+
+        /// <summary>Call step → how far its nested run is (0–1).</summary>
+        public Dictionary<string, double> NestedFraction { get; } = [];
+
+        /// <summary>Flows run by calls, by nested RunId (names for the outcome).</summary>
+        public Dictionary<Guid, Flow> CalledFlows { get; } = [];
+
+        /// <summary>Row 3 while the step runs: its name, or the nested run's current step for a call.</summary>
+        public string Current(string nodeId) => NestedDetail.TryGetValue(nodeId, out var nested) ? nested : NameOf(nodeId) + "…";
+
         public int Total => Math.Max(_counted.Count, 1);
 
         public int Done => Finished.Count(r => _counted.Contains(r.NodeId));
 
-        public double Fraction => Math.Clamp((double)Done / Total, 0, 1);
+        public double Fraction => Math.Clamp((Done + Running.Where(_counted.Contains).Sum(id => NestedFraction.GetValueOrDefault(id))) / Total, 0, 1);
 
         /// <summary>A step started: a fallback (and its card) counts from now on.</summary>
         public void Count(string stepId)

@@ -1,7 +1,8 @@
 # Flow calls (M13 P6) — design
 
 A step that runs another flow, so typical things compose into one step, and flow **inputs** so one chain serves
-several devices. Designed 2026-11-03 (D-061..D-064), **not built yet**. Tasks: [PLAN.md](../PLAN.md) → M13 (T13.8–
+several devices. Designed 2026-11-03 (D-061..D-064). **Built: §2–§4 (T13.8)** — see ARCHITECTURE → Runtime; still to build: §5 inputs
+(T13.9, incl. `flow.run`'s `inputs` param, not in the catalog yet), §6 editor (T13.10). Tasks: [PLAN.md](../PLAN.md) → M13 (T13.8–
 T13.10). Microcopy numbers (#47–#66) are in [UX.md](../UX.md) §5.7. Shares its model with the flow menu
 ([flow-menu/DESIGN.md](../flow-menu/DESIGN.md), D-054 as amended by D-061).
 

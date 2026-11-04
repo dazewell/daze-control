@@ -1,7 +1,14 @@
 namespace DazeControl.Core.Runs;
 
 /// <summary>Live progress of one run, for the pop-up, the editor's run overlay and the pipe (FEATURES F5).</summary>
-public abstract record RunEvent(Guid RunId, string FlowId, DateTimeOffset At);
+public abstract record RunEvent(Guid RunId, string FlowId, DateTimeOffset At)
+{
+    /// <summary>Set on a nested run's events (a <c>flow.run</c> step that waits, D-062): the run that called it.</summary>
+    public Guid? ParentRunId { get; init; }
+
+    /// <summary>With <see cref="ParentRunId"/>: the calling step's id.</summary>
+    public string? ParentNodeId { get; init; }
+}
 
 public sealed record RunStarted(Guid RunId, string FlowId, DateTimeOffset At, int NodeCount) : RunEvent(RunId, FlowId, At)
 {

@@ -86,7 +86,14 @@ public sealed class Scheduler
 
     /// <summary>Only meaningful once <see cref="IsFinished"/>.</summary>
     public FlowOutcome Result => Core.Runs.Outcomes.Summarize(
-        _outcomes.Select(o => (o.Value, IsHandled(o.Key, o.Value) || _excused.Contains(o.Key))), IsCancelled, IsStopped);
+        _outcomes.Select(o => (o.Value, IsHandled(o.Key, o.Value) || _excused.Contains(o.Key))), IsCancelled, IsStopped,
+        _partialCall);
+
+    private bool _partialCall;
+
+    /// <summary>A <c>flow.run</c> step is about to complete Succeeded but the flow it ran had a problem: the run ends
+    /// PartiallySucceeded at best (DESIGN §2.2), without a failure edge or policy.</summary>
+    public void MarkPartialCall() => _partialCall = true;
 
     private bool IsHandled(string id, NodeOutcome outcome) =>
         outcome is NodeOutcome.Failed or NodeOutcome.FailedIgnored && _withFallback.Contains(id);

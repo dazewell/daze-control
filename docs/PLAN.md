@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T13.2 done (feat/m13-flows-card, PR #40): Flows card icon via `FlowGlyph.CodeOf`, Run/Stop button (#62 reasons in tooltip), each card one Tab stop (Enter/Space/UIA Invoke open), menu Open/Run (D-070); T13.1 (#36), T13.4 (#37), T13.5 (#39), T13.7 (#38) done
-Last green checkpoint: a63612a Merge origin/main into feat/m13-flows-card
-Next action: lane A continues with T13.3 (feat/m13-nav-collapse): `Editor.ViewModels/Config/EditorSettingsStore.cs` tests first (missing / corrupt / round-trip / debounce), then T13.6 (Layout menu; T13.5 is in); lane D continues with T13.8 (feat/m13-flow-run): `flow.run` in Core/Catalog/ProviderCatalog.cs with `ParamSpec.RefersTo = Flow`, tests first per flow-calls/DESIGN.md §2.2 (reuses `Outcomes.Fix` / `FlowShape`); lanes B and C have no more tasks; other lanes per PLAN → M13 Order
+Current task: T13.8 done (feat/m13-flow-run): `flow.run` waits (nested run, D-062) or starts (D-054); call-graph validation + runtime chain/depth-8 guards (D-063); one history record with `NodeResult.Called`; pop-up folds nested runs (#59). T13.2 done (PR #40); T13.1 (#36), T13.4 (#37), T13.5 (#39), T13.7 (#38) done
+Last green checkpoint: b2c3f14 wip(m13): DESIGN §1 scenarios end to end with safe steps (T13.8)
+Next action: lane A continues with T13.3 (feat/m13-nav-collapse): `Editor.ViewModels/Config/EditorSettingsStore.cs` tests first (missing / corrupt / round-trip / debounce), then T13.6; lane D continues with T13.9 (feat/m13-flow-inputs): `Core/Model` `Flow.Inputs` + YAML `inputs:`, and add `flow.run`'s `inputs` TextMap param (not in the catalog yet); lanes B and C have no more tasks
 Tree state: builds, all tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user was told (T13.7) that their live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs, fails and stops the flow (cancelling Sony); "Skip what depends on it" fixes it. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user was told (T13.7) that their live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs, fails and stops the flow (cancelling Sony); "Skip what depends on it" fixes it. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers for T13.9/T13.10: `flow.run` `inputs` param; #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config, not the on-screen one; inspector suggestions for `ParamSuggest.Flows`; Runs-page nested lanes; measure.ps1 couldn't run while the user's installed engine held the pipe. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
 ---
 
 ## Workflow (usage-cap-proof, D-018)
@@ -79,7 +79,7 @@ section rewritten, FEATURES where behaviour changed).
   Succeeded, Sony branch NotNeeded; Technics fails and Sony works → Succeeded; both fail → Failed), a chain after a
   fallback, a join of normal + fallback; pop-up model tests ("1 of 2", Done + #48); history round-trip with NotNeeded;
   `dctl run --dry-run` and a fake-provider run of that flow; AOT publish with zero warnings.
-- [ ] T13.8 P6a **`flow.run`: nested runs, loops, history, pop-up** (feat/m13-flow-run, D-061..D-063; after T13.7).
+- [x] T13.8 P6a **`flow.run`: nested runs, loops, history, pop-up** (feat/m13-flow-run, PR #41, D-061..D-063; after T13.7).
   Files: `Core/Catalog/ProviderCatalog.cs` (`flow.run`; adds `ParamSpec.RefersTo = Flow`, which M12's T12.3 then
   reuses), `Core/Validation/ConfigValidator.cs` (call graph incl. `menu.show` wait items when they exist),
   `Core/Runs` (`NodeResult.Called`, `CalledRun`, events' `ParentRunId`), `Runtime/Control/IFlowStarter.cs` +

@@ -255,7 +255,24 @@ public sealed class PipeEvent
 
     public FlowOutcome? Outcome { get; init; }
 
-    public static PipeEvent From(RunEvent e) => e switch
+    /// <summary>A nested run's events (a <c>flow.run</c> step that waits, D-062): the calling run and step. Additive:
+    /// protocol stays 1.</summary>
+    public Guid? ParentRunId { get; init; }
+
+    public string? ParentNodeId { get; init; }
+
+    public static PipeEvent From(RunEvent e)
+    {
+        var pipe = Map(e);
+        return e.ParentRunId is null ? pipe : new()
+        {
+            Kind = pipe.Kind, At = pipe.At, RunId = pipe.RunId, FlowId = pipe.FlowId, NodeCount = pipe.NodeCount,
+            NodeId = pipe.NodeId, Attempt = pipe.Attempt, Node = pipe.Node, Outcome = pipe.Outcome,
+            ParentRunId = e.ParentRunId, ParentNodeId = e.ParentNodeId,
+        };
+    }
+
+    private static PipeEvent Map(RunEvent e) => e switch
     {
         RunStarted s => new() { Kind = EventKinds.RunStarted, At = s.At, RunId = s.RunId, FlowId = s.FlowId, NodeCount = s.NodeCount },
         NodeStarted s => new() { Kind = EventKinds.NodeStarted, At = s.At, RunId = s.RunId, FlowId = s.FlowId, NodeId = s.NodeId, Attempt = s.Attempt },
