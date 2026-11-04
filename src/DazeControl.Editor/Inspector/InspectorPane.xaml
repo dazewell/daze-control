@@ -327,7 +327,8 @@
                         <DataTemplate x:DataType="vmi:ShortcutViewModel">
                             <StackPanel>
                                 <local:HotkeyRecorder Hotkey="{x:Bind Hotkey, Mode=OneWay}" Tag="{x:Bind}" AccessibleName="Shortcut"
-                                                      Recorded="OnShortcutRecorded" HorizontalAlignment="Left" />
+                                                      Recorded="OnShortcutRecorded" RecordingChanged="OnShortcutRecording"
+                                                      HorizontalAlignment="Left" />
                                 <TextBlock Text="{x:Bind Problem, Mode=OneWay}" Visibility="{x:Bind HasProblem, Mode=OneWay}" Style="{StaticResource FieldError}" />
                             </StackPanel>
                         </DataTemplate>

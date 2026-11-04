@@ -47,6 +47,9 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _tests = new(StringComparer.Ordinal);
     private volatile ShellStatus _shell = ShellStatus.Empty;
 
+    // record-hotkey: the connections whose shortcut box is recording, each with its "connection gone" hook.
+    private readonly Dictionary<CancellationToken, CancellationTokenRegistration> _recorders = [];
+
     public ShellStatus Shell
     {
         get => _shell;
@@ -58,6 +61,12 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
     /// the shell says it in the pop-up. Any thread.
     /// </summary>
     public event Action<RunRefusal>? RunRefused;
+
+    /// <summary>
+    /// True when the first connection starts recording a shortcut, false when the last one stops or goes away (D-072).
+    /// Raised in order, under a lock, from a pipe thread: the handler only posts.
+    /// </summary>
+    public event Action<bool>? HotkeyRecordingChanged;
 
     /// <summary>
     /// A runner whose steps do nothing, for <c>dctl run --dry-run</c> and the editor's Dry run: walks the flow's
@@ -117,6 +126,8 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                 return await CaptureDisplayLayoutAsync(request, cancellationToken).ConfigureAwait(false);
             case Ops.TestStep:
                 return await TestStepAsync(request, cancellationToken).ConfigureAwait(false);
+            case Ops.RecordHotkey:
+                return RecordHotkey(request, cancellationToken);
             case Ops.Shortcuts:
             case Ops.CreateShortcut:
             case Ops.RemoveShortcut:
@@ -125,6 +136,53 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             default:
                 return PipeMessage.Fail(id, $"Unknown request \"{request.Op}\".");
         }
+    }
+
+    /// <param name="connection">The request's connection: when it ends (the editor quit or crashed), so does its recording.</param>
+    private PipeMessage RecordHotkey(PipeRequest request, CancellationToken connection)
+    {
+        if (request.On is not { } on)
+            return PipeMessage.Fail(request.Id, "record-hotkey needs on: true or false.");
+        if (on)
+        {
+            lock (_recorders)
+            {
+                if (!_recorders.TryAdd(connection, default))
+                    return new PipeMessage { Id = request.Id, Ok = true }; // focus came again
+                if (_recorders.Count == 1)
+                    HotkeyRecordingChanged?.Invoke(true);
+            }
+            // Outside the lock: a connection already gone runs the hook right here, and the hook takes the lock.
+            var hook = connection.Register(() => StopRecording(connection));
+            var stale = false;
+            lock (_recorders)
+            {
+                if (_recorders.ContainsKey(connection))
+                    _recorders[connection] = hook;
+                else
+                    stale = true; // stopped meanwhile
+            }
+            if (stale)
+                hook.Dispose();
+        }
+        else
+        {
+            StopRecording(connection);
+        }
+        return new PipeMessage { Id = request.Id, Ok = true };
+    }
+
+    private void StopRecording(CancellationToken connection)
+    {
+        CancellationTokenRegistration hook;
+        lock (_recorders)
+        {
+            if (!_recorders.Remove(connection, out hook))
+                return;
+            if (_recorders.Count == 0)
+                HotkeyRecordingChanged?.Invoke(false);
+        }
+        hook.Dispose();
     }
 
     private async Task<PipeMessage> DevicesAsync(PipeRequest request, CancellationToken cancellationToken)

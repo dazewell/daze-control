@@ -15,8 +15,10 @@ public interface IHotkeyRegistrar
 /// <summary>
 /// Which shortcut runs which flow (FEATURES F2): built from the runnable flows on every config change, applied as a
 /// diff so unchanged chords stay registered. One chord that can't be registered (another app owns it) fails alone
-/// and is retried on the next change (T3.3). <see cref="Paused"/> unregisters everything until resumed (tray
-/// "Pause shortcuts"). Not thread-safe: the engine calls it on its message thread.
+/// and is retried on the next change (T3.3) and on <see cref="RetryFailures"/> (user actions, D-072: no timer).
+/// <see cref="Paused"/> (tray "Pause shortcuts") and <see cref="Recording"/> (the editor's shortcut box has focus)
+/// each unregister everything until they end; a failure stays known meanwhile, so its note doesn't flicker. Not
+/// thread-safe: the engine calls it on its message thread.
 /// </summary>
 public sealed class HotkeyTable(IHotkeyRegistrar registrar)
 {
@@ -28,6 +30,12 @@ public sealed class HotkeyTable(IHotkeyRegistrar registrar)
     private int _nextId;
 
     public bool Paused { get; private set; }
+
+    /// <summary>The editor records a shortcut (pipe <c>record-hotkey</c>): its own flag, apart from Pause, not shown in the tray.</summary>
+    public bool Recording { get; private set; }
+
+    /// <summary><see cref="Failures"/> changed: a chord failed, was freed and registered, or isn't wanted anymore.</summary>
+    public event Action? FailuresChanged;
 
     /// <summary>Chords that couldn't be registered, with why (for the tooltip, <c>dctl status</c>, the editor).</summary>
     public IReadOnlyDictionary<Hotkey, string> Failures => _failures;
@@ -68,6 +76,27 @@ public sealed class HotkeyTable(IHotkeyRegistrar registrar)
         Sync();
     }
 
+    public void StartRecording()
+    {
+        Recording = true;
+        Sync();
+    }
+
+    /// <summary>Registers every wanted chord again, the failed ones too.</summary>
+    public void StopRecording()
+    {
+        Recording = false;
+        Sync();
+    }
+
+    /// <summary>Tries the failed chords again (the tray menu opens): one that another app let go of is registered now.</summary>
+    public void RetryFailures() => Sync();
+
+    /// <summary>Why a chord <c>RegisterHotKey</c> refused as taken (1409) can't be used: Windows' own (H5) or another app's (H6).</summary>
+    public static string TakenMessage(Hotkey hotkey) => WindowsShortcuts.Contains(hotkey)
+        ? $"Windows uses {hotkey}. Try another one."
+        : $"Another app uses {hotkey}. If you closed it, check the tray: it may still be running. Try another one.";
+
     /// <summary>The flow a <c>WM_HOTKEY</c> id runs now, with its chord; null for an id that's gone.</summary>
     public (string FlowId, Hotkey Hotkey)? Resolve(int id) =>
         _byId.TryGetValue(id, out var hotkey) && _wanted.TryGetValue(hotkey, out var flowId) ? (flowId, hotkey) : null;
@@ -96,14 +125,15 @@ public sealed class HotkeyTable(IHotkeyRegistrar registrar)
 
     private void Sync()
     {
-        var keep = Paused ? [] : _wanted.Keys.ToHashSet();
+        var before = _failures.Count == 0 ? null : _failures.ToList();
+        var keep = Paused || Recording ? [] : _wanted.Keys.ToHashSet();
         foreach (var (hotkey, id) in _registered.Where(r => !keep.Contains(r.Key)).ToList())
         {
             registrar.Unregister(id);
             _registered.Remove(hotkey);
             _byId.Remove(id);
         }
-        foreach (var hotkey in _failures.Keys.Where(h => !keep.Contains(h)).ToList())
+        foreach (var hotkey in _failures.Keys.Where(h => !_wanted.ContainsKey(h)).ToList())
             _failures.Remove(hotkey);
         foreach (var hotkey in keep.Where(h => !_registered.ContainsKey(h)))
         {
@@ -117,5 +147,12 @@ public sealed class HotkeyTable(IHotkeyRegistrar registrar)
             _registered[hotkey] = id;
             _byId[id] = hotkey;
         }
+        if (!SameFailures(before))
+            FailuresChanged?.Invoke();
     }
+
+    private bool SameFailures(List<KeyValuePair<Hotkey, string>>? before) => before is null
+        ? _failures.Count == 0
+        : before.Count == _failures.Count
+            && before.All(f => _failures.TryGetValue(f.Key, out var why) && why == f.Value);
 }
