@@ -448,6 +448,10 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   DELL passed its check, then both came back on). The DELL's target id changes 0x1009038 → 0x9038 then, which looks
   like a hot-plug restore. Not fixed: a settle wait (WM_DISPLAYCHANGE, timeout) before `DisplayCheck` is the first
   thing to try, then a second check.
+- Run pop-up over a full-screen game: spike S2 (X-010) showed that any window of ours over a DXGI full-screen game
+  (FSO included) knocks the game out of full screen. `RunPopup` shows without checking
+  `SHQueryUserNotificationState`, so a shortcut run during such a game probably does the same. Untested with
+  `RunPopup` itself. The likely fix is to skip the pop-up while QUNS = 3; history still records the run.
 - Designed, not built: the flow menu and controller input (M12) — [flow-menu/DESIGN.md](flow-menu/DESIGN.md)
   §3 (D-053..D-057). Each M12 task moves its part into the sections above.
 - Built in M13 (PLAN → M13): the Layout menu's `LayoutOptions` (D-067, T13.6) and the editor for flow calls and inputs (T13.10). Each task rewrites the
