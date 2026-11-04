@@ -107,7 +107,8 @@ public class HotkeyTests
     }
 
     [Theory]
-    [InlineData(HotkeyModifiers.Win, 0xDCu, HotkeyRejection.None)]                          // Win+    [InlineData(HotkeyModifiers.None, 0x65u, HotkeyRejection.None)]                         // Num5 alone
+    [InlineData(HotkeyModifiers.Win, 0xDCu, HotkeyRejection.None)]                          // Win+\
+    [InlineData(HotkeyModifiers.None, 0x65u, HotkeyRejection.None)]                         // Num5 alone
     [InlineData(HotkeyModifiers.Ctrl, 0x61u, HotkeyRejection.None)]                         // Ctrl+Num1
     [InlineData(HotkeyModifiers.None, 0x41u, HotkeyRejection.NeedsModifier)]                // A
     [InlineData(HotkeyModifiers.Shift, 0xDBu, HotkeyRejection.NeedsModifier)]               // Shift+[

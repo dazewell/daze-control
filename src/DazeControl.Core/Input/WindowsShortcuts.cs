@@ -22,10 +22,9 @@ public static class WindowsShortcuts
             set.Add(hotkey);
         }
 
-        // Win + a letter: Quick Settings, focus tray, Copilot, desktop, Explorer, Feedback, Game Bar, voice typing,
-        // Settings, Cast, lock, minimise all, notifications, lock rotation, Project, Search, Run, Search, taskbar
-        // focus, Accessibility, clipboard history, Widgets, Quick Link, Snap layouts.
-        foreach (var letter in "ABCDEFGHIKLMNOPQRSTUVWXZ")
+        // Win + any letter: Windows 11 uses every one (Quick Settings, Copilot, Explorer, lock, Run, clipboard
+        // history, Windows tip on J, Mixed Reality input on Y, Snap layouts…).
+        foreach (var letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
             Add("Win+" + letter);
         // Win + a taskbar position, plain or with Shift/Ctrl/Alt/Ctrl+Shift.
         foreach (var digit in "0123456789")
