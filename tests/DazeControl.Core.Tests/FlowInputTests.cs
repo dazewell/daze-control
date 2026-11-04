@@ -282,6 +282,8 @@ public class FlowInputTests
 
         Assert.Equal("Output (from Headphones: bose) isn't in your Library anymore.", message);
         Assert.Null(FlowInputs.Check(config.Flows[0], config.Library, new Dictionary<string, string> { ["output"] = "sony" }, "Headphones"));
+        Assert.Equal("Make it the default has no input called \"speaker\" anymore.",
+            FlowInputs.Check(config.Flows[0], config.Library, new Dictionary<string, string> { ["speaker"] = "sony" }, "Headphones"));
     }
 
     // ---- Library rename and "used by" ----

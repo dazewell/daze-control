@@ -48,7 +48,8 @@ public static class FlowInputs
 
     /// <summary>
     /// Why the values a caller passes can't run <paramref name="called"/> with <paramref name="library"/> (the
-    /// library its runnable version was validated with), or null. Unknown input names are left to validation.
+    /// library its runnable version was validated with), or null. An input it no longer has fails too: under D-021 a
+    /// caller's last valid version can meet a newer called flow, and its device must not silently become the default.
     /// </summary>
     /// <param name="callerName">For the message: "Output (from Headphones: sony) isn't in your Library anymore."</param>
     public static string? Check(Flow called, Library library, IReadOnlyDictionary<string, string> given, string callerName)
@@ -58,7 +59,9 @@ public static class FlowInputs
         ArgumentNullException.ThrowIfNull(given);
         foreach (var (name, key) in given)
         {
-            if (called.Inputs.TryGetValue(name, out var input) && !library.Contains(input.Kind, key))
+            if (!called.Inputs.TryGetValue(name, out var input))
+                return $"{called.Name} has no input called \"{name}\" anymore.";
+            if (!library.Contains(input.Kind, key))
                 return $"{input.Label} (from {callerName}: {key}) isn't in your Library anymore.";
         }
         return null;
