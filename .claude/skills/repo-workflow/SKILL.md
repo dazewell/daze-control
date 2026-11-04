@@ -62,7 +62,9 @@ PR description: what changed, why (link D-xxx), how it was verified, what's left
 
 ## 6. Merge policy (user, 2026-11-01: agents merge while the app is being scaffolded)
 
-Agents merge their own PRs so work isn't blocked while the user sleeps. Per PR:
+Agents merge their own PRs so work isn't blocked while the user sleeps. Docs-only PRs (no code, tests or build
+files changed; a spike's untracked probe counts as docs) get **no** Copilot review: merge once CI is green (user,
+2026-11-04). Every other PR:
 1. Copilot doesn't review on its own (user, 2026-11-01). Right after opening the PR (or marking it ready),
    request it, every time: `gh pr edit <n> --add-reviewer @copilot` (works: PR #4 review 2, 2026-11-01; fallback if it fails:
    `gh api -X POST repos/dazewell/daze-control/pulls/<n>/requested_reviewers -f "reviewers[]=copilot-pull-request-reviewer[bot]"`).
