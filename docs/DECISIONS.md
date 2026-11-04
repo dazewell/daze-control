@@ -843,7 +843,7 @@ Status: accepted (M13 design; user, 2026-11-03: "a layout menu… a couple more 
 - Revisit if: the user asks for top-to-bottom (own task) or wants layouts to follow the config to another PC.
 
 ## D-068 · 2026-11-03 · Editor view state lives in `%LOCALAPPDATA%\DazeControl\editor.json`
-Status: accepted (M13 design)
+Status: accepted (M13 design); built T13.3 (an editor started with `--config` keeps it next to that file)
 - Decision: `Editor.ViewModels/Config/EditorSettingsStore`: STJ source-generated, read once at start (missing or bad
   → defaults, logged), written atomically 300 ms after a change. Holds the nav pane's open state (P9) and per-flow
   layout choices (D-067). The engine never reads it.
