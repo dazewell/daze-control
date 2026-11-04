@@ -409,6 +409,11 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 
 ## Open questions
 
+- Display, after Duplicate (F5 live run 2026-11-03, notes `f5-display/fix-runs/`): leaving Duplicate, the next one or
+  two switches can be undone by Windows seconds later, `display.topology` included (Extend → Duplicate; "use only"
+  DELL passed its check, then both came back on). The DELL's target id changes 0x1009038 → 0x9038 then, which looks
+  like a hot-plug restore. Not fixed: a settle wait (WM_DISPLAYCHANGE, timeout) before `DisplayCheck` is the first
+  thing to try, then a second check.
 - Designed, not built: the flow menu and controller input (M12) — [flow-menu/DESIGN.md](flow-menu/DESIGN.md)
   §3 (D-053..D-057). Each M12 task moves its part into the sections above.
 - Designed, not built (M13, PLAN → M13): the editor for flow calls and inputs — [flow-calls/DESIGN.md](flow-calls/DESIGN.md) §6 (T13.10;
@@ -419,10 +424,13 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 - Designed, not built (PLAN → M13 fixes, v0.29.0 feedback): Ctrl+S's accelerator
   tooltip hidden (X-008, F3). Flow ids are keys in: other flows'
   `flow.run` (and M12 `menu.show`), history and logs (never rewritten), desktop .lnk args and file names (D-049),
-  `dctl run`, the engine's per-id launcher slots, and T13.6's per-flow layouts in `editor.json`. Display steps (F5,
-  D-077, X-009): `UseOnly` asks `SDC_TOPOLOGY_SUPPLIED` first with a source per screen, `CcdLayout.Apply` remaps
-  source ids and retries from the layout's set on error 87, and a pure `DisplayCheck` compares the active paths with
-  the request after every write; `display.topology` stays as built.
+  `dctl run`, the engine's per-id launcher slots, and T13.6's per-flow layouts in `editor.json`.
+- Display writes (F5, D-077, X-009): `DisplayCheck` (pure, `Providers/Display`) gives each screen its own source per
+  adapter (a saved clone keeps one shared) and compares the active paths with the request after every write; a
+  mismatch fails the step (#70). `CcdDisplays.SwitchSet` asks `SDC_TOPOLOGY_SUPPLIED` first (the set's saved
+  arrangement) and falls back to `USE_SUPPLIED | ALLOW_CHANGES | SAVE_TO_DATABASE`; `UseOnly` and, on error 87 from
+  validation, `CcdLayout.Apply` go through it. `display.topology` is unchanged. Live matrix: `scripts/display-check.ps1`
+  (read-only without `-Go`; with it, saves, runs, restores, restarts the installed engine) — only with the user's OK.
 - Flow delete and rename (F4, D-075, D-076): `Core/Model/FlowIds` (slug, unique; New flow uses it) and `FlowRefs`
   (callers, rename of every `ConfigRef.Flow` param). `ConfigSession.SaveDraft` gives a renamed flow
   `Unique(Slug(name))` in its place, rewrites callers in the file and in drafts, and raises `FlowRenamed` before
