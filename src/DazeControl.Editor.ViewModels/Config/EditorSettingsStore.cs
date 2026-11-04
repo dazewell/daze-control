@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DazeControl.Core;
+using DazeControl.Core.Layout;
 
 namespace DazeControl.Editor.ViewModels.Config;
 
@@ -19,9 +20,25 @@ public sealed class EditorSettings
     public Dictionary<string, JsonElement>? Other { get; set; }
 }
 
-/// <summary>One flow's view choices on this PC; T13.6 adds the Layout menu's options here.</summary>
+/// <summary>One flow's view choices on this PC: the Layout menu (D-067). Null = the default, not written.</summary>
 public sealed class FlowViewSettings
 {
+    /// <summary>Wrap long chains after this many steps; 0 = Never.</summary>
+    public int? WrapAfter { get; set; }
+
+    public LayoutSpacing? Spacing { get; set; }
+
+    public LayoutAlign? Align { get; set; }
+
+    public LayoutLines? Lines { get; set; }
+
+    [JsonIgnore]
+    public bool IsDefault => WrapAfter is null && Spacing is null && Align is null && Lines is null && Other is not { Count: > 0 };
+
+    /// <summary>The layout these choices give.</summary>
+    public LayoutOptions ToOptions() => LayoutOptions.Of(WrapAfter ?? LayoutOptions.DefaultWrapAfter,
+        Spacing ?? LayoutSpacing.Normal, Align ?? LayoutAlign.Centre, Lines ?? LayoutLines.Curved);
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Other { get; set; }
 }

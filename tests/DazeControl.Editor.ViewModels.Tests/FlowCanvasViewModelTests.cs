@@ -311,9 +311,9 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     }
 
     [Fact]
-    public void TidyUpUncrossesColumnsAndSaves()
+    public void UntangleUncrossesColumnsAndSaves()
     {
-        Assert.False(_canvas.TidyUp());
+        Assert.False(_canvas.Untangle());
 
         // vol also waits for the card and sits above out: bt→out and both→vol cross.
         _canvas.Edit(f => f with
@@ -323,7 +323,7 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         });
         Assert.Equal(1, FlowTidy.Crossings(_canvas.Flow!));
 
-        Assert.True(_canvas.TidyUp());
+        Assert.True(_canvas.Untangle());
 
         Assert.Equal(["bt", "out", "vol", "note", "both", "w1", "w2"], Order());
         Assert.True(Node("out").Y < Node("vol").Y);
@@ -619,7 +619,7 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         Assert.True(_canvas.CanRedo);
         Assert.False(_canvas.CanUndo);
 
-        _canvas.TidyUp();
+        _canvas.Untangle();
         _canvas.AddStep("wait");
         Assert.False(_canvas.CanRedo);
         Assert.True(_canvas.CanUndo);

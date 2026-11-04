@@ -368,9 +368,9 @@ public sealed partial class FlowCanvas : UserControl
                 _ => NormalEdges,
             };
             var figure = new PathFigure { StartPoint = P(c.Start), IsClosed = false, IsFilled = false };
-            if (c.IsWrapped)
+            if (c.IsOrthogonal)
             {
-                // Orthogonal with rounded corners across a row break (D-060).
+                // Orthogonal with rounded corners: across a row break (D-060), or Lines › Right angles (D-067).
                 foreach (var (lineTo, corner, curveTo) in c.RoundedSegments())
                 {
                     figure.Segments.Add(new LineSegment { Point = P(lineTo) });

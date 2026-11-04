@@ -278,7 +278,9 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   `--config`, `editor.json` next to that file): STJ source-generated, read once (missing → defaults; unreadable or
   bad → defaults and a line in `logs\editor.log`), `Update(s => …)` writes it atomically 300 ms after the last change
   (`TimeProvider`) and on close; unknown keys are kept. Holds `NavPaneOpen` (`ShellViewModel.IsNavPaneOpen`, two-way
-  with `NavigationView.IsPaneOpen`) and `Flows` by flow id (T13.6's layout choices; `RenameFlow` on a saved rename).
+  with `NavigationView.IsPaneOpen`) and `Flows` by flow id: `FlowViewSettings` = the Layout menu's choices
+  (`WrapAfter`, `Spacing`, `Align`, `Lines`; null = default, an all-default flow is removed), `ToOptions()` →
+  `LayoutOptions`. `RenameFlow` on a saved rename (D-075), called by the open canvas and by the shell.
 - `Config/ConfigSession` — Library/Settings edits are `Update(c => …)`, saved 300 ms after the last one
   (`TimeProvider`); the open flow's edits are `UpdateDraft` until `SaveDraft`/`DiscardDraft` (D-047): it keeps the
   saved configuration beside `Current` and writes only that.
@@ -293,12 +295,19 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
 - Flow editor (M7): Flows › name opens `Canvas/FlowCanvasViewModel` for one flow. Layout is `Core/Layout/FlowLayout`
   (D-020): layer = longest path from a start, rows = `nodes` order, cards stack members; edges naming a member
   are drawn from/to its card; cycles and dangling ids are ignored so half-built flows still draw. Spine runs longer
-  than `LayoutOptions.WrapAfter` wrap into rows (D-060), and columns are placed in **lines** like text (D-066): a line
-  is the columns up to and including the next wrapped block, centred on its own tallest column; the line after a
+  than `LayoutOptions.WrapAfter` wrap into rows (D-060; 0 = never), and columns are placed in **lines** like text
+  (D-066): a line is the columns up to and including the next wrapped block, centred on its own tallest column (or
+  hung from the line's top, `Align = Top`); the line after a
   block starts at the block's x, one `WrapRowGap` under its bottom, so later lines never reach left of an earlier
-  block and the width stays bounded by the blocks. Wrapped boxes keep their layer as `Column`, so keys, Tidy up and
-  `nodes` don't see the wrap. `EdgeCurve` is the Bézier + hit-test, or the orthogonal wrapped edge
-  (`EdgeRoute.WrapLaneY` set on a row break and on the edge from a block's last box into the next line). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
+  block and the width stays bounded by the blocks. Wrapped boxes keep their layer as `Column`, so keys, Untangle and
+  `nodes` don't see the wrap. `EdgeCurve` is the Bézier + hit-test, or orthogonal (`IsOrthogonal`): the wrapped edge
+  (`EdgeRoute.WrapLaneY` set on a row break and on the edge from a block's last box into the next line), or with
+  Lines › Right angles every other edge (`BendX` = the gap's middle); `EdgeCurve.For(route, lines)` picks.
+  Layout menu (D-067): `LayoutOptions.Of(wrapAfter, spacing, align, lines)` (Compact 40/8, Normal 64/16, Roomy
+  96/32 column/row gaps). The canvas VM reads this flow's `FlowViewSettings` at every `Sync` (`SetLayout`,
+  `ResetLayout`: not flow edits, no undo); `ShellWindow` builds the flyout on `Opening` (radio items from the VM) and
+  gives the canvas focus back after a pick, so Ctrl+Z undoes Untangle. Choices apply at once without the reflow
+  animation (UX §5.3 motion's 200 ms reflow isn't built anywhere yet). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
   and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
   edges batched by style, D-037) and maps pointer/keys to VM calls; zoom/scroll is a `ScrollViewer` (50–200 %).
   Wheel zoom and pan room (D-074): the `ScrollViewer`'s content is a transparent `Wrapper` Grid around `Host`, padded
@@ -315,8 +324,10 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   still arrives; an armed press is dropped on `PointerExited` (no capture = no release outside).
 - Canvas edits live in Core: `FlowGraph` (connect/disconnect/`when`, refusals: exists, loop, same card) and
   `FlowEdits` (group/ungroup, take out — a card under 2 members dissolves —, run together/after on drop).
-  `FlowTidy` ("Tidy up") cuts crossings with barycentre sweeps; nodes only trade the `nodes` slots their column
-  already holds, so the YAML diff stays small. `FlowCommands` (add, insert on an edge, delete with bridging, copy,
+  `FlowTidy` (Layout › "Untangle lines", was Tidy up, X-006) cuts crossings with barycentre sweeps; nodes only
+  trade the `nodes` slots their column already holds, so the YAML diff stays small. `FlowTidy.Check` → `UntangleState`
+  (Helps / NoCrossings / NoBetterOrder) sets `CanUntangle` and the reason shown on the off item; the VM works it out
+  when the menu asks, cached per flow version and Line up (the sweeps are quadratic in edges, too dear for every Sync). `FlowCommands` (add, insert on an edge, delete with bridging, copy,
   paste) backs the edit commands (D-039).
 - Flow editor commands: undo/redo are whole-flow snapshots in the canvas VM (D-039). Palette and quick-add
   (`/`, double-click, the empty state's button, "Add a step…" menus) share `StepPaletteViewModel.Search`; the palette
@@ -428,13 +439,12 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 - Designed, not built: the flow menu and controller input (M12) — [flow-menu/DESIGN.md](flow-menu/DESIGN.md)
   §3 (D-053..D-057). Each M12 task moves its part into the sections above.
 - Designed, not built (M13, PLAN → M13): the editor for flow calls and inputs — [flow-calls/DESIGN.md](flow-calls/DESIGN.md) §6 (T13.10;
-  `flow.run` and inputs are built, Runtime);
-  the Layout menu's `LayoutOptions` (D-067). Each task rewrites the
+  `flow.run` and inputs are built, Runtime). Each task rewrites the
   section it changes. Fallback outcomes (D-065) are built (T13.7: Config, Runtime).
 - Designed, not built (PLAN → M13 fixes, v0.29.0 feedback): Ctrl+S's accelerator
   tooltip hidden (X-008, F3). Flow ids are keys in: other flows'
   `flow.run` (and M12 `menu.show`), history and logs (never rewritten), desktop .lnk args and file names (D-049),
-  `dctl run`, the engine's per-id launcher slots, and T13.6's per-flow layouts in `editor.json`.
+  `dctl run`, the engine's per-id launcher slots, and the per-flow layouts in `editor.json` (T13.6).
 - Display writes (F5, D-077, X-009): `DisplayCheck` (pure, `Providers/Display`) gives each screen its own source per
   adapter (a saved clone keeps one shared) and compares the active paths with the request after every write; a
   mismatch fails the step (#70). `CcdDisplays.SwitchSet` asks `SDC_TOPOLOGY_SUPPLIED` first (the set's saved
