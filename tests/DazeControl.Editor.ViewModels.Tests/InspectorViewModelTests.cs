@@ -524,4 +524,113 @@ public sealed class InspectorViewModelTests : IDisposable
         _inspector.Connections[0].WhenIndex = 1;
         Assert.Equal(EdgeWhen.Failure, Step("out").After.Single().When);
     }
+
+    // ---- F2: "Run a flow" picks a flow by name and stores its id ----
+
+    private static Flow NotifyFlow(string id, string name) =>
+        new(id, name, [new StepNode("a", "notify") { With = new([new("text", (ParamValue)"x")]) }]);
+
+    private void AddRunStep(string? target)
+    {
+        var step = new StepNode("call", Core.Catalog.ProviderCatalog.RunFlowId);
+        if (target is not null)
+            step = step with { With = new([new("flow", (ParamValue)target)]) };
+        _canvas.Edit(f => f with { Nodes = [.. f.Nodes, step] });
+        _canvas.Select("call");
+    }
+
+    [Fact]
+    public void RunAFlowIsListedUnderFlows()
+    {
+        AddRunStep(null);
+
+        Assert.Equal("Flows › Run a flow", _inspector.Kind);
+    }
+
+    [Fact]
+    public void EveryStepAreaHasATitleStartingWithACapital()
+    {
+        foreach (var area in Core.Catalog.ProviderCatalog.All.Select(d => d.Area).Distinct())
+        {
+            var title = CanvasNodeViewModel.Area(area);
+            Assert.True(title.Length > 0 && char.IsUpper(title[0]), $"{area} → {title}");
+        }
+    }
+
+    [Fact]
+    public void TheFlowPickerListsTheOtherFlowsByNameAndStoresTheId()
+    {
+        _session.Update(c => c with { Flows = [.. c.Flows, NotifyFlow("night", "Night"), NotifyFlow("morning", "Morning") with { Enabled = false }] });
+        AddRunStep(null);
+
+        var field = Field("flow");
+        Assert.True(field.IsDevice);
+        Assert.False(field.IsSuggestText);
+        Assert.Equal(["Morning", "Night"], field.Devices.Select(d => d.Title));
+        Assert.Equal(["morning", "night"], field.Devices.Select(d => d.Key));
+        Assert.Equal("Turned off", field.Devices[0].Caption);
+        Assert.Equal("", field.Devices[1].Caption);
+        Assert.Equal("Choose a flow.", field.Error);
+
+        field.Device = field.Devices[1];
+
+        Assert.Equal("night", ((ScalarParam)Step("call").With["flow"]).Text);
+        Assert.Equal("Night", Field("flow").Device?.Title);
+        Assert.Equal("Night", _canvas.Nodes.Single(n => n.Id == "call").Summary); // the card shows the name, never the id
+        Assert.Null(Field("flow").Error);
+        Assert.DoesNotContain(_session.Problems, p => p.Path.StartsWith("flows.f.nodes.call", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WithNoOtherFlowThePickerSaysToMakeOneFirst()
+    {
+        AddRunStep(null);
+
+        var field = Field("flow");
+        Assert.Empty(field.Devices);
+        Assert.Equal(InspectorViewModel.NoOtherFlow, field.SuggestionHint);
+    }
+
+    [Fact]
+    public void AFlowThatIsGoneStaysSelectedAndSaysSo()
+    {
+        _session.Update(c => c with { Flows = [.. c.Flows, NotifyFlow("night", "Night")] });
+        AddRunStep("gone");
+
+        var field = Field("flow");
+        Assert.Equal(DeviceSource.Missing, field.Device?.Source);
+        Assert.Equal("gone", field.Device?.Title);
+        Assert.Equal("Isn't there anymore", field.Device?.Caption);
+        Assert.Equal(["Night", "gone"], field.Devices.Select(d => d.Title));
+        Assert.Contains("isn't there anymore", field.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void APaddedIdStillFindsItsFlow()
+    {
+        _session.Update(c => c with { Flows = [.. c.Flows, NotifyFlow("night", "Night")] });
+        AddRunStep(" night ");
+
+        Assert.Equal(DeviceSource.Library, Field("flow").Device?.Source);
+        Assert.Equal("Night", Field("flow").Device?.Title);
+        Assert.Equal("Night", _canvas.Nodes.Single(n => n.Id == "call").Summary);
+    }
+
+    [Fact]
+    public void OnlyAGoneFlowStillSaysToMakeAnotherOne()
+    {
+        AddRunStep("gone");
+
+        Assert.Equal("gone", Field("flow").Device?.Title);
+        Assert.Equal(InspectorViewModel.NoOtherFlow, Field("flow").SuggestionHint);
+    }
+
+    [Fact]
+    public void AFlowWithProblemsSaysItNeedsFixing()
+    {
+        _session.Update(c => c with { Flows = [.. c.Flows, new Flow("bad", "Bad", [new StepNode("a", "notify")])] });
+        AddRunStep(null);
+
+        Assert.Equal("Needs fixing", Field("flow").Devices.Single(d => d.Key == "bad").Caption);
+    }
 }
