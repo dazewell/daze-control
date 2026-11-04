@@ -169,6 +169,27 @@ public sealed class PageViewModelTests : IDisposable
     }
 
     [Fact]
+    public void AnEngineThatWentAwayClearsLiveRunsEvenIfItIsBackBeforeTheUiCatchesUp()
+    {
+        var posted = new List<Action>();
+        _engine.SetRunning(true);
+        using var page = new FlowsPageViewModel(_session, _engine, posted.Add);
+        posted.ForEach(a => a());
+        posted.Clear();
+        _engine.Raise(new PipeEvent { Kind = EventKinds.RunStarted, FlowId = "tv", RunId = Guid.NewGuid() });
+        posted.ForEach(a => a());
+        posted.Clear();
+        Assert.True(page.Items[1].IsRunning);
+
+        _engine.SetRunning(false);
+        _engine.SetRunning(true);
+        posted.ForEach(a => a());
+
+        Assert.False(page.Items[1].IsRunning);
+        Assert.True(page.Items[1].CanRun);
+    }
+
+    [Fact]
     public void ARefusedRunSaysWhy()
     {
         _engine.Answer = r => new PipeMessage { Id = r.Id, Ok = r.Op != Ops.Run, Error = "TV is already running." };

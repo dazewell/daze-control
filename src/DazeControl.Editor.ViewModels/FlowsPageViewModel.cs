@@ -202,21 +202,24 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         UpdateRuns();
     }
 
-    private void UpdateRuns()
+    private void UpdateRuns(bool? engineRunning = null)
     {
+        var running = engineRunning ?? _engine.IsRunning;
         foreach (var item in Items)
-            item.UpdateRun(_engine.IsRunning, _liveRuns.ContainsValue(item.Id));
+            item.UpdateRun(running, _liveRuns.ContainsValue(item.Id));
     }
 
     private void OnEngineStateChanged()
     {
         if (_engine.IsRunning)
             _ = RefreshRunsAsync();
+        // Read now: by the time the UI thread runs this, the engine may be back, and its runs still went with it.
+        var running = _engine.IsRunning;
         _post(() =>
         {
-            if (!_engine.IsRunning)
-                _liveRuns.Clear(); // the runs went with it
-            UpdateRuns();
+            if (!running)
+                _liveRuns.Clear();
+            UpdateRuns(running);
         });
         _ = RefreshDesktopAsync();
     }
@@ -287,7 +290,8 @@ public sealed partial class FlowItemViewModel : ObservableObject
     /// <summary>Run, or Stop while it runs (Stop needs only the engine).</summary>
     private bool CanRunOrStop => IsRunning ? EngineRunning : CanRun;
 
-    [RelayCommand(CanExecute = nameof(CanRunOrStop), AllowConcurrentExecutions = true)]
+    // Off while its request is out, so a double click sends one run.
+    [RelayCommand(CanExecute = nameof(CanRunOrStop))]
     private Task RunAsync() => IsRunning ? _page.StopAsync(Id) : _page.RunAsync(Id);
 
     internal void UpdateRun(bool engineRunning, bool running)
