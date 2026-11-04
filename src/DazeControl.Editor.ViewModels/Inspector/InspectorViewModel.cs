@@ -342,6 +342,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                 : InspectorMode.Flow;
             if (node?.Id != NodeId)
             {
+                InputTip = null;
                 ClearTest();
                 _canvas.Preview(null);
             }
@@ -349,6 +350,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             Mode = mode;
             OnPropertyChanged(nameof(CanTest));
             ManyText = string.Create(CultureInfo.InvariantCulture, $"{selected.Count} selected");
+            if (node is not StepNode { Step: ProviderCatalog.RunFlowId })
+                CalledFlowId = null;
             switch (node)
             {
                 case StepNode step:
@@ -391,7 +394,10 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             _stepType = step.Step;
             foreach (var spec in descriptor?.Params ?? [])
             {
-                var field = new ParamFieldViewModel(spec, WriteParam, _fileExists);
+                var field = new ParamFieldViewModel(spec, WriteParam, _fileExists)
+                {
+                    IsCallInputs = step.Step == ProviderCatalog.RunFlowId && spec.Name == FlowInputs.Param,
+                };
                 field.DevicePicked += OnDevicePicked;
                 Fields.Add(field);
             }
@@ -414,6 +420,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                     ? field.IsFlowRef ? "Choose a flow." : field.IsDevice ? "Choose a device." : "Fill this in." : null);
             field.Load(value, problem);
             Suggest(field, step);
+            if (field.IsCallInputs)
+                LoadCallInputs(field, step);
         }
     }
 
@@ -434,7 +442,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                 var target = step.With.TryGetValue(field.Name, out var t) ? (t as ScalarParam)?.Text.Trim() : null;
                 var flows = FlowOptions(_session.Current, _session.Problems, FlowId, target);
                 field.SetDevices(flows, target);
-                field.SetSuggestionHint(flows.Any(r => r.Source == DeviceSource.Library) ? "" : NoOtherFlow);
+                field.SetSuggestionHint(flows.Any(r => r.Source == DeviceSource.Library && r.Key != FlowId) ? "" : NoOtherFlow);
                 break;
             case { Source: SuggestSource.Config, Kind: ParamSuggest.Flags }:
                 field.SetSuggestions(FlagNames(_session.Current), "");
@@ -466,14 +474,24 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     /// </summary>
     internal static List<DeviceOption> FlowOptions(Configuration config, IReadOnlyList<Problem> problems, string selfId, string? current)
     {
-        static DeviceOption Row(Flow flow, IReadOnlyList<Problem> problems) => new(DeviceSource.Library, flow.Id, flow.Name,
-            !flow.Enabled ? "Turned off"
-                : problems.Any(p => p.Severity == Severity.Error && p.FlowId == flow.Id) ? "Needs fixing"
-                : "",
-            Core.Model.FlowGlyph.Decode(Core.Model.FlowGlyph.CodeOf(flow)));
-        var rows = config.Flows.Where(f => f.Id != selfId)
-            .OrderBy(f => f.Name, StringComparer.CurrentCultureIgnoreCase)
+        DeviceOption Row(Flow flow, IReadOnlyList<Problem> problems)
+        {
+            var loop = ConfigValidator.CallProblem(config.Flows, selfId, flow.Id);
+            return new(DeviceSource.Library, flow.Id, flow.Name,
+                loop ?? (!flow.Enabled ? "Turned off"
+                    : problems.Any(p => p.Severity == Severity.Error && p.FlowId == flow.Id) ? "Needs fixing"
+                    : Takes(flow)),
+                Core.Model.FlowGlyph.Decode(Core.Model.FlowGlyph.CodeOf(flow)))
+            {
+                IsEnabled = loop is null, // #49 / #50: listed, but off
+            };
+        }
+        // Flows it can run first, then the ones that would make a loop, then its own flow.
+        var rows = config.Flows
             .Select(f => Row(f, problems))
+            .OrderBy(r => !r.IsEnabled)
+            .ThenBy(r => r.Key == selfId)
+            .ThenBy(r => r.Title, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
         if (current is { Length: > 0 } && rows.All(r => r.Key != current))
             rows.Add(config.Flows.FirstOrDefault(f => f.Id == current) is { } self
@@ -550,6 +568,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         Folders = [.. _session.Current.Flows.Select(f => f.Tray.Folder).OfType<string>().Distinct(StringComparer.Ordinal).Order(StringComparer.CurrentCulture)];
         WhenRunningIndex = (int)flow.WhenRunning;
         ShowPopup = flow.Popup;
+        LoadInputs(flow);
 
         var pending = Shortcuts.Where(s => s.Hotkey.Length == 0).ToList();
         // A refused key's reason lives until the next recorded key, not until the next refresh (same row, same value).
@@ -585,7 +604,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
 
     private List<DeviceOption> Options(ParamFieldViewModel field, LibraryKind kind, string? current) =>
         LibraryDevices.Options(kind, _session.Current.Library, _live.GetValueOrDefault(kind), current, field.Spec.Required,
-            canCapture: EngineRunning && CanEdit);
+            canCapture: EngineRunning && CanEdit, Flow?.Inputs);
 
     /// <summary>Asks the engine what's on this PC now (on load and each time a picker opens, UX §5.4).</summary>
     public async Task RefreshDevicesAsync(LibraryKind kind)
@@ -598,6 +617,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         _post(() =>
         {
             _live[kind] = devices;
+            if (Mode == InspectorMode.Flow && Flow is { } flow)
+                LoadInputs(flow);
             if (Node is StepNode step)
             {
                 _loading = true;
@@ -608,6 +629,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                         var current = step.With.TryGetValue(field.Name, out var v) ? (v as ScalarParam)?.Text : null;
                         field.SetDevices(Options(field, kind, current), current);
                     }
+                    foreach (var field in Fields.Where(f => f.IsCallInputs))
+                        LoadCallInputs(field, step);
                 }
                 finally
                 {
@@ -642,11 +665,15 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         WriteChanged(field, value);
     }
 
-    private void WriteChanged(ParamFieldViewModel field, ParamValue? value) => EditStep(s => s with
+    private void WriteChanged(ParamFieldViewModel field, ParamValue? value) => EditStep(s =>
     {
-        With = value is null
-            ? new(s.With.Where(e => e.Key != field.Name))
-            : new([.. s.With, new KeyValuePair<string, ParamValue>(field.Name, value)]),
+        var written = s with
+        {
+            With = value is null
+                ? new(s.With.Where(e => e.Key != field.Name))
+                : new([.. s.With, new KeyValuePair<string, ParamValue>(field.Name, value)]),
+        };
+        return field.IsFlowRef && s.Step == ProviderCatalog.RunFlowId ? KeepPassedInputs(written, _session.Current) : written;
     });
 
     /// <summary>A device from Windows joins the Library under a new key; a capture becomes a new layout.</summary>

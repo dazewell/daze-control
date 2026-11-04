@@ -58,9 +58,40 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     /// <summary>An ordered list picked from a table (Android keys): tokens in send order plus an add box.</summary>
     public bool IsTokenList => Kind is ParamKind.TextList && Spec.Suggest is not null && Spec.Ordered;
 
-    public bool IsMultiline => Kind is ParamKind.MultilineText or ParamKind.TextMap || Kind is ParamKind.TextList && Spec.Suggest is null;
+    public bool IsMultiline => !IsCallInputs && (Kind is ParamKind.MultilineText or ParamKind.TextMap || Kind is ParamKind.TextList && Spec.Suggest is null);
 
-    public bool HasExamples => Spec.Examples.Count > 0;
+    public bool HasExamples => !IsCallInputs && Spec.Examples.Count > 0;
+
+    /// <summary><c>flow.run</c>'s <c>inputs</c>: one device picker per input of the flow it runs (UX §5.4), not a text map.</summary>
+    public bool IsCallInputs { get; init; }
+
+    public ObservableCollection<CallInputViewModel> CallInputs { get; } = [];
+
+    /// <summary>"Choose a flow first." / "Night takes no inputs."; "" while there are pickers.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCallInputsHint))]
+    public partial string CallInputsHint { get; internal set; } = "";
+
+    public bool HasCallInputsHint => CallInputsHint.Length > 0;
+
+    /// <summary>Keeps the rows while the called flow's inputs stay the same (an open drop-down stays open).</summary>
+    /// <returns>True when the rows were rebuilt.</returns>
+    internal bool SetCallInputs(IReadOnlyList<KeyValuePair<string, FlowInput>> inputs, Func<string, FlowInput, CallInputViewModel> create)
+    {
+        if (CallInputs.Select(c => (c.Name, c.Input)).SequenceEqual(inputs.Select(i => (i.Key, i.Value))))
+            return false;
+        CallInputs.Clear();
+        foreach (var (name, input) in inputs)
+            CallInputs.Add(create(name, input));
+        return true;
+    }
+
+    /// <summary>A problem the field itself can't see (an input passed that the called flow doesn't have).</summary>
+    internal void SetError(string? problem)
+    {
+        Error = problem;
+        OnPropertyChanged(nameof(AutomationName));
+    }
 
     public IReadOnlyList<Core.Catalog.ParamExample> Examples => Spec.Examples;
 
@@ -165,7 +196,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                 case ParamKind.LibraryRef:
                 case ParamKind.Text when IsFlowRef:
                     Text = scalar ?? "";
-                    Device = Devices.FirstOrDefault(o => o.Key == scalar && o.Source is DeviceSource.Library or DeviceSource.Missing)
+                    Device = Devices.FirstOrDefault(o => o.Key == scalar?.Trim() && o.IsValue)
                         ?? Devices.FirstOrDefault(o => o.Source == DeviceSource.None);
                     break;
                 case ParamKind.TextList:
@@ -208,7 +239,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                 foreach (var option in options)
                     Devices.Add(option);
             }
-            Device = Devices.FirstOrDefault(o => o.Key == current && o.Source is DeviceSource.Library or DeviceSource.Missing)
+            Device = Devices.FirstOrDefault(o => o.Key == current?.Trim() && o.IsValue)
                 ?? Devices.FirstOrDefault(o => o.Source == DeviceSource.None);
         }
         finally
@@ -385,6 +416,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                 break;
             case DeviceSource.Library:
             case DeviceSource.Missing:
+            case DeviceSource.Input:
                 _write(this, Scalar(value.Key ?? ""));
                 break;
             default:

@@ -313,4 +313,39 @@ public class FlowInputTests
         Assert.True(LibraryEdits.Uses(config.Flows[1], config, LibraryKind.Bluetooth, "sony")); // passed to a call
         Assert.False(LibraryEdits.Uses(config.Flows[0], config, LibraryKind.Bluetooth, "sony"));
     }
+
+    [Fact]
+    public void DetachWritesTheDefaultWhereTheInputWasUsed()
+    {
+        var flow = LoadClean(ScenarioB + """
+
+              wrapper:
+                name: Wrapper
+                inputs:
+                  out: { kind: audio, name: Out, default: sony }
+                nodes:
+                  - { id: call, step: flow.run, with: { flow: make-default, inputs: { output: $out, bluetooth: sony } } }
+                  - { id: set, step: audio.setDefault, with: { device: $out } }
+            """).Flows[2];
+        Assert.True(FlowInputs.IsUsed(flow, "out"));
+
+        var detached = FlowInputs.Detach(flow, "out");
+
+        Assert.False(FlowInputs.IsUsed(detached, "out"));
+        Assert.Equal("sony", FlowInputs.Given((StepNode)detached.Nodes[0])["output"]);
+        Assert.Equal("sony", FlowInputs.Given((StepNode)detached.Nodes[0])["bluetooth"]);
+        Assert.Equal(new ScalarParam("sony"), ((StepNode)detached.Nodes[1]).With["device"]);
+        Assert.Same(flow, FlowInputs.Detach(flow, "nope"));
+    }
+
+    [Fact]
+    public void NewNamesAreUniquePerKind()
+    {
+        var flow = LoadClean(ScenarioB).Flows[0];
+        Assert.Equal("audio", FlowInputs.NewName(flow, LibraryKind.Audio));
+        var taken = flow with { Inputs = new([.. flow.Inputs, KeyValuePair.Create("audio", new FlowInput(LibraryKind.Audio, "Audio", "sony"))]) };
+        Assert.Equal("audio-2", FlowInputs.NewName(taken, LibraryKind.Audio));
+        Assert.Equal("layout", FlowInputs.NewName(flow, LibraryKind.Display));
+        Assert.False(FlowInputs.IsUsed(flow, "nope"));
+    }
 }

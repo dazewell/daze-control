@@ -681,8 +681,10 @@ public sealed class InspectorViewModelTests : IDisposable
         var field = Field("flow");
         Assert.True(field.IsDevice);
         Assert.False(field.IsSuggestText);
-        Assert.Equal(["Morning", "Night"], field.Devices.Select(d => d.Title));
-        Assert.Equal(["morning", "night"], field.Devices.Select(d => d.Key));
+        Assert.Equal(["Morning", "Night", "Connect Technics"], field.Devices.Select(d => d.Title));
+        Assert.Equal(["morning", "night", "f"], field.Devices.Select(d => d.Key));
+        Assert.False(field.Devices[2].IsEnabled); // #49: its own flow is listed off
+        Assert.Equal("A flow can't run itself.", field.Devices[2].Caption);
         Assert.Equal("Turned off", field.Devices[0].Caption);
         Assert.Equal("", field.Devices[1].Caption);
         Assert.Equal("Choose a flow.", field.Error);
@@ -702,7 +704,7 @@ public sealed class InspectorViewModelTests : IDisposable
         AddRunStep(null);
 
         var field = Field("flow");
-        Assert.Empty(field.Devices);
+        Assert.False(Assert.Single(field.Devices).IsEnabled); // only its own flow, listed off
         Assert.Equal(InspectorViewModel.NoOtherFlow, field.SuggestionHint);
     }
 
@@ -716,7 +718,7 @@ public sealed class InspectorViewModelTests : IDisposable
         Assert.Equal(DeviceSource.Missing, field.Device?.Source);
         Assert.Equal("gone", field.Device?.Title);
         Assert.Equal("Isn't there anymore", field.Device?.Caption);
-        Assert.Equal(["Night", "gone"], field.Devices.Select(d => d.Title));
+        Assert.Equal(["Night", "Connect Technics", "gone"], field.Devices.Select(d => d.Title));
         Assert.Contains("isn't there anymore", field.Error, StringComparison.Ordinal);
     }
 
