@@ -175,6 +175,11 @@ trigger "Flow · <caller>" and passes the chain on (`StepContext.Chain` → `Tri
 start a fresh chain. With `Flows` null (the dry runner) a call is an ordinary step: dry runs don't descend.
 `ConfigValidator.CheckCalls` builds the call graph from every `flow.run` (both modes): own flow #49, a loop #50 on every
 step in it, unknown #51 (errors); turned off #52, called flow with errors (warnings).
+Menu core (T12.3, DESIGN flow-menu §2.5/§3.5): `menu.show` is a catalog step (`items` TextList with `RefersTo = Flow`, so
+`FlowRefs.Callers/Rename` also read list items); `Flow.Gamepad` holds chords as written, parsed by `Input/GamepadChord`
+(canonical order, 2–4 buttons, no Guide); chord clashes follow the hotkey rule (`ClaimChords`). `CheckMenus`: own flow
+#38 error, unknown/duplicate items warnings, 0 or >12 items and `closeAfter` outside 5 s..10 min errors, explicit
+`timeout` must exceed `closeAfter`; `CallEdges` adds `wait: true` menu items to the call graph (#39 = the loop error).
 Editor for calls and inputs (T13.10, `Editor.ViewModels/Inspector`): flow settings list `Flow.Inputs` as
 `FlowInputViewModel` rows (label, kind, default picker); the key is made once from the kind (`FlowInputs.NewName`) and
 never changes, so renaming can't break a `$name`. Removing an input, or changing its kind, writes its default into the
