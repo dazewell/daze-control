@@ -44,6 +44,64 @@ public sealed class DesktopShortcutStore(IEngineClient engine, string? configPat
     public Task<string?> RemoveAsync(string flowId, CancellationToken cancellationToken = default) =>
         ChangeAsync(new PipeRequest { Op = Ops.RemoveShortcut, Flow = flowId, ExactId = true, ConfigPath = configPath }, cancellationToken);
 
+    /// <summary>Renames waiting for the engine to load the new id (old → new); UI thread and pipe events, so locked.</summary>
+    private readonly Dictionary<string, string> _moves = new(StringComparer.Ordinal);
+    private bool _listening;
+
+    /// <summary>
+    /// A saved rename (D-075): once the engine has loaded the new id, the old id's shortcut is made again for it and the
+    /// old one removed. Nothing to do when the old id has none. Retried on each config reload until the engine knows it.
+    /// </summary>
+    public Task MoveAsync(string oldId, string newId)
+    {
+        if (Of(oldId) is null)
+            return Task.CompletedTask;
+        lock (_moves)
+        {
+            _moves[oldId] = newId;
+            if (!_listening)
+            {
+                engine.EventReceived += OnEngineEvent;
+                _listening = true;
+            }
+        }
+        return TryMovesAsync();
+    }
+
+    private void OnEngineEvent(PipeEvent e)
+    {
+        if (e.Kind == EventKinds.ConfigReloaded)
+            _ = TryMovesAsync();
+    }
+
+    private async Task TryMovesAsync()
+    {
+        KeyValuePair<string, string>[] moves;
+        lock (_moves)
+            moves = [.. _moves];
+        foreach (var (oldId, newId) in moves)
+        {
+            try
+            {
+                var made = await engine.SendAsync(new PipeRequest { Op = Ops.CreateShortcut, Flow = newId, ExactId = true, ConfigPath = configPath }).ConfigureAwait(false);
+                if (made is not { Ok: true })
+                    continue; // the engine hasn't loaded the save yet (or isn't running): the next reload tries again
+                lock (_moves)
+                    _moves.Remove(oldId);
+                await engine.SendAsync(new PipeRequest { Op = Ops.RemoveShortcut, Flow = oldId, ExactId = true, ConfigPath = configPath }).ConfigureAwait(false);
+                // Made while the old one still had the name ("Morning (2)"): again, now that the name is free.
+                if (made.Shortcuts is [{ CurrentName: false }])
+                    await engine.SendAsync(new PipeRequest { Op = Ops.CreateShortcut, Flow = newId, ExactId = true, ConfigPath = configPath }).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is IOException or OperationCanceledException)
+            {
+                // The engine went away mid-move: the next reload tries again.
+            }
+        }
+        if (moves.Length > 0)
+            await RefreshAsync().ConfigureAwait(false);
+    }
+
     private async Task<string?> ChangeAsync(PipeRequest request, CancellationToken cancellationToken)
     {
         var answer = await engine.SendAsync(request, cancellationToken).ConfigureAwait(false);
