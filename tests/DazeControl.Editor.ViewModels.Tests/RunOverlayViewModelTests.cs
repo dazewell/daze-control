@@ -69,7 +69,7 @@ public sealed class RunOverlayViewModelTests : IDisposable
     public void AFallbackCountsOnceItStartsAndAFixedFailureSaysWhatRanInstead()
     {
         Raise(EventKinds.RunStarted);
-        Raise(EventKinds.NodeFinished, result: new NodeResult("out", NodeOutcome.FailedIgnored, Order: 2, Error: "No such device"));
+        Raise(EventKinds.NodeFinished, result: new NodeResult("out", NodeOutcome.Failed, Order: 2, Error: "No such device"));
         Raise(EventKinds.NodeStarted, "note");
         Assert.Equal("Running · 1 of 6", _run.Status);
         Raise(EventKinds.NodeFinished, result: new NodeResult("note", NodeOutcome.Succeeded, Order: 3));

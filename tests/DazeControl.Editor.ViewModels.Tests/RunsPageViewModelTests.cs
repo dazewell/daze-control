@@ -114,6 +114,19 @@ public sealed class RunsPageViewModelTests : IDisposable
     }
 
     [Fact]
+    public void AFailureWhoseFallbackNeverStartedIsNotDrawnAsFixed()
+    {
+        var run = Run(_time.GetLocalNow(), FlowOutcome.Failed, 2,
+            Ran("bt", 0, 1, order: 1), Ran("out", 1, 2, NodeOutcome.Failed, order: 2),
+            new NodeResult("note", NodeOutcome.Cancelled, Attempts: 0));
+        var detail = new RunDetailViewModel(run, _session.Current.Flows[0]);
+
+        detail.Layout(400);
+
+        Assert.False(detail.Bars.Single(b => b.NodeId == "out").IsMayFailFailed);
+    }
+
+    [Fact]
     public void AShortStepStillGetsAVisibleBar()
     {
         var run = Run(_time.GetLocalNow(), seconds: 100, nodes: [Ran("bt", 0, 0.001), Ran("vol", 99.999, 100, order: 2)]);

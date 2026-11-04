@@ -67,12 +67,19 @@ public static class Outcomes
 
     /// <summary>
     /// A failure its fallback fixed, for "Connect Technics didn't work, so Connect Sony ran instead." (#48): the first
-    /// handled failure (in start order) and the first step of its fallback that started. Null when nothing failed,
-    /// nothing handled it, or no fallback started.
+    /// of <see cref="Fixes"/>. Null when nothing failed, nothing handled it, or no fallback started.
+    /// </summary>
+    public static (string Failed, string Fallback)? Fix(Flow flow, IEnumerable<NodeResult> results) =>
+        Fixes(flow, results).Select(f => ((string, string)?)f).FirstOrDefault();
+
+    /// <summary>
+    /// Failed steps (in start order) whose fallback started, each with the first of its fallback's steps that did.
+    /// Only <see cref="NodeOutcome.Failed"/>: a may-fail step also fired its success edges, so its fallback ran beside
+    /// the normal branch, not instead of it.
     /// </summary>
     /// <param name="flow">The flow the results belong to (its edges say what handled what).</param>
     /// <param name="results">The run's node results.</param>
-    public static (string Failed, string Fallback)? Fix(Flow flow, IEnumerable<NodeResult> results)
+    public static IEnumerable<(string Failed, string Fallback)> Fixes(Flow flow, IEnumerable<NodeResult> results)
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(results);
@@ -81,7 +88,7 @@ public static class Outcomes
             byId[r.NodeId] = r;
         var handled = FlowShape.WithFallback(flow);
         var failures = byId.Values
-            .Where(r => r.Outcome is NodeOutcome.Failed or NodeOutcome.FailedIgnored && handled.Contains(r.NodeId)
+            .Where(r => r.Outcome == NodeOutcome.Failed && handled.Contains(r.NodeId)
                 && flow.FindNode(r.NodeId) is StepNode)
             .OrderBy(r => r.Order == 0 ? int.MaxValue : r.Order);
         foreach (var failure in failures)
@@ -95,8 +102,7 @@ public static class Outcomes
                 .OrderBy(r => r!.Order == 0 ? int.MaxValue : r.Order)
                 .FirstOrDefault();
             if (started is not null)
-                return (failure.NodeId, started.NodeId);
+                yield return (failure.NodeId, started.NodeId);
         }
-        return null;
     }
 }

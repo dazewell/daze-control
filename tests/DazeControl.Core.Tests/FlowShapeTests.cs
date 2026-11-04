@@ -74,6 +74,16 @@ public class FlowShapeTests
     }
 
     [Fact]
+    public void AMayFailFailureIsNoFixItsFallbackRanBesideTheNormalBranch()
+    {
+        Assert.Null(Outcomes.Fix(Technics,
+        [
+            new("bt", NodeOutcome.FailedIgnored, Order: 1), new("out", NodeOutcome.Succeeded, Order: 2),
+            new("connect", NodeOutcome.Succeeded, Order: 3), new("setDefault", NodeOutcome.Succeeded, Order: 4),
+        ]));
+    }
+
+    [Fact]
     public void AFallbackCardIsNamedByItsFirstMemberThatStarted()
     {
         var flow = new Flow("f", "F",

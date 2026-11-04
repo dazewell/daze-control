@@ -38,7 +38,7 @@ public sealed partial class RunDetailViewModel : ObservableObject
     public const double LaneHeight = 28, BarHeight = 20, MinBarWidth = 4, AxisHeight = 20, BarGap = 2;
 
     private readonly Dictionary<string, string> _titles;
-    private readonly IReadOnlySet<string> _handled;
+    private readonly HashSet<string> _handled;
 
     public RunDetailViewModel(RunRecord record, Flow? flow)
     {
@@ -48,7 +48,9 @@ public sealed partial class RunDetailViewModel : ObservableObject
         _titles = record.Nodes.ToDictionary(n => n.NodeId, n => TitleOf(flow?.FindNode(n.NodeId), n.NodeId), StringComparer.Ordinal);
         Timeline = Build(record, flow);
         Sentence = RunWords.Sentence(record, NodeTitle, flow);
-        _handled = flow is null ? new HashSet<string>() : FlowShape.WithFallback(flow);
+        // Only failures whose fallback started in this run (not merely ones the flow has a fallback for).
+        _handled = flow is null ? new HashSet<string>()
+            : Outcomes.Fixes(flow, record.Nodes).Select(f => f.Failed).ToHashSet(StringComparer.Ordinal);
         // Before 0.15 nothing recorded when steps started: every bar would sit at zero.
         HasTimeline = record.Nodes.Any(n => n.Order > 0);
         // A card has no attempts of its own even when it ran; its outcome says whether it was skipped.
