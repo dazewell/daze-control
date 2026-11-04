@@ -202,7 +202,11 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         foreach (var row in rows)
         {
             if (!existing.TryGetValue(row.Key, out var item))
-                item = new LibraryItemViewModel(row.Key, section.Glyph, (i, ct) => TestAsync(kind, i.Key, ct)) { CanOpenLocation = kind is null };
+                item = new LibraryItemViewModel(row.Key, section.Glyph, (i, ct) => TestAsync(kind, i.Key, ct))
+                {
+                    CanOpenLocation = kind is null,
+                    HasInputs = kind == LibraryKind.Android,
+                };
             item.Title = row.Title;
             item.Detail = row.Detail;
             item.State = row.State;
@@ -213,8 +217,27 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
             item.CanRename = kind is LibraryKind.Display or LibraryKind.Android && CanEdit;
             if (kind == LibraryKind.Display)
                 item.Screens = ScreenDetails(config.Library.Displays.First(d => d.Key == row.Key), live);
+            if (kind == LibraryKind.Android)
+                SyncInputs(item, config, config.Library.Android.First(d => d.Key == row.Key));
             section.Items.Add(item);
         }
+    }
+
+    /// <summary>Android: the inputs in file order; rows of unchanged names stay (an open rename keeps its box).</summary>
+    private void SyncInputs(LibraryItemViewModel item, Configuration config, AndroidDevice device)
+    {
+        item.CanEditInputs = CanEdit;
+        item.NewInputName = AndroidInputEdits.NewName(device);
+        var names = device.Inputs.Keys.ToList();
+        if (!item.Inputs.Select(i => i.Name).SequenceEqual(names))
+        {
+            var existing = item.Inputs.ToDictionary(i => i.Name, StringComparer.Ordinal);
+            item.Inputs.Clear();
+            foreach (var name in names)
+                item.Inputs.Add(existing.GetValueOrDefault(name) ?? new AndroidInputViewModel(device.Key, name));
+        }
+        foreach (var input in item.Inputs)
+            input.Load(device.Inputs[input.Name], AndroidInputEdits.Users(config, device.Key, input.Name).Count, CanEdit);
     }
 
     private static string Detail(Library library, LibraryKind kind, string key) => kind switch
@@ -222,7 +245,15 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         LibraryKind.Audio => library.Audio.First(d => d.Key == key) is var a && a.Flow == AudioFlow.Input ? "Input" : "Output",
         LibraryKind.Bluetooth => library.Bluetooth.First(d => d.Key == key).Address,
         LibraryKind.Display => LibraryDevices.State(library, kind, key, null),
-        _ => library.Android.First(d => d.Key == key).Address,
+        _ => AndroidDetail(library.Android.First(d => d.Key == key)),
+    };
+
+    /// <summary>"192.168.1.50 · 2 inputs".</summary>
+    private static string AndroidDetail(AndroidDevice device) => device.Inputs.Count switch
+    {
+        0 => $"{device.Address} · No inputs yet",
+        1 => $"{device.Address} · 1 input",
+        var n => $"{device.Address} · {n} inputs",
     };
 
     /// <summary>
@@ -400,6 +431,92 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
             return false;
         _session.Update(c => LibraryEdits.Rename(c, kind, item.Key, newKey).Config);
         return true;
+    }
+
+    // ---- Android inputs (L1, D-078) ----
+
+    /// <summary>
+    /// Library › Android › Inputs: a new input with no moves, last in the list. False, with
+    /// <see cref="LibraryItemViewModel.AddInputError"/> saying why, when the name is empty or taken.
+    /// </summary>
+    public bool AddInput(LibraryItemViewModel item, string name)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(name);
+        if (!CanEdit || !item.HasInputs)
+            return false;
+        var refusal = AndroidInputEdits.Add(_session.Current, item.Key, name).Refusal;
+        item.AddInputError = InputError(refusal, name, item.Key);
+        if (refusal != InputEditRefusal.None)
+            return false;
+        // Applied to each version Update hands over, so an open flow's draft stays a draft (D-047).
+        _session.Update(c => AndroidInputEdits.Add(c, item.Key, name).Config);
+        return true;
+    }
+
+    /// <summary>A new name for an input; the <c>android.input</c> steps that picked it follow (D-046).</summary>
+    public bool RenameInput(AndroidInputViewModel input, string newName)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(newName);
+        if (!CanEdit)
+            return false;
+        var (config, refusal) = AndroidInputEdits.Rename(_session.Current, input.DeviceKey, input.Name, newName);
+        input.RenameError = InputError(refusal, newName, input.DeviceKey);
+        if (refusal != InputEditRefusal.None)
+            return false;
+        if (!ReferenceEquals(config, _session.Current))
+            _session.Update(c => AndroidInputEdits.Rename(c, input.DeviceKey, input.Name, newName).Config);
+        return true;
+    }
+
+    /// <summary>Only inputs no step picks: removing one in use would break that step.</summary>
+    [RelayCommand]
+    private void RemoveInput(AndroidInputViewModel input)
+    {
+        if (!CanEdit)
+            return;
+        if (AndroidInputEdits.Remove(_session.Current, input.DeviceKey, input.Name).Refusal == InputEditRefusal.None)
+            _session.Update(c => AndroidInputEdits.Remove(c, input.DeviceKey, input.Name).Config);
+    }
+
+    [RelayCommand]
+    private void AddUp(AndroidInputViewModel input) => SetMoves(input, [.. input.Moves.Select(m => m.Move), AndroidInputEdits.Up]);
+
+    [RelayCommand]
+    private void AddDown(AndroidInputViewModel input) => SetMoves(input, [.. input.Moves.Select(m => m.Move), AndroidInputEdits.Down]);
+
+    /// <summary>× on a move: the others keep their order.</summary>
+    [RelayCommand]
+    private void RemoveMove(MoveToken move) =>
+        SetMoves(move.Input, [.. move.Input.Moves.Where(m => m.Index != move.Index).Select(m => m.Move)]);
+
+    private void SetMoves(AndroidInputViewModel input, IReadOnlyList<string> moves)
+    {
+        if (!CanEdit)
+            return;
+        if (AndroidInputEdits.SetMoves(_session.Current, input.DeviceKey, input.Name, moves).Refusal == InputEditRefusal.None)
+            _session.Update(c => AndroidInputEdits.SetMoves(c, input.DeviceKey, input.Name, moves).Config);
+    }
+
+    private static string? InputError(InputEditRefusal refusal, string name, string device) => refusal switch
+    {
+        InputEditRefusal.Empty => "Give it a name.",
+        InputEditRefusal.Taken => $"{device} already has an input called \"{name.Trim()}\".",
+        InputEditRefusal.Missing => "It isn't in your Library anymore.",
+        _ => null,
+    };
+
+    /// <summary>
+    /// The inspector's "Add inputs in the Library" link: the Android section, with this device's inputs open.
+    /// The shell shows the page.
+    /// </summary>
+    public void RevealInputs(string deviceKey)
+    {
+        var section = Section(LibraryKind.Android);
+        SelectedIndex = Sections.ToList().IndexOf(section);
+        foreach (var item in section.Items)
+            item.ShowInputs = item.Key == deviceKey || item.ShowInputs;
     }
 
     // ---- Add, capture, remove ----

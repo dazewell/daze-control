@@ -64,7 +64,10 @@ Setup panics, X-002), then start `<scratch>\install\current\DazeControl.exe <scr
 (or `<install>\Update.exe apply --silent --norestart` to test the clean exit). Remove with
 `<install>\Update.exe uninstall --silent`. Velopack's own log: `%LOCALAPPDATA%\velopack\velopack_DazeControlApp.log`.
 Never `Start-Process -Wait` on Setup in PowerShell 7: it also waits for the engine Setup starts. Never push a `v` tag
-(that publishes a release; the user decides).
+(that publishes a release; the user decides). When the user has you cut one, once release.yml is green set its notes
+(user, 2026-11-04, from v0.39 on, never retroactively): `gh release edit v<Version> --notes-file <file>` with a short
+bullet list of the features and fixes merged since the previous tag, in user terms (what changes in use, no code
+details), one line each.
 
 ## Seeing what the engine did
 
@@ -91,7 +94,9 @@ HKCU…Personalize `AppsUseLightTheme`; high contrast: `SystemParametersInfo(SPI
 Keys: `keybd_event` letters and Ctrl chords work, but **Enter arrives as `VirtualKey.None`** (even with its scan
 code), so an AutoSuggestBox never submits; send Enter with `SendKeys.SendWait("{ENTER}")` (2026-11-02). Toggling
 an AppBarToggleButton through UIA leaves focus on the button: click into the target before sending keys.
-UIA finds elements by Name: Pivot headers and ListView rows take the item's `ToString()`, so give item VMs one;
+Selecting a step through UIA doesn't work while another window holds the foreground: canvas cards have no
+Invoke/Select, and the Outline (More options › Outline) TreeItem's Select/Invoke leave the inspector on the flow
+(2026-11-04); cover that hop with a view-model test. UIA finds elements by Name: Pivot headers and ListView rows take the item's `ToString()`, so give item VMs one;
 a Button with text content needs `AutomationProperties.Name`, or the search finds its inner TextBlock (no Invoke).
 
 ## Verifying changes

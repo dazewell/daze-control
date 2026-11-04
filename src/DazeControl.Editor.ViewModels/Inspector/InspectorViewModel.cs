@@ -452,13 +452,37 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                 field.SetSuggestions(FlagNames(_session.Current), "");
                 break;
             case { Source: SuggestSource.Config, Kind: ParamSuggest.AndroidInputs }:
-                var device = step.With.TryGetValue("device", out var key) && key is ScalarParam s
-                    ? _session.Current.Library.Android.FirstOrDefault(d => d.Key == s.Text)
-                    : null;
+                var device = AndroidDeviceOf(step);
                 field.SetSuggestions(device?.Inputs.Keys.Select(i => new SuggestionItem(i, "")) ?? [],
-                    device is null ? "Choose the Android device first." : "Add inputs in the Library.");
+                    device is null ? "Choose the Android device first." : AddInputsHint, device?.Key);
                 break;
         }
+    }
+
+    /// <summary>The Android input hint; a link that opens the device's inputs in the Library (L1).</summary>
+    public const string AddInputsHint = "Add inputs in the Library.";
+
+    /// <summary>The step's Android device: by key, or through this flow's input (<c>$tv</c>) to its default.</summary>
+    private AndroidDevice? AndroidDeviceOf(StepNode step)
+    {
+        if (!step.With.TryGetValue("device", out var value))
+            return null;
+        var key = FlowInputs.NameIn(value) is { } own
+            ? _session.Current.Flows.FirstOrDefault(f => f.Id == FlowId)?.Inputs.GetValueOrDefault(own) is { Kind: LibraryKind.Android } input
+                ? input.Default
+                : null
+            : (value as ScalarParam)?.Text;
+        return key is null ? null : _session.Current.Library.Android.FirstOrDefault(d => d.Key == key);
+    }
+
+    /// <summary>"Add inputs in the Library" › the shell shows Library › Android with this device's inputs open.</summary>
+    public event Action<string>? AndroidInputsRequested;
+
+    public void OpenAndroidInputs(ParamFieldViewModel field)
+    {
+        ArgumentNullException.ThrowIfNull(field);
+        if (field.HintDevice is { } device)
+            AndroidInputsRequested?.Invoke(device);
     }
 
     /// <summary>"Print Spooler · Running", "Saved in Windows".</summary>

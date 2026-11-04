@@ -629,12 +629,25 @@ Status: accepted (M12 design); `wait: true` amended by D-061 (it nests instead o
 - Revisit if: users want a flow to continue differently per pick (then an edge `when: picked <id>`).
 
 ## D-055 · 2026-11-03 · The menu window never activates: borrowed keys via RegisterHotKey, a pass-through mouse hook
-Status: accepted (M12 design; user, 2026-11-03: "Never take focus"; spike S2 gates it)
+Status: accepted, borderless only (user, 2026-11-04: "Borderless only", after spike S2 failed gate (a) for
+full-screen games, X-010). The menu shows over borderless and windowed games and over the desktop. Before
+drawing anything or taking any key, it checks `SHQueryUserNotificationState`. `QUNS_RUNNING_D3D_FULL_SCREEN`
+covers exclusive mode and FSO alike, and then the menu doesn't open: we never knock a game out of full screen.
+- Refusal is logged, not silent: the step fails with #32 in run history, with one engine log line per refusal, and
+  no run pop-up (a pop-up would kick the game out too). Why: a press that seems to do nothing needs an answer
+  somewhere the user can find it ("switch the game to borderless"). Why not silent: the user couldn't tell a
+  refusal from a missed chord.
+- S2 result (DESIGN §5): over a borderless game the menu works with keys and mouse, the foreground never changes,
+  and the game renders at 113–121 fps throughout. All 20 keys register and are freed on every close path, a killed
+  process included. The hook's own time averages ~6 µs (max 245 µs). Over a DXGI full-screen game (flip + FSO, or
+  exclusive), any window we show kicks the game out of full screen, and QUNS reports 3 for both. So the #32
+  check covers every DXGI full-screen game, not only true exclusive mode. The menu can only show over borderless
+  or windowed games.
 - Decision: `Engine/Shell/FlowMenu` on the run pop-up's surface (D-034, cut out as `AcrylicSurface`), no-activate and
   topmost, centred on the foreground window's monitor. While open only: Up/Down/Left/Right/Enter/Space/Esc/Tab/Home/
   End/1–9 are `RegisterHotKey`s on the message window, a `WH_MOUSE_LL` hook (never swallows) spots a click outside;
-  all are released on every close path. True exclusive full-screen (`QUNS_RUNNING_D3D_FULL_SCREEN`) → the step fails
-  with #32 before showing.
+  all are released on every close path. Any DXGI full screen (`QUNS_RUNNING_D3D_FULL_SCREEN`: exclusive mode or
+  FSO) → the step fails with #32 before showing (see Status).
 - Why: keeps the hard rule (never take focus); a game or video in front keeps running; hotkeys are what the engine
   already uses (`GlobalHotkey`), work over elevated windows and are freed by the OS if the engine dies.
 - Why not activating the menu: breaks the hard rule (user declined), minimizes exclusive full-screen games, and the
@@ -642,11 +655,11 @@ Status: accepted (M12 design; user, 2026-11-03: "Never take focus"; spike S2 gat
   dropped silently, and UIPI hides elevated windows' keys. Why not `CreateWindowInBand` (Game Bar's band): needs
   uiAccess, signing and Program Files (admin, D-008). Why not WinUI: memory (D-001).
 - Revisit if: S2 shows hotkeys don't reach us over a game (then ask the user about focus), or Windows offers a
-  documented overlay band.
+  documented overlay band. (S2: hotkeys did reach us; the window itself is what full-screen games can't take.)
 
 ## D-056 · 2026-11-03 · Controller input: GameInput callbacks if they idle at 0, else XInput polling only while a pad is on
 Status: proposed (M12 design; spike S1 decides; user, 2026-11-03: polling while a pad is on is acceptable). S1 so
-far (2026-11-04): GameInput reading callbacks are E_NOTIMPL on PC (X-010), so XInput polling; pad gates pending (PLAN T12.1)
+far (2026-11-04): GameInput reading callbacks are E_NOTIMPL on PC (X-011), so XInput polling; pad gates pending (PLAN T12.1)
 - Decision: `Engine/Input/GamepadSource` reads Xbox/XInput pads. First choice: the inbox `GameInput.dll` (present on
   the dev PC, 0.2309.26100, no redist) with reading + device callbacks and background input. Fallback: `xinput1_4`
   polled at 20 Hz while only chords listen and 60 Hz while a menu is open, on connected slots only, and only while a
@@ -1014,3 +1027,21 @@ live test OK'd; built in F5, fix/m13-display-restore). Refines D-019.
   flickers every screen.
 - Revisit if: the check fails on a change that looks right on screen (for example a refresh rate a driver rounds), then
   compare less.
+
+## D-078 · 2026-11-04 · Android inputs are edited in the Library; a rename follows the steps that pick it
+Status: accepted (user, 2026-11-03, L1). Extends D-046.
+- Decision: an Android card has an Inputs toggle that opens a panel under it: each input with its D-pad moves as an
+  ordered list of Up/Down chips (× removes one; "Add Up"/"Add Down" append), Rename (flyout, refused when empty or
+  taken on that device) and Remove (off while used, the tooltip says why), plus Add input (offers "input", "input-2"…;
+  a new input has no moves). `AndroidInputEdits` (Core) does the edits; a step "picks" an input when it is
+  `android.input` with that input name and its device is the key, or a flow input (`$tv`) whose default is the key;
+  rename rewrites those steps' `input`, and that is also what "Used by" counts. The inspector's "Add inputs in the
+  Library." is a link (the device by key or through `$tv`'s default) that shows Library › Android with that device's
+  inputs open, leaving the flow with the D-047 prompt.
+- Why: inputs could only be added by hand in YAML, and the hint pointed to a Library page that couldn't add them.
+  "Moves as an ordered Up/Down list" (the user's words) read as the moves of each input: the file stores exactly that.
+- Why not reorder the inputs themselves: the order means nothing to the engine (lookup by name). Why not reorder
+  moves: they are only up and down, so remove and add again is as quick. Why not follow `$tv` steps whose call passes
+  another device: the callee may run with any device; only the default is known here.
+- Revisit if: users want a "Try it" that switches the TV's input from the Library (it changes the TV, so it would
+  need the same care as Test this step).

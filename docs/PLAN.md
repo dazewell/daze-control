@@ -1,9 +1,9 @@
 # Plan
 
 ## Resume
-Current task: T13.10 done (feat/m13-flow-run-editor, PR #54, 0.38.0: flow settings Inputs, `$name` in device pickers, call input pickers, call pill, Open this flow, Runs nested lanes, live #59/#64). T13.6 done (feat/m13-layout-menu: Layout flyout replaces Tidy up; `LayoutOptions.Of`, `EdgeCurve.RightAngled`/`For`, `FlowTidy.Check`, `FlowViewSettings` per flow id in editor.json; 0.37.0). T13b.3 done (feat/m13b-engine-hotkeys, PR #52: `record-hotkey`, `RetryFailures`, `shortcutsChanged`, H5/H6; 0.35.0). T13.3 done (feat/m13-nav-collapse, PR #50: `EditorSettingsStore` / editor.json, collapsible nav pane; 0.34.0). Before it: T13.9 done (PR #48; 0.33.0). M13 fixes (PR #42 plan): F1–F5 from the user's v0.29.0 feedback, D-074..D-077, X-008, X-009. F1 done (PR #45; 0.30.0), F2 done (0.29.2), F3 done, F4 done (PR #46; 0.31.0), F5 done (fix/m13-display-restore, PR #49: a source per screen, `SDC_TOPOLOGY_SUPPLIED` first, `DisplayCheck` after every write; live matrix passed; 0.33.1). T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done. T13b.1 done (PR #47). T13b.2 done (feat/m13b-recorder, PR #51: H1–H4, H7 under the box and read out, H8 tip; 0.36.0); M13b complete.
-Last green checkpoint: c4a2d37 fix(m13): T13.10 review: owner by reference, drop re-kinded inputs, nested ids can't collide, Resume note
-Next action: M13 is complete: run the M13 gate in PLAN (UX acceptance list for M13). Not done in T13.10: DESIGN §1 B run live (it changes the default audio device; needs the user's OK and a dev engine)
+Current task: L1 done (feat/l1-android-inputs, PR #55, 0.39.0: Library › Android Inputs panel, `AndroidInputEdits`, inspector hint links there, D-078). T12.2 done (spike/menu-window, PR #56): S2 failed gate (a) for DXGI full-screen games (X-010, DESIGN §5 result); the user chose "Borderless only" (D-055 accepted: QUNS = 3 → #32, logged, nothing shown). Before it: T13.10 done (feat/m13-flow-run-editor, PR #54, 0.38.0: flow settings Inputs, `$name` in device pickers, call input pickers, call pill, Open this flow, Runs nested lanes, live #59/#64). T13.6 done (feat/m13-layout-menu: Layout flyout replaces Tidy up; `LayoutOptions.Of`, `EdgeCurve.RightAngled`/`For`, `FlowTidy.Check`, `FlowViewSettings` per flow id in editor.json; 0.37.0). T13b.3 done (feat/m13b-engine-hotkeys, PR #52: `record-hotkey`, `RetryFailures`, `shortcutsChanged`, H5/H6; 0.35.0). T13.3 done (feat/m13-nav-collapse, PR #50: `EditorSettingsStore` / editor.json, collapsible nav pane; 0.34.0). Before it: T13.9 done (PR #48; 0.33.0). M13 fixes (PR #42 plan): F1–F5 from the user's v0.29.0 feedback, D-074..D-077, X-008, X-009. F1 done (PR #45; 0.30.0), F2 done (0.29.2), F3 done, F4 done (PR #46; 0.31.0), F5 done (fix/m13-display-restore, PR #49: a source per screen, `SDC_TOPOLOGY_SUPPLIED` first, `DisplayCheck` after every write; live matrix passed; 0.33.1). T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done. T13b.1 done (PR #47). T13b.2 done (feat/m13b-recorder, PR #51: H1–H4, H7 under the box and read out, H8 tip; 0.36.0); M13b complete.
+Last green checkpoint: merge of main (T12.2, #57) into feat/l1-android-inputs after review 2 (no open issues)
+Next action: M12: T12.1 (spike S1, controller input), then T12.3 onward. Also open: run the M13 gate in PLAN (UX acceptance list for M13). Not done in T13.10: DESIGN §1 B run live (it changes the default audio device; needs the user's OK and a dev engine)
 Tree state: builds, all tests green · Uncommitted: none
 Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. Live display tests: `scripts/display-check.ps1` (read-only without `-Go`); `-Go` changes the user's screens: ask the user first every time (it saves, restores, restarts the installed engine). Open after F5: switches right after leaving Duplicate can be undone by Windows (ARCHITECTURE → Open questions). This PC's installed app was 0.22.0 on 2026-11-03 (0.23.0 downloaded, applies on the next engine start): check `sq.version` before chasing a "missing" feature. Right-drag (D-069) works as built; F1 added wheel zoom and pan room (`CanvasViewport`). T13.6 live-checked on a scratch config: each choice changes the canvas, survives a restart, Untangle undoes with Ctrl+Z; no reflow animation exists on the canvas (UX §5.3 motion), so choices jump. The user's live Connect Technics flow: `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails (told in T13.7; "Skip what depends on it" fixes it). Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers: #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config; measure.ps1 can't run while the installed engine holds the pipe. M13b: Win+[ and Win+] are held by the user's running `SwitchDisplay.ahk` (leave it running); to check engine registration, stop the installed engine, start a test one with a scratch config path as its argument, probe with an outside `RegisterHotKey` (1409 = held), then restart the installed one. This PC runs with Num Lock off: live-test with F-key chords (don't toggle it).
 ---
@@ -369,14 +369,18 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   backend and numbers; Footprint rows added; probe deleted or left in `spikes/` untracked by the solution.
   Paused 2026-11-04, no pad until the user brings one (draft PR on spike/gamepad-input): probe `spikes/GamepadProbe`
   (`gi`/`xi`, `--keys`, `--quiet`; publish needs vswhere on PATH). Answered: (a) 0 warnings, exe 1.5 MB; GameInput
-  reading callbacks are E_NOTIMPL (X-010), so the backend is XInput; (b) `xi` with no pad, 600 s: 16 ms (one 15.6 ms
+  reading callbacks are E_NOTIMPL (X-011), so the backend is XInput; (b) `xi` with no pad, 600 s: 16 ms (one 15.6 ms
   tick), 7 threads, 5.4 MB private; (f) inbox xinput1_4/cfgmgr32/powrprof, no admin. Open, need the pad: (b) recheck
   with `QueryProcessCycleTime` (is the tick the window's own end?); (c) `xi --quiet --seconds 600` pad on, untouched;
   (d) presses logged with another app in front; (e) plug/unplug, and sleep/resume only with the user's OK; (g)
   `gi`/`xi --keys` with Steam running and closed.
-- [ ] T12.2 Spike S2: no-activate menu window over apps and games (spike/menu-window, DESIGN §5). Done when: gate
+- [x] T12.2 Spike S2: no-activate menu window over apps and games (spike/menu-window, DESIGN §5). Done when: gate
   (a)–(e) answered with the throwaway D3D11 app in three modes, screenshots of the menu over each; D-055 updated
   with what held; a failed (a) stops M12 and goes to the user.
+  **Result 2026-11-04: (a) failed for mode 2.** Borderless works. Any window we show knocks a DXGI full-screen
+  game (FSO too) out of full screen, X-010. (b), (c) and (e) hold; (d) is partly tested (one monitor). The user
+  decided (2026-11-04): **borderless only** (D-055 accepted). QUNS = 3 → #32, logged, nothing shown. M12 goes on:
+  T12.1 next, then T12.3 onward.
 - [ ] T12.3 Core: `menu.show` descriptor, `GamepadChord`, `Flow.Gamepad`, `ParamSpec.RefersTo = Flow`, validation
   (feat/m12-core, DESIGN §2.5, §3.5). Done when: YAML round-trip of DESIGN §2.1's flow; chord parse/format tests
   (order, `+` spacing, Guide/one button/5 buttons refused); validator tests for own flow, unknown and duplicate item,
@@ -406,7 +410,9 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   (feat/m12-menu-window, DESIGN §3.3, §4). Done when: RunPopup unchanged (screenshots before/after); screenshots of
   the menu light/dark/high contrast, list and grid, normal and large, empty state, at 175 % scale; `dctl run` of a
   menu flow navigated by keys, mouse and the pad on the dev PC; foreground window unchanged; keys free after each
-  close path (a test app registers Up); footprint after 10 menus within D-036.
+  close path (a test app registers Up); footprint after 10 menus within D-036. The menu must check
+  `SHQueryUserNotificationState` before drawing or taking keys: QUNS = 3 (exclusive mode or FSO) → #32 in history
+  and one log line, no window, no pop-up (D-055, X-010); a unit seam fakes QUNS for the test.
 - [ ] T12.8 Editor: `menu.show` inspector (flow token list, title, layout, size, close after, wait), Test shows the
   menu, "Controller buttons" recorder, "Controller menu" template, trigger texts (feat/m12-editor, DESIGN §3.7). Done
   when: VM tests (add/remove/reorder items, own flow not offered, missing flow chip, recorder states incl. engine off
@@ -437,7 +443,8 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   flow keep `nodes` as before; screenshots light/dark at 175 %.
 
 ## Library fixes (user reports)
-- [ ] L1 Edit Android inputs in Library › Android (user, 2026-11-03): add, rename (refs follow), remove (off while used),
+- [x] L1 Edit Android inputs in Library › Android (user, 2026-11-03): add, rename (refs follow), remove (off while used),
   moves as an ordered Up/Down list; the `android.input` hint "Add inputs in the Library." becomes a link there.
-  Started as session "Fix: edit Android inputs in the Library"; it paused at the 97 % weekly limit before any change
-  (resets 2026-11-08 04:00 UTC).
+  Done (D-078; feat/l1-android-inputs, 0.39.0): `AndroidInputEdits` (Core), the card's Inputs panel, the inspector
+  link (`ShellViewModel.LibraryRequested`). Live-checked on a scratch config: add, moves, rename (the step followed),
+  save; the link's nav-pane hop is covered by a view-model test only (selecting a step needs the foreground).
