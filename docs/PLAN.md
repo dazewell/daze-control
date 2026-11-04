@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M13 fixes planned (docs/m13-fixes-plan, PR #42): F1–F5 from the user's v0.29.0 feedback, D-074..D-077, X-008, X-009. T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done
-Last green checkpoint: 8fca795 docs(m13): plan the v0.29.0 feedback fixes F1-F4 (D-074..D-076, X-008)
+Current task: F2 done (fix/m13-flow-run-picker: "Run a flow" under Flows, flow picker by name storing the id). M13 fixes planned (PR #42): F1–F5 from the user's v0.29.0 feedback, D-074..D-077, X-008, X-009. T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done
+Last green checkpoint: 5110dee wip(m13): Run a flow under Flows; flow picker by name stores the id (F2)
 Next action: the M13 fixes F1–F5 in parallel (PLAN → M13 fixes; one session each: feat/m13-wheel-zoom, fix/m13-flow-run-picker, fix/m13-ctrl-s-hint, feat/m13-flow-delete-rename, fix/m13-display-restore); then T13.3 (feat/m13-nav-collapse: `EditorSettingsStore` tests first), T13.9 (feat/m13-flow-inputs) and T13b.1 (feat/m13b-hotkey-keys)
 Tree state: builds, all tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. F5's live display matrix changes the user's screens: ask the user first every time, save and restore, restart the installed engine (`%LOCALAPPDATA%\DazeControlApp\current\DazeControl.exe`). This PC's installed app was 0.22.0 on 2026-11-03 (0.23.0 downloaded, applies on the next engine start): check `sq.version` before chasing a "missing" feature. Right-drag (D-069) works as built; F1 adds wheel zoom and pan room. T13.6 must key per-flow layouts by id and follow F4's rename (D-075). T13.10 builds on F2's flow picker. The user's live Connect Technics flow: `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails (told in T13.7; "Skip what depends on it" fixes it). Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers: `flow.run` `inputs` param (T13.9); #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config; Runs-page nested lanes; measure.ps1 can't run while the installed engine holds the pipe.
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. F5's live display matrix changes the user's screens: ask the user first every time, save and restore, restart the installed engine (`%LOCALAPPDATA%\DazeControlApp\current\DazeControl.exe`). This PC's installed app was 0.22.0 on 2026-11-03 (0.23.0 downloaded, applies on the next engine start): check `sq.version` before chasing a "missing" feature. Right-drag (D-069) works as built; F1 adds wheel zoom and pan room. T13.6 must key per-flow layouts by id and follow F4's rename (D-075). T13.10 builds on F2's flow picker (`InspectorViewModel.FlowOptions`; `ParamFieldViewModel.IsFlowRef` reuses the device ComboBox). The user's live Connect Technics flow: `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails (told in T13.7; "Skip what depends on it" fixes it). Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers: `flow.run` `inputs` param (T13.9); #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config; Runs-page nested lanes; measure.ps1 can't run while the installed engine holds the pipe.
 ---
 
 ## Workflow (usage-cap-proof, D-018)
@@ -45,7 +45,7 @@ number + 1).
   viewport); running editor on a scratch copy of the user's config: the wheel zooms at the pointer, the zoom label
   and buttons agree, Shift+wheel scrolls sideways, right-drag moves the 2-step "New flow" both ways and stops with
   48 DIP showing, Ctrl+0 brings it back, a still right click still opens the menus; screenshots.
-- [ ] F2 **"Run a flow": label under Flows, and a working flow picker** (fix/m13-flow-run-picker). Cause of the
+- [x] F2 **"Run a flow": label under Flows, and a working flow picker** (fix/m13-flow-run-picker). Cause of the
   label: `CanvasNodeViewModel.Area` maps every catalog area but `"flow"`, so the Steps panel heading, the inspector's
   "flow › Run a flow" and the icon picker show the raw lowercase key. Cause of the picker: `ProviderCatalog` gives
   `flow` `Suggest = Config(Flows)`, but `InspectorViewModel.Suggest` has cases only for Devices, Flags and
@@ -57,6 +57,8 @@ number + 1).
   `Editor/Inspector/InspectorPane.xaml(.cs)` (its template), `Editor.ViewModels.Tests` (+ a test that every catalog
   area has a title starting with a capital). Done when: those tests; running editor: Steps panel shows "Flows › Run a
   flow", picking "Connect Technics" writes `flow: connect-technics` and clears #51, Dry run lists it; screenshots.
+  Built: as planned, plus the canvas card's summary shows the called flow's name (it showed the id) and an empty
+  Flow says "Choose a flow." (it said "Choose a device."). No "Running" caption: the inspector doesn't know live runs.
 - [ ] F3 **No stray "Ctrl+S" tip** (fix/m13-ctrl-s-hint, X-008). Cause: Ctrl+S is a `KeyboardAccelerator` on the
   page-wide `FlowEditorPage` Grid with the default placement, so WinUI shows "Ctrl+S" as that Grid's tooltip wherever
   the pointer rests without another tooltip (seen at once after opening a flow on 0.29.0). Files:

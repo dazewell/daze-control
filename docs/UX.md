@@ -34,8 +34,10 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   flow goes at once and an InfoBar on the Flows page says #67 with **Undo**, until another Delete, New flow, opening
   a flow, leaving the page or closing the editor. Off while another flow runs it, with #68 as a greyed line under it.
   Renaming a flow and saving gives it a new id made from the name (D-075); nothing on screen shows the id.
-- **M13 fixes (designed, F2):** the "Run a flow" step's Flow setting is a picker of the other flows by icon and name
-  (it stores the id), captions #29; with no other flow it says #69. The Steps panel lists it under **Flows**.
+- **M13 fixes (F2):** the "Run a flow" step's Flow setting is a picker of the other flows by icon and name
+  (it stores the id), captions "Turned off" / "Needs fixing" (#29); a deleted target stays selected as its id with
+  "Isn't there anymore" and #51 under it; with no other flow it says #69; empty, #9 says "Choose a flow.". The Steps
+  panel lists it under **Flows**, and its card shows the called flow's name.
 
 ## 5.2 Canvas interaction
 - **Layout is always automatic** (D-020): left→right columns (one per layer), gaps 64 between columns, 16
@@ -210,7 +212,7 @@ yet" / "A flow does a few things for you with one shortcut, like connecting your
 them." · 3 "That would make a loop. A step can't wait for something that waits for it." · 4 "Steps in a card
 start together, so they can't wait for each other." · 5 policies "Stop the flow" · "Skip what depends on it" ·
 "Keep going" · 6 "May fail" · 7 "Technics isn't in your Library anymore. Pick another device." · 8 "Not
-connected right now. The flow will still try." · 9 "Choose a device." · 10 "This flow is turned off until you
+connected right now. The flow will still try." · 9 "Choose a device." / "Choose a flow." · 10 "This flow is turned off until you
 fix 2 problems. Your other flows still work." · 11 "Worked in 1.2 s." · 12 "Didn't work: Windows couldn't find
 Technics. Make sure it's on and paired, then try again." · 13 "Connect Technics is done." · 14 "Done, with a
 problem. Connect headphones didn't work, so it went on without it." · 15 "Skipped because Connect headphones

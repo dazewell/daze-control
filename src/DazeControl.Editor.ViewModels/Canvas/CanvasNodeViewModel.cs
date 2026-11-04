@@ -188,7 +188,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         Kind = box.Card is not null ? CanvasNodeKind.Member : Kind == CanvasNodeKind.Card ? CanvasNodeKind.Card : CanvasNodeKind.Step;
     }
 
-    internal void Update(Node node, Library library, bool hasProblem, string waitsFor)
+    internal void Update(Node node, Configuration config, bool hasProblem, string waitsFor)
     {
         HasProblem = hasProblem;
         MayFail = node.OnFailure == FailurePolicy.Ignore;
@@ -211,7 +211,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
                 Kind = CanvasNodeKind.Step;
             var descriptor = ProviderCatalog.Find(step.Step);
             Title = step.Name ?? descriptor?.Title ?? step.Step;
-            Summary = Summarize(step, descriptor, library);
+            Summary = Summarize(step, descriptor, config);
             Glyph = FlowItemViewModel.DecodeGlyph(descriptor?.Glyph ?? "E9CE");
             Count = "";
             if (step.Retry is { Count: > 0 } retry)
@@ -239,8 +239,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         AutomationName = _name;
     }
 
-    /// <summary>"Technics · Default output": the library items and values the step works with, at most two.</summary>
-    internal static string Summarize(StepNode step, ProviderDescriptor? descriptor, Library library)
+    /// <summary>"Technics · Default output": the library items, flows and values the step works with, at most two.</summary>
+    internal static string Summarize(StepNode step, ProviderDescriptor? descriptor, Configuration config)
     {
         if (descriptor is null)
             return "Unknown step";
@@ -251,7 +251,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
                 continue;
             values.Add(spec.Kind switch
             {
-                ParamKind.LibraryRef => LibraryName(library, spec.Library, text),
+                ParamKind.LibraryRef => LibraryName(config.Library, spec.Library, text),
+                _ when spec.RefersTo == ConfigRef.Flow => config.Flows.FirstOrDefault(f => f.Id == text)?.Name ?? text,
                 ParamKind.MultilineText => text.Split('\n')[0].Trim(),
                 _ => text,
             });

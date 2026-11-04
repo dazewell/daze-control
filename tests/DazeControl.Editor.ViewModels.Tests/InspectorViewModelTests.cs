@@ -576,6 +576,7 @@ public sealed class InspectorViewModelTests : IDisposable
 
         Assert.Equal("night", ((ScalarParam)Step("call").With["flow"]).Text);
         Assert.Equal("Night", Field("flow").Device?.Title);
+        Assert.Equal("Night", _canvas.Nodes.Single(n => n.Id == "call").Summary); // the card shows the name, never the id
         Assert.Null(Field("flow").Error);
         Assert.DoesNotContain(_session.Problems, p => p.Path.StartsWith("flows.f.nodes.call", StringComparison.Ordinal));
     }

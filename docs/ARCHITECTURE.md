@@ -314,6 +314,10 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   M11 (D-050): `ParamSpec.Suggest`/`Examples` add an editable ComboBox (Text), a checklist or ordered token list
   (TextList) and an "Examples" menu (MultilineText/TextMap); `Devices(kind)` sources share `LibraryDevices`' pipe cache,
   `Config(kind)` sources read `ConfigSession.Current` (the draft). Bluetooth devices without audio are shown disabled.
+  A param with `RefersTo = Flow` (`flow.run`'s `flow`, F2) is a device-style picker, not an editable box:
+  `InspectorViewModel.FlowOptions` lists the other flows by name and glyph ("Turned off", "Needs fixing"), stores the
+  id, keeps an unknown id as its own row ("Isn't there anymore"), and #69 shows when there's none; the canvas card's
+  summary shows the called flow's name. Ids never appear on screen.
 - Library page (`LibraryPage/LibraryPageViewModel`, view `Library/LibraryView`, a Pivot): Audio, Bluetooth, Displays,
   Android from `library:` plus Programs (the `process.run` paths the flows use). Cards show live state (pipe
   `devices`, refreshed when the page opens or the engine starts), "Used by n flows" (flows with a step whose
@@ -394,8 +398,7 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   `EditorSettingsStore` / `editor.json` (D-068). Each task rewrites the
   section it changes. Fallback outcomes (D-065) are built (T13.7: Config, Runtime).
 - Designed, not built (PLAN → M13 fixes, v0.29.0 feedback): wheel zoom at the pointer and pan room in a wrapper
-  around `Host` (D-074, F1); the flow picker for `ParamSuggest.Flows` (F2: today `InspectorViewModel.Suggest` has no
-  case for it, so the box is empty and a typed name isn't an id) and the `flow` area's title; Ctrl+S's accelerator
+  around `Host` (D-074, F1); Ctrl+S's accelerator
   tooltip hidden (X-008, F3); `Core/Model/FlowIds` (slug, unique) and `FlowRefs` (callers, rename) behind flow
   delete with Undo and the id following a saved rename (D-075, D-076, F4). Flow ids are keys in: other flows'
   `flow.run` (and M12 `menu.show`), history and logs (never rewritten), desktop .lnk args and file names (D-049),
