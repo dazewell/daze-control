@@ -142,9 +142,9 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     /// <summary>How many flows have a step whose Library setting of this kind names the key.</summary>
     public static int UsedBy(Configuration config, LibraryKind kind, string key) => Users(config, kind, key).Count;
 
-    /// <summary>The flows with a step whose Library setting of this kind names the key, in file order.</summary>
+    /// <summary>The flows that use the key: a step setting, an input's default or a value passed to a call (D-064), in file order.</summary>
     public static IReadOnlyList<FlowLink> Users(Configuration config, LibraryKind kind, string key) =>
-        [.. config.Flows.Where(f => f.Nodes.OfType<StepNode>().Any(step => LibraryEdits.Names(step, kind, key) is not null)).Select(Link)];
+        [.. config.Flows.Where(f => LibraryEdits.Uses(f, config, kind, key)).Select(Link)];
 
     /// <summary>The flows that run this program (paths compared ignoring case), in file order.</summary>
     public static IReadOnlyList<FlowLink> ProgramUsers(Configuration config, string path) =>

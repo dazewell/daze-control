@@ -40,6 +40,7 @@ public static partial class ConfigValidator
         foreach (var checker in checkers)
             checker.Check();
         CheckCalls(config.Flows, problems);
+        CheckPassedInputs(config.Flows, config.Library, badLibraryItems, problems);
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
         var hotkeyOwners = new Dictionary<Hotkey, string>();
         var rejected = FlowsWithErrors(problems.Concat(earlier ?? []));
@@ -124,6 +125,59 @@ public static partial class ConfigValidator
         return null;
     }
 
+    private static string LibraryName(LibraryKind kind) => kind switch
+    {
+        LibraryKind.Audio => "audio device",
+        LibraryKind.Bluetooth => "Bluetooth device",
+        LibraryKind.Display => "screen layout",
+        LibraryKind.Android => "Android device",
+        _ => kind.ToString(),
+    };
+
+    /// <summary>"an audio device", "a Bluetooth device".</summary>
+    private static string WithArticle(LibraryKind kind) => (kind == LibraryKind.Audio || kind == LibraryKind.Android ? "an " : "a ") + LibraryName(kind);
+
+    /// <summary>Why <paramref name="key"/> can't be a <paramref name="kind"/> from the library, or null.</summary>
+    private static string? LibraryKeyProblem(Library library, HashSet<(LibraryKind, string)> badLibraryItems, LibraryKind kind, string key) =>
+        !library.Contains(kind, key) ? $"No {LibraryName(kind)} called \"{key}\" in the library."
+        : badLibraryItems.Contains((kind, key)) ? $"The {LibraryName(kind)} \"{key}\" needs fixing in the library first."
+        : null;
+
+    /// <summary>
+    /// What each <c>flow.run</c> passes (D-064): an input of the called flow, given a Library key of its kind or one of
+    /// the caller's own inputs (<c>$name</c>) of the same kind. Calls of unknown flows are <see cref="CheckCalls"/>' error.
+    /// </summary>
+    private static void CheckPassedInputs(IReadOnlyList<Flow> flows, Library library, HashSet<(LibraryKind, string)> badLibraryItems,
+        List<Problem> problems)
+    {
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.RunFlowId))
+            {
+                if (CalledFlow(step) is not { } target || flows.FirstOrDefault(f => f.Id == target) is not { } called)
+                    continue;
+                foreach (var (name, value) in FlowInputs.Given(step))
+                {
+                    var path = $"flows.{flow.Id}.nodes.{step.Id}.with.{FlowInputs.Param}.{name}";
+                    string? message;
+                    if (!called.Inputs.TryGetValue(name, out var input))
+                        message = $"{called.Name} has no input called \"{name}\".";
+                    else if (FlowInputs.NameIn(value) is { } own)
+                        message = !flow.Inputs.TryGetValue(own, out var mine) ? $"This flow has no input called \"{own}\"."
+                            : mine.Kind != input.Kind ? $"{mine.Label} is {WithArticle(mine.Kind)}; {input.Label} needs {WithArticle(input.Kind)}."
+                            : null;
+                    else
+                        message = LibraryKeyProblem(library, badLibraryItems, input.Kind, value);
+                    if (message is not null)
+                        problems.Add(new(Severity.Error, path, message, flow.Id));
+                }
+            }
+        }
+    }
+
+    [GeneratedRegex("^[a-z][a-z0-9-]*$")]
+    private static partial Regex InputName();
+
     [GeneratedRegex("^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$")]
     private static partial Regex BluetoothAddress();
 
@@ -162,6 +216,16 @@ public static partial class ConfigValidator
         {
             if (flow.Glyph is { } glyph && !GlyphCode().IsMatch(glyph))
                 Add(Severity.Warning, _path + ".glyph", $"\"{glyph}\" isn't a Segoe Fluent Icons code (like E702); the step's icon is used.");
+            foreach (var (name, input) in flow.Inputs)
+            {
+                var path = $"{_path}.inputs.{name}";
+                if (!InputName().IsMatch(name))
+                    Error(path, "Name inputs with small letters, digits and dashes, starting with a letter (like output).");
+                if (input.Default.Length == 0)
+                    Error(path + ".default", $"{input.Label} needs a default device.");
+                else if (LibraryKeyProblem(library, badLibraryItems, input.Kind, input.Default) is { } message)
+                    Error(path + ".default", message);
+            }
             foreach (var text in flow.Hotkeys)
             {
                 if (!Hotkey.TryParse(text, out _))
@@ -292,6 +356,21 @@ public static partial class ConfigValidator
                 Error(path, $"{spec.Title} can't be empty.");
                 return;
             }
+            if (spec.Kind == ParamKind.LibraryRef && FlowInputs.NameIn(value) is { } name)
+            {
+                var kind = spec.Library!.Value;
+                if (!flow.Inputs.TryGetValue(name, out var input))
+                    Error(path, $"This flow has no input called \"{name}\".");
+                else if (input.Kind != kind)
+                    Error(path, $"{input.Label} is {WithArticle(input.Kind)}; this setting needs {WithArticle(kind)}.");
+                return;
+            }
+            // Only this flow's own input names count, so text that merely starts with $ ("$5 off") stays plain text.
+            if (FlowInputs.NameIn(value) is { } misplaced && flow.Inputs.ContainsKey(misplaced))
+            {
+                Error(path, $"Inputs (${misplaced}) only go in device settings.");
+                return;
+            }
             var message = spec.Kind switch
             {
                 ParamKind.WholeNumber when !int.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var n) =>
@@ -301,24 +380,12 @@ public static partial class ConfigValidator
                 ParamKind.Boolean when !bool.TryParse(text, out _) => $"\"{text}\" isn't true or false.",
                 ParamKind.Duration when !Duration.TryParse(text, out _) => $"\"{text}\" isn't a duration (like 500ms, 20s, 1m30s).",
                 ParamKind.Choice when !spec.Choices.Contains(text) => $"\"{text}\" isn't one of: {string.Join(", ", spec.Choices)}.",
-                ParamKind.LibraryRef when text.Length > 0 && !library.Contains(spec.Library!.Value, text) =>
-                    $"No {LibraryName(spec.Library!.Value)} called \"{text}\" in the library.",
-                ParamKind.LibraryRef when badLibraryItems.Contains((spec.Library!.Value, text)) =>
-                    $"The {LibraryName(spec.Library!.Value)} \"{text}\" needs fixing in the library first.",
+                ParamKind.LibraryRef when text.Length > 0 => LibraryKeyProblem(library, badLibraryItems, spec.Library!.Value, text),
                 _ => null,
             };
             if (message is not null)
                 Error(path, message);
         }
-
-        private static string LibraryName(LibraryKind kind) => kind switch
-        {
-            LibraryKind.Audio => "audio device",
-            LibraryKind.Bluetooth => "Bluetooth device",
-            LibraryKind.Display => "screen layout",
-            LibraryKind.Android => "Android device",
-            _ => kind.ToString(),
-        };
 
         /// <summary>Reports each loop once, at the node where the search first closed it.</summary>
         private void CheckCycles()
