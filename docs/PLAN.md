@@ -78,7 +78,7 @@ number + 1).
   `morning`, a caller's step follows, its desktop shortcut still runs it, the engine log names `morning`; Delete then
   Undo restores it with its hotkey working; screenshots.
 
-- [ ] F5 **Display steps do what they say, or fail** (fix/m13-display-restore, D-077, X-009). Live test on the user's
+- [~] F5 **Display steps do what they say, or fail** (fix/m13-display-restore, built, live matrix pending the user's OK; D-077, X-009). Live test on the user's
   PC (2026-11-03, laptop panel INT-0 + DELL on HDMI-0; log and scripts in the coordinator's notes folder,
   `f5-display/`): "Project" (`display.topology`) is right every time, and "Restore screen layout" is right from a
   normal state. Three failures, all in `CcdDisplays.UseOnly` and `CcdLayout.Apply`:

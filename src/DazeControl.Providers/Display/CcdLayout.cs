@@ -53,15 +53,43 @@ internal static unsafe class CcdLayout
         if (missing.Count > 0)
             throw new StepFailedException($"{missing.Count} screen(s) of \"{layout.Key}\" aren't connected.");
 
+        // Sources: the saved ids may not be free (or offered) where the screens are now, which Windows refuses with
+        // error 87. Screens that shared a source when captured (a duplicate) share one again; the rest get their own.
+        var all = CcdDisplays.QueryAllPaths();
+        var names = CcdDisplays.ByPort(all).ToDictionary(p => (CcdDisplays.Key(p.Path.targetInfo.adapterId), p.Path.targetInfo.id),
+            p => CcdDisplays.Name(p.Output));
+        var groups = new List<(uint, int, uint)>();
+        var requests = new SourceRequest[paths.Length];
+        for (var i = 0; i < paths.Length; i++)
+        {
+            var saved = (paths[i].sourceInfo.adapterId.LowPart, paths[i].sourceInfo.adapterId.HighPart, paths[i].sourceInfo.id);
+            if (!groups.Contains(saved))
+                groups.Add(saved);
+            var (adapter, target) = now[layout.Monitors[i]];
+            requests[i] = new SourceRequest(CcdDisplays.Key(adapter), target, groups.IndexOf(saved), paths[i].sourceInfo.id);
+        }
+        var sources = DisplayCheck.AssignSources(requests, CcdDisplays.Offered(all))
+            ?? throw new StepFailedException($"The graphics card can't show the screens of \"{layout.Key}\" at once.");
+
         var adapters = new Dictionary<(uint, int), LUID>();
         var targets = new Dictionary<(uint, int, uint), uint>();
+        var newSources = new Dictionary<(uint, int, uint), uint>();
+        var wanted = new List<ScreenWant>(paths.Length);
         for (var i = 0; i < paths.Length; i++)
         {
             var (adapter, target) = now[layout.Monitors[i]];
             ref var path = ref paths[i];
             adapters[(path.targetInfo.adapterId.LowPart, path.targetInfo.adapterId.HighPart)] = adapter;
             targets[(path.targetInfo.adapterId.LowPart, path.targetInfo.adapterId.HighPart, path.targetInfo.id)] = target;
+            newSources[(path.sourceInfo.adapterId.LowPart, path.sourceInfo.adapterId.HighPart, path.sourceInfo.id)] = sources[i];
+            var place = path.sourceInfo.modeInfoIdx < modes.Length
+                && modes[path.sourceInfo.modeInfoIdx].infoType == DISPLAYCONFIG_MODE_INFO_TYPE.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE
+                ? modes[path.sourceInfo.modeInfoIdx].Anonymous.sourceMode : default;
+            wanted.Add(new ScreenWant(names.GetValueOrDefault((CcdDisplays.Key(adapter), target), $"Screen {target}"),
+                CcdDisplays.Key(adapter), target, requests[i].Group,
+                place.width > 0 ? ((int)place.width, (int)place.height, place.position.x, place.position.y) : null));
             path.sourceInfo.adapterId = adapter;
+            path.sourceInfo.id = sources[i];
             path.targetInfo.adapterId = adapter;
             path.targetInfo.id = target;
             path.flags |= PathActive;
@@ -73,19 +101,40 @@ internal static unsafe class CcdLayout
             if (mode.infoType == DISPLAYCONFIG_MODE_INFO_TYPE.DISPLAYCONFIG_MODE_INFO_TYPE_TARGET
                 && targets.TryGetValue((old.LowPart, old.HighPart, mode.id), out var target))
                 mode.id = target;
+            else if (mode.infoType == DISPLAYCONFIG_MODE_INFO_TYPE.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE
+                && newSources.TryGetValue((old.LowPart, old.HighPart, mode.id), out var source))
+                mode.id = source;
             if (adapters.TryGetValue(old, out var adapter))
                 mode.adapterId = adapter;
         }
 
-        var flags = SET_DISPLAY_CONFIG_FLAGS.SDC_USE_SUPPLIED_DISPLAY_CONFIG | SET_DISPLAY_CONFIG_FLAGS.SDC_ALLOW_CHANGES
-            | (validateOnly ? SET_DISPLAY_CONFIG_FLAGS.SDC_VALIDATE : SET_DISPLAY_CONFIG_FLAGS.SDC_APPLY | SET_DISPLAY_CONFIG_FLAGS.SDC_SAVE_TO_DATABASE);
-        int error;
+        // Validate first: from some states (the old duplicate) Windows refuses a full layout with error 87 although it
+        // takes it once the same screens are on. Then switch to the layout's screens first and apply it from there.
+        const SET_DISPLAY_CONFIG_FLAGS Supplied = SET_DISPLAY_CONFIG_FLAGS.SDC_USE_SUPPLIED_DISPLAY_CONFIG | SET_DISPLAY_CONFIG_FLAGS.SDC_ALLOW_CHANGES;
         cancellationToken.ThrowIfCancellationRequested();
-        fixed (DISPLAYCONFIG_PATH_INFO* pathArray = paths)
-        fixed (DISPLAYCONFIG_MODE_INFO* modeArray = modes)
-            error = PInvoke.SetDisplayConfig((uint)paths.Length, pathArray, (uint)modes.Length, modeArray, flags);
+        var error = Set(paths, modes, Supplied | SET_DISPLAY_CONFIG_FLAGS.SDC_VALIDATE);
+        if (error == InvalidParameter)
+        {
+            CcdDisplays.SwitchSet([.. paths], validateOnly, $"turn on the screens of \"{layout.Key}\"");
+            if (validateOnly)
+                return;
+            error = Set(paths, modes, Supplied | SET_DISPLAY_CONFIG_FLAGS.SDC_VALIDATE);
+        }
+        if (error == 0 && !validateOnly)
+            error = Set(paths, modes, Supplied | SET_DISPLAY_CONFIG_FLAGS.SDC_APPLY | SET_DISPLAY_CONFIG_FLAGS.SDC_SAVE_TO_DATABASE);
         if (error != 0)
             throw new StepFailedException($"Windows didn't accept the layout \"{layout.Key}\" (error {error}); capture it again.");
+        if (!validateOnly)
+            CcdDisplays.Verify(wanted, layout.Key);
+    }
+
+    private const int InvalidParameter = 87; // ERROR_INVALID_PARAMETER
+
+    private static int Set(DISPLAYCONFIG_PATH_INFO[] paths, DISPLAYCONFIG_MODE_INFO[] modes, SET_DISPLAY_CONFIG_FLAGS flags)
+    {
+        fixed (DISPLAYCONFIG_PATH_INFO* pathArray = paths)
+        fixed (DISPLAYCONFIG_MODE_INFO* modeArray = modes)
+            return PInvoke.SetDisplayConfig((uint)paths.Length, pathArray, (uint)modes.Length, modeArray, flags);
     }
 
     private static (DISPLAYCONFIG_PATH_INFO[] Paths, DISPLAYCONFIG_MODE_INFO[] Modes) Decode(DisplayLayout layout)

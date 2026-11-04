@@ -35,7 +35,8 @@ connected, display change), schedule, session unlock/resume, app start.
 locks, idempotency check ("already in state → no-op"), and an optional enumerator for editor pickers.
 - `audio.setDefault` (output/input, roles), `audio.setVolume`/`mute` · `bluetooth.connect`/`disconnect`
   (audio devices, KS one-shot, no admin) · `display.topology` (Win+P presets), `display.outputs` (only these
-  ports on), `display.layout` (captured CCD layout) · `process.run` (exe, args[], cwd, wait, exit codes,
+  ports on, in the arrangement Windows saved for them), `display.layout` (captured CCD layout); both fail when
+  Windows sets the screens up differently · `process.run` (exe, args[], cwd, wait, exit codes,
   kill tree on timeout) · `script.powershell` · `http.request` (Sunshine API etc., credentials by name) ·
   `android.input`/`android.keys`/`android.sleep` (adb, connect retries, one chained shell call; any adb device, D-045) ·
   `service.start`/`stop` (fails clearly without rights) · `wait` · `notify` (pop-up text) ·

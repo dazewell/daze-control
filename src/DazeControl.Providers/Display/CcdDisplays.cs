@@ -37,46 +37,109 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
 
     public IReadOnlyList<string> UseOnly(IReadOnlyList<string> outputs, CancellationToken cancellationToken)
     {
+        var all = QueryAllPaths();
         // Same order as Outputs(), which the editor's checklist matches against (D-051).
-        var ports = ByPort(QueryAllPaths()).Where(p => p.Output.Available)
+        var ports = ByPort(all).Where(p => p.Output.Available)
             .OrderBy(p => p.Output.Port, StringComparer.OrdinalIgnoreCase).ToList();
         var missing = new List<string>();
-        var chosen = new List<DISPLAYCONFIG_PATH_INFO>();
+        var chosen = new List<(DisplayOutput Output, DISPLAYCONFIG_PATH_INFO Path)>();
         foreach (var name in outputs)
         {
             var index = ScreenMatch.IndexOf(name, ports, p => p.Output.Port, p => p.Output.Monitor);
             if (index < 0)
-            {
                 missing.Add(name);
-                continue;
-            }
-            var path = ports[index].Path;
-            path.flags |= PathActive;
-            // Let Windows pick modes and positions: the database restores this set's last layout (scd behaviour).
-            path.sourceInfo.modeInfoIdx = ModeIdxInvalid;
-            path.targetInfo.modeInfoIdx = ModeIdxInvalid;
-            if (!chosen.Any(c => c.targetInfo.id == path.targetInfo.id && c.targetInfo.adapterId.Equals(path.targetInfo.adapterId)))
-                chosen.Add(path);
+            else if (!chosen.Any(c => SameTarget(c.Path, ports[index].Path)))
+                chosen.Add(ports[index]);
         }
         if (missing.Count > 0)
             return missing; // change nothing when the list can't be honoured in full
 
-        var paths = chosen.ToArray();
-        cancellationToken.ThrowIfCancellationRequested();
-        fixed (DISPLAYCONFIG_PATH_INFO* first = paths)
+        // Each screen its own source (D-077): two on one source is a duplicate, which "use only" never asks for.
+        var requests = chosen.Select((c, i) => new SourceRequest(Key(c.Path.targetInfo.adapterId), c.Path.targetInfo.id, i,
+            all.Where(p => (p.flags & PathActive) != 0 && SameTarget(p, c.Path)).Select(p => (uint?)p.sourceInfo.id).FirstOrDefault())).ToList();
+        var sources = DisplayCheck.AssignSources(requests, Offered(all))
+            ?? throw new StepFailedException("The graphics card can't show that many screens at once.");
+        var paths = new DISPLAYCONFIG_PATH_INFO[chosen.Count];
+        for (var i = 0; i < paths.Length; i++)
         {
-            Check(PInvoke.SetDisplayConfig((uint)paths.Length, first, 0, null,
-                Apply | SET_DISPLAY_CONFIG_FLAGS.SDC_USE_SUPPLIED_DISPLAY_CONFIG | SET_DISPLAY_CONFIG_FLAGS.SDC_ALLOW_CHANGES
-                | (validateOnly ? 0 : SET_DISPLAY_CONFIG_FLAGS.SDC_SAVE_TO_DATABASE)), "switch the screens");
+            var target = chosen[i].Path;
+            paths[i] = all.First(p => SameTarget(p, target) && p.sourceInfo.id == sources[i]
+                && p.sourceInfo.adapterId.Equals(target.targetInfo.adapterId));
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        SwitchSet(paths, validateOnly, "switch the screens");
+        if (!validateOnly)
+            Verify([.. chosen.Select((c, i) => new ScreenWant(Name(c.Output), Key(c.Path.targetInfo.adapterId), c.Path.targetInfo.id, i))], null);
         return [];
     }
+
+    /// <summary>
+    /// Turns on exactly these paths (their source and target ids are used; modes aren't). Windows is asked for this
+    /// set's saved arrangement first (<c>SDC_TOPOLOGY_SUPPLIED</c>); only a set it has never seen is left to Windows to
+    /// arrange, and then saved (X-009).
+    /// </summary>
+    internal static void SwitchSet(DISPLAYCONFIG_PATH_INFO[] paths, bool validateOnly, string what)
+    {
+        for (var i = 0; i < paths.Length; i++)
+        {
+            paths[i].flags |= PathActive;
+            paths[i].sourceInfo.modeInfoIdx = ModeIdxInvalid;
+            paths[i].targetInfo.modeInfoIdx = ModeIdxInvalid;
+        }
+        var apply = validateOnly ? SET_DISPLAY_CONFIG_FLAGS.SDC_VALIDATE : SET_DISPLAY_CONFIG_FLAGS.SDC_APPLY;
+        fixed (DISPLAYCONFIG_PATH_INFO* first = paths)
+        {
+            if (PInvoke.SetDisplayConfig((uint)paths.Length, first, 0, null, apply | SET_DISPLAY_CONFIG_FLAGS.SDC_TOPOLOGY_SUPPLIED) == 0)
+                return;
+            Check(PInvoke.SetDisplayConfig((uint)paths.Length, first, 0, null,
+                apply | SET_DISPLAY_CONFIG_FLAGS.SDC_USE_SUPPLIED_DISPLAY_CONFIG | SET_DISPLAY_CONFIG_FLAGS.SDC_ALLOW_CHANGES
+                | (validateOnly ? 0 : SET_DISPLAY_CONFIG_FLAGS.SDC_SAVE_TO_DATABASE)), what);
+        }
+    }
+
+    /// <summary>Reads the screens back after a write and fails the step when Windows did something else (D-077).</summary>
+    internal static void Verify(IReadOnlyList<ScreenWant> wanted, string? layout)
+    {
+        var difference = DisplayCheck.Differences(wanted, ActiveScreens(), layout);
+        if (difference is not null)
+            throw new StepFailedException(difference);
+    }
+
+    /// <summary>The screens on now, each with its source mode (resolution and position).</summary>
+    internal static List<ScreenState> ActiveScreens()
+    {
+        var names = ByPort(QueryAllPaths()).ToDictionary(p => (Key(p.Path.targetInfo.adapterId), p.Path.targetInfo.id), p => Name(p.Output));
+        var (paths, modes) = CcdLayout.Query(QUERY_DISPLAY_CONFIG_FLAGS.QDC_ONLY_ACTIVE_PATHS);
+        var screens = new List<ScreenState>(paths.Length);
+        foreach (var path in paths)
+        {
+            var adapter = Key(path.targetInfo.adapterId);
+            var index = path.sourceInfo.modeInfoIdx;
+            var source = index < modes.Length && modes[index].infoType == DISPLAYCONFIG_MODE_INFO_TYPE.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE
+                ? modes[index].Anonymous.sourceMode : default;
+            screens.Add(new ScreenState(names.GetValueOrDefault((adapter, path.targetInfo.id), $"Screen {path.targetInfo.id}"),
+                adapter, path.targetInfo.id, path.sourceInfo.id, (int)source.width, (int)source.height, source.position.x, source.position.y));
+        }
+        return screens;
+    }
+
+    /// <summary>Every source → target pair Windows offers.</summary>
+    internal static List<CcdPath> Offered(DISPLAYCONFIG_PATH_INFO[] all) =>
+        [.. all.Select(p => new CcdPath(Key(p.sourceInfo.adapterId), p.sourceInfo.id, p.targetInfo.id)).Distinct()];
+
+    internal static long Key(LUID adapter) => ((long)adapter.HighPart << 32) | adapter.LowPart;
+
+    internal static string Name(DisplayOutput output) => output.Monitor.Length > 0 ? output.Monitor : output.Port;
+
+    private static bool SameTarget(DISPLAYCONFIG_PATH_INFO a, DISPLAYCONFIG_PATH_INFO b) =>
+        a.targetInfo.id == b.targetInfo.id && a.targetInfo.adapterId.Equals(b.targetInfo.adapterId);
 
     public DisplayLayout CaptureLayout(string key) => CcdLayout.Capture(key);
 
     public void ApplyLayout(DisplayLayout layout, CancellationToken cancellationToken) => CcdLayout.Apply(layout, validateOnly, cancellationToken);
 
-    private static void Check(int error, string what)
+    internal static void Check(int error, string what)
     {
         if (error != 0)
             throw new StepFailedException($"Windows couldn't {what} (error {error}); the graphics driver may not support that combination.");
@@ -86,7 +149,7 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
     /// One path per port of each adapter: the active one, else an available one (as scd chose). Connector numbers
     /// count per adapter, so a label two adapters share gets "@2", "@3" on the later adapters ("HDMI-1@2").
     /// </summary>
-    private static List<(DisplayOutput Output, DISPLAYCONFIG_PATH_INFO Path)> ByPort(DISPLAYCONFIG_PATH_INFO[] paths)
+    internal static List<(DisplayOutput Output, DISPLAYCONFIG_PATH_INFO Path)> ByPort(DISPLAYCONFIG_PATH_INFO[] paths)
     {
         var result = new List<(DisplayOutput Output, DISPLAYCONFIG_PATH_INFO Path)>();
         foreach (var path in paths)
@@ -112,7 +175,7 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
     internal static string Disambiguate(string port, int adapter, int firstAdapterWithThatPort) =>
         adapter == firstAdapterWithThatPort ? port : $"{port}@{adapter + 1}";
 
-    private static DISPLAYCONFIG_PATH_INFO[] QueryAllPaths()
+    internal static DISPLAYCONFIG_PATH_INFO[] QueryAllPaths()
     {
         for (var attempt = 0; attempt < 3; attempt++)
         {
