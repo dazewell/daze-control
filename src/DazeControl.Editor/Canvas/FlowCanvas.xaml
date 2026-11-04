@@ -7,12 +7,16 @@
     AutomationProperties.Name="Flow canvas">
 
     <Grid x:Name="Root" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
-        <!-- Wheel scrolls, Shift+wheel scrolls sideways, Ctrl+wheel and pinch zoom 50–200 % (UX §5.2). -->
+        <!-- Mouse wheel and Ctrl+wheel zoom at the pointer, Shift+wheel scrolls sideways (both Wrapper's handler); a
+             touchpad's two-finger scroll pans and pinch zooms 50–200 % (UX §5.2, D-074). -->
         <ScrollViewer x:Name="Scroller" ZoomMode="Enabled" MinZoomFactor="0.5" MaxZoomFactor="2" IsTabStop="False"
                       HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
                       VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto"
                       ViewChanged="OnViewChanged">
-            <Grid x:Name="Host" Background="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <!-- Pan room: padding per side = viewport − 48 DIP − the layout margin, at the current zoom, so a flow that
+                 fits can still be moved and 48 DIP of its steps stays on screen; Host's coordinates don't change (D-074). -->
+            <Grid x:Name="Wrapper" Background="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Grid x:Name="Host" Background="Transparent">
                 <!-- All edges: a handful of paths, one per style, whatever the edge count (UX §5.8 #1, D-037). -->
                 <Canvas x:Name="EdgeLayer" IsHitTestVisible="False">
                     <Path x:Name="NormalEdges" StrokeThickness="1.5" Stroke="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
@@ -63,6 +67,7 @@
                     <Rectangle x:Name="Marquee" Visibility="Collapsed" StrokeThickness="1"
                                Stroke="{ThemeResource AccentFillColorDefaultBrush}" Fill="{ThemeResource SubtleFillColorSecondaryBrush}" />
                 </Canvas>
+            </Grid>
             </Grid>
         </ScrollViewer>
 
