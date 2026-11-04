@@ -23,10 +23,35 @@ public readonly record struct Rect(double X, double Y, double Width, double Heig
         new(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
 }
 
-/// <summary>Spacing in DIP (UX §5.2, §5.3).</summary>
+/// <summary>Layout menu › Spacing (D-067): the gaps between columns and between boxes in a column.</summary>
+public enum LayoutSpacing
+{
+    Compact,
+    Normal,
+    Roomy,
+}
+
+/// <summary>Layout menu › Line up (D-067): a column's boxes centred on its line, or hung from the line's top.</summary>
+public enum LayoutAlign
+{
+    Centre,
+    Top,
+}
+
+/// <summary>Layout menu › Lines (D-067): Bézier curves, or every line orthogonal with rounded corners.</summary>
+public enum LayoutLines
+{
+    Curved,
+    RightAngles,
+}
+
+/// <summary>Spacing in DIP (UX §5.2, §5.3) and the Layout menu's choices (D-067).</summary>
 public sealed record LayoutOptions
 {
     public static LayoutOptions Default { get; } = new();
+
+    /// <summary>The default for "Wrap long chains" (After 5 steps).</summary>
+    public const int DefaultWrapAfter = 5;
 
     public double ColumnGap { get; init; } = 64;
 
@@ -40,10 +65,29 @@ public sealed record LayoutOptions
 
     public double MemberSpacing { get; init; } = 8;
 
-    /// <summary>A spine run longer than this many boxes wraps onto rows of this many (D-060).</summary>
-    public int WrapAfter { get; init; } = 5;
+    /// <summary>A spine run longer than this many boxes wraps onto rows of this many (D-060); 0 = never wrap.</summary>
+    public int WrapAfter { get; init; } = DefaultWrapAfter;
 
     public double WrapRowGap { get; init; } = 48;
+
+    public LayoutAlign Align { get; init; } = LayoutAlign.Centre;
+
+    public LayoutLines Lines { get; init; } = LayoutLines.Curved;
+
+    /// <summary>Column and row gap for a Spacing choice: Compact 40/8, Normal 64/16, Roomy 96/32 (D-067).</summary>
+    public static (double Column, double Row) Gaps(LayoutSpacing spacing) => spacing switch
+    {
+        LayoutSpacing.Compact => (40, 8),
+        LayoutSpacing.Roomy => (96, 32),
+        _ => (64, 16),
+    };
+
+    /// <summary>The options for the Layout menu's choices; a negative <paramref name="wrapAfter"/> counts as never.</summary>
+    public static LayoutOptions Of(int wrapAfter, LayoutSpacing spacing, LayoutAlign align, LayoutLines lines)
+    {
+        var (column, row) = Gaps(spacing);
+        return Default with { WrapAfter = Math.Max(0, wrapAfter), ColumnGap = column, RowGap = row, Align = align, Lines = lines };
+    }
 }
 
 /// <param name="Card">The card a member sits in; null for a top-level step or a card.</param>
@@ -69,7 +113,7 @@ public sealed record FlowArrangement(
 /// <summary>
 /// The canvas layout, always automatic (D-020): one column per layer left→right, a node's layer = 1 + the
 /// highest layer it waits for, order within a column = order in <see cref="Flow.Nodes"/>. Columns are centred on
-/// the tallest of their line; long simple chains wrap onto rows (D-060) and what follows starts a new line under the
+/// the tallest of their line (or hung from its top, <see cref="LayoutOptions.Align"/>); long simple chains wrap onto rows (D-060) and what follows starts a new line under the
 /// block (D-066). Works on invalid flows too (autosave keeps half-built ones): cycles and unknown ids are ignored.
 /// </summary>
 public static class FlowLayout
@@ -218,6 +262,7 @@ public static class FlowLayout
         // Lines, read like text (D-066): a line is the columns up to and including the next wrapped block; the line
         // after a block starts at the block's x, one WrapRowGap under it, and its columns are centred among themselves.
         var wrapLanes = new Dictionary<(string, string), double>();
+        double Offset(double room, double height) => o.Align == LayoutAlign.Top ? 0 : (room - height) / 2;
         var lineX = o.Padding;
         var lineTop = o.Padding;
         for (var c = 0; c < columns.Count;)
@@ -233,7 +278,7 @@ public static class FlowLayout
             var cursor = lineX;
             for (; c < end; c++)
             {
-                var y = lineTop + (tallest - heights[c]) / 2;
+                var y = lineTop + Offset(tallest, heights[c]);
                 for (var r = 0; r < columns[c].Count; r++)
                 {
                     Place(columns[c][r], cursor, y, c, r);
@@ -247,13 +292,13 @@ public static class FlowLayout
             // A spine run: rows of WrapAfter boxes like text, slots aligned across rows (D-060).
             var slotWidths = Enumerable.Range(0, o.WrapAfter)
                 .Select(k => rows.Where(row => k < row.Length).Max(row => sizes[row[k]].Width)).ToList();
-            var rowTop = lineTop + (tallest - rowHeights[0]) / 2;
+            var rowTop = lineTop + Offset(tallest, rowHeights[0]);
             for (var r = 0; r < rows.Count; r++)
             {
                 var x = cursor;
                 for (var k = 0; k < rows[r].Length; k++)
                 {
-                    Place(rows[r][k], x, rowTop + (rowHeights[r] - sizes[rows[r][k]].Height) / 2, c + r * o.WrapAfter + k, 0);
+                    Place(rows[r][k], x, rowTop + Offset(rowHeights[r], sizes[rows[r][k]].Height), c + r * o.WrapAfter + k, 0);
                     x += slotWidths[k] + o.ColumnGap;
                 }
                 var lane = rowTop + rowHeights[r] + o.WrapRowGap / 2;
