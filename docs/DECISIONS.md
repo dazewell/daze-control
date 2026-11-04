@@ -645,7 +645,8 @@ Status: accepted (M12 design; user, 2026-11-03: "Never take focus"; spike S2 gat
   documented overlay band.
 
 ## D-056 · 2026-11-03 · Controller input: GameInput callbacks if they idle at 0, else XInput polling only while a pad is on
-Status: proposed (M12 design; spike S1 decides; user, 2026-11-03: polling while a pad is on is acceptable)
+Status: proposed (M12 design; spike S1 decides; user, 2026-11-03: polling while a pad is on is acceptable). S1 so
+far (2026-11-04): GameInput reading callbacks are E_NOTIMPL on PC (X-010), so XInput polling; pad gates pending (PLAN T12.1)
 - Decision: `Engine/Input/GamepadSource` reads Xbox/XInput pads. First choice: the inbox `GameInput.dll` (present on
   the dev PC, 0.2309.26100, no redist) with reading + device callbacks and background input. Fallback: `xinput1_4`
   polled at 20 Hz while only chords listen and 60 Hz while a menu is open, on connected slots only, and only while a

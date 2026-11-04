@@ -93,3 +93,12 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
 - Evidence: live matrix 2026-11-03 20:45 (PLAN F5; scripts and log in the coordinator's notes folder `f5-display/`).
 - Retry only if: never alone. Ask with `SDC_TOPOLOGY_SUPPLIED` first, give each path its own source, and check the
   result (D-077).
+
+## X-010 · 2026-11-04 · GameInput reading callbacks for idle-free controller input
+- Tried: inbox `GameInput.dll` 0.2309.26100 (v0 API, `GameInputCreate` from an AOT probe), `RegisterDeviceCallback`
+  then `RegisterReadingCallback(null, Gamepad, 0.1, …)`, hoping readings arrive pushed with no polling (D-056's
+  first choice).
+- Failed because: `RegisterReadingCallback` returns `E_NOTIMPL` (0x80004001) on PC; device callbacks register fine.
+  Readings on PC are only `GetCurrentReading`, a poll like XInput, and it adds the GameInputSvc service.
+- Evidence: T12.1 probe `spikes/GamepadProbe` (`gi` mode), 2026-11-04.
+- Retry only if: a newer GameInput (v1+ redist or inbox) implements reading callbacks on desktop.

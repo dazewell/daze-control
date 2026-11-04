@@ -364,9 +364,16 @@ comes from T13.8.
 Order: T12.1 and T12.2 (spikes, gates) first, either order; then T12.3 → T12.4 → T12.5, T12.6, T12.7 → T12.8 →
 T12.9 → T12.10. One PR per task unless two share a branch; feat PRs bump the minor version. Each task moves what it
 built from DESIGN.md into ARCHITECTURE/UX (D-053).
-- [ ] T12.1 Spike S1: controller input in AOT (spike/gamepad-input, DESIGN §5). Done when: gate (a)–(g) answered on
+- [~] T12.1 Spike S1: controller input in AOT (spike/gamepad-input, DESIGN §5). Done when: gate (a)–(g) answered on
   the dev PC with the user's Xbox pad (ask the user to plug it in; Steam on and off); D-056 set to accepted with the
   backend and numbers; Footprint rows added; probe deleted or left in `spikes/` untracked by the solution.
+  Paused 2026-11-04, no pad until the user brings one (draft PR on spike/gamepad-input): probe `spikes/GamepadProbe`
+  (`gi`/`xi`, `--keys`, `--quiet`; publish needs vswhere on PATH). Answered: (a) 0 warnings, exe 1.5 MB; GameInput
+  reading callbacks are E_NOTIMPL (X-010), so the backend is XInput; (b) `xi` with no pad, 600 s: 16 ms (one 15.6 ms
+  tick), 7 threads, 5.4 MB private; (f) inbox xinput1_4/cfgmgr32/powrprof, no admin. Open, need the pad: (b) recheck
+  with `QueryProcessCycleTime` (is the tick the window's own end?); (c) `xi --quiet --seconds 600` pad on, untouched;
+  (d) presses logged with another app in front; (e) plug/unplug, and sleep/resume only with the user's OK; (g)
+  `gi`/`xi --keys` with Steam running and closed.
 - [ ] T12.2 Spike S2: no-activate menu window over apps and games (spike/menu-window, DESIGN §5). Done when: gate
   (a)–(e) answered with the throwaway D3D11 app in three modes, screenshots of the menu over each; D-055 updated
   with what held; a failed (a) stops M12 and goes to the user.
