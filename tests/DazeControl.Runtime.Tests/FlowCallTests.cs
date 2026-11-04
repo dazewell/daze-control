@@ -3,6 +3,7 @@ using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
 using DazeControl.Core.Yaml;
 using DazeControl.Runtime.Control;
+using DazeControl.Runtime.Popup;
 using DazeControl.Runtime.Providers;
 using static DazeControl.Runtime.Tests.FlowRunnerTests;
 
@@ -350,6 +351,47 @@ public sealed class FlowCallTests : IDisposable
 
         Assert.Equal(NodeOutcome.Succeeded, NodeOf(result, "call").Outcome);
         Assert.Null(NodeOf(result, "call").Called);
+    }
+
+    private PopupView? Popup()
+    {
+        var model = new RunPopupModel();
+        List<RunEvent> events;
+        lock (_lock)
+            events = [.. _events];
+        foreach (var e in events)
+            model.Apply(e, null, new PopupSettings());
+        return model.Current;
+    }
+
+    [Fact]
+    public async Task ThePopUpShowsTheNestedCurrentStepAndOnlyTheTopRun()
+    {
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _provider.On("connect", (_, token) => release.Task.WaitAsync(token));
+        DefineCaller(Notify("set"), "{ id: connect, name: Connecting Sony, step: notify, with: { text: x }, after: [set] }");
+
+        var run = Run("top");
+        await _provider.Started("connect");
+        var view = Popup()!;
+        release.SetResult();
+        await run;
+
+        Assert.Equal(("Headphones", "Make it the default · Connecting Sony…", "0 of 2"), (view.Title, view.Detail, view.Status));
+        Assert.InRange(view.Progress, 0.2, 0.3); // half of the call step's share
+        Assert.Equal(("Headphones", "Done"), (Popup()!.Title, Popup()!.Status));
+    }
+
+    [Fact]
+    public async Task APartialCallSaysTheCalledFlowFirst()
+    {
+        _provider.On("connect", (_, _) => FakeProvider.Fail("no"));
+        DefineCaller("{ id: connect, name: Connect, step: notify, with: { text: x }, onFailure: ignore }", Notify("more"));
+
+        await Run("top");
+
+        var view = Popup()!;
+        Assert.Equal(("Done, with a problem", "Make it the default: Connect didn't work, so it went on without it."), (view.Headline, view.Detail));
     }
 
     /// <summary>Flows from the test's YAML; "Busy" flows ignore a start; "NeverValid" ones have no runnable version.</summary>

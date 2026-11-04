@@ -1,9 +1,9 @@
 # Plan
 
 ## Resume
-Current task: T13.8 (feat/m13-flow-run): Core (flow.run descriptor, ParamSpec.RefersTo, CalledRun, ParentRunId, call-graph validation) + Runtime (FlowRunner.RunNestedAsync, guards, FlowCalls/IFlowStarter, FlowProvider start mode) done with tests
-Last green checkpoint: e60a013 feat(m13): fallbacks that weren't needed are Not needed (T13.7) (#38)
-Next action: wire EngineHost (runner.Flows = FlowCalls, FlowProvider in providers, nested events skip tray/_running but feed the pop-up and pipe), PipeEvent.ParentRunId, RunPopupModel #59 fold; then dctl run of DESIGN §1 shapes, AOT publish, measure, docs
+Current task: T13.8 (feat/m13-flow-run): Core (flow.run descriptor, ParamSpec.RefersTo, CalledRun, ParentRunId, call-graph validation) + Runtime (FlowRunner.RunNestedAsync, guards, FlowCalls/IFlowStarter, FlowProvider start mode) + EngineHost wiring, PipeEvent.ParentRunId, pop-up fold (#59) done with tests
+Last green checkpoint: 8a81cbd wip(m13): flow.run nested runs, call guards and validation (T13.8)
+Next action: dctl run of DESIGN §1 shapes with notify/wait/flag steps (scratch config, own engine), AOT publish zero warnings, scripts/measure.ps1, then docs (ARCHITECTURE/FEATURES/UX, cut DESIGN §2-§4) and PR
 Tree state: builds, 1049/1049 tests green · Uncommitted: none
 Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user was told (T13.7) that their live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs, fails and stops the flow (cancelling Sony); "Skip what depends on it" fixes it. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
 

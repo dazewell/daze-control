@@ -83,8 +83,12 @@ internal sealed class EngineHost : IDisposable
         _history.WriteFailed += e => Log.Error("history: write failed", e);
         var stepProviders = providers(new TrayNotifier(_window, _tray)).ToList();
         var locks = new ResourceLocks();
-        var runner = new FlowRunner(stepProviders, TimeProvider.System, locks, events: OnRunEvent);
+        // flow.run (D-062): nested runs resolve flows in the current config; start mode goes through the launcher.
+        var calls = new FlowCalls(() => _config!.Current);
+        stepProviders.Add(new FlowProvider(calls));
+        var runner = new FlowRunner(stepProviders, TimeProvider.System, locks, events: OnRunEvent) { Flows = calls };
         _launcher = new FlowLauncher(runner, _history);
+        calls.Launcher = _launcher;
         _launcher.RunCompleted += OnRunCompleted;
         _launcher.ListenerFailed += e => Log.Error("run: completion listener", e);
 
@@ -98,7 +102,7 @@ internal sealed class EngineHost : IDisposable
             EngineController.CreateDryRunner(TimeProvider.System), new Autostart(),
             new EngineInfo(version, Environment.ProcessId, exe, paths.Config, paths.ConfigArgument), Log.Info, devices,
             // Step tests share the providers and locks but raise no run events: no pop-up, no history.
-            new FlowRunner(stepProviders, TimeProvider.System, locks),
+            new FlowRunner(stepProviders, TimeProvider.System, locks) { Flows = calls },
             FlowShortcuts.Create(paths.ConfigArgument, EnginePaths.DefaultConfig, Log.Info));
         _controller.RunRefused += refusal => _window.Post(() => ShowRefusal(refusal));
         _pipe = new PipeServer(Protocol.CurrentPipeName(), _controller.HandleAsync, (what, e) => Log.Error(what, e));
@@ -293,6 +297,15 @@ internal sealed class EngineHost : IDisposable
     /// </summary>
     private void OnRunEvent(RunEvent e)
     {
+        if (e.ParentRunId is not null)
+        {
+            // A nested run (D-062): only the top run's pop-up, tray bullet and Stop; the pop-up folds it in (#59).
+            if (e is NodeFinished { Result: { Outcome: not NodeOutcome.Succeeded } nested })
+                Log.Info($"run: {e.FlowId}/{nested.NodeId} {nested.Outcome} (inside a call){(nested.Error is null ? "" : ": " + nested.Error)}");
+            _window.Post(() => ShowPopup(e));
+            _pipe?.Broadcast(PipeEvent.From(e));
+            return;
+        }
         switch (e)
         {
             case RunFinished:
