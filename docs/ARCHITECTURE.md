@@ -283,6 +283,14 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   (`EdgeRoute.WrapLaneY` set on a row break and on the edge from a block's last box into the next line). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
   and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
   edges batched by style, D-037) and maps pointer/keys to VM calls; zoom/scroll is a `ScrollViewer` (50–200 %).
+  Wheel zoom and pan room (D-074): the `ScrollViewer`'s content is a transparent `Wrapper` Grid around `Host`, padded
+  per side by viewport − 48 DIP (screen) less the layout's 48-DIP margin, in content DIP at the current zoom, so any
+  flow can be moved and `Host`'s coordinates never change. `Canvas/CanvasViewport` (pure, tested) holds the maths:
+  pad, offsets that keep a point still across a zoom (the padding changes with it), Fit centred. `Wrapper`'s
+  `PointerWheelChanged` (mouse only, handled) zooms at the pointer and does Shift+wheel sideways itself (the WinUI 3
+  `ScrollViewer` scrolls it vertically); touchpad gestures stay the `ScrollViewer`'s, re-padded on
+  `DirectManipulationCompleted`. A re-pad inside a layout pass clamps `ChangeView` to the old extent, so the canvas
+  asks again at low priority once layout is done.
   Right-drag pan (D-069): `Canvas/RightDragPan` (pure, tested) arms on a mouse right press, pans once the pointer
   leaves the system drag rectangle (`GetSystemMetricsForDpi(SM_CX/CYDRAG)` at the XAML root's DPI, in DIP), and
   swallows the one `RightTapped` after a pan. The canvas captures only once panning, so a still click's `RightTapped`
@@ -393,8 +401,7 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   the Layout menu's `LayoutOptions` (D-067);
   `EditorSettingsStore` / `editor.json` (D-068). Each task rewrites the
   section it changes. Fallback outcomes (D-065) are built (T13.7: Config, Runtime).
-- Designed, not built (PLAN → M13 fixes, v0.29.0 feedback): wheel zoom at the pointer and pan room in a wrapper
-  around `Host` (D-074, F1); the flow picker for `ParamSuggest.Flows` (F2: today `InspectorViewModel.Suggest` has no
+- Designed, not built (PLAN → M13 fixes, v0.29.0 feedback): the flow picker for `ParamSuggest.Flows` (F2: today `InspectorViewModel.Suggest` has no
   case for it, so the box is empty and a typed name isn't an id) and the `flow` area's title; Ctrl+S's accelerator
   tooltip hidden (X-008, F3); `Core/Model/FlowIds` (slug, unique) and `FlowRefs` (callers, rename) behind flow
   delete with Undo and the id following a saved rename (D-075, D-076, F4). Flow ids are keys in: other flows'

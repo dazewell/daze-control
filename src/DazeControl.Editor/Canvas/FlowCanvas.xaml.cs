@@ -34,6 +34,9 @@ public sealed partial class FlowCanvas : UserControl
     private FlowCanvasViewModel? _viewModel;
     private bool _fitPending;
     private bool _autoFit;
+    private double _padX, _padY; // Wrapper's padding per side now (content DIP)
+    private double _padZoom = 1; // the zoom that padding was set for
+    private CanvasView? _pendingView; // asked of the ScrollViewer, not reported back by ViewChanged yet
 
     private enum Gesture { None, Press, DragNode, Marquee, Pan, Connect, RightPan }
 
@@ -59,6 +62,22 @@ public sealed partial class FlowCanvas : UserControl
         GotFocus += (_, _) => { _viewModel?.EnsureFocus(); UpdateFocusRing(); };
         LostFocus += (_, _) => { _spaceDown = false; UpdateFocusRing(); }; // Space released elsewhere never reaches OnKeyUp
         SizeChanged += (_, _) => { if (_fitPending) Fit(); };
+        Scroller.SizeChanged += (_, e) =>
+        {
+            if (_fitPending || e.PreviousSize.Width <= 0)
+                return;
+            // New pan room for the new viewport: refit while the user hasn't moved the view, else the top left stays.
+            DispatcherQueue.TryEnqueue(() => { if (_autoFit) Fit(); else ZoomAround(CurrentView.Zoom, 0, 0); });
+        };
+        // Pinch and touchpad zoom are the ScrollViewer's own (no ChangeView of ours): new pan room once they end,
+        // keeping the middle of the window still.
+        Scroller.DirectManipulationCompleted += (_, _) =>
+        {
+            _pendingView = null;
+            if (Math.Abs(Scroller.ZoomFactor - _padZoom) > 1e-4)
+                ZoomAround(Scroller.ZoomFactor, Scroller.ViewportWidth / 2, Scroller.ViewportHeight / 2);
+        };
+        Wrapper.PointerWheelChanged += OnWheel;
         // The whole viewport takes gestures (a small flow leaves blank canvas around Host); positions are in Host's
         // coordinates. Scroll bars handle their own presses, so they never start a marquee.
         Root.PointerPressed += OnPointerPressed;
@@ -126,27 +145,94 @@ public sealed partial class FlowCanvas : UserControl
         if (_viewModel is null || Scroller.ViewportWidth <= 0)
             return;
         _fitPending = false;
-        var (zoom, x, y) = _viewModel.FitView(Scroller.ViewportWidth, Scroller.ViewportHeight);
-        Scroller.ChangeView(x, y, (float)zoom, disableAnimation: true);
+        ApplyView(_viewModel.FitView(Scroller.ViewportWidth, Scroller.ViewportHeight));
     }
 
     /// <summary>Ctrl+1.</summary>
     public void ZoomToActualSize()
     {
         _autoFit = false;
-        Scroller.ChangeView(null, null, 1f);
+        ZoomAround(1, Scroller.ViewportWidth / 2, Scroller.ViewportHeight / 2);
     }
 
     public void ZoomBy(double factor)
     {
         _autoFit = false;
-        Scroller.ChangeView(null, null, (float)Math.Clamp(Scroller.ZoomFactor * factor, FlowCanvasViewModel.MinZoom, FlowCanvasViewModel.MaxZoom));
+        ZoomAround(CurrentView.Zoom * factor, Scroller.ViewportWidth / 2, Scroller.ViewportHeight / 2);
+    }
+
+    private CanvasView CurrentView =>
+        _pendingView ?? new CanvasView(Scroller.HorizontalOffset, Scroller.VerticalOffset, Scroller.ZoomFactor);
+
+    /// <summary>Zooms keeping the flow point at viewport position (x, y) still (D-074).</summary>
+    private void ZoomAround(double zoom, double x, double y)
+    {
+        if (_viewModel is null || Scroller.ViewportWidth <= 0)
+            return;
+        ApplyView(CanvasViewport.Reanchor(CurrentView, _padX, _padY, CanvasViewport.Clamp(zoom), x, y,
+            _viewModel.ExtentWidth, _viewModel.ExtentHeight, Scroller.ViewportWidth, Scroller.ViewportHeight));
+    }
+
+    /// <summary>Sets the pan room for the view's zoom, then the view itself.</summary>
+    private void ApplyView(CanvasView view)
+    {
+        var padX = CanvasViewport.Pad(Scroller.ViewportWidth, view.Zoom);
+        var padY = CanvasViewport.Pad(Scroller.ViewportHeight, view.Zoom);
+        _padZoom = view.Zoom;
+        var repadded = padX != _padX || padY != _padY;
+        if (repadded)
+        {
+            (_padX, _padY) = (padX, padY);
+            Wrapper.Padding = new Thickness(padX, padY, padX, padY);
+            Scroller.UpdateLayout(); // the new extent, so ChangeView doesn't clamp to the old one
+        }
+        _pendingView = view;
+        Scroller.ChangeView(view.OffsetX, view.OffsetY, (float)view.Zoom, disableAnimation: true);
+        if (repadded)
+        {
+            // Inside a layout pass (SizeChanged, first open) UpdateLayout doesn't run and the view above was clamped
+            // to the old extent: ask again once layout is done.
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                if (_padX == padX && _padY == padY && Math.Abs(Scroller.ZoomFactor - view.Zoom) < 1e-4
+                    && (Math.Abs(Scroller.HorizontalOffset - view.OffsetX) > 0.5 || Math.Abs(Scroller.VerticalOffset - view.OffsetY) > 0.5))
+                    Scroller.ChangeView(view.OffsetX, view.OffsetY, null, disableAnimation: true);
+            });
+        }
+    }
+
+    /// <summary>
+    /// Mouse wheel and Ctrl+wheel zoom at the pointer, Shift+wheel scrolls sideways (the ScrollViewer would scroll it
+    /// vertically); a touchpad and a tilt wheel stay the ScrollViewer's (D-074).
+    /// </summary>
+    private void OnWheel(object sender, PointerRoutedEventArgs e)
+    {
+        if (_viewModel is null || e.Pointer.PointerDeviceType != PointerDeviceType.Mouse)
+            return;
+        var point = e.GetCurrentPoint(Scroller);
+        if (point.Properties.IsHorizontalMouseWheel)
+            return;
+        _autoFit = false;
+        var delta = point.Properties.MouseWheelDelta;
+        var view = CurrentView;
+        if (ShiftDown())
+        {
+            var x = Math.Clamp(view.OffsetX - delta * CanvasViewport.SideScrollPerNotch / 120, 0, Scroller.ScrollableWidth);
+            _pendingView = view with { OffsetX = x };
+            Scroller.ChangeView(x, null, null, disableAnimation: true);
+        }
+        else
+        {
+            ZoomAround(view.Zoom * CanvasViewport.WheelFactor(delta), point.Position.X, point.Position.Y);
+        }
+        e.Handled = true;
     }
 
     private void OnViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
     {
         if (_viewModel is null || e.IsIntermediate)
             return;
+        _pendingView = null;
         var details = _viewModel.ShowDetails;
         _viewModel.Zoom = Scroller.ZoomFactor;
         if (details != _viewModel.ShowDetails)
