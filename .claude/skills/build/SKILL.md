@@ -91,7 +91,9 @@ HKCU…Personalize `AppsUseLightTheme`; high contrast: `SystemParametersInfo(SPI
 Keys: `keybd_event` letters and Ctrl chords work, but **Enter arrives as `VirtualKey.None`** (even with its scan
 code), so an AutoSuggestBox never submits; send Enter with `SendKeys.SendWait("{ENTER}")` (2026-11-02). Toggling
 an AppBarToggleButton through UIA leaves focus on the button: click into the target before sending keys.
-UIA finds elements by Name: Pivot headers and ListView rows take the item's `ToString()`, so give item VMs one;
+Selecting a step through UIA doesn't work while another window holds the foreground: canvas cards have no
+Invoke/Select, and the Outline (More options › Outline) TreeItem's Select/Invoke leave the inspector on the flow
+(2026-11-04); cover that hop with a view-model test. UIA finds elements by Name: Pivot headers and ListView rows take the item's `ToString()`, so give item VMs one;
 a Button with text content needs `AutomationProperties.Name`, or the search finds its inner TextBlock (no Invoke).
 
 ## Verifying changes

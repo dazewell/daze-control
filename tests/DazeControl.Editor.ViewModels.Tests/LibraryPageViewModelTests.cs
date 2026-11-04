@@ -565,4 +565,22 @@ public sealed class LibraryPageViewModelTests : IDisposable
         Assert.Equal("Android", _page.Sections[_page.SelectedIndex].Title);
         Assert.True(Item(LibraryKind.Android, "living-room").ShowInputs);
     }
+
+    [Fact]
+    public void TheInspectorHintLinkShowsTheLibraryWithTheDevicesInputsOpen()
+    {
+        using var shell = new ShellViewModel(_session, _engine, a => a(), _folder);
+        var requested = 0;
+        shell.LibraryRequested += () => requested++;
+        shell.OpenFlow("b");
+        shell.Editor!.Select("tv");
+        var field = shell.Inspector!.Fields.Single(f => f.Name == "input");
+        Assert.True(field.HasHintLink); // living-room has no inputs yet
+
+        shell.Inspector.OpenAndroidInputs(field);
+
+        Assert.Equal(1, requested);
+        Assert.Equal("Android", shell.Library.Sections[shell.Library.SelectedIndex].Title);
+        Assert.True(shell.Library.Section(LibraryKind.Android).Items.Single(i => i.Key == "living-room").ShowInputs);
+    }
 }

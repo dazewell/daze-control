@@ -270,14 +270,14 @@
                                                                         AutomationProperties.Name="{x:Bind AddUpName}" ToolTipService.ToolTip="Add a move up">
                                                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                                                         <FontIcon Glyph="&#xE70E;" FontSize="12" />
-                                                                        <TextBlock Text="Up" />
+                                                                        <TextBlock Text="Add Up" />
                                                                     </StackPanel>
                                                                 </Button>
                                                                 <Button Click="OnAddDown" Tag="{x:Bind}" IsEnabled="{x:Bind CanEdit, Mode=OneWay}"
                                                                         AutomationProperties.Name="{x:Bind AddDownName}" ToolTipService.ToolTip="Add a move down">
                                                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                                                         <FontIcon Glyph="&#xE70D;" FontSize="12" />
-                                                                        <TextBlock Text="Down" />
+                                                                        <TextBlock Text="Add Down" />
                                                                     </StackPanel>
                                                                 </Button>
                                                             </StackPanel>
