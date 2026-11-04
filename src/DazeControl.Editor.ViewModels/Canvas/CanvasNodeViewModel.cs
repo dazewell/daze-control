@@ -255,6 +255,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
                 continue;
             values.Add(spec.Kind switch
             {
+                // "$output" shows as the input's name, like the picker (D-064).
+                ParamKind.LibraryRef when FlowInputs.NameIn(value) is { } input =>
+                    OwnerOf(step, config)?.Inputs.GetValueOrDefault(input)?.Label ?? text,
                 ParamKind.LibraryRef => LibraryName(config.Library, spec.Library, text),
                 _ when spec.RefersTo == ConfigRef.Flow => config.Flows.FirstOrDefault(f => f.Id == text.Trim())?.Name ?? text,
                 ParamKind.MultilineText => text.Split('\n')[0].Trim(),
@@ -277,13 +280,16 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         var names = FlowInputs.Given(step)
             .Where(e => called.Inputs.ContainsKey(e.Key))
             .Select(e => FlowInputs.NameIn(new ScalarParam(e.Value)) is { } own
-                ? config.Flows.FirstOrDefault(f => f.Nodes.Contains(step))?.Inputs.GetValueOrDefault(own)?.Label ?? e.Value
+                ? OwnerOf(step, config)?.Inputs.GetValueOrDefault(own)?.Label ?? e.Value
                 : Inspector.LibraryDevices.NameOf(config.Library, called.Inputs[e.Key].Kind, e.Value))
             .Distinct(StringComparer.Ordinal)
             .Take(2)
             .ToList();
         return names.Count > 0 ? string.Join(" · ", names) : called.Inputs.Count > 0 ? "Its defaults" : Area("flow");
     }
+
+    /// <summary>The flow the step is in (its inputs name <c>$name</c> values).</summary>
+    private static Flow? OwnerOf(StepNode step, Configuration config) => config.Flows.FirstOrDefault(f => f.Nodes.Contains(step));
 
     private static string LibraryName(Library library, LibraryKind? kind, string key) => kind switch
     {

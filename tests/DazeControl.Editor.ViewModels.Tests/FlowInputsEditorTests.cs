@@ -193,6 +193,21 @@ public sealed class FlowInputsEditorTests : IDisposable
     }
 
     [Fact]
+    public void APillShowsAnInputByItsName()
+    {
+        Open("make-default");
+        Assert.Equal("Output", _canvas.Nodes.Single(n => n.Id == "set").Summary);
+        Assert.Equal("Bluetooth device", _canvas.Nodes.Single(n => n.Id == "connect").Summary);
+    }
+
+    [Fact]
+    public void ACallsNameBoxSuggestsRunAndTheFlowsName()
+    {
+        _canvas.Select("call");
+        Assert.Equal("Run Make it the default", _inspector.NamePlaceholder);
+    }
+
+    [Fact]
     public void AHeadingCantBePicked()
     {
         Open("make-default");

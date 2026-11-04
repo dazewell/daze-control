@@ -45,7 +45,8 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
   waits for the called flow by default (its result is the step's, one pop-up and one history record, loops refused
   and stopped at 8 deep) or just starts it (`wait: false`); the editor picks the flow by name; a flow can declare
   device **inputs** with defaults (`inputs:`, steps use `$name`) and a call passes devices to them, so one chain serves
-  Technics and Sony (D-064; in YAML for now, the editor follows in T13.10) · M12 (designed): `menu.show` — a
+  Technics and Sony (D-064); the editor adds inputs in flow settings, offers them in device pickers, and gives a call
+  one device picker per input; the Runs page expands a call into the called flow's steps · M12 (designed): `menu.show` — a
   no-focus menu of flows over every window, controller/keyboard/mouse, picking launches the flow (D-054, D-055).
 
 **F4 Library** — named, reusable resources referenced by steps: audio devices (match text + flow), Bluetooth

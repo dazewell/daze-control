@@ -175,6 +175,18 @@ trigger "Flow · <caller>" and passes the chain on (`StepContext.Chain` → `Tri
 start a fresh chain. With `Flows` null (the dry runner) a call is an ordinary step: dry runs don't descend.
 `ConfigValidator.CheckCalls` builds the call graph from every `flow.run` (both modes): own flow #49, a loop #50 on every
 step in it, unknown #51 (errors); turned off #52, called flow with errors (warnings).
+Editor for calls and inputs (T13.10, `Editor.ViewModels/Inspector`): flow settings list `Flow.Inputs` as
+`FlowInputViewModel` rows (label, kind, default picker); the key is made once from the kind (`FlowInputs.NewName`) and
+never changes, so renaming can't break a `$name`. Removing an input, or changing its kind, writes its default into the
+steps first (`FlowInputs.Detach`, one undo step, tip #61). Device pickers get a "This flow's inputs" group
+(`DeviceSource.Input` rows store `$name`; `DeviceSource.Header` rows are never picked). A `flow.run` step's `inputs`
+param renders as `CallInputViewModel` pickers per input of the called flow ("Its default: …", the caller's own inputs
+of that kind, then the Library); picking another flow drops entries it doesn't take. The flow picker lists its own flow
+and loop-making ones off with `ConfigValidator.CallProblem` (#49/#50). Pill: called flow's glyph, "Run <name>", passed
+devices or "Doesn't wait". Live: `RunOverlayViewModel` tracks nested runs from `ParentRunId` (the call's pill shows the
+nested current step, #59; a flow running inside another says so, #64). Runs page: a call bar's chevron
+(`RunDetailViewModel.ToggleCall`) adds the nested lanes under a bracket (ids "call/step"; one level, deeper calls stay
+bars), and "Open in editor" on a nested bar opens the called flow with that nested run.
 Flow inputs (D-064, T13.9): `Flow.Inputs` (name → `FlowInput(kind, label, default)`, YAML `inputs:`); a `LibraryRef`
 setting holds `$name`. `FlowInputs.Apply` runs first in `RunCoreAsync` and replaces every `$name` (step settings and the
 `inputs` map its own calls pass) with the caller's value, else the default, so steps, `ResourcesOf` locks and nested
@@ -427,9 +439,7 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   thing to try, then a second check.
 - Designed, not built: the flow menu and controller input (M12) — [flow-menu/DESIGN.md](flow-menu/DESIGN.md)
   §3 (D-053..D-057). Each M12 task moves its part into the sections above.
-- Designed, not built (M13, PLAN → M13): the editor for flow calls and inputs — [flow-calls/DESIGN.md](flow-calls/DESIGN.md) §6 (T13.10;
-  `flow.run` and inputs are built, Runtime);
-  the Layout menu's `LayoutOptions` (D-067). Each task rewrites the
+- Designed, not built (M13, PLAN → M13): the Layout menu's `LayoutOptions` (D-067). Each task rewrites the
   section it changes. Fallback outcomes (D-065) are built (T13.7: Config, Runtime).
 - Designed, not built (PLAN → M13 fixes, v0.29.0 feedback): Ctrl+S's accelerator
   tooltip hidden (X-008, F3). Flow ids are keys in: other flows'
