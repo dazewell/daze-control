@@ -1,10 +1,10 @@
 # Plan
 
 ## Resume
-Current task: T13.1 done (feat/m13-nav-flows, PR #36): nav Flows leaves an open flow (D-047 prompt) and shows the list; T13.4 done (PR #37): right-drag pans, a still right click opens the menu (D-069)
-Last green checkpoint: deb9c73 feat(canvas): right-drag pans (T13.4) (#37)
-Next action: lane A continues with T13.2 (feat/m13-flows-card): `FlowsPageViewModel` glyph via `FlowGlyph.CodeOf` + Run/Stop; lane B has no more tasks; other lanes per PLAN → M13 Order
-Tree state: builds, all tests green · Uncommitted: none
+Current task: T13.5 (feat/m13-wrap-newline, lane C): after a wrapped block the next part starts a new line under it (D-066); T13.1 (#36), T13.4 (#37) done
+Last green checkpoint: ec49aab feat(editor): nav Flows returns to the list (T13.1) (#36)
+Next action: T13.5: editor screenshot of a 7-chain + fork flow, docs (ARCHITECTURE layout, FEATURES, UX M13 note), PR; lane A continues with T13.2 (feat/m13-flows-card): `FlowsPageViewModel` glyph via `FlowGlyph.CodeOf` + Run/Stop; lane B has no more tasks; other lanes per PLAN → M13 Order
+Tree state: builds, Core layout tests green (Runtime timeline test stalls locally under load; green on CI) · Uncommitted: none
 Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user's live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails; mention it to the user when T13.7 lands. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
 
 ---
@@ -59,7 +59,7 @@ section rewritten, FEATURES where behaviour changed).
   in `Editor.ViewModels/Canvas` (arm → pan past the system drag rectangle → swallow), `GetSystemMetricsForDpi` via
   `LibraryImport`, converted to DIP. Done when: helper tests (below threshold = menu, past = pan + no menu, DPI scaling); running editor:
   right-drag over empty canvas, a pill and an edge pans without selecting; a still right click opens each menu.
-- [ ] T13.5 P2 **New line after a wrapped chain** (feat/m13-wrap-newline, D-066). Files: `Core/Layout/FlowLayout.cs`
+- [~] T13.5 P2 **New line after a wrapped chain** (feat/m13-wrap-newline, D-066). Files: `Core/Layout/FlowLayout.cs`
   (segments split at wrapped runs; the next segment at the block's x, one `WrapRowGap` under it, centred among
   itself; its entry edge gets `WrapLaneY`), `Core/Layout/EdgeCurve.cs` (wrap edge into a target lower than the lane),
   `Core.Tests` layout tests. Done when: tests for a 7-chain + fork (fork x = block x, top below the block, no overlap,

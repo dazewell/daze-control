@@ -96,6 +96,20 @@ public class WrappedEdgeCurveTests
     }
 
     [Fact]
+    public void IntoTheLineUnderABlockTheLaneDropsFarBelowTheGap()
+    {
+        // A short last row's one box ends at x 280; the next line's fork sits 200 below the lane (D-066).
+        var into = EdgeCurve.Wrapped(new Point(280, 176), new Point(48, 432), 232);
+
+        Assert.Equal(
+            [new Point(280, 176), new Point(296, 176), new Point(296, 232), new Point(32, 232), new Point(32, 432), new Point(42, 432)],
+            into.Corners);
+        Assert.True(into.DistanceTo(new Point(40, 330)) <= 12);  // beside the long drop
+        Assert.False(into.DistanceTo(new Point(150, 330)) <= 12); // under the lane, between nothing
+        Assert.Equal(new Point(164, 232), into.Midpoint);
+    }
+
+    [Fact]
     public void CornersAreRoundedByAtMostEight()
     {
         var segments = Curve.RoundedSegments().ToList();

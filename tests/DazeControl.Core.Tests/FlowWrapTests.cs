@@ -21,10 +21,20 @@ public class FlowWrapTests
 
     private static Rect B(FlowArrangement a, string id) => a.Find(id)!.Bounds;
 
-    [Fact]
-    public void ATenStepChainWrapsIntoRowsOfFiveAndWhatFollowsStartsAfterTheBlock()
+    private static void AssertNoOverlap(FlowArrangement a)
     {
-        // x forks, so it ends the run and follows the block.
+        var top = a.Boxes.Where(x => x.Card is null).ToList();
+        for (var i = 0; i < top.Count; i++)
+        {
+            for (var j = i + 1; j < top.Count; j++)
+                Assert.False(top[i].Bounds.Intersects(top[j].Bounds), $"{top[i].Id} overlaps {top[j].Id}");
+        }
+    }
+
+    [Fact]
+    public void ATenStepChainWrapsIntoRowsOfFiveAndWhatFollowsStartsANewLineUnderIt()
+    {
+        // x forks, so it ends the run and starts the next line (D-066).
         var flow = FlowOf([.. Chain(10), Step("x", "s10"), Step("y", "x"), Step("z", "x")]);
 
         var a = Arrange(flow);
@@ -35,15 +45,88 @@ public class FlowWrapTests
             Assert.Equal(B(a, $"s{i}").X, B(a, $"s{i + 5}").X);
             Assert.Equal(B(a, "s1").Bottom + 48, B(a, $"s{i + 5}").Y);
         }
-        Assert.Equal(B(a, "s5").Right + 64, B(a, "x").X);
-        Assert.Equal(B(a, "s10").Y, B(a, "x").Y);
+        Assert.Equal(B(a, "s1").X, B(a, "x").X);
+        Assert.Equal(B(a, "s10").Bottom + 48, B(a, "y").Y);
         Assert.Equal(B(a, "x").CenterY, (B(a, "y").Y + B(a, "z").Bottom) / 2, 3);
         Assert.Equal(B(a, "x").Right + 64, B(a, "y").X);
         // Columns stay layers, so keyboard order and Tidy up are untouched.
         Assert.Equal(12, a.Columns.Count); // s1…s10, x, y+z
         Assert.Equal(5, a.Find("s6")!.Column);
-        Assert.Equal(B(a, "y").Right + 48, a.Extent.Width);
+        Assert.Equal(B(a, "s5").Right + 48, a.Extent.Width);
         Assert.Equal(B(a, "z").Bottom + 48, a.Extent.Height);
+        AssertNoOverlap(a);
+    }
+
+    [Fact]
+    public void ASevenChainThenAForkContinuesUnderTheBlockAtItsLeftEdge()
+    {
+        var flow = FlowOf([.. Chain(7), Step("x", "s7"), Step("y", "x"), Step("z", "x")]);
+
+        var a = Arrange(flow);
+
+        // s1…s5 | s6 s7, then x on a new line under the block, at its x.
+        Assert.Equal(B(a, "s1").X, B(a, "s6").X);
+        Assert.Equal(B(a, "s1").X, B(a, "x").X);
+        var blockBottom = B(a, "s7").Bottom;
+        Assert.Equal(blockBottom + 48, Math.Min(B(a, "x").Y, B(a, "y").Y));
+        Assert.True(B(a, "x").Y > blockBottom);
+        // The new line is centred among itself.
+        Assert.Equal(B(a, "x").CenterY, (B(a, "y").Y + B(a, "z").Bottom) / 2, 3);
+        // The block is wider than the fork, so the flow is exactly as wide as the block.
+        Assert.Equal(B(a, "s5").Right + 48, a.Extent.Width);
+        AssertNoOverlap(a);
+
+        // The edge into the new line runs back along the gap under the block.
+        var into = Assert.Single(a.Edges, e => e.To == "x");
+        Assert.Equal(blockBottom + 24, into.WrapLaneY!.Value, 3);
+        Assert.Equal(2, a.Edges.Count(e => e.WrapLaneY is not null));
+        var curve = EdgeCurve.Wrapped(into.Start, into.End, into.WrapLaneY.Value);
+        Assert.Equal(new Point(B(a, "x").X - 6, B(a, "x").CenterY), curve.End);
+        Assert.All(curve.Corners, p => Assert.True(p.X >= B(a, "x").X - 16 && p.Y <= B(a, "x").CenterY));
+    }
+
+    [Fact]
+    public void TwoBlocksInARowEachStartTheNextLine()
+    {
+        // Block 1 (s1…s7), then x forks to y and z, j joins them, block 2 (t1…t7), then e forks to f and g.
+        var flow = FlowOf([
+            .. Chain(7), Step("x", "s7"), Step("y", "x"), Step("z", "x"), Step("j", "y", "z"),
+            .. Chain(7, "t", "j"), Step("e", "t7"), Step("f", "e"), Step("g", "e")]);
+
+        var a = Arrange(flow);
+
+        // Line 2: x … j under block 1, block 2 on that line after j, centred like any column.
+        Assert.Equal(B(a, "s1").X, B(a, "x").X);
+        Assert.Equal(B(a, "s7").Bottom + 48, B(a, "y").Y);
+        Assert.Equal(B(a, "j").Right + 64, B(a, "t1").X);
+        Assert.Equal(B(a, "j").CenterY, B(a, "t1").CenterY, 3);
+        Assert.Equal(B(a, "t1").X, B(a, "t6").X);
+        // Line 3: e under block 2, at its x.
+        Assert.Equal(B(a, "t1").X, B(a, "e").X);
+        Assert.Equal(B(a, "t7").Bottom + 48, B(a, "f").Y);
+        Assert.Equal(
+            ["s5→s6", "s7→x", "t5→t6", "t7→e"],
+            a.Edges.Where(e => e.WrapLaneY is not null).Select(e => $"{e.From}→{e.To}").Order());
+        Assert.Equal(B(a, "t5").Right + 48, a.Extent.Width);
+        Assert.Equal(B(a, "g").Bottom + 48, a.Extent.Height);
+        AssertNoOverlap(a);
+    }
+
+    [Fact]
+    public void ABlockLastEndsTheFlow()
+    {
+        // a forks to b and c, j joins them, then a 7-chain ends the flow.
+        var flow = FlowOf([Step("a"), Step("b", "a"), Step("c", "a"), Step("j", "b", "c"), .. Chain(7, "s", "j")]);
+
+        var a = Arrange(flow);
+
+        Assert.Equal(B(a, "j").Right + 64, B(a, "s1").X);
+        Assert.Equal(B(a, "j").CenterY, B(a, "s1").CenterY, 3);
+        Assert.Equal(B(a, "s1").Bottom + 48, B(a, "s6").Y);
+        Assert.Equal(["s5→s6"], a.Edges.Where(e => e.WrapLaneY is not null).Select(e => $"{e.From}→{e.To}"));
+        Assert.Equal(B(a, "s5").Right + 48, a.Extent.Width);
+        Assert.Equal(Math.Max(B(a, "s7").Bottom, B(a, "c").Bottom) + 48, a.Extent.Height);
+        AssertNoOverlap(a);
     }
 
     [Fact]

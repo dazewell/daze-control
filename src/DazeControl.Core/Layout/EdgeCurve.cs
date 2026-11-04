@@ -4,7 +4,8 @@ namespace DazeControl.Core.Layout;
 /// A horizontal cubic Bézier from an output port to just before an input port, where a 6-DIP arrowhead takes
 /// over (UX §5.3). Hit-testing is the distance to the curve (UX §5.8 #2). A wrapped edge (<see cref="IsWrapped"/>)
 /// is orthogonal instead: right, down to the row gap, back left to a lane before the next row, down, right into the
-/// port (D-060).
+/// port (D-060). The same shape leads from a block into the line under it, whose target may sit far below the gap
+/// (D-066).
 /// </summary>
 public readonly record struct EdgeCurve(Point Start, Point Control1, Point Control2, Point End, Point Tip)
 {
