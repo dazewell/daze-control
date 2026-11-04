@@ -287,6 +287,38 @@ public class FlowMenuTests
     }
 
     [Fact]
+    public void AnEmptyItemIsAWarning() =>
+        Assert.Contains(Validate(Menu("items: [a, \"\"]")), p => p.Severity == Severity.Warning && p.Message.Contains("empty entry"));
+
+    [Fact]
+    public void AMenuErrorMakesCallersSayTheFlowNeedsFixing()
+    {
+        var problems = Validate("""
+            flows:
+              a: { name: A, nodes: [ { id: c, step: flow.run, with: { flow: b } } ] }
+              b:
+                name: B
+                nodes:
+                  - { id: pick, step: menu.show, with: { items: [b] } }
+            """);
+
+        Assert.Contains(problems, p => p.FlowId == "a" && p.Severity == Severity.Warning && p.Message.Contains("needs fixing"));
+    }
+
+    [Fact]
+    public void AFlowThatLostAHotkeyClashClaimsNoChord()
+    {
+        var problems = Validate("""
+            flows:
+              first: { name: First, hotkeys: [Alt+Z], nodes: [ { id: n, step: notify, with: { text: x } } ] }
+              second: { name: Second, hotkeys: [Alt+Z], gamepad: [A+B], nodes: [ { id: n, step: notify, with: { text: x } } ] }
+              third: { name: Third, gamepad: [A+B], nodes: [ { id: n, step: notify, with: { text: x } } ] }
+            """);
+
+        Assert.Equal(["second"], problems.Select(p => p.FlowId));
+    }
+
+    [Fact]
     public void TheCatalogHasTheMenuStepWithItsItemsSuggestedAndOrdered()
     {
         var items = ProviderCatalog.Find(ProviderCatalog.MenuShowId)!.FindParam("items")!;

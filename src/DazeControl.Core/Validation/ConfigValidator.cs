@@ -39,18 +39,19 @@ public static partial class ConfigValidator
         var checkers = config.Flows.Select(f => new FlowChecker(f, config.Library, badLibraryItems, catalog, problems)).ToList();
         foreach (var checker in checkers)
             checker.Check();
-        CheckCalls(config.Flows, problems);
         CheckMenus(config.Flows, problems);
+        CheckCalls(config.Flows, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, problems);
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
         var hotkeyOwners = new Dictionary<Hotkey, string>();
         var rejected = FlowsWithErrors(problems.Concat(earlier ?? []));
         var chordOwners = new Dictionary<GamepadChord, string>();
         foreach (var checker in checkers)
-        {
             checker.ClaimHotkeys(hotkeyOwners, rejected);
+        // Chords after hotkeys, so a flow that lost a hotkey clash claims none.
+        rejected = FlowsWithErrors(problems.Concat(earlier ?? []));
+        foreach (var checker in checkers)
             checker.ClaimChords(chordOwners, rejected);
-        }
         return new(problems);
     }
 
@@ -173,9 +174,11 @@ public static partial class ConfigValidator
                     if (items.Count is 0 or > ProviderCatalog.MaxMenuItems)
                         problems.Add(new(Severity.Error, path + ".items", $"A menu lists 1 to {ProviderCatalog.MaxMenuItems} flows.", flow.Id));
                     var seen = new HashSet<string>(StringComparer.Ordinal);
-                    foreach (var item in items.Where(i => i.Length > 0))
+                    foreach (var item in items)
                     {
-                        if (item == flow.Id)
+                        if (item.Length == 0)
+                            problems.Add(new(Severity.Warning, path + ".items", "An empty entry is skipped; pick a flow or remove it.", flow.Id));
+                        else if (item == flow.Id)
                             problems.Add(new(Severity.Error, path + ".items", "A menu can't list its own flow.", flow.Id));
                         else if (!ids.Contains(item))
                             problems.Add(new(Severity.Warning, path + ".items", $"{item} isn't there anymore, so the menu leaves it out.", flow.Id));
