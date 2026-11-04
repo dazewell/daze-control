@@ -84,6 +84,8 @@ public sealed partial class HotkeyRecorder : UserControl
     // RegisterHotKey would refuse them anyway.
     private void OnKeyDown(object sender, KeyRoutedEventArgs e)
     {
+        if (!IsModifier(e.Key))
+            _chordPending = false; // a key arrived, whatever it does (Tab, Escape, Backspace too): not H7
         if (e.Key == VirtualKey.Tab)
             return; // keep keyboard navigation out of the box
         e.Handled = true;
@@ -105,7 +107,6 @@ public sealed partial class HotkeyRecorder : UserControl
             Box.Text = Core.Input.Hotkey.Prefix(modifiers);
             return;
         }
-        _chordPending = false;
         var reason = IsNumberPadNavigation(e) ? HotkeyRejection.NumLockOff : Core.Input.Hotkey.Check(modifiers, (uint)e.Key);
         if (reason == HotkeyRejection.None)
             Recorded?.Invoke(this, new Core.Input.Hotkey(modifiers, (uint)e.Key).ToString());

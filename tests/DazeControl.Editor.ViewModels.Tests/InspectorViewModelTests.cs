@@ -447,6 +447,20 @@ public sealed class InspectorViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task TheReasonSurvivesARefreshOfTheRows()
+    {
+        _inspector.SetShortcut(0, "Alt+T");
+        _inspector.AddShortcutCommand.Execute(null);
+        _inspector.RejectShortcut(0, HotkeyRejection.NothingCameThrough);
+        _inspector.RejectShortcut(1, HotkeyRejection.NeedsModifier);
+
+        await _inspector.RefreshShortcutProblemsAsync(); // rebuilds the rows
+
+        Assert.Equal(ShortcutTexts.Rejection(HotkeyRejection.NothingCameThrough), _inspector.Shortcuts[0].Note);
+        Assert.Equal(ShortcutTexts.Rejection(HotkeyRejection.NeedsModifier), _inspector.Shortcuts[1].Note);
+    }
+
+    [Fact]
     public void ARefusedKeyWinsOverTheEngineProblemUntilTheNextKey()
     {
         _session.Update(c => c with { Flows = [new Flow("g", "Other", [new StepNode("a", "notify") { With = new([new("text", (ParamValue)"x")]) }]) { Hotkeys = ["Alt+T"] }, .. c.Flows] });

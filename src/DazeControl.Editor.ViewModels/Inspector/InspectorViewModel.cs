@@ -85,6 +85,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     /// <summary>The engine's lists behind <c>Suggest = Devices(kind)</c>: displays, services, credentials.</summary>
     private readonly Dictionary<string, IReadOnlyList<DeviceInfo>> _suggested = new(StringComparer.Ordinal);
     private IReadOnlyList<string> _shortcutProblems = [];
+    private string? _shortcutsFlowId; // whose rows Shortcuts holds, so a refusal's reason survives a refresh only there
     private CancellationTokenSource? _test;
     private bool _loading;
     private string? _stepType;
@@ -551,6 +552,11 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         ShowPopup = flow.Popup;
 
         var pending = Shortcuts.Where(s => s.Hotkey.Length == 0).ToList();
+        // A refused key's reason lives until the next recorded key, not until the next refresh (same row, same value).
+        var rejections = flow.Id == _shortcutsFlowId
+            ? Shortcuts.Where(s => s.Rejection is not null).ToDictionary(s => (s.Index, s.Hotkey), s => s.Rejection)
+            : [];
+        _shortcutsFlowId = flow.Id;
         Shortcuts.Clear();
         var problems = _session.Problems.Where(p => p.Path == $"flows.{flow.Id}.hotkeys").Select(p => p.Message).ToList();
         for (var i = 0; i < flow.Hotkeys.Count; i++)
@@ -561,10 +567,11 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             {
                 Hotkey = text,
                 Problem = problems.FirstOrDefault(m => m.StartsWith(text + " ", StringComparison.Ordinal)) ?? busy?[(text.Length + 2)..],
+                Rejection = rejections.GetValueOrDefault((i, text)),
             });
         }
         if (pending.Count > 0)
-            Shortcuts.Add(new ShortcutViewModel(flow.Hotkeys.Count));
+            Shortcuts.Add(new ShortcutViewModel(flow.Hotkeys.Count) { Rejection = rejections.GetValueOrDefault((flow.Hotkeys.Count, "")) });
     }
 
     private void ClearFields()
