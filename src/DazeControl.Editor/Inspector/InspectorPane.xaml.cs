@@ -253,4 +253,6 @@ public sealed partial class InspectorPane : UserControl
         if (shortcut.Rejection is { } text)
             recorder.Announce(text);
     }
+
+    private void OnShortcutRecording(object? sender, bool recording) => _viewModel?.SetRecordingShortcut(recording);
 }

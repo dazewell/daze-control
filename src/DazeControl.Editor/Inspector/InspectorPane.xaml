@@ -327,7 +327,8 @@
                         <DataTemplate x:DataType="vmi:ShortcutViewModel">
                             <StackPanel>
                                 <local:HotkeyRecorder Hotkey="{x:Bind Hotkey, Mode=OneWay}" Tag="{x:Bind}" AccessibleName="Shortcut"
-                                                      Recorded="OnShortcutRecorded" Rejected="OnShortcutRejected" HorizontalAlignment="Left" />
+                                                      Recorded="OnShortcutRecorded" Rejected="OnShortcutRejected" RecordingChanged="OnShortcutRecording"
+                                                      HorizontalAlignment="Left" />
                                 <!-- UX §5.7 H1–H4, H7 or the shortcut's problem; read out when it changes (also announced by the recorder). -->
                                 <TextBlock Text="{x:Bind Note, Mode=OneWay}" Visibility="{x:Bind HasNote, Mode=OneWay}" Style="{StaticResource FieldError}"
                                            AutomationProperties.LiveSetting="Assertive" />

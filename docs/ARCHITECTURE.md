@@ -202,11 +202,13 @@ run, which starts only after that event, so a flow's completions arrive in order
 given on the command line as the Run value's argument.
 - `Runtime/Triggers/HotkeyTable`: chord → flow from `RunnableFlows`, applied as a diff on each reload (unchanged
   chords stay registered), first flow wins a chord, a chord that fails (another app) fails alone and is retried
-  on the next reload; Pause unregisters all (not persisted). Failures → `status` ("Alt+Z: Another app uses…").
+  on the next reload and on `RetryFailures` (tray menu opens), Resume and the end of recording (D-072, no timer);
+  Pause and `Recording` (pipe `record-hotkey`, the editor's shortcut box has focus) each unregister all; failures
+  stay known while either is on. `FailuresChanged` → `ShellStatus` + a `shortcutsChanged` pipe event. Failures → `status` ("Alt+Z: Another app uses…").
   Keys (`Core/Input/Hotkey`, T13b.1, D-071): A–Z, 0–9, F1–F24, punctuation (VK_OEM_*, US names in YAML) and
   Num0–Num9 (alone allowed, no Shift, Num Lock on); `Hotkey.Check` → `HotkeyRejection` for the recorder;
-  `Core/Input/WindowsShortcuts` lists Windows 11's own Win chords (H5 vs H6, D-073). M13b still designed: `record-hotkey` pauses all chords while the editor records; failures are retried when
-  recording ends, on Resume and when the tray menu opens. Still `RegisterHotKey` only: no keyboard hook.
+  `Core/Input/WindowsShortcuts` lists Windows 11's own Win chords: 1409 on one → H5 "Windows uses…", else H6
+  (`HotkeyTable.TakenMessage`, D-073). Still `RegisterHotKey` only: no keyboard hook.
 - `Runtime/Tray/TrayMenu`: the menu as data (UX §5.6), rendered by `Engine/Shell/TrayIcon` each time it opens
   (left or right click), dark/light like the taskbar (uxtheme #135/#136). Icon drawn in code by
   `Shell/TrayGlyph` (idle / busy / paused, D-027); tooltip = running flows, else paused, else the last run's
@@ -241,7 +243,7 @@ D-043. `scripts/pack.ps1` → one folder (editor self-contained + AOT `DazeContr
 `\\.\pipe\DazeControl-<user SID>`, `PipeOptions.CurrentUserOnly`, newline-delimited JSON (source-gen
 `Ipc/IpcJson`, camelCase, string enums, nulls omitted), `protocol: 1`. `Ipc/PipeServer`: any number of clients;
 requests on one connection run concurrently, answers carry the request id; after `subscribe` the connection also
-gets events (`PipeMessage.Event`, id 0: runStarted, nodeStarted, nodeFinished, runFinished, configReloaded). A
+gets events (`PipeMessage.Event`, id 0: runStarted, nodeStarted, nodeFinished, runFinished, configReloaded, shortcutsChanged). A
 client that goes away cancels its waiting requests. Writes go through a bounded queue per connection
 (`QueueLimit` 256 lines) drained by one write loop; a line that can't be queued drops that client (logged).
 Requests are read by a bounded line reader (`MaxLineBytes` 64 KB, longer → client dropped); more than
@@ -253,7 +255,8 @@ answer go to `EventReceived`, or (no handler) a queue `ReadAsync` returns first.
 Ops (EngineController): `run` (flow id or name; `wait` → the RunRecord; `dryRun` → a runner whose steps do
 nothing, no history), `cancel`, `list`, `status`, `validate`, `history` (flow, limit), `autostart` (enable
 true/false/absent), `shortcuts` / `create-shortcut` / `remove-shortcut` (flow id, M11, D-049), `devices` (kind; M11 adds
-`services`, `credentials` — names only, never secrets — and `DeviceInfo.Value`/`State`, D-051) and `capture-display-layout` (key → a `library: displays:` YAML snippet)
+`services`, `credentials` — names only, never secrets — and `DeviceInfo.Value`/`State`, D-051), `record-hotkey` (`on`;
+per connection, ends when the connection does: the editor sends it on the persistent request connection, D-072) and `capture-display-layout` (key → a `library: displays:` YAML snippet)
 through `Runtime/Control/IDeviceQueries` (read-only; `Providers/SystemDevices` on the real PC); `test-step`
 answers "can't do that yet" until the editor. `PipeClient` copies each request to stamp its id: a new
 `PipeRequest` field goes into that copy too (`PipeTests.EveryRequestFieldReachesTheServer` fails otherwise).

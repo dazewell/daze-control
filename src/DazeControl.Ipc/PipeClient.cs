@@ -48,7 +48,7 @@ public sealed class PipeClient : IAsyncDisposable
         var line = JsonSerializer.Serialize(new PipeRequest
         {
             Protocol = Protocol.Version, Id = id, Op = request.Op, Flow = request.Flow, Wait = request.Wait,
-            DryRun = request.DryRun, Enable = request.Enable, Limit = request.Limit, Trigger = request.Trigger,
+            DryRun = request.DryRun, Enable = request.Enable, On = request.On, Limit = request.Limit, Trigger = request.Trigger,
             Kind = request.Kind, Key = request.Key, Node = request.Node, Config = request.Config,
             ExactId = request.ExactId, ConfigPath = request.ConfigPath,
         }, IpcJson.Default.PipeRequest);

@@ -39,8 +39,9 @@ internal sealed class GlobalHotkey : IHotkeyRegistrar, IDisposable
         }
         var error = Marshal.GetLastPInvokeError();
         Log.Info($"hotkey {hotkey} not registered: error {error}");
+        // 1409 whoever holds it (X-007): Windows' own chords are named from a list (D-073).
         return error == ErrorHotkeyAlreadyRegistered
-            ? $"Another app uses {hotkey}. Try another one."
+            ? HotkeyTable.TakenMessage(hotkey)
             : $"Couldn't set up {hotkey} (error {error}). Try another one.";
     }
 

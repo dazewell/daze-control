@@ -898,7 +898,7 @@ Status: accepted (design M13b, user 2026-11-03); built T13b.1
   editor and keep the US name in YAML), or the user wants number-pad keys with Num Lock off.
 
 ## D-072 · 2026-11-03 · Recording pauses the engine's shortcuts; failed shortcuts are retried on user actions
-Status: accepted (design M13b, item 5 of the user's 2026-11-03 request; not built)
+Status: accepted (design M13b, item 5 of the user's 2026-11-03 request); built T13b.3 (failures stay known while recording or paused)
 - Decision: the recorder tells the engine when it starts and stops recording (pipe op `record-hotkey`
   `{on: true|false}`, like M12's `record-gamepad`). While on, `HotkeyTable` unregisters every keyboard shortcut
   (its own flag, apart from the tray's Pause, not shown in the tray). The pause ends on `off`, when the editor's
@@ -917,7 +917,7 @@ Status: accepted (design M13b, item 5 of the user's 2026-11-03 request; not buil
 - Revisit if: a chord is held by an app that grabs it again whenever we let go (then keep ours during recording).
 
 ## D-073 · 2026-11-03 · "Taken" vs "not supported": the recorder says which, and names Windows when it's Windows
-Status: accepted (design M13b); `HotkeyRejection` + `WindowsShortcuts` built T13b.1, the recorder text (H1–H4, H7) built T13b.2, H5/H6 T13b.3
+Status: accepted (design M13b); `HotkeyRejection` + `WindowsShortcuts` built T13b.1, H5/H6 built T13b.3, the recorder text (H1–H4, H7) built T13b.2
 - Decision: the recorder's `Rejected` event carries a reason. The inspector shows it under the box (UX §5.7 H1–H4):
   the key can't be a shortcut, a modifier is missing, Num Lock is off (a number-pad navigation key: `VirtualKey`
   End/Down/… with `KeyStatus.IsExtendedKey` false), or Shift with a Num key. A chord the engine can't register
