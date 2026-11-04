@@ -44,6 +44,7 @@ public sealed partial class LibraryItemViewModel : ObservableObject
         Key = key;
         Glyph = glyph;
         _test = test;
+        Inputs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoInputs));
     }
 
     /// <summary>The key steps reference; a program's path.</summary>
@@ -52,7 +53,7 @@ public sealed partial class LibraryItemViewModel : ObservableObject
     public string Glyph { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AutomationName), nameof(TestName), nameof(RemoveName), nameof(RenameName), nameof(DetailsName), nameof(OpenLocationName))]
+    [NotifyPropertyChangedFor(nameof(AutomationName), nameof(TestName), nameof(RemoveName), nameof(RenameName), nameof(DetailsName), nameof(OpenLocationName), nameof(InputsName))]
     public partial string Title { get; internal set; } = "";
 
     public string TestName => $"Test {Title}";
@@ -143,6 +144,35 @@ public sealed partial class LibraryItemViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool ShowDetails { get; set; }
+
+    /// <summary>Android devices: their inputs can be edited here (L1, D-078).</summary>
+    public bool HasInputs { get; internal init; }
+
+    /// <summary>Android: the inputs, in the order the file keeps them.</summary>
+    public System.Collections.ObjectModel.ObservableCollection<AndroidInputViewModel> Inputs { get; } = [];
+
+    /// <summary>Android: the Inputs panel under the card is open.</summary>
+    [ObservableProperty]
+    public partial bool ShowInputs { get; set; }
+
+    public string InputsName => $"Inputs of {Title}";
+
+    /// <summary>Android: why the last Add input didn't happen, or null.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAddInputError))]
+    public partial string? AddInputError { get; internal set; }
+
+    public bool HasAddInputError => AddInputError is not null;
+
+    /// <summary>Android: the name Add input offers ("input", "input-2"…).</summary>
+    [ObservableProperty]
+    public partial string NewInputName { get; internal set; } = "";
+
+    [ObservableProperty]
+    public partial bool CanEditInputs { get; internal set; }
+
+    public bool HasNoInputs => Inputs.Count == 0;
+
 
     public string AutomationName => $"{Title}, {Description}, {UsedByText}".Replace(", , ", ", ", StringComparison.Ordinal);
 

@@ -100,6 +100,12 @@ public sealed partial class InspectorPane : UserControl
             _ = _viewModel?.RefreshSuggestionsAsync(suggest.Kind);
     }
 
+    private void OnHintLinkClick(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is ParamFieldViewModel field)
+            _viewModel?.OpenAndroidInputs(field);
+    }
+
     private void OnUseScreensOnNow(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is ParamFieldViewModel field && _viewModel is not null)

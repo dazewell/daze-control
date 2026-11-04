@@ -50,7 +50,7 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
   no-focus menu of flows over every window, controller/keyboard/mouse, picking launches the flow (D-054, D-055).
 
 **F4 Library** — named, reusable resources referenced by steps: audio devices (match text + flow), Bluetooth
-devices (address + name), display layouts/outputs, Android devices + inputs, programs, credentials (secret in
+devices (address + name), display layouts/outputs, Android devices + inputs (edited on the card: moves as an Up/Down list, D-078), programs, credentials (secret in
 Windows Credential Manager, only the name in YAML). Each has a Test action.
 
 **F5 Runtime** — DAG scheduler with parallel branches, engine-wide resource locks, timeouts + cancellation

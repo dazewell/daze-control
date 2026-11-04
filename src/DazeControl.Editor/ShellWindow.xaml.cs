@@ -66,6 +66,7 @@ public sealed partial class ShellWindow : Window
         RunsViewControl.OpenRequested += OnOpenRun;
         ViewModel.Library.FlowRequested += OnLibraryFlowRequested; // after the view model's own handler, which opens it
         ViewModel.CalledFlowRequested += OnCalledFlowRequested;
+        ViewModel.LibraryRequested += OnLibraryRequested;
         var scale = GetDpiForWindow(hwnd) / 96.0;
         AppWindow.Resize(new SizeInt32((int)(WidthDip * scale), (int)(HeightDip * scale)));
 
@@ -301,6 +302,12 @@ public sealed partial class ShellWindow : Window
         ViewModel.OpenFlow(flowId);
         UpdatePages();
     }
+
+    /// <summary>
+    /// Android input › "Add inputs in the Library" (L1): Library in the pane; its SelectionChanged leaves the flow with
+    /// the D-047 prompt, and Cancel there keeps the flow open.
+    /// </summary>
+    private void OnLibraryRequested() => Navigation.SelectedItem = LibraryNavItem;
 
     private void SelectFlowsPane()
     {

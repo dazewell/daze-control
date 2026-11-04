@@ -21,11 +21,24 @@ public sealed partial class LibraryView : UserControl
         get => _viewModel;
         set
         {
+            if (_viewModel is not null)
+                _viewModel.PropertyChanged -= OnViewModelChanged;
             _viewModel = value;
             SectionsPivot.ItemsSource = value?.Sections;
             if (value is not null)
+            {
                 SectionsPivot.SelectedIndex = value.SelectedIndex;
+                value.PropertyChanged += OnViewModelChanged;
+            }
         }
+    }
+
+    /// <summary>The inspector's "Add inputs in the Library" link picks the Android section (L1).</summary>
+    private void OnViewModelChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(LibraryPageViewModel.SelectedIndex) && _viewModel is not null
+            && SectionsPivot.SelectedIndex != _viewModel.SelectedIndex)
+            SectionsPivot.SelectedIndex = _viewModel.SelectedIndex;
     }
 
     private void OnSectionChanged(object sender, SelectionChangedEventArgs e)
@@ -96,6 +109,80 @@ public sealed partial class LibraryView : UserControl
             return;
         if (_viewModel.Rename(item, box.Text))
             CloseFlyouts(element);
+    }
+
+    // ---- Android › Inputs (L1) ----
+
+    private void OnRenameInputSave(object sender, RoutedEventArgs e) => RenameInput(sender as FrameworkElement);
+
+    private void OnRenameInputKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key != Windows.System.VirtualKey.Enter)
+            return;
+        e.Handled = true;
+        RenameInput(sender as FrameworkElement);
+    }
+
+    // Like Rename: the button and the box share a panel in the input's flyout; the input rides on their Tag.
+    private void RenameInput(FrameworkElement? element)
+    {
+        if (element?.Tag is not AndroidInputViewModel input || BoxBeside(element) is not { } box || _viewModel is null)
+            return;
+        var popups = VisualTreeHelperPopups(element).ToList(); // before the edit, which can rebuild the row
+        if (_viewModel.RenameInput(input, box.Text))
+        {
+            foreach (var popup in popups)
+                popup.IsOpen = false;
+        }
+    }
+
+    private void OnAddInputSave(object sender, RoutedEventArgs e) => AddInput(sender as FrameworkElement);
+
+    private void OnAddInputKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key != Windows.System.VirtualKey.Enter)
+            return;
+        e.Handled = true;
+        AddInput(sender as FrameworkElement);
+    }
+
+    private void AddInput(FrameworkElement? element)
+    {
+        if (element?.Tag is not LibraryItemViewModel item || BoxBeside(element) is not { } box || _viewModel is null)
+            return;
+        var popups = VisualTreeHelperPopups(element).ToList(); // before the edit, which can rebuild the row
+        if (_viewModel.AddInput(item, box.Text))
+        {
+            foreach (var popup in popups)
+                popup.IsOpen = false;
+        }
+    }
+
+    private static TextBox? BoxBeside(FrameworkElement element) =>
+        (element.Parent as Panel)?.Children.OfType<TextBox>().FirstOrDefault();
+
+    private void OnRemoveInput(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is AndroidInputViewModel input)
+            _viewModel?.RemoveInputCommand.Execute(input);
+    }
+
+    private void OnAddUp(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is AndroidInputViewModel input)
+            _viewModel?.AddUpCommand.Execute(input);
+    }
+
+    private void OnAddDown(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is AndroidInputViewModel input)
+            _viewModel?.AddDownCommand.Execute(input);
+    }
+
+    private void OnRemoveMove(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is MoveToken move)
+            _viewModel?.RemoveMoveCommand.Execute(move);
     }
 
     private static void CloseFlyouts(object sender)
