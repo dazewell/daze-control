@@ -24,8 +24,9 @@ public interface IFlowStarter
     /// <param name="flowId">The flow to start.</param>
     /// <param name="trigger">For its history: "Flow · Headphones".</param>
     /// <param name="chain">The caller's call chain (flow ids from the top run), passed on so a start loop is caught.</param>
-    /// <param name="inputs">What the caller passes (D-064), already checked against the flow's library.</param>
-    StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain, IReadOnlyDictionary<string, string> inputs);
+    /// <param name="inputs">What the caller passes (D-064); checked against the same resolution that is started.</param>
+    /// <param name="callerName">For the message when a passed device isn't in the flow's library.</param>
+    StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain, IReadOnlyDictionary<string, string> inputs, string callerName);
 }
 
 /// <summary>The engine's <see cref="IFlowStarter"/>: flows from the latest snapshot, starts through the launcher.</summary>
@@ -56,7 +57,7 @@ public sealed class FlowCalls(Func<ConfigSnapshot> snapshot) : IFlowStarter
         };
     }
 
-    public StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain, IReadOnlyDictionary<string, string> inputs)
+    public StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain, IReadOnlyDictionary<string, string> inputs, string callerName)
     {
         ArgumentNullException.ThrowIfNull(chain);
         ArgumentNullException.ThrowIfNull(inputs);
@@ -65,6 +66,8 @@ public sealed class FlowCalls(Func<ConfigSnapshot> snapshot) : IFlowStarter
             return new(false, called.Refusal);
         if (Guard(chain, flowId, called.Name) is { } loop)
             return new(false, loop);
+        if (FlowInputs.Check(flow, called.Library, inputs, callerName) is { } missing)
+            return new(false, missing);
         if (Launcher is not { } launcher)
             return new(false, "Flows can't start other flows yet.");
         if (flow.WhenRunning == WhenRunning.Ignore && launcher.IsRunning(flowId))

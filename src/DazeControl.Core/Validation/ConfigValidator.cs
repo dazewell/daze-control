@@ -318,7 +318,7 @@ public static partial class ConfigValidator
             foreach (var (name, value) in step.With)
             {
                 if (descriptor.FindParam(name) is { } spec)
-                    CheckParam(spec, value, $"{path}.with.{name}");
+                    CheckParam(spec, value, $"{path}.with.{name}", passThrough: descriptor.Id == ProviderCatalog.RunFlowId && name == FlowInputs.Param);
                 else
                     Error($"{path}.with.{name}", $"{descriptor.Title} has no setting \"{name}\" ({Names(descriptor)}).");
             }
@@ -326,10 +326,18 @@ public static partial class ConfigValidator
                 Error(path + ".with", $"{spec.Title} is missing ({spec.Name}: …).");
         }
 
+        /// <summary>This flow's <c>$name</c> inside a list or map: only device settings take inputs (they aren't filled in there).</summary>
+        private void CheckNoInputs(IEnumerable<ParamValue> values, string path)
+        {
+            if (values.Select(FlowInputs.NameIn).FirstOrDefault(n => n is not null && flow.Inputs.ContainsKey(n)) is { } name)
+                Error(path, $"Inputs (${name}) only go in device settings.");
+        }
+
         private static string Names(ProviderDescriptor descriptor) =>
             descriptor.Params.Count == 0 ? "it takes none" : "it takes " + string.Join(", ", descriptor.Params.Select(p => p.Name));
 
-        private void CheckParam(ParamSpec spec, ParamValue value, string path)
+        /// <param name="passThrough"><c>flow.run</c>'s <c>inputs</c>: its values may be this flow's <c>$name</c> (checked by CheckPassedInputs).</param>
+        private void CheckParam(ParamSpec spec, ParamValue value, string path, bool passThrough = false)
         {
             switch (spec.Kind)
             {
@@ -338,12 +346,16 @@ public static partial class ConfigValidator
                         Error(path, "Write a list: [a, b].");
                     else if (list.Items.Any(i => i is not ScalarParam))
                         Error(path, "List items must be plain values.");
+                    else
+                        CheckNoInputs(list.Items, path);
                     return;
                 case ParamKind.TextMap:
                     if (value is not MapParam map)
                         Error(path, "Write name: value pairs: { Accept: text/plain }.");
                     else if (map.Entries.Values.Any(v => v is not ScalarParam))
                         Error(path, "Values must be plain values.");
+                    else if (!passThrough)
+                        CheckNoInputs(map.Entries.Values, path);
                     return;
             }
             if (value is not ScalarParam { Text: var text })

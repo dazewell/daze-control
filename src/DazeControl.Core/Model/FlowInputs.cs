@@ -20,9 +20,10 @@ public static class FlowInputs
     }
 
     /// <summary>
-    /// The flow with every <c>$name</c> of its inputs replaced by the caller's value, else the input's default: in step
-    /// settings and in the values its own calls pass (pass-through), so the steps, their locks and nested calls see
-    /// plain Library keys. Unknown names stay as written (validation reports them). No inputs: the same instance.
+    /// The flow with every <c>$name</c> of its inputs replaced by the caller's value, else the input's default: in plain
+    /// step settings (validation allows them only in device settings) and in the <c>inputs</c> its own <c>flow.run</c>
+    /// steps pass (pass-through), so the steps, their locks and nested calls see plain Library keys. Lists and other
+    /// maps are left alone. Unknown names stay as written (validation reports them). No inputs: the same instance.
     /// </summary>
     public static Flow Apply(Flow flow, IReadOnlyDictionary<string, string> given)
     {
@@ -32,12 +33,15 @@ public static class FlowInputs
             return flow;
         ParamValue Resolve(ParamValue value) => NameIn(value) is { } name && flow.Inputs.TryGetValue(name, out var input)
             ? given.TryGetValue(name, out var key) ? key : input.Default
-            : value is MapParam map ? new MapParam(new(map.Entries.Select(e => KeyValuePair.Create(e.Key, Resolve(e.Value)))))
             : value;
+        ParamValue Setting(StepNode step, string param, ParamValue value) =>
+            value is MapParam map && param == Param && step.Step == Catalog.ProviderCatalog.RunFlowId
+                ? new MapParam(new(map.Entries.Select(e => KeyValuePair.Create(e.Key, Resolve(e.Value)))))
+                : Resolve(value);
         return flow with
         {
             Nodes = [.. flow.Nodes.Select(n => n is StepNode step
-                ? step with { With = new(step.With.Select(e => KeyValuePair.Create(e.Key, Resolve(e.Value)))) }
+                ? step with { With = new(step.With.Select(e => KeyValuePair.Create(e.Key, Setting(step, e.Key, e.Value)))) }
                 : n)],
         };
     }

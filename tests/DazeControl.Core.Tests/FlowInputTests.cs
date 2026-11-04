@@ -161,6 +161,36 @@ public class FlowInputTests
     }
 
     [Theory]
+    [InlineData("http.request", "headers: { Device: $output }, url: http://x", "headers")]
+    [InlineData("android.keys", "device: tv, keys: [$output]", "keys")]
+    public void AnInputInsideAListOrMapIsAnError(string step, string with, string param)
+    {
+        var problems = Validate(Library + $$"""
+            flows:
+              mk:
+                inputs: { output: { kind: audio, default: technics } }
+                nodes:
+                  - { id: s, step: {{step}}, with: { {{with}} } }
+            """);
+
+        Assert.Contains(problems, p => p.Path == $"flows.mk.nodes.s.with.{param}" && p.Message == "Inputs ($output) only go in device settings.");
+    }
+
+    [Fact]
+    public void ApplyLeavesOtherMapsAlone()
+    {
+        var flow = LoadClean(Library + """
+            flows:
+              mk:
+                inputs: { output: { kind: audio, default: technics } }
+                nodes:
+                  - { id: s, step: http.request, with: { url: http://x, headers: { Device: $output } } }
+            """).Flows[0];
+
+        Assert.Equal(flow.Nodes, FlowInputs.Apply(flow, new Dictionary<string, string>()).Nodes);
+    }
+
+    [Theory]
     [InlineData("output: { kind: audio, name: Output, default: nope }", "flows.mk.inputs.output.default", "No audio device called \"nope\" in the library.")]
     [InlineData("output: { kind: audio, name: Output }", "flows.mk.inputs.output.default", "Output needs a default device.")]
     [InlineData("Output: { kind: audio, default: technics }", "flows.mk.inputs.Output", "Name inputs with small letters, digits and dashes, starting with a letter (like output).")]
