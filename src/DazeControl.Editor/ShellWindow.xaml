@@ -438,7 +438,7 @@
                             <AppBarButton x:Name="LayoutButton" Label="Layout" ToolTipService.ToolTip="How this flow is laid out">
                                 <AppBarButton.Icon><FontIcon Glyph="&#xE8CB;" /></AppBarButton.Icon>
                                 <AppBarButton.Flyout>
-                                    <MenuFlyout x:Name="LayoutMenu" Placement="BottomEdgeAlignedLeft" Opening="OnLayoutMenuOpening" />
+                                    <MenuFlyout x:Name="LayoutMenu" Placement="BottomEdgeAlignedLeft" Opening="OnLayoutMenuOpening" Closed="OnLayoutMenuClosed" />
                                 </AppBarButton.Flyout>
                             </AppBarButton>
                             <AppBarSeparator />

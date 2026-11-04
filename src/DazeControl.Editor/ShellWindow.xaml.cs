@@ -543,8 +543,11 @@ public sealed partial class ShellWindow : Window
 
     // ---- Layout (D-067, UX #63) ----
 
+    private bool _layoutPicked;
+
     private void OnLayoutMenuOpening(object? sender, object e)
     {
+        _layoutPicked = false;
         LayoutMenu.Items.Clear();
         if (_editor is not { } editor)
             return;
@@ -568,20 +571,27 @@ public sealed partial class ShellWindow : Window
             untangle.KeyboardAcceleratorTextOverride = reason;
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(untangle, reason);
         }
-        untangle.Click += (_, _) => editor.Untangle();
+        untangle.Click += (_, _) => _layoutPicked = editor.Untangle();
         LayoutMenu.Items.Add(untangle);
         var reset = new MenuFlyoutItem { Text = "Reset layout", IsEnabled = !editor.LayoutChoices.IsDefault };
-        reset.Click += (_, _) => editor.ResetLayout();
+        reset.Click += (_, _) => { editor.ResetLayout(); _layoutPicked = true; };
         LayoutMenu.Items.Add(reset);
     }
 
-    private static MenuFlyoutSubItem LayoutChoice<T>(string text, string group, T current, (string Text, T Value)[] choices, Action<T> pick)
+    /// <summary>After a pick the canvas has focus again, so Ctrl+Z undoes Untangle at once (canvas keys, UX §5.8).</summary>
+    private void OnLayoutMenuClosed(object? sender, object e)
+    {
+        if (_layoutPicked)
+            FlowCanvasControl.Focus(FocusState.Programmatic);
+    }
+
+    private MenuFlyoutSubItem LayoutChoice<T>(string text, string group, T current, (string Text, T Value)[] choices, Action<T> pick)
     {
         var sub = new MenuFlyoutSubItem { Text = text };
         foreach (var (label, value) in choices)
         {
             var item = new RadioMenuFlyoutItem { Text = label, GroupName = "layout-" + group, IsChecked = EqualityComparer<T>.Default.Equals(value, current) };
-            item.Click += (_, _) => pick(value);
+            item.Click += (_, _) => { pick(value); _layoutPicked = true; };
             sub.Items.Add(item);
         }
         return sub;

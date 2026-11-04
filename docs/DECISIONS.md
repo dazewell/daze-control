@@ -826,7 +826,8 @@ in the column after the block's right edge, top-aligned with its last row")
 - Revisit if: users want the following part beside a short last row (then a "fits in the row" special case).
 
 ## D-067 · 2026-11-03 · Tidy up becomes a Layout menu: wrap, spacing, alignment, line style, untangle
-Status: accepted (M13 design; user, 2026-11-03: "a layout menu… a couple more strategies… make it wider")
+Status: accepted (M13 design; user, 2026-11-03: "a layout menu… a couple more strategies… make it wider"); built T13.6
+(no reflow animation: none exists on the canvas yet; the wrapped rows' gap stays 48 for every Spacing)
 - Decision: the CommandBar's Tidy up becomes **Layout** (flyout, §5.7 #63): Wrap long chains after 3 / 5 (default)
   / 8 steps / Never; Spacing Compact (40/8) / Normal (64/16) / Roomy (96/32); Line up Centred / Along the top; Lines
   Curved / Right angles (orthogonal, 8-DIP corners, D-060's router); Untangle lines (the old `FlowTidy`, off with a
