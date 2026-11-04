@@ -380,7 +380,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   decided (2026-11-04): **borderless only** (D-055 accepted). QUNS = 3 → #32, logged, nothing shown. M12 goes on:
   T12.1 next, then T12.3 onward.
 - [x] T12.3 Core: `menu.show` descriptor, `GamepadChord`, `Flow.Gamepad`, `ParamSpec.RefersTo = Flow`, validation
-  (feat/m12-core, PR TBD, DESIGN §2.5, §3.5). Done when: YAML round-trip of DESIGN §2.1's flow; chord parse/format tests
+  (feat/m12-core, #61, DESIGN §2.5, §3.5). Done when: YAML round-trip of DESIGN §2.1's flow; chord parse/format tests
   (order, `+` spacing, Guide/one button/5 buttons refused); validator tests for own flow, unknown and duplicate item,
   `wait` loop, 0/13 items, `closeAfter` range, `timeout` ≤ `closeAfter`, chord clash (later flow); a flow rename
   rewrites menu items (Core edit + test); catalog test still passes (items has Suggest).
