@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M13 fixes (PR #42 plan): F1–F5 from the user's v0.29.0 feedback, D-074..D-077, X-008, X-009. F1 done (feat/m13-wheel-zoom, PR #45; 0.30.0), F2 done (fix/m13-flow-run-picker; 0.29.2), F3 done (fix/m13-ctrl-s-hint), F4 done (feat/m13-flow-delete-rename, PR #46: Delete with Undo, ids follow a saved rename; 0.31.0). T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done
-Last green checkpoint: f9b39dd feat(editor): wheel zoom at the pointer; any flow can be moved (F1, D-074) (#45)
-Next action: F5 (fix/m13-display-restore, needs the user's OK for the live display matrix); then T13.3 (feat/m13-nav-collapse: `EditorSettingsStore` tests first), T13.9 (feat/m13-flow-inputs) and T13b.1 (feat/m13b-hotkey-keys)
+Current task: M13 fixes (PR #42 plan): F1–F5 from the user's v0.29.0 feedback, D-074..D-077, X-008, X-009. F1 done (feat/m13-wheel-zoom, PR #45; 0.30.0), F2 done (fix/m13-flow-run-picker; 0.29.2), F3 done (fix/m13-ctrl-s-hint), F4 done (feat/m13-flow-delete-rename, PR #46: Delete with Undo, ids follow a saved rename; 0.31.0). T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done. T13b.1 done (feat/m13b-hotkey-keys: punctuation and Num0–Num9 keys, `HotkeyRejection`, `WindowsShortcuts`)
+Last green checkpoint: 2e8a339 wip(m13b): hotkeys take [ ] \ and other punctuation, Num0–Num9 (T13b.1)
+Next action: F5 (fix/m13-display-restore, needs the user's OK for the live display matrix); then T13.3 (feat/m13-nav-collapse: `EditorSettingsStore` tests first), T13.9 (feat/m13-flow-inputs); T13b.2 (feat/m13b-recorder: `HotkeyRecorder.Rejected` carries a `HotkeyRejection`) and T13b.3 (feat/m13b-engine-hotkeys) in either order
 Tree state: builds, all tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. F5's live display matrix changes the user's screens: ask the user first every time, save and restore, restart the installed engine (`%LOCALAPPDATA%\DazeControlApp\current\DazeControl.exe`). This PC's installed app was 0.22.0 on 2026-11-03 (0.23.0 downloaded, applies on the next engine start): check `sq.version` before chasing a "missing" feature. Right-drag (D-069) works as built; F1 added wheel zoom and pan room (`CanvasViewport`). T13.6 must key per-flow layouts by id and follow F4's rename (D-075). T13.10 builds on F2's flow picker (`InspectorViewModel.FlowOptions`; `ParamFieldViewModel.IsFlowRef` reuses the device ComboBox). The user's live Connect Technics flow: `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails (told in T13.7; "Skip what depends on it" fixes it). Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers: `flow.run` `inputs` param (T13.9); #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config; Runs-page nested lanes; measure.ps1 can't run while the installed engine holds the pipe.
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. F5's live display matrix changes the user's screens: ask the user first every time, save and restore, restart the installed engine (`%LOCALAPPDATA%\DazeControlApp\current\DazeControl.exe`). This PC's installed app was 0.22.0 on 2026-11-03 (0.23.0 downloaded, applies on the next engine start): check `sq.version` before chasing a "missing" feature. Right-drag (D-069) works as built; F1 added wheel zoom and pan room (`CanvasViewport`). T13.6 must key per-flow layouts by id and follow F4's rename (D-075). T13.10 builds on F2's flow picker (`InspectorViewModel.FlowOptions`; `ParamFieldViewModel.IsFlowRef` reuses the device ComboBox). The user's live Connect Technics flow: `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails (told in T13.7; "Skip what depends on it" fixes it). Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers: `flow.run` `inputs` param (T13.9); #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config; Runs-page nested lanes; measure.ps1 can't run while the installed engine holds the pipe. M13b: Win+[ and Win+] are held by the user's running `SwitchDisplay.ahk` (leave it running); to check engine registration, stop the installed engine, start a test one with a scratch config path as its argument, probe with an outside `RegisterHotKey` (1409 = held), then restart the installed one.
 ---
 
 ## Workflow (usage-cap-proof, D-018)
@@ -196,14 +196,16 @@ no listener, so nothing happened. Win+[ and Win+] are also held by `C:\Projects\
 still running. A failed chord was retried only on the next reload, and recording the same chord again doesn't
 reload. The engine's own chords never reach the recorder. Order: T13b.1 first, then T13b.2 and T13b.3 in either
 order (they touch different files). Can run alongside M13 (no shared files except the docs).
-- [ ] T13b.1 **Model.** `Core/Input/Hotkey.cs` (names, `TryCreate`: punctuation VKs, Num0–Num9 alone, Shift+Num
+- [x] T13b.1 **Model.** `Core/Input/Hotkey.cs` (names, `TryCreate`: punctuation VKs, Num0–Num9 alone, Shift+Num
   refused; `ToString`; `TryParse` accepts "Numpad1"), a `Rejection` reason enum for the recorder, the new
   `Core/Input/WindowsShortcuts.cs` (Windows 11's own Win+key list), and the `ConfigValidator` message ("use Win,
   Ctrl or Alt plus a letter, number, F1–F24 or a key like [, or a number pad key like Num1"). Tests:
   `Core.Tests` HotkeyTests (parse/format every new key, both directions; `Win+\` and `Win+[` YAML round trip
   through `ConfigYaml`; letters alone still refused). Branch `feat/m13b-hotkey-keys`. Done when: tests green,
   0 AOT/trim warnings, the engine registers `Win+\`, `Ctrl+Num1` and `Num5` from a hand-written config.yaml
-  (manual check on the dev PC, with the shortcuts removed afterwards).
+  (manual check on the dev PC, with the shortcuts removed afterwards). Done (feat/m13b-hotkey-keys): the
+  reason enum is `HotkeyRejection` (`Hotkey.Check` never returns `NumLockOff`: the recorder sets it); manual check
+  2026-11-03 passed (an outside `RegisterHotKey` got 1409 for all three while the test engine ran, free after).
 - [ ] T13b.2 **Recorder.** `Editor/Inspector/HotkeyRecorder.xaml.cs` (`Rejected` carries the reason; Num Lock off =
   a pad navigation key with `IsExtendedKey` false → H3; modifiers let go with no key → H7),
   `Editor.ViewModels/Inspector/InspectorViewModel.cs` + the inspector XAML (the reason under the box, the H8 tip
