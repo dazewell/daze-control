@@ -1,8 +1,8 @@
 # Flow calls (M13 P6) — design
 
 A step that runs another flow, so typical things compose into one step, and flow **inputs** so one chain serves
-several devices. Designed 2026-11-03 (D-061..D-064). **Built: §2–§4 (T13.8)** — see ARCHITECTURE → Runtime; still to build: §5 inputs
-(T13.9, incl. `flow.run`'s `inputs` param, not in the catalog yet), §6 editor (T13.10). Tasks: [PLAN.md](../PLAN.md) → M13 (T13.8–
+several devices. Designed 2026-11-03 (D-061..D-064). **Built: §2–§5 (T13.8, T13.9)** — see ARCHITECTURE → Runtime; still to build: §6 editor
+(T13.10). Tasks: [PLAN.md](../PLAN.md) → M13 (T13.8–
 T13.10). Microcopy numbers (#47–#66) are in [UX.md](../UX.md) §5.7. Shares its model with the flow menu
 ([flow-menu/DESIGN.md](../flow-menu/DESIGN.md), D-054 as amended by D-061).
 
@@ -137,20 +137,8 @@ existing `tray: { show: false }`.
   fails at once with #53; a chain longer than 8 fails with #54. Start-mode calls pass the chain on to the launched
   run; triggers by a person (shortcut, tray, menu pick, desktop shortcut, CLI, editor) start a fresh chain.
 
-## 5. Inputs (D-064)
-
-- A flow may declare `inputs:` — name → `{ kind: audio | bluetooth | android | display, name: <label>, default:
-  <library key> }`. `default` is required, so a flow with inputs still runs from its shortcut, the tray, a menu or a
-  desktop shortcut (with its defaults). Names: `[a-z][a-z0-9-]*`, unique in the flow.
-- A step uses an input in a `LibraryRef` param of the same kind: `device: $output`. Validation: unknown input,
-  wrong kind, or `$` anywhere else → error on the step. Resource names (`bluetooth:{device}`) are filled from the
-  resolved key, so two calls with the same device share the lock and different devices don't.
-- The runner resolves `$name` before the step starts: caller's value, else the default. Problems name the input
-  ("Output (from Headphones: sony) isn't in your Library anymore.", #7 pattern).
-- Library rename (D-046's `LibraryEdits.Rename`) rewrites input defaults and `inputs:` values too; removing a Library
-  item that an input's default uses counts as "used by" that flow.
-- Not in v1: text/number inputs (a key, a message), inputs on menu items or desktop shortcuts, outputs back to the
-  caller. Revisit if the user asks (D-064).
+## 5. Inputs (D-064) — built (T13.9), see ARCHITECTURE → Runtime "Flow inputs"
+Not in v1: text/number inputs, inputs on menu items or desktop shortcuts, outputs back to the caller (D-064).
 
 ## 6. Editor (UX §5.4, §5.5)
 

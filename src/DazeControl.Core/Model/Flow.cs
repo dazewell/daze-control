@@ -20,6 +20,12 @@ public sealed record TraySettings
 }
 
 /// <summary>
+/// A flow input (D-064): a Library device of <paramref name="Kind"/> that a <c>flow.run</c> caller may pass, else
+/// <paramref name="Default"/>. <paramref name="Label"/> is what the editor and messages show ("Output").
+/// </summary>
+public sealed record FlowInput(LibraryKind Kind, string Label, string Default);
+
+/// <summary>
 /// A named DAG of nodes (D-003). <see cref="Nodes"/> order is the order within a canvas column (D-020) and
 /// carries no run-order meaning: edges do.
 /// </summary>
@@ -38,6 +44,9 @@ public sealed record Flow(string Id, string Name, ValueList<Node> Nodes)
     public bool Popup { get; init; } = true;
 
     public bool Enabled { get; init; } = true;
+
+    /// <summary>Devices a caller may pass (D-064), by input name (<c>[a-z][a-z0-9-]*</c>); steps use them as <c>$name</c>.</summary>
+    public ValueDictionary<FlowInput> Inputs { get; init; }
 
     public Node? FindNode(string id) => Nodes.FirstOrDefault(n => n.Id == id);
 }

@@ -70,7 +70,7 @@ public sealed class FlowRunner
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(chain);
-        return RunCoreAsync(flow, library, [.. chain, flow.Id], null, null, cancellationToken);
+        return RunCoreAsync(flow, library, NoInputs, [.. chain, flow.Id], null, null, cancellationToken);
     }
 
     /// <summary>
@@ -82,18 +82,24 @@ public sealed class FlowRunner
     /// <param name="chain">Flow ids from the top run down to the caller; <paramref name="flow"/> is appended.</param>
     /// <param name="parentRunId">The calling run.</param>
     /// <param name="parentNodeId">The calling step.</param>
+    /// <param name="inputs">What the caller passes (D-064): input name → Library key; missing inputs use their defaults.</param>
     /// <param name="cancellationToken">The calling step's: the caller's cancel, stop or timeout ends this run.</param>
     public Task<RunResult> RunNestedAsync(Flow flow, Library library, IReadOnlyList<string> chain, Guid parentRunId,
-        string parentNodeId, CancellationToken cancellationToken)
+        string parentNodeId, IReadOnlyDictionary<string, string> inputs, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(chain);
-        return RunCoreAsync(flow, library, [.. chain, flow.Id], parentRunId, parentNodeId, cancellationToken);
+        ArgumentNullException.ThrowIfNull(inputs);
+        return RunCoreAsync(flow, library, inputs, [.. chain, flow.Id], parentRunId, parentNodeId, cancellationToken);
     }
 
-    private async Task<RunResult> RunCoreAsync(Flow flow, Library library, string[] chain, Guid? parentRunId,
-        string? parentNodeId, CancellationToken cancellationToken)
+    private static readonly IReadOnlyDictionary<string, string> NoInputs = new Dictionary<string, string>();
+
+    private async Task<RunResult> RunCoreAsync(Flow flow, Library library, IReadOnlyDictionary<string, string> inputs, string[] chain,
+        Guid? parentRunId, string? parentNodeId, CancellationToken cancellationToken)
     {
+        // Inputs resolve before anything runs (D-064): steps, their locks and nested calls only ever see Library keys.
+        flow = FlowInputs.Apply(flow, inputs);
         var scheduler = new Scheduler(flow);
         var runId = Guid.NewGuid();
         var started = _time.GetUtcNow();
@@ -230,7 +236,7 @@ public sealed class FlowRunner
                 { ParentRunId = scope.ParentRunId, ParentNodeId = scope.ParentNodeId });
             if (waits)
             {
-                var call = await CallAsync(scope, node, timeout, flowToken).ConfigureAwait(false);
+                var call = await CallAsync(scope, flow, node, timeout, flowToken).ConfigureAwait(false);
                 (error, called, quiet) = (call.Error, call.Called ?? called, call.Quiet);
                 if (quiet)
                     return Done(StepResult.Cancelled, attempt, null);
@@ -256,7 +262,7 @@ public sealed class FlowRunner
     /// One try of a <c>flow.run</c> that waits (DESIGN §2.2): runs the called flow nested and maps its outcome. The
     /// nested run honours the token itself, so it is awaited to the end (its steps are bounded by their own timeouts).
     /// </summary>
-    private async Task<CallTry> CallAsync(RunScope scope, StepNode node, TimeSpan timeout, CancellationToken flowToken)
+    private async Task<CallTry> CallAsync(RunScope scope, Flow caller, StepNode node, TimeSpan timeout, CancellationToken flowToken)
     {
         var target = ConfigValidator.CalledFlow(node) ?? "";
         var resolved = Flows!.Resolve(target);
@@ -264,6 +270,9 @@ public sealed class FlowRunner
             return new(loop, null, false);
         if (resolved.Flow is not { } flow)
             return new(resolved.Refusal, null, false);
+        var inputs = FlowInputs.Given(node); // the caller's own $names are already resolved (RunCoreAsync)
+        if (FlowInputs.Check(flow, resolved.Library, inputs, caller.Name) is { } missing)
+            return new(missing, null, false);
         CancellationTokenSource timeoutCancel;
         try
         {
@@ -278,7 +287,7 @@ public sealed class FlowRunner
         RunResult result;
         try
         {
-            result = await RunCoreAsync(flow, resolved.Library, [.. scope.Chain, flow.Id], scope.RunId, node.Id, linked.Token)
+            result = await RunCoreAsync(flow, resolved.Library, inputs, [.. scope.Chain, flow.Id], scope.RunId, node.Id, linked.Token)
                 .ConfigureAwait(false);
         }
 #pragma warning disable CA1031 // a runner bug in the nested run fails this step only

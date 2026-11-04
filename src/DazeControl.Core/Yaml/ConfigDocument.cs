@@ -100,7 +100,20 @@ public sealed class FlowDocument
 
     public string? Enabled { get; set; }
 
+    public Dictionary<string, InputDocument>? Inputs { get; set; }
+
     public List<NodeDocument>? Nodes { get; set; }
+}
+
+/// <summary>A flow input (D-064): <c>{ kind, name, default }</c>.</summary>
+[YamlSerializable]
+public sealed class InputDocument
+{
+    public string? Kind { get; set; }
+
+    public string? Name { get; set; }
+
+    public string? Default { get; set; }
 }
 
 [YamlSerializable]

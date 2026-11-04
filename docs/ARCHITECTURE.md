@@ -175,6 +175,15 @@ trigger "Flow · <caller>" and passes the chain on (`StepContext.Chain` → `Tri
 start a fresh chain. With `Flows` null (the dry runner) a call is an ordinary step: dry runs don't descend.
 `ConfigValidator.CheckCalls` builds the call graph from every `flow.run` (both modes): own flow #49, a loop #50 on every
 step in it, unknown #51 (errors); turned off #52, called flow with errors (warnings).
+Flow inputs (D-064, T13.9): `Flow.Inputs` (name → `FlowInput(kind, label, default)`, YAML `inputs:`); a `LibraryRef`
+setting holds `$name`. `FlowInputs.Apply` runs first in `RunCoreAsync` and replaces every `$name` (step settings and the
+`inputs` map its own calls pass) with the caller's value, else the default, so steps, `ResourcesOf` locks and nested
+calls only see Library keys (two calls with one device share its lock). A call checks what it passes against the
+called flow's library first (`FlowInputs.Check`: "Output (from Headphones: sony) isn't in your Library anymore.");
+start mode applies the inputs before `TriggerAsync`. Validation: input names `[a-z][a-z0-9-]*`, default required and in
+the library; `$name` unknown / other kind / a flow's input outside a device setting; `CheckPassedInputs` for calls
+(unknown input, key not in the library, pass-through of the caller's input of the same kind). `LibraryEdits.Rename`
+rewrites defaults and passed values; `LibraryEdits.Uses` (Library "Used by", Remove) counts both.
 Tests: `FakeProvider` + thread-safe `ManualTime` with `WaitForTimerAsync` (Runtime.Tests); flow calls end to end on
 a scratch config: Providers.Tests `FlowCallScenarioTests`.
 
@@ -407,8 +416,8 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   thing to try, then a second check.
 - Designed, not built: the flow menu and controller input (M12) — [flow-menu/DESIGN.md](flow-menu/DESIGN.md)
   §3 (D-053..D-057). Each M12 task moves its part into the sections above.
-- Designed, not built (M13, PLAN → M13): flow calls and inputs — [flow-calls/DESIGN.md](flow-calls/DESIGN.md) (D-061..
-  D-064: flow inputs and `$input` refs (T13.9), the editor for calls (T13.10); `flow.run` itself is built, Runtime);
+- Designed, not built (M13, PLAN → M13): the editor for flow calls and inputs — [flow-calls/DESIGN.md](flow-calls/DESIGN.md) §6 (T13.10;
+  `flow.run` and inputs are built, Runtime);
   the Layout menu's `LayoutOptions` (D-067);
   `EditorSettingsStore` / `editor.json` (D-068). Each task rewrites the
   section it changes. Fallback outcomes (D-065) are built (T13.7: Config, Runtime).
