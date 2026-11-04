@@ -107,11 +107,12 @@ public sealed partial class HotkeyRecorder : UserControl
             Box.Text = Core.Input.Hotkey.Prefix(modifiers);
             return;
         }
-        var reason = IsNumberPadNavigation(e) ? HotkeyRejection.NumLockOff : Core.Input.Hotkey.Check(modifiers, (uint)e.Key);
-        if (reason == HotkeyRejection.None)
-            Recorded?.Invoke(this, new Core.Input.Hotkey(modifiers, (uint)e.Key).ToString());
+        if (IsNumberPadNavigation(e))
+            Rejected?.Invoke(this, HotkeyRejection.NumLockOff);
+        else if (Core.Input.Hotkey.TryCreate(modifiers, (uint)e.Key, out var hotkey))
+            Recorded?.Invoke(this, hotkey.ToString());
         else
-            Rejected?.Invoke(this, reason);
+            Rejected?.Invoke(this, Core.Input.Hotkey.Check(modifiers, (uint)e.Key)); // TryCreate is Check == None
         ShowRecorded();
     }
 
@@ -131,7 +132,7 @@ public sealed partial class HotkeyRecorder : UserControl
 
     /// <summary>Reads <paramref name="text"/> out at once (Narrator), e.g. why a key was refused.</summary>
     public void Announce(string text) =>
-        FrameworkElementAutomationPeer.FromElement(Box)?.RaiseNotificationEvent(AutomationNotificationKind.Other,
+        (FrameworkElementAutomationPeer.FromElement(Box) ?? FrameworkElementAutomationPeer.CreatePeerForElement(Box))?.RaiseNotificationEvent(AutomationNotificationKind.Other,
             AutomationNotificationProcessing.ImportantMostRecent, text, "HotkeyRecorderNote");
 
     // With Num Lock off the pad sends Insert, End, Down, Clear (Num5)… as non-extended keys; the separate keys are
