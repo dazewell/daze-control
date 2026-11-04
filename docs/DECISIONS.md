@@ -809,8 +809,8 @@ PartiallySucceeded")
 - Revisit if: users miss being told that a fallback was used (then a quiet caption, not a warning tone).
 
 ## D-066 · 2026-11-03 · After a wrapped chain, what follows starts on a new line under it
-Status: accepted (M13 design; user, 2026-11-03; supersedes D-060's "whatever follows the run starts in the column
-after the block's right edge, top-aligned with its last row")
+Status: accepted (M13 design; user, 2026-11-03; built in T13.5; supersedes D-060's "whatever follows the run starts
+in the column after the block's right edge, top-aligned with its last row")
 - Decision: `FlowLayout` lays columns out in **segments** split at wrapped spine runs. The segment after a block
   starts at the block's left x, its top one `WrapRowGap` under the block's bottom, its columns centred among
   themselves; the edge into it is a wrap edge (D-060's shape: right 16, down to the gap's middle, left to the return
