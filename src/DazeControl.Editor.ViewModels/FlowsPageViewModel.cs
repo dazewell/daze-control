@@ -193,7 +193,8 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             return Task.CompletedTask;
         _deleted = null;
         DeletedText = null;
-        return _desktop.Of(deleted.Flow.Id) is not null && !_session.Current.Flows.Any(f => f.Id == deleted.Flow.Id)
+        // Asked of the engine, not the cached list: a shortcut made by dctl or another editor counts too.
+        return !_session.Current.Flows.Any(f => f.Id == deleted.Flow.Id)
             ? RemoveShortcutAsync(deleted.Flow.Id)
             : Task.CompletedTask;
     }

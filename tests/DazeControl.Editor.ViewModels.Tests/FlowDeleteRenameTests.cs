@@ -287,6 +287,31 @@ public sealed class FlowDeleteRenameTests : IDisposable
     }
 
     [Fact]
+    public async Task AShortcutMadeOutsideTheEditorGoesAndMovesToo()
+    {
+        using var shell = new ShellViewModel(_session, _engine, a => a(), _folder);
+        Put("tv"); // dctl shortcut tv: the editor's list doesn't know it yet
+        Put("morning");
+        Assert.Null(shell.Desktop.Of("tv"));
+
+        shell.Flows.Delete("tv");
+        await shell.Flows.EndUndoAsync();
+
+        Assert.DoesNotContain("tv", _desktop.Keys);
+
+        shell.OpenFlow("morning");
+        _session.UpdateDraft("morning", f => f with { Name = "Sunrise" });
+        EngineLoads(); // the engine is quick: create works on the first try
+        shell.Editor!.Save();
+        _engineFlows.Add("sunrise");
+        _engine.Raise(new PipeEvent { Kind = EventKinds.ConfigReloaded });
+        await Task.Yield();
+
+        Assert.Contains("sunrise", _desktop.Keys);
+        Assert.DoesNotContain("morning", _desktop.Keys);
+    }
+
+    [Fact]
     public void OpeningAFlowEndsTheBar()
     {
         using var shell = new ShellViewModel(_session, _engine, a => a(), _folder);

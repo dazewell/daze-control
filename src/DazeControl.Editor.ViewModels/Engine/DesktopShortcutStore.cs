@@ -52,10 +52,18 @@ public sealed class DesktopShortcutStore(IEngineClient engine, string? configPat
     /// A saved rename (D-075): once the engine has loaded the new id, the old id's shortcut is made again for it and the
     /// old one removed. Nothing to do when the old id has none. Retried on each config reload until the engine knows it.
     /// </summary>
-    public Task MoveAsync(string oldId, string newId)
+    public async Task MoveAsync(string oldId, string newId)
     {
+        try
+        {
+            await RefreshAsync().ConfigureAwait(false); // a shortcut made by dctl or another editor counts too
+        }
+        catch (Exception e) when (e is IOException or OperationCanceledException)
+        {
+            return;
+        }
         if (Of(oldId) is null)
-            return Task.CompletedTask;
+            return;
         lock (_moves)
         {
             _moves[oldId] = newId;
@@ -65,7 +73,7 @@ public sealed class DesktopShortcutStore(IEngineClient engine, string? configPat
                 _listening = true;
             }
         }
-        return TryMovesAsync();
+        await TryMovesAsync().ConfigureAwait(false);
     }
 
     private void OnEngineEvent(PipeEvent e)
