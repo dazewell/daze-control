@@ -30,7 +30,7 @@ and a new script. Docs: each adds its own lines (UX, ARCHITECTURE, FEATURES, PLA
 conflict. Version: `fix` PRs bump the patch, `feat` PRs (F1, F4) the minor, against `main` at merge time (main's
 number + 1).
 
-- [x] F1 **Wheel zoom on the canvas; a flow can always be moved** (feat/m13-wheel-zoom, D-074, PR #TBD). Not a bug: right-drag
+- [x] F1 **Wheel zoom on the canvas; a flow can always be moved** (feat/m13-wheel-zoom, D-074, PR #45). Not a bug: right-drag
   (D-069) pans only along an axis with room to scroll, so a flow that fits the window doesn't move (seen on the 0.29.0
   build); the user asked for wheel zoom and for pan room. Today the wheel scrolls, Shift+wheel scrolls sideways and
   Ctrl+wheel/pinch zoom 50–200 % through the `ScrollViewer`; Fit, 100 % and Zoom in/out in the CommandBar use
