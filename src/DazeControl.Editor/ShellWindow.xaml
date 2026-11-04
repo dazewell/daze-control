@@ -434,8 +434,12 @@
                                 <AppBarToggleButton.Icon><FontIcon Glyph="&#xE8A4;" /></AppBarToggleButton.Icon>
                             </AppBarToggleButton>
                             <AppBarSeparator />
-                            <AppBarButton Label="Tidy up" ToolTipService.ToolTip="Reorder steps so fewer lines cross" Click="OnTidyUp">
+                            <!-- Layout (D-067, UX #63): per flow on this PC; the items are built when it opens. -->
+                            <AppBarButton x:Name="LayoutButton" Label="Layout" ToolTipService.ToolTip="How this flow is laid out">
                                 <AppBarButton.Icon><FontIcon Glyph="&#xE8CB;" /></AppBarButton.Icon>
+                                <AppBarButton.Flyout>
+                                    <MenuFlyout x:Name="LayoutMenu" Placement="BottomEdgeAlignedLeft" Opening="OnLayoutMenuOpening" />
+                                </AppBarButton.Flyout>
                             </AppBarButton>
                             <AppBarSeparator />
                             <!-- Problems (n) (UX §5.1): pick one to select its step; the inspector shows what to fix. -->

@@ -35,6 +35,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
     private readonly HashSet<(string From, string To)> _selectedEdges = [];
     private readonly CanvasClipboard _clipboard;
+    private readonly EditorSettingsStore? _settings;
+    private FlowViewSettings _localView = new(); // without a store (tests, a failed start): this session only
     private readonly List<Flow> _undo = [], _redo = [];
     private FlowArrangement _arrangement = new([], [], [], new Size(96, 96));
     private Flow? _known;
@@ -43,10 +45,11 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     /// <summary>Undo steps kept per open flow.</summary>
     public const int HistoryLimit = 100;
 
-    public FlowCanvasViewModel(ConfigSession session, string flowId, CanvasClipboard? clipboard = null)
+    public FlowCanvasViewModel(ConfigSession session, string flowId, CanvasClipboard? clipboard = null, EditorSettingsStore? settings = null)
     {
         _session = session;
         _clipboard = clipboard ?? new CanvasClipboard();
+        _settings = settings;
         FlowId = flowId;
         _session.PropertyChanged += OnSessionChanged;
         _session.FlowRenamed += OnFlowRenamed;
@@ -61,8 +64,10 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     {
         if (oldId != FlowId)
             return;
+        _settings?.RenameFlow(oldId, newId); // the view choices follow (D-075); the shell's own call is then a no-op
         FlowId = newId;
         OnPropertyChanged(nameof(FlowId));
+        Sync();
     }
 
     /// <summary>Top-level pills and cards first, then card members, so members draw above their card.</summary>
@@ -102,7 +107,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     /// <summary>A live run of this flow is on the canvas: editing waits until it finishes.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanEdit))]
+    [NotifyPropertyChangedFor(nameof(CanEdit), nameof(CanUntangle))]
     public partial bool IsRunLocked { get; internal set; }
 
     private IReadOnlyDictionary<string, NodeRunView>? _run;
@@ -657,10 +662,78 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     // ---- Edits ----
 
-    /// <summary>"Tidy up" (UX §5.2): reorders columns to cut crossings; false when nothing changed.</summary>
-    public bool TidyUp()
+    // ---- Layout menu (D-067) ----
+
+    /// <summary>This flow's layout choices on this PC (editor.json, D-068); not a flow edit.</summary>
+    public FlowViewSettings LayoutChoices =>
+        _settings is null ? _localView : _settings.Settings.Flows.GetValueOrDefault(FlowId) ?? new FlowViewSettings();
+
+    public LayoutOptions LayoutOptions => LayoutChoices.ToOptions();
+
+    /// <summary>Changes this flow's layout choices and lays it out again at once; a default value isn't stored.</summary>
+    public void SetLayout(int? wrapAfter = null, LayoutSpacing? spacing = null, LayoutAlign? align = null, LayoutLines? lines = null)
     {
-        if (Flow is not { } flow || FlowTidy.Tidy(flow) is var tidy && ReferenceEquals(tidy, flow))
+        void Change(FlowViewSettings v)
+        {
+            if (wrapAfter is { } w)
+                v.WrapAfter = w == LayoutOptions.DefaultWrapAfter ? null : Math.Max(0, w);
+            if (spacing is { } s)
+                v.Spacing = s == LayoutSpacing.Normal ? null : s;
+            if (align is { } a)
+                v.Align = a == LayoutAlign.Centre ? null : a;
+            if (lines is { } l)
+                v.Lines = l == LayoutLines.Curved ? null : l;
+        }
+        if (_settings is null)
+            Change(_localView);
+        else
+        {
+            var id = FlowId;
+            _settings.Update(s =>
+            {
+                var view = s.Flows.GetValueOrDefault(id) ?? new FlowViewSettings();
+                Change(view);
+                if (view.IsDefault)
+                    s.Flows.Remove(id);
+                else
+                    s.Flows[id] = view;
+            });
+        }
+        Sync();
+    }
+
+    /// <summary>Layout › Reset layout: this flow back to the default choices.</summary>
+    public void ResetLayout()
+    {
+        if (_settings is null)
+            _localView = new FlowViewSettings();
+        else if (_settings.Settings.Flows.ContainsKey(FlowId))
+        {
+            var id = FlowId;
+            _settings.Update(s => s.Flows.Remove(id));
+        }
+        Sync();
+    }
+
+    /// <summary>Whether Untangle lines would change anything (X-006: it's off with a reason when it can't).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanUntangle), nameof(UntangleReason))]
+    public partial UntangleState UntangleState { get; private set; }
+
+    public bool CanUntangle => CanEdit && UntangleState == UntangleState.Helps;
+
+    /// <summary>Why Untangle lines is off (UX #63); null while it can help.</summary>
+    public string? UntangleReason => UntangleState switch
+    {
+        UntangleState.NoCrossings => "No lines cross",
+        UntangleState.NoBetterOrder => "Can't untangle these any further",
+        _ => null,
+    };
+
+    /// <summary>Layout › "Untangle lines": reorders columns to cut crossings, a flow edit with undo; false when nothing changed.</summary>
+    public bool Untangle()
+    {
+        if (Flow is not { } flow || FlowTidy.Tidy(flow, LayoutOptions.Align) is var tidy && ReferenceEquals(tidy, flow))
             return false;
         Edit(_ => tidy);
         return true;
@@ -833,7 +906,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         IsMissing = flow is null;
         flow ??= new Flow(FlowId, "", []);
         FlowName = flow.Name;
-        _arrangement = FlowLayout.Arrange(flow, id => _measured.GetValueOrDefault(id, DefaultPillSize));
+        var options = LayoutOptions;
+        _arrangement = FlowLayout.Arrange(flow, id => _measured.GetValueOrDefault(id, DefaultPillSize), options);
         ExtentWidth = _arrangement.Extent.Width;
         ExtentHeight = _arrangement.Extent.Height;
 
@@ -875,7 +949,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         var mayFail = flow.Nodes.Where(n => n.OnFailure == FailurePolicy.Ignore).Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
         Edges.Clear();
         foreach (var route in _arrangement.Edges)
-            Edges.Add(new CanvasEdgeViewModel(route, mayFail.Contains(route.To)));
+            Edges.Add(new CanvasEdgeViewModel(route, mayFail.Contains(route.To), options.Lines));
+        UntangleState = FlowTidy.Check(flow, options.Align);
 
         _selected.RemoveWhere(id => Find(id) is null);
         _selectedEdges.RemoveWhere(k => !Edges.Any(e => e.From == k.From && e.To == k.To));
@@ -945,7 +1020,10 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         if (e.PropertyName is nameof(ConfigSession.Current) or nameof(ConfigSession.Problems))
             Sync();
         if (e.PropertyName == nameof(ConfigSession.CanEdit))
+        {
             OnPropertyChanged(nameof(CanEdit));
+            OnPropertyChanged(nameof(CanUntangle));
+        }
     }
 
     public void Dispose()
