@@ -52,7 +52,8 @@ public sealed record LayoutOptions
 public sealed record NodeBox(string Id, Rect Bounds, int Column, int Row, string? Card);
 
 /// <summary>An edge between two top-level boxes; an edge naming a card member is drawn from/to its card.</summary>
-/// <param name="WrapLaneY">Set on an edge from a wrapped row's end to the next row's start: the gap's middle (D-060).</param>
+/// <param name="WrapLaneY">Set on an edge from a wrapped row's end to the next row's start (D-060), or from a block's
+/// last box to the line under it (D-066): the gap's middle.</param>
 public sealed record EdgeRoute(string From, string To, EdgeWhen When, Point Start, Point End, double? WrapLaneY = null);
 
 /// <param name="Columns">Top-level ids per column, top to bottom.</param>
@@ -68,7 +69,8 @@ public sealed record FlowArrangement(
 /// <summary>
 /// The canvas layout, always automatic (D-020): one column per layer left→right, a node's layer = 1 + the
 /// highest layer it waits for, order within a column = order in <see cref="Flow.Nodes"/>. Columns are centred on
-/// the tallest; long simple chains wrap onto rows (D-060). Works on invalid flows too (autosave keeps half-built ones): cycles and unknown ids are ignored.
+/// the tallest of their line; long simple chains wrap onto rows (D-060) and what follows starts a new line under the
+/// block (D-066). Works on invalid flows too (autosave keeps half-built ones): cycles and unknown ids are ignored.
 /// </summary>
 public static class FlowLayout
 {
@@ -195,7 +197,6 @@ public static class FlowLayout
                 columns[layer].Add(node.Id);
         }
         var heights = columns.Select(c => c.Sum(id => sizes[id].Height) + o.RowGap * Math.Max(0, c.Count - 1)).ToList();
-        var tallest = heights.Count == 0 ? 0 : heights.Max();
         var runs = SpineRuns(columns, edges, layers, o.WrapAfter);
 
         var boxes = new List<NodeBox>();
@@ -214,48 +215,61 @@ public static class FlowLayout
             }
         }
 
+        // Lines, read like text (D-066): a line is the columns up to and including the next wrapped block; the line
+        // after a block starts at the block's x, one WrapRowGap under it, and its columns are centred among themselves.
         var wrapLanes = new Dictionary<(string, string), double>();
-        var cursor = o.Padding;
-        var dy = 0.0; // after a wrapped block, what follows is top-aligned with its last row
-        for (var c = 0; c < columns.Count; c++)
+        var lineX = o.Padding;
+        var lineTop = o.Padding;
+        for (var c = 0; c < columns.Count;)
         {
-            if (!runs.TryGetValue(c, out var length))
+            var end = c;
+            while (end < columns.Count && !runs.ContainsKey(end))
+                end++;
+            var length = end < columns.Count ? runs[end] : 0;
+            List<string[]> rows = length == 0 ? [] : Enumerable.Range(end, length).Select(l => columns[l][0]).Chunk(o.WrapAfter).ToList();
+            var rowHeights = rows.Select(row => row.Max(id => sizes[id].Height)).ToList();
+            var tallest = Enumerable.Range(c, end - c).Select(l => heights[l]).Concat(rowHeights.Take(1)).DefaultIfEmpty(0).Max();
+
+            var cursor = lineX;
+            for (; c < end; c++)
             {
-                var y = o.Padding + (tallest - heights[c]) / 2 + dy;
+                var y = lineTop + (tallest - heights[c]) / 2;
                 for (var r = 0; r < columns[c].Count; r++)
                 {
                     Place(columns[c][r], cursor, y, c, r);
                     y += sizes[columns[c][r]].Height + o.RowGap;
                 }
                 cursor += (columns[c].Count == 0 ? 0 : columns[c].Max(id => sizes[id].Width)) + o.ColumnGap;
-                continue;
             }
+            if (length == 0)
+                break;
 
             // A spine run: rows of WrapAfter boxes like text, slots aligned across rows (D-060).
-            var ids = Enumerable.Range(c, length).Select(l => columns[l][0]).ToList();
-            var rows = ids.Chunk(o.WrapAfter).ToList();
             var slotWidths = Enumerable.Range(0, o.WrapAfter)
                 .Select(k => rows.Where(row => k < row.Length).Max(row => sizes[row[k]].Width)).ToList();
-            var rowTop = o.Padding + (tallest - sizes[ids[0]].Height) / 2 + dy;
+            var rowTop = lineTop + (tallest - rowHeights[0]) / 2;
             for (var r = 0; r < rows.Count; r++)
             {
-                var rowHeight = rows[r].Max(id => sizes[id].Height);
                 var x = cursor;
                 for (var k = 0; k < rows[r].Length; k++)
                 {
-                    Place(rows[r][k], x, rowTop + (rowHeight - sizes[rows[r][k]].Height) / 2, c + r * o.WrapAfter + k, 0);
+                    Place(rows[r][k], x, rowTop + (rowHeights[r] - sizes[rows[r][k]].Height) / 2, c + r * o.WrapAfter + k, 0);
                     x += slotWidths[k] + o.ColumnGap;
                 }
+                var lane = rowTop + rowHeights[r] + o.WrapRowGap / 2;
                 if (r + 1 < rows.Count)
+                    wrapLanes[(rows[r][^1], rows[r + 1][0])] = lane;
+                else if (c + length < columns.Count)
                 {
-                    wrapLanes[(rows[r][^1], rows[r + 1][0])] = rowTop + rowHeight + o.WrapRowGap / 2;
-                    rowTop += rowHeight + o.WrapRowGap;
+                    // Into the next line: every box in the column after the run hangs off the run's last box.
+                    foreach (var next in columns[c + length])
+                        wrapLanes[(rows[r][^1], next)] = lane;
                 }
+                rowTop += rowHeights[r] + o.WrapRowGap;
             }
-            cursor += slotWidths.Sum() + o.ColumnGap * o.WrapAfter;
-            c += length - 1;
-            if (c + 1 < columns.Count)
-                dy = rowTop - (o.Padding + (tallest - heights[c + 1]) / 2);
+            lineX = cursor;
+            lineTop = rowTop;
+            c += length;
         }
 
         var byId = boxes.Where(b => b.Card is null).ToDictionary(b => b.Id, b => b.Bounds, StringComparer.Ordinal);

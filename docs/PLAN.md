@@ -1,12 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T13.2 done (feat/m13-flows-card, PR #40): Flows card icon via `FlowGlyph.CodeOf`, Run/Stop button (#62 reasons in tooltip), each card one Tab stop (Enter/Space/UIA Invoke open), menu Open/Run (D-070); merged main with T13.7 (PR #38)
+Current task: T13.2 done (feat/m13-flows-card, PR #40): Flows card icon via `FlowGlyph.CodeOf`, Run/Stop button (#62 reasons in tooltip), each card one Tab stop (Enter/Space/UIA Invoke open), menu Open/Run (D-070); T13.1 (#36), T13.4 (#37), T13.5 (#39), T13.7 (#38) done
 Last green checkpoint: a63612a Merge origin/main into feat/m13-flows-card
-Next action: lane A continues with T13.3 (feat/m13-nav-collapse): `Editor.ViewModels/Config/EditorSettingsStore.cs` tests first (missing / corrupt / round-trip / debounce); lane D continues with T13.8 (feat/m13-flow-run): `flow.run` in Core/Catalog/ProviderCatalog.cs with `ParamSpec.RefersTo = Flow`, tests first per flow-calls/DESIGN.md §2.2 (reuses `Outcomes.Fix` / `FlowShape`); other lanes per PLAN → M13 Order
+Next action: lane A continues with T13.3 (feat/m13-nav-collapse): `Editor.ViewModels/Config/EditorSettingsStore.cs` tests first (missing / corrupt / round-trip / debounce), then T13.6 (Layout menu; T13.5 is in); lane D continues with T13.8 (feat/m13-flow-run): `flow.run` in Core/Catalog/ProviderCatalog.cs with `ParamSpec.RefersTo = Flow`, tests first per flow-calls/DESIGN.md §2.2 (reuses `Outcomes.Fix` / `FlowShape`); lanes B and C have no more tasks; other lanes per PLAN → M13 Order
 Tree state: builds, all tests green · Uncommitted: none
 Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user was told (T13.7) that their live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs, fails and stops the flow (cancelling Sony); "Skip what depends on it" fixes it. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
-
 ---
 
 ## Workflow (usage-cap-proof, D-018)
@@ -59,7 +58,7 @@ section rewritten, FEATURES where behaviour changed).
   in `Editor.ViewModels/Canvas` (arm → pan past the system drag rectangle → swallow), `GetSystemMetricsForDpi` via
   `LibraryImport`, converted to DIP. Done when: helper tests (below threshold = menu, past = pan + no menu, DPI scaling); running editor:
   right-drag over empty canvas, a pill and an edge pans without selecting; a still right click opens each menu.
-- [ ] T13.5 P2 **New line after a wrapped chain** (feat/m13-wrap-newline, D-066). Files: `Core/Layout/FlowLayout.cs`
+- [x] T13.5 P2 **New line after a wrapped chain** (feat/m13-wrap-newline, PR #39, D-066). Files: `Core/Layout/FlowLayout.cs`
   (segments split at wrapped runs; the next segment at the block's x, one `WrapRowGap` under it, centred among
   itself; its entry edge gets `WrapLaneY`), `Core/Layout/EdgeCurve.cs` (wrap edge into a target lower than the lane),
   `Core.Tests` layout tests. Done when: tests for a 7-chain + fork (fork x = block x, top below the block, no overlap,

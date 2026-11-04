@@ -65,7 +65,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   every canvas command; live region announces run results (≤ 1/s); canvas exposes the same names.
 
 - Long simple chains (more than 5 boxes, no forks or joins) wrap onto new rows like text; forks, joins and
-  side-by-side branches keep their own columns (D-060). M13: whatever follows a wrapped chain starts on a new line
+  side-by-side branches keep their own columns (D-060). Whatever follows a wrapped chain starts on a new line
   under it, at its left edge, joined like the wrapped rows (D-066).
 - **Layout** (M13, replaces Tidy up, D-067): a CommandBar flyout, per flow on this PC, applied at once (not a flow
   edit, no undo): Wrap long chains (After 3 steps / After 5 steps / After 8 steps / Never) · Spacing (Compact /
