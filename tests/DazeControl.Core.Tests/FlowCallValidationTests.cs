@@ -101,6 +101,15 @@ public class FlowCallValidationTests
     }
 
     [Fact]
+    public void ACallerOfAFlowInALoopIsWarnedItNeedsFixing()
+    {
+        var problems = Validate(Flow("c", "C", "a") + Flow("a", "A", "a"));
+
+        var warning = Assert.Single(problems, p => p.FlowId == "c");
+        Assert.Equal((Severity.Warning, "A needs fixing; this step runs its last working version."), (warning.Severity, warning.Message));
+    }
+
+    [Fact]
     public void APartialCallMakesASucceededRunPartial()
     {
         Assert.Equal(FlowOutcome.PartiallySucceeded, Outcomes.Summarize([(NodeOutcome.Succeeded, false)], partialCall: true));

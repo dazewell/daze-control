@@ -43,8 +43,12 @@ public sealed class FlowCalls(Func<ConfigSnapshot> snapshot) : IFlowStarter
         if (state is null)
             return new(null, Library.Empty, flowId, $"{flowId} isn't there anymore. Pick another flow.");
         var name = state.Running?.Name ?? state.Written?.Name ?? flowId;
+        // The file's On switch wins over a retained older version (D-021 keeps definitions, not "on"): §2.3.
+        var enabled = (state.Written ?? state.Running)?.Enabled ?? false;
         return state.Running switch
         {
+            _ when state.Written is { Enabled: false } || (state.Running is not null && !enabled) =>
+                new(null, Library.Empty, name, $"{name} is turned off, so it didn't run. Turn it on in Flows."),
             null => new(null, Library.Empty, name, $"{name} didn't start. It needs fixing."),
             { Enabled: false } => new(null, Library.Empty, name, $"{name} is turned off, so it didn't run. Turn it on in Flows."),
             var flow => new(flow, state.Library, name, null),

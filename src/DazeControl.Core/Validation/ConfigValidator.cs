@@ -62,7 +62,6 @@ public static partial class ConfigValidator
         var byId = new Dictionary<string, Flow>(StringComparer.Ordinal);
         foreach (var flow in flows)
             byId.TryAdd(flow.Id, flow);
-        var broken = FlowsWithErrors(problems);
         var calls = flows.SelectMany(f => f.Nodes.OfType<StepNode>()
                 .Where(s => s.Step == ProviderCatalog.RunFlowId)
                 .Select(s => (Flow: f, Step: s, Target: CalledFlow(s))))
@@ -71,6 +70,8 @@ public static partial class ConfigValidator
         var graph = byId.Keys.ToDictionary(id => id, _ => new HashSet<string>(StringComparer.Ordinal), StringComparer.Ordinal);
         foreach (var call in calls.Where(c => c.Target != c.Flow.Id && byId.ContainsKey(c.Target!)))
             graph[call.Flow.Id].Add(call.Target!);
+        // Errors first, so a flow this pass rejects (a loop) also gets callers' "needs fixing" warnings.
+        var warnings = new List<(Flow Flow, string Path, Flow Called)>();
         foreach (var (flow, step, target) in calls)
         {
             var path = $"flows.{flow.Id}.nodes.{step.Id}.with.flow";
@@ -82,9 +83,15 @@ public static partial class ConfigValidator
                 problems.Add(new(Severity.Error, path,
                     "That would make a loop: " + flow.Name + string.Concat(back.Select((id, i) =>
                         (i == 0 ? " runs " : ", which runs ") + byId[id].Name)) + $", which runs {flow.Name}.", flow.Id));
-            else if (!called.Enabled)
+            else
+                warnings.Add((flow, path, called));
+        }
+        var broken = FlowsWithErrors(problems);
+        foreach (var (flow, path, called) in warnings)
+        {
+            if (!called.Enabled)
                 problems.Add(new(Severity.Warning, path, $"{called.Name} is turned off, so this step will fail. Turn it on in Flows.", flow.Id));
-            else if (broken.Contains(target!))
+            else if (broken.Contains(called.Id))
                 problems.Add(new(Severity.Warning, path, $"{called.Name} needs fixing; this step runs its last working version.", flow.Id));
         }
     }

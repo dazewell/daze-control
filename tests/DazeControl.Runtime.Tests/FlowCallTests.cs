@@ -343,6 +343,22 @@ public sealed class FlowCallTests : IDisposable
     }
 
     [Fact]
+    public void AFlowTurnedOffInTheFileNeverRunsItsOlderVersion()
+    {
+        var old = new Flow("mk", "Mk", []);
+        var state = new FlowState("mk", old, [new(Core.Validation.Severity.Error, "flows.mk.nodes", "bad", "mk")])
+        {
+            Written = old with { Enabled = false },
+        };
+        var calls = new FlowCalls(() => ConfigSnapshot.Empty with { Flows = [state] });
+
+        var called = calls.Resolve("mk");
+
+        Assert.Null(called.Flow);
+        Assert.Equal("Mk is turned off, so it didn't run. Turn it on in Flows.", called.Refusal);
+    }
+
+    [Fact]
     public async Task DryRunDoesNotDescend()
     {
         Define(FlowYaml("top", "Top", Call("call", "mk")) + FlowYaml("mk", "Mk", Notify("s")));
