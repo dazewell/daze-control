@@ -64,6 +64,15 @@ public sealed class EditorSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void ARelativePathIsMadeFull()
+    {
+        using var store = new EditorSettingsStore("editor.json", _time, _log.Add);
+
+        Assert.True(Path.IsPathFullyQualified(store.Path));
+        Assert.Equal(Path.Combine(Environment.CurrentDirectory, "editor.json"), store.Path);
+    }
+
+    [Fact]
     public void ChangesRoundTripThroughTheFile()
     {
         using (var store = Open())

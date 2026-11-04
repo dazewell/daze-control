@@ -49,7 +49,7 @@ public sealed class EditorSettingsStore : IDisposable
 
     public EditorSettingsStore(string path, TimeProvider? time = null, Action<string>? log = null)
     {
-        Path = path;
+        Path = System.IO.Path.GetFullPath(path); // "editor.json" alone has no folder to create
         _log = log ?? (_ => { });
         Settings = Read();
         _timer = (time ?? TimeProvider.System).CreateTimer(_ => Flush(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
