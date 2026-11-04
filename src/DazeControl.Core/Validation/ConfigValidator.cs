@@ -229,7 +229,7 @@ public static partial class ConfigValidator
             foreach (var text in flow.Hotkeys)
             {
                 if (!Hotkey.TryParse(text, out _))
-                    Error(_path + ".hotkeys", $"\"{text}\" isn't a shortcut: use Win, Ctrl or Alt plus A–Z, 0–9 or F1–F24 (like Alt+Z).");
+                    Error(_path + ".hotkeys", $"\"{text}\" isn't a shortcut: use Win, Ctrl or Alt plus a letter, number, F1–F24 or a key like [, or a number pad key like Num1.");
             }
         }
 

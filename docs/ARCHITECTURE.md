@@ -203,8 +203,9 @@ given on the command line as the Run value's argument.
 - `Runtime/Triggers/HotkeyTable`: chord → flow from `RunnableFlows`, applied as a diff on each reload (unchanged
   chords stay registered), first flow wins a chord, a chord that fails (another app) fails alone and is retried
   on the next reload; Pause unregisters all (not persisted). Failures → `status` ("Alt+Z: Another app uses…").
-  M13b (designed, D-071..D-073): keys add punctuation (VK_OEM_*, US names) and Num0–Num9 (alone allowed, no
-  Shift, Num Lock on); `record-hotkey` pauses all chords while the editor records; failures are retried when
+  Keys (`Core/Input/Hotkey`, T13b.1, D-071): A–Z, 0–9, F1–F24, punctuation (VK_OEM_*, US names in YAML) and
+  Num0–Num9 (alone allowed, no Shift, Num Lock on); `Hotkey.Check` → `HotkeyRejection` for the recorder;
+  `Core/Input/WindowsShortcuts` lists Windows 11's own Win chords (H5 vs H6, D-073). M13b still designed: `record-hotkey` pauses all chords while the editor records; failures are retried when
   recording ends, on Resume and when the tray menu opens. Still `RegisterHotKey` only: no keyboard hook.
 - `Runtime/Tray/TrayMenu`: the menu as data (UX §5.6), rendered by `Engine/Shell/TrayIcon` each time it opens
   (left or right click), dark/light like the taskbar (uxtheme #135/#136). Icon drawn in code by
