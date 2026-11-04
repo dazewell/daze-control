@@ -20,7 +20,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   asks "Save your changes to <flow>?" Save / Don't save / Cancel. **Flows** in the nav pane while a flow is open
   goes back to the list (after that prompt; Cancel stays in the flow). Run runs the saved version (its tooltip says so);
   Dry run and Test this step use what's on screen. Library and Settings keep autosaving (300 ms).
-  CommandBar (Run, Dry run, Stop, Undo, Redo, Tidy up (M13: Layout, §5.2), Canvas | Outline, Problems (n)) · left
+  CommandBar (Run, Dry run, Stop, Undo, Redo, Layout (§5.2), Canvas | Outline, Problems (n)) · left
   palette 240 (collapsible, search) · canvas · right inspector 320 (280–480). Nothing selected → inspector
   shows the flow's settings (no extra dialog).
 - The Flows card's icon is the flow's own glyph, else its first step's (`FlowGlyph.CodeOf`, as in flow settings and
@@ -82,7 +82,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   edit, no undo): Wrap long chains (After 3 steps / After 5 steps / After 8 steps / Never) · Spacing (Compact /
   Normal / Roomy) · Line up (Centred / Along the top) · Lines (Curved / Right angles) · separator · **Untangle lines**
   (reorders steps within columns, a flow edit with undo; off with its reason when it can't help) · Reset layout.
-  Radio items show the current choice; strings #63.
+  Radio items show the current choice; strings #63. Untangle off shows its reason where a shortcut would sit (a
+  disabled item has no tooltip). Reset layout is off while the flow has the default layout. After a pick the canvas
+  has focus, so Ctrl+Z undoes Untangle.
 
 ## 5.3 Visual language
 - Pill: min 232×56, max width 320, grows taller with text size. CornerRadius 28; the left cap is the status

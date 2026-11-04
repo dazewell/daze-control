@@ -119,7 +119,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         CloseFlow();
         if (!Session.Current.Flows.Any(f => f.Id == flowId))
             return;
-        var editor = new Canvas.FlowCanvasViewModel(Session, flowId, _clipboard);
+        var editor = new Canvas.FlowCanvasViewModel(Session, flowId, _clipboard, EditorSettings);
         Inspector = new Inspector.InspectorViewModel(Session, editor, _engine, _post, desktop: Desktop);
         Inspector.OpenFlowRequested += OnCalledFlowRequested;
         Run = new Runs.RunOverlayViewModel(editor, _engine, _post);

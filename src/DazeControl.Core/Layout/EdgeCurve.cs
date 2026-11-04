@@ -5,7 +5,8 @@ namespace DazeControl.Core.Layout;
 /// over (UX §5.3). Hit-testing is the distance to the curve (UX §5.8 #2). A wrapped edge (<see cref="IsWrapped"/>)
 /// is orthogonal instead: right, down to the row gap, back left to a lane before the next row, down, right into the
 /// port (D-060). The same shape leads from a block into the line under it, whose target may sit far below the gap
-/// (D-066).
+/// (D-066). With Lines › Right angles (D-067) every other edge is orthogonal too: right to the gap's middle, along it
+/// to the target's height, right into the port (<see cref="BendX"/>).
 /// </summary>
 public readonly record struct EdgeCurve(Point Start, Point Control1, Point Control2, Point End, Point Tip)
 {
@@ -23,6 +24,32 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
 
     public bool IsWrapped => WrapLaneY is not null;
 
+    /// <summary>A right-angled edge's vertical run (D-067); null for a curve or a wrapped edge.</summary>
+    public double? BendX { get; init; }
+
+    /// <summary>Drawn as straight runs with rounded corners (<see cref="RoundedSegments"/>), not a Bézier.</summary>
+    public bool IsOrthogonal => WrapLaneY is not null || BendX is not null;
+
+    /// <summary>The drawn shape of a laid-out edge for the flow's Lines choice.</summary>
+    public static EdgeCurve For(EdgeRoute route, LayoutLines lines)
+    {
+        ArgumentNullException.ThrowIfNull(route);
+        if (route.WrapLaneY is { } lane)
+            return Wrapped(route.Start, route.End, lane);
+        return lines == LayoutLines.RightAngles ? RightAngled(route.Start, route.End) : Between(route.Start, route.End);
+    }
+
+    /// <summary>
+    /// Right, down or up in the middle of the gap, right into the port. A target too close or behind (a cycle in a
+    /// half-built flow) bends one <see cref="WrapStep"/> out of the port.
+    /// </summary>
+    public static EdgeCurve RightAngled(Point start, Point tip)
+    {
+        var end = new Point(tip.X - ArrowLength, tip.Y);
+        var bend = end.X - start.X >= 2 * WrapStep ? (start.X + end.X) / 2 : start.X + WrapStep;
+        return new EdgeCurve(start, start, end, end, tip) { BendX = bend };
+    }
+
     public static EdgeCurve Wrapped(Point start, Point tip, double laneY)
     {
         var end = new Point(tip.X - ArrowLength, tip.Y);
@@ -34,6 +61,8 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
     {
         get
         {
+            if (BendX is { } bend)
+                return [Start, new(bend, Start.Y), new(bend, End.Y), End];
             if (WrapLaneY is not { } lane)
                 return [Start, End];
             var outX = Start.X + WrapStep;
@@ -43,7 +72,7 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
     }
 
     /// <summary>
-    /// A wrapped edge as straight runs and rounded corners: each item is a line end and, when it rounds a corner,
+    /// An orthogonal edge as straight runs and rounded corners: each item is a line end and, when it rounds a corner,
     /// the corner (a quadratic control point) and where the curve ends.
     /// </summary>
     public IEnumerable<(Point LineTo, Point? Corner, Point CurveTo)> RoundedSegments()
@@ -68,11 +97,14 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
     }
 
     /// <summary>The curve's middle; a wrapped edge's is the return lane's middle, so chips stay in the row gap.</summary>
-    public Point Midpoint => WrapLaneY is { } lane ? new((Start.X + WrapStep + Tip.X - WrapStep) / 2, lane) : At(0.5);
+    /// <remarks>A right-angled edge's is its vertical run's middle.</remarks>
+    public Point Midpoint => WrapLaneY is { } lane ? new((Start.X + WrapStep + Tip.X - WrapStep) / 2, lane)
+        : BendX is { } bend ? new(bend, (Start.Y + End.Y) / 2)
+        : At(0.5);
 
     public Point At(double t)
     {
-        if (IsWrapped)
+        if (IsOrthogonal)
             return AlongCorners(t);
         var u = 1 - t;
         double B(double a, double b, double c, double d) => u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
@@ -83,7 +115,7 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
     public double DistanceTo(Point p)
     {
         var best = Distance(p, End, Tip);
-        if (IsWrapped)
+        if (IsOrthogonal)
         {
             var corners = Corners;
             for (var i = 1; i < corners.Count; i++)

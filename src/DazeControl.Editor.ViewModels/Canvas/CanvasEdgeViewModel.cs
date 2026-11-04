@@ -21,12 +21,12 @@ public enum EdgeStyle
 
 public sealed partial class CanvasEdgeViewModel : ObservableObject
 {
-    internal CanvasEdgeViewModel(EdgeRoute route, bool intoMayFail)
+    internal CanvasEdgeViewModel(EdgeRoute route, bool intoMayFail, LayoutLines lines = LayoutLines.Curved)
     {
         From = route.From;
         To = route.To;
         When = route.When;
-        Curve = route.WrapLaneY is { } lane ? EdgeCurve.Wrapped(route.Start, route.End, lane) : EdgeCurve.Between(route.Start, route.End);
+        Curve = EdgeCurve.For(route, lines);
         Style = route.When switch
         {
             EdgeWhen.Failure => EdgeStyle.IfFails,

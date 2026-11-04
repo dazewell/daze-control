@@ -552,7 +552,61 @@ public sealed partial class ShellWindow : Window
 
     private void OnRunInfoClosed(InfoBar sender, InfoBarClosedEventArgs args) => _run?.CloseInfo();
 
-    private void OnTidyUp(object sender, RoutedEventArgs e) => _editor?.TidyUp();
+    // ---- Layout (D-067, UX #63) ----
+
+    private bool _layoutPicked;
+
+    private void OnLayoutMenuOpening(object? sender, object e)
+    {
+        _layoutPicked = false;
+        LayoutMenu.Items.Clear();
+        if (_editor is not { } editor)
+            return;
+        var o = editor.LayoutOptions;
+        var spacing = editor.LayoutChoices.Spacing ?? Core.Layout.LayoutSpacing.Normal;
+        LayoutMenu.Items.Add(LayoutChoice("Wrap long chains", "wrap", o.WrapAfter,
+            [("After 3 steps", 3), ("After 5 steps", 5), ("After 8 steps", 8), ("Never", 0)], v => editor.SetLayout(wrapAfter: v)));
+        LayoutMenu.Items.Add(LayoutChoice("Spacing", "spacing", spacing,
+            [("Compact", Core.Layout.LayoutSpacing.Compact), ("Normal", Core.Layout.LayoutSpacing.Normal), ("Roomy", Core.Layout.LayoutSpacing.Roomy)],
+            v => editor.SetLayout(spacing: v)));
+        LayoutMenu.Items.Add(LayoutChoice("Line up", "align", o.Align,
+            [("Centred", Core.Layout.LayoutAlign.Centre), ("Along the top", Core.Layout.LayoutAlign.Top)], v => editor.SetLayout(align: v)));
+        LayoutMenu.Items.Add(LayoutChoice("Lines", "lines", o.Lines,
+            [("Curved", Core.Layout.LayoutLines.Curved), ("Right angles", Core.Layout.LayoutLines.RightAngles)], v => editor.SetLayout(lines: v)));
+        LayoutMenu.Items.Add(new MenuFlyoutSeparator());
+
+        // Off with its reason (X-006): a disabled item shows no tooltip, so the reason sits where a shortcut would.
+        var untangle = new MenuFlyoutItem { Text = "Untangle lines", Icon = new FontIcon { Glyph = "\uE8CB" }, IsEnabled = editor.CanUntangle };
+        if (editor.UntangleReason is { } reason)
+        {
+            untangle.KeyboardAcceleratorTextOverride = reason;
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(untangle, reason);
+        }
+        untangle.Click += (_, _) => _layoutPicked = editor.Untangle();
+        LayoutMenu.Items.Add(untangle);
+        var reset = new MenuFlyoutItem { Text = "Reset layout", IsEnabled = !editor.LayoutChoices.IsDefault };
+        reset.Click += (_, _) => { editor.ResetLayout(); _layoutPicked = true; };
+        LayoutMenu.Items.Add(reset);
+    }
+
+    /// <summary>After a pick the canvas has focus again, so Ctrl+Z undoes Untangle at once (canvas keys, UX §5.8).</summary>
+    private void OnLayoutMenuClosed(object? sender, object e)
+    {
+        if (_layoutPicked)
+            FlowCanvasControl.Focus(FocusState.Programmatic);
+    }
+
+    private MenuFlyoutSubItem LayoutChoice<T>(string text, string group, T current, (string Text, T Value)[] choices, Action<T> pick)
+    {
+        var sub = new MenuFlyoutSubItem { Text = text };
+        foreach (var (label, value) in choices)
+        {
+            var item = new RadioMenuFlyoutItem { Text = label, GroupName = "layout-" + group, IsChecked = EqualityComparer<T>.Default.Equals(value, current) };
+            item.Click += (_, _) => { pick(value); _layoutPicked = true; };
+            sub.Items.Add(item);
+        }
+        return sub;
+    }
 
     private void OnUndo(object sender, RoutedEventArgs e) => _editor?.Undo();
 
