@@ -83,7 +83,7 @@ it, take the rect again, right-click that. To only *look* at the menu, post `WM_
 Screenshots: `System.Drawing.Graphics.CopyFromScreen` from Windows PowerShell, then read the PNG (2026-11-01).
 
 Editor (M7): run it on a throwaway file, never the user's config: `DazeControl.Editor.exe --config <scratch>\config.yaml`. A dev engine for it takes the path as its first argument (`DazeControl.exe <scratch>\config.yaml`, no `--config`: that would be read as the path). Its pipe is per user, so stop it before starting another engine. Screenshot helper: never UIA-invoke the name "Close", it is the window's close button.
-Open a flow with UIA (`InvokePattern` on the button named "Edit <flow name>"). Drags need **absolute
+Open a flow with UIA (`InvokePattern` on the card named "Open <flow name>"; Run is "Run <flow name>"). The user's installed engine owns the per-user pipe: to run a scratch flow, `scripts/stop.ps1`, start the dev engine, and restart `%LOCALAPPDATA%\DazeControlApp\current\DazeControl.exe` after. Key presses: check `GetForegroundWindow` is your editor before each one (other sessions' editors take the foreground). Drags need **absolute
 `mouse_event` moves** (`MOUSEEVENTF_MOVE|ABSOLUTE|VIRTUALDESK`, coordinates scaled to 0–65535 over the virtual
 screen): `SetCursorPos` alone reaches WinUI as a single pointer move, so a drag never starts. Light theme: flip
 HKCU…Personalize `AppsUseLightTheme`; high contrast: `SystemParametersInfo(SPI_SETHIGHCONTRAST)` with

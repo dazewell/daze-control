@@ -113,8 +113,7 @@ public sealed partial class RunsPageViewModel : ObservableObject, IDisposable
     private string GlyphOf(string flowId)
     {
         var flow = _session.Current.Flows.FirstOrDefault(f => f.Id == flowId);
-        var code = flow?.Glyph ?? flow?.Nodes.OfType<StepNode>().Select(s => Core.Catalog.ProviderCatalog.Find(s.Step)?.Glyph).OfType<string>().FirstOrDefault();
-        return FlowItemViewModel.DecodeGlyph(code ?? "E8FD");
+        return FlowGlyph.Decode(flow is null ? "E8FD" : FlowGlyph.CodeOf(flow));
     }
 
     private void OnEngineEvent(PipeEvent e)

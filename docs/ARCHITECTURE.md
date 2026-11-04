@@ -269,13 +269,18 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
 - `Engine/EngineClient` — one subscribed pipe connection that also tells whether the engine runs (retry every
   3 s while open) and one on-demand request connection; requests answer null when it isn't running.
 - `ShellViewModel`, `FlowsPageViewModel` (cards synced in place so a toggle keeps focus; last run from
-  `history`, refreshed on `runFinished`), `SettingsPageViewModel` (autostart through the engine, pop-up in config).
+  `history`, refreshed on `runFinished`; glyph `FlowGlyph.CodeOf`; the card's `RunCommand` sends `run` (trigger
+  "Editor") or `cancel`, "Stop" while a `runStarted`/`nodeStarted` of that flow has no `runFinished`, cleared when the
+  engine goes; the view's `FlowCard` control is the card's Tab stop and UIA Invoke, D-070), `SettingsPageViewModel` (autostart through the engine, pop-up in config).
 - Flow editor (M7): Flows › name opens `Canvas/FlowCanvasViewModel` for one flow. Layout is `Core/Layout/FlowLayout`
   (D-020): layer = longest path from a start, rows = `nodes` order, cards stack members; edges naming a member
-  are drawn from/to its card; cycles and dangling ids are ignored so half-built flows still draw. A last pass wraps
-  spine runs longer than `LayoutOptions.WrapAfter` into rows (D-060); wrapped boxes keep their layer as `Column`, so
-  keys, Tidy up and `nodes` don't see the wrap. `EdgeCurve` is the Bézier + hit-test, or the orthogonal wrapped edge
-  (`EdgeRoute.WrapLaneY` set). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
+  are drawn from/to its card; cycles and dangling ids are ignored so half-built flows still draw. Spine runs longer
+  than `LayoutOptions.WrapAfter` wrap into rows (D-060), and columns are placed in **lines** like text (D-066): a line
+  is the columns up to and including the next wrapped block, centred on its own tallest column; the line after a
+  block starts at the block's x, one `WrapRowGap` under its bottom, so later lines never reach left of an earlier
+  block and the width stays bounded by the blocks. Wrapped boxes keep their layer as `Column`, so keys, Tidy up and
+  `nodes` don't see the wrap. `EdgeCurve` is the Bézier + hit-test, or the orthogonal wrapped edge
+  (`EdgeRoute.WrapLaneY` set on a row break and on the edge from a block's last box into the next line). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
   and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
   edges batched by style, D-037) and maps pointer/keys to VM calls; zoom/scroll is a `ScrollViewer` (50–200 %).
   Right-drag pan (D-069): `Canvas/RightDragPan` (pure, tested) arms on a mouse right press, pans once the pointer
@@ -385,8 +390,8 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   §3 (D-053..D-057). Each M12 task moves its part into the sections above.
 - Designed, not built (M13, PLAN → M13): flow calls and inputs — [flow-calls/DESIGN.md](flow-calls/DESIGN.md) (D-061..
   D-064: flow inputs and `$input` refs (T13.9), the editor for calls (T13.10); `flow.run` itself is built, Runtime);
-  layout segments after a wrapped block (D-066) and the Layout menu's `LayoutOptions` (D-067);
-  `EditorSettingsStore` / `editor.json` (D-068); Flows card Run (D-070). Each task rewrites the
+  the Layout menu's `LayoutOptions` (D-067);
+  `EditorSettingsStore` / `editor.json` (D-068). Each task rewrites the
   section it changes. Fallback outcomes (D-065) are built (T13.7: Config, Runtime).
 
 - Library leftovers: editing an Android device's inputs and an audio match in place; renaming audio and Bluetooth keys
