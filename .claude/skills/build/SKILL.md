@@ -64,7 +64,11 @@ Setup panics, X-002), then start `<scratch>\install\current\DazeControl.exe <scr
 (or `<install>\Update.exe apply --silent --norestart` to test the clean exit). Remove with
 `<install>\Update.exe uninstall --silent`. Velopack's own log: `%LOCALAPPDATA%\velopack\velopack_DazeControlApp.log`.
 Never `Start-Process -Wait` on Setup in PowerShell 7: it also waits for the engine Setup starts. Never push a `v` tag
-(that publishes a release; the user decides). When the user has you cut one, once release.yml is green set its notes
+(that publishes a release; the user decides). When the user has you cut one: the tag is the version (D-079): list
+the merged PR titles since the last tag (a merge commit's subject is "Merge pull request #n", its body the PR title):
+`git log --first-parent --format="%s%n%b" <last tag>..origin/main | Select-String '^(feat|fix|docs|chore|ci|refactor|test)[(:]'`
+(a `gh pr list --search merged:>` date query also catches the PR whose merge the last tag sits on),
+and take the last tag + minor if any title is a `feat`, else + patch; tag `origin/main` and push the tag (release.yml builds that number). Once release.yml is green set its notes
 (user, 2026-11-04, from v0.39 on, never retroactively): `gh release edit v<Version> --notes-file <file>` with a short
 bullet list of the features and fixes merged since the previous tag, in user terms (what changes in use, no code
 details), one line each.

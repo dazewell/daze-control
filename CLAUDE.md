@@ -7,8 +7,10 @@ C# / .NET 10: Native AOT headless engine, WinUI 3 editor (D-001). Written entire
 ## Start here: resume
 
 Usage caps cut sessions often. **Always start with the `resume` skill**: it reads the Resume block at the
-top of [docs/PLAN.md](docs/PLAN.md) and tells you exactly where the last agent stopped. Checkpoint rule:
-after every green sub-step build + test → commit → rewrite the Resume block in the same commit → push.
+top of [docs/PLAN.md](docs/PLAN.md) and your task's PR, and tells you exactly where the last agent stopped.
+Checkpoint rule: after every green sub-step build + test → commit → push → rewrite the PR's `## Resume` section.
+Usage is scarce and every tool call re-reads the whole conversation: batch lookups, read sections not whole
+docs, never wait on CI (auto-merge does) (D-079).
 
 ## The repo is the memory
 

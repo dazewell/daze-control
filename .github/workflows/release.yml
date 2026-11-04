@@ -1,6 +1,6 @@
 # Publishes a GitHub Release with the Velopack Setup.exe, portable zip and update feed (D-043) when a tag v<Version>
-# is pushed by hand; the tag must equal <Version> in Directory.Build.props. Only a tag releases, not a merge to main
-# (unlike the OSD's D-031): the user decides when Daze Control ships.
+# is pushed by hand; the tag is the version (D-079: PRs no longer bump <Version>). Only a tag releases, not a merge
+# to main (unlike the OSD's D-031): the user decides when Daze Control ships.
 name: Release
 
 on:
@@ -25,12 +25,12 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Check the tag matches <Version>
+      - name: Read the version from the tag
         id: check
         shell: pwsh
         run: |
-          $version = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-          if ("v$version" -ne $env:GITHUB_REF_NAME) { throw "Tag $env:GITHUB_REF_NAME doesn't match <Version> $version in Directory.Build.props." }
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Tag $env:GITHUB_REF_NAME isn't v<major>.<minor>.<patch>." }
           "version=$version" >> $env:GITHUB_OUTPUT
 
       - name: Build and test
@@ -48,7 +48,7 @@ jobs:
 
       - name: Pack
         shell: pwsh
-        run: ./scripts/pack.ps1
+        run: ./scripts/pack.ps1 -Version ${{ steps.check.outputs.version }}
 
       # A draft left by a failed run would make vpk refuse ("already an existing release tagged ..."); a rerun of
       # this tag deletes it first. Filtered here, not in jq: PowerShell mangles quotes inside a native argument.
