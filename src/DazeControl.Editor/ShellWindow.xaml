@@ -107,7 +107,7 @@
                                 <Grid Margin="0,0,0,12">
                                     <TextBlock Text="Flows" Style="{StaticResource TitleTextBlockStyle}" />
                                     <Button HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}"
-                                            IsEnabled="{x:Bind ViewModel.Flows.CanEdit, Mode=OneWay}"
+                                            IsEnabled="{x:Bind ViewModel.Flows.CanEdit, Mode=OneWay}" AutomationProperties.Name="New flow"
                                             Command="{x:Bind ViewModel.Flows.NewFlowCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <FontIcon Glyph="&#xE710;" FontSize="14" />
@@ -126,7 +126,8 @@
                                          IsOpen="{x:Bind ViewModel.Flows.HasDesktopError, Mode=OneWay}" IsClosable="False" />
                                 <InfoBar Severity="Error" Title="Couldn't run it" Message="{x:Bind ViewModel.Flows.RunError, Mode=OneWay}"
                                          IsOpen="{x:Bind ViewModel.Flows.HasRunError, Mode=OneWay}" IsClosable="False" />
-                                <ItemsRepeater ItemsSource="{x:Bind ViewModel.Flows.Items}">
+                                <!-- Local: every card is a Tab stop (a repeater is one stop by default). -->
+                                <ItemsRepeater ItemsSource="{x:Bind ViewModel.Flows.Items}" TabFocusNavigation="Local">
                                     <ItemsRepeater.Layout>
                                         <StackLayout Spacing="4" />
                                     </ItemsRepeater.Layout>

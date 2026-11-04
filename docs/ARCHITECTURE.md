@@ -247,7 +247,9 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
 - `Engine/EngineClient` — one subscribed pipe connection that also tells whether the engine runs (retry every
   3 s while open) and one on-demand request connection; requests answer null when it isn't running.
 - `ShellViewModel`, `FlowsPageViewModel` (cards synced in place so a toggle keeps focus; last run from
-  `history`, refreshed on `runFinished`), `SettingsPageViewModel` (autostart through the engine, pop-up in config).
+  `history`, refreshed on `runFinished`; glyph `FlowGlyph.CodeOf`; the card's `RunCommand` sends `run` (trigger
+  "Editor") or `cancel`, "Stop" while a `runStarted`/`nodeStarted` of that flow has no `runFinished`, cleared when the
+  engine goes; the view's `FlowCard` control is the card's Tab stop and UIA Invoke, D-070), `SettingsPageViewModel` (autostart through the engine, pop-up in config).
 - Flow editor (M7): Flows › name opens `Canvas/FlowCanvasViewModel` for one flow. Layout is `Core/Layout/FlowLayout`
   (D-020): layer = longest path from a start, rows = `nodes` order, cards stack members; edges naming a member
   are drawn from/to its card; cycles and dangling ids are ignored so half-built flows still draw. A last pass wraps
@@ -365,7 +367,7 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   D-064: `IFlowStarter` shared with menus, `FlowRunner.RunNestedAsync`, call-graph validation, `$input` refs);
   fallback outcomes (D-065: `NodeOutcome.NotNeeded`, `FlowShape.Fallbacks`, `Outcomes.Summarize` counts handled
   failures as fine); layout segments after a wrapped block (D-066) and the Layout menu's `LayoutOptions` (D-067);
-  `EditorSettingsStore` / `editor.json` (D-068); Flows card Run (D-070). Each task rewrites the
+  `EditorSettingsStore` / `editor.json` (D-068). Each task rewrites the
   section it changes (Config's "ends PartiallySucceeded (D-024)" sentence goes with T13.7).
 
 - Library leftovers: editing an Android device's inputs and an audio match in place; renaming audio and Bluetooth keys

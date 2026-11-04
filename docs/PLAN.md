@@ -1,9 +1,9 @@
 # Plan
 
 ## Resume
-Current task: T13.1 done (feat/m13-nav-flows, PR #36): nav Flows leaves an open flow (D-047 prompt) and shows the list; T13.4 done (PR #37): right-drag pans, a still right click opens the menu (D-069)
-Last green checkpoint: deb9c73 feat(canvas): right-drag pans (T13.4) (#37)
-Next action: lane A continues with T13.2 (feat/m13-flows-card): `FlowsPageViewModel` glyph via `FlowGlyph.CodeOf` + Run/Stop; lane B has no more tasks; other lanes per PLAN → M13 Order
+Current task: T13.2 done (feat/m13-flows-card): Flows card icon via `FlowGlyph.CodeOf`, Run/Stop button (#62 reasons in tooltip), each card one Tab stop (Enter/Space/UIA Invoke open), menu Open/Run (D-070)
+Last green checkpoint: d67cfab wip(editor): Flows card glyph, Run/Stop button (T13.2)
+Next action: lane A continues with T13.3 (feat/m13-nav-collapse): `Editor.ViewModels/Config/EditorSettingsStore.cs` tests first (missing / corrupt / round-trip / debounce); other lanes per PLAN → M13 Order
 Tree state: builds, all tests green · Uncommitted: none
 Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user's live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails; mention it to the user when T13.7 lands. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
 
@@ -40,7 +40,7 @@ section rewritten, FEATURES where behaviour changed).
   Flows item while a flow is open → `LeaveFlowAsync` (D-047 prompt) → `CloseFlow`, show the list). Done when: in the
   running editor, Flows from an open flow shows the list; with a draft the Save / Don't save / Cancel prompt shows and
   Cancel stays in the flow; screenshots; no regressions in nav between other pages.
-- [ ] T13.2 P3 + P5 **Flows card: the flow's icon and a Run button** (feat/m13-flows-card, D-070). Cause of P3: the
+- [x] T13.2 P3 + P5 **Flows card: the flow's icon and a Run button** (feat/m13-flows-card, PR TBD, D-070). Cause of P3: the
   card decodes `flow.Glyph` only (lightning when unset), while flow settings show `FlowGlyph.CodeOf` (own, else the
   first step's). Files: `Editor.ViewModels/FlowsPageViewModel.cs` (glyph via `FlowGlyph.CodeOf`; `Run`/`Stop`
   commands through `IEngineClient` with trigger "Editor"; `CanRun` + reason #62; running state from engine events),
