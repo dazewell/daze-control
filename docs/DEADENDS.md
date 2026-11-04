@@ -71,3 +71,25 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
   but never fires.
 - Evidence: scratch spike `hk.ps1`, 2026-11-03 (Win+\, Win+-, Ctrl+Alt+[, Num keys registered fine).
 - Retry only if: Windows adds an owner query. Until then, use a fixed list of Windows' shortcuts (D-073).
+
+## X-008 · 2026-11-03 · A `KeyboardAccelerator` on a page-wide Grid with the default placement
+- Tried: Ctrl+S as a `KeyboardAccelerator` on `ShellWindow`'s `FlowEditorPage` Grid (so it works while Save is still
+  off), `KeyboardAcceleratorPlacementMode` left at Auto.
+- Failed because: WinUI shows every accelerator's keys as an automatic tooltip of the element that owns it, so
+  resting the pointer anywhere on the flow editor that has no tooltip of its own popped a "Ctrl+S" tip at the
+  top centre of the page (user, v0.29.0: after a double-click, closing the search, clicking elsewhere).
+- Evidence: screenshot of the 0.29.0 build, 2026-11-03: the tip centred over the page right after opening a flow;
+  it is the only accelerator in the editor.
+- Retry only if: never with Auto on a container. Set `KeyboardAcceleratorPlacementMode="Hidden"` there; a button's own
+  tooltip says its keys ("Save your changes to this flow (Ctrl+S)").
+
+## X-009 · 2026-11-03 · `SDC_USE_SUPPLIED_DISPLAY_CONFIG` with no modes to get a screen set's saved arrangement
+- Tried: `CcdDisplays.UseOnly` (ported from scd): the chosen paths with `modeInfoIdx` invalid, no mode array,
+  `USE_SUPPLIED | ALLOW_CHANGES | SAVE_TO_DATABASE`, expecting "the database restores this set's last layout".
+- Failed because: with supplied paths and no modes Windows picks modes and positions itself; only
+  `SDC_TOPOLOGY_SUPPLIED` looks the set up in its database. On the user's PC [INT-0, HDMI-0] came out with the laptop
+  primary and the DELL on its right (their Extend has the DELL primary, laptop left); [HDMI-0] from Extend left the
+  laptop on and duplicated (two paths, one source), and the step reported Succeeded.
+- Evidence: live matrix 2026-11-03 20:45 (PLAN F5; scripts and log in the coordinator's notes folder `f5-display/`).
+- Retry only if: never alone. Ask with `SDC_TOPOLOGY_SUPPLIED` first, give each path its own source, and check the
+  result (D-077).

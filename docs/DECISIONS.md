@@ -853,7 +853,7 @@ Status: accepted (M13 design)
 - Revisit if: view state must follow the user to another PC (then roaming `%APPDATA%`).
 
 ## D-069 · 2026-11-03 · Right-drag pans the canvas; a right click that doesn't move still opens the menu
-Status: accepted (M13 design; user, 2026-11-03)
+Status: accepted (M13 design; user, 2026-11-03); built T13.4. D-074 adds pan room, so it moves a flow that fits too
 - Decision: in `FlowCanvas`, a mouse right press arms a pan; once the pointer leaves the system drag rectangle
   (`GetSystemMetricsForDpi(SM_CXDRAG/SM_CYDRAG, dpi)` for the window's DPI, converted to DIP as px × 96 / dpi, since
   pointer positions are DIP) it captures, pans like middle-drag with the same cursor, and the
@@ -930,3 +930,82 @@ Status: accepted (design M13b; not built)
 - Why not name the app that holds the key: Windows has no API for it (X-007). Why not the error code alone: Windows
   and apps both give 1409 (X-007).
 - Revisit if: the Windows list goes wrong after a Windows update (the generic "Another app…" is the safe fallback).
+
+## D-074 · 2026-11-03 · The mouse wheel zooms the canvas at the pointer; a flow can always be moved
+Status: accepted (user, 2026-11-03, v0.29.0 feedback; design, not built: PLAN F1). Changes UX §5.2 Navigate.
+- Decision: in `FlowCanvas`, a mouse wheel notch zooms (×1.1 per 120 delta, 50–200 %) around the point under the
+  pointer, which stays put; Ctrl+wheel does the same; Shift+wheel still scrolls sideways. The scroll extent gets
+  room to pan: the `ScrollViewer`'s content becomes a transparent wrapper Grid around `Host` whose padding is the
+  viewport size (in content DIP at the current zoom) less a 48-DIP strip, so right-drag, middle-drag and Space+drag
+  move a flow that fits the window, at least 48 DIP of it stays on screen, and `Host`'s coordinates don't change.
+  The wrapper covers the whole viewport, so its `PointerWheelChanged` handler (mouse only, marked handled) runs
+  before the `ScrollViewer` scrolls; a precision touchpad's two-finger scroll and pinch stay the `ScrollViewer`'s
+  own (pan, zoom). Fit (Ctrl+0) and opening a flow centre it. Right-drag (D-069) is unchanged.
+- Why: right-drag works as built but moves a flow only along an axis with room to scroll (0.29.0 build: sideways
+  only), which the user read as broken; they asked for wheel zoom, and for a flow that fits to be movable too
+  (2026-11-03).
+- Why not wheel scroll as before: the user's flows are short and wide, so vertical scrolling rarely helps, and
+  diagram tools (Miro, Figma) zoom on the wheel. Why not an unbounded canvas (render transform instead of a
+  `ScrollViewer`): loses the `ScrollViewer`'s pinch, touchpad and keyboard scrolling and `BringIntoView` for focus.
+- Revisit if: mouse users miss vertical scrolling on tall flows (then wheel scrolls when the flow is taller than the
+  window), or the touchpad's two-finger scroll turns out to arrive as wheel input (then tell it by device type).
+
+## D-075 · 2026-11-03 · A flow's id follows its name, as a safe slug, when a rename is saved
+Status: accepted (user, 2026-11-03: "transparently convert the name to safe format"; design, not built: PLAN F4)
+- Decision: `Core/Model/FlowIds.Slug(name)`: diacritics removed (NFD, non-spacing marks dropped), letters and digits of
+  any script lowercased (invariant), every other run of characters one `-`, trimmed of `-`, at most 40 characters (cut
+  at a `-`), "flow" when nothing is left. `FlowIds.Unique(slug, taken)` adds `-2`, `-3`… (New flow uses it too). On
+  Save of a draft whose name differs from the saved one, the id becomes `Unique(Slug(name))` among the other flows (no
+  change when it is already that). In the same write, `Core/Model/FlowRefs.Rename(config, old, new)` rewrites every
+  `flow.run` `flow:` that named the old id (M12's `menu.show` items join it when built). After the engine has
+  loaded the save, a desktop shortcut of the old id is made again for the new id and the old one removed (pipe
+  `create-shortcut` then `remove-shortcut`, both `exactId`). The open flow stays open under the new id. Undo inside
+  the draft reverts the name before Save; after Save, renaming back gives the old id again when it's free.
+- Not rewritten: history and logs keep the id each run had (a record of what ran; the Runs list shows the recorded
+  name); `dctl run <old id>` stops resolving (`dctl run "<name>"` still works). Hotkeys, controller buttons and tray
+  placement live inside the flow, so they follow on reload. Per-flow view state in `editor.json` (T13.6 layouts) must
+  follow too: T13.6 keys it by id and calls the same rename.
+- Why: the user matches log lines to flows by id, and nothing in the UI shows it; an id made from the name is
+  guessable. Only on a name change, so a hand-written id that differs from its name isn't rewritten on every save.
+- Why not rewrite history.jsonl: it's the engine's append-only record and the logs can't be rewritten anyway, so the
+  two would disagree. Why not a separate stable id plus a display slug: two ids for one flow, and the YAML key is
+  already the id. Why not ASCII only: a Cyrillic name would become "flow". Why not on every keystroke: the draft
+  (D-047) isn't saved, and other flows' references would change for nothing.
+- Revisit if: users script `dctl run <id>` and lose it on rename (then keep an `aliases:` list), or the Flows card's
+  last run (by id) going blank after a rename bothers them.
+
+## D-076 · 2026-11-03 · Delete a flow from the Flows list, with Undo; off while another flow runs it
+Status: accepted (user, 2026-11-03: Undo bar, not a dialog; off until unused; design, not built: PLAN F4)
+- Decision: the Flows card's context menu (and Delete on a focused card) has **Delete**. It removes the flow through
+  `ConfigSession.Update` (saved after 300 ms; the engine reloads and frees its shortcut keys) and shows an InfoBar on the
+  Flows page, #67 "Connect Technics was deleted." with **Undo**, which puts the flow back at its place with its id. The
+  bar, and with it the chance to undo, ends on another Delete, New flow, opening a flow, leaving the Flows page or
+  closing the editor; only then is the flow's desktop shortcut removed (`remove-shortcut`, `exactId`), so Undo needs
+  no shortcut work. Delete is off while another flow's `flow.run` names it (`FlowRefs.Callers`), with #68 under it
+  in the menu, and while the editor can't edit. Runs already in progress finish; history keeps its runs.
+- Why: the user found no way to delete a flow (v0.29.0). An Undo bar costs one click less than a dialog, and the
+  flow list autosaves, so the bar is the only safety net besides config backups. Off while used matches the
+  Library's Remove (D-041) and keeps another flow from turning itself off (#51 is an error, D-021).
+- Why not a confirm dialog: the user picked Undo. Why not delete callers' steps too: silently changes flows the user
+  isn't looking at.
+- Revisit if: users want Delete inside the open flow (then the same bar on the Flows list after leaving it).
+
+## D-077 · 2026-11-03 · Display steps check the screens after each change and fail when Windows did something else
+Status: accepted (user, 2026-11-03: "restore layout and use only screens… don't restore… Only PC screen / Extend";
+live test OK'd; design, not built: PLAN F5). Refines D-019.
+- Decision: after each `SetDisplayConfig`, `display.outputs` and `display.layout` re-query the active paths and
+  compare them with the request (`DisplayCheck`): the same screens on, no two sharing a source unless asked, and for a
+  layout each screen's resolution and position. A mismatch fails the step with #70 (the runner's failure policy
+  decides what follows). `UseOnly` gives each screen its own source and asks Windows for the set's saved arrangement
+  (`SDC_TOPOLOGY_SUPPLIED`) before letting it pick one (`USE_SUPPLIED | ALLOW_CHANGES`, X-009). `Apply` validates
+  first, remaps source ids per adapter, and, when Windows refuses the layout from where the screens are now (error 87),
+  switches to the layout's set first and then applies it. `display.topology` (Win+P presets) is unchanged: it was right
+  in every case.
+- Why: the live test (PLAN F5) showed "Use only these screens" making up an arrangement, leaving the laptop on and
+  duplicated while reporting success, and "Restore screen layout" refused from that state. A step that says
+  Succeeded when the screens are wrong is worse than one that fails (the fallback can fix it, D-065).
+- Why not drop `SDC_ALLOW_CHANGES`: without it a set the database doesn't know is refused outright, and some drivers
+  need small mode changes; the check catches what it changes instead. Why not retry until it matches: each attempt
+  flickers every screen.
+- Revisit if: the check fails on a change that looks right on screen (for example a refresh rate a driver rounds), then
+  compare less.
