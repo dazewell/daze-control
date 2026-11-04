@@ -1,4 +1,5 @@
 using DazeControl.Core.Catalog;
+using DazeControl.Core.Model;
 using DazeControl.Core.Validation;
 using DazeControl.Runtime.Control;
 
@@ -16,7 +17,11 @@ public sealed class FlowProvider(IFlowStarter flows) : IStepProvider
     {
         ArgumentNullException.ThrowIfNull(context);
         var target = ConfigValidator.CalledFlow(context.Node) ?? "";
-        var answer = flows.Start(target, "Flow · " + context.Flow.Name, context.Chain);
+        var inputs = FlowInputs.Given(context.Node);
+        if (flows.Resolve(target) is { Flow: { } called } resolved
+            && FlowInputs.Check(called, resolved.Library, inputs, context.Flow.Name) is { } missing)
+            return Task.FromException(new StepFailedException(missing));
+        var answer = flows.Start(target, "Flow · " + context.Flow.Name, context.Chain, inputs);
         return answer.Started ? Task.CompletedTask : Task.FromException(new StepFailedException(answer.Message ?? "It didn't start."));
     }
 }

@@ -24,7 +24,8 @@ public interface IFlowStarter
     /// <param name="flowId">The flow to start.</param>
     /// <param name="trigger">For its history: "Flow · Headphones".</param>
     /// <param name="chain">The caller's call chain (flow ids from the top run), passed on so a start loop is caught.</param>
-    StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain);
+    /// <param name="inputs">What the caller passes (D-064), already checked against the flow's library.</param>
+    StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain, IReadOnlyDictionary<string, string> inputs);
 }
 
 /// <summary>The engine's <see cref="IFlowStarter"/>: flows from the latest snapshot, starts through the launcher.</summary>
@@ -55,9 +56,10 @@ public sealed class FlowCalls(Func<ConfigSnapshot> snapshot) : IFlowStarter
         };
     }
 
-    public StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain)
+    public StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain, IReadOnlyDictionary<string, string> inputs)
     {
         ArgumentNullException.ThrowIfNull(chain);
+        ArgumentNullException.ThrowIfNull(inputs);
         var called = Resolve(flowId);
         if (called.Flow is not { } flow)
             return new(false, called.Refusal);
@@ -67,7 +69,8 @@ public sealed class FlowCalls(Func<ConfigSnapshot> snapshot) : IFlowStarter
             return new(false, "Flows can't start other flows yet.");
         if (flow.WhenRunning == WhenRunning.Ignore && launcher.IsRunning(flowId))
             return new(true, $"{called.Name} was already running, so it wasn't started again.");
-        var run = launcher.TriggerAsync(flow, called.Library, trigger, chain);
+        // Resolved here, so the launched run (whose runner sees no caller) gets the caller's devices (D-064).
+        var run = launcher.TriggerAsync(FlowInputs.Apply(flow, inputs), called.Library, trigger, chain);
         // The launched run is the launcher's: its result goes to history and the pop-up. Observe a fault only.
         _ = run.ContinueWith(t => _ = t.Exception, CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
