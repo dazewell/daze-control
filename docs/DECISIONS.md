@@ -941,8 +941,9 @@ Status: accepted (user, 2026-11-03, v0.29.0 feedback; design, not built: PLAN F1
   The wrapper covers the whole viewport, so its `PointerWheelChanged` handler (mouse only, marked handled) runs
   before the `ScrollViewer` scrolls; a precision touchpad's two-finger scroll and pinch stay the `ScrollViewer`'s
   own (pan, zoom). Fit (Ctrl+0) and opening a flow centre it. Right-drag (D-069) is unchanged.
-- Why: the user asked for wheel zoom instead of chasing right-drag (2026-11-03), and right-drag "didn't work" partly
-  because a flow that fits had no scroll extent, so nothing moved (verified on the 0.29.0 build: sideways only).
+- Why: right-drag works as built but moves a flow only along an axis with room to scroll (0.29.0 build: sideways
+  only), which the user read as broken; they asked for wheel zoom, and for a flow that fits to be movable too
+  (2026-11-03).
 - Why not wheel scroll as before: the user's flows are short and wide, so vertical scrolling rarely helps, and
   diagram tools (Miro, Figma) zoom on the wheel. Why not an unbounded canvas (render transform instead of a
   `ScrollViewer`): loses the `ScrollViewer`'s pinch, touchpad and keyboard scrolling and `BringIntoView` for focus.
@@ -988,3 +989,23 @@ Status: accepted (user, 2026-11-03: Undo bar, not a dialog; off until unused; de
 - Why not a confirm dialog: the user picked Undo. Why not delete callers' steps too: silently changes flows the user
   isn't looking at.
 - Revisit if: users want Delete inside the open flow (then the same bar on the Flows list after leaving it).
+
+## D-077 · 2026-11-03 · Display steps check the screens after each change and fail when Windows did something else
+Status: accepted (user, 2026-11-03: "restore layout and use only screens… don't restore… Only PC screen / Extend";
+live test OK'd; design, not built: PLAN F5). Refines D-019.
+- Decision: after each `SetDisplayConfig`, `display.outputs` and `display.layout` re-query the active paths and
+  compare them with the request (`DisplayCheck`): the same screens on, no two sharing a source unless asked, and for a
+  layout each screen's resolution and position. A mismatch fails the step with #70 (the runner's failure policy
+  decides what follows). `UseOnly` gives each screen its own source and asks Windows for the set's saved arrangement
+  (`SDC_TOPOLOGY_SUPPLIED`) before letting it pick one (`USE_SUPPLIED | ALLOW_CHANGES`, X-009). `Apply` validates
+  first, remaps source ids per adapter, and, when Windows refuses the layout from where the screens are now (error 87),
+  switches to the layout's set first and then applies it. `display.topology` (Win+P presets) is unchanged: it was right
+  in every case.
+- Why: the live test (PLAN F5) showed "Use only these screens" making up an arrangement, leaving the laptop on and
+  duplicated while reporting success, and "Restore screen layout" refused from that state. A step that says
+  Succeeded when the screens are wrong is worse than one that fails (the fallback can fix it, D-065).
+- Why not drop `SDC_ALLOW_CHANGES`: without it a set the database doesn't know is refused outright, and some drivers
+  need small mode changes; the check catches what it changes instead. Why not retry until it matches: each attempt
+  flickers every screen.
+- Revisit if: the check fails on a change that looks right on screen (for example a refresh rate a driver rounds), then
+  compare less.

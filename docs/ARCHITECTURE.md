@@ -399,7 +399,10 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   tooltip hidden (X-008, F3); `Core/Model/FlowIds` (slug, unique) and `FlowRefs` (callers, rename) behind flow
   delete with Undo and the id following a saved rename (D-075, D-076, F4). Flow ids are keys in: other flows'
   `flow.run` (and M12 `menu.show`), history and logs (never rewritten), desktop .lnk args and file names (D-049),
-  `dctl run`, the engine's per-id launcher slots, and T13.6's per-flow layouts in `editor.json`.
+  `dctl run`, the engine's per-id launcher slots, and T13.6's per-flow layouts in `editor.json`. Display steps (F5,
+  D-077, X-009): `UseOnly` asks `SDC_TOPOLOGY_SUPPLIED` first with a source per screen, `CcdLayout.Apply` remaps
+  source ids and retries from the layout's set on error 87, and a pure `DisplayCheck` compares the active paths with
+  the request after every write; `display.topology` stays as built.
 
 - Library leftovers: editing an Android device's inputs and an audio match in place; renaming audio and Bluetooth keys
   (their cards show the device's name, not the key, D-046).

@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M13 fixes planned (docs/m13-fixes-plan): F1–F4 from the user's v0.29.0 feedback, D-074..D-076, X-008. T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done
-Last green checkpoint: 8488f78 feat(m13): flow.run runs another flow, nested or started, with loop guards (T13.8) (#41)
-Next action: the M13 fixes F1–F4 in parallel (PLAN → M13 fixes; one session each: fix/m13-right-drag, fix/m13-flow-run-picker, fix/m13-ctrl-s-hint, feat/m13-flow-delete-rename); then T13.3 (feat/m13-nav-collapse: `EditorSettingsStore` tests first), T13.9 (feat/m13-flow-inputs) and T13b.1 (feat/m13b-hotkey-keys)
+Current task: M13 fixes planned (docs/m13-fixes-plan, PR #42): F1–F5 from the user's v0.29.0 feedback, D-074..D-077, X-008, X-009. T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done
+Last green checkpoint: 8fca795 docs(m13): plan the v0.29.0 feedback fixes F1-F4 (D-074..D-076, X-008)
+Next action: the M13 fixes F1–F5 in parallel (PLAN → M13 fixes; one session each: feat/m13-wheel-zoom, fix/m13-flow-run-picker, fix/m13-ctrl-s-hint, feat/m13-flow-delete-rename, fix/m13-display-restore); then T13.3 (feat/m13-nav-collapse: `EditorSettingsStore` tests first), T13.9 (feat/m13-flow-inputs) and T13b.1 (feat/m13b-hotkey-keys)
 Tree state: builds, all tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. This PC's installed app was 0.22.0 on 2026-11-03 (0.23.0 downloaded, applies on the next engine start): check `sq.version` before chasing a "missing" feature. F1 replaces the right-drag hunt with wheel zoom (user); D-069's right-drag stays as built. T13.6 must key per-flow layouts by id and follow F4's rename (D-075). T13.10 builds on F2's flow picker. The user's live Connect Technics flow: `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails (told in T13.7; "Skip what depends on it" fixes it). Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers: `flow.run` `inputs` param (T13.9); #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config; Runs-page nested lanes; measure.ps1 can't run while the installed engine holds the pipe.
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. F5's live display matrix changes the user's screens: ask the user first every time, save and restore, restart the installed engine (`%LOCALAPPDATA%\DazeControlApp\current\DazeControl.exe`). This PC's installed app was 0.22.0 on 2026-11-03 (0.23.0 downloaded, applies on the next engine start): check `sq.version` before chasing a "missing" feature. Right-drag (D-069) works as built; F1 adds wheel zoom and pan room. T13.6 must key per-flow layouts by id and follow F4's rename (D-075). T13.10 builds on F2's flow picker. The user's live Connect Technics flow: `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails (told in T13.7; "Skip what depends on it" fixes it). Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers: `flow.run` `inputs` param (T13.9); #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config; Runs-page nested lanes; measure.ps1 can't run while the installed engine holds the pipe.
 ---
 
 ## Workflow (usage-cap-proof, D-018)
@@ -17,31 +17,34 @@ Notes for next agent: release.yml is tag-only (D-043): never push a v-tag withou
 ---
 
 ## M13 fixes (user, 2026-11-03, v0.29.0 feedback) — first, before the remaining M13 tasks
-Designed 2026-11-03 (PR: docs/m13-fixes-plan): D-074..D-076, X-008, UX §5.1/§5.2/§5.7 #66–#69 "M13 fixes" notes.
-User answers (2026-11-03): skip the right-drag hunt and make the wheel zoom instead; a flow that fits can still be
-moved; Delete with an Undo bar (no dialog); Delete is off while another flow runs it. Found on the way: this PC's
-installed app was still 0.22.0 (0.23.0 downloaded, never applied; right-drag came in 0.24), and on the 0.29.0 build
-right-drag pans with a mouse, but only along an axis where the flow is bigger than the window.
+Designed 2026-11-03 (PR: docs/m13-fixes-plan): D-074..D-077, X-008, X-009, UX §5.1/§5.2/§5.7 #66–#70 "M13 fixes"
+notes. User answers (2026-11-03): right-drag is fine (it pans only where there's room to scroll; the user misread
+it), so F1 adds wheel zoom instead, and a flow that fits can still be moved; Delete with an Undo bar (no dialog);
+Delete is off while another flow runs it; a live display test was OK'd (run 2026-11-03 20:45, screens restored).
+Also found: this PC's installed app was still 0.22.0 (0.23.0 downloaded, applies on the next engine start).
 
-**Parallel:** F1–F4 run at once, one session and one PR each. Code files don't overlap except `ShellWindow.xaml`
+**Parallel:** F1–F5 run at once, one session and one PR each. Code files don't overlap except `ShellWindow.xaml`
 (F3: one attribute on `FlowEditorPage`; F4: the Flows card menu and the Undo InfoBar): whichever merges second takes
-both sides. F4 must not touch the inspector or canvas files (F2, F1). Docs: each adds its own lines (UX, ARCHITECTURE,
-FEATURES, PLAN tick) and takes both sides on conflict. Version: `fix` PRs bump the patch, F1 and F4 (`feat`) the
-minor, against `main` at merge time (main's number + 1).
+both sides. F4 must not touch the inspector or canvas files (F2, F1); F5 touches only `Providers/Display`, its tests
+and a new script. Docs: each adds its own lines (UX, ARCHITECTURE, FEATURES, PLAN tick) and takes both sides on
+conflict. Version: `fix` PRs bump the patch, `feat` PRs (F1, F4) the minor, against `main` at merge time (main's
+number + 1).
 
-- [ ] F1 **Wheel zoom; a flow can always be moved** (fix/m13-right-drag, D-074; the branch keeps its name). Cause: the
-  user's report was against 0.22.0 here, and on 0.29.0 a flow that fits the window has no scroll extent, so a
-  right-drag (or middle-drag) moves nothing; the user chose wheel zoom over chasing it (no touchpad change). Files:
-  `Editor/Canvas/FlowCanvas.xaml` (a transparent wrapper Grid around `Host` as the `ScrollViewer`'s content),
-  `FlowCanvas.xaml.cs` (wrapper padding = viewport − 48 DIP per side at the current zoom, on size and zoom changes;
-  `PointerWheelChanged` on the wrapper for mouse only, handled: plain and Ctrl+wheel zoom ×1.1 per notch at the
-  pointer, Shift+wheel scrolls sideways; Fit and open centre), a pure helper `Editor.ViewModels/Canvas/
+- [ ] F1 **Wheel zoom on the canvas; a flow can always be moved** (feat/m13-wheel-zoom, D-074). Not a bug: right-drag
+  (D-069) pans only along an axis with room to scroll, so a flow that fits the window doesn't move (seen on the 0.29.0
+  build); the user asked for wheel zoom and for pan room. Today the wheel scrolls, Shift+wheel scrolls sideways and
+  Ctrl+wheel/pinch zoom 50–200 % through the `ScrollViewer`; Fit, 100 % and Zoom in/out in the CommandBar use
+  `ZoomBy` / `ChangeView`. Files: `Editor/Canvas/FlowCanvas.xaml` (a transparent wrapper Grid around `Host` as the
+  `ScrollViewer`'s content), `FlowCanvas.xaml.cs` (wrapper padding = viewport − 48 DIP per side at the current zoom,
+  on size and zoom changes; `PointerWheelChanged` on the wrapper for mouse only, handled: plain and Ctrl+wheel zoom
+  ×1.1 per notch at the pointer, Shift+wheel scrolls sideways; touchpad two-finger scroll and pinch stay the
+  `ScrollViewer`'s; Fit and open centre; the zoom label and buttons follow), a pure helper `Editor.ViewModels/Canvas/
   CanvasViewport.cs` (offsets that keep the point under the pointer, pan room, clamp 50–200 %) with tests in
   `Editor.ViewModels.Tests`; docs UX §5.2 Navigate, ARCHITECTURE Editor canvas, FEATURES F7. Done when: helper tests
-  (zoom keeps the anchor at 50/100/200 %, clamps, pan room for a flow smaller and larger than the viewport); running
-  editor on a scratch copy of the user's config: the wheel zooms at the pointer, Shift+wheel scrolls sideways,
-  right-drag moves the 2-step "New flow" both ways and stops with 48 DIP showing, Ctrl+0 brings it back, a still
-  right click still opens the menus; screenshots.
+  (zoom keeps the anchor at 50/100/200 %, clamps at both ends, pan room for a flow smaller and larger than the
+  viewport); running editor on a scratch copy of the user's config: the wheel zooms at the pointer, the zoom label
+  and buttons agree, Shift+wheel scrolls sideways, right-drag moves the 2-step "New flow" both ways and stops with
+  48 DIP showing, Ctrl+0 brings it back, a still right click still opens the menus; screenshots.
 - [ ] F2 **"Run a flow": label under Flows, and a working flow picker** (fix/m13-flow-run-picker). Cause of the
   label: `CanvasNodeViewModel.Area` maps every catalog area but `"flow"`, so the Steps panel heading, the inspector's
   "flow › Run a flow" and the icon picker show the raw lowercase key. Cause of the picker: `ProviderCatalog` gives
@@ -74,6 +77,30 @@ minor, against `main` at merge time (main's number + 1).
   on New flow / open / leave); running editor on a scratch config: rename "New flow" to "Morning", Save → YAML key
   `morning`, a caller's step follows, its desktop shortcut still runs it, the engine log names `morning`; Delete then
   Undo restores it with its hotkey working; screenshots.
+
+- [ ] F5 **Display steps do what they say, or fail** (fix/m13-display-restore, D-077, X-009). Live test on the user's
+  PC (2026-11-03, laptop panel INT-0 + DELL on HDMI-0; log and scripts in the coordinator's notes folder,
+  `f5-display/`): "Project" (`display.topology`) is right every time, and "Restore screen layout" is right from a
+  normal state. Three failures, all in `CcdDisplays.UseOnly` and `CcdLayout.Apply`:
+  (1) "Use only these screens" [INT-0, HDMI-0] gives Extend with the laptop primary and DELL to its right, not the
+  user's arrangement (DELL primary at 0,0, laptop left at −2880), because `UseOnly` sends
+  `SDC_USE_SUPPLIED_DISPLAY_CONFIG` with no modes plus `SDC_ALLOW_CHANGES`, so Windows makes up positions instead of
+  reading its database (X-009); (2) "Use only" [HDMI-0] from Extend left the laptop on, duplicated, and reported
+  Succeeded: `ALLOW_CHANGES` lets Windows change the request and nothing checks the result; (3) "Restore screen
+  layout" Dual from that duplicate state failed with error 87: `Apply` keeps the saved source ids and remaps only
+  adapters and targets. Files: `Providers/Display/CcdDisplays.cs` (`UseOnly`: one distinct source id per chosen target
+  on its adapter; `SDC_TOPOLOGY_SUPPLIED | SDC_APPLY` first so Windows restores that set's last arrangement, then
+  `USE_SUPPLIED | ALLOW_CHANGES | SAVE_TO_DATABASE` only when the database has none), `CcdLayout.cs` (validate first;
+  source ids remapped to free ones per adapter; on error 87 switch to the layout's set with `TOPOLOGY_SUPPLIED`, then
+  apply), a pure `Providers/Display/DisplayCheck.cs` (what's active now vs what was asked: the set of screens, no
+  shared source unless asked, and for a layout each screen's resolution and position) called after every write, the
+  step failing with #70 when they differ; `Providers.Tests` for the source-id plan and the check (fakes, never
+  `SetDisplayConfig`); `scripts/display-check.ps1` (the live matrix: saves the current config, runs each step through
+  a dev engine and `dctl run --wait`, prints the state, restores in `finally`, restarts the installed engine). Done
+  when: those tests; the live matrix on the user's PC, **only with the user's OK at that time**, gives the user's
+  arrangement for "Use only" both, DELL alone for "Use only" HDMI-0 from Extend, and Dual from every starting state
+  (internal, external, extend, the old duplicate); screens restored and the installed engine restarted;
+  `display.topology` unchanged.
 
 ## M13 Priority: editor and flow updates (user, 2026-11-03) — after the M13 fixes above
 Designed 2026-11-03 (PR: docs/m13-design): D-061..D-070, UX §5.1–§5.9 "M13" notes and #47–#66, X-006,

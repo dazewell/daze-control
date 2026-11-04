@@ -249,7 +249,8 @@ steps" "After 8 steps" "Never" · "Spacing" "Compact" "Normal" "Roomy" · "Line 
 layout" · 64 "Running inside Headphones." · 65 "Would run Make it the default." · 66 Flows card menu "Open" · "Run"
 · "Delete" (F4) · M13 fixes: 67 "Connect Technics was deleted." / "Undo" · 68 "Headphones runs this flow. Remove that
 step first." / "Headphones and Morning run this flow. Remove those steps first." · 69 "Make another flow first. This
-step runs one of your other flows."
+step runs one of your other flows." · 70 (F5) "Windows set up the screens differently: DELL S2722QC is still off." /
+"…: ATNA40HQ05-0 is still on." / "…: DELL S2722QC isn't where Dual puts it." (the step fails; its fallback can run)
 M13b shortcut keys (own numbering, so M13's new numbers don't clash): H1 "That key can't be a shortcut. Try a
 letter, a number, F1–F24, a key like [ or \, or a number pad key." · H2 "Add Win, Ctrl or Alt, so the shortcut doesn't
 get in the way of your typing." · H3 "Turn on Num Lock to use the number pad." · H4 "Shift doesn't work with number
@@ -297,6 +298,8 @@ contrast: solid background, no dots.
   resting the pointer anywhere in the flow editor never shows a "Ctrl+S" tip; the Steps panel's "Run a flow" sits
   under "Flows", and its Flow picker lists the other flows by name; Delete on a card, then Undo, brings it back with
   its shortcut working; renaming "New flow" to "Morning" and saving shows `morning` in the next run's log line.
+  "Use only these screens" with both screens gives the user's Extend arrangement, with one gives that screen alone,
+  and "Restore screen layout" works from any starting state or fails with #70.
 - M13b: Win+\ , Ctrl+Num1 and Num5 record and run a flow; Win+[ with SwitchDisplay.ahk running shows H6 (or H7),
   and after that app quits, clicking into the box and out again (or opening the tray menu) clears the note
   without a restart; Num Lock off shows H3.

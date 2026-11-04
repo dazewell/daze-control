@@ -82,3 +82,14 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
   it is the only accelerator in the editor.
 - Retry only if: never with Auto on a container. Set `KeyboardAcceleratorPlacementMode="Hidden"` there; a button's own
   tooltip says its keys ("Save your changes to this flow (Ctrl+S)").
+
+## X-009 · 2026-11-03 · `SDC_USE_SUPPLIED_DISPLAY_CONFIG` with no modes to get a screen set's saved arrangement
+- Tried: `CcdDisplays.UseOnly` (ported from scd): the chosen paths with `modeInfoIdx` invalid, no mode array,
+  `USE_SUPPLIED | ALLOW_CHANGES | SAVE_TO_DATABASE`, expecting "the database restores this set's last layout".
+- Failed because: with supplied paths and no modes Windows picks modes and positions itself; only
+  `SDC_TOPOLOGY_SUPPLIED` looks the set up in its database. On the user's PC [INT-0, HDMI-0] came out with the laptop
+  primary and the DELL on its right (their Extend has the DELL primary, laptop left); [HDMI-0] from Extend left the
+  laptop on and duplicated (two paths, one source), and the step reported Succeeded.
+- Evidence: live matrix 2026-11-03 20:45 (PLAN F5; scripts and log in the coordinator's notes folder `f5-display/`).
+- Retry only if: never alone. Ask with `SDC_TOPOLOGY_SUPPLIED` first, give each path its own source, and check the
+  result (D-077).
