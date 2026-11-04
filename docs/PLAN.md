@@ -1,7 +1,7 @@
 # Plan
 
 ## Resume
-Current task: T13.2 done (feat/m13-flows-card): Flows card icon via `FlowGlyph.CodeOf`, Run/Stop button (#62 reasons in tooltip), each card one Tab stop (Enter/Space/UIA Invoke open), menu Open/Run (D-070)
+Current task: T13.2 done (feat/m13-flows-card, PR #40): Flows card icon via `FlowGlyph.CodeOf`, Run/Stop button (#62 reasons in tooltip), each card one Tab stop (Enter/Space/UIA Invoke open), menu Open/Run (D-070)
 Last green checkpoint: d67cfab wip(editor): Flows card glyph, Run/Stop button (T13.2)
 Next action: lane A continues with T13.3 (feat/m13-nav-collapse): `Editor.ViewModels/Config/EditorSettingsStore.cs` tests first (missing / corrupt / round-trip / debounce); other lanes per PLAN → M13 Order
 Tree state: builds, all tests green · Uncommitted: none
@@ -40,7 +40,7 @@ section rewritten, FEATURES where behaviour changed).
   Flows item while a flow is open → `LeaveFlowAsync` (D-047 prompt) → `CloseFlow`, show the list). Done when: in the
   running editor, Flows from an open flow shows the list; with a draft the Save / Don't save / Cancel prompt shows and
   Cancel stays in the flow; screenshots; no regressions in nav between other pages.
-- [x] T13.2 P3 + P5 **Flows card: the flow's icon and a Run button** (feat/m13-flows-card, PR TBD, D-070). Cause of P3: the
+- [x] T13.2 P3 + P5 **Flows card: the flow's icon and a Run button** (feat/m13-flows-card, PR #40, D-070). Cause of P3: the
   card decodes `flow.Glyph` only (lightning when unset), while flow settings show `FlowGlyph.CodeOf` (own, else the
   first step's). Files: `Editor.ViewModels/FlowsPageViewModel.cs` (glyph via `FlowGlyph.CodeOf`; `Run`/`Stop`
   commands through `IEngineClient` with trigger "Editor"; `CanRun` + reason #62; running state from engine events),
