@@ -28,20 +28,36 @@ public enum InspectorMode
     Many,
 }
 
-/// <summary>A shortcut row in the flow's settings: the recorder's value and its conflict note.</summary>
+/// <summary>A shortcut row in the flow's settings: the recorder's value, its note and its tip.</summary>
 public sealed partial class ShortcutViewModel(int index) : ObservableObject
 {
     public int Index { get; } = index;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Tip), nameof(HasTip))]
     public partial string Hotkey { get; internal set; } = "";
 
     /// <summary>"Another app uses Alt+Z. Try another one." / "Alt+Z already runs flow "TV only"."</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasProblem))]
+    [NotifyPropertyChangedFor(nameof(HasProblem), nameof(Note), nameof(HasNote))]
     public partial string? Problem { get; internal set; }
 
+    /// <summary>Why the last key pressed in this box was refused (UX §5.7 H1–H4, H7); cleared by the next recorded key.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Note), nameof(HasNote))]
+    public partial string? Rejection { get; internal set; }
+
     public bool HasProblem => Problem is not null;
+
+    /// <summary>What shows under the box: the refused key's reason, else the shortcut's problem.</summary>
+    public string? Note => Rejection ?? Problem;
+
+    public bool HasNote => Note is not null;
+
+    /// <summary>H8 for a number-pad key on its own.</summary>
+    public string? Tip => ShortcutTexts.NumLockTip(Hotkey);
+
+    public bool HasTip => Tip is not null;
 }
 
 /// <summary>A glyph in the flow's icon picker.</summary>
@@ -69,6 +85,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     /// <summary>The engine's lists behind <c>Suggest = Devices(kind)</c>: displays, services, credentials.</summary>
     private readonly Dictionary<string, IReadOnlyList<DeviceInfo>> _suggested = new(StringComparer.Ordinal);
     private IReadOnlyList<string> _shortcutProblems = [];
+    private string? _shortcutsFlowId; // whose rows Shortcuts holds, so a refusal's reason survives a refresh only there
     private CancellationTokenSource? _test;
     private bool _loading;
     private string? _stepType;
@@ -535,6 +552,11 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         ShowPopup = flow.Popup;
 
         var pending = Shortcuts.Where(s => s.Hotkey.Length == 0).ToList();
+        // A refused key's reason lives until the next recorded key, not until the next refresh (same row, same value).
+        var rejections = flow.Id == _shortcutsFlowId
+            ? Shortcuts.Where(s => s.Rejection is not null).ToDictionary(s => (s.Index, s.Hotkey), s => s.Rejection)
+            : [];
+        _shortcutsFlowId = flow.Id;
         Shortcuts.Clear();
         var problems = _session.Problems.Where(p => p.Path == $"flows.{flow.Id}.hotkeys").Select(p => p.Message).ToList();
         for (var i = 0; i < flow.Hotkeys.Count; i++)
@@ -545,10 +567,11 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             {
                 Hotkey = text,
                 Problem = problems.FirstOrDefault(m => m.StartsWith(text + " ", StringComparison.Ordinal)) ?? busy?[(text.Length + 2)..],
+                Rejection = rejections.GetValueOrDefault((i, text)),
             });
         }
         if (pending.Count > 0)
-            Shortcuts.Add(new ShortcutViewModel(flow.Hotkeys.Count));
+            Shortcuts.Add(new ShortcutViewModel(flow.Hotkeys.Count) { Rejection = rejections.GetValueOrDefault((flow.Hotkeys.Count, "")) });
     }
 
     private void ClearFields()
@@ -737,6 +760,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     {
         if (Flow is not { } flow)
             return;
+        if (index < Shortcuts.Count)
+            Shortcuts[index].Rejection = null; // also when the same chord comes again and nothing reloads
         var list = flow.Hotkeys.ToList();
         if (hotkey.Length == 0)
         {
@@ -759,6 +784,13 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                 Shortcuts.Remove(pending);
             EditFlow(f => f with { Hotkeys = [.. list] });
         }
+    }
+
+    /// <summary>The recorder at <paramref name="index"/> refused a key: say why under it (UX §5.7 H1–H4, H7). Nothing is written.</summary>
+    public void RejectShortcut(int index, HotkeyRejection reason)
+    {
+        if (index < Shortcuts.Count)
+            Shortcuts[index].Rejection = ShortcutTexts.Rejection(reason);
     }
 
     [RelayCommand]

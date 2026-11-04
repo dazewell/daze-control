@@ -332,7 +332,10 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   that change nothing), "If it fails" radio buttons whose hover/focus fades what wouldn't run
   (`Affected`, via `FlowCanvasViewModel.Preview`), timing, "Test this step" (D-040); a card → name + policy; nothing
   → the flow's settings (name, icon, tray folder, line above, shortcuts with the OSD's `HotkeyRecorder`, when
-  running, pop-up). Every change is one canvas `Edit` (one undo step); text commits on leaving the box or Enter;
+  running, pop-up). The recorder's `Rejected` carries a `HotkeyRejection` (Num Lock off = a pad navigation key that
+  isn't extended; H7 = Win/Ctrl/Alt let go with no key); `ShortcutViewModel.Note` shows its text
+  (`ShortcutTexts`, UX §5.7) over the engine's problem until the next recorded key, and the recorder announces it
+  (UIA notification); `Tip` is H8 for a number-pad key alone. Every change is one canvas `Edit` (one undo step); text commits on leaving the box or Enter;
   a value equal to the default is removed from `with:`. Device pickers (`Inspector/LibraryDevices`, shared with the
   Library page): Library items with live state from pipe `devices`, a missing key kept as "Not found on this PC",
   then "From Windows" devices — picking one adds it to the Library under a key made from its name; displays offer

@@ -917,7 +917,7 @@ Status: accepted (design M13b, item 5 of the user's 2026-11-03 request); built T
 - Revisit if: a chord is held by an app that grabs it again whenever we let go (then keep ours during recording).
 
 ## D-073 · 2026-11-03 · "Taken" vs "not supported": the recorder says which, and names Windows when it's Windows
-Status: accepted (design M13b); `HotkeyRejection` + `WindowsShortcuts` built T13b.1, H5/H6 built T13b.3, the recorder text T13b.2
+Status: accepted (design M13b); `HotkeyRejection` + `WindowsShortcuts` built T13b.1, H5/H6 built T13b.3, the recorder text (H1–H4, H7) built T13b.2
 - Decision: the recorder's `Rejected` event carries a reason. The inspector shows it under the box (UX §5.7 H1–H4):
   the key can't be a shortcut, a modifier is missing, Num Lock is off (a number-pad navigation key: `VirtualKey`
   End/Down/… with `KeyStatus.IsExtendedKey` false), or Shift with a Num key. A chord the engine can't register

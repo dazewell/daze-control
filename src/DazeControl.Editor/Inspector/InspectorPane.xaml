@@ -327,9 +327,14 @@
                         <DataTemplate x:DataType="vmi:ShortcutViewModel">
                             <StackPanel>
                                 <local:HotkeyRecorder Hotkey="{x:Bind Hotkey, Mode=OneWay}" Tag="{x:Bind}" AccessibleName="Shortcut"
-                                                      Recorded="OnShortcutRecorded" RecordingChanged="OnShortcutRecording"
+                                                      Recorded="OnShortcutRecorded" Rejected="OnShortcutRejected" RecordingChanged="OnShortcutRecording"
                                                       HorizontalAlignment="Left" />
-                                <TextBlock Text="{x:Bind Problem, Mode=OneWay}" Visibility="{x:Bind HasProblem, Mode=OneWay}" Style="{StaticResource FieldError}" />
+                                <!-- UX §5.7 H1–H4, H7 or the shortcut's problem; a refusal is read out by the recorder's UIA notification (no live region: it would read twice). -->
+                                <TextBlock Text="{x:Bind Note, Mode=OneWay}" Visibility="{x:Bind HasNote, Mode=OneWay}" Style="{StaticResource FieldError}" />
+                                <!-- UX §5.7 H8: a number-pad key alone takes that digit from typing. -->
+                                <TextBlock Text="{x:Bind Tip, Mode=OneWay}" Visibility="{x:Bind HasTip, Mode=OneWay}" Margin="0,4,0,0"
+                                           TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
