@@ -878,7 +878,7 @@ Status: accepted (M13 design; user, 2026-11-03)
 - Revisit if: users start flows by accident from the list (then confirm for flows without a pop-up).
 
 ## D-071 · 2026-11-03 · Shortcut keys: [ ] \ and the other punctuation keys, and number-pad digits (alone too)
-Status: accepted (design M13b, user 2026-11-03; not built)
+Status: accepted (design M13b, user 2026-11-03); built T13b.1
 - Decision: `Core/Input/Hotkey` takes, besides A–Z, 0–9 and F1–F24, the punctuation keys by virtual-key code with
   US names: `[` `]` `\` `;` `'` `,` `.` `/` `` ` `` `-` `=` (VK_OEM_4, 6, 5, 1, 7, COMMA, PERIOD, 2, 3, MINUS, PLUS),
   and the number pad's digits `Num0`–`Num9` (VK_NUMPAD0–9; "Numpad1" parses too, `Num1` is canonical). Win, Ctrl
@@ -917,7 +917,7 @@ Status: accepted (design M13b, item 5 of the user's 2026-11-03 request; not buil
 - Revisit if: a chord is held by an app that grabs it again whenever we let go (then keep ours during recording).
 
 ## D-073 · 2026-11-03 · "Taken" vs "not supported": the recorder says which, and names Windows when it's Windows
-Status: accepted (design M13b; not built)
+Status: accepted (design M13b); `HotkeyRejection` + `WindowsShortcuts` built T13b.1, the recorder text T13b.2, H5/H6 T13b.3
 - Decision: the recorder's `Rejected` event carries a reason. The inspector shows it under the box (UX §5.7 H1–H4):
   the key can't be a shortcut, a modifier is missing, Num Lock is off (a number-pad navigation key: `VirtualKey`
   End/Down/… with `KeyStatus.IsExtendedKey` false), or Shift with a Num key. A chord the engine can't register
