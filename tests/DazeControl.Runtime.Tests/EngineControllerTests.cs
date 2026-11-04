@@ -482,6 +482,25 @@ public sealed class EngineControllerTests : IDisposable
         Assert.Empty(_history.Recent);
     }
 
+    [Fact]
+    public async Task TestStepKeepsTheFlowsInputs()
+    {
+        const string yaml = """
+            library:
+              audio: { technics: { match: Technics } }
+            flows:
+              mk:
+                inputs: { output: { kind: audio, default: technics } }
+                nodes:
+                  - { id: set, step: audio.setDefault, with: { device: $output } }
+            """;
+
+        var answer = await WithStepRunner().HandleAsync(Test("set", "mk", yaml), CancellationToken.None);
+
+        Assert.True(answer.Ok, answer.Error); // validated with its input; it runs (and fails here: no audio provider)
+        Assert.NotNull(answer.Run);
+    }
+
     [Theory]
     [InlineData("b", "Fix this step first:")] // notify without text
     [InlineData("zz", "That step isn't in the flow.")]

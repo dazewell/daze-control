@@ -339,7 +339,7 @@ public sealed class FlowCallTests : IDisposable
         var calls = new FlowCalls(() => ConfigSnapshot.Empty);
         Assert.Equal("Didn't run A: it's already running further up, so that would loop.", FlowCalls.Guard(["a", "b"], "a", "A"));
         Assert.Null(FlowCalls.Guard(["a", "b"], "c", "C"));
-        Assert.False(calls.Start("a", "x", ["b"]).Started); // not in the (empty) config
+        Assert.False(calls.Start("a", "x", ["b"], new Dictionary<string, string>(), "Caller").Started); // not in the (empty) config
     }
 
     [Fact]
@@ -429,7 +429,7 @@ public sealed class FlowCallTests : IDisposable
                 : new(null, Library.Empty, flow.Name, $"{flow.Name} is turned off, so it didn't run. Turn it on in Flows.");
         }
 
-        public StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain)
+        public StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain, IReadOnlyDictionary<string, string> inputs, string callerName)
         {
             var called = Resolve(flowId);
             if (called.Flow is null)

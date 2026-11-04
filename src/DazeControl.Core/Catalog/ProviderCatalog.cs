@@ -144,6 +144,12 @@ public static class ProviderCatalog
                 Default = "true",
                 Help = "On: steps after this wait for it, and its result decides what runs next. Off: it starts on its own, and this flow carries on at once.",
             },
+            // Input name → a Library key of that input's kind, or this flow's own $name (D-064); missing = its default.
+            new(FlowInputs.Param, ParamKind.TextMap, "Inputs")
+            {
+                Help = "Which device each of its inputs gets. Inputs not given use that flow's defaults.",
+                Examples = [new("Another device", "output: sony")],
+            },
         ]),
     ];
 

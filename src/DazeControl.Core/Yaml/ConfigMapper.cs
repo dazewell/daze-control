@@ -71,6 +71,12 @@ public static class ConfigMapper
         WhenRunning = flow.WhenRunning == WhenRunning.Ignore ? null : EnumText(flow.WhenRunning),
         Popup = flow.Popup ? null : "false",
         Enabled = flow.Enabled ? null : "false",
+        Inputs = flow.Inputs.Count == 0 ? null : flow.Inputs.ToDictionary(i => i.Key, i => new InputDocument
+        {
+            Kind = EnumText(i.Value.Kind),
+            Name = i.Value.Label == i.Key ? null : i.Value.Label,
+            Default = i.Value.Default,
+        }),
         Nodes = [.. flow.Nodes.Select(ToDocument)],
     };
 
@@ -256,9 +262,24 @@ public static class ConfigMapper
                 WhenRunning = Enum(document.WhenRunning, path + ".whenRunning", WhenRunning.Ignore),
                 Popup = Bool(document.Popup, path + ".popup", true),
                 Enabled = Bool(document.Enabled, path + ".enabled", true),
+                Inputs = ReadInputs(document.Inputs, path + ".inputs"),
             };
             _flowId = null;
             return flow;
+        }
+
+        /// <summary>An input without a known kind is dropped (its <c>$name</c> uses then fail validation); the rest is checked there.</summary>
+        private ValueDictionary<FlowInput> ReadInputs(Dictionary<string, InputDocument>? document, string path)
+        {
+            var inputs = new List<KeyValuePair<string, FlowInput>>();
+            foreach (var (name, item) in document ?? [])
+            {
+                if (item?.Kind is null)
+                    Error($"{path}.{name}.kind", "Say what kind of device it takes (kind: audio, bluetooth, android or display).");
+                else if (TryEnum(item.Kind, $"{path}.{name}.kind", LibraryKind.Audio, out var kind))
+                    inputs.Add(KeyValuePair.Create(name, new FlowInput(kind, string.IsNullOrWhiteSpace(item.Name) ? name : item.Name, item.Default?.Trim() ?? "")));
+            }
+            return new(inputs);
         }
 
         private Node? ReadNode(NodeDocument? document, string nodesPath, int index)

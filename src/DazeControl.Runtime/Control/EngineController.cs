@@ -162,7 +162,8 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             return PipeMessage.Fail(id, "That step isn't in the flow.");
 
         var testId = TestPrefix + flow.Id;
-        var test = new Flow(testId, flow.Name, [step with { After = [], OnFailure = FailurePolicy.Stop }]);
+        // Inputs come along, so a step using $name validates and runs with the defaults (D-064).
+        var test = new Flow(testId, flow.Name, [step with { After = [], OnFailure = FailurePolicy.Stop }]) { Inputs = flow.Inputs };
         // Mapping replaces a bad value (timeout: nonsense) with the default: that must refuse the test, not run it.
         // Edges and the policy are dropped for the test, so their problems don't count.
         var mapped = $"flows.{flow.Id}.nodes.{step.Id}";
