@@ -23,6 +23,20 @@ public partial class App : Application
     public static string LogsFolder { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Core.AppInfo.FolderName, "logs");
 
+    /// <summary>One line in logs\editor.log; never throws (the editor has no other log).</summary>
+    private static void Log(string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(LogsFolder);
+            File.AppendAllText(Path.Combine(LogsFolder, "editor.log"),
+                $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss} {message}{Environment.NewLine}");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
     /// <summary>A second start of the editor (any thread).</summary>
     public void BringToFront() => _window?.DispatcherQueue.TryEnqueue(() => _window?.BringToFront());
 
@@ -52,12 +66,17 @@ public partial class App : Application
         _engine = new EngineClient();
         var session = new ConfigSession(OpenStore(), TimeProvider.System, Post);
         session.Load();
-        var shell = new ShellViewModel(session, _engine, Post, LogsFolder, CreateUpdateClient());
+        // With --config (a scratch file), view state goes next to it too, so test runs leave this PC's alone.
+        var settings = new EditorSettingsStore(Program.ConfigPath is { } config
+            ? Path.Combine(Path.GetDirectoryName(config)!, "editor.json")
+            : EditorSettingsStore.DefaultPath, log: Log);
+        var shell = new ShellViewModel(session, _engine, Post, LogsFolder, CreateUpdateClient(), settings);
         _window = new ShellWindow(shell);
         _window.Closed += (_, _) =>
         {
             shell.Dispose();
             session.Dispose(); // writes pending edits
+            settings.Dispose(); // and the view state
             _ = _engine.DisposeAsync().AsTask();
         };
         _engine.Start();

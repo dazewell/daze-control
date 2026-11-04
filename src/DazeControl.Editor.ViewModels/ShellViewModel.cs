@@ -23,9 +23,11 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     private readonly Action<Action> _post;
 
     public ShellViewModel(ConfigSession session, IEngineClient engine, Action<Action> post, string logsFolder,
-        Core.Updates.IUpdateClient? updates = null)
+        Core.Updates.IUpdateClient? updates = null, EditorSettingsStore? editorSettings = null)
     {
         Session = session;
+        EditorSettings = editorSettings;
+        IsNavPaneOpen = editorSettings?.Settings.NavPaneOpen ?? true;
         _engine = engine;
         _post = post;
         Desktop = new Engine.DesktopShortcutStore(engine, session.Path);
@@ -41,6 +43,19 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     }
 
     public ConfigSession Session { get; }
+
+    /// <summary>This PC's view state (editor.json, D-068); null in tests that don't need it.</summary>
+    public EditorSettingsStore? EditorSettings { get; }
+
+    /// <summary>The nav pane at full width, else the icon strip (P9); remembered in editor.json.</summary>
+    [ObservableProperty]
+    public partial bool IsNavPaneOpen { get; set; }
+
+    partial void OnIsNavPaneOpenChanged(bool value)
+    {
+        if (EditorSettings is { } store && store.Settings.NavPaneOpen != value)
+            store.Update(s => s.NavPaneOpen = value);
+    }
 
     /// <summary>Desktop shortcuts, shared by the Flows list and the open flow's settings.</summary>
     public Engine.DesktopShortcutStore Desktop { get; }
@@ -63,8 +78,12 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
             Page = EditorPage.Flows;
     }
 
-    /// <summary>A saved rename (D-075): the open flow follows by itself; its desktop shortcut moves once the engine has it.</summary>
-    private void OnFlowRenamed(string oldId, string newId) => _ = Desktop.MoveAsync(oldId, newId);
+    /// <summary>A saved rename (D-075): the open flow follows by itself, its view choices at once, its desktop shortcut once the engine has it.</summary>
+    private void OnFlowRenamed(string oldId, string newId)
+    {
+        EditorSettings?.RenameFlow(oldId, newId);
+        _ = Desktop.MoveAsync(oldId, newId);
+    }
 
     /// <summary>"Open in editor" on the Runs page: the flow, with that run's states on the canvas.</summary>
     public void OpenRun(Core.Runs.RunRecord run)

@@ -22,7 +22,8 @@
 
         <NavigationView x:Name="Navigation" Grid.Row="1"
                         PaneDisplayMode="Left" IsSettingsVisible="False" IsBackButtonVisible="Collapsed"
-                        IsPaneToggleButtonVisible="False" OpenPaneLength="200"
+                        IsPaneToggleButtonVisible="True" OpenPaneLength="200" CompactPaneLength="48"
+                        IsPaneOpen="{x:Bind ViewModel.IsNavPaneOpen, Mode=TwoWay}"
                         SelectionChanged="OnNavigationSelectionChanged"
                         ItemInvoked="OnNavigationItemInvoked">
             <NavigationView.MenuItems>
