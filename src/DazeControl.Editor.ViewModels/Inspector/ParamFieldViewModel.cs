@@ -47,7 +47,10 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     public bool IsText => Kind is ParamKind.Text && Spec.Suggest is null;
 
     /// <summary>Text with suggestions: an editable ComboBox, typing stays allowed (D-050).</summary>
-    public bool IsSuggestText => Kind is ParamKind.Text && Spec.Suggest is not null;
+    public bool IsSuggestText => Kind is ParamKind.Text && Spec.Suggest is not null && !IsFlowRef;
+
+    /// <summary>Another flow (<c>flow.run</c>): a picker of names that stores the id, like a device picker.</summary>
+    public bool IsFlowRef => Spec.RefersTo == ConfigRef.Flow;
 
     /// <summary>An unordered list picked from the PC (screens): a checklist (D-051).</summary>
     public bool IsChecklist => Kind is ParamKind.TextList && Spec.Suggest is not null && !Spec.Ordered;
@@ -101,7 +104,8 @@ public sealed partial class ParamFieldViewModel : ObservableObject
 
     public bool IsChoice => Kind is ParamKind.Choice;
 
-    public bool IsDevice => Kind is ParamKind.LibraryRef;
+    /// <summary>A picker of rows with a glyph and caption: Library items, or other flows.</summary>
+    public bool IsDevice => Kind is ParamKind.LibraryRef || IsFlowRef;
 
     public IReadOnlyList<string> Choices => Spec.Choices;
 
@@ -159,6 +163,8 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                     Choice = scalar ?? Spec.Default;
                     break;
                 case ParamKind.LibraryRef:
+                case ParamKind.Text when IsFlowRef:
+                    Text = scalar ?? "";
                     Device = Devices.FirstOrDefault(o => o.Key == scalar && o.Source is DeviceSource.Library or DeviceSource.Missing)
                         ?? Devices.FirstOrDefault(o => o.Source == DeviceSource.None);
                     break;
@@ -195,7 +201,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
         try
         {
             // Rebuilding the list closes an open drop-down: only when a row really changed (DeviceInfo compares by reference).
-            static (DeviceSource, string?, string, string) Row(DeviceOption o) => (o.Source, o.Key, o.Title, o.Caption);
+            static (DeviceSource, string?, string, string, string) Row(DeviceOption o) => (o.Source, o.Key, o.Title, o.Caption, o.Glyph);
             if (!Devices.Select(Row).SequenceEqual(options.Select(Row)))
             {
                 Devices.Clear();
@@ -225,6 +231,8 @@ public sealed partial class ParamFieldViewModel : ObservableObject
         }
         SuggestionHint = rows.Count == 0 ? hint : "";
     }
+
+    internal void SetSuggestionHint(string hint) => SuggestionHint = hint;
 
     /// <summary>The engine's screens (null: not known); rebuilds the checklist around the step's entries.</summary>
     internal void SetScreens(IReadOnlyList<Ipc.DeviceInfo>? live)

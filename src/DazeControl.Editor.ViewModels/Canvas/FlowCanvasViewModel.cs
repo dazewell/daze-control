@@ -859,7 +859,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             {
                 Nodes.Move(Nodes.IndexOf(vm), i);
             }
-            vm.Update(nodes[box.Id], _session.Current.Library, problems.Contains(box.Id), "");
+            vm.Update(nodes[box.Id], _session.Current, problems.Contains(box.Id), "");
             vm.Place(box);
             titles[box.Id] = vm.Title;
         }
@@ -867,7 +867,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         {
             var waits = string.Join(", ", _arrangement.Edges.Where(e => e.To == vm.Id).Select(e => titles.GetValueOrDefault(e.From, e.From)));
             if (waits.Length > 0)
-                vm.Update(nodes[vm.Id], _session.Current.Library, problems.Contains(vm.Id), waits);
+                vm.Update(nodes[vm.Id], _session.Current, problems.Contains(vm.Id), waits);
         }
 
         var mayFail = flow.Nodes.Where(n => n.OnFailure == FailurePolicy.Ignore).Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
