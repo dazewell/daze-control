@@ -241,7 +241,9 @@ and, with no engine, `list`/`validate` read the YAML themselves. Exit codes 0 ok
 `DazeControl.Editor.exe` (WinUI 3, unpackaged, self-contained) runs only while its window is open; closing it
 ends the process. Single instance: a named mutex; a second start sets a named event and exits, and the first
 brings its window to the front. Pages (UX §5.1) are panels in one `ShellWindow` (Flows, Library, Settings,
-About), cards in the OSD's settings-card style (App.xaml). All logic is in `Editor.ViewModels`:
+About), cards in the OSD's settings-card style (App.xaml). Leaving the open flow (breadcrumb, any nav item, closing)
+goes through `LeaveFlowAsync` (the D-047 prompt) then `CloseFlow`; nav Flows while a flow is open is still the
+selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). All logic is in `Editor.ViewModels`:
 - `Config/ConfigStore` — config.yaml I/O: atomic write (temp + `File.Move` overwrite), one backup per editor
   session in `%APPDATA%\DazeControl\backups` (newest 10), and the text last read/written to tell outside changes.
 - `Config/ConfigSession` — Library/Settings edits are `Update(c => …)`, saved 300 ms after the last one
@@ -261,6 +263,10 @@ About), cards in the OSD's settings-card style (App.xaml). All logic is in `Edit
   (`EdgeRoute.WrapLaneY` set). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
   and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
   edges batched by style, D-037) and maps pointer/keys to VM calls; zoom/scroll is a `ScrollViewer` (50–200 %).
+  Right-drag pan (D-069): `Canvas/RightDragPan` (pure, tested) arms on a mouse right press, pans once the pointer
+  leaves the system drag rectangle (`GetSystemMetricsForDpi(SM_CX/CYDRAG)` at the XAML root's DPI, in DIP), and
+  swallows the one `RightTapped` after a pan. The canvas captures only once panning, so a still click's `RightTapped`
+  still arrives; an armed press is dropped on `PointerExited` (no capture = no release outside).
 - Canvas edits live in Core: `FlowGraph` (connect/disconnect/`when`, refusals: exists, loop, same card) and
   `FlowEdits` (group/ungroup, take out — a card under 2 members dissolves —, run together/after on drop).
   `FlowTidy` ("Tidy up") cuts crossings with barycentre sweeps; nodes only trade the `nodes` slots their column
@@ -365,7 +371,7 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 - Designed, not built (M13, PLAN → M13): flow calls and inputs — [flow-calls/DESIGN.md](flow-calls/DESIGN.md) (D-061..
   D-064: `IFlowStarter` shared with menus, `FlowRunner.RunNestedAsync`, call-graph validation, `$input` refs);
   layout segments after a wrapped block (D-066) and the Layout menu's `LayoutOptions` (D-067);
-  `EditorSettingsStore` / `editor.json` (D-068); right-drag pan (D-069); Flows card Run (D-070). Each task rewrites the
+  `EditorSettingsStore` / `editor.json` (D-068); Flows card Run (D-070). Each task rewrites the
   section it changes. Fallback outcomes (D-065) are built (T13.7: Config, Runtime).
 
 - Library leftovers: editing an Android device's inputs and an audio match in place; renaming audio and Bluetooth keys
