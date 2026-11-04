@@ -375,7 +375,8 @@
                 </Grid>
 
                 <!-- Flow editor (UX §5.1): Flows › name, commands, palette, canvas or outline. The inspector comes with M8. -->
-                <Grid x:Name="FlowEditorPage" Grid.Row="1" Visibility="Collapsed">
+                <!-- Hidden: with Auto, WinUI shows the accelerator's keys as a tooltip of the whole page (X-008). -->
+                <Grid x:Name="FlowEditorPage" Grid.Row="1" Visibility="Collapsed" KeyboardAcceleratorPlacementMode="Hidden">
                     <Grid.KeyboardAccelerators>
                         <!-- Here, not on the Save button: it must also work while Save is still off (a text box not committed yet). -->
                         <KeyboardAccelerator Modifiers="Control" Key="S" Invoked="OnSaveAccelerator" />
