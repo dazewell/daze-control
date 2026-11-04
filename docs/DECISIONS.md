@@ -727,7 +727,7 @@ Status: accepted (built in C3, 0.23.0; supersedes D-020's "one column per layer"
 - Revisit if: users want width-based wrapping or a per-flow "don't wrap" switch.
 
 ## D-061 · 2026-11-03 · "Run another flow" is one model with two modes: Start it (launch) or Wait for it (nested)
-Status: accepted (M13 design; amends D-054's `wait`)
+Status: accepted, built (T13.8; amends D-054's `wait`)
 - Decision: a new step `flow.run` (Flow › Run a flow, [flow-calls/DESIGN.md](flow-calls/DESIGN.md)) and `menu.show`
   share one seam, `IFlowStarter` (Runtime), with two modes. **Start** (`wait: false`, the menu's default): a launch
   through `FlowLauncher` exactly as D-054 says (own `whenRunning`, record, pop-up). **Wait** (`wait: true`, the step's
@@ -744,7 +744,7 @@ Status: accepted (M13 design; amends D-054's `wait`)
   even when called" switch).
 
 ## D-062 · 2026-11-03 · Nested runs: no `whenRunning`, no lock held by the caller, one record and one pop-up
-Status: accepted (M13 design)
+Status: accepted, built (T13.8)
 - Decision: `FlowRunner.RunNestedAsync` runs the called flow's runnable version (D-021) on a new `Scheduler` with
   `ParentRunId`/`ParentNodeId`; no launcher slot. The `flow.run` step declares no resources; nested steps lock per
   attempt as usual (D-010). Outcome → step: Succeeded → Succeeded; PartiallySucceeded → Succeeded plus a problem for
@@ -761,7 +761,7 @@ Status: accepted (M13 design)
 - Revisit if: lock waits inside nested runs show up in history (then show "Waiting for Technics" in the pop-up).
 
 ## D-063 · 2026-11-03 · Flow-call loops are refused by validation and stopped at run time (call chain, depth 8)
-Status: accepted (M13 design; user, 2026-11-03: "no infinite loops")
+Status: accepted, built (T13.8; user, 2026-11-03: "no infinite loops")
 - Decision: `ConfigValidator` builds the call graph from every `flow.run` (both modes) and every `menu.show` item with
   `wait: true`; its own flow → error #49, any cycle → error #50 on each step in it. Menu items without `wait` don't
   count. At run time each run carries its call chain; a call to a flow already on it fails (#53), a chain over 8 fails

@@ -161,7 +161,22 @@ took (warning) and gets it back once it's free. An unreadable file changes only 
 empty; a watcher that can't start leaves loading on (warning). It reloads 300 ms after the last change
 (`IFileChangeSource`, FileSystemWatcher on the folder) and raises `Changed` with a `ConfigSnapshot`
 (`RunnableFlows` = valid and enabled) in reload order; a throwing handler goes to `ListenerFailed`.
-Tests: `FakeProvider` + thread-safe `ManualTime` with `WaitForTimerAsync` (Runtime.Tests).
+Flow calls (D-061..D-063, T13.8): `flow.run` with `wait` on (default) never reaches a provider: the runner sees
+`FlowRunner.Flows` (`IFlowStarter`, the engine's `Runtime/Control/FlowCalls` over `ConfigHost.Current`) and runs the
+called flow's runnable version nested per attempt (`RunNestedAsync`: own Scheduler and RunId, events carry
+`ParentRunId`/`ParentNodeId`, no launcher slot so `whenRunning` doesn't apply, no lock held by the call step; its
+steps lock as at top level). Outcome mapping: Succeeded/Partial → Succeeded (Partial sets
+`Scheduler.MarkPartialCall`, so the caller ends PartiallySucceeded at best, no failure edge); Failed → Failed "X didn't
+finish: <its first failure>" (#56); timeout → #57 and the nested run is cancelled and awaited; ended quietly →
+Cancelled and the caller cancels too. `NodeResult.Called` (`CalledRun`, recursive) keeps the nested results in the one
+history record. Every run carries its call chain (flow ids from the top); `FlowCalls.Guard` fails a call whose flow is
+on it (#53) or past 8 deep (#54). `wait: false` goes to `FlowProvider`, which starts the flow through the launcher with
+trigger "Flow · <caller>" and passes the chain on (`StepContext.Chain` → `TriggerAsync(…, chain)`); triggers by a person
+start a fresh chain. With `Flows` null (the dry runner) a call is an ordinary step: dry runs don't descend.
+`ConfigValidator.CheckCalls` builds the call graph from every `flow.run` (both modes): own flow #49, a loop #50 on every
+step in it, unknown #51 (errors); turned off #52, called flow with errors (warnings).
+Tests: `FakeProvider` + thread-safe `ManualTime` with `WaitForTimerAsync` (Runtime.Tests); flow calls end to end on
+a scratch config: Providers.Tests `FlowCallScenarioTests`.
 
 ## Engine shell
 
@@ -369,7 +384,7 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 - Designed, not built: the flow menu and controller input (M12) — [flow-menu/DESIGN.md](flow-menu/DESIGN.md)
   §3 (D-053..D-057). Each M12 task moves its part into the sections above.
 - Designed, not built (M13, PLAN → M13): flow calls and inputs — [flow-calls/DESIGN.md](flow-calls/DESIGN.md) (D-061..
-  D-064: `IFlowStarter` shared with menus, `FlowRunner.RunNestedAsync`, call-graph validation, `$input` refs);
+  D-064: flow inputs and `$input` refs (T13.9), the editor for calls (T13.10); `flow.run` itself is built, Runtime);
   layout segments after a wrapped block (D-066) and the Layout menu's `LayoutOptions` (D-067);
   `EditorSettingsStore` / `editor.json` (D-068); Flows card Run (D-070). Each task rewrites the
   section it changes. Fallback outcomes (D-065) are built (T13.7: Config, Runtime).
