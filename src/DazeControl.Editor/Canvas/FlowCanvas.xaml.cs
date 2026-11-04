@@ -37,6 +37,7 @@ public sealed partial class FlowCanvas : UserControl
     private double _padX, _padY; // Wrapper's padding per side now (content DIP)
     private double _padZoom = 1; // the zoom that padding was set for
     private CanvasView? _pendingView; // asked of the ScrollViewer, not reported back by ViewChanged yet
+    private int _viewSeq; // bumped by every view change of ours and every press: a queued retry checks it's still current
 
     private enum Gesture { None, Press, DragNode, Marquee, Pan, Connect, RightPan }
 
@@ -187,16 +188,16 @@ public sealed partial class FlowCanvas : UserControl
             Scroller.UpdateLayout(); // the new extent, so ChangeView doesn't clamp to the old one
         }
         _pendingView = view;
+        var seq = ++_viewSeq;
         Scroller.ChangeView(view.OffsetX, view.OffsetY, (float)view.Zoom, disableAnimation: true);
-        if (repadded)
         {
-            // Inside a layout pass (SizeChanged, first open) UpdateLayout doesn't run and the view above was clamped
-            // to the old extent: ask again once layout is done.
+            // Inside a layout pass (SizeChanged, first open) UpdateLayout doesn't run and the view above may be clamped
+            // to the old extent: ask again once layout is done, unless a newer view or a press came first.
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
-                if (_padX == padX && _padY == padY && Math.Abs(Scroller.ZoomFactor - view.Zoom) < 1e-4
-                    && (Math.Abs(Scroller.HorizontalOffset - view.OffsetX) > 0.5 || Math.Abs(Scroller.VerticalOffset - view.OffsetY) > 0.5))
-                    Scroller.ChangeView(view.OffsetX, view.OffsetY, null, disableAnimation: true);
+                if (seq == _viewSeq && (Math.Abs(Scroller.ZoomFactor - view.Zoom) > 1e-4
+                    || Math.Abs(Scroller.HorizontalOffset - view.OffsetX) > 0.5 || Math.Abs(Scroller.VerticalOffset - view.OffsetY) > 0.5))
+                    Scroller.ChangeView(view.OffsetX, view.OffsetY, (float)view.Zoom, disableAnimation: true);
             });
         }
     }
@@ -219,6 +220,7 @@ public sealed partial class FlowCanvas : UserControl
         {
             var x = Math.Clamp(view.OffsetX - delta * CanvasViewport.SideScrollPerNotch / 120, 0, Scroller.ScrollableWidth);
             _pendingView = view with { OffsetX = x };
+            _viewSeq++;
             Scroller.ChangeView(x, null, null, disableAnimation: true);
         }
         else
@@ -520,6 +522,7 @@ public sealed partial class FlowCanvas : UserControl
             return;
         var point = e.GetCurrentPoint(Host);
         _rightPan = null; // a swallow no RightTapped consumed must not eat this press's menu
+        _viewSeq++; // a pan may start: a queued view retry must not snap it back
         var props = point.Properties;
         Focus(FocusState.Pointer);
         UpdateFocusRing(); // the ring is for keyboard focus only
