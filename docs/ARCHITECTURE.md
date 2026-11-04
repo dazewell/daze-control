@@ -396,13 +396,19 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 - Designed, not built (PLAN → M13 fixes, v0.29.0 feedback): wheel zoom at the pointer and pan room in a wrapper
   around `Host` (D-074, F1); the flow picker for `ParamSuggest.Flows` (F2: today `InspectorViewModel.Suggest` has no
   case for it, so the box is empty and a typed name isn't an id) and the `flow` area's title; Ctrl+S's accelerator
-  tooltip hidden (X-008, F3); `Core/Model/FlowIds` (slug, unique) and `FlowRefs` (callers, rename) behind flow
-  delete with Undo and the id following a saved rename (D-075, D-076, F4). Flow ids are keys in: other flows'
+  tooltip hidden (X-008, F3). Flow ids are keys in: other flows'
   `flow.run` (and M12 `menu.show`), history and logs (never rewritten), desktop .lnk args and file names (D-049),
   `dctl run`, the engine's per-id launcher slots, and T13.6's per-flow layouts in `editor.json`. Display steps (F5,
   D-077, X-009): `UseOnly` asks `SDC_TOPOLOGY_SUPPLIED` first with a source per screen, `CcdLayout.Apply` remaps
   source ids and retries from the layout's set on error 87, and a pure `DisplayCheck` compares the active paths with
   the request after every write; `display.topology` stays as built.
+- Flow delete and rename (F4, D-075, D-076): `Core/Model/FlowIds` (slug, unique; New flow uses it) and `FlowRefs`
+  (callers, rename of every `ConfigRef.Flow` param). `ConfigSession.SaveDraft` gives a renamed flow
+  `Unique(Slug(name))` in its place, rewrites callers in the file and in drafts, and raises `FlowRenamed` before
+  `Current` changes, so `FlowCanvasViewModel.FlowId` follows and the canvas stays open. `DesktopShortcutStore.MoveAsync`
+  re-creates the old id's shortcut for the new one on the engine's `configReloaded` (create is refused until it has
+  loaded the id), then removes the old one. `FlowsPageViewModel.Delete` / `UndoDelete` / `EndUndoAsync`: the removed
+  flow and its index wait for Undo; the shortcut goes only when the bar ends (closing the editor waits for it).
 
 - Library leftovers: editing an Android device's inputs and an audio match in place; renaming audio and Bluetooth keys
   (their cards show the device's name, not the key, D-046).
