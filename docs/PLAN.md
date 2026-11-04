@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: none — M13 designed (PR docs/m13-design: D-061..D-070, flow-calls/DESIGN.md, UX #47–#66, PLAN T13.1–T13.10)
-Last green checkpoint: 038d321 wip(docs): M13 design - decisions, flow-calls design, UX
-Next action: T13.1 (feat/m13-nav-flows): handle `ItemInvoked` on the Flows nav item while a flow is open in Editor/ShellWindow.xaml.cs → LeaveFlowAsync → CloseFlow. Lanes that can start at the same time: T13.4, T13.5, T13.7 (PLAN → M13 Order)
+Current task: T13.7 fallback outcomes done (feat/m13-fallback-outcomes); lanes A–C run in their own sessions
+Last green checkpoint: wip(m13): pop-up n of m and #48, editor Not needed, fixed-run words and dashed bar (T13.7)
+Next action: lane D: T13.8 (feat/m13-flow-run): `flow.run` in Core/Catalog/ProviderCatalog.cs with `ParamSpec.RefersTo = Flow`, tests first per flow-calls/DESIGN.md §2.2; it reuses `Outcomes.Fix` / `FlowShape` from T13.7. Lanes A (T13.1→), B (T13.4), C (T13.5) per PLAN → M13 Order
 Tree state: builds, all tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user's live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails; mention it to the user when T13.7 lands. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user was told (T13.7) that their live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs, fails and stops the flow (cancelling Sony); "Skip what depends on it" fixes it. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
 
 ---
 
@@ -72,7 +72,7 @@ section rewritten, FEATURES where behaviour changed).
   `Editor/ShellWindow.xaml(.cs)` (Layout flyout #63), `EditorSettingsStore` (layouts by flow id). Done when: layout tests
   per option; untangle off on a chain with "No lines cross"; running editor: each choice visibly changes a sample flow
   and survives a restart; Untangle undoes with Ctrl+Z; screenshots of Compact / Roomy / Right angles.
-- [ ] T13.7 P8 **Fallbacks that weren't needed; fixed failures end Done** (feat/m13-fallback-outcomes, D-065). Files:
+- [x] T13.7 P8 **Fallbacks that weren't needed; fixed failures end Done** (feat/m13-fallback-outcomes, D-065). Files:
   `Core/Runs/Outcomes.cs` (`NotNeeded`; `Summarize` with handled failures), new `Core/Model/FlowShape.cs`
   (`Fallbacks`), `Runtime/Scheduling/Scheduler.cs`, `Runtime/Popup/RunPopupModel.cs` ("n of m", #48), `Runtime/Tray/
   TrayMenu.cs`, `Ipc/Protocol.cs`, editor run words / Runs timeline / canvas live captions (#47), FEATURES F1,
