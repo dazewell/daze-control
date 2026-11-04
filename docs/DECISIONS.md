@@ -629,8 +629,14 @@ Status: accepted (M12 design); `wait: true` amended by D-061 (it nests instead o
 - Revisit if: users want a flow to continue differently per pick (then an edge `when: picked <id>`).
 
 ## D-055 · 2026-11-03 · The menu window never activates: borrowed keys via RegisterHotKey, a pass-through mouse hook
-Status: on hold, waiting for the user (spike S2, 2026-11-04: gate (a) failed for full-screen games, X-010; M12
-stopped there). Held: borderless games and the desktop. Not held: DXGI full screen, even with FSO.
+Status: accepted, borderless only (user, 2026-11-04: "Borderless only", after spike S2 failed gate (a) for
+full-screen games, X-010). The menu shows over borderless and windowed games and over the desktop. Before
+drawing anything or taking any key, it checks `SHQueryUserNotificationState`. `QUNS_RUNNING_D3D_FULL_SCREEN`
+covers exclusive mode and FSO alike, and then the menu doesn't open: we never knock a game out of full screen.
+- Refusal is logged, not silent: the step fails with #32 in run history, with one engine log line per refusal, and
+  no run pop-up (a pop-up would kick the game out too). Why: a press that seems to do nothing needs an answer
+  somewhere the user can find it ("switch the game to borderless"). Why not silent: the user couldn't tell a
+  refusal from a missed chord.
 - S2 result (DESIGN §5): over a borderless game the menu works with keys and mouse, the foreground never changes,
   and the game renders at 113–121 fps throughout. All 20 keys register and are freed on every close path, a killed
   process included. The hook's own time averages ~6 µs (max 245 µs). Over a DXGI full-screen game (flip + FSO, or
@@ -640,8 +646,8 @@ stopped there). Held: borderless games and the desktop. Not held: DXGI full scre
 - Decision: `Engine/Shell/FlowMenu` on the run pop-up's surface (D-034, cut out as `AcrylicSurface`), no-activate and
   topmost, centred on the foreground window's monitor. While open only: Up/Down/Left/Right/Enter/Space/Esc/Tab/Home/
   End/1–9 are `RegisterHotKey`s on the message window, a `WH_MOUSE_LL` hook (never swallows) spots a click outside;
-  all are released on every close path. True exclusive full-screen (`QUNS_RUNNING_D3D_FULL_SCREEN`) → the step fails
-  with #32 before showing.
+  all are released on every close path. Any DXGI full screen (`QUNS_RUNNING_D3D_FULL_SCREEN`: exclusive mode or
+  FSO) → the step fails with #32 before showing (see Status).
 - Why: keeps the hard rule (never take focus); a game or video in front keeps running; hotkeys are what the engine
   already uses (`GlobalHotkey`), work over elevated windows and are freed by the OS if the engine dies.
 - Why not activating the menu: breaks the hard rule (user declined), minimizes exclusive full-screen games, and the

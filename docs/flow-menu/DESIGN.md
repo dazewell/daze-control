@@ -147,11 +147,11 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
   only while open (never swallows; returns at once; on the message thread).
 - Placement: centred on the monitor of the foreground window (a game on the TV), else of the cursor; work area,
   or the monitor rect when the foreground window covers it. Re-asserts `HWND_TOPMOST` on show.
-- Full-screen: borderless and flip-model games (incl. "exclusive" games under fullscreen optimisations) compose
-  topmost windows → the menu shows over them. True exclusive full-screen
-  (`SHQueryUserNotificationState` = `QUNS_RUNNING_D3D_FULL_SCREEN`) can't show it: the step fails with #32 before
-  anything is drawn or any key is taken. Spike S2 gates both. **S2: wrong for FSO.** A DXGI full-screen game
-  leaves full screen as soon as any window of ours shows, and QUNS = 3 for FSO too (§5 result, X-010).
+- Full screen: borderless only (D-055, user 2026-11-04). Borderless and windowed games compose topmost windows, so
+  the menu shows over them. Any DXGI full screen (exclusive mode, or "exclusive" under FSO) leaves full screen as
+  soon as any window of ours shows (S2, X-010). So the menu checks `SHQueryUserNotificationState` first. If it
+  reports `QUNS_RUNNING_D3D_FULL_SCREEN` (3, for FSO too), the step fails with #32 before anything is drawn or any
+  key is taken: one engine log line, run history, no pop-up.
 - Animation effects (`SPI_GETCLIENTAREAANIMATION`) off → no fade, no focus slide, instant. High contrast → system
   colours, solid background, 3-DIP focus ring.
 - Narrator (#26 shares this): the window can't take focus, so a minimal UIA provider raises
@@ -255,7 +255,8 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
   run pop-up #17-style for the menu pick (§2.2).
 - Picked flow became invalid between show and pick: the menu closes, pop-up "Couch TV didn't start. It needs
   fixing." (#33). Deleted: dropped from the menu at show time.
-- Over an exclusive full-screen game: nothing shows; history and a run pop-up (if it can show later) say #32.
+- Over a full-screen game (QUNS = 3: exclusive mode or FSO): nothing shows, no pop-up either; history and the engine
+  log say #32 (it should suggest switching the game to borderless).
 - Editor: #38–#41, #43 (§3.7).
 
 ### 4.5 Motion
@@ -263,7 +264,8 @@ Open: fade + scale 0.96→1, 150 ms decelerate (the OSD's in is 200; a menu answ
 fade 100 ms. Pick: the focused row flashes once (100 ms) before the fade. Animation effects off → none.
 
 ### 4.6 Known limits (say so in README)
-Games still see controller presses while the menu is open; true exclusive full-screen hides the menu; keys another
+Games still see controller presses while the menu is open; the menu shows only over borderless or windowed games,
+not over a game in its own full-screen mode (set the game to borderless); keys another
 app registered as global shortcuts don't reach the menu; Narrator hears announcements, not a focusable list (T12.9).
 
 ## 5. Spikes (throwaway, `spikes/`, results into D-055/D-056 and here)
@@ -284,6 +286,9 @@ app registered as global shortcuts don't reach the menu; Narrator hears announce
   `SHQueryUserNotificationState` before showing; (c) every close path unregisters the keys (a second app can
   register Up afterwards); (d) DPI: correct size on 100 % and 175 % monitors; (e) mouse hook never adds input lag
   (hook time < 1 ms). Fail (a) → stop and ask the user (the menu would need focus, which they declined).
+  **Gate as amended after S2 (user, 2026-11-04: "Borderless only"):** (a) applies to borderless and windowed
+  games only. (b) refuses every DXGI full screen (QUNS = 3: exclusive mode and FSO) before showing anything, with
+  #32 logged. Both hold, so M12 continues.
   **Result (2026-11-04, dev PC: one 2880×1800 panel at 175 %, Win 11 26300, FSO on by default; probe
   `spikes/menu-window`, not in the solution; GDI drawing, so acrylic is untested):**
   - (a) **Fails for mode 2.** Borderless (mode 1) passes. Keys (arrows, Tab/Shift+Tab, Home/End, Enter, Space,
