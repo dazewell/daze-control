@@ -1,3 +1,4 @@
+using DazeControl.Core.Input;
 using DazeControl.Core.Layout;
 using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
@@ -408,6 +409,67 @@ public sealed class InspectorViewModelTests : IDisposable
         _inspector.SetShortcut(0, "Alt+T");
 
         Assert.Equal("Alt+T already runs flow \"g\".", _inspector.Shortcuts[0].Problem);
+    }
+
+    [Theory] // UX §5.7 H1–H4, H7 (D-073)
+    [InlineData(HotkeyRejection.NotAKey, "That key can't be a shortcut. Try a letter, a number, F1–F24, a key like [ or \\, or a number pad key.")]
+    [InlineData(HotkeyRejection.NeedsModifier, "Add Win, Ctrl or Alt, so the shortcut doesn't get in the way of your typing.")]
+    [InlineData(HotkeyRejection.NumLockOff, "Turn on Num Lock to use the number pad.")]
+    [InlineData(HotkeyRejection.ShiftWithNumberPad, "Shift doesn't work with number pad keys. Use Win, Ctrl or Alt instead.")]
+    [InlineData(HotkeyRejection.NothingCameThrough, "Nothing came through. Another app may be using those keys.")]
+    public void ARefusedKeySaysWhyUnderTheBox(HotkeyRejection reason, string text)
+    {
+        _inspector.SetShortcut(0, "Alt+T");
+
+        _inspector.RejectShortcut(0, reason);
+
+        Assert.Equal(text, ShortcutTexts.Rejection(reason));
+        Assert.Equal(text, _inspector.Shortcuts[0].Note);
+        Assert.True(_inspector.Shortcuts[0].HasNote);
+        Assert.Equal(["Alt+T"], _canvas.Flow!.Hotkeys); // a refused key changes nothing
+    }
+
+    [Fact]
+    public void TheNextRecordedKeyClearsTheReason()
+    {
+        _inspector.AddShortcutCommand.Execute(null);
+        _inspector.RejectShortcut(0, HotkeyRejection.NeedsModifier);
+        Assert.True(_inspector.Shortcuts[0].HasNote);
+
+        _inspector.SetShortcut(0, "Alt+T");
+
+        Assert.Null(_inspector.Shortcuts[0].Note);
+        Assert.False(_inspector.Shortcuts[0].HasNote);
+
+        _inspector.RejectShortcut(0, HotkeyRejection.NotAKey);
+        _inspector.SetShortcut(0, "Alt+T"); // the same chord again doesn't reload, but still clears it
+        Assert.Null(_inspector.Shortcuts[0].Note);
+    }
+
+    [Fact]
+    public void ARefusedKeyWinsOverTheEngineProblemUntilTheNextKey()
+    {
+        _session.Update(c => c with { Flows = [new Flow("g", "Other", [new StepNode("a", "notify") { With = new([new("text", (ParamValue)"x")]) }]) { Hotkeys = ["Alt+T"] }, .. c.Flows] });
+        _inspector.SetShortcut(0, "Alt+T");
+
+        _inspector.RejectShortcut(0, HotkeyRejection.NumLockOff);
+        Assert.Equal("Turn on Num Lock to use the number pad.", _inspector.Shortcuts[0].Note);
+
+        _inspector.SetShortcut(0, "Alt+T");
+        Assert.Equal("Alt+T already runs flow \"g\".", _inspector.Shortcuts[0].Note);
+    }
+
+    [Theory] // UX §5.7 H8: only a number-pad key on its own takes the digit away from typing
+    [InlineData("Num1", "While Num Lock is on, Num1 runs this flow instead of typing 1. Turn Num Lock off or pause shortcuts to type numbers.")]
+    [InlineData("Num0", "While Num Lock is on, Num0 runs this flow instead of typing 0. Turn Num Lock off or pause shortcuts to type numbers.")]
+    [InlineData("Ctrl+Num1", null)]
+    [InlineData("Win+[", null)]
+    public void ANumberPadKeyAloneShowsTheNumLockTip(string hotkey, string? tip)
+    {
+        _inspector.SetShortcut(0, hotkey);
+
+        Assert.Equal(tip, _inspector.Shortcuts[0].Tip);
+        Assert.Equal(tip is not null, _inspector.Shortcuts[0].HasTip);
     }
 
     [Fact]

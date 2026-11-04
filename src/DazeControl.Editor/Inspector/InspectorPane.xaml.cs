@@ -1,3 +1,4 @@
+using DazeControl.Core.Input;
 using DazeControl.Editor.ViewModels.Canvas;
 using DazeControl.Editor.ViewModels.Inspector;
 using Microsoft.UI.Xaml;
@@ -241,5 +242,15 @@ public sealed partial class InspectorPane : UserControl
     {
         if ((sender as FrameworkElement)?.Tag is ShortcutViewModel shortcut)
             _viewModel?.SetShortcut(shortcut.Index, hotkey);
+    }
+
+    // Why the key was refused shows under the box (UX §5.7 H1–H4, H7) and is read out, since focus stays in the box.
+    private void OnShortcutRejected(object? sender, HotkeyRejection reason)
+    {
+        if (sender is not HotkeyRecorder { Tag: ShortcutViewModel shortcut } recorder)
+            return;
+        _viewModel?.RejectShortcut(shortcut.Index, reason);
+        if (shortcut.Rejection is { } text)
+            recorder.Announce(text);
     }
 }

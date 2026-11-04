@@ -13,7 +13,7 @@ public enum HotkeyModifiers : uint
     Win = 8,
 }
 
-/// <summary>Why a pressed key can't be a shortcut; the recorder shows it under the box (UX §5.7 H1–H4, D-073).</summary>
+/// <summary>Why a pressed key can't be a shortcut; the recorder shows it under the box (UX §5.7 H1–H4, H7, D-073).</summary>
 public enum HotkeyRejection
 {
     None,
@@ -29,6 +29,9 @@ public enum HotkeyRejection
 
     /// <summary>H4: Shift with a number-pad key; with Num Lock on Windows turns Shift+Num1 into End.</summary>
     ShiftWithNumberPad,
+
+    /// <summary>H7: Win, Ctrl or Alt went down and up with no key arriving, so another app likely took the chord. Recorder only.</summary>
+    NothingCameThrough,
 }
 
 /// <summary>

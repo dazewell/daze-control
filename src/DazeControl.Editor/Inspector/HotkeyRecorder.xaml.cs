@@ -2,6 +2,7 @@ using DazeControl.Core.Input;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.System;
@@ -30,6 +31,7 @@ public sealed partial class HotkeyRecorder : UserControl
 
     private bool _recording; // has focus
     private bool _recorded;  // since focus came: show the stored value, not the prompt, once keys are up
+    private bool _chordPending; // Win, Ctrl or Alt went down and no other key came yet (H7)
 
     public HotkeyRecorder()
     {
@@ -61,8 +63,8 @@ public sealed partial class HotkeyRecorder : UserControl
     /// <summary>A valid chord was pressed, or reset (the default) / turn-off ("") was picked.</summary>
     public event EventHandler<string>? Recorded;
 
-    /// <summary>Keys were pressed that make no shortcut.</summary>
-    public event EventHandler? Rejected;
+    /// <summary>Keys were pressed that make no shortcut, and why (UX §5.7 H1–H4, H7; D-073).</summary>
+    public event EventHandler<HotkeyRejection>? Rejected;
 
     /// <summary>True while the box has focus: registered shortcuts must not fire then (D-021).</summary>
     public event EventHandler<bool>? RecordingChanged;
@@ -99,27 +101,49 @@ public sealed partial class HotkeyRecorder : UserControl
         var modifiers = HeldModifiers();
         if (IsModifier(e.Key))
         {
+            _chordPending |= (modifiers & ~HotkeyModifiers.Shift) != HotkeyModifiers.None;
             Box.Text = Core.Input.Hotkey.Prefix(modifiers);
             return;
         }
-        if (Core.Input.Hotkey.TryCreate(modifiers, (uint)e.Key, out var hotkey))
-            Recorded?.Invoke(this, hotkey.ToString());
+        _chordPending = false;
+        var reason = IsNumberPadNavigation(e) ? HotkeyRejection.NumLockOff : Core.Input.Hotkey.Check(modifiers, (uint)e.Key);
+        if (reason == HotkeyRejection.None)
+            Recorded?.Invoke(this, new Core.Input.Hotkey(modifiers, (uint)e.Key).ToString());
         else
-            Rejected?.Invoke(this, EventArgs.Empty);
+            Rejected?.Invoke(this, reason);
         ShowRecorded();
     }
 
     private void OnKeyUp(object sender, KeyRoutedEventArgs e)
     {
         e.Handled = true;
-        if (HeldModifiers() == HotkeyModifiers.None)
-            Box.Text = _recorded ? Hotkey : RecordingPrompt;
+        if (HeldModifiers() != HotkeyModifiers.None)
+            return;
+        if (_chordPending)
+        {
+            // Win/Ctrl/Alt went down and up and no key reached us: another app's RegisterHotKey took it (H7).
+            _chordPending = false;
+            Rejected?.Invoke(this, HotkeyRejection.NothingCameThrough);
+        }
+        Box.Text = _recorded ? Hotkey : RecordingPrompt;
     }
+
+    /// <summary>Reads <paramref name="text"/> out at once (Narrator), e.g. why a key was refused.</summary>
+    public void Announce(string text) =>
+        FrameworkElementAutomationPeer.FromElement(Box)?.RaiseNotificationEvent(AutomationNotificationKind.Other,
+            AutomationNotificationProcessing.ImportantMostRecent, text, "HotkeyRecorderNote");
+
+    // With Num Lock off the pad sends Insert, End, Down, Clear (Num5)… as non-extended keys; the separate keys are
+    // extended (D-073).
+    private static bool IsNumberPadNavigation(KeyRoutedEventArgs e) => !e.KeyStatus.IsExtendedKey && e.Key is VirtualKey.Insert
+        or VirtualKey.End or VirtualKey.Down or VirtualKey.PageDown or VirtualKey.Left or VirtualKey.Clear
+        or VirtualKey.Right or VirtualKey.Home or VirtualKey.Up or VirtualKey.PageUp;
 
     private void OnGotFocus(object sender, RoutedEventArgs e)
     {
         _recording = true;
         _recorded = false;
+        _chordPending = false;
         RecordingChanged?.Invoke(this, true);
         Box.Text = RecordingPrompt;
     }
