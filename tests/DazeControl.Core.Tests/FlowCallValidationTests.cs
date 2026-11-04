@@ -57,6 +57,19 @@ public class FlowCallValidationTests
     }
 
     [Fact]
+    public void CallProblemSaysWhichPicksWouldLoop()
+    {
+        var flows = ConfigYaml.Load("flows:\n" + Flow("a", "A") + Flow("b", "B", "c") + Flow("c", "C", "a") + Flow("d", "D")).Config!.Flows;
+
+        Assert.Equal("A flow can't run itself.", ConfigValidator.CallProblem(flows, "a", "a"));
+        Assert.Equal("That would make a loop: A runs B, which runs C, which runs A.", ConfigValidator.CallProblem(flows, "a", "b"));
+        Assert.NotNull(ConfigValidator.CallProblem(flows, "a", "c"));
+        Assert.Null(ConfigValidator.CallProblem(flows, "a", "d"));
+        Assert.Null(ConfigValidator.CallProblem(flows, "b", "a"));
+        Assert.Null(ConfigValidator.CallProblem(flows, "a", "gone"));
+    }
+
+    [Fact]
     public void AStartModeCallCountsForLoops()
     {
         var problems = Validate(Flow("a", "A", "b") + """

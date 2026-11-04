@@ -210,6 +210,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     public Library Library => _session.Current.Library;
 
+    /// <summary>Any flow of the open config by id (a called or calling flow's names for live runs).</summary>
+    internal Flow? FlowById(string id) => _session.Current.Flows.FirstOrDefault(f => f.Id == id);
+
     public CanvasNodeViewModel? Find(string id) => Nodes.FirstOrDefault(n => n.Id == id);
 
     /// <summary>The control measured a pill; a changed size re-lays out (text scaling, UX §5.8 #5).</summary>

@@ -68,9 +68,7 @@ public static partial class ConfigValidator
                 .Select(s => (Flow: f, Step: s, Target: CalledFlow(s))))
             .Where(c => c.Target is { Length: > 0 })
             .ToList();
-        var graph = byId.Keys.ToDictionary(id => id, _ => new HashSet<string>(StringComparer.Ordinal), StringComparer.Ordinal);
-        foreach (var call in calls.Where(c => c.Target != c.Flow.Id && byId.ContainsKey(c.Target!)))
-            graph[call.Flow.Id].Add(call.Target!);
+        var graph = CallGraph(byId, calls.Select(c => (c.Flow.Id, c.Target!)));
         // Errors first, so a flow this pass rejects (a loop) also gets callers' "needs fixing" warnings.
         var warnings = new List<(Flow Flow, string Path, Flow Called)>();
         foreach (var (flow, step, target) in calls)
@@ -81,9 +79,7 @@ public static partial class ConfigValidator
             else if (!byId.TryGetValue(target!, out var called))
                 problems.Add(new(Severity.Error, path, $"{target} isn't there anymore. Pick another flow.", flow.Id));
             else if (PathBetween(graph, target!, flow.Id) is { } back)
-                problems.Add(new(Severity.Error, path,
-                    "That would make a loop: " + flow.Name + string.Concat(back.Select((id, i) =>
-                        (i == 0 ? " runs " : ", which runs ") + byId[id].Name)) + $", which runs {flow.Name}.", flow.Id));
+                problems.Add(new(Severity.Error, path, LoopText(byId, flow, back), flow.Id));
             else
                 warnings.Add((flow, path, called));
         }
@@ -95,6 +91,39 @@ public static partial class ConfigValidator
             else if (broken.Contains(called.Id))
                 problems.Add(new(Severity.Warning, path, $"{called.Name} needs fixing; this step runs its last working version.", flow.Id));
         }
+    }
+
+    private static Dictionary<string, HashSet<string>> CallGraph(Dictionary<string, Flow> byId, IEnumerable<(string From, string To)> calls)
+    {
+        var graph = byId.Keys.ToDictionary(id => id, _ => new HashSet<string>(StringComparer.Ordinal), StringComparer.Ordinal);
+        foreach (var (from, to) in calls.Where(c => c.From != c.To && byId.ContainsKey(c.To)))
+            graph[from].Add(to);
+        return graph;
+    }
+
+    /// <summary>#50: "That would make a loop: Headphones runs Make it the default, which runs Headphones."</summary>
+    private static string LoopText(Dictionary<string, Flow> byId, Flow flow, List<string> back) =>
+        "That would make a loop: " + flow.Name + string.Concat(back.Select((id, i) =>
+            (i == 0 ? " runs " : ", which runs ") + byId[id].Name)) + $", which runs {flow.Name}.";
+
+    /// <summary>
+    /// Why <paramref name="callerId"/> can't run <paramref name="targetId"/> (the editor's flow picker, UX §5.4): #49 for
+    /// itself, #50 when the target already runs the caller (through any of its <c>flow.run</c> steps); else null.
+    /// </summary>
+    public static string? CallProblem(IReadOnlyList<Flow> flows, string callerId, string targetId)
+    {
+        ArgumentNullException.ThrowIfNull(flows);
+        if (callerId == targetId)
+            return "A flow can't run itself.";
+        var byId = new Dictionary<string, Flow>(StringComparer.Ordinal);
+        foreach (var flow in flows)
+            byId.TryAdd(flow.Id, flow);
+        if (!byId.TryGetValue(callerId, out var caller) || !byId.ContainsKey(targetId))
+            return null;
+        var graph = CallGraph(byId, flows.SelectMany(f => f.Nodes.OfType<StepNode>()
+            .Where(s => s.Step == ProviderCatalog.RunFlowId && CalledFlow(s) is { Length: > 0 })
+            .Select(s => (f.Id, CalledFlow(s)!))));
+        return PathBetween(graph, targetId, callerId) is { } back ? LoopText(byId, caller, back) : null;
     }
 
     /// <summary>The flow a <c>flow.run</c> step names, or null when it names none (that is the param check's error).</summary>

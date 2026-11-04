@@ -66,4 +66,52 @@ public static class FlowInputs
         }
         return null;
     }
+
+    /// <summary>Whether a step setting, or a value its <c>flow.run</c> steps pass, names <c>$name</c>.</summary>
+    public static bool IsUsed(Flow flow, string name)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        return flow.Nodes.OfType<StepNode>().Any(s => s.With.Any(e => NameIn(e.Value) == name
+            || e.Key == Param && e.Value is MapParam map && map.Entries.Values.Any(v => NameIn(v) == name)));
+    }
+
+    /// <summary>
+    /// The flow with every <c>$name</c> replaced by that input's default (UX §5.4: removing an input, or changing its
+    /// kind, keeps the steps doing what they did, #61). The input itself stays; unknown names: the same flow.
+    /// </summary>
+    public static Flow Detach(Flow flow, string name)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        if (!flow.Inputs.TryGetValue(name, out var input))
+            return flow;
+        ParamValue Resolve(ParamValue value) => NameIn(value) == name ? input.Default : value;
+        return flow with
+        {
+            Nodes = [.. flow.Nodes.Select(n => n is StepNode step && IsUsed(flow with { Nodes = [step] }, name)
+                ? step with
+                {
+                    With = new(step.With.Select(e => KeyValuePair.Create(e.Key, e.Key == Param && e.Value is MapParam map
+                        ? new MapParam(new(map.Entries.Select(m => KeyValuePair.Create(m.Key, Resolve(m.Value)))))
+                        : Resolve(e.Value)))),
+                }
+                : n)],
+        };
+    }
+
+    /// <summary>A new input's name from its kind ("audio", "bluetooth-2"), unique in the flow.</summary>
+    public static string NewName(Flow flow, LibraryKind kind)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        var stem = kind switch
+        {
+            LibraryKind.Audio => "audio",
+            LibraryKind.Bluetooth => "bluetooth",
+            LibraryKind.Display => "layout",
+            _ => "android",
+        };
+        var name = stem;
+        for (var n = 2; flow.Inputs.ContainsKey(name); n++)
+            name = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{stem}-{n}");
+        return name;
+    }
 }

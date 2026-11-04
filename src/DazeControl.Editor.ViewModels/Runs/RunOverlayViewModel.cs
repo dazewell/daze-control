@@ -37,6 +37,12 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
     private Guid? _runId;
     private int _done;
 
+    /// <summary>Every run the engine reported starting (any flow): a nested run's caller is named from it (#64).</summary>
+    private readonly Dictionary<Guid, string> _runFlows = [];
+
+    /// <summary>The nested runs of this run's "Run a flow" steps: run id → (call step, called flow id).</summary>
+    private readonly Dictionary<Guid, (string Call, string FlowId)> _nested = [];
+
     public RunOverlayViewModel(FlowCanvasViewModel canvas, IEngineClient engine, Action<Action> post)
     {
         _canvas = canvas;
@@ -187,14 +193,52 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
 
     private void OnEngineEvent(PipeEvent e)
     {
-        if (e.FlowId == _canvas.FlowId && e.RunId is { } runId)
+        if (e.RunId is not { } runId)
+            return;
+        if (e.FlowId == _canvas.FlowId)
             _post(() => Apply(e, runId));
+        else
+            _post(() => ApplyOther(e, runId));
+    }
+
+    /// <summary>
+    /// Another flow's events: which flow each run is (to name the caller, #64), and a flow this run runs nested,
+    /// whose current step becomes the call's pill text (#59, D-062).
+    /// </summary>
+    internal void ApplyOther(PipeEvent e, Guid runId)
+    {
+        switch (e.Kind)
+        {
+            case EventKinds.RunStarted when e.FlowId is { } flowId:
+                _runFlows[runId] = flowId;
+                if (_runId is { } mine && e.ParentRunId == mine && e.ParentNodeId is { } call && _steps.Contains(call))
+                    _nested[runId] = (call, flowId);
+                break;
+            case EventKinds.RunFinished:
+                _runFlows.Remove(runId);
+                _nested.Remove(runId);
+                break;
+            case EventKinds.NodeStarted when e.NodeId is { } id && _nested.TryGetValue(runId, out var at)
+                    && _states.TryGetValue(at.Call, out var view) && view.State == NodeRunState.Running:
+                var step = _canvas.FlowById(at.FlowId)?.FindNode(id);
+                var title = step is StepNode s ? s.Name ?? Core.Catalog.ProviderCatalog.Find(s.Step)?.Title ?? s.Step : null;
+                if (title is not null)
+                {
+                    _states[at.Call] = view with { Text = title + "…" };
+                    Update();
+                }
+                break;
+        }
     }
 
     internal void Apply(PipeEvent e, Guid runId)
     {
+        if (e.Kind == EventKinds.RunStarted)
+            _runFlows[runId] = _canvas.FlowId;
+        else if (e.Kind == EventKinds.RunFinished)
+            _runFlows.Remove(runId);
         if (e.Kind == EventKinds.RunStarted || (e.Kind == EventKinds.NodeStarted && _runId is null))
-            Begin(runId); // a run that started before this window opened shows from its next step on
+            Begin(runId, e.ParentRunId); // a run that started before this window opened shows from its next step on
         if (runId != _runId)
             return;
         switch (e.Kind)
@@ -220,8 +264,9 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
         Update();
     }
 
-    private void Begin(Guid runId)
+    private void Begin(Guid runId, Guid? parentRunId = null)
     {
+        _nested.Clear();
         _runId = runId;
         _states.Clear();
         _steps.Clear();
@@ -240,7 +285,11 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
         }
         IsRunning = true;
         _canvas.IsRunLocked = true;
-        Info(RunInfoSeverity.Informational, "Running", "You can edit again when this run finishes.");
+        // #64: this flow runs inside another one (a "Run a flow" step that waits).
+        var caller = parentRunId is { } parent && _runFlows.TryGetValue(parent, out var callerId) ? _canvas.FlowById(callerId)?.Name : null;
+        Info(RunInfoSeverity.Informational, "Running", parentRunId is null ? "You can edit again when this run finishes."
+            : caller is not null ? $"Running inside {caller}. You can edit again when it finishes."
+            : "Running inside another flow. You can edit again when it finishes.");
         OnPropertyChanged(nameof(CanCloseInfo));
         Update();
     }

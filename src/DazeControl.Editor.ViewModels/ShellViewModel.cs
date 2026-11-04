@@ -121,14 +121,22 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
             return;
         var editor = new Canvas.FlowCanvasViewModel(Session, flowId, _clipboard, EditorSettings);
         Inspector = new Inspector.InspectorViewModel(Session, editor, _engine, _post, desktop: Desktop);
+        Inspector.OpenFlowRequested += OnCalledFlowRequested;
         Run = new Runs.RunOverlayViewModel(editor, _engine, _post);
         Editor = editor;
     }
+
+    /// <summary>"Run a flow" › Open this flow: the window asks about the draft (D-047), then calls <see cref="OpenFlow"/>.</summary>
+    public event Action<string>? CalledFlowRequested;
+
+    private void OnCalledFlowRequested(string flowId) => CalledFlowRequested?.Invoke(flowId);
 
     public void CloseFlow()
     {
         Run?.Dispose();
         Run = null;
+        if (Inspector is not null)
+            Inspector.OpenFlowRequested -= OnCalledFlowRequested;
         Inspector?.Dispose();
         Inspector = null;
         Editor?.Dispose();

@@ -18,6 +18,12 @@ public enum DeviceSource
 
     /// <summary>Displays: capture the screens as they are now into a new layout.</summary>
     Capture,
+
+    /// <summary>One of this flow's inputs (D-064): stores <c>$name</c>, so a caller can pick the device.</summary>
+    Input,
+
+    /// <summary>A group's heading ("This flow's inputs"): shown, never picked.</summary>
+    Header,
 }
 
 /// <summary>One row of a device picker: glyph + name + caption state (UX §5.4).</summary>
@@ -31,6 +37,13 @@ public sealed record DeviceOption(DeviceSource Source, string? Key, string Title
 
     public bool HasCaption => Caption.Length > 0;
 
+    /// <summary>A value the step can hold: a Library key, a key it already names, or one of the flow's inputs.</summary>
+    public bool IsValue => Source is DeviceSource.Library or DeviceSource.Missing or DeviceSource.Input;
+
+    public bool IsHeader => Source == DeviceSource.Header;
+
+    public bool IsRow => !IsHeader;
+
     public string AutomationName => HasCaption ? $"{Title}, {Caption}" : Title;
 }
 
@@ -39,6 +52,9 @@ public sealed record DeviceOption(DeviceSource Source, string? Key, string Title
 public static class LibraryDevices
 {
     public const string NotFound = "Not found on this PC";
+
+    /// <summary>The caption of a <c>$name</c> the flow has no input for (the validator's message says the rest).</summary>
+    public const string NotAnInput = "Not one of this flow's inputs";
 
     /// <summary>UX microcopy #26.</summary>
     public const string NotConnectable = "Daze Control can connect only headphones and speakers.";
@@ -106,14 +122,40 @@ public static class LibraryDevices
     public static string Title(LibraryKind kind, DeviceInfo device) =>
         kind == LibraryKind.Bluetooth && device.Detail is { Length: > 0 } name ? name : device.Name;
 
-    /// <summary>The picker's rows: none (optional), Library items, a missing key, then this PC's other devices.</summary>
+    /// <summary>UX §5.4: the group of a flow's own inputs in its device pickers.</summary>
+    public const string InputsGroup = "This flow's inputs";
+
+    /// <summary>The Library item's name ("Technics"), else the key as written.</summary>
+    public static string NameOf(Library library, LibraryKind kind, string key) =>
+        Items(library, kind).FirstOrDefault(i => i.Key == key).Title ?? key;
+
+    /// <summary>"$output" → the input's row: "Output" / "Technics unless the caller picks another".</summary>
+    public static DeviceOption InputRow(Library library, string name, FlowInput input) =>
+        new(DeviceSource.Input, "$" + name, input.Label,
+            input.Default.Length == 0 ? "No default yet" : $"{NameOf(library, input.Kind, input.Default)} unless the caller picks another",
+            Glyph(input.Kind));
+
+    /// <summary>A heading row of a picker's group.</summary>
+    public static DeviceOption Header(string title) => new(DeviceSource.Header, null, title, "", "") { IsEnabled = false };
+
+    /// <summary>
+    /// The picker's rows: none (optional), this flow's inputs of the kind under <see cref="InputsGroup"/>, Library
+    /// items, a missing key, then this PC's other devices.
+    /// </summary>
     public static List<DeviceOption> Options(LibraryKind kind, Library library, IReadOnlyList<DeviceInfo>? live, string? current,
-        bool required, bool canCapture)
+        bool required, bool canCapture, IEnumerable<KeyValuePair<string, FlowInput>>? inputs = null, string inputsGroup = InputsGroup)
     {
         var glyph = Glyph(kind);
         var options = new List<DeviceOption>();
         if (!required)
             options.Add(new(DeviceSource.None, null, "Current default device", "", glyph));
+        var own = (inputs ?? []).Where(i => i.Value.Kind == kind).ToList();
+        if (own.Count > 0)
+        {
+            options.Add(Header(inputsGroup));
+            options.AddRange(own.Select(i => InputRow(library, i.Key, i.Value)));
+            options.Add(Header("Library"));
+        }
         foreach (var (key, title) in Items(library, kind))
         {
             // A paired keyboard put in the Library by hand still can't be connected (D-052).
@@ -123,8 +165,8 @@ public static class LibraryDevices
                 IsEnabled = !notConnectable,
             });
         }
-        if (!string.IsNullOrEmpty(current) && !library.Contains(kind, current))
-            options.Add(new(DeviceSource.Missing, current, current, NotFound, glyph));
+        if (!string.IsNullOrEmpty(current) && !library.Contains(kind, current) && own.All(i => "$" + i.Key != current))
+            options.Add(new(DeviceSource.Missing, current, current, current.StartsWith('$') ? NotAnInput : NotFound, glyph));
         if (live is not null && kind != LibraryKind.Display)
         {
             foreach (var device in live)

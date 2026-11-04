@@ -10,7 +10,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <!-- The one version source: feat PR -> minor, fix PR -> patch (repo-workflow). -->
-    <Version>0.37.0</Version>
+    <Version>0.38.0</Version>
     <Product>Daze Control</Product>
     <Company>dazewell</Company>
     <Copyright>© 2026 dazewell</Copyright>

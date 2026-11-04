@@ -1,8 +1,7 @@
 # Flow calls (M13 P6) — design
 
 A step that runs another flow, so typical things compose into one step, and flow **inputs** so one chain serves
-several devices. Designed 2026-11-03 (D-061..D-064). **Built: §2–§5 (T13.8, T13.9)** — see ARCHITECTURE → Runtime; still to build: §6 editor
-(T13.10). Tasks: [PLAN.md](../PLAN.md) → M13 (T13.8–
+several devices. Designed 2026-11-03 (D-061..D-064). **Built: all of it (T13.8–T13.10)** — see ARCHITECTURE → Runtime and "Editor for calls and inputs", UX §5.4/§5.5. Tasks: [PLAN.md](../PLAN.md) → M13 (T13.8–
 T13.10). Microcopy numbers (#47–#66) are in [UX.md](../UX.md) §5.7. Shares its model with the flow menu
 ([flow-menu/DESIGN.md](../flow-menu/DESIGN.md), D-054 as amended by D-061).
 
@@ -140,27 +139,8 @@ existing `tray: { show: false }`.
 ## 5. Inputs (D-064) — built (T13.9), see ARCHITECTURE → Runtime "Flow inputs"
 Not in v1: text/number inputs, inputs on menu items or desktop shortcuts, outputs back to the caller (D-064).
 
-## 6. Editor (UX §5.4, §5.5)
-
-- Palette: area **Flow** › **Run a flow** (glyph: pick in the task from the Segoe Fluent gallery; the pill then shows
-  the called flow's own glyph, `FlowGlyph.CodeOf`).
-- Pill: title = the step's name, else "Run <flow name>"; summary = the given inputs ("Sony") or "Doesn't wait" in
-  start mode; Outline: "Run Make it the default. Flow. Waits for … ." Live: the pill is Running with the nested current
-  step as its summary (#59).
-- Inspector: **Flow** ComboBox (glyph + name + caption "Takes an output and a Bluetooth device" / "Turned off" /
-  "Needs fixing"); its own flow and flows that would make a loop are listed off with #49/#50 as the reason. **Wait for
-  it to finish** toggle (#55). **Inputs**: one device picker per input of the chosen flow (Library kind), first item
-  "Its default: Technics" (#60), then — if this flow has inputs of that kind — a group "From this flow's inputs".
-  **Open this flow** link (leaves with the D-047 prompt).
-- Flow settings: **Inputs** section with "Add an input" (#60): rows name, kind (Audio device / Bluetooth device /
-  Android device / Screen layout), default (device picker), ×. Removing an input that steps use writes its default
-  into them in the same undo step, with tip #61. Device pickers in a flow with inputs show a group "This flow's
-  inputs" ("Output · Technics unless the caller picks another").
-- A flow open in the editor while it runs nested shows the live states with InfoBar #64 and is locked like any
-  running flow.
-- Runs page: one entry per top run. In the timeline the call bar has a chevron; expanded, the nested lanes appear
-  indented under a bracket labelled with the called flow (like a card's), and selecting a nested bar shows its log
-  lines. "Open in editor" on a nested lane opens the called flow showing that nested run.
+## 6. Editor — built (T13.10), see UX §5.4/§5.5 and ARCHITECTURE "Editor for calls and inputs"
+Left out of v1: nested lanes expand one level (a call inside a called flow stays a bar); the Runs list shows top runs only.
 
 ## 7. Open questions (decide in the task that meets them)
 - Show nested runs as their own (dimmed) rows on the Runs list too? v1: no, they live in the parent's detail.

@@ -288,4 +288,41 @@ public sealed class RunsPageViewModelTests : IDisposable
         Assert.Equal("Yesterday", RunsPageViewModel.DayTitle(today.AddDays(-1), today));
         Assert.Contains("2025", RunsPageViewModel.DayTitle(new DateTime(2025, 12, 30), today), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void ACallsChevronShowsTheCalledFlowsLanesUnderABracket()
+    {
+        var called = new CalledRun(Guid.NewGuid(), "make", "Make it the default", FlowOutcome.Succeeded,
+            [Ran("set", 0, 1, NodeOutcome.Failed, order: 1, error: "Not plugged in"), Ran("connect", 1, 2, order: 2)]);
+        var run = Run(_time.GetLocalNow(), FlowOutcome.Succeeded, 4, Ran("bt", 1, 3, order: 1) with { Called = called }, Ran("out", 3, 4, order: 2));
+        var make = new Flow("make", "Make it the default", [new StepNode("set", "audio.setDefault") { Name = "Set it" }, new StepNode("connect", "bluetooth.connect")]);
+        var detail = new RunDetailViewModel(run, _session.Current.Flows[0], id => id == "make" ? make : null);
+        detail.Layout(400);
+        Assert.True(detail.Bars.Single(b => b.NodeId == "bt").IsCall);
+        Assert.False(detail.Bars.Single(b => b.NodeId == "out").IsCall);
+        Assert.Empty(detail.Brackets);
+
+        detail.ToggleCall("bt");
+
+        var bars = detail.Bars.ToDictionary(b => b.NodeId);
+        Assert.True(bars["bt"].IsExpanded);
+        Assert.True(bars["bt" + RunDetailViewModel.Nested + "set"].IsNested);
+        Assert.Equal("Set it", bars["bt" + RunDetailViewModel.Nested + "set"].Title);
+        Assert.Equal(bars["bt"].X, bars["bt" + RunDetailViewModel.Nested + "set"].X); // at its call's time
+        Assert.True(bars["bt" + RunDetailViewModel.Nested + "set"].Y > bars["bt"].Y);
+        var bracket = Assert.Single(detail.Brackets);
+        Assert.Equal("Make it the default", bracket.Title);
+        Assert.Equal(RunDetailViewModel.AxisHeight + 2 * RunDetailViewModel.LaneHeight, detail.Height);
+
+        detail.SelectedBar = bars["bt" + RunDetailViewModel.Nested + "set"];
+        Assert.Equal(["Set it: didn't work", "Started at 0 s, took 1 s.", "Not plugged in"], detail.SelectedLines);
+        Assert.True(detail.CanOpenInEditor);
+        Assert.Equal("make", detail.RecordToOpen.FlowId);
+        Assert.Equal(called.Nodes, detail.RecordToOpen.Nodes);
+
+        detail.ToggleCall("bt");
+        Assert.Null(detail.SelectedBar);
+        Assert.DoesNotContain(detail.Bars, b => b.IsNested);
+        Assert.Same(run, detail.RecordToOpen);
+    }
 }

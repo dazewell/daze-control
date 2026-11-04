@@ -210,9 +210,13 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             if (Kind == CanvasNodeKind.Card)
                 Kind = CanvasNodeKind.Step;
             var descriptor = ProviderCatalog.Find(step.Step);
-            Title = step.Name ?? descriptor?.Title ?? step.Step;
-            Summary = Summarize(step, descriptor, config);
-            Glyph = FlowItemViewModel.DecodeGlyph(descriptor?.Glyph ?? "E9CE");
+            var called = step.Step == ProviderCatalog.RunFlowId && Core.Validation.ConfigValidator.CalledFlow(step) is { Length: > 0 } id
+                ? config.Flows.FirstOrDefault(f => f.Id == id)
+                : null;
+            Title = step.Name ?? (called is not null ? "Run " + called.Name : descriptor?.Title ?? step.Step);
+            Summary = called is not null ? CallSummary(step, called, config) : Summarize(step, descriptor, config);
+            // Run a flow shows the called flow's own icon (DESIGN §6).
+            Glyph = called is not null ? FlowGlyph.Decode(FlowGlyph.CodeOf(called)) : FlowItemViewModel.DecodeGlyph(descriptor?.Glyph ?? "E9CE");
             Count = "";
             if (step.Retry is { Count: > 0 } retry)
                 badges.Add(new Badge("", $"×{retry.Count}"));
@@ -251,6 +255,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
                 continue;
             values.Add(spec.Kind switch
             {
+                // "$output" shows as the input's name, like the picker (D-064).
+                ParamKind.LibraryRef when FlowInputs.NameIn(value) is { } input =>
+                    OwnerOf(step, config)?.Inputs.GetValueOrDefault(input)?.Label ?? text,
                 ParamKind.LibraryRef => LibraryName(config.Library, spec.Library, text),
                 _ when spec.RefersTo == ConfigRef.Flow => config.Flows.FirstOrDefault(f => f.Id == text.Trim())?.Name ?? text,
                 ParamKind.MultilineText => text.Split('\n')[0].Trim(),
@@ -261,6 +268,30 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         }
         return values.Count == 0 ? Area(descriptor.Area) : string.Join(" · ", values);
     }
+
+    /// <summary>
+    /// A call's pill (UX §5.4): "Doesn't wait" in start mode, else the devices it passes ("Sony", a caller's input by
+    /// its name), else "Its defaults" when the called flow takes inputs, else "Flows".
+    /// </summary>
+    internal static string CallSummary(StepNode step, Flow called, Configuration config)
+    {
+        if (step.With.TryGetValue("wait", out var wait) && wait is ScalarParam { Text: var text } && bool.TryParse(text.Trim(), out var waits) && !waits)
+            return "Doesn't wait";
+        var names = FlowInputs.Given(step)
+            .Where(e => called.Inputs.ContainsKey(e.Key))
+            .Select(e => FlowInputs.NameIn(new ScalarParam(e.Value)) is { } own
+                ? OwnerOf(step, config)?.Inputs.GetValueOrDefault(own)?.Label ?? e.Value
+                : Inspector.LibraryDevices.NameOf(config.Library, called.Inputs[e.Key].Kind, e.Value))
+            .Distinct(StringComparer.Ordinal)
+            .Take(2)
+            .ToList();
+        return names.Count > 0 ? string.Join(" · ", names) : called.Inputs.Count > 0 ? "Its defaults" : Area("flow");
+    }
+
+    /// <summary>The flow the step is in (its inputs name <c>$name</c> values).</summary>
+    /// <remarks>By reference: steps are records, and two flows may hold equal ones.</remarks>
+    private static Flow? OwnerOf(StepNode step, Configuration config) =>
+        config.Flows.FirstOrDefault(f => f.Nodes.Any(n => ReferenceEquals(n, step))) ?? config.Flows.FirstOrDefault(f => f.Nodes.Contains(step));
 
     private static string LibraryName(Library library, LibraryKind? kind, string key) => kind switch
     {

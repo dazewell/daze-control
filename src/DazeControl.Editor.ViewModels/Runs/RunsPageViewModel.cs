@@ -101,7 +101,8 @@ public sealed partial class RunsPageViewModel : ObservableObject, IDisposable
     }
 
     public void Select(RunItemViewModel? item) =>
-        Detail = item is null ? null : new RunDetailViewModel(item.Record, FlowOf(item.Record));
+        Detail = item is null ? null : new RunDetailViewModel(item.Record, FlowOf(item.Record),
+            id => _session.Current.Flows.FirstOrDefault(f => f.Id == id));
 
     private Flow? FlowOf(RunRecord record) => _session.Current.Flows.FirstOrDefault(f => f.Id == record.FlowId);
 

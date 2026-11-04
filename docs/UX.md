@@ -156,14 +156,19 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   (pairs with "If it fails, run…"). Web request: address "Sunshine: close the running app"
   `https://localhost:47990/api/apps/close`; headers `Content-Type: application/json`; body `{ "key": "value" }`.
 - Bluetooth pickers list Windows' paired devices (D-052); ones without audio are disabled with #26.
-- **Run a flow** (M13, designed; [flow-calls/DESIGN.md](flow-calls/DESIGN.md) §6): **Flow** ComboBox (glyph + name +
+- **Run a flow** (M13, built T13.10): **Flow** ComboBox (glyph + name +
   caption: the inputs it takes, "Turned off", "Needs fixing"; its own flow and loop-making flows off with #49/#50);
   **Wait for it to finish** toggle, on by default (#55); **Inputs**: a device picker per input of the chosen flow,
-  first item "Its default: Technics", then "From this flow's inputs" (#60); **Open this flow** link. Pill: the called
-  flow's glyph, title "Run Make it the default", summary the given devices or "Doesn't wait".
-- **Inputs** (M13) in flow settings: "Add an input" (#60) → rows name · kind (Audio device / Bluetooth device / Android
-  device / Screen layout) · default (device picker) · ×. Device pickers in that flow get a group "This flow's inputs".
-  Removing a used input writes its default into the steps, with tip #61.
+  first item "Its default: Technics", then "From this flow's inputs", then "Library" (#60); with no flow chosen
+  "Choose a flow first.", with none to give "Night takes no inputs."; **Open this flow** link (D-047 prompt). Picking
+  another flow drops the inputs it doesn't take. Pill: the called flow's glyph, title "Run Make it the default" (also the
+  name box's placeholder), summary the given devices (a passed-through input by its name), "Its defaults", or
+  "Doesn't wait".
+- **Inputs** (M13, built T13.10) in flow settings, after the pop-up toggle: "Add an input" (#60) → rows name · ×, kind
+  (Audio device / Bluetooth device / Android device / Screen layout), default (device picker). A new input is an audio
+  device with the Library's first one. Device pickers in that flow get a group "This flow's inputs" ("Output" /
+  "Technics unless the caller picks another") above "Library"; a step using one shows its name on the pill. Removing a
+  used input, or changing its kind, writes its default into the steps, with tip #61.
 - **Menu step** (M12, designed; full spec [flow-menu/DESIGN.md](flow-menu/DESIGN.md) §3.7): Choices = token list of
   flows (glyph + name, ×, Alt+Up/Down, "Add a flow", own flow not offered, a missing one caution with #40), Title,
   Layout List / Grid, Size Normal / Large "For a TV across the room", Close after (s), "Wait for it to finish" (#41).
@@ -181,8 +186,10 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   editor" shows that run on the canvas. Keep the last 100 runs.
 - Fallbacks (D-065, built): a fallback that wasn't needed is listed "Not needed" (#47), not a skip, and has no bar; a
   failure its fallback fixed is a caution-dashed bar and the run says "Connect Technics worked." with #48.
-- M13 (D-062): a "Run a flow" bar that waited has a chevron; expanded, the called flow's lanes show indented under a bracket with its name, and "Open in editor" on them opens
-  that flow (D-062). Live: a flow running inside another shows its states with InfoBar #64.
+- M13 (D-062, built T13.10): a "Run a flow" bar that waited has a chevron after it ("Show the steps of …"); expanded,
+  the called flow's lanes show below under a bracket with its name (one level), and "Open in editor" with one of them
+  selected opens that flow showing its part of the run. Live: the call's pill says the called flow's current step
+  ("Connect…", #59), and a flow running inside another shows its states with InfoBar #64.
 
 ## 5.6 Tray menu and run pop-up
 - Clicks (user, 2026-11-02): left click, or Enter/Space on the focused icon, opens the editor (starts it or brings
