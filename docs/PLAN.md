@@ -32,7 +32,7 @@ Also found: this PC's installed app was still 0.22.0 (0.23.0 downloaded, applies
 (F3: one attribute on `FlowEditorPage`; F4: the Flows card menu and the Undo InfoBar): whichever merges second takes
 both sides. F4 must not touch the inspector or canvas files (F2, F1); F5 touches only `Providers/Display`, its tests
 and a new script. Docs: each adds its own lines (UX, ARCHITECTURE, FEATURES, PLAN tick) and takes both sides on
-conflict. Version: `fix` PRs bump the patch, `feat` PRs (F1, F4) the minor, against `main` at merge time (main's
+conflict. Version (until D-079; PRs no longer bump it): `fix` PRs bumped the patch, `feat` PRs (F1, F4) the minor, against `main` at merge time (main's
 number + 1).
 
 - [x] F1 **Wheel zoom on the canvas; a flow can always be moved** (feat/m13-wheel-zoom, D-074, PR #45; 0.30.0). Not a bug: right-drag
@@ -115,8 +115,8 @@ Designed 2026-11-03 (PR: docs/m13-design): D-061..D-070, UX §5.1–§5.9 "M13" 
 "Done"; device inputs ship inside P6; Tidy up becomes a Layout menu with several strategies; after a wrapped chain the
 next part goes on a new line under it. P-numbers are the user's items; T-numbers are the tasks.
 
-**Order** (one fresh session per task, one PR each; feat PRs bump the minor against `main` at merge time, so parallel
-PRs resolve `Directory.Build.props` by taking main's number + 1): T13.1 → T13.2 → T13.3 → T13.4 → T13.5 → T13.6 →
+**Order** (one fresh session per task, one PR each; until D-079 feat PRs bumped the minor against `main` at merge
+time; PRs no longer bump it): T13.1 → T13.2 → T13.3 → T13.4 → T13.5 → T13.6 →
 T13.7 → T13.8 → T13.9 → T13.10. **Independent lanes** (no shared files, may run at once):
 - Lane A, editor shell (`ShellWindow.xaml(.cs)`): T13.1 → T13.2 → T13.3, then T13.6 (also needs T13.5).
 - Lane B, canvas input (`FlowCanvas.xaml.cs`): T13.4.
@@ -332,7 +332,7 @@ order (they touch different files). Can run alongside M13 (no shared files excep
 
 ## M11 Shortcuts, pickers, Bluetooth list (user, 2026-11-02; design D-049..D-052, X-005)
 Order: T11.1 alone first (a bug the user sees); then T11.2 → T11.3 and T11.4 → T11.5. One PR per branch, feat
-PRs bump the minor version.
+PRs bumped the minor version (until D-079; PRs no longer bump it).
 - [x] T11.1 Bluetooth list = Windows' paired devices (fix/bluetooth-list, D-052). `Providers/Bluetooth`: CfgMgr32
   enumeration of present `BTHENUM\DEV_*` + `BTHLE\DEV_*` behind a seam, merged by address with the endpoint data
   (connectable + Connected); `DeviceInfo.State`, a "not connectable" flag the editor disables (Library "Add from
