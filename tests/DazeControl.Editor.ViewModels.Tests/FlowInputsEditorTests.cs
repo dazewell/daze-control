@@ -321,4 +321,25 @@ public sealed class FlowInputsEditorTests : IDisposable
 
         Assert.Equal("make-default", opened);
     }
+
+    // ---- The pill ----
+
+    [Fact]
+    public void ACallsPillIsNamedAfterTheFlowAndSaysWhatItPasses()
+    {
+        var pill = _canvas.Nodes.Single(n => n.Id == "call");
+        Assert.Equal("Run Make it the default", pill.Title);
+        Assert.Equal("Sony", pill.Summary);
+        Assert.Equal(FlowGlyph.Decode(FlowGlyph.CodeOf(_session.Current.Flows[0])), pill.Glyph);
+
+        _canvas.Select("call");
+        Field("wait").IsOn = false;
+        Assert.Equal("Doesn't wait", _canvas.Nodes.Single(n => n.Id == "call").Summary);
+
+        Field("wait").IsOn = true;
+        CallInput("output").Device = CallInput("output").Devices.Single(d => d.Key == "$mine");
+        Assert.Equal("My output", _canvas.Nodes.Single(n => n.Id == "call").Summary);
+        CallInput("output").Device = CallInput("output").Devices[0];
+        Assert.Equal("Its defaults", _canvas.Nodes.Single(n => n.Id == "call").Summary);
+    }
 }

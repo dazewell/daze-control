@@ -192,6 +192,20 @@ public sealed partial class InspectorPane : UserControl
             _ = _viewModel?.RefreshDevicesAsync(kind);
     }
 
+    /// <summary>An input's default or a call's input picker: what's on this PC now (UX §5.4).</summary>
+    private void OnPickerOpened(object? sender, object e)
+    {
+        if ((sender as FrameworkElement)?.Tag is DevicePickerViewModel picker)
+            _ = _viewModel?.RefreshDevicesAsync(picker.Kind);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnRemoveInput(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is FlowInputViewModel input)
+            input.Remove();
+    }
+
     private void OnPolicyHover(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is string tag && int.TryParse(tag, out var index))

@@ -28,11 +28,14 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" VerticalAlignment="Center" />
-                <StackPanel Grid.Column="1">
+                <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" VerticalAlignment="Center" Visibility="{x:Bind IsRow}" />
+                <StackPanel Grid.Column="1" Visibility="{x:Bind IsRow}">
                     <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{x:Bind Caption}" Visibility="{x:Bind HasCaption}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
                 </StackPanel>
+                <!-- "This flow's inputs" / "From this flow's inputs" / "Library": shown, never picked. -->
+                <TextBlock Grid.ColumnSpan="2" Text="{x:Bind Title}" Visibility="{x:Bind IsHeader}" Style="{StaticResource CaptionTextBlockStyle}"
+                           FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,4,0,0" />
             </Grid>
         </DataTemplate>
 
@@ -187,6 +190,28 @@
                                 <ComboBox Visibility="{x:Bind IsDevice}" ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}"
                                           ItemTemplate="{StaticResource DeviceTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
                                           DropDownOpened="OnDevicesOpened" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
+                                <!-- Run a flow › Inputs (UX §5.4): a device picker per input of the flow it runs. -->
+                                <ItemsControl Visibility="{x:Bind IsCallInputs}" ItemsSource="{x:Bind CallInputs}" IsTabStop="False"
+                                              AutomationProperties.Name="{x:Bind Title}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="8" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vmi:CallInputViewModel">
+                                            <StackPanel>
+                                                <TextBlock Text="{x:Bind Title}" Style="{StaticResource SettingsCardDescription}" Margin="0,0,0,4" />
+                                                <ComboBox ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}"
+                                                          ItemTemplate="{StaticResource DeviceTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
+                                                          DropDownOpened="OnPickerOpened" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
+                                                <TextBlock Text="{x:Bind Error, Mode=OneWay}" Visibility="{x:Bind HasError, Mode=OneWay}" Style="{StaticResource FieldError}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="{x:Bind CallInputsHint, Mode=OneWay}" Visibility="{x:Bind HasCallInputsHint, Mode=OneWay}"
+                                           Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
                                 <DropDownButton Visibility="{x:Bind HasExamples}" Content="Examples" Tag="{x:Bind}" Margin="0,6,0,0"
                                                 AutomationProperties.Name="{x:Bind local:InspectorPane.ExamplesName(Title)}">
                                     <DropDownButton.Flyout>
@@ -199,6 +224,9 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+
+                <HyperlinkButton Content="Open this flow" Command="{x:Bind ViewModel.OpenCalledFlowCommand, Mode=OneWay}" Padding="0,4"
+                                 Visibility="{x:Bind ViewModel.CanOpenCalledFlow, Mode=OneWay}" />
 
                 <!-- If it fails (UX §5.4): hover or focus previews what wouldn't run. -->
                 <TextBlock Text="If it fails" Style="{StaticResource InspectorSection}" />
@@ -365,6 +393,44 @@
                 </RadioButtons>
 
                 <ToggleSwitch Header="Show the pop-up while it runs" IsOn="{x:Bind ViewModel.ShowPopup, Mode=TwoWay}" Margin="0,8,0,0" />
+
+                <!-- Inputs (D-064, UX §5.4): devices another flow may pick when it runs this one. -->
+                <TextBlock Text="Inputs" Style="{StaticResource InspectorSection}" />
+                <ItemsControl ItemsSource="{x:Bind ViewModel.Inputs, Mode=OneWay}" IsTabStop="False" AutomationProperties.Name="Inputs">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="16" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vmi:FlowInputViewModel">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnSpacing="4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Text="{x:Bind Label, Mode=TwoWay}" PlaceholderText="Name" KeyDown="OnCommitOnEnter"
+                                             AutomationProperties.Name="Input name" />
+                                    <Button Grid.Column="1" Click="OnRemoveInput" Tag="{x:Bind}" Padding="8" VerticalAlignment="Center"
+                                            AutomationProperties.Name="{x:Bind RemoveName, Mode=OneWay}" ToolTipService.ToolTip="Remove">
+                                        <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                    </Button>
+                                </Grid>
+                                <ComboBox ItemsSource="{x:Bind vmi:FlowInputViewModel.KindNames}" SelectedIndex="{x:Bind KindIndex, Mode=TwoWay}"
+                                          HorizontalAlignment="Stretch" AutomationProperties.Name="Kind" />
+                                <ComboBox ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}" PlaceholderText="Default device"
+                                          ItemTemplate="{StaticResource DeviceTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
+                                          DropDownOpened="OnPickerOpened" AutomationProperties.Name="{x:Bind DefaultName, Mode=OneWay}" />
+                                <TextBlock Text="{x:Bind Error, Mode=OneWay}" Visibility="{x:Bind HasError, Mode=OneWay}" Style="{StaticResource FieldError}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{x:Bind ViewModel.InputTip, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasInputTip, Mode=OneWay}"
+                           TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <HyperlinkButton Content="Add an input" Command="{x:Bind ViewModel.AddInputCommand, Mode=OneWay}" Padding="0,4" />
+                <TextBlock Text="{x:Bind vmi:InspectorViewModel.AddInputHelp}" TextWrapping="Wrap" Style="{StaticResource SettingsCardDescription}" />
             </StackPanel>
             </ContentControl>
         </StackPanel>

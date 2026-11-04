@@ -23,6 +23,9 @@ public abstract partial class DevicePickerViewModel : ObservableObject
 
     public abstract string Title { get; }
 
+    /// <summary>The Library kind the rows are of (the pane refreshes this PC's devices when the drop-down opens).</summary>
+    public abstract LibraryKind Kind { get; }
+
     public string AutomationName => Error is null ? Title : $"{Title}. {Error}";
 
     /// <summary>Replaces the rows (only when one really changed: rebuilding closes an open drop-down) and selects <paramref name="current"/>.</summary>
@@ -95,7 +98,7 @@ public sealed partial class FlowInputViewModel : DevicePickerViewModel
     [ObservableProperty]
     public partial int KindIndex { get; set; }
 
-    public LibraryKind Kind => Kinds[Math.Clamp(KindIndex, 0, Kinds.Length - 1)];
+    public override LibraryKind Kind => Kinds[Math.Clamp(KindIndex, 0, Kinds.Length - 1)];
 
     public string RemoveName => $"Remove {Title}";
 
@@ -152,6 +155,8 @@ public sealed partial class CallInputViewModel : DevicePickerViewModel
     internal FlowInput Input { get; }
 
     public override string Title => Input.Label;
+
+    public override LibraryKind Kind => Input.Kind;
 
     private protected override void Picked(DeviceOption option) => _picked(this, option);
 }

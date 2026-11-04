@@ -65,6 +65,7 @@ public sealed partial class ShellWindow : Window
         RunsViewControl.ViewModel = ViewModel.Runs;
         RunsViewControl.OpenRequested += OnOpenRun;
         ViewModel.Library.FlowRequested += OnLibraryFlowRequested; // after the view model's own handler, which opens it
+        ViewModel.CalledFlowRequested += OnCalledFlowRequested;
         var scale = GetDpiForWindow(hwnd) / 96.0;
         AppWindow.Resize(new SizeInt32((int)(WidthDip * scale), (int)(HeightDip * scale)));
 
@@ -288,6 +289,16 @@ public sealed partial class ShellWindow : Window
         if (ViewModel.Editor?.FlowId != flowId)
             return;
         SelectFlowsPane();
+        UpdatePages();
+    }
+
+    /// <summary>"Run a flow" › Open this flow: leave this one like the breadcrumb does (D-047), then open the called flow.</summary>
+    private async void OnCalledFlowRequested(string flowId)
+    {
+        if (!await LeaveFlowAsync())
+            return;
+        ViewModel.CloseFlow(); // a discarded draft must not linger as the open editor
+        ViewModel.OpenFlow(flowId);
         UpdatePages();
     }
 
