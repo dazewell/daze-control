@@ -312,6 +312,66 @@ public sealed class FlowDeleteRenameTests : IDisposable
     }
 
     [Fact]
+    public async Task ARenameWhileTheEngineIsOffMovesTheShortcutWhenItStarts()
+    {
+        Put("new-flow");
+        using var shell = new ShellViewModel(_session, _engine, a => a(), _folder);
+        _engine.SetRunning(false);
+        shell.OpenFlow("new-flow");
+        Rename(shell.Editor!, _session, "Wake up");
+        shell.Editor!.Save();
+        await Task.Yield();
+        Assert.Contains("new-flow", _desktop.Keys);
+
+        EngineLoads(); // it starts with the saved file
+        _engine.SetRunning(true);
+        await Task.Yield();
+
+        Assert.Equal(["wake-up"], _desktop.Keys);
+    }
+
+    [Fact]
+    public async Task AFailedRemoveKeepsTheMoveForTheNextReload()
+    {
+        Put("new-flow");
+        var removeWorks = false;
+        var inner = _engine.Answer!;
+        _engine.Answer = r => r.Op == Ops.RemoveShortcut && !removeWorks ? new PipeMessage { Ok = false, Error = "busy" } : inner(r);
+        using var shell = new ShellViewModel(_session, _engine, a => a(), _folder);
+        shell.OpenFlow("new-flow");
+        Rename(shell.Editor!, _session, "Wake up");
+        EngineLoads();
+        _engineFlows.Add("wake-up");
+        shell.Editor!.Save();
+        await Task.Yield();
+        Assert.Contains("new-flow", _desktop.Keys); // the remove failed
+
+        removeWorks = true;
+        _engine.Raise(new PipeEvent { Kind = EventKinds.ConfigReloaded });
+        await Task.Yield();
+
+        Assert.Equal(["wake-up"], _desktop.Keys);
+    }
+
+    [Fact]
+    public async Task TwoRenamesBeforeTheEngineReloadsMoveTheShortcutToTheLast()
+    {
+        Put("new-flow");
+        using var shell = new ShellViewModel(_session, _engine, a => a(), _folder);
+        shell.OpenFlow("new-flow");
+        Rename(shell.Editor!, _session, "Wake up");
+        shell.Editor!.Save();
+        Rename(shell.Editor, _session, "Sunrise");
+        shell.Editor.Save();
+
+        EngineLoads();
+        _engine.Raise(new PipeEvent { Kind = EventKinds.ConfigReloaded });
+        await Task.Yield();
+
+        Assert.Equal(["sunrise"], _desktop.Keys);
+    }
+
+    [Fact]
     public void OpeningAFlowEndsTheBar()
     {
         using var shell = new ShellViewModel(_session, _engine, a => a(), _folder);

@@ -33,14 +33,14 @@ public static class FlowRefs
         ProviderCatalog.Find(step.Step)?.Params.Where(p => p.RefersTo == ConfigRef.Flow).Select(p => p.Name) ?? [];
 
     private static bool Names(StepNode step, string flowId) =>
-        FlowParams(step).Any(p => step.With.TryGetValue(p, out var value) && value is ScalarParam { Text: var text } && text == flowId);
+        FlowParams(step).Any(p => step.With.TryGetValue(p, out var value) && value is ScalarParam { Text: var text } && text.Trim() == flowId); // as ConfigValidator.CalledFlow
 
     private static StepNode Renamed(StepNode step, string oldId, string newId)
     {
         var refs = FlowParams(step).ToHashSet(StringComparer.Ordinal);
         return step with
         {
-            With = new(step.With.Select(e => refs.Contains(e.Key) && e.Value is ScalarParam { Text: var text } && text == oldId
+            With = new(step.With.Select(e => refs.Contains(e.Key) && e.Value is ScalarParam { Text: var text } && text.Trim() == oldId
                 ? KeyValuePair.Create(e.Key, (ParamValue)newId)
                 : e)),
         };

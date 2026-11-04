@@ -20,17 +20,18 @@ public static class FlowIds
         var text = (name ?? "").Normalize(NormalizationForm.FormD);
         var slug = new StringBuilder(text.Length);
         var dash = false;
-        foreach (var c in text)
+        // Runes, not chars: letters outside the BMP (Deseret, Osage…) are letters too.
+        foreach (var c in text.EnumerateRunes())
         {
-            var category = CharUnicodeInfo.GetUnicodeCategory(c);
+            var category = Rune.GetUnicodeCategory(c);
             if (category is UnicodeCategory.NonSpacingMark or UnicodeCategory.SpacingCombiningMark or UnicodeCategory.EnclosingMark)
                 continue;
-            if (char.IsLetterOrDigit(c))
+            if (Rune.IsLetterOrDigit(c))
             {
                 if (dash && slug.Length > 0)
                     slug.Append('-');
                 dash = false;
-                slug.Append(char.ToLowerInvariant(c));
+                slug.Append(Rune.ToLowerInvariant(c).ToString());
             }
             else
             {
@@ -41,7 +42,8 @@ public static class FlowIds
         if (result.Length > MaxLength)
         {
             var cut = result.LastIndexOf('-', MaxLength);
-            result = cut > 0 ? result[..cut] : result[..MaxLength];
+            var end = char.IsHighSurrogate(result[MaxLength - 1]) ? MaxLength - 1 : MaxLength; // never half a pair
+            result = cut > 0 ? result[..cut] : result[..end];
         }
         return result.Length == 0 ? Fallback : result;
     }

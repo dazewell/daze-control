@@ -34,6 +34,27 @@ public class FlowIdsTests
     }
 
     [Fact]
+    public void LettersOutsideTheBmpAreLettersToo()
+    {
+        Assert.Equal("𐐨𐐯𐑅𐐨𐑉𐐯𐐻", FlowIds.Slug("𐐀𐐯𐑅𐐨𐑉𐐯𐐻")); // Deseret, lowercased
+        var slug = FlowIds.Slug(new string('a', 39) + "𐐨𐐨");
+        Assert.False(char.IsHighSurrogate(slug[^1])); // never half a pair at the cut
+    }
+
+    [Fact]
+    public void ACallWithSpacesAroundTheIdCounts()
+    {
+        var config = ConfigYaml.Load("""
+            flows:
+              tv: { name: TV, nodes: [ { id: n, step: notify, with: { text: x } } ] }
+              evening: { name: Evening, nodes: [ { id: call, step: flow.run, with: { flow: " tv " } } ] }
+            """).Config!;
+
+        Assert.Equal(["evening"], FlowRefs.Callers(config, "tv").Select(f => f.Id));
+        Assert.Equal("television", Called(FlowRefs.Rename(config, "tv", "television"), "evening", "call"));
+    }
+
+    [Fact]
     public void ALongWordIsCutAtTheLimit()
     {
         var slug = FlowIds.Slug(new string('a', 60));

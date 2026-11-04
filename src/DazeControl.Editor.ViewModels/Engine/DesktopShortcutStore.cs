@@ -44,36 +44,32 @@ public sealed class DesktopShortcutStore(IEngineClient engine, string? configPat
     public Task<string?> RemoveAsync(string flowId, CancellationToken cancellationToken = default) =>
         ChangeAsync(new PipeRequest { Op = Ops.RemoveShortcut, Flow = flowId, ExactId = true, ConfigPath = configPath }, cancellationToken);
 
-    /// <summary>Renames waiting for the engine to load the new id (old → new); UI thread and pipe events, so locked.</summary>
+    /// <summary>Saved renames whose shortcut hasn't moved yet (old → new); UI thread and pipe events, so locked.</summary>
     private readonly Dictionary<string, string> _moves = new(StringComparer.Ordinal);
+    private bool _moving, _again; // one pass at a time; an event during a pass asks for another
     private bool _listening;
 
     /// <summary>
     /// A saved rename (D-075): once the engine has loaded the new id, the old id's shortcut is made again for it and the
-    /// old one removed. Nothing to do when the old id has none. Retried on each config reload until the engine knows it.
+    /// old one removed. Kept until the old one is gone (or there was none), and retried on each config reload and each
+    /// engine start, so an engine that is off or goes away mid-move doesn't strand it.
     /// </summary>
-    public async Task MoveAsync(string oldId, string newId)
+    public Task MoveAsync(string oldId, string newId)
     {
-        try
-        {
-            await RefreshAsync().ConfigureAwait(false); // a shortcut made by dctl or another editor counts too
-        }
-        catch (Exception e) when (e is IOException or OperationCanceledException)
-        {
-            return;
-        }
-        if (Of(oldId) is null)
-            return;
         lock (_moves)
         {
+            // A second rename before the first moved: the original shortcut goes straight to the newest id.
+            foreach (var pending in _moves.Where(m => m.Value == oldId).ToList())
+                _moves[pending.Key] = newId;
             _moves[oldId] = newId;
             if (!_listening)
             {
                 engine.EventReceived += OnEngineEvent;
+                engine.StateChanged += OnEngineStateChanged;
                 _listening = true;
             }
         }
-        await TryMovesAsync().ConfigureAwait(false);
+        return TryMovesAsync();
     }
 
     private void OnEngineEvent(PipeEvent e)
@@ -82,32 +78,93 @@ public sealed class DesktopShortcutStore(IEngineClient engine, string? configPat
             _ = TryMovesAsync();
     }
 
+    private void OnEngineStateChanged()
+    {
+        if (engine.IsRunning)
+            _ = TryMovesAsync();
+    }
+
     private async Task TryMovesAsync()
     {
-        KeyValuePair<string, string>[] moves;
         lock (_moves)
-            moves = [.. _moves];
-        foreach (var (oldId, newId) in moves)
         {
-            try
+            if (_moving)
             {
-                var made = await engine.SendAsync(new PipeRequest { Op = Ops.CreateShortcut, Flow = newId, ExactId = true, ConfigPath = configPath }).ConfigureAwait(false);
-                if (made is not { Ok: true })
-                    continue; // the engine hasn't loaded the save yet (or isn't running): the next reload tries again
+                _again = true;
+                return;
+            }
+            _moving = true;
+        }
+        try
+        {
+            bool again;
+            do
+            {
                 lock (_moves)
-                    _moves.Remove(oldId);
-                await engine.SendAsync(new PipeRequest { Op = Ops.RemoveShortcut, Flow = oldId, ExactId = true, ConfigPath = configPath }).ConfigureAwait(false);
+                    _again = false;
+                await MovePassAsync().ConfigureAwait(false);
+                lock (_moves)
+                    again = _again;
+            }
+            while (again);
+        }
+        finally
+        {
+            lock (_moves)
+                _moving = false;
+        }
+    }
+
+    private async Task MovePassAsync()
+    {
+        try
+        {
+            KeyValuePair<string, string>[] moves;
+            lock (_moves)
+                moves = [.. _moves];
+            if (moves.Length == 0)
+                return;
+            // Asked of the engine, not the cached list: a shortcut made by dctl or another editor counts too.
+            var listed = await engine.SendAsync(new PipeRequest { Op = Ops.Shortcuts, ConfigPath = configPath }).ConfigureAwait(false);
+            if (listed is not { Ok: true })
+                return; // engine off: its next start tries again
+            var have = (listed.Shortcuts ?? []).Select(s => s.FlowId).ToHashSet(StringComparer.Ordinal);
+            foreach (var (oldId, newId) in moves)
+            {
+                if (!have.Contains(oldId))
+                {
+                    Done(oldId, newId); // nothing (left) to move
+                    continue;
+                }
+                var made = await Send(Ops.CreateShortcut, newId).ConfigureAwait(false);
+                if (made is not { Ok: true })
+                    continue; // the engine hasn't loaded the save yet: the next reload tries again
+                if (await Send(Ops.RemoveShortcut, oldId).ConfigureAwait(false) is not { Ok: true })
+                    continue; // still pending: the old one may still be there
+                Done(oldId, newId);
                 // Made while the old one still had the name ("Morning (2)"): again, now that the name is free.
                 if (made.Shortcuts is [{ CurrentName: false }])
-                    await engine.SendAsync(new PipeRequest { Op = Ops.CreateShortcut, Flow = newId, ExactId = true, ConfigPath = configPath }).ConfigureAwait(false);
+                    await Send(Ops.CreateShortcut, newId).ConfigureAwait(false);
             }
-            catch (Exception e) when (e is IOException or OperationCanceledException)
-            {
-                // The engine went away mid-move: the next reload tries again.
-            }
-        }
-        if (moves.Length > 0)
             await RefreshAsync().ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is IOException or OperationCanceledException)
+        {
+            // The engine went away mid-move: the move stays pending for its next start.
+        }
+    }
+
+    private Task<PipeMessage?> Send(string op, string flowId) =>
+        engine.SendAsync(new PipeRequest { Op = op, Flow = flowId, ExactId = true, ConfigPath = configPath });
+
+    /// <summary>Drops the move unless a newer rename replaced it meanwhile.</summary>
+    private void Done(string oldId, string newId)
+    {
+        lock (_moves)
+        {
+            if (_moves.TryGetValue(oldId, out var pending) && pending == newId)
+                _moves.Remove(oldId);
+        }
     }
 
     private async Task<string?> ChangeAsync(PipeRequest request, CancellationToken cancellationToken)
