@@ -411,6 +411,33 @@ public sealed class InspectorViewModelTests : IDisposable
     }
 
     [Fact]
+    public void AShortcutBoxTellsTheEngineWhileItRecords()
+    {
+        _inspector.SetRecordingShortcut(true);
+        _inspector.SetRecordingShortcut(false);
+
+        Assert.Equal([true, false], _engine.Requests.Where(r => r.Op == Ops.RecordHotkey).Select(r => r.On));
+    }
+
+    [Fact]
+    public void AFreedShortcutLosesItsNoteWhenTheEngineSaysShortcutsChanged()
+    {
+        string[] problems = ["Alt+Q: Another app uses Alt+Q. If you closed it, check the tray: it may still be running. Try another one."];
+        var answer = _engine.Answer!;
+        _engine.Answer = request => request.Op == Ops.Status
+            ? new PipeMessage { Ok = true, Status = new EngineStatus { ShortcutProblems = problems } }
+            : answer(request);
+        _inspector.SetShortcut(0, "Alt+Q");
+        _engine.Raise(new PipeEvent { Kind = EventKinds.ShortcutsChanged });
+        Assert.StartsWith("Another app uses Alt+Q.", _inspector.Shortcuts[0].Problem, StringComparison.Ordinal);
+
+        problems = [];
+        _engine.Raise(new PipeEvent { Kind = EventKinds.ShortcutsChanged });
+
+        Assert.Null(_inspector.Shortcuts[0].Problem);
+    }
+
+    [Fact]
     public void StopWithAFallbackEdgeDimsOnlyWhatWaitsForItToWork()
     {
         // out has an "if it fails" edge to note: failing doesn't stop the flow, note still runs.

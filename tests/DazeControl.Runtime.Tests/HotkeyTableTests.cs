@@ -144,6 +144,148 @@ public sealed class HotkeyTableTests
         Assert.Empty(_os.Registered);
     }
 
+    [Fact]
+    public void RecordingUnregistersEveryChordAndEndingItRegistersThemAgain()
+    {
+        _table.Apply([Flow("a", "Alt+Z", "Win+F5")]);
+
+        _table.StartRecording();
+        Assert.Empty(_os.Registered);
+        Assert.Null(Press("Alt+Z"));
+
+        _table.StopRecording();
+        Assert.Equal(2, _os.Registered.Count);
+        Assert.Equal("a", Press("Alt+Z")?.FlowId);
+    }
+
+    [Fact]
+    public void AReloadWhileRecordingRegistersNothingUntilItEnds()
+    {
+        _table.StartRecording();
+        _table.Apply([Flow("a", "Alt+Z")]);
+        Assert.Empty(_os.Registered);
+
+        _table.StopRecording();
+        Assert.Equal("a", Press("Alt+Z")?.FlowId);
+    }
+
+    [Fact]
+    public void AChordThatFailedAndIsFreeNowIsRegisteredWhenRecordingEnds()
+    {
+        _os.Taken.Add(Key("Alt+Z"));
+        _table.Apply([Flow("a", "Alt+Z")]);
+        _table.StartRecording();
+        _os.Taken.Clear();
+
+        _table.StopRecording();
+
+        Assert.Empty(_table.Failures);
+        Assert.Equal("a", Press("Alt+Z")?.FlowId);
+    }
+
+    [Fact]
+    public void AChordThatFailedAndIsFreeNowIsRegisteredOnResume()
+    {
+        _os.Taken.Add(Key("Alt+Z"));
+        _table.Apply([Flow("a", "Alt+Z")]);
+        _table.Pause();
+        _os.Taken.Clear();
+
+        _table.Resume();
+
+        Assert.Empty(_table.Failures);
+        Assert.Equal("a", Press("Alt+Z")?.FlowId);
+    }
+
+    [Fact]
+    public void AChordThatFailedAndIsFreeNowIsRegisteredWhenTheMenuOpens()
+    {
+        _os.Taken.Add(Key("Alt+Z"));
+        _table.Apply([Flow("a", "Alt+Z", "Alt+X")]);
+        var changes = 0;
+        _table.FailuresChanged += () => changes++;
+        _os.Taken.Clear();
+
+        _table.RetryFailures();
+
+        Assert.Empty(_table.Failures);
+        Assert.Equal("a", Press("Alt+Z")?.FlowId);
+        Assert.Equal(1, changes);
+    }
+
+    [Fact]
+    public void ARetryThatChangesNothingTouchesOnlyTheFailedChordsAndRaisesNothing()
+    {
+        _os.Taken.Add(Key("Alt+Z"));
+        _table.Apply([Flow("a", "Alt+Z", "Alt+X")]);
+        var calls = _os.Calls;
+        var changes = 0;
+        _table.FailuresChanged += () => changes++;
+
+        _table.RetryFailures();
+
+        Assert.Equal(calls + 1, _os.Calls); // one try for Alt+Z, Alt+X untouched
+        Assert.Equal("taken", _table.Failures[Key("Alt+Z")]);
+        Assert.Equal(0, changes);
+    }
+
+    [Fact]
+    public void FailuresAreKeptWhileRecordingSoTheNoteStays()
+    {
+        _os.Taken.Add(Key("Alt+Z"));
+        _table.Apply([Flow("a", "Alt+Z")]);
+
+        _table.StartRecording();
+        _table.RetryFailures();
+
+        Assert.Equal("taken", _table.Failures[Key("Alt+Z")]);
+        Assert.Empty(_os.Registered);
+    }
+
+    [Fact]
+    public void RecordingAndPauseAreSeparate()
+    {
+        _table.Apply([Flow("a", "Alt+Z")]);
+
+        _table.Pause();
+        _table.StartRecording();
+        _table.StopRecording();
+        Assert.Empty(_os.Registered);
+        Assert.True(_table.Paused);
+
+        _table.StartRecording();
+        _table.Resume();
+        Assert.Empty(_os.Registered);
+        Assert.False(_table.Paused);
+
+        _table.StopRecording();
+        Assert.Equal("a", Press("Alt+Z")?.FlowId);
+    }
+
+    [Fact]
+    public void AFailureThatGoesAwayOrComesBackIsAChange()
+    {
+        var changes = 0;
+        _table.FailuresChanged += () => changes++;
+        _os.Taken.Add(Key("Alt+Z"));
+
+        _table.Apply([Flow("a", "Alt+Z")]);
+        Assert.Equal(1, changes);
+
+        _table.Apply([Flow("a", "Alt+Z")]);
+        Assert.Equal(1, changes);
+
+        _table.Apply([]);
+        Assert.Equal(2, changes);
+    }
+
+    [Theory]
+    [InlineData("Win+E", "Windows uses Win+E. Try another one.")]
+    [InlineData("Win+[", "Another app uses Win+[. If you closed it, check the tray: it may still be running. Try another one.")]
+    [InlineData("Ctrl+Alt+Z", "Another app uses Ctrl+Alt+Z. If you closed it, check the tray: it may still be running. Try another one.")]
+    public void ATakenChordNamesWindowsWhenItIsWindows(string text, string message) =>
+        Assert.Equal(message, HotkeyTable.TakenMessage(Key(text)));
+
     private sealed class FakeRegistrar : IHotkeyRegistrar
     {
         public Dictionary<Hotkey, int> Registered { get; } = [];

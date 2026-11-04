@@ -74,6 +74,7 @@ internal sealed class EngineHost : IDisposable
         _hotkeys = new GlobalHotkey(_window);
         _hotkeyTable = new HotkeyTable(_hotkeys);
         _hotkeys.Pressed += OnHotkey;
+        _hotkeyTable.FailuresChanged += OnShortcutFailuresChanged;
         // The run page arrives with M9; until then selecting a failure opens the editor.
         _popup.Selected += view => OpenEditor();
 
@@ -105,6 +106,7 @@ internal sealed class EngineHost : IDisposable
             new FlowRunner(stepProviders, TimeProvider.System, locks) { Flows = calls },
             FlowShortcuts.Create(paths.ConfigArgument, EnginePaths.DefaultConfig, Log.Info));
         _controller.RunRefused += refusal => _window.Post(() => ShowRefusal(refusal));
+        _controller.HotkeyRecordingChanged += on => _window.Post(() => OnHotkeyRecording(on));
         _pipe = new PipeServer(Protocol.CurrentPipeName(), _controller.HandleAsync, (what, e) => Log.Error(what, e));
         _pipe.Start();
         Apply(_config.Current);
@@ -152,8 +154,6 @@ internal sealed class EngineHost : IDisposable
         _hotkeyTable.Apply(snapshot.RunnableFlows);
         foreach (var invalid in _hotkeyTable.Invalid)
             Log.Info($"hotkey: not a valid shortcut: {invalid}");
-        foreach (var (hotkey, why) in _hotkeyTable.Failures)
-            Log.Info($"hotkey: {hotkey} for {_hotkeyTable.Wanted[hotkey]}: {why}");
         Log.Info($"config: {snapshot.Flows.Count} flow(s), {snapshot.RunnableFlows.Count()} runnable, "
             + $"{_hotkeyTable.Wanted.Count - _hotkeyTable.Failures.Count} shortcut(s)");
         PublishShell();
@@ -164,9 +164,35 @@ internal sealed class EngineHost : IDisposable
     private void PublishShell() => _controller.Shell = new ShellStatus(_hotkeyTable.Paused,
         [.. _hotkeyTable.Failures.Select(f => $"{f.Key}: {f.Value}")]);
 
-    private IReadOnlyList<TrayEntry> BuildMenu() => TrayMenu.Build(_config.Current, new TrayState(
-        _running.Select(r => r.FlowId).ToHashSet(), id => _hotkeyTable.ShortcutOf(id)?.ToString(),
-        _hotkeyTable.Paused, File.Exists(_editorPath)));
+    /// <summary>The menu opens: a chord another app has let go of since is registered now (D-072).</summary>
+    private IReadOnlyList<TrayEntry> BuildMenu()
+    {
+        _hotkeyTable.RetryFailures();
+        return TrayMenu.Build(_config.Current, new TrayState(
+            _running.Select(r => r.FlowId).ToHashSet(), id => _hotkeyTable.ShortcutOf(id)?.ToString(),
+            _hotkeyTable.Paused, File.Exists(_editorPath)));
+    }
+
+    /// <summary>On the message thread. Messages are posted in order, so the last one wins.</summary>
+    private void OnHotkeyRecording(bool on)
+    {
+        if (on == _hotkeyTable.Recording)
+            return;
+        if (on)
+            _hotkeyTable.StartRecording();
+        else
+            _hotkeyTable.StopRecording();
+        Log.Info($"hotkey: shortcuts {(on ? "let go while the editor records one" : "back after recording")}");
+    }
+
+    /// <summary>On the message thread: a retry or a reload changed which chords failed; the editor reads status again.</summary>
+    private void OnShortcutFailuresChanged()
+    {
+        foreach (var (hotkey, why) in _hotkeyTable.Failures)
+            Log.Info($"hotkey: {hotkey} for {_hotkeyTable.Wanted[hotkey]}: {why}");
+        PublishShell();
+        _pipe?.Broadcast(new PipeEvent { Kind = EventKinds.ShortcutsChanged, At = DateTimeOffset.UtcNow });
+    }
 
     private void OnTrayCommand(TrayCommand command)
     {

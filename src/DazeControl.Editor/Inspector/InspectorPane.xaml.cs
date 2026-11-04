@@ -242,4 +242,6 @@ public sealed partial class InspectorPane : UserControl
         if ((sender as FrameworkElement)?.Tag is ShortcutViewModel shortcut)
             _viewModel?.SetShortcut(shortcut.Index, hotkey);
     }
+
+    private void OnShortcutRecording(object? sender, bool recording) => _viewModel?.SetRecordingShortcut(recording);
 }

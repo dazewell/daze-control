@@ -42,6 +42,10 @@ public static class Ops
     public const string Shortcuts = "shortcuts";
     public const string CreateShortcut = "create-shortcut";
     public const string RemoveShortcut = "remove-shortcut";
+
+    /// <summary>The editor's shortcut box has focus (<see cref="PipeRequest.On"/>) or lost it: the engine lets go of
+    /// its shortcuts meanwhile, so the box can record a chord the engine owns (D-072). Ends when the connection does.</summary>
+    public const string RecordHotkey = "record-hotkey";
 }
 
 public sealed class PipeRequest
@@ -71,6 +75,9 @@ public sealed class PipeRequest
 
     /// <summary>autostart: true = on, false = off, null = just tell.</summary>
     public bool? Enable { get; init; }
+
+    /// <summary>record-hotkey: true = the box is recording, false = it stopped.</summary>
+    public bool? On { get; init; }
 
     /// <summary>history: at most this many, newest first.</summary>
     public int? Limit { get; init; }
@@ -233,6 +240,9 @@ public static class EventKinds
     public const string NodeFinished = "nodeFinished";
     public const string RunFinished = "runFinished";
     public const string ConfigReloaded = "configReloaded";
+
+    /// <summary>Which shortcuts failed changed (a retry got a freed chord, D-072): read <c>status</c> again.</summary>
+    public const string ShortcutsChanged = "shortcutsChanged";
 }
 
 public sealed class PipeEvent

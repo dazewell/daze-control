@@ -629,4 +629,60 @@ public sealed class EngineControllerTests : IDisposable
 
         Assert.Equal(1, answer.Run!.Nodes.Single(n => n.NodeId == "gone").Attempts);
     }
+
+    private Task<PipeMessage> RecordHotkey(bool on, CancellationToken connection) =>
+        _controller.HandleAsync(new PipeRequest { Id = 7, Op = Ops.RecordHotkey, On = on }, connection);
+
+    [Fact]
+    public async Task RecordHotkeyTurnsRecordingOnAndOff()
+    {
+        var seen = new List<bool>();
+        _controller.HotkeyRecordingChanged += seen.Add;
+        using var connection = new CancellationTokenSource();
+
+        Assert.True((await RecordHotkey(true, connection.Token)).Ok);
+        Assert.True((await RecordHotkey(true, connection.Token)).Ok); // focus came again: no second "on"
+        Assert.True((await RecordHotkey(false, connection.Token)).Ok);
+        Assert.True((await RecordHotkey(false, connection.Token)).Ok);
+
+        Assert.Equal([true, false], seen);
+    }
+
+    [Fact]
+    public async Task ADroppedConnectionEndsRecording()
+    {
+        var seen = new List<bool>();
+        _controller.HotkeyRecordingChanged += seen.Add;
+        using var connection = new CancellationTokenSource();
+        await RecordHotkey(true, connection.Token);
+
+        await connection.CancelAsync();
+
+        Assert.Equal([true, false], seen);
+    }
+
+    [Fact]
+    public async Task RecordingEndsWhenTheLastRecordingConnectionStops()
+    {
+        var seen = new List<bool>();
+        _controller.HotkeyRecordingChanged += seen.Add;
+        using var one = new CancellationTokenSource();
+        using var two = new CancellationTokenSource();
+        await RecordHotkey(true, one.Token);
+        await RecordHotkey(true, two.Token);
+
+        await RecordHotkey(false, one.Token);
+        Assert.Equal([true], seen);
+
+        await two.CancelAsync();
+        Assert.Equal([true, false], seen);
+    }
+
+    [Fact]
+    public async Task RecordHotkeyWithoutOnIsRefused()
+    {
+        var answer = await _controller.HandleAsync(new PipeRequest { Id = 7, Op = Ops.RecordHotkey }, CancellationToken.None);
+
+        Assert.False(answer.Ok);
+    }
 }

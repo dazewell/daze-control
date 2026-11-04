@@ -764,6 +764,13 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void RemoveShortcut(ShortcutViewModel shortcut) => SetShortcut(shortcut.Index, "");
 
+    /// <summary>
+    /// A shortcut box got or lost focus: the engine lets go of its shortcuts meanwhile, so the box can record one the
+    /// engine owns (D-072). When the editor quits, its connection goes and the engine takes them back by itself.
+    /// </summary>
+    public void SetRecordingShortcut(bool recording) =>
+        _ = _engine.SendAsync(new PipeRequest { Op = Ops.RecordHotkey, On = recording });
+
     /// <summary>The engine's own shortcut problems ("Alt+Z: Another app uses Alt+Z…"), for the conflict notes.</summary>
     public async Task RefreshShortcutProblemsAsync()
     {
@@ -976,9 +983,11 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         }
     });
 
-    /// <summary>The engine registers shortcuts after each reload: their conflicts are known only then.</summary>
+    /// <summary>The engine registers shortcuts after each reload and retries failed ones (D-072): conflicts change then.</summary>
     private void OnEngineEvent(PipeEvent e)
     {
+        if (e.Kind == EventKinds.ShortcutsChanged)
+            _ = RefreshShortcutProblemsAsync();
         if (e.Kind == EventKinds.ConfigReloaded)
         {
             _ = RefreshShortcutProblemsAsync();
