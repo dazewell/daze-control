@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: T13.8 done (feat/m13-flow-run): `flow.run` waits (nested run, D-062) or starts (D-054); call-graph validation + runtime chain/depth-8 guards (D-063); one history record with `NodeResult.Called`; pop-up folds nested runs (#59). T13.2 done (PR #40); T13.1 (#36), T13.4 (#37), T13.5 (#39), T13.7 (#38) done
-Last green checkpoint: b2c3f14 wip(m13): DESIGN §1 scenarios end to end with safe steps (T13.8)
-Next action: lane A continues with T13.3 (feat/m13-nav-collapse): `Editor.ViewModels/Config/EditorSettingsStore.cs` tests first (missing / corrupt / round-trip / debounce), then T13.6; lane D continues with T13.9 (feat/m13-flow-inputs): `Core/Model` `Flow.Inputs` + YAML `inputs:`, and add `flow.run`'s `inputs` TextMap param (not in the catalog yet); lanes B and C have no more tasks
+Current task: M13 fixes planned (docs/m13-fixes-plan): F1–F4 from the user's v0.29.0 feedback, D-074..D-076, X-008. T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done
+Last green checkpoint: 8488f78 feat(m13): flow.run runs another flow, nested or started, with loop guards (T13.8) (#41)
+Next action: the M13 fixes F1–F4 in parallel (PLAN → M13 fixes; one session each: fix/m13-right-drag, fix/m13-flow-run-picker, fix/m13-ctrl-s-hint, feat/m13-flow-delete-rename); then T13.3 (feat/m13-nav-collapse: `EditorSettingsStore` tests first), T13.9 (feat/m13-flow-inputs) and T13b.1 (feat/m13b-hotkey-keys)
 Tree state: builds, all tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user was told (T13.7) that their live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs, fails and stops the flow (cancelling Sony); "Skip what depends on it" fixes it. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers for T13.9/T13.10: `flow.run` `inputs` param; #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config, not the on-screen one; inspector suggestions for `ParamSuggest.Flows`; Runs-page nested lanes; measure.ps1 couldn't run while the user's installed engine held the pipe. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. This PC's installed app was 0.22.0 on 2026-11-03 (0.23.0 downloaded, applies on the next engine start): check `sq.version` before chasing a "missing" feature. F1 replaces the right-drag hunt with wheel zoom (user); D-069's right-drag stays as built. T13.6 must key per-flow layouts by id and follow F4's rename (D-075). T13.10 builds on F2's flow picker. The user's live Connect Technics flow: `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails (told in T13.7; "Skip what depends on it" fixes it). Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers: `flow.run` `inputs` param (T13.9); #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config; Runs-page nested lanes; measure.ps1 can't run while the installed engine holds the pipe.
 ---
 
 ## Workflow (usage-cap-proof, D-018)
@@ -16,7 +16,66 @@ Notes for next agent: release.yml is tag-only (D-043): never push a v-tag withou
 
 ---
 
-## M13 Priority: editor and flow updates (user, 2026-11-03) — before everything else below
+## M13 fixes (user, 2026-11-03, v0.29.0 feedback) — first, before the remaining M13 tasks
+Designed 2026-11-03 (PR: docs/m13-fixes-plan): D-074..D-076, X-008, UX §5.1/§5.2/§5.7 #66–#69 "M13 fixes" notes.
+User answers (2026-11-03): skip the right-drag hunt and make the wheel zoom instead; a flow that fits can still be
+moved; Delete with an Undo bar (no dialog); Delete is off while another flow runs it. Found on the way: this PC's
+installed app was still 0.22.0 (0.23.0 downloaded, never applied; right-drag came in 0.24), and on the 0.29.0 build
+right-drag pans with a mouse, but only along an axis where the flow is bigger than the window.
+
+**Parallel:** F1–F4 run at once, one session and one PR each. Code files don't overlap except `ShellWindow.xaml`
+(F3: one attribute on `FlowEditorPage`; F4: the Flows card menu and the Undo InfoBar): whichever merges second takes
+both sides. F4 must not touch the inspector or canvas files (F2, F1). Docs: each adds its own lines (UX, ARCHITECTURE,
+FEATURES, PLAN tick) and takes both sides on conflict. Version: `fix` PRs bump the patch, F1 and F4 (`feat`) the
+minor, against `main` at merge time (main's number + 1).
+
+- [ ] F1 **Wheel zoom; a flow can always be moved** (fix/m13-right-drag, D-074; the branch keeps its name). Cause: the
+  user's report was against 0.22.0 here, and on 0.29.0 a flow that fits the window has no scroll extent, so a
+  right-drag (or middle-drag) moves nothing; the user chose wheel zoom over chasing it (no touchpad change). Files:
+  `Editor/Canvas/FlowCanvas.xaml` (a transparent wrapper Grid around `Host` as the `ScrollViewer`'s content),
+  `FlowCanvas.xaml.cs` (wrapper padding = viewport − 48 DIP per side at the current zoom, on size and zoom changes;
+  `PointerWheelChanged` on the wrapper for mouse only, handled: plain and Ctrl+wheel zoom ×1.1 per notch at the
+  pointer, Shift+wheel scrolls sideways; Fit and open centre), a pure helper `Editor.ViewModels/Canvas/
+  CanvasViewport.cs` (offsets that keep the point under the pointer, pan room, clamp 50–200 %) with tests in
+  `Editor.ViewModels.Tests`; docs UX §5.2 Navigate, ARCHITECTURE Editor canvas, FEATURES F7. Done when: helper tests
+  (zoom keeps the anchor at 50/100/200 %, clamps, pan room for a flow smaller and larger than the viewport); running
+  editor on a scratch copy of the user's config: the wheel zooms at the pointer, Shift+wheel scrolls sideways,
+  right-drag moves the 2-step "New flow" both ways and stops with 48 DIP showing, Ctrl+0 brings it back, a still
+  right click still opens the menus; screenshots.
+- [ ] F2 **"Run a flow": label under Flows, and a working flow picker** (fix/m13-flow-run-picker). Cause of the
+  label: `CanvasNodeViewModel.Area` maps every catalog area but `"flow"`, so the Steps panel heading, the inspector's
+  "flow › Run a flow" and the icon picker show the raw lowercase key. Cause of the picker: `ProviderCatalog` gives
+  `flow` `Suggest = Config(Flows)`, but `InspectorViewModel.Suggest` has cases only for Devices, Flags and
+  AndroidInputs, so the list is always empty; typing a name doesn't work either, because the step needs the flow's id,
+  which the UI never shows (validator #51). Files: `Editor.ViewModels/Canvas/CanvasNodeViewModel.cs` (`"flow" =>
+  "Flows"`), `Editor.ViewModels/Inspector/InspectorViewModel.cs` (the `ParamSuggest.Flows` case: the other flows, by
+  name, with #29 captions; #69 when there are none), `Inspector/ParamFieldViewModel.cs` (`RefersTo == Flow` → a
+  picker that shows names and stores the id; an unknown id kept as "<id> · isn't there anymore"),
+  `Editor/Inspector/InspectorPane.xaml(.cs)` (its template), `Editor.ViewModels.Tests` (+ a test that every catalog
+  area has a title starting with a capital). Done when: those tests; running editor: Steps panel shows "Flows › Run a
+  flow", picking "Connect Technics" writes `flow: connect-technics` and clears #51, Dry run lists it; screenshots.
+- [ ] F3 **No stray "Ctrl+S" tip** (fix/m13-ctrl-s-hint, X-008). Cause: Ctrl+S is a `KeyboardAccelerator` on the
+  page-wide `FlowEditorPage` Grid with the default placement, so WinUI shows "Ctrl+S" as that Grid's tooltip wherever
+  the pointer rests without another tooltip (seen at once after opening a flow on 0.29.0). Files:
+  `Editor/ShellWindow.xaml` (`KeyboardAcceleratorPlacementMode="Hidden"` on `FlowEditorPage`). Done when: running
+  editor, the user's steps (double-click the canvas, Esc the search, click elsewhere, wait 5 s) and resting over the
+  palette, canvas and inspector show no tip; Save's own tooltip still says Ctrl+S; Ctrl+S still saves with Save off
+  (a text box not committed yet); screenshot.
+- [ ] F4 **Delete a flow with Undo; the id follows a saved rename** (feat/m13-flow-delete-rename, D-075, D-076). Cause:
+  the Flows list has no Delete (only Open / Run / desktop item), and the id is set once (`new-flow`, `new-flow-2`) and
+  never follows the name. Files: new `Core/Model/FlowIds.cs` (`Slug`, `Unique`) and `Core/Model/FlowRefs.cs`
+  (`Callers`, `Rename`) with `Core.Tests`; `Editor.ViewModels/Config/ConfigSession.cs` (`SaveDraft` renames when the
+  name changed and reports the new id), `ShellViewModel.cs` (the open flow follows its new id), `FlowsPageViewModel.cs`
+  (`NewFlow` via `FlowIds`; `Delete` / `Undo` / `CanDelete` + #68; the bar's end removes the desktop shortcut),
+  `Engine/DesktopShortcutStore.cs` (move a shortcut to a new id), `Editor/ShellWindow.xaml(.cs)` (card menu Delete,
+  Delete key, Undo InfoBar #67). Done when: slug tests (spaces, punctuation, diacritics, Cyrillic, emoji only → "flow",
+  40-char cut, `-2` on a clash), rename tests (callers' `flow.run` rewritten, no change when the slug equals the id,
+  draft undo), ConfigSession and FlowsPage tests (delete, undo at the same place and id, off while called, bar ends
+  on New flow / open / leave); running editor on a scratch config: rename "New flow" to "Morning", Save → YAML key
+  `morning`, a caller's step follows, its desktop shortcut still runs it, the engine log names `morning`; Delete then
+  Undo restores it with its hotkey working; screenshots.
+
+## M13 Priority: editor and flow updates (user, 2026-11-03) — after the M13 fixes above
 Designed 2026-11-03 (PR: docs/m13-design): D-061..D-070, UX §5.1–§5.9 "M13" notes and #47–#66, X-006,
 [flow-calls/DESIGN.md](flow-calls/DESIGN.md) for P6. User answers (2026-11-03): a failure its fallback fixed ends
 "Done"; device inputs ship inside P6; Tidy up becomes a Layout menu with several strategies; after a wrapped chain the

@@ -30,6 +30,12 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   (#66, D-070).
 - **M13 (designed):** the nav pane collapses: the toggle above the items shrinks it to a 48-DIP icon
   strip with tooltips, remembered on this PC (D-068).
+- **M13 fixes (designed, F4):** the card's context menu (and Delete on a focused card) has **Delete** (D-076): the
+  flow goes at once and an InfoBar on the Flows page says #67 with **Undo**, until another Delete, New flow, opening
+  a flow, leaving the page or closing the editor. Off while another flow runs it, with #68 as a greyed line under it.
+  Renaming a flow and saving gives it a new id made from the name (D-075); nothing on screen shows the id.
+- **M13 fixes (designed, F2):** the "Run a flow" step's Flow setting is a picker of the other flows by icon and name
+  (it stores the id), captions #29; with no other flow it says #69. The Steps panel lists it under **Flows**.
 
 ## 5.2 Canvas interaction
 - **Layout is always automatic** (D-020): left→right columns (one per layer), gaps 64 between columns, 16
@@ -52,6 +58,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   and selected alone (Ctrl adds); the marquee takes edges with both ends inside; Del removes a selected edge. Ctrl+C/V/D copy nodes + inner edges + library
   refs, paste into a new column to the right. Del; deleting B in A→B→C reconnects A→C; deleting a card
   deletes its members. Undo/redo Ctrl+Z/Y, one entry per gesture, within the draft (Save or Cancel clears it).
+- **M13 fixes (designed, F1, D-074):** the mouse wheel zooms at the pointer (as Ctrl+wheel does); Shift+wheel still
+  scrolls sideways; a touchpad's two-finger scroll still pans. A flow that fits the window can be dragged anywhere
+  (at least 48 DIP stays on screen); Fit brings it back. This replaces "wheel scroll" in the next line once built.
 - Navigate: wheel scroll, Shift+wheel horizontal, Ctrl+wheel/pinch zoom 50–200 %, Space+drag / middle-drag /
   right-drag / one-finger pan, Ctrl+0 fit, Ctrl+1 100 %; minimap 160×100 bottom-right only when content overflows.
   Right-drag pans over pills and edges too, without selecting them; a right click that doesn't leave the system drag
@@ -238,6 +247,9 @@ default: Technics" · 61 "Steps that used Output now use Technics." · 62 Run of
 steps" "After 8 steps" "Never" · "Spacing" "Compact" "Normal" "Roomy" · "Line up" "Centred" "Along the top" · "Lines"
 "Curved" "Right angles" · "Untangle lines" (off: "No lines cross" / "Can't untangle these any further") · "Reset
 layout" · 64 "Running inside Headphones." · 65 "Would run Make it the default." · 66 Flows card menu "Open" · "Run"
+· "Delete" (F4) · M13 fixes: 67 "Connect Technics was deleted." / "Undo" · 68 "Headphones runs this flow. Remove that
+step first." / "Headphones and Morning run this flow. Remove those steps first." · 69 "Make another flow first. This
+step runs one of your other flows."
 M13b shortcut keys (own numbering, so M13's new numbers don't clash): H1 "That key can't be a shortcut. Try a
 letter, a number, F1–F24, a key like [ or \, or a number pad key." · H2 "Add Win, Ctrl or Alt, so the shortcut doesn't
 get in the way of your typing." · H3 "Turn on Num Lock to use the number pad." · H4 "Shift doesn't work with number
@@ -281,6 +293,10 @@ contrast: solid background, no dots.
   shows the flow's icon and runs it with Run (keyboard: Tab to the card, Enter opens); nav Flows leaves the editor;
   the collapsed nav pane survives a restart; Connect Technics with Technics on says "Done" and "n of m" never counts
   the Sony branch; "Run a flow" shows one pop-up and one Runs entry with the nested lanes.
+- M13 fixes: the wheel zooms with the point under the pointer staying put, and a 2-step flow moves with right-drag;
+  resting the pointer anywhere in the flow editor never shows a "Ctrl+S" tip; the Steps panel's "Run a flow" sits
+  under "Flows", and its Flow picker lists the other flows by name; Delete on a card, then Undo, brings it back with
+  its shortcut working; renaming "New flow" to "Morning" and saving shows `morning` in the next run's log line.
 - M13b: Win+\ , Ctrl+Num1 and Num5 record and run a flow; Win+[ with SwitchDisplay.ahk running shows H6 (or H7),
   and after that app quits, clicking into the box and out again (or opening the tray menu) clears the note
   without a restart; Num Lock off shows H3.

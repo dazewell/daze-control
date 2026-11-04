@@ -393,6 +393,13 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   the Layout menu's `LayoutOptions` (D-067);
   `EditorSettingsStore` / `editor.json` (D-068). Each task rewrites the
   section it changes. Fallback outcomes (D-065) are built (T13.7: Config, Runtime).
+- Designed, not built (PLAN → M13 fixes, v0.29.0 feedback): wheel zoom at the pointer and pan room in a wrapper
+  around `Host` (D-074, F1); the flow picker for `ParamSuggest.Flows` (F2: today `InspectorViewModel.Suggest` has no
+  case for it, so the box is empty and a typed name isn't an id) and the `flow` area's title; Ctrl+S's accelerator
+  tooltip hidden (X-008, F3); `Core/Model/FlowIds` (slug, unique) and `FlowRefs` (callers, rename) behind flow
+  delete with Undo and the id following a saved rename (D-075, D-076, F4). Flow ids are keys in: other flows'
+  `flow.run` (and M12 `menu.show`), history and logs (never rewritten), desktop .lnk args and file names (D-049),
+  `dctl run`, the engine's per-id launcher slots, and T13.6's per-flow layouts in `editor.json`.
 
 - Library leftovers: editing an Android device's inputs and an audio match in place; renaming audio and Bluetooth keys
   (their cards show the device's name, not the key, D-046).

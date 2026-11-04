@@ -71,3 +71,14 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
   but never fires.
 - Evidence: scratch spike `hk.ps1`, 2026-11-03 (Win+\, Win+-, Ctrl+Alt+[, Num keys registered fine).
 - Retry only if: Windows adds an owner query. Until then, use a fixed list of Windows' shortcuts (D-073).
+
+## X-008 · 2026-11-03 · A `KeyboardAccelerator` on a page-wide Grid with the default placement
+- Tried: Ctrl+S as a `KeyboardAccelerator` on `ShellWindow`'s `FlowEditorPage` Grid (so it works while Save is still
+  off), `KeyboardAcceleratorPlacementMode` left at Auto.
+- Failed because: WinUI shows every accelerator's keys as an automatic tooltip of the element that owns it, so
+  resting the pointer anywhere on the flow editor that has no tooltip of its own popped a "Ctrl+S" tip at the
+  top centre of the page (user, v0.29.0: after a double-click, closing the search, clicking elsewhere).
+- Evidence: screenshot of the 0.29.0 build, 2026-11-03: the tip centred over the page right after opening a flow;
+  it is the only accelerator in the editor.
+- Retry only if: never with Auto on a container. Set `KeyboardAcceleratorPlacementMode="Hidden"` there; a button's own
+  tooltip says its keys ("Save your changes to this flow (Ctrl+S)").
