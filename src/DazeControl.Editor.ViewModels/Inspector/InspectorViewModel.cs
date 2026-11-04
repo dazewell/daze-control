@@ -768,8 +768,14 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     /// A shortcut box got or lost focus: the engine lets go of its shortcuts meanwhile, so the box can record one the
     /// engine owns (D-072). When the editor quits, its connection goes and the engine takes them back by itself.
     /// </summary>
-    public void SetRecordingShortcut(bool recording) =>
+    public void SetRecordingShortcut(bool recording)
+    {
+        _recordingShortcut = recording;
         _ = _engine.SendAsync(new PipeRequest { Op = Ops.RecordHotkey, On = recording });
+    }
+
+    // A restarted engine knows nothing of a box that kept focus: tell it again (OnEngineStateChanged).
+    private bool _recordingShortcut;
 
     /// <summary>The engine's own shortcut problems ("Alt+Z: Another app uses Alt+Z…"), for the conflict notes.</summary>
     public async Task RefreshShortcutProblemsAsync()
@@ -974,6 +980,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         _ = RefreshDesktopAsync();
         if (EngineRunning)
         {
+            if (_recordingShortcut)
+                _ = _engine.SendAsync(new PipeRequest { Op = Ops.RecordHotkey, On = true });
             _ = RefreshShortcutProblemsAsync();
             foreach (var kind in Fields.Select(f => f.Spec.Library).OfType<LibraryKind>().Distinct())
                 _ = RefreshDevicesAsync(kind);

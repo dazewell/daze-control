@@ -420,6 +420,18 @@ public sealed class InspectorViewModelTests : IDisposable
     }
 
     [Fact]
+    public void ARestartedEngineHearsAgainThatABoxIsRecording()
+    {
+        _inspector.SetRecordingShortcut(true);
+        _engine.SetRunning(false);
+        _engine.SetRunning(true);
+        _inspector.SetRecordingShortcut(false);
+        _engine.SetRunning(true);
+
+        Assert.Equal([true, true, false], _engine.Requests.Where(r => r.Op == Ops.RecordHotkey).Select(r => r.On));
+    }
+
+    [Fact]
     public void AFreedShortcutLosesItsNoteWhenTheEngineSaysShortcutsChanged()
     {
         string[] problems = ["Alt+Q: Another app uses Alt+Q. If you closed it, check the tray: it may still be running. Try another one."];
