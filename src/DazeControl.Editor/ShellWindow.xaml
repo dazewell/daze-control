@@ -23,7 +23,8 @@
         <NavigationView x:Name="Navigation" Grid.Row="1"
                         PaneDisplayMode="Left" IsSettingsVisible="False" IsBackButtonVisible="Collapsed"
                         IsPaneToggleButtonVisible="False" OpenPaneLength="200"
-                        SelectionChanged="OnNavigationSelectionChanged">
+                        SelectionChanged="OnNavigationSelectionChanged"
+                        ItemInvoked="OnNavigationItemInvoked">
             <NavigationView.MenuItems>
                 <NavigationViewItem x:Name="FlowsItem" Content="Flows" Tag="Flows" IsSelected="True">
                     <NavigationViewItem.Icon>

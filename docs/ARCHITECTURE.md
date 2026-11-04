@@ -234,7 +234,9 @@ and, with no engine, `list`/`validate` read the YAML themselves. Exit codes 0 ok
 `DazeControl.Editor.exe` (WinUI 3, unpackaged, self-contained) runs only while its window is open; closing it
 ends the process. Single instance: a named mutex; a second start sets a named event and exits, and the first
 brings its window to the front. Pages (UX §5.1) are panels in one `ShellWindow` (Flows, Library, Settings,
-About), cards in the OSD's settings-card style (App.xaml). All logic is in `Editor.ViewModels`:
+About), cards in the OSD's settings-card style (App.xaml). Leaving the open flow (breadcrumb, any nav item, closing)
+goes through `LeaveFlowAsync` (the D-047 prompt) then `CloseFlow`; nav Flows while a flow is open is still the
+selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). All logic is in `Editor.ViewModels`:
 - `Config/ConfigStore` — config.yaml I/O: atomic write (temp + `File.Move` overwrite), one backup per editor
   session in `%APPDATA%\DazeControl\backups` (newest 10), and the text last read/written to tell outside changes.
 - `Config/ConfigSession` — Library/Settings edits are `Update(c => …)`, saved 300 ms after the last one

@@ -249,6 +249,19 @@ public sealed partial class ShellWindow : Window
         UpdatePages();
     }
 
+    /// <summary>
+    /// Flows while a flow is open: Flows is still the selected item, so SelectionChanged never fires. Leave the
+    /// flow like the breadcrumb does (the D-047 prompt; Cancel stays in the flow) and show the list.
+    /// </summary>
+    private async void OnNavigationItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
+    {
+        if (_navigating || args.InvokedItemContainer != FlowsItem || ViewModel.Page != EditorPage.Flows
+            || _editor is null)
+            return;
+        if (await LeaveFlowAsync())
+            ViewModel.CloseFlow();
+    }
+
     private bool _navigating;
 
     /// <summary>"Open in editor" on the Runs page: Flows in the pane again, without closing the flow it opens.</summary>

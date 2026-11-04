@@ -1,9 +1,9 @@
 # Plan
 
 ## Resume
-Current task: T13.4 done (feat/m13-right-drag): right-drag pans the canvas, a still right click opens the menu (D-069)
-Last green checkpoint: 1010563 docs(m13b): hotkeys for [ ] \ and number-pad keys (#34)
-Next action: the next open M13 task in its lane (PLAN → M13 Order); lane B (canvas input) has no more tasks
+Current task: T13.1 done (feat/m13-nav-flows, PR #36): nav Flows leaves an open flow (D-047 prompt) and shows the list; T13.4 done (PR #37): right-drag pans, a still right click opens the menu (D-069)
+Last green checkpoint: deb9c73 feat(canvas): right-drag pans (T13.4) (#37)
+Next action: lane A continues with T13.2 (feat/m13-flows-card): `FlowsPageViewModel` glyph via `FlowGlyph.CodeOf` + Run/Stop; lane B has no more tasks; other lanes per PLAN → M13 Order
 Tree state: builds, all tests green · Uncommitted: none
 Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user's live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails; mention it to the user when T13.7 lands. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
 
@@ -35,7 +35,7 @@ Every task: tests first where the logic is pure (Core/Runtime/ViewModels), the e
 the change for UI tasks, and the docs moved from "designed" to built (UX "M13" notes reworded as current, ARCHITECTURE
 section rewritten, FEATURES where behaviour changed).
 
-- [ ] T13.1 P4 **Nav "Flows" returns to the list** (feat/m13-nav-flows). Cause: with a flow open, Flows is still the
+- [x] T13.1 P4 **Nav "Flows" returns to the list** (feat/m13-nav-flows, PR #36). Cause: with a flow open, Flows is still the
   selected nav item, so `SelectionChanged` never fires. Files: `Editor/ShellWindow.xaml(.cs)` (`ItemInvoked` on the
   Flows item while a flow is open → `LeaveFlowAsync` (D-047 prompt) → `CloseFlow`, show the list). Done when: in the
   running editor, Flows from an open flow shows the list; with a draft the Save / Don't save / Cancel prompt shows and
