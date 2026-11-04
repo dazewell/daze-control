@@ -78,8 +78,12 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
             Page = EditorPage.Flows;
     }
 
-    /// <summary>A saved rename (D-075): the open flow follows by itself; its desktop shortcut moves once the engine has it.</summary>
-    private void OnFlowRenamed(string oldId, string newId) => _ = Desktop.MoveAsync(oldId, newId);
+    /// <summary>A saved rename (D-075): the open flow follows by itself, its view choices at once, its desktop shortcut once the engine has it.</summary>
+    private void OnFlowRenamed(string oldId, string newId)
+    {
+        EditorSettings?.RenameFlow(oldId, newId);
+        _ = Desktop.MoveAsync(oldId, newId);
+    }
 
     /// <summary>"Open in editor" on the Runs page: the flow, with that run's states on the canvas.</summary>
     public void OpenRun(Core.Runs.RunRecord run)

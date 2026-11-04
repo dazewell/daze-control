@@ -59,7 +59,7 @@ settings, honours "Animation effects"); tray tooltip/glyph shows the last run's 
 
 **F7 Editor** — flows list (Run / Stop on each card, D-070; Delete with Undo, D-076; a renamed flow's id follows its name, D-075), DAG canvas, inspector, library, settings, about; Save/Cancel for flows, autosave elsewhere (D-047); live pickers and Test
 via the engine; suggestions and examples for every free-text value (screens, services, Android keys and inputs,
-flags, credentials, programs, script snippets; D-050, D-051); "Add to desktop" per flow (D-049); live run view and history timeline; undo/redo; long simple chains wrap onto rows and what follows starts a new line under them (D-060, D-066); the mouse wheel zooms at the pointer and any flow can be moved (D-074); right-drag pans the canvas (a still right click opens the menu); accessible outline view. Spec: §5.
+flags, credentials, programs, script snippets; D-050, D-051); "Add to desktop" per flow (D-049); live run view and history timeline; a nav pane that collapses to icons and stays that way on this PC (D-068); undo/redo; long simple chains wrap onto rows and what follows starts a new line under them (D-060, D-066); the mouse wheel zooms at the pointer and any flow can be moved (D-074); right-drag pans the canvas (a still right click opens the menu); accessible outline view. Spec: §5.
 
 **F8 CLI** — `dctl run <flow> [--wait] [--dry-run]`, `list`, `validate [file]`, `status`,
 `devices audio|bluetooth|displays|adb|services|credentials`, `capture-display-layout <name>`, `history [flow]`,

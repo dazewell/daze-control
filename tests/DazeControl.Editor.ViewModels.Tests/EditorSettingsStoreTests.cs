@@ -94,6 +94,20 @@ public sealed class EditorSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void AFlowsViewChoicesFollowARename()
+    {
+        using (var store = Open())
+        {
+            store.Update(s => s.Flows["tv"] = new FlowViewSettings());
+            store.RenameFlow("tv", "living-room-tv");
+            store.RenameFlow("missing", "other"); // nothing to move: no entry made
+        }
+
+        using var again = Open();
+        Assert.Equal(["living-room-tv"], again.Settings.Flows.Keys);
+    }
+
+    [Fact]
     public async Task WritesOnce300MsAfterTheLastChange()
     {
         using var store = Open();

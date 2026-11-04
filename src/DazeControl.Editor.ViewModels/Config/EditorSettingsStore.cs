@@ -75,6 +75,19 @@ public sealed class EditorSettingsStore : IDisposable
         _timer.Change(SaveDelay, Timeout.InfiniteTimeSpan);
     }
 
+    /// <summary>A saved rename (D-075): the flow's view choices follow its new id.</summary>
+    public void RenameFlow(string oldId, string newId)
+    {
+        lock (_lock)
+            if (!Settings.Flows.ContainsKey(oldId))
+                return;
+        Update(s =>
+        {
+            if (s.Flows.Remove(oldId, out var view))
+                s.Flows[newId] = view;
+        });
+    }
+
     /// <summary>Writes a pending change now. Any thread; never throws for I/O.</summary>
     public void Flush()
     {

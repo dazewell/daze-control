@@ -271,6 +271,11 @@ goes through `LeaveFlowAsync` (the D-047 prompt) then `CloseFlow`; nav Flows whi
 selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). All logic is in `Editor.ViewModels`:
 - `Config/ConfigStore` — config.yaml I/O: atomic write (temp + `File.Move` overwrite), one backup per editor
   session in `%APPDATA%\DazeControl\backups` (newest 10), and the text last read/written to tell outside changes.
+- `Config/EditorSettingsStore` — this PC's view state in `%LOCALAPPDATA%\DazeControl\editor.json` (D-068; with
+  `--config`, `editor.json` next to that file): STJ source-generated, read once (missing → defaults; unreadable or
+  bad → defaults and a line in `logs\editor.log`), `Update(s => …)` writes it atomically 300 ms after the last change
+  (`TimeProvider`) and on close; unknown keys are kept. Holds `NavPaneOpen` (`ShellViewModel.IsNavPaneOpen`, two-way
+  with `NavigationView.IsPaneOpen`) and `Flows` by flow id (T13.6's layout choices; `RenameFlow` on a saved rename).
 - `Config/ConfigSession` — Library/Settings edits are `Update(c => …)`, saved 300 ms after the last one
   (`TimeProvider`); the open flow's edits are `UpdateDraft` until `SaveDraft`/`DiscardDraft` (D-047): it keeps the
   saved configuration beside `Current` and writes only that.
@@ -413,8 +418,7 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   §3 (D-053..D-057). Each M12 task moves its part into the sections above.
 - Designed, not built (M13, PLAN → M13): the editor for flow calls and inputs — [flow-calls/DESIGN.md](flow-calls/DESIGN.md) §6 (T13.10;
   `flow.run` and inputs are built, Runtime);
-  the Layout menu's `LayoutOptions` (D-067);
-  `EditorSettingsStore` / `editor.json` (D-068). Each task rewrites the
+  the Layout menu's `LayoutOptions` (D-067). Each task rewrites the
   section it changes. Fallback outcomes (D-065) are built (T13.7: Config, Runtime).
 - Designed, not built (PLAN → M13 fixes, v0.29.0 feedback): Ctrl+S's accelerator
   tooltip hidden (X-008, F3). Flow ids are keys in: other flows'
