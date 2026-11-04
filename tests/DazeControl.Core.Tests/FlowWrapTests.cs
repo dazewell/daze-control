@@ -113,6 +113,22 @@ public class FlowWrapTests
     }
 
     [Fact]
+    public void AColumnTallerThanTheBlockBeforeItOverlapsNeitherTheBlockNorTheNextLine()
+    {
+        // a forks to b…e (a column taller than the block); e → s1…s7 wraps; x after s7 forks to y and z.
+        var flow = FlowOf([
+            Step("a"), Step("b", "a"), Step("c", "a"), Step("d", "a"), Step("d2", "a"), Step("d3", "a"), Step("e", "a"),
+            .. Chain(7, "s", "e"), Step("x", "s7"), Step("y", "x"), Step("z", "x")]);
+
+        var a = Arrange(flow);
+
+        Assert.True(B(a, "e").Bottom > B(a, "s7").Bottom + 48, "the column reaches below the next line's top");
+        Assert.Equal(B(a, "s1").X, B(a, "x").X);
+        Assert.True(B(a, "e").Right < B(a, "x").X - 16, "the next line and its lane stay right of the column");
+        AssertNoOverlap(a);
+    }
+
+    [Fact]
     public void ABlockLastEndsTheFlow()
     {
         // a forks to b and c, j joins them, then a 7-chain ends the flow.
