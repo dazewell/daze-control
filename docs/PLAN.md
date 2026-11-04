@@ -1,17 +1,22 @@
 # Plan
 
 ## Resume
-Current task: L1 done (feat/l1-android-inputs, PR #55, 0.39.0: Library › Android Inputs panel, `AndroidInputEdits`, inspector hint links there, D-078). T12.2 done (spike/menu-window, PR #56): S2 failed gate (a) for DXGI full-screen games (X-010, DESIGN §5 result); the user chose "Borderless only" (D-055 accepted: QUNS = 3 → #32, logged, nothing shown). Before it: T13.10 done (feat/m13-flow-run-editor, PR #54, 0.38.0: flow settings Inputs, `$name` in device pickers, call input pickers, call pill, Open this flow, Runs nested lanes, live #59/#64). T13.6 done (feat/m13-layout-menu: Layout flyout replaces Tidy up; `LayoutOptions.Of`, `EdgeCurve.RightAngled`/`For`, `FlowTidy.Check`, `FlowViewSettings` per flow id in editor.json; 0.37.0). T13b.3 done (feat/m13b-engine-hotkeys, PR #52: `record-hotkey`, `RetryFailures`, `shortcutsChanged`, H5/H6; 0.35.0). T13.3 done (feat/m13-nav-collapse, PR #50: `EditorSettingsStore` / editor.json, collapsible nav pane; 0.34.0). Before it: T13.9 done (PR #48; 0.33.0). M13 fixes (PR #42 plan): F1–F5 from the user's v0.29.0 feedback, D-074..D-077, X-008, X-009. F1 done (PR #45; 0.30.0), F2 done (0.29.2), F3 done, F4 done (PR #46; 0.31.0), F5 done (fix/m13-display-restore, PR #49: a source per screen, `SDC_TOPOLOGY_SUPPLIED` first, `DisplayCheck` after every write; live matrix passed; 0.33.1). T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done. T13b.1 done (PR #47). T13b.2 done (feat/m13b-recorder, PR #51: H1–H4, H7 under the box and read out, H8 tip; 0.36.0); M13b complete.
-Last green checkpoint: merge of main (T12.2, #57) into feat/l1-android-inputs after review 2 (no open issues)
-Next action: M12: T12.1 (spike S1, controller input), then T12.3 onward. Also open: run the M13 gate in PLAN (UX acceptance list for M13). Not done in T13.10: DESIGN §1 B run live (it changes the default audio device; needs the user's OK and a dev engine)
-Tree state: builds, all tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. Live display tests: `scripts/display-check.ps1` (read-only without `-Go`); `-Go` changes the user's screens: ask the user first every time (it saves, restores, restarts the installed engine). Open after F5: switches right after leaving Duplicate can be undone by Windows (ARCHITECTURE → Open questions). This PC's installed app was 0.22.0 on 2026-11-03 (0.23.0 downloaded, applies on the next engine start): check `sq.version` before chasing a "missing" feature. Right-drag (D-069) works as built; F1 added wheel zoom and pan room (`CanvasViewport`). T13.6 live-checked on a scratch config: each choice changes the canvas, survives a restart, Untangle undoes with Ctrl+Z; no reflow animation exists on the canvas (UX §5.3 motion), so choices jump. The user's live Connect Technics flow: `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails (told in T13.7; "Skip what depends on it" fixes it). Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers: #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config; measure.ps1 can't run while the installed engine holds the pipe. M13b: Win+[ and Win+] are held by the user's running `SwitchDisplay.ahk` (leave it running); to check engine registration, stop the installed engine, start a test one with a scratch config path as its argument, probe with an outside `RegisterHotKey` (1409 = held), then restart the installed one. This PC runs with Num Lock off: live-test with F-key chords (don't toggle it).
+Current: M13 and L1 done (released up to v0.39.0). M12: T12.2 done (#56, "Borderless only", D-055); T12.1 (spike S1, controller input) paused in draft PR #58 until the user has the Xbox pad: its PR `## Resume` has the gates left.
+Next action: T12.1 when the pad is back; T12.3 (core: `menu.show`, `GamepadChord`, validation) can start before it. Also open: the M13 gate (UX acceptance list); DESIGN §1 B live run (changes the default audio device: ask the user).
+Workflow (D-079): PRs don't bump `<Version>`, merge with `gh pr merge --auto --merge`, keep their live state in the PR's `## Resume`, and don't edit this block.
+Notes for next agent:
+- Never push a v-tag without the user (D-043). Live display tests: `scripts/display-check.ps1` (`-Go` changes the user's screens: ask first every time).
+- Installed app version: `%LOCALAPPDATA%\DazeControlApp\current\sq.version` (updates apply on the next engine start).
+- Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. measure.ps1 can't run while the installed engine holds the pipe.
+- Win+[ and Win+] are held by the user's `SwitchDisplay.ahk` (leave it running). This PC runs with Num Lock off: live-test hotkeys with F-key chords.
+- The user's Connect Technics flow: `bt` should be "Skip what depends on it" (told in T13.7).
 ---
 
 ## Workflow (usage-cap-proof, D-018)
 
 - This file = the task list with status `[ ]` / `[~]` / `[x]`, branch and PR per task. Its top is the
-  **Resume block**, rewritten in every checkpoint commit; its format is in the `resume` skill (not copied
+  **Resume block**: what's next overall, kept short, rewritten only by the coordinator. A task's live state is
+  the `## Resume` section of its PR description (D-079); the format is in the `resume` skill (not copied
   here, so a search-and-replace of the block can't clobber it).
 
 ---
@@ -362,7 +367,7 @@ PRs bump the minor version.
 After M13: a menu's `wait: true` nests (D-061) and its loops share M13's call graph (D-063); `ParamSpec.RefersTo`
 comes from T13.8.
 Order: T12.1 and T12.2 (spikes, gates) first, either order; then T12.3 → T12.4 → T12.5, T12.6, T12.7 → T12.8 →
-T12.9 → T12.10. One PR per task unless two share a branch; feat PRs bump the minor version. Each task moves what it
+T12.9 → T12.10. One PR per task unless two share a branch; no version bumps (D-079). Each task moves what it
 built from DESIGN.md into ARCHITECTURE/UX (D-053).
 - [ ] T12.1 Spike S1: controller input in AOT (spike/gamepad-input, DESIGN §5). Done when: gate (a)–(g) answered on
   the dev PC with the user's Xbox pad (ask the user to plug it in; Steam on and off); D-056 set to accepted with the
