@@ -413,10 +413,11 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                     "");
                 break;
             case { Source: SuggestSource.Config, Kind: ParamSuggest.Flows }:
-                var target = step.With.TryGetValue(field.Name, out var t) ? (t as ScalarParam)?.Text : null;
+                // Trimmed like ConfigValidator.CalledFlow and the runner, so a padded id still finds its flow.
+                var target = step.With.TryGetValue(field.Name, out var t) ? (t as ScalarParam)?.Text.Trim() : null;
                 var flows = FlowOptions(_session.Current, _session.Problems, FlowId, target);
                 field.SetDevices(flows, target);
-                field.SetSuggestionHint(flows.Count == 0 ? NoOtherFlow : "");
+                field.SetSuggestionHint(flows.Any(r => r.Source == DeviceSource.Library) ? "" : NoOtherFlow);
                 break;
             case { Source: SuggestSource.Config, Kind: ParamSuggest.Flags }:
                 field.SetSuggestions(FlagNames(_session.Current), "");

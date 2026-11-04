@@ -201,7 +201,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
         try
         {
             // Rebuilding the list closes an open drop-down: only when a row really changed (DeviceInfo compares by reference).
-            static (DeviceSource, string?, string, string) Row(DeviceOption o) => (o.Source, o.Key, o.Title, o.Caption);
+            static (DeviceSource, string?, string, string, string) Row(DeviceOption o) => (o.Source, o.Key, o.Title, o.Caption, o.Glyph);
             if (!Devices.Select(Row).SequenceEqual(options.Select(Row)))
             {
                 Devices.Clear();

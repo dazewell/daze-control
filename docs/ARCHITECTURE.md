@@ -317,7 +317,8 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   A param with `RefersTo = Flow` (`flow.run`'s `flow`, F2) is a device-style picker, not an editable box:
   `InspectorViewModel.FlowOptions` lists the other flows by name and glyph ("Turned off", "Needs fixing"), stores the
   id, keeps an unknown id as its own row ("Isn't there anymore"), and #69 shows when there's none; the canvas card's
-  summary shows the called flow's name. Ids never appear on screen.
+  summary shows the called flow's name. A valid reference never shows its id (ids are trimmed as the validator
+  does); only a target that's gone shows the id it names, so the step doesn't change by itself.
 - Library page (`LibraryPage/LibraryPageViewModel`, view `Library/LibraryView`, a Pivot): Audio, Bluetooth, Displays,
   Android from `library:` plus Programs (the `process.run` paths the flows use). Cards show live state (pipe
   `devices`, refreshed when the page opens or the engine starts), "Used by n flows" (flows with a step whose

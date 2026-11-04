@@ -606,6 +606,26 @@ public sealed class InspectorViewModelTests : IDisposable
     }
 
     [Fact]
+    public void APaddedIdStillFindsItsFlow()
+    {
+        _session.Update(c => c with { Flows = [.. c.Flows, NotifyFlow("night", "Night")] });
+        AddRunStep(" night ");
+
+        Assert.Equal(DeviceSource.Library, Field("flow").Device?.Source);
+        Assert.Equal("Night", Field("flow").Device?.Title);
+        Assert.Equal("Night", _canvas.Nodes.Single(n => n.Id == "call").Summary);
+    }
+
+    [Fact]
+    public void OnlyAGoneFlowStillSaysToMakeAnotherOne()
+    {
+        AddRunStep("gone");
+
+        Assert.Equal("gone", Field("flow").Device?.Title);
+        Assert.Equal(InspectorViewModel.NoOtherFlow, Field("flow").SuggestionHint);
+    }
+
+    [Fact]
     public void AFlowWithProblemsSaysItNeedsFixing()
     {
         _session.Update(c => c with { Flows = [.. c.Flows, new Flow("bad", "Bad", [new StepNode("a", "notify")])] });
