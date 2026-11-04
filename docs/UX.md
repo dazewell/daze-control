@@ -8,7 +8,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 
 ## 5.1 Information architecture
 - Engine (tray) owns hotkeys, tray menu, run pop-up and the YAML file; it works without the editor.
-- Editor window: WinUI 3, Mica, TitleBar (page name as subtitle), NavigationView Left 200 wide.
+- Editor window: WinUI 3, Mica, TitleBar (page name as subtitle), NavigationView Left 200 wide, collapsible to a 48-wide icon strip.
   Pages: **Flows** (cards: glyph, name, shortcut, last result, On toggle, Run; a click on the card (not the toggle or Run) → flow editor with
   BreadcrumbBar "Flows › Connect Technics"; New flow: Blank / TV only / Audio → Headphones templates) ·
   **Library** (Pivot: Audio, Bluetooth, Displays, Android, Programs; settings cards with Test and "Used by 2
@@ -28,8 +28,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   the reason in its tooltip and Narrator help text). Each card is one Tab stop that opens the flow (Enter/Space,
   Narrator "Open Connect Technics"), then its On switch and Run; its context menu has Open, Run and the desktop item
   (#66, D-070).
-- **M13 (designed):** the nav pane collapses: the toggle above the items shrinks it to a 48-DIP icon
-  strip with tooltips, remembered on this PC (D-068).
+- The nav pane collapses: the toggle above the items ("Close Navigation" / "Open Navigation" for Narrator) shrinks
+  it to a 48-DIP icon strip whose items show their name as a tooltip; open or collapsed is remembered on this PC
+  (D-068).
 - **M13 fixes (F4):** the card's context menu (and Delete on a focused card) has **Delete** (D-076): the
   flow goes at once and an InfoBar on the Flows page says #67 with **Undo**, until another Delete, New flow, opening
   a flow, leaving the page or closing the editor. Off while another flow runs it, with #68 as a greyed line under it.
