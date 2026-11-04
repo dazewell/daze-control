@@ -93,6 +93,40 @@ public sealed class RunsPageViewModelTests : IDisposable
     }
 
     [Fact]
+    public void AFailureItsFallbackFixedWorkedWithADashedBarAndNotNeededRows()
+    {
+        var run = Run(_time.GetLocalNow(), FlowOutcome.Succeeded, 4,
+            Ran("bt", 0, 1, order: 1),
+            Ran("out", 1, 2, NodeOutcome.Failed, order: 2, error: "No such device"),
+            Ran("note", 2, 3, order: 3),
+            new NodeResult("vol", NodeOutcome.NotNeeded, Attempts: 0));
+        var detail = new RunDetailViewModel(run, _session.Current.Flows[0]);
+
+        detail.Layout(400);
+
+        Assert.Equal("Connect Technics worked. Set default device didn't work, so Show a message ran instead.", detail.Sentence); // #48
+        var bars = detail.Bars.ToDictionary(b => b.NodeId);
+        Assert.True(bars["out"].IsHandled);
+        Assert.True(bars["out"].IsMayFailFailed); // drawn caution-dashed
+        Assert.False(bars["bt"].IsMayFailFailed);
+        Assert.DoesNotContain("vol", bars.Keys);
+        Assert.EndsWith(": not needed", Assert.Single(detail.NotRun), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AFailureWhoseFallbackNeverStartedIsNotDrawnAsFixed()
+    {
+        var run = Run(_time.GetLocalNow(), FlowOutcome.Failed, 2,
+            Ran("bt", 0, 1, order: 1), Ran("out", 1, 2, NodeOutcome.Failed, order: 2),
+            new NodeResult("note", NodeOutcome.Cancelled, Attempts: 0));
+        var detail = new RunDetailViewModel(run, _session.Current.Flows[0]);
+
+        detail.Layout(400);
+
+        Assert.False(detail.Bars.Single(b => b.NodeId == "out").IsMayFailFailed);
+    }
+
+    [Fact]
     public void AShortStepStillGetsAVisibleBar()
     {
         var run = Run(_time.GetLocalNow(), seconds: 100, nodes: [Ran("bt", 0, 0.001), Ran("vol", 99.999, 100, order: 2)]);

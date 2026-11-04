@@ -242,7 +242,9 @@ public sealed partial class RunsView : UserControl
     private static Grid BarLook(TimelineBarView bar, bool selected)
     {
         var look = new Grid { Width = bar.Width, Height = RunDetailViewModel.BarHeight };
-        var fill = Theme.Brush(bar.Outcome switch
+        // A failure its fallback took over looks like a may-fail one (D-065).
+        var outcome = bar.IsMayFailFailed ? NodeOutcome.FailedIgnored : bar.Outcome;
+        var fill = Theme.Brush(outcome switch
         {
             NodeOutcome.Succeeded => "SystemFillColorSuccessBrush",
             NodeOutcome.Failed => "SystemFillColorCriticalBrush",
@@ -277,7 +279,7 @@ public sealed partial class RunsView : UserControl
         look.Children.Add(segments);
 
         // Colour alone doesn't say it (contrast themes, colour blindness): a mark on bars wide enough for one.
-        var glyph = bar.Outcome switch
+        var glyph = outcome switch
         {
             NodeOutcome.Succeeded => "",
             NodeOutcome.Failed => "",
@@ -291,7 +293,7 @@ public sealed partial class RunsView : UserControl
                 FontSize = 12,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Margin = new Thickness(4, 0, 0, 0),
-                Foreground = Theme.Brush(bar.Outcome is NodeOutcome.Succeeded or NodeOutcome.Failed
+                Foreground = Theme.Brush(outcome is NodeOutcome.Succeeded or NodeOutcome.Failed
                     ? Theme.HighContrast ? "SystemColorWindowColorBrush" : "TextOnAccentFillColorPrimaryBrush"
                     : "TextFillColorPrimaryBrush"),
             });

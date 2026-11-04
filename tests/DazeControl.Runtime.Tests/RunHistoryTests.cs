@@ -42,6 +42,20 @@ public sealed class RunHistoryTests : IDisposable
     }
 
     [Fact]
+    public void NotNeededRoundTrips()
+    {
+        var record = Record(2) with
+        {
+            Outcome = FlowOutcome.Succeeded,
+            Nodes = [new NodeResult("bt", NodeOutcome.Succeeded, Order: 1), new NodeResult("connect", NodeOutcome.NotNeeded, 0)],
+        };
+        new RunHistory(HistoryFile).Add(record);
+
+        AssertSame(record, Assert.Single(new RunHistory(HistoryFile).Recent));
+        Assert.Contains("\"notNeeded\"", File.ReadAllText(HistoryFile), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void KeepsTheLastHundredAndTrimsTheFile()
     {
         var history = new RunHistory(HistoryFile);
