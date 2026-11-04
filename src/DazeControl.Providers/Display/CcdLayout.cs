@@ -114,22 +114,23 @@ internal static unsafe class CcdLayout
         const SET_DISPLAY_CONFIG_FLAGS Supplied = SET_DISPLAY_CONFIG_FLAGS.SDC_USE_SUPPLIED_DISPLAY_CONFIG | SET_DISPLAY_CONFIG_FLAGS.SDC_ALLOW_CHANGES;
         cancellationToken.ThrowIfCancellationRequested();
         var error = Set(paths, modes, Supplied | SET_DISPLAY_CONFIG_FLAGS.SDC_VALIDATE);
-        if (error == InvalidParameter)
+        if (error == CcdDisplays.InvalidParameter)
         {
-            CcdDisplays.SwitchSet([.. paths], validateOnly, $"turn on the screens of \"{layout.Key}\"");
+            CcdDisplays.SwitchSet([.. paths], validateOnly, $"turn on the screens of \"{layout.Key}\"", cancellationToken);
             if (validateOnly)
                 return;
             error = Set(paths, modes, Supplied | SET_DISPLAY_CONFIG_FLAGS.SDC_VALIDATE);
         }
         if (error == 0 && !validateOnly)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             error = Set(paths, modes, Supplied | SET_DISPLAY_CONFIG_FLAGS.SDC_APPLY | SET_DISPLAY_CONFIG_FLAGS.SDC_SAVE_TO_DATABASE);
+        }
         if (error != 0)
             throw new StepFailedException($"Windows didn't accept the layout \"{layout.Key}\" (error {error}); capture it again.");
         if (!validateOnly)
             CcdDisplays.Verify(wanted, layout.Key);
     }
-
-    private const int InvalidParameter = 87; // ERROR_INVALID_PARAMETER
 
     private static int Set(DISPLAYCONFIG_PATH_INFO[] paths, DISPLAYCONFIG_MODE_INFO[] modes, SET_DISPLAY_CONFIG_FLAGS flags)
     {

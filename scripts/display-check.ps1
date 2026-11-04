@@ -9,7 +9,7 @@ param(
     [string]$Out = "$env:TEMP\daze-display-check",
     [switch]$Go
 )
-$ErrorActionPreference = 'Continue'
+$ErrorActionPreference = 'Stop' # until the snapshot is saved; 'Continue' while the matrix runs, so cleanup always runs
 $Flows = @($Flows | ForEach-Object { $_ -split ',' } | Where-Object { $_ })  # pwsh -File passes "a,b" as one string
 $root = Split-Path $PSScriptRoot -Parent
 $bin = "net10.0-windows10.0.26100.0\win-x64"
@@ -24,19 +24,33 @@ Add-Type -Namespace DazeControl -Name Ccd -MemberDefinition @'
 [DllImport("user32.dll")] public static extern int SetDisplayConfig(uint pc, byte[] p, uint mc, byte[] m, uint f);
 '@
 
+# Paths and modes for a QDC_* query, retried when a screen comes or goes between the two calls; throws on any
+# other error, so a snapshot is complete or the script stops before changing anything.
+function Query-Ccd([uint32]$which, [ref]$topology) {
+    for ($attempt = 0; $attempt -lt 3; $attempt++) {
+        $pc = 0; $mc = 0
+        $e = [DazeControl.Ccd]::GetDisplayConfigBufferSizes($which, [ref]$pc, [ref]$mc)
+        if ($e -ne 0) { throw "GetDisplayConfigBufferSizes failed ($e)" }
+        $p = New-Object byte[] ($pc * 72); $m = New-Object byte[] ($mc * 64); $t = 0
+        $e = if ($which -eq 4) { [DazeControl.Ccd]::QueryDisplayConfig($which, [ref]$pc, $p, [ref]$mc, $m, [ref]$t) }
+             else { [DazeControl.Ccd]::QueryDisplayConfig($which, [ref]$pc, $p, [ref]$mc, $m, [IntPtr]::Zero) }
+        if ($e -eq 0) { if ($topology) { $topology.Value = $t }; return [pscustomobject]@{ Paths = $pc; Modes = $mc; P = $p; M = $m } }
+        if ($e -ne 122) { throw "QueryDisplayConfig failed ($e)" } # 122 = ERROR_INSUFFICIENT_BUFFER: size again
+    }
+    throw 'QueryDisplayConfig: the screens kept changing'
+}
+
 # Active paths (QDC_ONLY_ACTIVE_PATHS) as raw bytes: [pathCount][modeCount][paths][modes], x64 struct sizes 72 / 64.
 function Get-Raw {
-    $pc = 0; $mc = 0; [void][DazeControl.Ccd]::GetDisplayConfigBufferSizes(2, [ref]$pc, [ref]$mc)
-    $p = New-Object byte[] ($pc * 72); $m = New-Object byte[] ($mc * 64)
-    [void][DazeControl.Ccd]::QueryDisplayConfig(2, [ref]$pc, $p, [ref]$mc, $m, [IntPtr]::Zero)
-    [BitConverter]::GetBytes([int]$pc) + [BitConverter]::GetBytes([int]$mc) + $p[0..($pc * 72 - 1)] + $m[0..($mc * 64 - 1)]
+    $q = Query-Ccd 2 $null; $pc = $q.Paths; $mc = $q.Modes; $p = $q.P; $m = $q.M
+    if ($pc -lt 1) { throw 'no active screen' }
+    [byte[]]([BitConverter]::GetBytes([int]$pc) + [BitConverter]::GetBytes([int]$mc) + $p[0..($pc * 72 - 1)] + $m[0..($mc * 64 - 1)])
 }
 
 # One line: the database topology plus each active screen's target, source, resolution and position.
 function Get-State {
     $b = Get-Raw; $pc = [BitConverter]::ToInt32($b, 0); $mc = [BitConverter]::ToInt32($b, 4); $mo = 8 + $pc * 72
-    $dp = 0; $dm = 0; [void][DazeControl.Ccd]::GetDisplayConfigBufferSizes(4, [ref]$dp, [ref]$dm)
-    $t = 0; [void][DazeControl.Ccd]::QueryDisplayConfig(4, [ref]$dp, (New-Object byte[] ($dp * 72)), [ref]$dm, (New-Object byte[] ($dm * 64)), [ref]$t)
+    $t = 0; [void](Query-Ccd 4 ([ref]$t))
     $topology = @{ 1 = 'internal'; 2 = 'clone'; 4 = 'extend'; 8 = 'external' }[$t]
     $screens = for ($i = 0; $i -lt $pc; $i++) {
         $o = 8 + $i * 72
@@ -66,6 +80,7 @@ $before = Get-Raw
 $start | Set-Content "$Out\before.txt"
 "saved: $Out\before.bin"
 
+$ErrorActionPreference = 'Continue'
 & pwsh -NoProfile -File "$PSScriptRoot\stop.ps1"
 $dev = Start-Process $engine -ArgumentList "`"$Config`"" -PassThru
 try {
@@ -81,7 +96,7 @@ finally {
     $restored = $false
     foreach ($attempt in 1..2) {
         $r = Restore-Raw $before; Start-Sleep 3
-        $now = Get-State
+        $now = try { Get-State } catch { "unreadable: $_" }
         if ($now -eq $start) { $restored = $true; break }
         "restore attempt $attempt (error $r): $now"
     }
@@ -91,3 +106,4 @@ finally {
     if (Test-Path $installed) { Start-Process $installed | Out-Null; Start-Sleep 2 }
     "engines: " + ((Get-CimInstance Win32_Process -Filter "Name='DazeControl.exe'").ExecutablePath -join ', ')
 }
+if (-not $restored) { exit 2 }

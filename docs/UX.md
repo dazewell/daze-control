@@ -251,7 +251,8 @@ layout" · 64 "Running inside Headphones." · 65 "Would run Make it the default.
 · "Delete" (F4) · M13 fixes: 67 "Connect Technics was deleted." / "Undo" · 68 "Headphones runs this flow. Remove that
 step first." / "Headphones and Morning run this flow. Remove those steps first." · 69 "Make another flow first. This
 step runs one of your other flows." · 70 (F5) "Windows set up the screens differently: DELL S2722QC is still off." /
-"…: ATNA40HQ05-0 is still on." / "…: DELL S2722QC isn't where Dual puts it." (the step fails; its fallback can run)
+"…: ATNA40HQ05-0 is still on." / "…: DELL S2722QC isn't where Dual puts it." / "…: ATNA40HQ05-0 and DELL S2722QC show the same picture." /
+"…: … don't show the same picture." (a saved duplicate) (the step fails; its fallback can run)
 M13b shortcut keys (own numbering, so M13's new numbers don't clash): H1 "That key can't be a shortcut. Try a
 letter, a number, F1–F24, a key like [ or \, or a number pad key." · H2 "Add Win, Ctrl or Alt, so the shortcut doesn't
 get in the way of your typing." · H3 "Turn on Num Lock to use the number pad." · H4 "Shift doesn't work with number

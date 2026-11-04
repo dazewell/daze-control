@@ -26,9 +26,10 @@ internal static class DisplayCheck
 {
     /// <summary>
     /// One source per group, distinct per adapter (two screens on one source are a duplicate, X-009), and offered by
-    /// Windows for every target in the group. A group keeps its preferred source when it can. Null when the adapter
-    /// hasn't enough sources for that many pictures.
+    /// Windows for every target in the group. Of the assignments that work, the one keeping the most groups on their
+    /// preferred source wins (a working arrangement isn't reshuffled). Null when none works.
     /// </summary>
+    /// <remarks>An exhaustive search: a handful of screens and sources, so it costs nothing next to SetDisplayConfig.</remarks>
     public static uint[]? AssignSources(IReadOnlyList<SourceRequest> requests, IReadOnlyList<CcdPath> offered)
     {
         var groups = requests.Select((r, i) => (Request: r, Index: i))
@@ -36,41 +37,49 @@ internal static class DisplayCheck
             .Select(g => (g.Key.Adapter, Targets: g.Select(x => x.Request.Target).ToList(), Indexes: g.Select(x => x.Index).ToList(),
                 Preferred: g.Select(x => x.Request.Preferred).FirstOrDefault(p => p is not null)))
             .ToList();
+        // Each group's possible sources, its preferred one first.
+        var candidates = groups.Select(g => offered.Where(p => p.Adapter == g.Adapter).Select(p => p.Source).Distinct()
+                .Where(s => g.Targets.All(t => offered.Contains(new CcdPath(g.Adapter, s, t))))
+                .OrderBy(s => s == g.Preferred ? 0 : 1).ThenBy(s => s).ToList())
+            .ToList();
+
         var used = new HashSet<(long, uint)>();
-        var chosen = new uint?[groups.Count];
+        var current = new uint[groups.Count];
+        uint[]? best = null;
+        var bestKept = -1;
 
-        bool Fits(int g, uint source) =>
-            !used.Contains((groups[g].Adapter, source))
-            && groups[g].Targets.All(t => offered.Contains(new CcdPath(groups[g].Adapter, source, t)));
-
-        // Keep what each screen has first, so a working arrangement isn't reshuffled; then fill the rest lowest-first.
-        for (var g = 0; g < groups.Count; g++)
-            if (groups[g].Preferred is { } preferred && Fits(g, preferred))
-            {
-                chosen[g] = preferred;
-                used.Add((groups[g].Adapter, preferred));
-            }
-        for (var g = 0; g < groups.Count; g++)
+        void Search(int g, int kept)
         {
-            if (chosen[g] is not null)
-                continue;
-            var free = offered.Where(p => p.Adapter == groups[g].Adapter).Select(p => p.Source).Distinct().Order()
-                .Cast<uint?>().FirstOrDefault(s => Fits(g, s!.Value));
-            if (free is null)
-                return null;
-            chosen[g] = free;
-            used.Add((groups[g].Adapter, free.Value));
+            if (kept + (groups.Count - g) <= bestKept)
+                return; // can't beat what's found
+            if (g == groups.Count)
+            {
+                best = [.. current];
+                bestKept = kept;
+                return;
+            }
+            foreach (var source in candidates[g])
+            {
+                if (!used.Add((groups[g].Adapter, source)))
+                    continue;
+                current[g] = source;
+                Search(g + 1, kept + (source == groups[g].Preferred ? 1 : 0));
+                used.Remove((groups[g].Adapter, source));
+            }
         }
+        Search(0, 0);
+        if (best is null)
+            return null;
 
         var result = new uint[requests.Count];
         for (var g = 0; g < groups.Count; g++)
             foreach (var i in groups[g].Indexes)
-                result[i] = chosen[g]!.Value;
+                result[i] = best[g];
         return result;
     }
 
     /// <summary>
-    /// Null when the active screens are what was asked: exactly those screens on, no two on one picture unless they
+    /// Null when the active screens are what was asked: exactly those screens on, two on one picture exactly when they
     /// share a group, and for a layout (<paramref name="layout"/> names it) each one's resolution and position.
     /// Otherwise the step's failure text (UX #70).
     /// </summary>
@@ -96,6 +105,14 @@ internal static class DisplayCheck
                 if (a.Group != b.Group)
                     return $"{Prefix}{now[i].Name} and {now[j].Name} show the same picture.";
             }
+        // The other way round: a saved duplicate whose screens came up apart.
+        foreach (var group in wanted.GroupBy(w => w.Group).Where(g => g.Count() > 1))
+        {
+            var screens = group.Select(w => now.First(s => Same(w, s))).ToList();
+            var apart = screens.FirstOrDefault(s => s.Adapter != screens[0].Adapter || s.Source != screens[0].Source);
+            if (apart is not null)
+                return $"{Prefix}{screens[0].Name} and {apart.Name} don't show the same picture.";
+        }
 
         if (layout is not null)
             foreach (var want in wanted)

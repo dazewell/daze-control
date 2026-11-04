@@ -67,8 +67,7 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
                 && p.sourceInfo.adapterId.Equals(target.targetInfo.adapterId));
         }
 
-        cancellationToken.ThrowIfCancellationRequested();
-        SwitchSet(paths, validateOnly, "switch the screens");
+        SwitchSet(paths, validateOnly, "switch the screens", cancellationToken);
         if (!validateOnly)
             Verify([.. chosen.Select((c, i) => new ScreenWant(Name(c.Output), Identity(c.Path.targetInfo.adapterId, c.Path.targetInfo.id), i))], null);
         return [];
@@ -77,9 +76,9 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
     /// <summary>
     /// Turns on exactly these paths (their source and target ids are used; modes aren't). Windows is asked for this
     /// set's saved arrangement first (<c>SDC_TOPOLOGY_SUPPLIED</c>); only a set it has never seen is left to Windows to
-    /// arrange, and then saved (X-009).
+    /// arrange, and then saved (X-009). Any other error fails the step. The token is checked right before each write.
     /// </summary>
-    internal static void SwitchSet(DISPLAYCONFIG_PATH_INFO[] paths, bool validateOnly, string what)
+    internal static void SwitchSet(DISPLAYCONFIG_PATH_INFO[] paths, bool validateOnly, string what, CancellationToken cancellationToken)
     {
         for (var i = 0; i < paths.Length; i++)
         {
@@ -90,8 +89,14 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
         var apply = validateOnly ? SET_DISPLAY_CONFIG_FLAGS.SDC_VALIDATE : SET_DISPLAY_CONFIG_FLAGS.SDC_APPLY;
         fixed (DISPLAYCONFIG_PATH_INFO* first = paths)
         {
-            if (PInvoke.SetDisplayConfig((uint)paths.Length, first, 0, null, apply | SET_DISPLAY_CONFIG_FLAGS.SDC_TOPOLOGY_SUPPLIED) == 0)
+            cancellationToken.ThrowIfCancellationRequested();
+            var error = PInvoke.SetDisplayConfig((uint)paths.Length, first, 0, null, apply | SET_DISPLAY_CONFIG_FLAGS.SDC_TOPOLOGY_SUPPLIED);
+            if (error == 0)
                 return;
+            // ERROR_INVALID_PARAMETER is what a set with no saved arrangement gives; anything else is a real failure.
+            if (error != InvalidParameter)
+                Check(error, what);
+            cancellationToken.ThrowIfCancellationRequested();
             Check(PInvoke.SetDisplayConfig((uint)paths.Length, first, 0, null,
                 apply | SET_DISPLAY_CONFIG_FLAGS.SDC_USE_SUPPLIED_DISPLAY_CONFIG | SET_DISPLAY_CONFIG_FLAGS.SDC_ALLOW_CHANGES
                 | (validateOnly ? 0 : SET_DISPLAY_CONFIG_FLAGS.SDC_SAVE_TO_DATABASE)), what);
@@ -141,6 +146,8 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
     public DisplayLayout CaptureLayout(string key) => CcdLayout.Capture(key);
 
     public void ApplyLayout(DisplayLayout layout, CancellationToken cancellationToken) => CcdLayout.Apply(layout, validateOnly, cancellationToken);
+
+    internal const int InvalidParameter = 87; // ERROR_INVALID_PARAMETER
 
     internal static void Check(int error, string what)
     {

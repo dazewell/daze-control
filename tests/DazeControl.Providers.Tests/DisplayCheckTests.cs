@@ -52,6 +52,14 @@ public class DisplayCheckTests
     }
 
     [Fact]
+    public void APreferenceGivesWayWhenOnlyTheOtherOrderWorks()
+    {
+        // Copilot review: A prefers 0 (offered 0 and 1), B prefers 1 but is offered only 0.
+        CcdPath[] uneven = [new(Gpu, 0, Int), new(Gpu, 1, Int), new(Gpu, 0, Dell)];
+        Assert.Equal([1u, 0u], DisplayCheck.AssignSources([new(Gpu, Int, 0, 0), new(Gpu, Dell, 1, 1)], uneven)!);
+    }
+
+    [Fact]
     public void TooFewSourcesGivesNoPlan()
     {
         CcdPath[] oneSource = [new(Gpu, 0, Int), new(Gpu, 0, Dell)];
@@ -99,6 +107,11 @@ public class DisplayCheckTests
             DisplayCheck.Differences([WantLaptop, WantDell], [Laptop(0, 0), DellNow(0)]));
         Assert.Null(DisplayCheck.Differences([WantLaptop with { Group = 1 }, WantDell], [Laptop(0, 0), DellNow(0)]));
     }
+
+    [Fact]
+    public void ASavedDuplicateThatCameUpApartFails() =>
+        Assert.Equal("Windows set up the screens differently: ATNA40HQ05-0 and DELL S2722QC don't show the same picture.",
+            DisplayCheck.Differences([WantLaptop with { Group = 1, Place = null }, WantDell with { Place = null }], [Laptop(0), DellNow(1)], "Mirror"));
 
     [Fact]
     public void AMadeUpArrangementFailsALayout()
