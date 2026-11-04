@@ -67,9 +67,122 @@ public sealed class PageViewModelTests : IDisposable
         Assert.Equal("Connect Technics", technics.Name);
         Assert.Equal("Alt+Z", technics.Shortcut);
         Assert.Equal("No shortcut", page.Items[1].Shortcut);
-        Assert.Equal(FlowItemViewModel.DefaultGlyph, technics.Glyph);
+        Assert.Equal(FlowGlyph.Decode(FlowGlyph.CodeOf(_session.Current.Flows[0])), technics.Glyph);
         Assert.True(technics.IsEnabled);
         Assert.False(page.IsEmpty);
+    }
+
+    [Fact]
+    public void ACardShowsTheFlowsOwnGlyphElseItsFirstStepsAsFlowSettingsDo()
+    {
+        using var page = new FlowsPageViewModel(_session, _engine, a => a());
+        var stepGlyph = FlowGlyph.Decode(FlowGlyph.FirstStepCode(_session.Current.Flows[1]));
+
+        Assert.NotEqual(FlowGlyph.Default, stepGlyph);
+        Assert.Equal(stepGlyph, page.Items[1].Glyph);
+
+        _session.Update(c => c with { Flows = [.. c.Flows.Select(f => f.Id == "tv" ? f with { Glyph = "E7F4" } : f)] });
+        Assert.Equal("", page.Items[1].Glyph);
+
+        _session.Update(c => c with { Flows = [.. c.Flows.Select(f => f.Id == "tv" ? f with { Glyph = null, Nodes = [] } : f)] });
+        Assert.Equal("", page.Items[1].Glyph);
+    }
+
+    [Fact]
+    public void RunIsOffWithAReasonUntilTheEngineRunsAndTheFlowIsOnAndValid()
+    {
+        using var page = new FlowsPageViewModel(_session, _engine, a => a());
+        var tv = page.Items[1];
+
+        Assert.False(tv.CanRun);
+        Assert.Equal("Start Daze Control to run flows.", tv.RunOffReason);
+
+        _engine.SetRunning(true);
+        Assert.True(tv.CanRun);
+        Assert.Null(tv.RunOffReason);
+        Assert.True(tv.RunCommand.CanExecute(null));
+
+        tv.IsEnabled = false;
+        Assert.False(tv.CanRun);
+        Assert.Equal("Turn it on to run it.", tv.RunOffReason);
+        Assert.False(tv.RunCommand.CanExecute(null));
+
+        tv.IsEnabled = true;
+        _session.Update(c => c with { Flows = [.. c.Flows.Select(f => f.Id == "tv" ? f with { Hotkeys = ["Nope+Q"] } : f)] });
+        Assert.False(tv.CanRun);
+        Assert.Equal("Fix its problems to run it.", tv.RunOffReason);
+        Assert.True(page.Items[0].CanRun);
+    }
+
+    [Fact]
+    public void RunStartsTheSavedFlowFromTheEditorAndReadsStopWhileItRuns()
+    {
+        _engine.Answer = r => new PipeMessage { Id = r.Id, Ok = true };
+        _engine.SetRunning(true);
+        using var page = new FlowsPageViewModel(_session, _engine, a => a());
+        var tv = page.Items[1];
+        Assert.Equal("Run", tv.RunText);
+        Assert.Equal("Run TV", tv.RunName);
+        Assert.Equal("Open TV", tv.OpenName);
+
+        tv.RunCommand.Execute(null);
+
+        var run = Assert.Single(_engine.Requests, r => r.Op == Ops.Run);
+        Assert.Equal("tv", run.Flow);
+        Assert.Equal("Editor", run.Trigger);
+        Assert.False(run.DryRun);
+        Assert.Null(run.Config); // the saved version, not a draft
+
+        var runId = Guid.NewGuid();
+        _engine.Raise(new PipeEvent { Kind = EventKinds.RunStarted, FlowId = "tv", RunId = runId });
+        Assert.True(tv.IsRunning);
+        Assert.Equal("Stop", tv.RunText);
+        Assert.Equal("Stop TV", tv.RunName);
+        Assert.False(page.Items[0].IsRunning);
+
+        tv.RunCommand.Execute(null);
+        var cancel = Assert.Single(_engine.Requests, r => r.Op == Ops.Cancel);
+        Assert.Equal("tv", cancel.Flow);
+
+        _engine.Raise(new PipeEvent { Kind = EventKinds.RunFinished, FlowId = "tv", RunId = runId, Outcome = FlowOutcome.Cancelled });
+        Assert.False(tv.IsRunning);
+        Assert.Equal("Run", tv.RunText);
+    }
+
+    [Fact]
+    public void StopStaysAvailableForARunningFlowThatWasTurnedOff()
+    {
+        _engine.SetRunning(true);
+        using var page = new FlowsPageViewModel(_session, _engine, a => a());
+        var tv = page.Items[1];
+
+        _engine.Raise(new PipeEvent { Kind = EventKinds.NodeStarted, FlowId = "tv", RunId = Guid.NewGuid(), NodeId = "wait" });
+        tv.IsEnabled = false;
+
+        Assert.True(tv.IsRunning);
+        Assert.True(tv.RunCommand.CanExecute(null));
+
+        _engine.SetRunning(false);
+        Assert.False(tv.IsRunning);
+        Assert.False(tv.RunCommand.CanExecute(null));
+        Assert.Equal("Start Daze Control to run flows.", tv.RunOffReason);
+    }
+
+    [Fact]
+    public void ARefusedRunSaysWhy()
+    {
+        _engine.Answer = r => new PipeMessage { Id = r.Id, Ok = r.Op != Ops.Run, Error = "TV is already running." };
+        _engine.SetRunning(true);
+        using var page = new FlowsPageViewModel(_session, _engine, a => a());
+
+        page.Items[1].RunCommand.Execute(null);
+
+        Assert.Equal("TV is already running.", page.RunError);
+        Assert.True(page.HasRunError);
+
+        _engine.Answer = r => new PipeMessage { Id = r.Id, Ok = true };
+        page.Items[1].RunCommand.Execute(null);
+        Assert.False(page.HasRunError);
     }
 
     [Fact]

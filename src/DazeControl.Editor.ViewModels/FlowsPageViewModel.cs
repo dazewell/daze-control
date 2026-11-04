@@ -12,7 +12,7 @@ using DazeControl.Ipc;
 
 namespace DazeControl.Editor.ViewModels;
 
-/// <summary>Flows page (UX §5.1): one card per flow in YAML order; the flow editor opens from it in M7.</summary>
+/// <summary>Flows page (UX §5.1): one card per flow in YAML order; a click opens it, Run runs it (D-070).</summary>
 public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
 {
     private const int HistoryLimit = 100;
@@ -21,6 +21,9 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     private readonly IEngineClient _engine;
     private readonly Action<Action> _post;
     private Dictionary<string, RunRecord> _lastRuns = [];
+
+    /// <summary>Live runs by id → flow, from the engine's events (UI thread).</summary>
+    private readonly Dictionary<Guid, string> _liveRuns = [];
 
     public FlowsPageViewModel(ConfigSession session, IEngineClient engine, Action<Action> post, DesktopShortcutStore? desktop = null)
     {
@@ -74,6 +77,25 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     });
 
     public ObservableCollection<FlowItemViewModel> Items { get; } = [];
+
+    /// <summary>Why the last Run from a card was refused; null when it wasn't.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRunError))]
+    public partial string? RunError { get; private set; }
+
+    public bool HasRunError => RunError is not null;
+
+    /// <summary>The card's Run: the saved version, trigger "Editor" (D-070). The run itself arrives as events.</summary>
+    internal async Task RunAsync(string flowId)
+    {
+        RunError = null;
+        var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.Run, Flow = flowId, Trigger = "Editor" }).ConfigureAwait(false);
+        if (answer is not { Ok: true })
+            _post(() => RunError = answer?.Error ?? "The engine isn't running.");
+    }
+
+    internal async Task StopAsync(string flowId) =>
+        await _engine.SendAsync(new PipeRequest { Op = Ops.Cancel, Flow = flowId }).ConfigureAwait(false);
 
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; }
@@ -141,6 +163,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
                 Items.Move(Items.IndexOf(existing), i);
             }
             existing.Update(flow, _lastRuns.GetValueOrDefault(flow.Id), withErrors.GetValueOrDefault(flow.Id), _session.CanEdit);
+            existing.UpdateRun(_engine.IsRunning, _liveRuns.ContainsValue(flow.Id));
         }
         IsEmpty = Items.Count == 0;
     }
@@ -158,14 +181,43 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
 
     private void OnEngineEvent(PipeEvent e)
     {
+        if (e is { RunId: { } runId, FlowId: { } flowId })
+        {
+            // A run that started before the editor opened shows from its next step on.
+            if (e.Kind is EventKinds.RunStarted or EventKinds.NodeStarted)
+                _post(() => SetLive(runId, flowId, live: true));
+            else if (e.Kind == EventKinds.RunFinished)
+                _post(() => SetLive(runId, flowId, live: false));
+        }
         if (e.Kind == EventKinds.RunFinished)
             _ = RefreshRunsAsync();
+    }
+
+    private void SetLive(Guid runId, string flowId, bool live)
+    {
+        if (live)
+            _liveRuns[runId] = flowId;
+        else
+            _liveRuns.Remove(runId);
+        UpdateRuns();
+    }
+
+    private void UpdateRuns()
+    {
+        foreach (var item in Items)
+            item.UpdateRun(_engine.IsRunning, _liveRuns.ContainsValue(item.Id));
     }
 
     private void OnEngineStateChanged()
     {
         if (_engine.IsRunning)
             _ = RefreshRunsAsync();
+        _post(() =>
+        {
+            if (!_engine.IsRunning)
+                _liveRuns.Clear(); // the runs went with it
+            UpdateRuns();
+        });
         _ = RefreshDesktopAsync();
     }
 
@@ -195,10 +247,54 @@ public sealed partial class FlowItemViewModel : ObservableObject
     public string Id { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(EditName))]
+    [NotifyPropertyChangedFor(nameof(OpenName), nameof(RunName))]
     public partial string Name { get; private set; } = "";
 
-    public string EditName => $"Edit {Name}";
+    /// <summary>The card's UIA name: it opens the flow on Enter/Space (D-070).</summary>
+    public string OpenName => $"Open {Name}";
+
+    /// <summary>The Run button's UIA name.</summary>
+    public string RunName => $"{RunText} {Name}";
+
+    /// <summary>"Stop" while this flow runs.</summary>
+    public string RunText => IsRunning ? "Stop" : "Run";
+
+    /// <summary>A run of this flow is going on.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RunText), nameof(RunName), nameof(RunTip))]
+    [NotifyCanExecuteChangedFor(nameof(RunCommand))]
+    public partial bool IsRunning { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RunOffReason), nameof(CanRun), nameof(RunTip))]
+    [NotifyCanExecuteChangedFor(nameof(RunCommand))]
+    public partial bool EngineRunning { get; private set; }
+
+    private int _errors;
+
+    /// <summary>Why Run is off (#62): engine, then the On switch, then problems; null when it can run.</summary>
+    public string? RunOffReason =>
+        !EngineRunning ? "Start Daze Control to run flows."
+        : !IsEnabled ? "Turn it on to run it."
+        : _errors > 0 ? "Fix its problems to run it."
+        : null;
+
+    public bool CanRun => RunOffReason is null;
+
+    /// <summary>The Run button's tooltip: the reason it's off, else what it does.</summary>
+    public string RunTip => IsRunning ? "Stop this run" : RunOffReason ?? "Run the saved version";
+
+    /// <summary>Run, or Stop while it runs (Stop needs only the engine).</summary>
+    private bool CanRunOrStop => IsRunning ? EngineRunning : CanRun;
+
+    [RelayCommand(CanExecute = nameof(CanRunOrStop), AllowConcurrentExecutions = true)]
+    private Task RunAsync() => IsRunning ? _page.StopAsync(Id) : _page.RunAsync(Id);
+
+    internal void UpdateRun(bool engineRunning, bool running)
+    {
+        EngineRunning = engineRunning;
+        IsRunning = running;
+    }
 
     [ObservableProperty]
     public partial string Glyph { get; private set; } = DefaultGlyph;
@@ -247,13 +343,21 @@ public sealed partial class FlowItemViewModel : ObservableObject
         try
         {
             Name = flow.Name;
-            Glyph = DecodeGlyph(flow.Glyph);
+            Glyph = FlowGlyph.Decode(FlowGlyph.CodeOf(flow));
             CanEdit = canEdit;
             Shortcut = flow.Hotkeys.Count == 0 ? "No shortcut" : string.Join(", ", flow.Hotkeys);
             LastRun = lastRun is null ? "Not run yet" : $"{Runs.RunWords.Chip(lastRun.Outcome)} · {lastRun.Started.ToLocalTime():g}";
             HasProblems = errors > 0;
             Problems = errors switch { 0 => "", 1 => "1 problem", _ => $"{errors} problems" };
             IsEnabled = flow.Enabled;
+            if (_errors != errors)
+            {
+                _errors = errors;
+                OnPropertyChanged(nameof(RunOffReason));
+                OnPropertyChanged(nameof(CanRun));
+                OnPropertyChanged(nameof(RunTip));
+                RunCommand.NotifyCanExecuteChanged();
+            }
         }
         finally
         {
@@ -266,6 +370,10 @@ public sealed partial class FlowItemViewModel : ObservableObject
 
     partial void OnIsEnabledChanged(bool value)
     {
+        OnPropertyChanged(nameof(RunOffReason));
+        OnPropertyChanged(nameof(CanRun));
+        OnPropertyChanged(nameof(RunTip));
+        RunCommand.NotifyCanExecuteChanged();
         if (!_syncing)
             _page.SetEnabled(Id, value);
     }

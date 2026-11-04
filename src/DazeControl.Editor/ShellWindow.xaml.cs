@@ -307,11 +307,22 @@ public sealed partial class ShellWindow : Window
 
     private static Visibility Show(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
 
-    private void OnEditFlow(object sender, RoutedEventArgs e)
+    /// <summary>The card's context menu: Open.</summary>
+    private void OnFlowOpenClick(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string id })
             ViewModel.OpenFlow(id);
     }
+
+    /// <summary>Enter, Space or UIA Invoke on a Flows card (D-070).</summary>
+    private void OnFlowCardInvoked(object? sender, EventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string id })
+            ViewModel.OpenFlow(id);
+    }
+
+    /// <summary>A click on Run, on or off, never opens the flow.</summary>
+    private void OnRunHostTapped(object sender, TappedRoutedEventArgs e) => e.Handled = true;
 
     /// <summary>The card's context menu: Add to desktop / Remove from desktop (D-049).</summary>
     private void OnFlowDesktopClick(object sender, RoutedEventArgs e)
