@@ -394,7 +394,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             var problem = errors.FirstOrDefault(p => p.Path == path + field.Name)?.Message
                 // A missing required setting is reported on "with" as "Device is missing (device: …)." (UX §5.7 #9).
                 ?? (errors.Any(p => p.Path == path[..^1] && p.Message.EndsWith($"({field.Name}: …).", StringComparison.Ordinal))
-                    ? field.IsDevice ? "Choose a device." : "Fill this in." : null);
+                    ? field.IsFlowRef ? "Choose a flow." : field.IsDevice ? "Choose a device." : "Fill this in." : null);
             field.Load(value, problem);
             Suggest(field, step);
         }
@@ -411,6 +411,12 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             case { Source: SuggestSource.Devices, Kind: var kind }:
                 field.SetSuggestions(_suggested.GetValueOrDefault(kind)?.Select(d => new SuggestionItem(d.Value ?? d.Name, Caption(d))) ?? [],
                     "");
+                break;
+            case { Source: SuggestSource.Config, Kind: ParamSuggest.Flows }:
+                var target = step.With.TryGetValue(field.Name, out var t) ? (t as ScalarParam)?.Text : null;
+                var flows = FlowOptions(_session.Current, _session.Problems, FlowId, target);
+                field.SetDevices(flows, target);
+                field.SetSuggestionHint(flows.Count == 0 ? NoOtherFlow : "");
                 break;
             case { Source: SuggestSource.Config, Kind: ParamSuggest.Flags }:
                 field.SetSuggestions(FlagNames(_session.Current), "");
@@ -432,6 +438,34 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         string?[] parts = [device.Detail == (device.Value ?? device.Name) ? null : device.Detail, state];
         return string.Join(" · ", parts.OfType<string>().Where(p => p.Length > 0));
     }
+
+    /// <summary>UX microcopy #69: the flow picker with no other flow.</summary>
+    public const string NoOtherFlow = "Make another flow first. This step runs one of your other flows.";
+
+    /// <summary>
+    /// The flow picker's rows (UX §5.4, F2): the other flows by name with #29 captions, storing the id; a target that
+    /// isn't a flow anymore stays as a row of its own so nothing changes by itself.
+    /// </summary>
+    internal static List<DeviceOption> FlowOptions(Configuration config, IReadOnlyList<Problem> problems, string selfId, string? current)
+    {
+        static DeviceOption Row(Flow flow, IReadOnlyList<Problem> problems) => new(DeviceSource.Library, flow.Id, flow.Name,
+            !flow.Enabled ? "Turned off"
+                : problems.Any(p => p.Severity == Severity.Error && p.FlowId == flow.Id) ? "Needs fixing"
+                : "",
+            Core.Model.FlowGlyph.Decode(Core.Model.FlowGlyph.CodeOf(flow)));
+        var rows = config.Flows.Where(f => f.Id != selfId)
+            .OrderBy(f => f.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Select(f => Row(f, problems))
+            .ToList();
+        if (current is { Length: > 0 } && rows.All(r => r.Key != current))
+            rows.Add(config.Flows.FirstOrDefault(f => f.Id == current) is { } self
+                ? Row(self, problems)
+                : new(DeviceSource.Missing, current, current, FlowGone, Core.Model.FlowGlyph.Decode("E8FD")));
+        return rows;
+    }
+
+    /// <summary>The caption of a flow picker row whose flow was deleted (#51 says the rest under the field).</summary>
+    public const string FlowGone = "Isn't there anymore";
 
     /// <summary>Flag names the config's steps use, with "Used in 2 flows".</summary>
     internal static List<SuggestionItem> FlagNames(Configuration config) =>
