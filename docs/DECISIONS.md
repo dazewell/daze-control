@@ -629,7 +629,14 @@ Status: accepted (M12 design); `wait: true` amended by D-061 (it nests instead o
 - Revisit if: users want a flow to continue differently per pick (then an edge `when: picked <id>`).
 
 ## D-055 · 2026-11-03 · The menu window never activates: borrowed keys via RegisterHotKey, a pass-through mouse hook
-Status: accepted (M12 design; user, 2026-11-03: "Never take focus"; spike S2 gates it)
+Status: on hold, waiting for the user (spike S2, 2026-11-04: gate (a) failed for full-screen games, X-010; M12
+stopped there). Held: borderless games and the desktop. Not held: DXGI full screen, even with FSO.
+- S2 result (DESIGN §5): over a borderless game the menu works with keys and mouse, the foreground never changes,
+  and the game renders at 113–121 fps throughout. All 20 keys register and are freed on every close path, a killed
+  process included. The hook's own time averages ~6 µs (max 245 µs). Over a DXGI full-screen game (flip + FSO, or
+  exclusive), any window we show kicks the game out of full screen, and QUNS reports 3 for both. So the #32
+  check covers every DXGI full-screen game, not only true exclusive mode. The menu can only show over borderless
+  or windowed games.
 - Decision: `Engine/Shell/FlowMenu` on the run pop-up's surface (D-034, cut out as `AcrylicSurface`), no-activate and
   topmost, centred on the foreground window's monitor. While open only: Up/Down/Left/Right/Enter/Space/Esc/Tab/Home/
   End/1–9 are `RegisterHotKey`s on the message window, a `WH_MOUSE_LL` hook (never swallows) spots a click outside;
@@ -642,7 +649,7 @@ Status: accepted (M12 design; user, 2026-11-03: "Never take focus"; spike S2 gat
   dropped silently, and UIPI hides elevated windows' keys. Why not `CreateWindowInBand` (Game Bar's band): needs
   uiAccess, signing and Program Files (admin, D-008). Why not WinUI: memory (D-001).
 - Revisit if: S2 shows hotkeys don't reach us over a game (then ask the user about focus), or Windows offers a
-  documented overlay band.
+  documented overlay band. (S2: hotkeys did reach us; the window itself is what full-screen games can't take.)
 
 ## D-056 · 2026-11-03 · Controller input: GameInput callbacks if they idle at 0, else XInput polling only while a pad is on
 Status: proposed (M12 design; spike S1 decides; user, 2026-11-03: polling while a pad is on is acceptable)

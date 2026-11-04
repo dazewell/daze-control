@@ -150,7 +150,8 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
 - Full-screen: borderless and flip-model games (incl. "exclusive" games under fullscreen optimisations) compose
   topmost windows → the menu shows over them. True exclusive full-screen
   (`SHQueryUserNotificationState` = `QUNS_RUNNING_D3D_FULL_SCREEN`) can't show it: the step fails with #32 before
-  anything is drawn or any key is taken. Spike S2 gates both.
+  anything is drawn or any key is taken. Spike S2 gates both. **S2: wrong for FSO.** A DXGI full-screen game
+  leaves full screen as soon as any window of ours shows, and QUNS = 3 for FSO too (§5 result, X-010).
 - Animation effects (`SPI_GETCLIENTAREAANIMATION`) off → no fade, no focus slide, instant. High contrast → system
   colours, solid background, 3-DIP focus ring.
 - Narrator (#26 shares this): the window can't take focus, so a minimal UIA provider raises
@@ -283,6 +284,28 @@ app registered as global shortcuts don't reach the menu; Narrator hears announce
   `SHQueryUserNotificationState` before showing; (c) every close path unregisters the keys (a second app can
   register Up afterwards); (d) DPI: correct size on 100 % and 175 % monitors; (e) mouse hook never adds input lag
   (hook time < 1 ms). Fail (a) → stop and ask the user (the menu would need focus, which they declined).
+  **Result (2026-11-04, dev PC: one 2880×1800 panel at 175 %, Win 11 26300, FSO on by default; probe
+  `spikes/menu-window`, not in the solution; GDI drawing, so acrylic is untested):**
+  - (a) **Fails for mode 2.** Borderless (mode 1) passes. Keys (arrows, Tab/Shift+Tab, Home/End, Enter, Space,
+    1–9, Esc) and the mouse (hover, wheel, click, click outside) all work. The foreground is the game before,
+    during and after, and the game keeps 113–121 fps on a 120 Hz panel
+    ([keys](s2/borderless-keys.png), [mouse](s2/borderless-mouse.png)). Flip-model full screen with FSO on
+    (mode 2): QUNS = 3, so the check refuses it. Shown anyway, the menu works, but ~100 ms later the game is
+    deactivated, the foreground goes to 0, DXGI leaves full screen and `Present` returns `DXGI_STATUS_OCCLUDED`.
+    The game drops to the desktop ([shot](s2/fso-forced.png)). The same happens with a layered window, one that
+    isn't topmost, and a 210×70 one in a corner. Hotkeys + hook with no visible window leave the game alone (X-010).
+  - (b) Holds, and catches more than planned: QUNS = 3 for exclusive mode **and** for FSO; windowed borderless
+    gives 2 (BUSY). Exclusive mode shown anyway behaves like mode 2 ([shot](s2/exclusive-forced.png)).
+  - (c) Holds: every close path freed 20/20 keys, and then a second process registered all 20. Paths tested: Enter,
+    Space, digit, click, click outside, Esc, close timer, step cancel, and the process killed (the OS frees them).
+  - (d) Partly: at 175 % the menu is 700 px wide for 400 DIP, correct. 96 DPI was seen only once, when a test
+    app's 1024×768 mode briefly switched the panel: 400 px wide, correct. No second monitor, so moving between
+    100 % and 175 % monitors is untested (`WM_DPICHANGED` is handled in the probe).
+  - (e) Holds: the hook's own time averages 5.6–6.4 µs, p99 ≤ 245 µs, max 245 µs (non-AOT build). The rest of the
+    chain (`CallNextHookEx`: the user's AutoHotkey, PowerToys) takes 140 µs on average and up to 1 ms. That cost
+    is theirs and exists without us.
+  - Also: the run pop-up uses the same kind of window and doesn't check QUNS, so it may kick a full-screen game
+    out too (ARCHITECTURE → Open questions).
 - Narrator announcements (T12.9) need no spike of their own: they ride on issue #26's provider work.
 
 ## 6. Open questions (decide in the task that meets them)
