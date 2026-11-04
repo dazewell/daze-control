@@ -484,4 +484,85 @@ public sealed class LibraryPageViewModelTests : IDisposable
 
         Assert.Equal("Connected", Item(LibraryKind.Bluetooth, "technics").State);
     }
+
+    // ---- Android › Inputs (L1) ----
+
+    [Fact]
+    public void AndroidInputsAreAddedMovedAndRenamedWithTheirSteps()
+    {
+        var tv = Item(LibraryKind.Android, "living-room");
+        Assert.True(tv.HasInputs);
+        Assert.True(tv.HasNoInputs);
+        Assert.Equal("192.168.1.50 · No inputs yet", tv.Detail);
+        Assert.Equal("input", tv.NewInputName);
+
+        Assert.True(_page.AddInput(tv, "hdmi2"));
+
+        tv = Item(LibraryKind.Android, "living-room");
+        var hdmi2 = Assert.Single(tv.Inputs);
+        Assert.Equal("192.168.1.50 · 1 input", tv.Detail);
+        Assert.Equal("Used by 1 flow", hdmi2.UsedByText); // flow b already picked hdmi2
+        Assert.False(hdmi2.CanRemove);
+        Assert.Equal("First in the list: no moves", hdmi2.MovesText);
+
+        _page.AddDownCommand.Execute(hdmi2);
+        _page.AddUpCommand.Execute(hdmi2);
+        _page.AddDownCommand.Execute(hdmi2);
+        Assert.Equal(["down", "up", "down"], hdmi2.Moves.Select(m => m.Move));
+        _page.RemoveMoveCommand.Execute(hdmi2.Moves[1]);
+        Assert.Equal("Down, Down", hdmi2.MovesText);
+        Assert.Equal(["down", "down"], _session.Current.Library.Android[0].Inputs["hdmi2"]);
+
+        Assert.True(_page.RenameInput(hdmi2, "game"));
+
+        Assert.Equal("game", Assert.Single(Item(LibraryKind.Android, "living-room").Inputs).Name);
+        var step = (StepNode)_session.Current.Flows.Single(f => f.Id == "b").FindNode("tv")!;
+        Assert.Equal("game", ((ScalarParam)step.With["input"]).Text);
+    }
+
+    [Fact]
+    public void AnAndroidInputNameMustBeNewOnItsDevice()
+    {
+        var tv = Item(LibraryKind.Android, "living-room");
+        Assert.True(_page.AddInput(tv, "hdmi1"));
+        tv = Item(LibraryKind.Android, "living-room");
+
+        Assert.False(_page.AddInput(tv, " hdmi1 "));
+        Assert.Equal("living-room already has an input called \"hdmi1\".", tv.AddInputError);
+        Assert.False(_page.AddInput(tv, ""));
+        Assert.Equal("Give it a name.", tv.AddInputError);
+        Assert.True(_page.AddInput(tv, "hdmi3"));
+        Assert.Null(Item(LibraryKind.Android, "living-room").AddInputError);
+
+        var hdmi3 = Item(LibraryKind.Android, "living-room").Inputs[1];
+        Assert.False(_page.RenameInput(hdmi3, "hdmi1"));
+        Assert.Equal("living-room already has an input called \"hdmi1\".", hdmi3.RenameError);
+    }
+
+    [Fact]
+    public void AnUnusedAndroidInputCanBeRemoved()
+    {
+        _page.AddInput(Item(LibraryKind.Android, "living-room"), "hdmi1");
+        _page.AddInput(Item(LibraryKind.Android, "living-room"), "hdmi2");
+        var inputs = Item(LibraryKind.Android, "living-room").Inputs;
+        Assert.True(inputs[0].CanRemove);
+        Assert.Equal("Remove this input", inputs[0].RemoveTip);
+        Assert.Equal("Used by 1 flow. Change that step first.", inputs[1].RemoveTip);
+
+        _page.RemoveInputCommand.Execute(inputs[1]); // in use: nothing happens
+        _page.RemoveInputCommand.Execute(inputs[0]);
+
+        Assert.Equal(["hdmi2"], _session.Current.Library.Android[0].Inputs.Keys);
+    }
+
+    [Fact]
+    public void TheInspectorLinkOpensTheDevicesInputs()
+    {
+        _page.SelectedIndex = 0;
+
+        _page.RevealInputs("living-room");
+
+        Assert.Equal("Android", _page.Sections[_page.SelectedIndex].Title);
+        Assert.True(Item(LibraryKind.Android, "living-room").ShowInputs);
+    }
 }

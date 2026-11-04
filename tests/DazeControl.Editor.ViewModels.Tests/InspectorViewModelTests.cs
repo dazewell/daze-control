@@ -645,6 +645,64 @@ public sealed class InspectorViewModelTests : IDisposable
     private static Flow NotifyFlow(string id, string name) =>
         new(id, name, [new StepNode("a", "notify") { With = new([new("text", (ParamValue)"x")]) }]);
 
+    private void AddAndroidInputStep(string device, ValueList<string>? hdmi = null)
+    {
+        _session.Update(c => c with
+        {
+            Library = c.Library with
+            {
+                Android = [new AndroidDevice("tv", "192.168.1.50", hdmi is { } moves ? new([KeyValuePair.Create("hdmi1", moves)]) : new([]))],
+            },
+        });
+        var step = new StepNode("in", "android.input") { With = new([new("device", (ParamValue)device)]) };
+        _canvas.Edit(f => f with
+        {
+            Inputs = new([KeyValuePair.Create("screen", new FlowInput(LibraryKind.Android, "Screen", "tv"))]),
+            Nodes = [.. f.Nodes, step],
+        });
+        _canvas.Select("in");
+    }
+
+    [Theory]
+    [InlineData("tv")]
+    [InlineData("$screen")] // through the flow's input to its default device
+    public void AnAndroidDeviceWithNoInputsLinksToItsInputsInTheLibrary(string device)
+    {
+        AddAndroidInputStep(device);
+        string? requested = null;
+        _inspector.AndroidInputsRequested += key => requested = key;
+
+        var field = Field("input");
+        Assert.True(field.HasHintLink);
+        Assert.False(field.HasSuggestionHint); // the link replaces the plain text
+        Assert.Equal(InspectorViewModel.AddInputsHint, field.SuggestionHint);
+
+        _inspector.OpenAndroidInputs(field);
+
+        Assert.Equal("tv", requested);
+    }
+
+    [Fact]
+    public void AnAndroidDeviceWithInputsListsThemWithNoLink()
+    {
+        AddAndroidInputStep("tv", ["down"]);
+
+        var field = Field("input");
+        Assert.False(field.HasHintLink);
+        Assert.Equal(["hdmi1"], field.Suggestions.Select(s => s.Value));
+    }
+
+    [Fact]
+    public void WithNoAndroidDeviceTheHintIsPlainText()
+    {
+        AddAndroidInputStep("gone");
+
+        var field = Field("input");
+        Assert.False(field.HasHintLink);
+        Assert.True(field.HasSuggestionHint);
+        Assert.Equal("Choose the Android device first.", field.SuggestionHint);
+    }
+
     private void AddRunStep(string? target)
     {
         var step = new StepNode("call", Core.Catalog.ProviderCatalog.RunFlowId);

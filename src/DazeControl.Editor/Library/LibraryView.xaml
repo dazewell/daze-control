@@ -121,6 +121,13 @@
                                                           ToolTipService.ToolTip="What the layout saved" AutomationProperties.Name="{x:Bind DetailsName, Mode=OneWay}">
                                                 <FontIcon Glyph="&#xE946;" FontSize="14" />
                                             </ToggleButton>
+                                            <ToggleButton IsChecked="{x:Bind ShowInputs, Mode=TwoWay}" Visibility="{x:Bind HasInputs}"
+                                                          ToolTipService.ToolTip="Inputs" AutomationProperties.Name="{x:Bind InputsName, Mode=OneWay}">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <FontIcon Glyph="&#xE8FD;" FontSize="14" />
+                                                    <TextBlock Text="Inputs" />
+                                                </StackPanel>
+                                            </ToggleButton>
                                             <Button Visibility="{x:Bind CanRename, Mode=OneWay}" ToolTipService.ToolTip="Rename"
                                                     AutomationProperties.Name="{x:Bind RenameName, Mode=OneWay}">
                                                 <FontIcon Glyph="&#xE8AC;" FontSize="14" />
@@ -178,6 +185,125 @@
                                                 </DataTemplate>
                                             </ItemsRepeater.ItemTemplate>
                                         </ItemsRepeater>
+                                    </Border>
+                                    <!-- Android › Inputs (L1): each input's D-pad moves in order; rename (steps follow), remove (off while used). -->
+                                    <Border Visibility="{x:Bind ShowInputs, Mode=OneWay}" Padding="58,8,16,12" Margin="0,1,0,0" CornerRadius="0,0,4,4"
+                                            Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                                        <StackPanel Spacing="8" AutomationProperties.Name="{x:Bind InputsName, Mode=OneWay}">
+                                            <TextBlock Text="Each input is the moves from where the TV's input list opens to it, in order."
+                                                       Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
+                                            <TextBlock Text="No inputs yet." Visibility="{x:Bind HasNoInputs, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
+                                            <ItemsRepeater ItemsSource="{x:Bind Inputs}">
+                                                <ItemsRepeater.Layout>
+                                                    <StackLayout Spacing="12" />
+                                                </ItemsRepeater.Layout>
+                                                <ItemsRepeater.ItemTemplate>
+                                                    <DataTemplate x:DataType="vml:AndroidInputViewModel">
+                                                        <Grid ColumnSpacing="8" RowSpacing="6" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto" />
+                                                                <RowDefinition Height="Auto" />
+                                                                <RowDefinition Height="Auto" />
+                                                            </Grid.RowDefinitions>
+                                                            <StackPanel VerticalAlignment="Center">
+                                                                <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                                <TextBlock Text="{x:Bind UsedByText, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
+                                                            </StackPanel>
+                                                            <Button Grid.Column="1" ToolTipService.ToolTip="Rename" AutomationProperties.Name="{x:Bind RenameName}"
+                                                                    IsEnabled="{x:Bind CanEdit, Mode=OneWay}" VerticalAlignment="Center">
+                                                                <FontIcon Glyph="&#xE8AC;" FontSize="14" />
+                                                                <Button.Flyout>
+                                                                    <Flyout Placement="Bottom">
+                                                                        <StackPanel Spacing="8" MinWidth="260">
+                                                                            <TextBlock Text="Steps that pick it keep working." Style="{StaticResource SettingsCardDescription}" />
+                                                                            <TextBox Text="{x:Bind Name}" Header="Name" KeyDown="OnRenameInputKeyDown" Tag="{x:Bind}" />
+                                                                            <TextBlock Text="{x:Bind RenameError, Mode=OneWay}" Visibility="{x:Bind HasRenameError, Mode=OneWay}"
+                                                                                       Foreground="{ThemeResource SystemFillColorCriticalBrush}" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" />
+                                                                            <Button Content="Rename" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Right"
+                                                                                    Click="OnRenameInputSave" Tag="{x:Bind}" />
+                                                                        </StackPanel>
+                                                                    </Flyout>
+                                                                </Button.Flyout>
+                                                            </Button>
+                                                            <!-- The tooltip sits on a wrapper because a disabled button shows none. -->
+                                                            <Border Grid.Column="2" Background="Transparent" VerticalAlignment="Center" ToolTipService.ToolTip="{x:Bind RemoveTip, Mode=OneWay}">
+                                                                <Button Click="OnRemoveInput" Tag="{x:Bind}" IsEnabled="{x:Bind CanRemove, Mode=OneWay}"
+                                                                        AutomationProperties.Name="{x:Bind RemoveName}" AutomationProperties.HelpText="{x:Bind RemoveTip, Mode=OneWay}">
+                                                                    <FontIcon Glyph="&#xE74D;" FontSize="14" />
+                                                                </Button>
+                                                            </Border>
+                                                            <!-- The moves in send order; × takes one out. Wraps in a narrow window. -->
+                                                            <TextBlock Grid.Row="1" Grid.ColumnSpan="3" Text="{x:Bind MovesText, Mode=OneWay}"
+                                                                       Style="{StaticResource SettingsCardDescription}" Visibility="{x:Bind HasNoMoves, Mode=OneWay}" />
+                                                            <ItemsRepeater Grid.Row="1" Grid.ColumnSpan="3" ItemsSource="{x:Bind Moves, Mode=OneWay}"
+                                                                           AutomationProperties.Name="{x:Bind MovesName}">
+                                                                <ItemsRepeater.Layout>
+                                                                    <UniformGridLayout MinItemWidth="104" MinColumnSpacing="4" MinRowSpacing="4" ItemsStretch="Fill" />
+                                                                </ItemsRepeater.Layout>
+                                                                <ItemsRepeater.ItemTemplate>
+                                                                    <DataTemplate x:DataType="vml:MoveToken">
+                                                                        <Grid ColumnSpacing="6" Padding="8,2,2,2" CornerRadius="{StaticResource ControlCornerRadius}"
+                                                                              Background="{ThemeResource ControlFillColorSecondaryBrush}" AutomationProperties.Name="{x:Bind Text}">
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="Auto" />
+                                                                                <ColumnDefinition Width="*" />
+                                                                                <ColumnDefinition Width="Auto" />
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="12" VerticalAlignment="Center" />
+                                                                            <TextBlock Grid.Column="1" Text="{x:Bind Text}" VerticalAlignment="Center" />
+                                                                            <Button Grid.Column="2" Tag="{x:Bind}" Click="OnRemoveMove" Padding="6" Background="Transparent" BorderThickness="0"
+                                                                                    AutomationProperties.Name="{x:Bind RemoveName}" ToolTipService.ToolTip="Remove this move"
+                                                                                    IsEnabled="{x:Bind Input.CanEdit, Mode=OneWay}">
+                                                                                <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                                                            </Button>
+                                                                        </Grid>
+                                                                    </DataTemplate>
+                                                                </ItemsRepeater.ItemTemplate>
+                                                            </ItemsRepeater>
+                                                            <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="4">
+                                                                <Button Click="OnAddUp" Tag="{x:Bind}" IsEnabled="{x:Bind CanEdit, Mode=OneWay}"
+                                                                        AutomationProperties.Name="{x:Bind AddUpName}" ToolTipService.ToolTip="Add a move up">
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                        <FontIcon Glyph="&#xE70E;" FontSize="12" />
+                                                                        <TextBlock Text="Up" />
+                                                                    </StackPanel>
+                                                                </Button>
+                                                                <Button Click="OnAddDown" Tag="{x:Bind}" IsEnabled="{x:Bind CanEdit, Mode=OneWay}"
+                                                                        AutomationProperties.Name="{x:Bind AddDownName}" ToolTipService.ToolTip="Add a move down">
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                        <FontIcon Glyph="&#xE70D;" FontSize="12" />
+                                                                        <TextBlock Text="Down" />
+                                                                    </StackPanel>
+                                                                </Button>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsRepeater.ItemTemplate>
+                                            </ItemsRepeater>
+                                            <Button IsEnabled="{x:Bind CanEditInputs, Mode=OneWay}" AutomationProperties.Name="Add input">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <FontIcon Glyph="&#xE710;" FontSize="14" />
+                                                    <TextBlock Text="Add input" />
+                                                </StackPanel>
+                                                <Button.Flyout>
+                                                    <Flyout Placement="Bottom">
+                                                        <StackPanel Spacing="8" MinWidth="260">
+                                                            <TextBox Text="{x:Bind NewInputName, Mode=OneWay}" Header="Name" PlaceholderText="hdmi2"
+                                                                     KeyDown="OnAddInputKeyDown" Tag="{x:Bind}" />
+                                                            <TextBlock Text="{x:Bind AddInputError, Mode=OneWay}" Visibility="{x:Bind HasAddInputError, Mode=OneWay}"
+                                                                       Foreground="{ThemeResource SystemFillColorCriticalBrush}" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" />
+                                                            <Button Content="Add" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Right"
+                                                                    Click="OnAddInputSave" Tag="{x:Bind}" />
+                                                        </StackPanel>
+                                                    </Flyout>
+                                                </Button.Flyout>
+                                            </Button>
+                                        </StackPanel>
                                     </Border>
                                     <InfoBar Severity="Success" IsOpen="{x:Bind Worked, Mode=OneWay}" Message="{x:Bind ResultMessage, Mode=OneWay}"
                                              CloseButtonCommand="{x:Bind DismissResultCommand}" />

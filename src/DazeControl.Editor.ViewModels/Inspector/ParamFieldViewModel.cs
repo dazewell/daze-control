@@ -100,10 +100,20 @@ public sealed partial class ParamFieldViewModel : ObservableObject
 
     /// <summary>Shown when there's nothing to suggest yet: "Add inputs in the Library".</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSuggestionHint))]
+    [NotifyPropertyChangedFor(nameof(HasSuggestionHint), nameof(HasHintLink))]
     public partial string SuggestionHint { get; private set; } = "";
 
-    public bool HasSuggestionHint => SuggestionHint.Length > 0;
+    public bool HasSuggestionHint => SuggestionHint.Length > 0 && HintDevice is null;
+
+    /// <summary>
+    /// Android input: the device whose inputs the hint's link opens in the Library (L1), or null for a plain hint.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSuggestionHint), nameof(HasHintLink))]
+    public partial string? HintDevice { get; private set; }
+
+    /// <summary>"Add inputs in the Library" as a link to that device's inputs.</summary>
+    public bool HasHintLink => SuggestionHint.Length > 0 && HintDevice is not null;
 
     public ObservableCollection<ScreenCheckViewModel> Screens { get; } = [];
 
@@ -251,8 +261,9 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     /// <summary>Fills the box with an example; the write is one undo step (D-050).</summary>
     public void ApplyExample(Core.Catalog.ParamExample example) => Text = example.Value;
 
-    internal void SetSuggestions(IEnumerable<SuggestionItem> items, string hint)
+    internal void SetSuggestions(IEnumerable<SuggestionItem> items, string hint, string? hintDevice = null)
     {
+        HintDevice = hintDevice;
         var rows = items.ToList();
         if (!Suggestions.SequenceEqual(rows))
         {
