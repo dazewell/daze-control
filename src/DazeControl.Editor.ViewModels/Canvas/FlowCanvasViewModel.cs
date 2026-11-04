@@ -216,14 +216,16 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         Sync();
     }
 
-    /// <summary>Zoom and scroll offsets (in zoomed pixels) that show the whole flow, never above 100 %.</summary>
-    public (double Zoom, double OffsetX, double OffsetY) FitView(double viewportWidth, double viewportHeight)
+    /// <summary>
+    /// The view that shows the whole flow, never above 100 %, centred in the pan room (D-074); still too big at the
+    /// smallest zoom, it shows where the flow starts.
+    /// </summary>
+    public CanvasView FitView(double viewportWidth, double viewportHeight)
     {
-        if (viewportWidth <= 0 || viewportHeight <= 0)
-            return (1, 0, 0);
+        if (viewportWidth <= 0 || viewportHeight <= 0 || ExtentWidth <= 0 || ExtentHeight <= 0)
+            return new CanvasView(0, 0, 1);
         var zoom = Math.Clamp(Math.Min(viewportWidth / ExtentWidth, viewportHeight / ExtentHeight), MinZoom, 1);
-        // Still too big at the smallest zoom: show where the flow starts (top left), not its middle.
-        return (zoom, 0, 0);
+        return CanvasViewport.Fit(zoom, ExtentWidth, ExtentHeight, viewportWidth, viewportHeight);
     }
 
     // ---- Selection (UX §5.2) ----

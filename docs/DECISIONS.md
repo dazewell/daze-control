@@ -932,14 +932,15 @@ Status: accepted (design M13b; not built)
 - Revisit if: the Windows list goes wrong after a Windows update (the generic "Another app…" is the safe fallback).
 
 ## D-074 · 2026-11-03 · The mouse wheel zooms the canvas at the pointer; a flow can always be moved
-Status: accepted (user, 2026-11-03, v0.29.0 feedback; design, not built: PLAN F1). Changes UX §5.2 Navigate.
+Status: accepted (user, 2026-11-03, v0.29.0 feedback); built F1. Changes UX §5.2 Navigate.
 - Decision: in `FlowCanvas`, a mouse wheel notch zooms (×1.1 per 120 delta, 50–200 %) around the point under the
   pointer, which stays put; Ctrl+wheel does the same; Shift+wheel still scrolls sideways. The scroll extent gets
   room to pan: the `ScrollViewer`'s content becomes a transparent wrapper Grid around `Host` whose padding is the
-  viewport size (in content DIP at the current zoom) less a 48-DIP strip, so right-drag, middle-drag and Space+drag
+  viewport size (in content DIP at the current zoom) less a 48-DIP strip and the layout's own 48-DIP margin, so right-drag, middle-drag and Space+drag
   move a flow that fits the window, at least 48 DIP of it stays on screen, and `Host`'s coordinates don't change.
   The wrapper covers the whole viewport, so its `PointerWheelChanged` handler (mouse only, marked handled) runs
-  before the `ScrollViewer` scrolls; a precision touchpad's two-finger scroll and pinch stay the `ScrollViewer`'s
+  before the `ScrollViewer` scrolls, and does Shift+wheel sideways itself (built: the WinUI 3 `ScrollViewer` scrolls it
+  vertically); a precision touchpad's two-finger scroll and pinch stay the `ScrollViewer`'s
   own (pan, zoom). Fit (Ctrl+0) and opening a flow centre it. Right-drag (D-069) is unchanged.
 - Why: right-drag works as built but moves a flow only along an axis with room to scroll (0.29.0 build: sideways
   only), which the user read as broken; they asked for wheel zoom, and for a flow that fits to be movable too
