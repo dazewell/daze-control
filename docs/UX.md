@@ -9,7 +9,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 ## 5.1 Information architecture
 - Engine (tray) owns hotkeys, tray menu, run pop-up and the YAML file; it works without the editor.
 - Editor window: WinUI 3, Mica, TitleBar (page name as subtitle), NavigationView Left 200 wide.
-  Pages: **Flows** (cards: glyph, name, shortcut, last result, On toggle; a click on the card (not the toggle) → flow editor with
+  Pages: **Flows** (cards: glyph, name, shortcut, last result, On toggle, Run; a click on the card (not the toggle or Run) → flow editor with
   BreadcrumbBar "Flows › Connect Technics"; New flow: Blank / TV only / Audio → Headphones templates) ·
   **Library** (Pivot: Audio, Bluetooth, Displays, Android, Programs; settings cards with Test and "Used by 2
   flows", which lists the flows and opens one; layouts and Android devices Rename (their flows follow), a layout's
@@ -23,10 +23,12 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   CommandBar (Run, Dry run, Stop, Undo, Redo, Tidy up (M13: Layout, §5.2), Canvas | Outline, Problems (n)) · left
   palette 240 (collapsible, search) · canvas · right inspector 320 (280–480). Nothing selected → inspector
   shows the flow's settings (no extra dialog).
-- **M13 (designed):** the Flows card's icon is the flow's own glyph, else its first step's (`FlowGlyph.CodeOf`, as in
-  flow settings). The card's chevron becomes a plain **Run** button ("Stop" while that flow runs; off with #62); the
-  card is one keyboard stop that opens the flow (Enter/Space, Narrator "Open Connect Technics"); its context menu
-  adds Open and Run (#66, D-070). The nav pane collapses: the toggle above the items shrinks it to a 48-DIP icon
+- The Flows card's icon is the flow's own glyph, else its first step's (`FlowGlyph.CodeOf`, as in flow settings and
+  the Runs list). A plain **Run** button on the card runs the saved version ("Stop" while that flow runs; off with #62,
+  the reason in its tooltip and Narrator help text). Each card is one Tab stop that opens the flow (Enter/Space,
+  Narrator "Open Connect Technics"), then its On switch and Run; its context menu has Open, Run and the desktop item
+  (#66, D-070).
+- **M13 (designed):** the nav pane collapses: the toggle above the items shrinks it to a 48-DIP icon
   strip with tooltips, remembered on this PC (D-068).
 
 ## 5.2 Canvas interaction

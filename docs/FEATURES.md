@@ -52,7 +52,7 @@ on every step, retries, run events stream, run history (last 100, persisted), dr
 **F6 Feedback** — run pop-up (no-activate, acrylic, flow name, progress, failure summary, position/duration
 settings, honours "Animation effects"); tray tooltip/glyph shows the last run's failure.
 
-**F7 Editor** — flows list, DAG canvas, inspector, library, settings, about; Save/Cancel for flows, autosave elsewhere (D-047); live pickers and Test
+**F7 Editor** — flows list (Run / Stop on each card, D-070), DAG canvas, inspector, library, settings, about; Save/Cancel for flows, autosave elsewhere (D-047); live pickers and Test
 via the engine; suggestions and examples for every free-text value (screens, services, Android keys and inputs,
 flags, credentials, programs, script snippets; D-050, D-051); "Add to desktop" per flow (D-049); live run view and history timeline; undo/redo; long simple chains wrap onto rows and what follows starts a new line under them (D-060, D-066); right-drag pans the canvas (a still right click opens the menu); accessible outline view. Spec: §5.
 

@@ -1,9 +1,9 @@
 # Plan
 
 ## Resume
-Current task: T13.5 done (feat/m13-wrap-newline, PR #39): after a wrapped block the next part starts a new line under it at the block's x (D-066); T13.1 (#36), T13.4 (#37), T13.7 (#38) done
-Last green checkpoint: e60a013 feat(m13): fallbacks that weren't needed are Not needed (T13.7) (#38), merged into feat/m13-wrap-newline
-Next action: lane A continues with T13.2 (feat/m13-flows-card): `FlowsPageViewModel` glyph via `FlowGlyph.CodeOf` + Run/Stop, then T13.3, then T13.6 (Layout menu; T13.5 is in); lane D continues with T13.8 (feat/m13-flow-run): `flow.run` in Core/Catalog/ProviderCatalog.cs with `ParamSpec.RefersTo = Flow`, tests first per flow-calls/DESIGN.md §2.2 (reuses `Outcomes.Fix` / `FlowShape`); lanes B and C have no more tasks; other lanes per PLAN → M13 Order
+Current task: T13.2 done (feat/m13-flows-card, PR #40): Flows card icon via `FlowGlyph.CodeOf`, Run/Stop button (#62 reasons in tooltip), each card one Tab stop (Enter/Space/UIA Invoke open), menu Open/Run (D-070); T13.1 (#36), T13.4 (#37), T13.5 (#39), T13.7 (#38) done
+Last green checkpoint: a63612a Merge origin/main into feat/m13-flows-card
+Next action: lane A continues with T13.3 (feat/m13-nav-collapse): `Editor.ViewModels/Config/EditorSettingsStore.cs` tests first (missing / corrupt / round-trip / debounce), then T13.6 (Layout menu; T13.5 is in); lane D continues with T13.8 (feat/m13-flow-run): `flow.run` in Core/Catalog/ProviderCatalog.cs with `ParamSpec.RefersTo = Flow`, tests first per flow-calls/DESIGN.md §2.2 (reuses `Outcomes.Fix` / `FlowShape`); lanes B and C have no more tasks; other lanes per PLAN → M13 Order
 Tree state: builds, all tests green · Uncommitted: none
 Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user was told (T13.7) that their live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs, fails and stops the flow (cancelling Sony); "Skip what depends on it" fixes it. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
 ---
@@ -39,7 +39,7 @@ section rewritten, FEATURES where behaviour changed).
   Flows item while a flow is open → `LeaveFlowAsync` (D-047 prompt) → `CloseFlow`, show the list). Done when: in the
   running editor, Flows from an open flow shows the list; with a draft the Save / Don't save / Cancel prompt shows and
   Cancel stays in the flow; screenshots; no regressions in nav between other pages.
-- [ ] T13.2 P3 + P5 **Flows card: the flow's icon and a Run button** (feat/m13-flows-card, D-070). Cause of P3: the
+- [x] T13.2 P3 + P5 **Flows card: the flow's icon and a Run button** (feat/m13-flows-card, PR #40, D-070). Cause of P3: the
   card decodes `flow.Glyph` only (lightning when unset), while flow settings show `FlowGlyph.CodeOf` (own, else the
   first step's). Files: `Editor.ViewModels/FlowsPageViewModel.cs` (glyph via `FlowGlyph.CodeOf`; `Run`/`Stop`
   commands through `IEngineClient` with trigger "Editor"; `CanRun` + reason #62; running state from engine events),
