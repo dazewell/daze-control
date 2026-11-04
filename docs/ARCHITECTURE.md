@@ -111,7 +111,9 @@ Edges are `after: [id | {id, when}]` on the target node; a card is
 `group`, `name`, `with`, `after`, `onFailure` (stop/skip/ignore), `timeout`, `retry: { count, delay }`;
 cards take no `with`/`timeout`/`retry`. A failed node with an outgoing `when: failure` edge has
 handled its failure: its `onFailure` policy is not applied, the fallback runs, its `success` dependents are
-skipped, and the flow ends PartiallySucceeded (D-024). Durations "500ms", "20s", "1m30s" (`Model/Duration`). Enums read
+skipped, and if nothing else went wrong the flow ends Succeeded (D-024, D-065). `Model/FlowShape`: `Fallbacks`
+(units with an incoming failure edge, or a success edge from a fallback; members follow their card),
+`WithFallback` (units with an outgoing failure edge), `UnitOf`. Durations "500ms", "20s", "1m30s" (`Model/Duration`). Enums read
 case-insensitively, written camelCase. Full example: `tests/DazeControl.Core.Tests/Fixtures/full.yaml`.
 
 Pipeline (Core): `ConfigYaml.Load` → static-context DTOs (`Yaml/ConfigDocument`, all scalars strings, D-023;
@@ -128,7 +130,12 @@ fails its own flow instead. Hotkeys go only to enabled flows without errors; the
 `Runtime/Scheduling/Scheduler` (pure, D-025): one per run; `Start()` and `Complete(step, StepResult)` return
 the steps to start next; `IsStopped` tells the runner to cancel what's running; `Outcomes` per node and
 `Result` (`Outcomes.Summarize`). Units are steps outside cards and cards; a card hands out all its members at
-once.
+once. Fallbacks (D-065): a fallback unit that would be skipped ends `NotNeeded` (fires `always` like Skipped); a
+Failed/FailedIgnored unit with a failure edge is *handled*, and a skip whose dead edges all come from handled
+failures (or such skips) is *excused*; `Summarize((outcome, handled))` is Succeeded when every node is
+Succeeded, NotNeeded, handled or excused. `Outcomes.Fix(flow, results)` names the first Failed step (not may-fail: its success edges fired too) and the
+first fallback step that started (`Fixes` also drives the Runs timeline's dashed bar), for #48 in the pop-up (`RunPopupModel`, whose "n of m" counts a fallback once it
+starts), the Runs sentence (`RunWords.Sentence(run, title, flow)`) and the canvas InfoBar.
 `Runtime/FlowRunner.RunAsync(flow, library, ct)` (one runner per engine) drives it: each step runs on the pool through its `IStepProvider`
 (`Runtime/Providers`) with `1 + retry.count` attempts `retry.delay` apart, each with a timeout (node's, else the
 descriptor's) on the injected `TimeProvider`. `WaitAsync` ends an attempt on time even if a provider ignores
@@ -365,10 +372,9 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   §3 (D-053..D-057). Each M12 task moves its part into the sections above.
 - Designed, not built (M13, PLAN → M13): flow calls and inputs — [flow-calls/DESIGN.md](flow-calls/DESIGN.md) (D-061..
   D-064: `IFlowStarter` shared with menus, `FlowRunner.RunNestedAsync`, call-graph validation, `$input` refs);
-  fallback outcomes (D-065: `NodeOutcome.NotNeeded`, `FlowShape.Fallbacks`, `Outcomes.Summarize` counts handled
-  failures as fine); layout segments after a wrapped block (D-066) and the Layout menu's `LayoutOptions` (D-067);
+  layout segments after a wrapped block (D-066) and the Layout menu's `LayoutOptions` (D-067);
   `EditorSettingsStore` / `editor.json` (D-068). Each task rewrites the
-  section it changes (Config's "ends PartiallySucceeded (D-024)" sentence goes with T13.7).
+  section it changes. Fallback outcomes (D-065) are built (T13.7: Config, Runtime).
 
 - Library leftovers: editing an Android device's inputs and an audio match in place; renaming audio and Bluetooth keys
   (their cards show the device's name, not the key, D-046).

@@ -548,6 +548,56 @@ public sealed class EngineControllerTests : IDisposable
         Assert.StartsWith("Fix this first:", answer.Error, StringComparison.Ordinal);
     }
 
+    /// <summary>The user's live Connect Technics flow (2026-11-03), bt on "Keep going" with a fallback.</summary>
+    private const string TechnicsYaml = """
+        library:
+          audio: { technics: { match: "Technics" }, speakers: { match: "Realtek" } }
+          bluetooth: { technics: { address: "B8:20:8E:00:00:01" }, sony: { address: "B8:20:8E:00:00:02" } }
+        flows:
+          connect-technics:
+            name: Connect Technics
+            nodes:
+              - { id: bt, step: bluetooth.connect, with: { device: technics }, onFailure: ignore, timeout: 10s }
+              - { id: out, step: audio.setDefault, with: { device: technics }, after: [bt] }
+              - { id: connect, step: bluetooth.connect, with: { device: sony }, after: [{ id: bt, when: failure }] }
+              - { id: setDefault, step: audio.setDefault, with: { device: speakers }, after: [connect] }
+        """;
+
+    private async Task<RunRecord> DryRun(string yaml)
+    {
+        var answer = await _controller.HandleAsync(
+            new PipeRequest { Id = 3, Op = Ops.Run, Flow = "connect-technics", DryRun = true, Config = yaml }, CancellationToken.None);
+        Assert.True(answer.Ok, answer.Error);
+        return answer.Run!;
+    }
+
+    [Fact]
+    public async Task DryRunOfConnectTechnicsIsDoneAndTheSonyBranchNotNeeded()
+    {
+        // Before D-065 this said "done, with a problem" every time the headphones simply worked.
+        var run = await DryRun(TechnicsYaml);
+
+        Assert.Equal(FlowOutcome.Succeeded, run.Outcome);
+        Assert.Equal([NodeOutcome.Succeeded, NodeOutcome.Succeeded, NodeOutcome.NotNeeded, NodeOutcome.NotNeeded],
+            run.Nodes.Select(n => n.Outcome));
+    }
+
+    [Theory]
+    [InlineData("ignore", FlowOutcome.Failed)]
+    [InlineData("skip", FlowOutcome.Succeeded)]
+    public async Task DryRunOfConnectTechnicsWithoutTechnics(string policy, FlowOutcome expected)
+    {
+        // With Technics gone, "Keep going" also runs out, which fails and stops the flow; "Skip what depends on it"
+        // leaves out to the fallback and the run is Done.
+        var yaml = TechnicsYaml.Replace("technics: { address: \"B8:20:8E:00:00:01\" }, ", "", StringComparison.Ordinal)
+            .Replace("technics: { match: \"Technics\" }, ", "", StringComparison.Ordinal)
+            .Replace("onFailure: ignore", "onFailure: " + policy, StringComparison.Ordinal);
+
+        var run = await DryRun(yaml);
+
+        Assert.Equal(expected, run.Outcome);
+    }
+
     [Fact]
     public async Task DryRunDoesNotWaitOutRetriesOfAMissingDevice()
     {

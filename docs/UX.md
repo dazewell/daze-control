@@ -166,9 +166,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   parallel steps get separate lanes), bars 20 DIP radius 4 by state, may-fail-failed dashed caution, a card is a
   bracket over its members' lanes, retries are notches, min bar width 4; select bar → its log lines; "Open in
   editor" shows that run on the canvas. Keep the last 100 runs.
-- M13: a fallback that wasn't needed shows "Not needed" (#47), not a skip, and no bar; a failure its fallback fixed
-  is a caution-dashed bar and the run says "Worked" with #48 (D-065). A "Run a flow" bar that waited has a chevron;
-  expanded, the called flow's lanes show indented under a bracket with its name, and "Open in editor" on them opens
+- Fallbacks (D-065, built): a fallback that wasn't needed is listed "Not needed" (#47), not a skip, and has no bar; a
+  failure its fallback fixed is a caution-dashed bar and the run says "Connect Technics worked." with #48.
+- M13 (D-062): a "Run a flow" bar that waited has a chevron; expanded, the called flow's lanes show indented under a bracket with its name, and "Open in editor" on them opens
   that flow (D-062). Live: a flow running inside another shows its states with InfoBar #64.
 
 ## 5.6 Tray menu and run pop-up
@@ -189,8 +189,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   didn't work, so it went on without it." Failure: critical glyph, "Didn't finish", first failure in plain
   words (≤ 2 lines), Row 4 "Select to see what happened" (opens the run),
   stays 6 s and is clickable (still never activates on show).
-- M13 (D-065, D-062): "n of m" leaves out fallbacks until one starts (then m grows by it); a fallback that wasn't
-  needed counts for nothing. A failure its fallback fixed ends "Done" with #48 on row 3, in the normal tone. A flow
+- Fallbacks (D-065, built): "n of m" leaves out fallbacks until one starts (then m grows by it); a fallback that
+  wasn't needed counts for nothing. A failure its fallback fixed ends "Done" with #48 on row 3, in the normal tone.
+  The canvas's live "Running · n of m" counts the same way and its pills say "Not needed" (#47). M13 (D-062): a flow
   run by "Run a flow" (waiting) is one step of its caller: row 3 shows "Make it the default · Connecting Sony…"
   (#59) and the bar moves within that step; the called flow shows no pop-up of its own.
 
