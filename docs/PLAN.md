@@ -1,10 +1,10 @@
 # Plan
 
 ## Resume
-Current task: T13.1 done (PR #36), T13.4 done (PR #37), T13.7 done (feat/m13-fallback-outcomes, PR #38): fallbacks that weren't needed are Not needed, fixed failures end Done (D-065)
-Last green checkpoint: deb9c73 feat(canvas): right-drag pans (T13.4) (#37), merged into feat/m13-fallback-outcomes
-Next action: lane A continues with T13.2 (feat/m13-flows-card): `FlowsPageViewModel` glyph via `FlowGlyph.CodeOf` + Run/Stop; lane D continues with T13.8 (feat/m13-flow-run): `flow.run` in Core/Catalog/ProviderCatalog.cs with `ParamSpec.RefersTo = Flow`, tests first per flow-calls/DESIGN.md §2.2 (reuses `Outcomes.Fix` / `FlowShape`); lane B has no more tasks; other lanes per PLAN → M13 Order
-Tree state: builds, all tests green · Uncommitted: none
+Current task: T13.8 (feat/m13-flow-run): Core (flow.run descriptor, ParamSpec.RefersTo, CalledRun, ParentRunId, call-graph validation) + Runtime (FlowRunner.RunNestedAsync, guards, FlowCalls/IFlowStarter, FlowProvider start mode) done with tests
+Last green checkpoint: e60a013 feat(m13): fallbacks that weren't needed are Not needed (T13.7) (#38)
+Next action: wire EngineHost (runner.Flows = FlowCalls, FlowProvider in providers, nested events skip tray/_running but feed the pop-up and pipe), PipeEvent.ParentRunId, RunPopupModel #59 fold; then dctl run of DESIGN §1 shapes, AOT publish, measure, docs
+Tree state: builds, 1049/1049 tests green · Uncommitted: none
 Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. M13 answers (2026-11-03): a fixed failure ends "Done" (D-065), inputs ship inside P6 (D-064), Layout menu (D-067), new line after a wrap (D-066). The user was told (T13.7) that their live Connect Technics flow has `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs, fails and stops the flow (cancelling Sony); "Skip what depends on it" fixes it. Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. M13b Hotkeys (D-071..D-073) is designed and can run after or alongside M13: T13b.1, then T13b.2 and T13b.3.
 
 ---
@@ -80,7 +80,7 @@ section rewritten, FEATURES where behaviour changed).
   Succeeded, Sony branch NotNeeded; Technics fails and Sony works → Succeeded; both fail → Failed), a chain after a
   fallback, a join of normal + fallback; pop-up model tests ("1 of 2", Done + #48); history round-trip with NotNeeded;
   `dctl run --dry-run` and a fake-provider run of that flow; AOT publish with zero warnings.
-- [ ] T13.8 P6a **`flow.run`: nested runs, loops, history, pop-up** (feat/m13-flow-run, D-061..D-063; after T13.7).
+- [~] T13.8 P6a **`flow.run`: nested runs, loops, history, pop-up** (feat/m13-flow-run, D-061..D-063; after T13.7).
   Files: `Core/Catalog/ProviderCatalog.cs` (`flow.run`; adds `ParamSpec.RefersTo = Flow`, which M12's T12.3 then
   reuses), `Core/Validation/ConfigValidator.cs` (call graph incl. `menu.show` wait items when they exist),
   `Core/Runs` (`NodeResult.Called`, `CalledRun`, events' `ParentRunId`), `Runtime/Control/IFlowStarter.cs` +

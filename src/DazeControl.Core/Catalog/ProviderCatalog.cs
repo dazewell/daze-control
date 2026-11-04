@@ -8,7 +8,7 @@ namespace DazeControl.Core.Catalog;
 public static class ProviderCatalog
 {
     private const string Audio = "E767", Bluetooth = "E702", Display = "E7F4", Process = "E756", Script = "E943",
-        Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1";
+        Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", RunFlow = "E768";
 
     private static readonly TimeSpan Short = TimeSpan.FromSeconds(10);
 
@@ -132,7 +132,23 @@ public static class ProviderCatalog
             new("name", ParamKind.Text, "Flag") { Required = true, Suggest = ParamSuggest.Config(ParamSuggest.Flags) },
             new("value", ParamKind.Boolean, "Is on") { Default = "true", Help = "Fails when the flag differs; follow it with an \"if it fails\" branch." },
         ]),
+        // No resources: the step holds no lock while it waits; the called flow's steps take their own (D-062).
+        new(RunFlowId, "Run a flow", RunFlow, TimeSpan.FromMinutes(10),
+        [
+            new("flow", ParamKind.Text, "Flow")
+            {
+                Required = true, Suggest = ParamSuggest.Config(ParamSuggest.Flows), RefersTo = ConfigRef.Flow,
+            },
+            new("wait", ParamKind.Boolean, "Wait for it to finish")
+            {
+                Default = "true",
+                Help = "On: steps after this wait for it, and its result decides what runs next. Off: it starts on its own, and this flow carries on at once.",
+            },
+        ]),
     ];
+
+    /// <summary>The <c>flow.run</c> step type (D-061, D-062).</summary>
+    public const string RunFlowId = "flow.run";
 
     public static ProviderDescriptor? Find(string id) => All.FirstOrDefault(d => d.Id == id);
 

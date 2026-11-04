@@ -39,6 +39,7 @@ public static partial class ConfigValidator
         var checkers = config.Flows.Select(f => new FlowChecker(f, config.Library, badLibraryItems, catalog, problems)).ToList();
         foreach (var checker in checkers)
             checker.Check();
+        CheckCalls(config.Flows, problems);
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
         var hotkeyOwners = new Dictionary<Hotkey, string>();
         var rejected = FlowsWithErrors(problems.Concat(earlier ?? []));
@@ -50,6 +51,71 @@ public static partial class ConfigValidator
     /// <summary>Flows that must not run as written: an error carries their id.</summary>
     public static IReadOnlySet<string> FlowsWithErrors(IEnumerable<Problem> problems) =>
         problems.Where(p => p is { Severity: Severity.Error, FlowId: not null }).Select(p => p.FlowId!).ToHashSet();
+
+    /// <summary>
+    /// The call graph "F runs G" (D-063): every <c>flow.run</c> step, both modes (a start loop restarts itself
+    /// forever). Own flow (#49), loops (#50, on every step in the loop) and unknown flows (#51) are errors; a turned-off
+    /// flow (#52) or one with errors is a warning. M12's <c>menu.show</c> items with <c>wait: true</c> join here.
+    /// </summary>
+    private static void CheckCalls(IReadOnlyList<Flow> flows, List<Problem> problems)
+    {
+        var byId = new Dictionary<string, Flow>(StringComparer.Ordinal);
+        foreach (var flow in flows)
+            byId.TryAdd(flow.Id, flow);
+        var broken = FlowsWithErrors(problems);
+        var calls = flows.SelectMany(f => f.Nodes.OfType<StepNode>()
+                .Where(s => s.Step == ProviderCatalog.RunFlowId)
+                .Select(s => (Flow: f, Step: s, Target: CalledFlow(s))))
+            .Where(c => c.Target is { Length: > 0 })
+            .ToList();
+        var graph = byId.Keys.ToDictionary(id => id, _ => new HashSet<string>(StringComparer.Ordinal), StringComparer.Ordinal);
+        foreach (var call in calls.Where(c => c.Target != c.Flow.Id && byId.ContainsKey(c.Target!)))
+            graph[call.Flow.Id].Add(call.Target!);
+        foreach (var (flow, step, target) in calls)
+        {
+            var path = $"flows.{flow.Id}.nodes.{step.Id}.with.flow";
+            if (target == flow.Id)
+                problems.Add(new(Severity.Error, path, "A flow can't run itself.", flow.Id));
+            else if (!byId.TryGetValue(target!, out var called))
+                problems.Add(new(Severity.Error, path, $"{target} isn't there anymore. Pick another flow.", flow.Id));
+            else if (PathBetween(graph, target!, flow.Id) is { } back)
+                problems.Add(new(Severity.Error, path,
+                    "That would make a loop: " + flow.Name + string.Concat(back.Select((id, i) =>
+                        (i == 0 ? " runs " : ", which runs ") + byId[id].Name)) + $", which runs {flow.Name}.", flow.Id));
+            else if (!called.Enabled)
+                problems.Add(new(Severity.Warning, path, $"{called.Name} is turned off, so this step will fail. Turn it on in Flows.", flow.Id));
+            else if (broken.Contains(target!))
+                problems.Add(new(Severity.Warning, path, $"{called.Name} needs fixing; this step runs its last working version.", flow.Id));
+        }
+    }
+
+    /// <summary>The flow a <c>flow.run</c> step names, or null when it names none (that is the param check's error).</summary>
+    public static string? CalledFlow(StepNode step) =>
+        step.With.TryGetValue("flow", out var value) && value is ScalarParam { Text: var text } ? text.Trim() : null;
+
+    /// <summary>Flows from <paramref name="from"/> to <paramref name="to"/> along calls (from included, to not), or null.</summary>
+    private static List<string>? PathBetween(Dictionary<string, HashSet<string>> graph, string from, string to)
+    {
+        var previous = new Dictionary<string, string?>(StringComparer.Ordinal) { [from] = null };
+        var queue = new Queue<string>([from]);
+        while (queue.Count > 0)
+        {
+            var id = queue.Dequeue();
+            foreach (var next in graph[id].Order(StringComparer.Ordinal))
+            {
+                if (next == to)
+                {
+                    var path = new List<string>();
+                    for (string? at = id; at is not null; at = previous[at])
+                        path.Insert(0, at);
+                    return path;
+                }
+                if (previous.TryAdd(next, id))
+                    queue.Enqueue(next);
+            }
+        }
+        return null;
+    }
 
     [GeneratedRegex("^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$")]
     private static partial Regex BluetoothAddress();

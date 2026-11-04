@@ -1,6 +1,8 @@
 using DazeControl.Core.Catalog;
 using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
+using DazeControl.Core.Validation;
+using DazeControl.Runtime.Control;
 using DazeControl.Runtime.Providers;
 using DazeControl.Runtime.Scheduling;
 
@@ -47,16 +49,57 @@ public sealed class FlowRunner
         _catalog = catalog ?? ProviderCatalog.All;
     }
 
+    /// <summary>
+    /// Where <c>flow.run</c> steps that wait find the flows they run (D-062). Null = such steps go to the
+    /// <c>flow.run</c> provider like any step (the dry runner: a call doesn't descend, D-042).
+    /// </summary>
+    public IFlowStarter? Flows { get; set; }
+
     /// <param name="flow">The version to run.</param>
     /// <param name="library">The library <paramref name="flow"/> was validated with (<c>FlowState.Library</c>).</param>
     /// <param name="cancellationToken">Cancels the run.</param>
-    public async Task<RunResult> RunAsync(Flow flow, Library library, CancellationToken cancellationToken)
+    public Task<RunResult> RunAsync(Flow flow, Library library, CancellationToken cancellationToken) =>
+        RunAsync(flow, library, [], cancellationToken);
+
+    /// <param name="flow">The version to run.</param>
+    /// <param name="library">The library <paramref name="flow"/> was validated with.</param>
+    /// <param name="chain">The call chain of the flow that started this one (start-mode <c>flow.run</c>); empty for
+    /// a trigger by a person, which starts a fresh chain (D-063).</param>
+    /// <param name="cancellationToken">Cancels the run.</param>
+    public Task<RunResult> RunAsync(Flow flow, Library library, IReadOnlyList<string> chain, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        ArgumentNullException.ThrowIfNull(chain);
+        return RunCoreAsync(flow, library, [.. chain, flow.Id], null, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// A flow run inside a <c>flow.run</c> step (D-062): its own scheduler and RunId, events tagged with the parent,
+    /// no launcher slot (<c>whenRunning</c> doesn't apply). Locks are taken by its steps, as at top level.
+    /// </summary>
+    /// <param name="flow">The called flow's runnable version.</param>
+    /// <param name="library">The library that version was validated with.</param>
+    /// <param name="chain">Flow ids from the top run down to the caller; <paramref name="flow"/> is appended.</param>
+    /// <param name="parentRunId">The calling run.</param>
+    /// <param name="parentNodeId">The calling step.</param>
+    /// <param name="cancellationToken">The calling step's: the caller's cancel, stop or timeout ends this run.</param>
+    public Task<RunResult> RunNestedAsync(Flow flow, Library library, IReadOnlyList<string> chain, Guid parentRunId,
+        string parentNodeId, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        ArgumentNullException.ThrowIfNull(chain);
+        return RunCoreAsync(flow, library, [.. chain, flow.Id], parentRunId, parentNodeId, cancellationToken);
+    }
+
+    private async Task<RunResult> RunCoreAsync(Flow flow, Library library, string[] chain, Guid? parentRunId,
+        string? parentNodeId, CancellationToken cancellationToken)
     {
         var scheduler = new Scheduler(flow);
         var runId = Guid.NewGuid();
         var started = _time.GetUtcNow();
         var startedTicks = _time.GetTimestamp();
-        Raise(new RunStarted(runId, flow.Id, started, flow.Nodes.Count) { Flow = flow });
+        var scope = new RunScope(runId, chain, parentRunId, parentNodeId);
+        Raise(new RunStarted(runId, flow.Id, started, flow.Nodes.Count) { Flow = flow, ParentRunId = parentRunId, ParentNodeId = parentNodeId });
         var reported = new HashSet<string>();
         using var stepsCancel = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var running = new Dictionary<Task<StepRun>, string>();
@@ -69,19 +112,19 @@ public sealed class FlowRunner
             {
                 // Numbered here, on the scheduler's thread, so parallel steps get a stable start order (dry run).
                 order[id] = order.Count + 1;
-                running.Add(RunStepAsync(runId, flow, library, (StepNode)flow.FindNode(id)!, startedTicks, stepsCancel.Token), id);
+                running.Add(RunStepAsync(scope, flow, library, (StepNode)flow.FindNode(id)!, startedTicks, stepsCancel.Token), id);
             }
         }
 
         NodeResult ResultOf(string id) => results.TryGetValue(id, out var r)
             ? new NodeResult(id, scheduler.Outcomes[id], r.Attempts, r.Error, r.Duration, r.Start, order[id],
-                r.Retries.Count > 0 ? [.. r.Retries] : null)
+                r.Retries.Count > 0 ? [.. r.Retries] : null) { Called = r.Called }
             : new NodeResult(id, scheduler.Outcomes[id], Attempts: 0);
 
         void ReportFinished()
         {
             foreach (var id in scheduler.Outcomes.Keys.Where(reported.Add).ToList())
-                Raise(new NodeFinished(runId, flow.Id, _time.GetUtcNow(), ResultOf(id)));
+                Raise(new NodeFinished(runId, flow.Id, _time.GetUtcNow(), ResultOf(id)) { ParentRunId = parentRunId, ParentNodeId = parentNodeId });
         }
 
         Launch(scheduler.Start());
@@ -94,7 +137,11 @@ public sealed class FlowRunner
             results[id] = run;
             if (cancellationToken.IsCancellationRequested && !scheduler.IsCancelled)
                 scheduler.Cancel();
+            if (run.Result == StepResult.Succeeded && run.Called?.Outcome == FlowOutcome.PartiallySucceeded)
+                scheduler.MarkPartialCall();
             Launch(scheduler.Complete(id, run.Result));
+            if (run.Quiet && !scheduler.IsCancelled)
+                scheduler.Cancel(); // the called flow ended quietly (a menu, nothing picked): so does this run
             ReportFinished();
             if (scheduler.IsStopped || scheduler.IsCancelled)
                 await stepsCancel.CancelAsync().ConfigureAwait(false);
@@ -109,7 +156,7 @@ public sealed class FlowRunner
             Started = started,
             Duration = _time.GetElapsedTime(startedTicks),
         };
-        Raise(new RunFinished(runId, flow.Id, _time.GetUtcNow(), result.Outcome));
+        Raise(new RunFinished(runId, flow.Id, _time.GetUtcNow(), result.Outcome) { ParentRunId = parentRunId, ParentNodeId = parentNodeId });
         return result;
     }
 
@@ -128,21 +175,34 @@ public sealed class FlowRunner
 
     /// <param name="Start">From the run's start.</param>
     /// <param name="Retries">Start of each try after the first, from the run's start.</param>
+    /// <param name="Called">A call that waited: its last try's nested run.</param>
+    /// <param name="Quiet">The called flow ended quietly: this run ends quietly too.</param>
     private readonly record struct StepRun(StepResult Result, int Attempts, string? Error, TimeSpan Duration, TimeSpan Start,
-        List<TimeSpan> Retries);
+        List<TimeSpan> Retries, CalledRun? Called = null, bool Quiet = false);
+
+    /// <param name="Chain">Flow ids from the top run down to this run's flow.</param>
+    private sealed record RunScope(Guid RunId, string[] Chain, Guid? ParentRunId, string? ParentNodeId);
+
+    /// <summary>One try of a call that waits.</summary>
+    private readonly record struct CallTry(string? Error, CalledRun? Called, bool Quiet);
 
     /// <summary>All attempts of one step. Never throws: every failure becomes a <see cref="StepRun"/>.</summary>
-    private async Task<StepRun> RunStepAsync(Guid runId, Flow flow, Library library, StepNode node, long runTicks,
+    private async Task<StepRun> RunStepAsync(RunScope scope, Flow flow, Library library, StepNode node, long runTicks,
         CancellationToken flowToken)
     {
+        var runId = scope.RunId;
         await Task.Yield(); // run on the pool, never inline in the scheduler loop
         var started = _time.GetTimestamp();
         var offset = _time.GetElapsedTime(runTicks, started);
         List<TimeSpan> retries = [];
+        CalledRun? called = null;
+        var quiet = false;
         StepRun Done(StepResult result, int attempts, string? error) =>
-            new(result, attempts, error, _time.GetElapsedTime(started), offset, retries);
+            new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet);
         var descriptor = _catalog.FirstOrDefault(d => d.Id == node.Step);
-        if (descriptor is null || !_providers.TryGetValue(node.Step, out var provider))
+        var waits = Flows is not null && node.Step == ProviderCatalog.RunFlowId && !IsOff(node, "wait");
+        IStepProvider? provider = null;
+        if (descriptor is null || (!waits && !_providers.TryGetValue(node.Step, out provider)))
             return new(StepResult.Failed, 1, $"This version can't run \"{node.Step}\" steps.", TimeSpan.Zero, offset, retries);
 
         var timeout = node.Timeout ?? descriptor.DefaultTimeout;
@@ -166,15 +226,90 @@ public sealed class FlowRunner
             }
             if (attempt > 1)
                 retries.Add(_time.GetElapsedTime(runTicks));
-            Raise(new NodeStarted(runId, flow.Id, _time.GetUtcNow(), node.Id, attempt));
-            error = await AttemptAsync(provider, new StepContext(flow, node, descriptor, library, attempt), timeout, flowToken)
-                .ConfigureAwait(false);
+            Raise(new NodeStarted(runId, flow.Id, _time.GetUtcNow(), node.Id, attempt)
+                { ParentRunId = scope.ParentRunId, ParentNodeId = scope.ParentNodeId });
+            if (waits)
+            {
+                var call = await CallAsync(scope, node, timeout, flowToken).ConfigureAwait(false);
+                (error, called, quiet) = (call.Error, call.Called ?? called, call.Quiet);
+                if (quiet)
+                    return Done(StepResult.Cancelled, attempt, null);
+            }
+            else
+            {
+                error = await AttemptAsync(provider!, new StepContext(flow, node, descriptor, library, attempt) { Chain = scope.Chain },
+                    timeout, flowToken).ConfigureAwait(false);
+            }
             if (error is null)
                 return Done(StepResult.Succeeded, attempt, null);
             if (flowToken.IsCancellationRequested)
                 return Done(StepResult.Cancelled, attempt, error);
         }
         return Done(StepResult.Failed, attempts, error);
+    }
+
+    private static bool IsOff(StepNode node, string param) =>
+        node.With.TryGetValue(param, out var value) && value is ScalarParam { Text: var text }
+        && bool.TryParse(text, out var on) && !on;
+
+    /// <summary>
+    /// One try of a <c>flow.run</c> that waits (DESIGN §2.2): runs the called flow nested and maps its outcome. The
+    /// nested run honours the token itself, so it is awaited to the end (its steps are bounded by their own timeouts).
+    /// </summary>
+    private async Task<CallTry> CallAsync(RunScope scope, StepNode node, TimeSpan timeout, CancellationToken flowToken)
+    {
+        var target = ConfigValidator.CalledFlow(node) ?? "";
+        var resolved = Flows!.Resolve(target);
+        if (FlowCalls.Guard(scope.Chain, target, resolved.Name) is { } loop)
+            return new(loop, null, false);
+        if (resolved.Flow is not { } flow)
+            return new(resolved.Refusal, null, false);
+        CancellationTokenSource timeoutCancel;
+        try
+        {
+            timeoutCancel = new CancellationTokenSource(timeout, _time);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return new($"A timeout of {Duration.Format(timeout)} is longer than this version supports.", null, false);
+        }
+        using var ownedTimeout = timeoutCancel;
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(flowToken, timeoutCancel.Token);
+        RunResult result;
+        try
+        {
+            result = await RunCoreAsync(flow, resolved.Library, [.. scope.Chain, flow.Id], scope.RunId, node.Id, linked.Token)
+                .ConfigureAwait(false);
+        }
+#pragma warning disable CA1031 // a runner bug in the nested run fails this step only
+        catch (Exception e)
+#pragma warning restore CA1031
+        {
+            return new(e.Message, null, false);
+        }
+        var called = new CalledRun(result.RunId, flow.Id, flow.Name, result.Outcome, [.. result.Nodes]);
+        return result.Outcome switch
+        {
+            FlowOutcome.Succeeded or FlowOutcome.PartiallySucceeded => new(null, called, false),
+            FlowOutcome.Failed => new($"{flow.Name} didn't finish: {FirstFailure(flow, result.Nodes)}", called, false),
+            _ when flowToken.IsCancellationRequested => new("Cancelled.", called, false),
+            _ when timeoutCancel.IsCancellationRequested => new($"{flow.Name} didn't finish in {Duration.Format(timeout)}.", called, false),
+            _ => new(null, called, true), // ended quietly from inside (a menu with nothing picked, D-054)
+        };
+    }
+
+    /// <summary>The called flow's first failure in its own words (#56).</summary>
+    private static string FirstFailure(Flow flow, IEnumerable<NodeResult> nodes)
+    {
+        var failure = nodes.Where(n => n.Outcome == NodeOutcome.Failed && flow.FindNode(n.NodeId) is StepNode)
+            .OrderBy(n => n.Order == 0 ? int.MaxValue : n.Order).FirstOrDefault();
+        if (failure is null)
+            return "a step didn't work.";
+        if (!string.IsNullOrWhiteSpace(failure.Error))
+            return failure.Error.Trim();
+        var step = (StepNode)flow.FindNode(failure.NodeId)!;
+        var name = step.Name is { Length: > 0 } own ? own : ProviderCatalog.Find(step.Step)?.Title ?? step.Id;
+        return $"{name} didn't work.";
     }
 
     /// <returns>Null on success, else why it failed.</returns>
