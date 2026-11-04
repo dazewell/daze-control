@@ -93,3 +93,15 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
 - Evidence: live matrix 2026-11-03 20:45 (PLAN F5; scripts and log in the coordinator's notes folder `f5-display/`).
 - Retry only if: never alone. Ask with `SDC_TOPOLOGY_SUPPLIED` first, give each path its own source, and check the
   result (D-077).
+
+## X-010 · 2026-11-04 · A no-activate topmost window over a DXGI full-screen game (fullscreen optimisations on)
+- Tried: spike S2 (T12.2, `spikes/menu-window`): the menu (`WS_POPUP`, `NOACTIVATE|TOOLWINDOW|TOPMOST`,
+  `SW_SHOWNOACTIVATE`, `MA_NOACTIVATE`) over a D3D11 test app in flip model + `SetFullscreenState(TRUE)`, FSO on
+  (`GameDVR_FSEBehaviorMode` 0, the PC's default); also layered, not topmost, and a 210×70 one in a corner.
+- Failed because: ~100 ms after any of them shows, the app gets `WM_ACTIVATE 0`, the foreground goes to 0, DXGI
+  leaves full screen and `Present` returns `DXGI_STATUS_OCCLUDED`: the game is kicked to the desktop. Same with FSO
+  off (true exclusive). Hotkeys + mouse hook with no visible window leave it untouched. And
+  `SHQueryUserNotificationState` says `QUNS_RUNNING_D3D_FULL_SCREEN` for FSO too, so it can't tell the two apart.
+- Evidence: [flow-menu/DESIGN.md](flow-menu/DESIGN.md) §5 S2 result, screenshots `flow-menu/s2/`, 2026-11-04.
+- Retry only if: a documented overlay band without uiAccess appears, or with a game in borderless/windowed mode
+  (works: S2 mode 1). Never show any window of ours while QUNS = 3.
