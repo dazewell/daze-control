@@ -255,4 +255,43 @@ public sealed class RunOverlayViewModelTests : IDisposable
 
         Assert.Equal("Running · 0 of 5", _run.Status);
     }
+
+    // ---- Flows inside flows (D-062) ----
+
+    private void AddFlow(string id, string name) => _session.Update(c => c with
+    {
+        Flows = [.. c.Flows, new Core.Model.Flow(id, name, [new Core.Model.StepNode("a", "notify") { With = new([new("text", (Core.Model.ParamValue)"x")]) }])],
+    });
+
+    [Fact]
+    public void AFlowRunningInsideAnotherSaysWhichOne()
+    {
+        AddFlow("headphones", "Headphones");
+        var parent = Guid.NewGuid();
+        _engine.Raise(new PipeEvent { Kind = EventKinds.RunStarted, RunId = parent, FlowId = "headphones" });
+
+        _engine.Raise(new PipeEvent { Kind = EventKinds.RunStarted, RunId = _runId, FlowId = "f", ParentRunId = parent, ParentNodeId = "call" });
+
+        Assert.True(_run.IsRunning);
+        Assert.Equal("Running inside Headphones. You can edit again when it finishes.", _run.InfoMessage); // #64
+    }
+
+    [Fact]
+    public void ACallsPillShowsTheCalledFlowsCurrentStep()
+    {
+        AddFlow("inner", "Inner");
+        var nested = Guid.NewGuid();
+        Raise(EventKinds.RunStarted);
+        Raise(EventKinds.NodeStarted, "bt");
+
+        _engine.Raise(new PipeEvent { Kind = EventKinds.RunStarted, RunId = nested, FlowId = "inner", ParentRunId = _runId, ParentNodeId = "bt" });
+        _engine.Raise(new PipeEvent { Kind = EventKinds.NodeStarted, RunId = nested, FlowId = "inner", NodeId = "a", ParentRunId = _runId, ParentNodeId = "bt" });
+
+        Assert.Equal(NodeRunState.Running, State("bt"));
+        Assert.Equal("Show a message…", _canvas.Find("bt")!.ShownSummary); // #59
+
+        _engine.Raise(new PipeEvent { Kind = EventKinds.RunFinished, RunId = nested, FlowId = "inner", Outcome = FlowOutcome.Succeeded });
+        Raise(EventKinds.NodeFinished, result: new NodeResult("bt", NodeOutcome.Succeeded, Duration: TimeSpan.FromSeconds(2)));
+        Assert.Equal("2 s", _canvas.Find("bt")!.ShownSummary);
+    }
 }

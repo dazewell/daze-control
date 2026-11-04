@@ -134,8 +134,7 @@ public sealed partial class RunsView : UserControl
         DetailName.Text = _detail.FlowName;
         DetailFacts.Text = _detail.Facts;
         DetailSentence.Text = _detail.Sentence;
-        OpenInEditorButton.IsEnabled = _detail.CanOpenInEditor;
-        ToolTipService.SetToolTip(OpenInEditorButton, _detail.CanOpenInEditor ? "Show this run on the flow's canvas" : "This flow was deleted");
+        ShowOpenInEditor();
         NoTimelineText.Visibility = Show(!_detail.HasTimeline);
         TimelineHost.Visibility = Show(_detail.HasTimeline);
         NotRunList.ItemsSource = _detail.NotRun;
@@ -146,12 +145,26 @@ public sealed partial class RunsView : UserControl
         ShowSelectedBar();
     }
 
+    /// <summary>With a called flow's bar selected, "Open in editor" opens that flow showing its nested run (UX §5.5).</summary>
+    private void ShowOpenInEditor()
+    {
+        if (_detail is null)
+            return;
+        OpenInEditorButton.IsEnabled = _detail.CanOpenInEditor;
+        ToolTipService.SetToolTip(OpenInEditorButton, !_detail.CanOpenInEditor ? "This flow was deleted"
+            : ReferenceEquals(_detail.RecordToOpen, _detail.Record) ? "Show this run on the flow's canvas"
+            : $"Show this part of the run on {_detail.RecordToOpen.FlowName}'s canvas");
+    }
+
     private void OnDetailChanged(object? sender, PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)
         {
             case nameof(RunDetailViewModel.Bars):
                 DrawTimeline();
+                break;
+            case nameof(RunDetailViewModel.CanOpenInEditor):
+                ShowOpenInEditor();
                 break;
             case nameof(RunDetailViewModel.SelectedBar):
                 ShowSelectedBar();
@@ -163,7 +176,7 @@ public sealed partial class RunsView : UserControl
     private void OnOpenInEditor(object sender, RoutedEventArgs e)
     {
         if (_detail is { CanOpenInEditor: true } detail)
-            OpenRequested?.Invoke(detail.Record);
+            OpenRequested?.Invoke(detail.RecordToOpen);
     }
 
     // ---- Timeline (UX §5.5) ----
@@ -233,6 +246,22 @@ public sealed partial class RunsView : UserControl
             ToolTipService.SetToolTip(button, bar.AutomationName);
             button.Click += (_, _) => detail.SelectedBar = bar;
             Place(button, bar.X, bar.Y);
+            if (bar.IsCall)
+            {
+                // The called flow's lanes (UX §5.5, D-062): a chevron after the bar.
+                var name = (bar.IsExpanded ? "Hide the steps of " : "Show the steps of ") + bar.Title;
+                var chevron = new Button
+                {
+                    Style = (Style)Resources["TimelineBarStyle"],
+                    Width = 20,
+                    Height = RunDetailViewModel.BarHeight,
+                    Content = new FontIcon { Glyph = bar.IsExpanded ? "\uE70D" : "\uE76C", FontSize = 10 },
+                };
+                AutomationProperties.SetName(chevron, name);
+                ToolTipService.SetToolTip(chevron, name);
+                chevron.Click += (_, _) => detail.ToggleCall(bar.NodeId);
+                Place(chevron, Math.Min(bar.X + bar.Width + 2, Math.Max(0, width - 20)), bar.Y);
+            }
             if (bar.NodeId == focused)
                 DispatcherQueue.TryEnqueue(() => button.Focus(FocusState.Keyboard)); // a redraw keeps keyboard focus on the bar
         }

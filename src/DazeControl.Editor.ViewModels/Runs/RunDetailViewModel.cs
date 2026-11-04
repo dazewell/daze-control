@@ -14,6 +14,14 @@ public sealed record TimelineBarView(string NodeId, string Title, NodeOutcome Ou
     /// <summary>A failure its fallback took over (D-065): dashed caution like a may-fail one.</summary>
     public bool IsHandled { get; init; }
 
+    /// <summary>A "Run a flow" step that waited: its chevron shows the called flow's lanes (UX §5.5, D-062).</summary>
+    public bool IsCall { get; init; }
+
+    public bool IsExpanded { get; init; }
+
+    /// <summary>A step of a called flow, shown under its call's bracket; its id is "call/step".</summary>
+    public bool IsNested { get; init; }
+
     /// <summary>A may-fail step that failed, or a failure its fallback took over: dashed caution (UX §5.5).</summary>
     public bool IsMayFailFailed => Outcome == NodeOutcome.FailedIgnored || (IsHandled && Outcome == NodeOutcome.Failed);
 
@@ -40,11 +48,20 @@ public sealed partial class RunDetailViewModel : ObservableObject
     private readonly Dictionary<string, string> _titles;
     private readonly HashSet<string> _handled;
 
-    public RunDetailViewModel(RunRecord record, Flow? flow)
+    /// <summary>Separates a call's id from its called flow's step ids in nested bars ("technics/connect").</summary>
+    public const char Nested = '/';
+
+    private readonly Func<string, Flow?> _flowOf;
+    private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
+    private double _width = 600;
+
+    /// <param name="flowOf">Finds a called flow by id, for its steps' names in nested lanes; null: ids only.</param>
+    public RunDetailViewModel(RunRecord record, Flow? flow, Func<string, Flow?>? flowOf = null)
     {
         ArgumentNullException.ThrowIfNull(record);
         Record = record;
         Flow = flow;
+        _flowOf = flowOf ?? (_ => null);
         _titles = record.Nodes.ToDictionary(n => n.NodeId, n => TitleOf(flow?.FindNode(n.NodeId), n.NodeId), StringComparer.Ordinal);
         Timeline = Build(record, flow);
         Sentence = RunWords.Sentence(record, NodeTitle, flow);
@@ -83,7 +100,36 @@ public sealed partial class RunDetailViewModel : ObservableObject
 
     public bool HasTimeline { get; }
 
-    public bool CanOpenInEditor => Flow is not null;
+    public bool CanOpenInEditor => SelectedCall is { } call ? _flowOf(call.FlowId) is not null : Flow is not null;
+
+    /// <summary>"Open in editor": this run, or with a nested bar selected the called flow's run (UX §5.5).</summary>
+    public RunRecord RecordToOpen => SelectedCall is { } call
+        ? new RunRecord(call.RunId, call.FlowId, call.FlowName, Record.Trigger, Record.Started,
+            NodeOf(SelectedBar!.NodeId.Split(Nested)[0])?.Duration ?? Record.Duration, call.Outcome, call.Nodes)
+        : Record;
+
+    /// <summary>The nested run the selected bar belongs to, or null for this run's own bars.</summary>
+    private CalledRun? SelectedCall => SelectedBar is { IsNested: true } bar ? NodeOf(bar.NodeId.Split(Nested)[0])?.Called : null;
+
+    /// <summary>Shows or hides the lanes of the flow a call ran.</summary>
+    public void ToggleCall(string nodeId)
+    {
+        if (NodeOf(nodeId)?.Called is null)
+            return;
+        if (!_expanded.Remove(nodeId))
+            _expanded.Add(nodeId);
+        else if (SelectedBar is { IsNested: true } bar && bar.NodeId.StartsWith(nodeId + Nested, StringComparison.Ordinal))
+            SelectedBar = null;
+        Layout(_width);
+    }
+
+    /// <summary>A bar's result: this run's node, or "call/step" inside the call's nested run.</summary>
+    private NodeResult? NodeOf(string id)
+    {
+        var parts = id.Split(Nested, 2);
+        var node = Record.Nodes.FirstOrDefault(n => n.NodeId == parts[0]);
+        return parts.Length == 1 ? node : node?.Called?.Nodes.FirstOrDefault(n => n.NodeId == parts[1]);
+    }
 
     public string FlowName => Record.FlowName;
 
@@ -115,21 +161,45 @@ public sealed partial class RunDetailViewModel : ObservableObject
     public partial TimelineBarView? SelectedBar { get; set; }
 
     /// <summary>What happened to the picked step: outcome, tries, time, its error.</summary>
-    public IReadOnlyList<string> SelectedLines => SelectedBar is { } bar && Record.Nodes.FirstOrDefault(n => n.NodeId == bar.NodeId) is { } node
-        ? Lines(node)
+    public IReadOnlyList<string> SelectedLines => SelectedBar is { } bar && NodeOf(bar.NodeId) is { } node
+        ? Lines(node, bar.Title)
         : [];
+
+    partial void OnSelectedBarChanged(TimelineBarView? value) => OnPropertyChanged(nameof(CanOpenInEditor));
+
+    /// <summary>One bar to place: this run's, or a called flow's moved to its call's time and below this run's lanes.</summary>
+    private sealed record Item(string NodeId, string Title, int Lane, TimeSpan Start, TimeSpan End, NodeOutcome Outcome,
+        IReadOnlyList<TimeSpan> Notches, bool Handled, bool IsCall, bool IsNested);
 
     /// <summary>Lays the timeline out <paramref name="width"/> DIP wide (the view calls it when its width changes).</summary>
     public void Layout(double width)
     {
         width = Math.Max(width, 100);
-        var length = Math.Max(Timeline.Length.TotalSeconds, 0.001);
+        _width = width;
+        var items = Timeline.Bars.Select(b => new Item(b.NodeId, NodeTitle(b.NodeId), b.Lane, b.Start, b.End, b.Outcome, b.Notches,
+            _handled.Contains(b.NodeId), NodeOf(b.NodeId)?.Called is not null, false)).ToList();
+        var lanes = Math.Max(1, Timeline.Lanes);
+        var calls = new List<(string Title, int FirstLane, int LastLane, string CallId)>();
+        foreach (var call in items.Where(i => i.IsCall && _expanded.Contains(i.NodeId)).OrderBy(i => i.Start).ToList())
+        {
+            var called = NodeOf(call.NodeId)!.Called!;
+            var flow = _flowOf(called.FlowId);
+            var nested = Build(new RunRecord(called.RunId, called.FlowId, called.FlowName, "", Record.Started, call.End - call.Start,
+                called.Outcome, called.Nodes), flow);
+            // Called holds the last try: it ended when the call did.
+            var offset = call.End - nested.Length > call.Start ? call.End - nested.Length : call.Start;
+            items.AddRange(nested.Bars.Select(b => new Item(call.NodeId + Nested + b.NodeId, TitleOf(flow?.FindNode(b.NodeId), b.NodeId),
+                lanes + b.Lane, offset + b.Start, offset + b.End, b.Outcome, [.. b.Notches.Select(n => offset + n)], false, false, true)));
+            calls.Add((called.FlowName, lanes, lanes + Math.Max(1, nested.Lanes) - 1, call.NodeId));
+            lanes += Math.Max(1, nested.Lanes);
+        }
+        var length = Math.Max(Math.Max(Timeline.Length.TotalSeconds, items.Count == 0 ? 0 : items.Max(i => i.End.TotalSeconds)), 0.001);
         var scale = width / length; // DIP per second
         double X(TimeSpan t) => Math.Min(t.TotalSeconds * scale, width);
         var top = AxisHeight;
         // Bars widened to MinBarWidth would cover each other: in each lane, a bar starts BarGap after the previous
         // one ends, then the lane is fitted back from the right edge so the last bars keep their gap too.
-        var placed = Timeline.Bars.OrderBy(b => b.Start).Select(b => (Bar: b, X: X(b.Start), W: Math.Max(X(b.End) - X(b.Start), MinBarWidth))).ToArray();
+        var placed = items.OrderBy(b => b.Start).Select(b => (Bar: b, X: X(b.Start), W: Math.Max(X(b.End) - X(b.Start), MinBarWidth))).ToArray();
         foreach (var lane in placed.Select((p, i) => (p.Bar.Lane, i)).GroupBy(p => p.Lane, p => p.i))
         {
             var end = double.NegativeInfinity;
@@ -148,11 +218,15 @@ public sealed partial class RunDetailViewModel : ObservableObject
                 limit = placed[i].X - BarGap;
             }
         }
-        var bars = placed.Select(p => new TimelineBarView(p.Bar.NodeId, NodeTitle(p.Bar.NodeId), p.Bar.Outcome, p.X,
+        var bars = placed.Select(p => new TimelineBarView(p.Bar.NodeId, p.Bar.Title, p.Bar.Outcome, p.X,
             top + p.Bar.Lane * LaneHeight + (LaneHeight - BarHeight) / 2, p.W, [.. p.Bar.Notches.Select(n => Math.Clamp(X(n) - p.X, 0, p.W))])
         {
-            IsHandled = _handled.Contains(p.Bar.NodeId),
-            AutomationName = $"{NodeTitle(p.Bar.NodeId)}, {Describe(p.Bar.Outcome)}, {RunWords.Seconds(p.Bar.End - p.Bar.Start)}",
+            IsHandled = p.Bar.Handled,
+            IsCall = p.Bar.IsCall,
+            IsExpanded = p.Bar.IsCall && _expanded.Contains(p.Bar.NodeId),
+            IsNested = p.Bar.IsNested,
+            AutomationName = $"{p.Bar.Title}, {Describe(p.Bar.Outcome)}, {RunWords.Seconds(p.Bar.End - p.Bar.Start)}"
+                + (p.Bar.IsCall ? _expanded.Contains(p.Bar.NodeId) ? ", its steps shown" : ", has steps of its own" : ""),
         }).ToList();
         // A bracket hugs its members' bars as fitted above, not their raw times, so it never cuts one off.
         Brackets = [.. Timeline.Brackets.Select(c =>
@@ -163,9 +237,17 @@ public sealed partial class RunDetailViewModel : ObservableObject
             var right = inside.Count > 0 ? inside.Max(b => b.X + b.Width) : X(c.End);
             return new TimelineBracketView(TitleOf(Flow?.FindNode(c.CardId), "Run together"), left, top + c.FirstLane * LaneHeight + 2,
                 Math.Max(right - left, MinBarWidth), (c.LastLane - c.FirstLane + 1) * LaneHeight - 4);
+        }), .. calls.Select(c =>
+        {
+            // The called flow's lanes, under a bracket named after it (like a card's).
+            var inside = bars.Where(b => b.NodeId.StartsWith(c.CallId + Nested, StringComparison.Ordinal)).ToList();
+            var left = inside.Count > 0 ? inside.Min(b => b.X) : 0;
+            var right = inside.Count > 0 ? inside.Max(b => b.X + b.Width) : left + MinBarWidth;
+            return new TimelineBracketView(c.Title, left, top + c.FirstLane * LaneHeight + 2, Math.Max(right - left, MinBarWidth),
+                (c.LastLane - c.FirstLane + 1) * LaneHeight - 4);
         })];
         Ticks = [.. TickTimes(Timeline.Length).Select(t => new TimelineTick(X(t), RunWords.Seconds(t)))];
-        Height = top + Math.Max(1, Timeline.Lanes) * LaneHeight;
+        Height = top + lanes * LaneHeight;
         Bars = bars; // last: the view redraws on Bars, so everything else is in place by then
     }
 
@@ -181,9 +263,9 @@ public sealed partial class RunDetailViewModel : ObservableObject
             yield return TimeSpan.FromSeconds(Math.Round(t, 3));
     }
 
-    private List<string> Lines(NodeResult node)
+    private static List<string> Lines(NodeResult node, string title)
     {
-        var lines = new List<string> { $"{NodeTitle(node.NodeId)}: {Describe(node.Outcome)}" };
+        var lines = new List<string> { $"{title}: {Describe(node.Outcome)}" };
         if (node.Attempts > 0)
             lines.Add(node.Attempts == 1
                 ? $"Started at {RunWords.Seconds(node.Start)}, took {RunWords.Seconds(node.Duration)}."
