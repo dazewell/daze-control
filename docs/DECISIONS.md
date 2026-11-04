@@ -803,6 +803,9 @@ PartiallySucceeded")
 - Why: the user's Connect Technics flow said "Done, with a problem" every time the headphones simply worked, because
   the unneeded Sony branch was Skipped; a fallback is a "finally"-style plan, not a warning. A fixed failure is the
   plan working, and P6 needs "Make it the default" to count as worked when its fallback did the job (user's choice).
+- Built (T13.7, 2026-11-03): a step skipped only because a handled failure didn't fire its `success` edge (the
+  user's `out` after `bt`) is the branch the fallback replaced, so it doesn't make the run partial either; the
+  done-when ("Technics fails and Sony works → Succeeded") needs it. Any other skip still does.
 - Why not hiding fallback steps from results: the Runs page should still show what could have run. Why not a flag on
   Skipped instead of a new outcome: every consumer (pop-up, Runs, canvas, tray) would need the flow to tell them
   apart, and history outlives flow edits.

@@ -30,6 +30,10 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
     private readonly Action<Action> _post;
     private readonly Dictionary<string, NodeRunView> _states = new(StringComparer.Ordinal);
     private readonly HashSet<string> _steps = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _counted = new(StringComparer.Ordinal); // "n of m": fallbacks once they start
+    private readonly List<NodeResult> _results = [];
+    private IReadOnlySet<string> _fallbacks = new HashSet<string>();
+    private Flow? _running;
     private Guid? _runId;
     private int _done;
 
@@ -141,7 +145,7 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
             _states[node.NodeId] = RunWords.View(node);
         _canvas.ShowRun(new Dictionary<string, NodeRunView>(_states));
         Info(Severity(run.Outcome), RunWords.Chip(run.Outcome),
-            $"{RunWords.Sentence(run, Title)} {run.Trigger}, {run.Started.ToLocalTime():g}.");
+            $"{RunWords.Sentence(run, Title, _canvas.Flow)} {run.Trigger}, {run.Started.ToLocalTime():g}.");
     }
 
     /// <summary>Closing the InfoBar puts the canvas back to editing.</summary>
@@ -167,6 +171,7 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
         _canvas.ShowRun(new Dictionary<string, NodeRunView>(_states));
         var started = run.Nodes.Count(n => n.Order > 0 && IsStep(n));
         var failed = run.Nodes.Where(IsStep).Where(n => n.Outcome is NodeOutcome.Failed or NodeOutcome.FailedIgnored).ToList();
+        // A fallback that wasn't needed is no warning (D-065).
         var skipped = run.Nodes.Where(IsStep).Count(n => n.Outcome is NodeOutcome.Skipped or NodeOutcome.Cancelled);
         var parts = new List<string> { $"{Steps(started)} would start, in the order shown." };
         if (failed.Count > 0)
@@ -196,10 +201,15 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
         {
             case EventKinds.NodeStarted when e.NodeId is { } id && _steps.Contains(id):
                 _states[id] = new NodeRunView(NodeRunState.Running, "Running…");
+                _counted.Add(id);
                 break;
-            case EventKinds.NodeFinished when e.Node is { } node && _steps.Contains(node.NodeId):
+            case EventKinds.NodeFinished when e.Node is { } node:
+                _results.Add(node);
+                if (!_steps.Contains(node.NodeId))
+                    return;
                 _states[node.NodeId] = RunWords.View(node);
-                _done++;
+                if (_counted.Contains(node.NodeId))
+                    _done++;
                 break;
             case EventKinds.RunFinished:
                 Finish(e.Outcome ?? FlowOutcome.Failed);
@@ -215,11 +225,17 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
         _runId = runId;
         _states.Clear();
         _steps.Clear();
+        _counted.Clear();
+        _results.Clear();
         _done = 0;
         // A live run executes the saved flow, not the draft on screen (D-047).
-        foreach (var step in (_canvas.SavedFlow ?? _canvas.Flow)?.Nodes.OfType<StepNode>() ?? [])
+        _running = _canvas.SavedFlow ?? _canvas.Flow;
+        _fallbacks = _running is null ? new HashSet<string>() : FlowShape.Fallbacks(_running);
+        foreach (var step in _running?.Nodes.OfType<StepNode>() ?? [])
         {
             _steps.Add(step.Id);
+            if (!_fallbacks.Contains(step.Id))
+                _counted.Add(step.Id);
             _states[step.Id] = new NodeRunView(NodeRunState.Pending);
         }
         IsRunning = true;
@@ -231,7 +247,7 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
 
     private void Update()
     {
-        Status = IsRunning ? $"Running · {_done} of {_steps.Count}" : "";
+        Status = IsRunning ? $"Running · {_done} of {_counted.Count}" : "";
         _canvas.ShowRun(new Dictionary<string, NodeRunView>(_states));
     }
 
@@ -246,8 +262,10 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
         Update();
         var failed = _states.FirstOrDefault(s => s.Value.State is NodeRunState.Failed or NodeRunState.FailedMayFail).Key;
         var name = _canvas.FlowName;
+        var fix = outcome == FlowOutcome.Succeeded && _running is not null ? Outcomes.Fix(_running, _results) : null;
         var message = outcome switch
         {
+            FlowOutcome.Succeeded when fix is { } f => $"{name} worked. {RunWords.Fixed(f, Title)}",
             FlowOutcome.Succeeded => $"{name} is done.",
             FlowOutcome.PartiallySucceeded when failed is not null => $"Done, with a problem. {Title(failed)} didn't work, so it went on without it.",
             FlowOutcome.PartiallySucceeded => "Done, with a problem. Some steps were skipped.",

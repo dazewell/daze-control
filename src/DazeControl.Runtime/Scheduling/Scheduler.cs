@@ -25,8 +25,11 @@ public enum StepResult
 /// <item>FailedIgnored (policy ignore, "may fail"): success, failure, always.</item>
 /// <item>Failed: failure, always. With an outgoing failure edge the failure is handled (D-024); without one,
 /// policy stop ends the run and skip just lets the edges die.</item>
-/// <item>Skipped: always.</item>
+/// <item>Skipped, NotNeeded: always.</item>
 /// </list>
+/// A fallback step (<see cref="FlowShape.Fallbacks"/>) that would be skipped ends NotNeeded instead (D-065). A
+/// handled failure, and a skip that only follows from one (the branch its fallback replaced), don't make the run a
+/// partial success.
 /// A card starts all members together and finishes when all have; it fails when a member fails with stop or
 /// skip, and then its own policy applies.
 /// </remarks>
@@ -39,11 +42,16 @@ public sealed class Scheduler
     private readonly Dictionary<string, NodeOutcome> _outcomes = [];
     private readonly HashSet<string> _running = [];
     private readonly List<string> _ready = [];
+    private readonly IReadOnlySet<string> _fallbacks;
+    private readonly IReadOnlySet<string> _withFallback;
+    private readonly HashSet<string> _excused = []; // skipped only because a handled failure didn't fire success
 
     /// <param name="flow">A flow that passed <c>ConfigValidator</c>.</param>
     public Scheduler(Flow flow)
     {
         Flow = flow;
+        _fallbacks = FlowShape.Fallbacks(flow);
+        _withFallback = FlowShape.WithFallback(flow);
         foreach (var node in flow.Nodes)
         {
             _nodes[node.Id] = node;
@@ -77,7 +85,11 @@ public sealed class Scheduler
     public IReadOnlyDictionary<string, NodeOutcome> Outcomes => _outcomes;
 
     /// <summary>Only meaningful once <see cref="IsFinished"/>.</summary>
-    public FlowOutcome Result => Core.Runs.Outcomes.Summarize(_outcomes.Values, IsCancelled, IsStopped);
+    public FlowOutcome Result => Core.Runs.Outcomes.Summarize(
+        _outcomes.Select(o => (o.Value, IsHandled(o.Key, o.Value) || _excused.Contains(o.Key))), IsCancelled, IsStopped);
+
+    private bool IsHandled(string id, NodeOutcome outcome) =>
+        outcome is NodeOutcome.Failed or NodeOutcome.FailedIgnored && _withFallback.Contains(id);
 
     /// <summary>The steps to start first: units with no incoming edges (cards expanded to their members).</summary>
     public IReadOnlyList<string> Start()
@@ -173,12 +185,23 @@ public sealed class Scheduler
 
     private void Skip(Node unit)
     {
+        var outcome = _fallbacks.Contains(unit.Id) ? NodeOutcome.NotNeeded : NodeOutcome.Skipped;
+        // The edges that can't fire all come from a failure its fallback handled (or from a skip excused that way).
+        var excused = outcome == NodeOutcome.Skipped && Enumerable.Range(0, unit.After.Count)
+            .Where(i => _fired.TryGetValue((unit.Id, i), out var fired) && !fired)
+            .All(i => _excused.Contains(unit.After[i].From) || IsHandled(unit.After[i].From, _outcomes[unit.After[i].From]));
+        if (excused)
+            _excused.Add(unit.Id);
         if (unit is GroupNode card)
         {
             foreach (var member in card.Members)
-                _outcomes[member] = NodeOutcome.Skipped;
+            {
+                _outcomes[member] = outcome;
+                if (excused)
+                    _excused.Add(member);
+            }
         }
-        Finish(unit, NodeOutcome.Skipped);
+        Finish(unit, outcome);
     }
 
     private void StartUnit(Node unit)

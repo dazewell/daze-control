@@ -166,6 +166,61 @@ public sealed class RunPopupModelTests
         Assert.Equal("As it runs", model.Current!.Title);
     }
 
+    /// <summary>The user's Connect Technics flow: Technics, else Sony and the speakers (D-065).</summary>
+    private static readonly Flow WithFallback = new("connect-technics", "Connect Technics",
+    [
+        new StepNode("bt", "bluetooth.connect") { Name = "Connect Technics" },
+        new StepNode("out", "audio.setDefault") { After = [new Edge("bt")] },
+        new StepNode("connect", "bluetooth.connect") { Name = "Connect Sony", After = [new Edge("bt", EdgeWhen.Failure)] },
+        new StepNode("setDefault", "audio.setDefault") { After = [new Edge("connect")] },
+    ]);
+
+    private static void NotRun(RunPopupModel model, string id, NodeOutcome outcome) =>
+        model.Apply(new NodeFinished(Run, "connect-technics", T0, new NodeResult(id, outcome, Attempts: 0)), null, Settings);
+
+    [Fact]
+    public void FallbacksThatWerentNeededCountForNothing()
+    {
+        var model = Started(WithFallback);
+        Assert.Equal("0 of 2", model.Current!.Status);
+        Node(model, "bt");
+        Assert.Equal(("1 of 2", 0.5), (model.Current!.Status, model.Current!.Progress));
+        NotRun(model, "connect", NodeOutcome.NotNeeded);
+        NotRun(model, "setDefault", NodeOutcome.NotNeeded);
+        Node(model, "out");
+        Assert.Equal(("2 of 2", 1.0), (model.Current!.Status, model.Current!.Progress));
+
+        var view = Finish(model, FlowOutcome.Succeeded);
+        Assert.Equal(("Done", "Took 3.1 s", PopupTone.Succeeded), (view.Status, view.Detail, view.Tone));
+    }
+
+    [Fact]
+    public void AFallbackJoinsTheCountWhenItStarts()
+    {
+        var model = Started(WithFallback);
+        Node(model, "bt", NodeOutcome.Failed);
+        NotRun(model, "out", NodeOutcome.Skipped);
+        Assert.Equal("2 of 2", model.Current!.Status);
+        model.Apply(new NodeStarted(Run, "connect-technics", T0, "connect", 1), null, Settings);
+        Assert.Equal(("2 of 3", "Connect Sony…"), (model.Current!.Status, model.Current!.Detail));
+    }
+
+    [Fact]
+    public void AFailureItsFallbackFixedEndsDoneInTheNormalTone()
+    {
+        var model = Started(WithFallback);
+        Node(model, "bt", NodeOutcome.Failed, "Technics isn't in range.");
+        NotRun(model, "out", NodeOutcome.Skipped);
+        Node(model, "connect");
+        Node(model, "setDefault");
+
+        var view = Finish(model, FlowOutcome.Succeeded);
+
+        Assert.Equal(("Done", null, PopupTone.Succeeded, false), (view.Status, view.Headline, view.Tone, view.Clickable));
+        Assert.Equal("Connect Technics didn't work, so Connect Sony ran instead.", view.Detail); // #48
+        Assert.Equal(1.0, view.Progress);
+    }
+
     [Fact]
     public void EventsOfUnknownRunsAreIgnored()
     {

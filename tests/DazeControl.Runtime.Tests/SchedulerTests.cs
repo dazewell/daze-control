@@ -87,7 +87,8 @@ public class SchedulerTests
         Assert.False(scheduler.IsStopped);
         AssertOutcomes(scheduler, ("hp", NodeOutcome.Failed), ("buds", NodeOutcome.Succeeded),
             ("eq", NodeOutcome.Skipped), ("done", NodeOutcome.Succeeded));
-        Assert.Equal(FlowOutcome.PartiallySucceeded, scheduler.Result);
+        // D-065: the fallback fixed it, and eq only skipped because hp's failure was handled.
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
     }
 
     [Theory]
@@ -107,18 +108,19 @@ public class SchedulerTests
         Assert.False(scheduler.IsStopped);
         AssertOutcomes(scheduler, ("hp", NodeOutcome.Failed), ("buds", NodeOutcome.Succeeded),
             ("eq", NodeOutcome.Skipped), ("other", NodeOutcome.Succeeded));
-        Assert.Equal(FlowOutcome.PartiallySucceeded, scheduler.Result);
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
     }
 
     [Fact]
-    public void FailureEdgeFromASuccessIsSkipped()
+    public void AFallbackThatWasntNeededIsNotNeededWithItsChain()
     {
+        // D-065: a chain after a fallback follows it; nothing went wrong.
         var scheduler = new Scheduler(Flow(Step("hp"), Step("buds", "after: [{ id: hp, when: failure }]"), Step("x", "after: [buds]")));
 
         Run(scheduler);
 
-        AssertOutcomes(scheduler, ("hp", NodeOutcome.Succeeded), ("buds", NodeOutcome.Skipped), ("x", NodeOutcome.Skipped));
-        Assert.Equal(FlowOutcome.PartiallySucceeded, scheduler.Result);
+        AssertOutcomes(scheduler, ("hp", NodeOutcome.Succeeded), ("buds", NodeOutcome.NotNeeded), ("x", NodeOutcome.NotNeeded));
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
     }
 
     [Fact]
@@ -164,7 +166,166 @@ public class SchedulerTests
         Run(scheduler, ("a", StepResult.Failed));
 
         AssertOutcomes(scheduler, ("a", NodeOutcome.FailedIgnored), ("b", NodeOutcome.Succeeded), ("fix", NodeOutcome.Succeeded));
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result); // handled by fix (D-065)
+    }
+
+    /// <summary>The user's Connect Technics flow (2026-11-03): Technics, else Sony and the speakers.</summary>
+    private static Flow Technics(string btPolicy) => Flow(
+        Step("bt", $"onFailure: {btPolicy}"),
+        Step("out", "after: [bt]"),
+        Step("connect", "after: [{ id: bt, when: failure }]"),
+        Step("setDefault", "after: [connect]"));
+
+    [Theory]
+    [InlineData("stop")]
+    [InlineData("skip")]
+    [InlineData("ignore")]
+    public void TechnicsWorksSoTheSonyBranchIsNotNeeded(string policy)
+    {
+        var scheduler = new Scheduler(Technics(policy));
+
+        Assert.Equal([["bt"], ["out"]], Run(scheduler));
+
+        AssertOutcomes(scheduler, ("bt", NodeOutcome.Succeeded), ("out", NodeOutcome.Succeeded),
+            ("connect", NodeOutcome.NotNeeded), ("setDefault", NodeOutcome.NotNeeded));
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
+    }
+
+    [Theory]
+    [InlineData("stop")]
+    [InlineData("skip")]
+    public void TechnicsFailsAndSonyWorksIsDone(string policy)
+    {
+        var scheduler = new Scheduler(Technics(policy));
+
+        Run(scheduler, ("bt", StepResult.Failed));
+
+        AssertOutcomes(scheduler, ("bt", NodeOutcome.Failed), ("out", NodeOutcome.Skipped),
+            ("connect", NodeOutcome.Succeeded), ("setDefault", NodeOutcome.Succeeded));
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
+    }
+
+    [Theory]
+    [InlineData("stop")]
+    [InlineData("skip")]
+    public void TechnicsAndSonyBothFailDidntFinish(string policy)
+    {
+        var scheduler = new Scheduler(Technics(policy));
+
+        Run(scheduler, ("bt", StepResult.Failed), ("connect", StepResult.Failed));
+
+        Assert.True(scheduler.IsStopped);
+        AssertOutcomes(scheduler, ("bt", NodeOutcome.Failed), ("out", NodeOutcome.Skipped),
+            ("connect", NodeOutcome.Failed), ("setDefault", NodeOutcome.Cancelled));
+        Assert.Equal(FlowOutcome.Failed, scheduler.Result);
+    }
+
+    [Fact]
+    public void TechnicsOnKeepGoingAlsoRunsOutAndItsFailureStopsTheFlow()
+    {
+        // The live flow has bt on "Keep going": its success edge fires too, so out runs after a failed connect, fails
+        // (Technics isn't there) and stops the flow, cancelling the Sony branch it raced.
+        var scheduler = new Scheduler(Technics("ignore"));
+
+        Assert.Equal(["bt"], scheduler.Start());
+        Assert.Equal(["out", "connect"], scheduler.Complete("bt", StepResult.Failed));
+        Assert.Empty(scheduler.Complete("out", StepResult.Failed));
+        Assert.True(scheduler.IsStopped);
+        Assert.Empty(scheduler.Complete("connect", StepResult.Cancelled));
+
+        AssertOutcomes(scheduler, ("bt", NodeOutcome.FailedIgnored), ("out", NodeOutcome.Failed),
+            ("connect", NodeOutcome.Cancelled), ("setDefault", NodeOutcome.Cancelled));
+        Assert.Equal(FlowOutcome.Failed, scheduler.Result);
+    }
+
+    [Fact]
+    public void ASkipThatDoesntFollowFromAHandledFailureIsStillAProblem()
+    {
+        var scheduler = new Scheduler(Flow(
+            Step("hp"), Step("buds", "after: [{ id: hp, when: failure }]"),
+            Step("x", "onFailure: skip"), Step("j", "after: [hp, x]")));
+
+        Run(scheduler, ("hp", StepResult.Failed), ("x", StepResult.Failed));
+
+        AssertOutcomes(scheduler, ("hp", NodeOutcome.Failed), ("buds", NodeOutcome.Succeeded),
+            ("x", NodeOutcome.Failed), ("j", NodeOutcome.Skipped));
         Assert.Equal(FlowOutcome.PartiallySucceeded, scheduler.Result);
+    }
+
+    [Fact]
+    public void AChainAfterAFallbackRunsWhenItsNeeded()
+    {
+        var scheduler = new Scheduler(Flow(
+            Step("hp"), Step("buds", "after: [{ id: hp, when: failure }]"), Step("eq", "after: [buds]"),
+            Step("tell", "after: [eq]"), Step("end", "after: [{ id: tell, when: always }]")));
+
+        Assert.Equal([["hp"], ["buds"], ["eq"], ["tell"], ["end"]], Run(scheduler, ("hp", StepResult.Failed)));
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
+    }
+
+    [Fact]
+    public void AnAlwaysEdgeAfterANotNeededFallbackRuns()
+    {
+        var scheduler = new Scheduler(Flow(
+            Step("hp"), Step("buds", "after: [{ id: hp, when: failure }]"), Step("end", "after: [{ id: buds, when: always }]")));
+
+        Run(scheduler);
+
+        AssertOutcomes(scheduler, ("hp", NodeOutcome.Succeeded), ("buds", NodeOutcome.NotNeeded), ("end", NodeOutcome.Succeeded));
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AJoinOfANormalStepAndAFallbackFollowsTheFallback(bool hpFails)
+    {
+        // j waits for the success of a fallback, so it is one too (D-065).
+        var scheduler = new Scheduler(Flow(
+            Step("a"), Step("hp"), Step("buds", "after: [{ id: hp, when: failure }]"), Step("j", "after: [a, buds]")));
+
+        Run(scheduler, hpFails ? [("hp", StepResult.Failed)] : []);
+
+        Assert.Equal(hpFails ? NodeOutcome.Succeeded : NodeOutcome.NotNeeded, scheduler.Outcomes["j"]);
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
+    }
+
+    [Fact]
+    public void AnAlwaysJoinOfANormalStepAndAFallbackIsANormalStep()
+    {
+        var scheduler = new Scheduler(Flow(
+            Step("a"), Step("hp"), Step("buds", "after: [{ id: hp, when: failure }]"),
+            Step("j", "after: [{ id: a, when: always }, { id: buds, when: always }]")));
+
+        Run(scheduler);
+
+        Assert.Equal(NodeOutcome.NotNeeded, scheduler.Outcomes["buds"]);
+        Assert.Equal(NodeOutcome.Succeeded, scheduler.Outcomes["j"]);
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
+    }
+
+    [Fact]
+    public void AFallbackCardThatWasntNeededHasItsMembersNotNeeded()
+    {
+        var scheduler = new Scheduler(Flow(
+            Step("hp"), Step("a"), Step("b"), "{ id: g, group: [a, b], after: [{ id: hp, when: failure }] }"));
+
+        Run(scheduler);
+
+        AssertOutcomes(scheduler, ("hp", NodeOutcome.Succeeded), ("a", NodeOutcome.NotNeeded), ("b", NodeOutcome.NotNeeded),
+            ("g", NodeOutcome.NotNeeded));
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
+    }
+
+    [Fact]
+    public void AFallbackThatFailsOnKeepGoingLeavesNothingWorking()
+    {
+        var scheduler = new Scheduler(Flow(
+            Step("hp"), Step("buds", "after: [{ id: hp, when: failure }], onFailure: ignore")));
+
+        Run(scheduler, ("hp", StepResult.Failed), ("buds", StepResult.Failed));
+
+        Assert.Equal(FlowOutcome.Failed, scheduler.Result);
     }
 
     [Fact]

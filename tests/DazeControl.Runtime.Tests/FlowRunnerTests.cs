@@ -93,6 +93,24 @@ public sealed class FlowRunnerTests : IDisposable
         Assert.All(result.Nodes, n => Assert.Equal(NodeOutcome.Succeeded, n.Outcome));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TheConnectTechnicsShapeEndsDoneEitherWay(bool technicsFails)
+    {
+        // The user's flow on fake steps (D-065): Technics, else Sony and the speakers.
+        if (technicsFails)
+            _provider.On("bt", (_, _) => FakeProvider.Fail("Technics isn't in range."));
+
+        var result = await Run(Flow(Step("bt", "onFailure: skip"), Step("out", "after: [bt]"),
+            Step("connect", "after: [{ id: bt, when: failure }]"), Step("setDefault", "after: [connect]")));
+
+        Assert.Equal(FlowOutcome.Succeeded, result.Outcome);
+        Assert.Equal(technicsFails ? NodeOutcome.Skipped : NodeOutcome.Succeeded, Node(result, "out").Outcome);
+        Assert.Equal(technicsFails ? NodeOutcome.Succeeded : NodeOutcome.NotNeeded, Node(result, "setDefault").Outcome);
+        Assert.Equal(technicsFails ? 1 : 0, Node(result, "connect").Attempts);
+    }
+
     [Fact]
     public async Task FailureMessageReachesTheResultAndTheFallbackRuns()
     {
@@ -100,7 +118,7 @@ public sealed class FlowRunnerTests : IDisposable
 
         var result = await Run(Flow(Step("hp"), Step("buds", "after: [{ id: hp, when: failure }]")));
 
-        Assert.Equal(FlowOutcome.PartiallySucceeded, result.Outcome);
+        Assert.Equal(FlowOutcome.Succeeded, result.Outcome);
         Assert.Equal("Headphones didn't connect.", Node(result, "hp").Error);
         Assert.Equal(NodeOutcome.Succeeded, Node(result, "buds").Outcome);
     }
@@ -300,8 +318,10 @@ public sealed class FlowRunnerTests : IDisposable
         _time.Advance(TimeSpan.FromSeconds(3));
         gate.SetResult();
         await _provider.Started("c");
-        await _time.WaitForTimerAsync(); // c's attempt timeout
-        await _time.WaitForTimerAsync(); // retry delay
+        // Every creation counts once: a's, b's and c's attempt timeouts, then the retry delay. Advancing before the
+        // delay is armed would lose the advance and hang the run.
+        for (var i = 0; i < 4; i++)
+            await _time.WaitForTimerAsync();
         _time.Advance(TimeSpan.FromSeconds(2));
         var result = await run;
 
