@@ -468,7 +468,9 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         if (!step.With.TryGetValue("device", out var value))
             return null;
         var key = FlowInputs.NameIn(value) is { } own
-            ? _session.Current.Flows.FirstOrDefault(f => f.Id == FlowId)?.Inputs.GetValueOrDefault(own)?.Default
+            ? _session.Current.Flows.FirstOrDefault(f => f.Id == FlowId)?.Inputs.GetValueOrDefault(own) is { Kind: LibraryKind.Android } input
+                ? input.Default
+                : null
             : (value as ScalarParam)?.Text;
         return key is null ? null : _session.Current.Library.Android.FirstOrDefault(d => d.Key == key);
     }

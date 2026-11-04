@@ -445,11 +445,12 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(name);
         if (!CanEdit || !item.HasInputs)
             return false;
-        var (config, refusal) = AndroidInputEdits.Add(_session.Current, item.Key, name);
+        var refusal = AndroidInputEdits.Add(_session.Current, item.Key, name).Refusal;
         item.AddInputError = InputError(refusal, name, item.Key);
         if (refusal != InputEditRefusal.None)
             return false;
-        _session.Update(_ => config);
+        // Applied to each version Update hands over, so an open flow's draft stays a draft (D-047).
+        _session.Update(c => AndroidInputEdits.Add(c, item.Key, name).Config);
         return true;
     }
 
@@ -465,7 +466,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         if (refusal != InputEditRefusal.None)
             return false;
         if (!ReferenceEquals(config, _session.Current))
-            _session.Update(_ => config);
+            _session.Update(c => AndroidInputEdits.Rename(c, input.DeviceKey, input.Name, newName).Config);
         return true;
     }
 
@@ -475,9 +476,8 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     {
         if (!CanEdit)
             return;
-        var (config, refusal) = AndroidInputEdits.Remove(_session.Current, input.DeviceKey, input.Name);
-        if (refusal == InputEditRefusal.None)
-            _session.Update(_ => config);
+        if (AndroidInputEdits.Remove(_session.Current, input.DeviceKey, input.Name).Refusal == InputEditRefusal.None)
+            _session.Update(c => AndroidInputEdits.Remove(c, input.DeviceKey, input.Name).Config);
     }
 
     [RelayCommand]
@@ -495,9 +495,8 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     {
         if (!CanEdit)
             return;
-        var (config, refusal) = AndroidInputEdits.SetMoves(_session.Current, input.DeviceKey, input.Name, moves);
-        if (refusal == InputEditRefusal.None)
-            _session.Update(_ => config);
+        if (AndroidInputEdits.SetMoves(_session.Current, input.DeviceKey, input.Name, moves).Refusal == InputEditRefusal.None)
+            _session.Update(c => AndroidInputEdits.SetMoves(c, input.DeviceKey, input.Name, moves).Config);
     }
 
     private static string? InputError(InputEditRefusal refusal, string name, string device) => refusal switch

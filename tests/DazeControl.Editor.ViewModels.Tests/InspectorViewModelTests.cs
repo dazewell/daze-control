@@ -693,6 +693,18 @@ public sealed class InspectorViewModelTests : IDisposable
     }
 
     [Fact]
+    public void AnInputOfAnotherKindIsNotTakenForTheAndroidDevice()
+    {
+        AddAndroidInputStep("$screen");
+        _canvas.Edit(f => f with { Inputs = new([KeyValuePair.Create("screen", new FlowInput(LibraryKind.Audio, "Screen", "tv"))]) });
+        _canvas.Select("in");
+
+        var field = Field("input");
+        Assert.False(field.HasHintLink);
+        Assert.Equal("Choose the Android device first.", field.SuggestionHint);
+    }
+
+    [Fact]
     public void WithNoAndroidDeviceTheHintIsPlainText()
     {
         AddAndroidInputStep("gone");

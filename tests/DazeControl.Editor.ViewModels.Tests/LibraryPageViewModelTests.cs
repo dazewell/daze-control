@@ -583,4 +583,24 @@ public sealed class LibraryPageViewModelTests : IDisposable
         Assert.Equal("Android", shell.Library.Sections[shell.Library.SelectedIndex].Title);
         Assert.True(shell.Library.Section(LibraryKind.Android).Items.Single(i => i.Key == "living-room").ShowInputs);
     }
+
+    [Fact]
+    public void InputEditsLeaveAnOpenFlowsDraftUnsaved()
+    {
+        _session.UpdateDraft("a", f => f with { Name = "Draft name" }); // D-047: not saved yet
+        var tv = Item(LibraryKind.Android, "living-room");
+
+        Assert.True(_page.AddInput(tv, "hdmi2"));
+        var hdmi2 = Item(LibraryKind.Android, "living-room").Inputs[0];
+        _page.AddDownCommand.Execute(hdmi2);
+        Assert.True(_page.AddInput(Item(LibraryKind.Android, "living-room"), "spare"));
+        _page.RemoveInputCommand.Execute(Item(LibraryKind.Android, "living-room").Inputs[1]);
+        Assert.True(_page.RenameInput(Item(LibraryKind.Android, "living-room").Inputs[0], "game"));
+
+        Assert.Equal("Connect Technics", _session.SavedFlow("a")!.Name); // the draft stayed a draft
+        Assert.Equal("Draft name", _session.Current.Flows.Single(f => f.Id == "a").Name);
+        Assert.Equal(["game"], _session.Current.Library.Android[0].Inputs.Keys);
+        Assert.Equal(["down"], _session.Current.Library.Android[0].Inputs["game"]);
+        Assert.Equal("game", ((ScalarParam)((StepNode)_session.SavedFlow("b")!.FindNode("tv")!).With["input"]).Text);
+    }
 }
