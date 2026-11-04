@@ -49,11 +49,21 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         _clipboard = clipboard ?? new CanvasClipboard();
         FlowId = flowId;
         _session.PropertyChanged += OnSessionChanged;
+        _session.FlowRenamed += OnFlowRenamed;
         _known = Flow;
         Sync();
     }
 
-    public string FlowId { get; }
+    /// <summary>Changes when a saved rename gives the flow a new id (D-075): the canvas stays open.</summary>
+    public string FlowId { get; private set; }
+
+    private void OnFlowRenamed(string oldId, string newId)
+    {
+        if (oldId != FlowId)
+            return;
+        FlowId = newId;
+        OnPropertyChanged(nameof(FlowId));
+    }
 
     /// <summary>Top-level pills and cards first, then card members, so members draw above their card.</summary>
     public ObservableCollection<CanvasNodeViewModel> Nodes { get; } = [];
@@ -938,7 +948,11 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(CanEdit));
     }
 
-    public void Dispose() => _session.PropertyChanged -= OnSessionChanged;
+    public void Dispose()
+    {
+        _session.PropertyChanged -= OnSessionChanged;
+        _session.FlowRenamed -= OnFlowRenamed;
+    }
 }
 
 /// <summary>Something the canvas says beside node <paramref name="At"/> after an edit went through.</summary>

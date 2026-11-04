@@ -30,7 +30,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   (#66, D-070).
 - **M13 (designed):** the nav pane collapses: the toggle above the items shrinks it to a 48-DIP icon
   strip with tooltips, remembered on this PC (D-068).
-- **M13 fixes (designed, F4):** the card's context menu (and Delete on a focused card) has **Delete** (D-076): the
+- **M13 fixes (F4):** the card's context menu (and Delete on a focused card) has **Delete** (D-076): the
   flow goes at once and an InfoBar on the Flows page says #67 with **Undo**, until another Delete, New flow, opening
   a flow, leaving the page or closing the editor. Off while another flow runs it, with #68 as a greyed line under it.
   Renaming a flow and saving gives it a new id made from the name (D-075); nothing on screen shows the id.

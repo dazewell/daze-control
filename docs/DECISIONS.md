@@ -952,7 +952,7 @@ Status: accepted (user, 2026-11-03, v0.29.0 feedback); built F1. Changes UX §5.
   window), or the touchpad's two-finger scroll turns out to arrive as wheel input (then tell it by device type).
 
 ## D-075 · 2026-11-03 · A flow's id follows its name, as a safe slug, when a rename is saved
-Status: accepted (user, 2026-11-03: "transparently convert the name to safe format"; design, not built: PLAN F4)
+Status: accepted (user, 2026-11-03: "transparently convert the name to safe format"; built in F4)
 - Decision: `Core/Model/FlowIds.Slug(name)`: diacritics removed (NFD, non-spacing marks dropped), letters and digits of
   any script lowercased (invariant), every other run of characters one `-`, trimmed of `-`, at most 40 characters (cut
   at a `-`), "flow" when nothing is left. `FlowIds.Unique(slug, taken)` adds `-2`, `-3`… (New flow uses it too). On
@@ -976,7 +976,7 @@ Status: accepted (user, 2026-11-03: "transparently convert the name to safe form
   last run (by id) going blank after a rename bothers them.
 
 ## D-076 · 2026-11-03 · Delete a flow from the Flows list, with Undo; off while another flow runs it
-Status: accepted (user, 2026-11-03: Undo bar, not a dialog; off until unused; design, not built: PLAN F4)
+Status: accepted (user, 2026-11-03: Undo bar, not a dialog; off until unused; built in F4)
 - Decision: the Flows card's context menu (and Delete on a focused card) has **Delete**. It removes the flow through
   `ConfigSession.Update` (saved after 300 ms; the engine reloads and frees its shortcut keys) and shows an InfoBar on the
   Flows page, #67 "Connect Technics was deleted." with **Undo**, which puts the flow back at its place with its id. The
