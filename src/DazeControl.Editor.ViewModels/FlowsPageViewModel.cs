@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DazeControl.Core.Model;
@@ -124,11 +123,94 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void NewFlow()
     {
+        _ = EndUndoAsync();
         var ids = _session.Current.Flows.Select(f => f.Id).ToHashSet(StringComparer.Ordinal);
-        var id = "new-flow";
-        for (var n = 2; ids.Contains(id); n++)
-            id = string.Create(CultureInfo.InvariantCulture, $"new-flow-{n}");
-        _session.Update(c => c with { Flows = [.. c.Flows, new Flow(id, "New flow", [])] });
+        _session.Update(c => c with { Flows = [.. c.Flows, new Flow(FlowIds.Unique("new-flow", ids), "New flow", [])] });
+    }
+
+    /// <summary>The flow Undo would put back, and where it was (D-076).</summary>
+    private (Flow Flow, int Index)? _deleted;
+
+    /// <summary>The Undo bar's text (#67); null when there's nothing to undo.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanUndoDelete))]
+    public partial string? DeletedText { get; private set; }
+
+    public bool CanUndoDelete => DeletedText is not null;
+
+    /// <summary>Why the flow can't be deleted now (#68), or null.</summary>
+    internal string? DeleteOffReason(string flowId)
+    {
+        var callers = FlowRefs.Callers(_session.Current, flowId).Select(f => f.Name).ToList();
+        return callers.Count switch
+        {
+            0 => null,
+            1 => $"{callers[0]} runs this flow. Remove that step first.",
+            _ => $"{string.Join(", ", callers[..^1])} and {callers[^1]} run this flow. Remove those steps first.",
+        };
+    }
+
+    /// <summary>The card's Delete (D-076): the flow goes now (autosaved), and the bar offers Undo.</summary>
+    public void Delete(string flowId)
+    {
+        if (!_session.CanEdit || DeleteOffReason(flowId) is not null)
+            return;
+        var index = _session.Current.Flows.ToList().FindIndex(f => f.Id == flowId);
+        if (index < 0)
+            return;
+        _ = EndUndoAsync();
+        var flow = _session.Current.Flows[index];
+        _session.Update(c => c with { Flows = [.. c.Flows.Where(f => f.Id != flowId)] });
+        _deleted = (flow, index);
+        DeletedText = $"{flow.Name} was deleted.";
+    }
+
+    /// <summary>Undo: the flow back at its place, with its id.</summary>
+    [RelayCommand]
+    private void UndoDelete()
+    {
+        if (_deleted is not { } deleted)
+            return;
+        _deleted = null;
+        DeletedText = null;
+        if (_session.Current.Flows.Any(f => f.Id == deleted.Flow.Id))
+            return; // the file got a flow with that id meanwhile
+        _session.Update(c =>
+        {
+            var flows = c.Flows.ToList();
+            flows.Insert(Math.Min(deleted.Index, flows.Count), deleted.Flow);
+            return c with { Flows = [.. flows] };
+        });
+    }
+
+    /// <summary>
+    /// The chance to undo ends (another Delete, New flow, opening a flow, leaving the page, closing the editor): only now
+    /// does the deleted flow's desktop shortcut go.
+    /// </summary>
+    public Task EndUndoAsync()
+    {
+        if (_deleted is not { } deleted)
+            return Task.CompletedTask;
+        _deleted = null;
+        DeletedText = null;
+        // Asked of the engine, not the cached list: a shortcut made by dctl or another editor counts too.
+        return !_session.Current.Flows.Any(f => f.Id == deleted.Flow.Id)
+            ? RemoveShortcutAsync(deleted.Flow.Id)
+            : Task.CompletedTask;
+    }
+
+    private async Task RemoveShortcutAsync(string flowId)
+    {
+        try
+        {
+            var error = await _desktop.RemoveAsync(flowId).ConfigureAwait(false);
+            if (error is not null)
+                _post(() => DesktopError = error);
+        }
+        catch (Exception e) when (e is IOException or OperationCanceledException)
+        {
+            // The engine went away: the shortcut stays and says its flow is gone when used (#25 family).
+        }
     }
 
     internal void SetEnabled(string flowId, bool enabled) =>
@@ -163,6 +245,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
                 Items.Move(Items.IndexOf(existing), i);
             }
             existing.Update(flow, _lastRuns.GetValueOrDefault(flow.Id), withErrors.GetValueOrDefault(flow.Id), _session.CanEdit);
+            existing.UpdateDelete(_session.CanEdit, DeleteOffReason(flow.Id));
             existing.UpdateRun(_engine.IsRunning, _liveRuns.ContainsValue(flow.Id));
         }
         IsEmpty = Items.Count == 0;
@@ -226,6 +309,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _ = EndUndoAsync();
         _session.PropertyChanged -= OnSessionChanged;
         _engine.EventReceived -= OnEngineEvent;
         _engine.StateChanged -= OnEngineStateChanged;
@@ -335,6 +419,23 @@ public sealed partial class FlowItemViewModel : ObservableObject
     {
         HasDesktopShortcut = hasShortcut;
         CanChangeDesktop = engineRunning;
+    }
+
+    /// <summary>The menu's Delete is on.</summary>
+    [ObservableProperty]
+    public partial bool CanDelete { get; private set; }
+
+    /// <summary>#68 under Delete while another flow runs this one; null otherwise.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDeleteOffReason))]
+    public partial string? DeleteOffReason { get; private set; }
+
+    public bool HasDeleteOffReason => DeleteOffReason is not null;
+
+    internal void UpdateDelete(bool canEdit, string? offReason)
+    {
+        DeleteOffReason = offReason;
+        CanDelete = canEdit && offReason is null;
     }
 
     /// <summary>False while the file is read-only for the editor.</summary>

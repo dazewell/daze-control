@@ -49,11 +49,21 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         _clipboard = clipboard ?? new CanvasClipboard();
         FlowId = flowId;
         _session.PropertyChanged += OnSessionChanged;
+        _session.FlowRenamed += OnFlowRenamed;
         _known = Flow;
         Sync();
     }
 
-    public string FlowId { get; }
+    /// <summary>Changes when a saved rename gives the flow a new id (D-075): the canvas stays open.</summary>
+    public string FlowId { get; private set; }
+
+    private void OnFlowRenamed(string oldId, string newId)
+    {
+        if (oldId != FlowId)
+            return;
+        FlowId = newId;
+        OnPropertyChanged(nameof(FlowId));
+    }
 
     /// <summary>Top-level pills and cards first, then card members, so members draw above their card.</summary>
     public ObservableCollection<CanvasNodeViewModel> Nodes { get; } = [];
@@ -206,14 +216,16 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         Sync();
     }
 
-    /// <summary>Zoom and scroll offsets (in zoomed pixels) that show the whole flow, never above 100 %.</summary>
-    public (double Zoom, double OffsetX, double OffsetY) FitView(double viewportWidth, double viewportHeight)
+    /// <summary>
+    /// The view that shows the whole flow, never above 100 %, centred in the pan room (D-074); still too big at the
+    /// smallest zoom, it shows where the flow starts.
+    /// </summary>
+    public CanvasView FitView(double viewportWidth, double viewportHeight)
     {
-        if (viewportWidth <= 0 || viewportHeight <= 0)
-            return (1, 0, 0);
+        if (viewportWidth <= 0 || viewportHeight <= 0 || ExtentWidth <= 0 || ExtentHeight <= 0)
+            return new CanvasView(0, 0, 1);
         var zoom = Math.Clamp(Math.Min(viewportWidth / ExtentWidth, viewportHeight / ExtentHeight), MinZoom, 1);
-        // Still too big at the smallest zoom: show where the flow starts (top left), not its middle.
-        return (zoom, 0, 0);
+        return CanvasViewport.Fit(zoom, ExtentWidth, ExtentHeight, viewportWidth, viewportHeight);
     }
 
     // ---- Selection (UX §5.2) ----
@@ -849,7 +861,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             {
                 Nodes.Move(Nodes.IndexOf(vm), i);
             }
-            vm.Update(nodes[box.Id], _session.Current.Library, problems.Contains(box.Id), "");
+            vm.Update(nodes[box.Id], _session.Current, problems.Contains(box.Id), "");
             vm.Place(box);
             titles[box.Id] = vm.Title;
         }
@@ -857,7 +869,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         {
             var waits = string.Join(", ", _arrangement.Edges.Where(e => e.To == vm.Id).Select(e => titles.GetValueOrDefault(e.From, e.From)));
             if (waits.Length > 0)
-                vm.Update(nodes[vm.Id], _session.Current.Library, problems.Contains(vm.Id), waits);
+                vm.Update(nodes[vm.Id], _session.Current, problems.Contains(vm.Id), waits);
         }
 
         var mayFail = flow.Nodes.Where(n => n.OnFailure == FailurePolicy.Ignore).Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
@@ -936,7 +948,11 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(CanEdit));
     }
 
-    public void Dispose() => _session.PropertyChanged -= OnSessionChanged;
+    public void Dispose()
+    {
+        _session.PropertyChanged -= OnSessionChanged;
+        _session.FlowRenamed -= OnFlowRenamed;
+    }
 }
 
 /// <summary>Something the canvas says beside node <paramref name="At"/> after an edit went through.</summary>

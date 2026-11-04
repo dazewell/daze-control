@@ -195,7 +195,8 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
             return false;
         var before = _saved;
         var wasDirty = _dirty;
-        _saved = WithFlow(_saved, flow);
+        var newId = RenamedId(flow);
+        _saved = newId is null ? WithFlow(_saved, flow) : Renamed(WithFlow(_saved, flow), flowId, newId);
         _dirty = true;
         _saveTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         Save(overwrite);
@@ -209,9 +210,32 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
             return false;
         }
         _drafts.Remove(flowId);
+        if (newId is not null)
+        {
+            // Before Current changes, so the open flow follows instead of finding itself gone.
+            FlowRenamed?.Invoke(flowId, newId);
+            Show(Renamed(Current, flowId, newId));
+        }
         OnPropertyChanged(nameof(Drafts));
         return true;
     }
+
+    /// <summary>A saved rename gave a flow a new id (old, new), raised before <see cref="Current"/> shows it (D-075).</summary>
+    public event Action<string, string>? FlowRenamed;
+
+    /// <summary>The id a flow saved under its draft's name gets; null when its id stays (D-075).</summary>
+    private string? RenamedId(Flow draft)
+    {
+        if (SavedFlow(draft.Id) is not { } saved || saved.Name == draft.Name)
+            return null;
+        var taken = Current.Flows.Where(f => f.Id != draft.Id).Select(f => f.Id).ToHashSet(StringComparer.Ordinal);
+        var id = FlowIds.Unique(FlowIds.Slug(draft.Name), taken);
+        return id == draft.Id ? null : id;
+    }
+
+    /// <summary>The flow <paramref name="oldId"/> as <paramref name="newId"/>, in its place, and every step that ran it.</summary>
+    private static Configuration Renamed(Configuration config, string oldId, string newId) =>
+        FlowRefs.Rename(config with { Flows = [.. config.Flows.Select(f => f.Id == oldId ? f with { Id = newId } : f)] }, oldId, newId);
 
     /// <summary>Cancel / Discard: the flow goes back to its saved version.</summary>
     public void DiscardDraft(string flowId)

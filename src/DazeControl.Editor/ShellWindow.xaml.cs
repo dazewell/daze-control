@@ -137,6 +137,14 @@ public sealed partial class ShellWindow : Window
     {
         if (_closeAnyway)
             return;
+        if (ViewModel.Flows.CanUndoDelete)
+        {
+            // The deleted flow's desktop shortcut goes with the Undo bar: let the engine remove it before the process ends.
+            args.Cancel = true;
+            await ViewModel.Flows.EndUndoAsync();
+            Close();
+            return;
+        }
         ViewModel.Session.Flush();
         if (!ViewModel.Session.HasUnsavedChanges)
             return;
@@ -236,6 +244,8 @@ public sealed partial class ShellWindow : Window
             SelectFlowsPane(); // stay in the editor
             return;
         }
+        if (page != EditorPage.Flows)
+            _ = ViewModel.Flows.EndUndoAsync(); // leaving the page ends the chance to undo a Delete (D-076)
         ViewModel.Page = page;
         ViewModel.CloseFlow(); // Flows in the pane always means the list
         FlowsPage.Visibility = Show(page == EditorPage.Flows);
@@ -319,6 +329,20 @@ public sealed partial class ShellWindow : Window
     {
         if (sender is FrameworkElement { Tag: string id })
             ViewModel.OpenFlow(id);
+    }
+
+    /// <summary>The card's context menu: Delete (D-076); the Undo bar shows.</summary>
+    private void OnFlowDeleteClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string id })
+            ViewModel.Flows.Delete(id);
+    }
+
+    /// <summary>Delete on a focused card: as the menu's Delete, which ignores it while it's off.</summary>
+    private void OnFlowCardDeleteRequested(object? sender, EventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string id })
+            ViewModel.Flows.Delete(id);
     }
 
     /// <summary>A click on Run, on or off, never opens the flow.</summary>

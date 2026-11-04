@@ -878,7 +878,7 @@ Status: accepted (M13 design; user, 2026-11-03)
 - Revisit if: users start flows by accident from the list (then confirm for flows without a pop-up).
 
 ## D-071 · 2026-11-03 · Shortcut keys: [ ] \ and the other punctuation keys, and number-pad digits (alone too)
-Status: accepted (design M13b, user 2026-11-03; not built)
+Status: accepted (design M13b, user 2026-11-03); built T13b.1
 - Decision: `Core/Input/Hotkey` takes, besides A–Z, 0–9 and F1–F24, the punctuation keys by virtual-key code with
   US names: `[` `]` `\` `;` `'` `,` `.` `/` `` ` `` `-` `=` (VK_OEM_4, 6, 5, 1, 7, COMMA, PERIOD, 2, 3, MINUS, PLUS),
   and the number pad's digits `Num0`–`Num9` (VK_NUMPAD0–9; "Numpad1" parses too, `Num1` is canonical). Win, Ctrl
@@ -917,7 +917,7 @@ Status: accepted (design M13b, item 5 of the user's 2026-11-03 request; not buil
 - Revisit if: a chord is held by an app that grabs it again whenever we let go (then keep ours during recording).
 
 ## D-073 · 2026-11-03 · "Taken" vs "not supported": the recorder says which, and names Windows when it's Windows
-Status: accepted (design M13b; not built)
+Status: accepted (design M13b); `HotkeyRejection` + `WindowsShortcuts` built T13b.1, the recorder text T13b.2, H5/H6 T13b.3
 - Decision: the recorder's `Rejected` event carries a reason. The inspector shows it under the box (UX §5.7 H1–H4):
   the key can't be a shortcut, a modifier is missing, Num Lock is off (a number-pad navigation key: `VirtualKey`
   End/Down/… with `KeyStatus.IsExtendedKey` false), or Shift with a Num key. A chord the engine can't register
@@ -932,14 +932,15 @@ Status: accepted (design M13b; not built)
 - Revisit if: the Windows list goes wrong after a Windows update (the generic "Another app…" is the safe fallback).
 
 ## D-074 · 2026-11-03 · The mouse wheel zooms the canvas at the pointer; a flow can always be moved
-Status: accepted (user, 2026-11-03, v0.29.0 feedback; design, not built: PLAN F1). Changes UX §5.2 Navigate.
+Status: accepted (user, 2026-11-03, v0.29.0 feedback); built F1. Changes UX §5.2 Navigate.
 - Decision: in `FlowCanvas`, a mouse wheel notch zooms (×1.1 per 120 delta, 50–200 %) around the point under the
   pointer, which stays put; Ctrl+wheel does the same; Shift+wheel still scrolls sideways. The scroll extent gets
   room to pan: the `ScrollViewer`'s content becomes a transparent wrapper Grid around `Host` whose padding is the
-  viewport size (in content DIP at the current zoom) less a 48-DIP strip, so right-drag, middle-drag and Space+drag
+  viewport size (in content DIP at the current zoom) less a 48-DIP strip and the layout's own 48-DIP margin, so right-drag, middle-drag and Space+drag
   move a flow that fits the window, at least 48 DIP of it stays on screen, and `Host`'s coordinates don't change.
   The wrapper covers the whole viewport, so its `PointerWheelChanged` handler (mouse only, marked handled) runs
-  before the `ScrollViewer` scrolls; a precision touchpad's two-finger scroll and pinch stay the `ScrollViewer`'s
+  before the `ScrollViewer` scrolls, and does Shift+wheel sideways itself (built: the WinUI 3 `ScrollViewer` scrolls it
+  vertically); a precision touchpad's two-finger scroll and pinch stay the `ScrollViewer`'s
   own (pan, zoom). Fit (Ctrl+0) and opening a flow centre it. Right-drag (D-069) is unchanged.
 - Why: right-drag works as built but moves a flow only along an axis with room to scroll (0.29.0 build: sideways
   only), which the user read as broken; they asked for wheel zoom, and for a flow that fits to be movable too
@@ -951,7 +952,7 @@ Status: accepted (user, 2026-11-03, v0.29.0 feedback; design, not built: PLAN F1
   window), or the touchpad's two-finger scroll turns out to arrive as wheel input (then tell it by device type).
 
 ## D-075 · 2026-11-03 · A flow's id follows its name, as a safe slug, when a rename is saved
-Status: accepted (user, 2026-11-03: "transparently convert the name to safe format"; design, not built: PLAN F4)
+Status: accepted (user, 2026-11-03: "transparently convert the name to safe format"; built in F4)
 - Decision: `Core/Model/FlowIds.Slug(name)`: diacritics removed (NFD, non-spacing marks dropped), letters and digits of
   any script lowercased (invariant), every other run of characters one `-`, trimmed of `-`, at most 40 characters (cut
   at a `-`), "flow" when nothing is left. `FlowIds.Unique(slug, taken)` adds `-2`, `-3`… (New flow uses it too). On
@@ -975,7 +976,7 @@ Status: accepted (user, 2026-11-03: "transparently convert the name to safe form
   last run (by id) going blank after a rename bothers them.
 
 ## D-076 · 2026-11-03 · Delete a flow from the Flows list, with Undo; off while another flow runs it
-Status: accepted (user, 2026-11-03: Undo bar, not a dialog; off until unused; design, not built: PLAN F4)
+Status: accepted (user, 2026-11-03: Undo bar, not a dialog; off until unused; built in F4)
 - Decision: the Flows card's context menu (and Delete on a focused card) has **Delete**. It removes the flow through
   `ConfigSession.Update` (saved after 300 ms; the engine reloads and frees its shortcut keys) and shows an InfoBar on the
   Flows page, #67 "Connect Technics was deleted." with **Undo**, which puts the flow back at its place with its id. The

@@ -26,7 +26,8 @@ What Daze Control does, stack-independent. Source: the 2026-10-31 plan §2. Stat
 - Validation: no cycles, refs exist, params match descriptors, cards hold ≥ 2 members, no edges into members.
   An invalid flow is disabled with its problems listed; every other flow keeps working.
 
-**F2 Triggers** — v1: global hotkey, tray item, CLI (`dctl run`), editor Run/Test, desktop shortcut per flow
+**F2 Triggers** — v1: global hotkey (Win/Ctrl/Alt plus a letter, number, F1–F24 or a key like `[` `]` `\`;
+number-pad Num0–Num9 with or without them, D-071), tray item, CLI (`dctl run`), editor Run/Test, desktop shortcut per flow
 (`DazeControl.exe --run <flow>`, starts the engine when needed, D-049). M12 (designed): controller buttons
 (`gamepad: [View+Menu]`, D-057) and a pick in a flow menu (D-054). Later: device events (BT
 connected, display change), schedule, session unlock/resume, app start.
@@ -42,7 +43,7 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
   `service.start`/`stop` (fails clearly without rights) · `wait` · `notify` (pop-up text) ·
   `flag.set`/`flag.check` (check fails when unmet → combine with `when: failure`) · `flow.run` (Run a flow, D-061):
   waits for the called flow by default (its result is the step's, one pop-up and one history record, loops refused
-  and stopped at 8 deep) or just starts it (`wait: false`) · M12 (designed): `menu.show` — a
+  and stopped at 8 deep) or just starts it (`wait: false`); the editor picks the flow by name · M12 (designed): `menu.show` — a
   no-focus menu of flows over every window, controller/keyboard/mouse, picking launches the flow (D-054, D-055).
 
 **F4 Library** — named, reusable resources referenced by steps: audio devices (match text + flow), Bluetooth
@@ -55,9 +56,9 @@ on every step, retries, run events stream, run history (last 100, persisted), dr
 **F6 Feedback** — run pop-up (no-activate, acrylic, flow name, progress, failure summary, position/duration
 settings, honours "Animation effects"); tray tooltip/glyph shows the last run's failure.
 
-**F7 Editor** — flows list (Run / Stop on each card, D-070), DAG canvas, inspector, library, settings, about; Save/Cancel for flows, autosave elsewhere (D-047); live pickers and Test
+**F7 Editor** — flows list (Run / Stop on each card, D-070; Delete with Undo, D-076; a renamed flow's id follows its name, D-075), DAG canvas, inspector, library, settings, about; Save/Cancel for flows, autosave elsewhere (D-047); live pickers and Test
 via the engine; suggestions and examples for every free-text value (screens, services, Android keys and inputs,
-flags, credentials, programs, script snippets; D-050, D-051); "Add to desktop" per flow (D-049); live run view and history timeline; undo/redo; long simple chains wrap onto rows and what follows starts a new line under them (D-060, D-066); right-drag pans the canvas (a still right click opens the menu); accessible outline view. Spec: §5.
+flags, credentials, programs, script snippets; D-050, D-051); "Add to desktop" per flow (D-049); live run view and history timeline; undo/redo; long simple chains wrap onto rows and what follows starts a new line under them (D-060, D-066); the mouse wheel zooms at the pointer and any flow can be moved (D-074); right-drag pans the canvas (a still right click opens the menu); accessible outline view. Spec: §5.
 
 **F8 CLI** — `dctl run <flow> [--wait] [--dry-run]`, `list`, `validate [file]`, `status`,
 `devices audio|bluetooth|displays|adb|services|credentials`, `capture-display-layout <name>`, `history [flow]`,

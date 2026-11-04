@@ -1,11 +1,11 @@
 # Plan
 
 ## Resume
-Current task: M13 fixes F1–F5 (PR #42 plan). F5 done (fix/m13-display-restore: source per screen, `SDC_TOPOLOGY_SUPPLIED` first, `DisplayCheck` after every write, live matrix passed). T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done
-Last green checkpoint: fc5bc3b wip(display): a source per screen, saved arrangement first, check after every write (F5, D-077)
-Next action: the M13 fixes F1–F5 in parallel (PLAN → M13 fixes; one session each: feat/m13-wheel-zoom, fix/m13-flow-run-picker, fix/m13-ctrl-s-hint, feat/m13-flow-delete-rename; F5 done); then T13.3 (feat/m13-nav-collapse: `EditorSettingsStore` tests first), T13.9 (feat/m13-flow-inputs) and T13b.1 (feat/m13b-hotkey-keys)
+Current task: M13 fixes (PR #42 plan): F1–F5 from the user's v0.29.0 feedback, D-074..D-077, X-008, X-009. F1 done (feat/m13-wheel-zoom, PR #45; 0.30.0), F2 done (fix/m13-flow-run-picker; 0.29.2), F3 done (fix/m13-ctrl-s-hint), F4 done (feat/m13-flow-delete-rename, PR #46: Delete with Undo, ids follow a saved rename; 0.31.0), F5 done (fix/m13-display-restore: a source per screen, `SDC_TOPOLOGY_SUPPLIED` first, `DisplayCheck` after every write; live matrix passed; 0.32.1). T13.1, T13.2, T13.4, T13.5, T13.7, T13.8 done. T13b.1 done (feat/m13b-hotkey-keys: punctuation and Num0–Num9 keys, `HotkeyRejection`, `WindowsShortcuts`)
+Last green checkpoint: 9d4c5d0 fix(display): match screens by monitor and their own target id; live matrix passed (F5, D-077)
+Next action: T13.3 (feat/m13-nav-collapse: `EditorSettingsStore` tests first), T13.9 (feat/m13-flow-inputs); T13b.2 (feat/m13b-recorder: `HotkeyRecorder.Rejected` carries a `HotkeyRejection`) and T13b.3 (feat/m13b-engine-hotkeys) in either order
 Tree state: builds, all tests green · Uncommitted: none
-Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. Live display tests: `scripts/display-check.ps1` (read-only without `-Go`); with `-Go` it changes the user's screens: ask the user first every time (it saves, restores, restarts the installed engine). This PC's installed app was 0.22.0 on 2026-11-03 (0.23.0 downloaded, applies on the next engine start): check `sq.version` before chasing a "missing" feature. Right-drag (D-069) works as built; F1 adds wheel zoom and pan room. T13.6 must key per-flow layouts by id and follow F4's rename (D-075). T13.10 builds on F2's flow picker. The user's live Connect Technics flow: `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails (told in T13.7; "Skip what depends on it" fixes it). Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers: `flow.run` `inputs` param (T13.9); #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config; Runs-page nested lanes; measure.ps1 can't run while the installed engine holds the pipe.
+Notes for next agent: release.yml is tag-only (D-043): never push a v-tag without the user. Live display tests: `scripts/display-check.ps1` (read-only without `-Go`); `-Go` changes the user's screens: ask the user first every time (it saves, restores, restarts the installed engine). Open after F5: switches right after leaving Duplicate can be undone by Windows (ARCHITECTURE → Open questions). This PC's installed app was 0.22.0 on 2026-11-03 (0.23.0 downloaded, applies on the next engine start): check `sq.version` before chasing a "missing" feature. Right-drag (D-069) works as built; F1 added wheel zoom and pan room (`CanvasViewport`). T13.6 must key per-flow layouts by id and follow F4's rename (D-075). T13.10 builds on F2's flow picker (`InspectorViewModel.FlowOptions`; `ParamFieldViewModel.IsFlowRef` reuses the device ComboBox). The user's live Connect Technics flow: `bt` on "Keep going" with a fallback, so when Technics fails `out` still runs and fails (told in T13.7; "Skip what depends on it" fixes it). Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. T13.8 leftovers: `flow.run` `inputs` param (T13.9); #58 (ignored start) is a plain success with no text; Test this step runs calls against the engine's config; Runs-page nested lanes; measure.ps1 can't run while the installed engine holds the pipe. M13b: Win+[ and Win+] are held by the user's running `SwitchDisplay.ahk` (leave it running); to check engine registration, stop the installed engine, start a test one with a scratch config path as its argument, probe with an outside `RegisterHotKey` (1409 = held), then restart the installed one.
 ---
 
 ## Workflow (usage-cap-proof, D-018)
@@ -30,7 +30,7 @@ and a new script. Docs: each adds its own lines (UX, ARCHITECTURE, FEATURES, PLA
 conflict. Version: `fix` PRs bump the patch, `feat` PRs (F1, F4) the minor, against `main` at merge time (main's
 number + 1).
 
-- [ ] F1 **Wheel zoom on the canvas; a flow can always be moved** (feat/m13-wheel-zoom, D-074). Not a bug: right-drag
+- [x] F1 **Wheel zoom on the canvas; a flow can always be moved** (feat/m13-wheel-zoom, D-074, PR #45; 0.30.0). Not a bug: right-drag
   (D-069) pans only along an axis with room to scroll, so a flow that fits the window doesn't move (seen on the 0.29.0
   build); the user asked for wheel zoom and for pan room. Today the wheel scrolls, Shift+wheel scrolls sideways and
   Ctrl+wheel/pinch zoom 50–200 % through the `ScrollViewer`; Fit, 100 % and Zoom in/out in the CommandBar use
@@ -45,7 +45,7 @@ number + 1).
   viewport); running editor on a scratch copy of the user's config: the wheel zooms at the pointer, the zoom label
   and buttons agree, Shift+wheel scrolls sideways, right-drag moves the 2-step "New flow" both ways and stops with
   48 DIP showing, Ctrl+0 brings it back, a still right click still opens the menus; screenshots.
-- [ ] F2 **"Run a flow": label under Flows, and a working flow picker** (fix/m13-flow-run-picker). Cause of the
+- [x] F2 **"Run a flow": label under Flows, and a working flow picker** (fix/m13-flow-run-picker; 0.29.2). Cause of the
   label: `CanvasNodeViewModel.Area` maps every catalog area but `"flow"`, so the Steps panel heading, the inspector's
   "flow › Run a flow" and the icon picker show the raw lowercase key. Cause of the picker: `ProviderCatalog` gives
   `flow` `Suggest = Config(Flows)`, but `InspectorViewModel.Suggest` has cases only for Devices, Flags and
@@ -57,14 +57,16 @@ number + 1).
   `Editor/Inspector/InspectorPane.xaml(.cs)` (its template), `Editor.ViewModels.Tests` (+ a test that every catalog
   area has a title starting with a capital). Done when: those tests; running editor: Steps panel shows "Flows › Run a
   flow", picking "Connect Technics" writes `flow: connect-technics` and clears #51, Dry run lists it; screenshots.
-- [ ] F3 **No stray "Ctrl+S" tip** (fix/m13-ctrl-s-hint, X-008). Cause: Ctrl+S is a `KeyboardAccelerator` on the
+  Built (0.29.2): as planned, plus the canvas card's summary shows the called flow's name (it showed the id) and an
+  empty Flow says "Choose a flow." (it said "Choose a device."). No "Running" caption: the inspector doesn't know live runs.
+- [x] F3 **No stray "Ctrl+S" tip** (fix/m13-ctrl-s-hint, X-008; 0.29.1). Cause: Ctrl+S is a `KeyboardAccelerator` on the
   page-wide `FlowEditorPage` Grid with the default placement, so WinUI shows "Ctrl+S" as that Grid's tooltip wherever
   the pointer rests without another tooltip (seen at once after opening a flow on 0.29.0). Files:
   `Editor/ShellWindow.xaml` (`KeyboardAcceleratorPlacementMode="Hidden"` on `FlowEditorPage`). Done when: running
   editor, the user's steps (double-click the canvas, Esc the search, click elsewhere, wait 5 s) and resting over the
   palette, canvas and inspector show no tip; Save's own tooltip still says Ctrl+S; Ctrl+S still saves with Save off
   (a text box not committed yet); screenshot.
-- [ ] F4 **Delete a flow with Undo; the id follows a saved rename** (feat/m13-flow-delete-rename, D-075, D-076). Cause:
+- [x] F4 **Delete a flow with Undo; the id follows a saved rename** (feat/m13-flow-delete-rename, D-075, D-076). Cause:
   the Flows list has no Delete (only Open / Run / desktop item), and the id is set once (`new-flow`, `new-flow-2`) and
   never follows the name. Files: new `Core/Model/FlowIds.cs` (`Slug`, `Unique`) and `Core/Model/FlowRefs.cs`
   (`Callers`, `Rename`) with `Core.Tests`; `Editor.ViewModels/Config/ConfigSession.cs` (`SaveDraft` renames when the
@@ -78,7 +80,7 @@ number + 1).
   `morning`, a caller's step follows, its desktop shortcut still runs it, the engine log names `morning`; Delete then
   Undo restores it with its hotkey working; screenshots.
 
-- [x] F5 **Display steps do what they say, or fail** (fix/m13-display-restore, PR: see branch; live matrix passed 2026-11-03 21:10 with the user's OK, screens restored; open: switches undone after Duplicate, ARCHITECTURE → Open questions; D-077, X-009). Live test on the user's
+- [x] F5 **Display steps do what they say, or fail** (fix/m13-display-restore, 0.32.1; live matrix passed 2026-11-03 21:10 with the user's OK, screens restored; open: switches undone after Duplicate, ARCHITECTURE → Open questions; D-077, X-009). Live test on the user's
   PC (2026-11-03, laptop panel INT-0 + DELL on HDMI-0; log and scripts in the coordinator's notes folder,
   `f5-display/`): "Project" (`display.topology`) is right every time, and "Restore screen layout" is right from a
   normal state. Three failures, all in `CcdDisplays.UseOnly` and `CcdLayout.Apply`:
@@ -194,14 +196,16 @@ no listener, so nothing happened. Win+[ and Win+] are also held by `C:\Projects\
 still running. A failed chord was retried only on the next reload, and recording the same chord again doesn't
 reload. The engine's own chords never reach the recorder. Order: T13b.1 first, then T13b.2 and T13b.3 in either
 order (they touch different files). Can run alongside M13 (no shared files except the docs).
-- [ ] T13b.1 **Model.** `Core/Input/Hotkey.cs` (names, `TryCreate`: punctuation VKs, Num0–Num9 alone, Shift+Num
+- [x] T13b.1 **Model.** `Core/Input/Hotkey.cs` (names, `TryCreate`: punctuation VKs, Num0–Num9 alone, Shift+Num
   refused; `ToString`; `TryParse` accepts "Numpad1"), a `Rejection` reason enum for the recorder, the new
   `Core/Input/WindowsShortcuts.cs` (Windows 11's own Win+key list), and the `ConfigValidator` message ("use Win,
   Ctrl or Alt plus a letter, number, F1–F24 or a key like [, or a number pad key like Num1"). Tests:
   `Core.Tests` HotkeyTests (parse/format every new key, both directions; `Win+\` and `Win+[` YAML round trip
   through `ConfigYaml`; letters alone still refused). Branch `feat/m13b-hotkey-keys`. Done when: tests green,
   0 AOT/trim warnings, the engine registers `Win+\`, `Ctrl+Num1` and `Num5` from a hand-written config.yaml
-  (manual check on the dev PC, with the shortcuts removed afterwards).
+  (manual check on the dev PC, with the shortcuts removed afterwards). Done (feat/m13b-hotkey-keys): the
+  reason enum is `HotkeyRejection` (`Hotkey.Check` never returns `NumLockOff`: the recorder sets it); manual check
+  2026-11-03 passed (an outside `RegisterHotKey` got 1409 for all three while the test engine ran, free after).
 - [ ] T13b.2 **Recorder.** `Editor/Inspector/HotkeyRecorder.xaml.cs` (`Rejected` carries the reason; Num Lock off =
   a pad navigation key with `IsExtendedKey` false → H3; modifiers let go with no key → H7),
   `Editor.ViewModels/Inspector/InspectorViewModel.cs` + the inspector XAML (the reason under the box, the H8 tip

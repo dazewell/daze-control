@@ -26,6 +26,9 @@ internal sealed partial class FlowCard : ContentControl
 
     internal void Invoke() => Invoked?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Delete on the focused card (D-076).</summary>
+    public event EventHandler? DeleteRequested;
+
     protected override void OnKeyDown(KeyRoutedEventArgs e)
     {
         // Only when the card itself has focus: Space on the switch or Enter on Run belong to them.
@@ -33,6 +36,12 @@ internal sealed partial class FlowCard : ContentControl
         {
             e.Handled = true;
             Invoke();
+            return;
+        }
+        if (ReferenceEquals(e.OriginalSource, this) && e.Key == VirtualKey.Delete)
+        {
+            e.Handled = true;
+            DeleteRequested?.Invoke(this, EventArgs.Empty);
             return;
         }
         base.OnKeyDown(e);

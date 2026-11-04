@@ -35,6 +35,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         Library = new LibraryPage.LibraryPageViewModel(session, engine, post);
         Runs = new Runs.RunsPageViewModel(session, engine, post);
         Library.FlowRequested += OnLibraryFlowRequested;
+        Session.FlowRenamed += OnFlowRenamed;
         _engine.StateChanged += OnEngineStateChanged;
         EngineRunning = engine.IsRunning;
     }
@@ -61,6 +62,9 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         if (Editor?.FlowId == flowId)
             Page = EditorPage.Flows;
     }
+
+    /// <summary>A saved rename (D-075): the open flow follows by itself; its desktop shortcut moves once the engine has it.</summary>
+    private void OnFlowRenamed(string oldId, string newId) => _ = Desktop.MoveAsync(oldId, newId);
 
     /// <summary>"Open in editor" on the Runs page: the flow, with that run's states on the canvas.</summary>
     public void OpenRun(Core.Runs.RunRecord run)
@@ -92,6 +96,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     {
         if (Editor?.FlowId == flowId)
             return;
+        _ = Flows.EndUndoAsync(); // opening a flow ends the chance to undo a Delete (D-076)
         CloseFlow();
         if (!Session.Current.Flows.Any(f => f.Id == flowId))
             return;
@@ -141,6 +146,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     {
         _engine.StateChanged -= OnEngineStateChanged;
         Library.FlowRequested -= OnLibraryFlowRequested;
+        Session.FlowRenamed -= OnFlowRenamed;
         Run?.Dispose();
         Inspector?.Dispose();
         Editor?.Dispose();

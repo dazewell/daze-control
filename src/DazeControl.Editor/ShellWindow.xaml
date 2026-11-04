@@ -126,6 +126,13 @@
                                          IsOpen="{x:Bind ViewModel.Flows.HasDesktopError, Mode=OneWay}" IsClosable="False" />
                                 <InfoBar Severity="Error" Title="Couldn't run it" Message="{x:Bind ViewModel.Flows.RunError, Mode=OneWay}"
                                          IsOpen="{x:Bind ViewModel.Flows.HasRunError, Mode=OneWay}" IsClosable="False" />
+                                <!-- #67 (D-076): open until another Delete, New flow, opening a flow, leaving the page or closing. -->
+                                <InfoBar x:Name="DeletedBar" Severity="Informational" Message="{x:Bind ViewModel.Flows.DeletedText, Mode=OneWay}"
+                                         IsOpen="{x:Bind ViewModel.Flows.CanUndoDelete, Mode=OneWay}" IsClosable="False">
+                                    <InfoBar.ActionButton>
+                                        <Button Content="Undo" Command="{x:Bind ViewModel.Flows.UndoDeleteCommand}" />
+                                    </InfoBar.ActionButton>
+                                </InfoBar>
                                 <!-- Local: every card is a Tab stop (a repeater is one stop by default). -->
                                 <ItemsRepeater ItemsSource="{x:Bind ViewModel.Flows.Items}" TabFocusNavigation="Local">
                                     <ItemsRepeater.Layout>
@@ -134,7 +141,7 @@
                                     <ItemsRepeater.ItemTemplate>
                                         <DataTemplate x:DataType="vm:FlowItemViewModel">
                                             <!-- A click anywhere but the switch and Run opens the flow; so do Enter and Space on the card (D-070). -->
-                                            <local:FlowCard Tag="{x:Bind Id}" Invoked="OnFlowCardInvoked" CornerRadius="{ThemeResource OverlayCornerRadius}"
+                                            <local:FlowCard Tag="{x:Bind Id}" Invoked="OnFlowCardInvoked" DeleteRequested="OnFlowCardDeleteRequested" CornerRadius="{ThemeResource OverlayCornerRadius}"
                                                                 AutomationProperties.Name="{x:Bind OpenName, Mode=OneWay}">
                                                     <local:FlowCard.ContextFlyout>
                                                         <MenuFlyout>
@@ -155,6 +162,16 @@
                                                                     <FontIcon Glyph="&#xE8A7;" />
                                                                 </MenuFlyoutItem.Icon>
                                                             </MenuFlyoutItem>
+                                                            <MenuFlyoutSeparator />
+                                                            <MenuFlyoutItem Text="Delete" Tag="{x:Bind Id}" Click="OnFlowDeleteClick"
+                                                                            IsEnabled="{x:Bind CanDelete, Mode=OneWay}">
+                                                                <MenuFlyoutItem.Icon>
+                                                                    <FontIcon Glyph="&#xE74D;" />
+                                                                </MenuFlyoutItem.Icon>
+                                                            </MenuFlyoutItem>
+                                                            <!-- #68: why Delete is off, as a greyed line under it. -->
+                                                            <MenuFlyoutItem Text="{x:Bind DeleteOffReason, Mode=OneWay}" IsEnabled="False"
+                                                                            Visibility="{x:Bind HasDeleteOffReason, Mode=OneWay}" />
                                                         </MenuFlyout>
                                                     </local:FlowCard.ContextFlyout>
                                                 <Grid Style="{StaticResource SettingsCard}" Tag="{x:Bind Id}" Tapped="OnFlowCardTapped"
@@ -358,7 +375,8 @@
                 </Grid>
 
                 <!-- Flow editor (UX §5.1): Flows › name, commands, palette, canvas or outline. The inspector comes with M8. -->
-                <Grid x:Name="FlowEditorPage" Grid.Row="1" Visibility="Collapsed">
+                <!-- Hidden: with Auto, WinUI shows the accelerator's keys as a tooltip of the whole page (X-008). -->
+                <Grid x:Name="FlowEditorPage" Grid.Row="1" Visibility="Collapsed" KeyboardAcceleratorPlacementMode="Hidden">
                     <Grid.KeyboardAccelerators>
                         <!-- Here, not on the Save button: it must also work while Save is still off (a text box not committed yet). -->
                         <KeyboardAccelerator Modifiers="Control" Key="S" Invoked="OnSaveAccelerator" />

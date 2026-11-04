@@ -194,8 +194,9 @@ given on the command line as the Run value's argument.
 - `Runtime/Triggers/HotkeyTable`: chord → flow from `RunnableFlows`, applied as a diff on each reload (unchanged
   chords stay registered), first flow wins a chord, a chord that fails (another app) fails alone and is retried
   on the next reload; Pause unregisters all (not persisted). Failures → `status` ("Alt+Z: Another app uses…").
-  M13b (designed, D-071..D-073): keys add punctuation (VK_OEM_*, US names) and Num0–Num9 (alone allowed, no
-  Shift, Num Lock on); `record-hotkey` pauses all chords while the editor records; failures are retried when
+  Keys (`Core/Input/Hotkey`, T13b.1, D-071): A–Z, 0–9, F1–F24, punctuation (VK_OEM_*, US names in YAML) and
+  Num0–Num9 (alone allowed, no Shift, Num Lock on); `Hotkey.Check` → `HotkeyRejection` for the recorder;
+  `Core/Input/WindowsShortcuts` lists Windows 11's own Win chords (H5 vs H6, D-073). M13b still designed: `record-hotkey` pauses all chords while the editor records; failures are retried when
   recording ends, on Resume and when the tray menu opens. Still `RegisterHotKey` only: no keyboard hook.
 - `Runtime/Tray/TrayMenu`: the menu as data (UX §5.6), rendered by `Engine/Shell/TrayIcon` each time it opens
   (left or right click), dark/light like the taskbar (uxtheme #135/#136). Icon drawn in code by
@@ -283,6 +284,14 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   (`EdgeRoute.WrapLaneY` set on a row break and on the edge from a block's last box into the next line). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
   and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
   edges batched by style, D-037) and maps pointer/keys to VM calls; zoom/scroll is a `ScrollViewer` (50–200 %).
+  Wheel zoom and pan room (D-074): the `ScrollViewer`'s content is a transparent `Wrapper` Grid around `Host`, padded
+  per side by viewport − 48 DIP (screen) less the layout's 48-DIP margin, in content DIP at the current zoom, so any
+  flow can be moved and `Host`'s coordinates never change. `Canvas/CanvasViewport` (pure, tested) holds the maths:
+  pad, offsets that keep a point still across a zoom (the padding changes with it), Fit centred. `Wrapper`'s
+  `PointerWheelChanged` (mouse only, handled) zooms at the pointer and does Shift+wheel sideways itself (the WinUI 3
+  `ScrollViewer` scrolls it vertically); touchpad gestures stay the `ScrollViewer`'s, re-padded on
+  `DirectManipulationCompleted`. A re-pad inside a layout pass clamps `ChangeView` to the old extent, so the canvas
+  asks again at low priority once layout is done.
   Right-drag pan (D-069): `Canvas/RightDragPan` (pure, tested) arms on a mouse right press, pans once the pointer
   leaves the system drag rectangle (`GetSystemMetricsForDpi(SM_CX/CYDRAG)` at the XAML root's DPI, in DIP), and
   swallows the one `RightTapped` after a pan. The canvas captures only once panning, so a still click's `RightTapped`
@@ -314,6 +323,11 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   M11 (D-050): `ParamSpec.Suggest`/`Examples` add an editable ComboBox (Text), a checklist or ordered token list
   (TextList) and an "Examples" menu (MultilineText/TextMap); `Devices(kind)` sources share `LibraryDevices`' pipe cache,
   `Config(kind)` sources read `ConfigSession.Current` (the draft). Bluetooth devices without audio are shown disabled.
+  A param with `RefersTo = Flow` (`flow.run`'s `flow`, F2) is a device-style picker, not an editable box:
+  `InspectorViewModel.FlowOptions` lists the other flows by name and glyph ("Turned off", "Needs fixing"), stores the
+  id, keeps an unknown id as its own row ("Isn't there anymore"), and #69 shows when there's none; the canvas card's
+  summary shows the called flow's name. A valid reference never shows its id (ids are trimmed as the validator
+  does); only a target that's gone shows the id it names, so the step doesn't change by itself.
 - Library page (`LibraryPage/LibraryPageViewModel`, view `Library/LibraryView`, a Pivot): Audio, Bluetooth, Displays,
   Android from `library:` plus Programs (the `process.run` paths the flows use). Cards show live state (pipe
   `devices`, refreshed when the page opens or the engine starts), "Used by n flows" (flows with a step whose
@@ -398,11 +412,8 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   the Layout menu's `LayoutOptions` (D-067);
   `EditorSettingsStore` / `editor.json` (D-068). Each task rewrites the
   section it changes. Fallback outcomes (D-065) are built (T13.7: Config, Runtime).
-- Designed, not built (PLAN → M13 fixes, v0.29.0 feedback): wheel zoom at the pointer and pan room in a wrapper
-  around `Host` (D-074, F1); the flow picker for `ParamSuggest.Flows` (F2: today `InspectorViewModel.Suggest` has no
-  case for it, so the box is empty and a typed name isn't an id) and the `flow` area's title; Ctrl+S's accelerator
-  tooltip hidden (X-008, F3); `Core/Model/FlowIds` (slug, unique) and `FlowRefs` (callers, rename) behind flow
-  delete with Undo and the id following a saved rename (D-075, D-076, F4). Flow ids are keys in: other flows'
+- Designed, not built (PLAN → M13 fixes, v0.29.0 feedback): Ctrl+S's accelerator
+  tooltip hidden (X-008, F3). Flow ids are keys in: other flows'
   `flow.run` (and M12 `menu.show`), history and logs (never rewritten), desktop .lnk args and file names (D-049),
   `dctl run`, the engine's per-id launcher slots, and T13.6's per-flow layouts in `editor.json`.
 - Display writes (F5, D-077, X-009): `DisplayCheck` (pure, `Providers/Display`) gives each screen its own source per
@@ -411,6 +422,13 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   arrangement) and falls back to `USE_SUPPLIED | ALLOW_CHANGES | SAVE_TO_DATABASE`; `UseOnly` and, on error 87 from
   validation, `CcdLayout.Apply` go through it. `display.topology` is unchanged. Live matrix: `scripts/display-check.ps1`
   (read-only without `-Go`; with it, saves, runs, restores, restarts the installed engine) — only with the user's OK.
+- Flow delete and rename (F4, D-075, D-076): `Core/Model/FlowIds` (slug, unique; New flow uses it) and `FlowRefs`
+  (callers, rename of every `ConfigRef.Flow` param). `ConfigSession.SaveDraft` gives a renamed flow
+  `Unique(Slug(name))` in its place, rewrites callers in the file and in drafts, and raises `FlowRenamed` before
+  `Current` changes, so `FlowCanvasViewModel.FlowId` follows and the canvas stays open. `DesktopShortcutStore.MoveAsync`
+  re-creates the old id's shortcut for the new one on the engine's `configReloaded` (create is refused until it has
+  loaded the id), then removes the old one. `FlowsPageViewModel.Delete` / `UndoDelete` / `EndUndoAsync`: the removed
+  flow and its index wait for Undo; the shortcut goes only when the bar ends (closing the editor waits for it).
 
 - Library leftovers: editing an Android device's inputs and an audio match in place; renaming audio and Bluetooth keys
   (their cards show the device's name, not the key, D-046).
