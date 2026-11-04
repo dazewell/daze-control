@@ -82,8 +82,9 @@ $start | Set-Content "$Out\before.txt"
 
 $ErrorActionPreference = 'Continue'
 & pwsh -NoProfile -File "$PSScriptRoot\stop.ps1"
-$dev = Start-Process $engine -ArgumentList "`"$Config`"" -PassThru
+$dev = $null
 try {
+    $dev = Start-Process $engine -ArgumentList "`"$Config`"" -PassThru
     Start-Sleep 4
     foreach ($f in $Flows) {
         $result = & $dctl run $f --wait 2>&1 | Select-Object -Last 1
@@ -102,7 +103,7 @@ finally {
     }
     "{0,-12} {1}" -f 'restored', $now
     if (-not $restored) { Write-Host "SCREENS NOT RESTORED. Saved: $Out\before.bin / before.txt" -ForegroundColor Red }
-    Stop-Process -Id $dev.Id -Force -ErrorAction SilentlyContinue
+    if ($dev) { Stop-Process -Id $dev.Id -Force -ErrorAction SilentlyContinue }
     if (Test-Path $installed) { Start-Process $installed | Out-Null; Start-Sleep 2 }
     "engines: " + ((Get-CimInstance Win32_Process -Filter "Name='DazeControl.exe'").ExecutablePath -join ', ')
 }
