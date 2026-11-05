@@ -698,6 +698,9 @@ Status: accepted (M12 design)
 - Why not firing on press: `View+Menu` would fire inside `View+Menu+A`, and held buttons would leak into the menu.
   Why not a "hold one button" trigger: games hold buttons all the time. Why not the editor reading the pad (WGI):
   a second backend that can see pads the engine can't.
+- Steam (S1, user 2026-11-04): with Steam running, its desktop layout turns `View+Menu` on an Xbox pad into Alt+Tab,
+  so the chord fires and the task switcher opens too. The user keeps `View+Menu` as the default (template, examples);
+  the README tells Steam users to unbind it in Steam's desktop layout (T12.10, DESIGN §4.6).
 - Revisit if: users want long-press triggers (then `Hold View` with a ≥ 1 s threshold).
 
 ## D-058 · 2026-11-03 · "Run together" on linked steps drops the links between them instead of refusing

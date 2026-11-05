@@ -266,7 +266,8 @@ fade 100 ms. Pick: the focused row flashes once (100 ms) before the fade. Animat
 ### 4.6 Known limits (say so in README)
 Games still see controller presses while the menu is open; the menu shows only over borderless or windowed games,
 not over a game in its own full-screen mode (set the game to borderless); keys another
-app registered as global shortcuts don't reach the menu; Narrator hears announcements, not a focusable list (T12.9).
+app registered as global shortcuts don't reach the menu; Narrator hears announcements, not a focusable list (T12.9);
+with Steam running, Steam turns View+Menu into Alt+Tab, so unbind that in Steam's desktop layout (D-057).
 
 ## 5. Spikes (throwaway, `spikes/`, results into D-055/D-056 and here)
 - **S1 Controller input in AOT (T12.1).** A console AOT probe with three readers: GameInput (callbacks, focus
@@ -285,7 +286,7 @@ app registered as global shortcuts don't reach the menu; Narrator hears announce
   (d) every button read with Steam's window in front, Steam on and off; Raw Input showed the pad sending about 500
   reports/s nonstop (D-056's "why not HID" confirmed). (g) Xbox pad: Steam injects nothing for single buttons, but
   **View+Menu becomes Alt+Tab** (Steam on: injected Alt, VK_GAMEPAD_VIEW/MENU, Tab; the task switcher opens). Steam
-  off: View+Menu gives one injected VK 0x07, nothing else. See §6 for the default chord.
+  off: View+Menu gives one injected VK 0x07, nothing else. The default stays `View+Menu` (user, D-057).
   (g) The Steam Controller never shows up as an XInput or GameInput pad. With Steam on, Steam injects keys
   (`LLKHF_INJECTED`, no device): A Enter, B Esc, X Space, Y nothing, D-pad arrows, View+Menu Tab+Esc, right pad
   injected mouse moves. With Steam off, the puck's own HID keyboard/mouse (VID_28DE PID_1304) sends the same keys
@@ -332,6 +333,3 @@ app registered as global shortcuts don't reach the menu; Narrator hears announce
   only). Show it if cheap; not a goal.
 - Reopening the parent menu on B in a submenu (needs the "opened from" chain in the trigger). v1: B closes.
 - A per-flow "show in menus as" label. v1: the flow's name.
-- The default chord (T12.8 template, examples): with Steam running, Steam's desktop layout turns `View+Menu` into
-  Alt+Tab on the Xbox pad (S1), so the chord fires and the task switcher opens with it. Pick a default Steam doesn't
-  bind, or tell users to unbind it in Steam; ask the user.
