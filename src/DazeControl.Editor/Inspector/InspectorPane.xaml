@@ -422,52 +422,6 @@
                 </ItemsControl>
                 <HyperlinkButton Content="Add shortcut" Command="{x:Bind ViewModel.AddShortcutCommand, Mode=OneWay}" Padding="0,4" />
 
-                <!-- DESIGN 2.4, 3.7: controller chords; the recorder asks the engine, so what is recorded is what it sees. -->
-                <TextBlock Text="Controller buttons" Style="{StaticResource InspectorSection}" />
-                <ItemsControl ItemsSource="{x:Bind ViewModel.ControllerButtons, Mode=OneWay}" IsTabStop="False">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Spacing="4" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vmi:ControllerButtonsViewModel">
-                            <StackPanel>
-                                <Grid ColumnSpacing="8" Padding="10,2,2,2" CornerRadius="{StaticResource ControlCornerRadius}"
-                                      Background="{ThemeResource ControlFillColorSecondaryBrush}" AutomationProperties.Name="{x:Bind AutomationName}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{x:Bind Text}" VerticalAlignment="Center" />
-                                    <Button Grid.Column="1" Tag="{x:Bind}" Click="OnRemoveChord" Padding="6" Background="Transparent" BorderThickness="0"
-                                            AutomationProperties.Name="{x:Bind RemoveName}">
-                                        <FontIcon Glyph="&#xE711;" FontSize="12" />
-                                    </Button>
-                                </Grid>
-                                <TextBlock Text="{x:Bind Problem}" Visibility="{x:Bind HasProblem}" TextWrapping="Wrap" Style="{StaticResource FieldError}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <Button Content="Add buttons" Padding="0,4" Background="Transparent" BorderThickness="0"
-                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.Name="Add controller buttons">
-                    <Button.Flyout>
-                        <Flyout Opened="OnRecorderOpened" Closed="OnRecorderClosed">
-                            <StackPanel Spacing="8" MaxWidth="280">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <ProgressRing IsActive="{x:Bind ViewModel.Recorder.IsListening, Mode=OneWay}" Width="20" Height="20"
-                                                  Visibility="{x:Bind ViewModel.Recorder.IsListening, Mode=OneWay}" />
-                                    <TextBlock Text="{x:Bind ViewModel.Recorder.Message, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="240"
-                                               AutomationProperties.Name="{x:Bind ViewModel.Recorder.Message, Mode=OneWay}"
-                                               AutomationProperties.LiveSetting="Polite" />
-                                </StackPanel>
-                                <Button Content="Try again" Click="OnRecorderRetry" Visibility="{x:Bind ViewModel.Recorder.IsProblem, Mode=OneWay}" />
-                            </StackPanel>
-                        </Flyout>
-                    </Button.Flyout>
-                </Button>
-
                 <!-- D-049, UX §5.4: "Shortcut" alone is a hotkey; the .lnk is always the desktop shortcut. -->
                 <TextBlock Text="Desktop shortcut" Style="{StaticResource InspectorSection}" />
                 <TextBlock Text="{x:Bind ViewModel.DesktopStatus, Mode=OneWay}" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}" />

@@ -46,13 +46,8 @@ public static partial class ConfigValidator
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
         var hotkeyOwners = new Dictionary<Hotkey, string>();
         var rejected = FlowsWithErrors(problems.Concat(earlier ?? []));
-        var chordOwners = new Dictionary<GamepadChord, string>();
         foreach (var checker in checkers)
             checker.ClaimHotkeys(hotkeyOwners, rejected);
-        // Chords after hotkeys, so a flow that lost a hotkey clash claims none.
-        rejected = FlowsWithErrors(problems.Concat(earlier ?? []));
-        foreach (var checker in checkers)
-            checker.ClaimChords(chordOwners, rejected);
         return new(problems);
     }
 
@@ -352,38 +347,6 @@ public static partial class ConfigValidator
             {
                 if (!Hotkey.TryParse(text, out _))
                     Error(_path + ".hotkeys", $"\"{text}\" isn't a shortcut: use Win, Ctrl or Alt plus a letter, number, F1–F24 or a key like [, or a number pad key like Num1.");
-            }
-            foreach (var text in flow.Gamepad)
-            {
-                if (GamepadChord.Explain(text) is { } why)
-                    Error(_path + ".gamepad", $"\"{text}\": {why}");
-            }
-        }
-
-        /// <summary>As <see cref="ClaimHotkeys"/>, for controller chords (#36).</summary>
-        public void ClaimChords(Dictionary<GamepadChord, string> owners, IReadOnlySet<string> rejected)
-        {
-            if (!flow.Enabled || rejected.Contains(flow.Id))
-                return;
-            var mine = new HashSet<GamepadChord>();
-            var failed = false;
-            foreach (var text in flow.Gamepad)
-            {
-                if (!GamepadChord.TryParse(text, out var chord))
-                    continue;
-                var message = !mine.Add(chord) ? $"{chord.Display} is listed twice."
-                    : owners.TryGetValue(chord, out var owner) ? $"{chord.Display} already runs flow \"{owner}\"."
-                    : null;
-                if (message is not null)
-                {
-                    Error(_path + ".gamepad", message);
-                    failed = true;
-                }
-            }
-            if (!failed)
-            {
-                foreach (var chord in mine)
-                    owners[chord] = flow.Id;
             }
         }
 

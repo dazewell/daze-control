@@ -13,48 +13,26 @@ public interface IPadBackend : IDisposable
 
     void Halt();
 
-    /// <summary>60 Hz while a menu is open, 10 Hz otherwise (D-056).</summary>
-    void SetFast(bool fast);
-
     /// <summary>The pads now on; one enumeration, the reader needn't run.</summary>
     IReadOnlyList<PadInfo> List();
-}
-
-/// <summary>What <c>record-gamepad</c> found: a chord in canonical text, or why not.</summary>
-public sealed record GamepadRecord(string? Chord, string? Error)
-{
-    public const string NoController = "No controller.";
-    public const string TimedOut = "Timed out.";
-    public const string Stopped = "Stopped.";
 }
 
 /// <summary>What the pipe ops need from the gamepad side (EngineController stays free of Win32).</summary>
 public interface IGamepadControl
 {
     IReadOnlyList<PadInfo> List();
-
-    /// <summary>The next chord the player makes; ends on the answer, after the timeout, or when the token does.</summary>
-    Task<GamepadRecord> RecordAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>
-/// Who wants pad readings, so the source runs only for them (DESIGN §3.4): chords listening, an open menu, a
-/// <c>record-gamepad</c> in progress. The first listener starts the backend and the last one's disposal stops it; with
-/// none the engine never loads XInput. Thread-safe.
+/// Who wants pad readings, so the source runs only for them (D-086): an open menu. The first listener starts the
+/// backend and the last one's disposal stops it; with none the engine never loads XInput. Thread-safe.
 /// </summary>
-public sealed class GamepadService(IPadBackend backend, TimeProvider time) : IGamepadControl, IDisposable
+public sealed class GamepadService(IPadBackend backend) : IGamepadControl, IDisposable
 {
-    public static readonly TimeSpan RecordTimeout = TimeSpan.FromSeconds(15);
-
     private readonly object _lock = new();
     private readonly List<Listener> _listeners = [];
     private volatile Listener[] _snapshot = []; // readings never take the lock, so Halt (which joins the reader) can't wait on it
-    private bool _suspended;
     private bool _started;
-    private int _recordings;
-
-    /// <summary>True when the first recording starts, false when the last one ends (the engine silences chords meanwhile).</summary>
-    public event Action<bool>? RecordingChanged;
 
     public bool Running
     {
@@ -74,10 +52,10 @@ public sealed class GamepadService(IPadBackend backend, TimeProvider time) : IGa
         }
     }
 
-    /// <summary>Delivers readings (a poll each) until disposed. <paramref name="fast"/> asks for the menu's 60 Hz.</summary>
-    public IDisposable Listen(Action<PadReading> onReading, bool fast = false)
+    /// <summary>Delivers readings (a poll each, 60 Hz) until disposed.</summary>
+    public IDisposable Listen(Action<PadReading> onReading)
     {
-        var listener = new Listener(this, onReading, fast);
+        var listener = new Listener(this, onReading);
         lock (_lock)
         {
             _listeners.Add(listener);
@@ -87,67 +65,6 @@ public sealed class GamepadService(IPadBackend backend, TimeProvider time) : IGa
     }
 
     public IReadOnlyList<PadInfo> List() => backend.List();
-
-    /// <summary>Sleep: the reader stops (listeners stay); <see cref="Resume"/> brings it back.</summary>
-    public void Suspend()
-    {
-        lock (_lock)
-        {
-            _suspended = true;
-            Update();
-        }
-    }
-
-    public void Resume()
-    {
-        lock (_lock)
-        {
-            _suspended = false;
-            Update();
-        }
-    }
-
-    public async Task<GamepadRecord> RecordAsync(CancellationToken cancellationToken)
-    {
-        if (backend.List().Count == 0)
-            return new(null, GamepadRecord.NoController);
-        var done = new TaskCompletionSource<GamepadRecord>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var held = GamepadButtons.None;
-        var seenUp = false;
-        if (Interlocked.Increment(ref _recordings) == 1)
-            RecordingChanged?.Invoke(true);
-        try
-        {
-            using var listening = Listen(reading =>
-            {
-                var now = reading.Buttons;
-                // A button already down when recording began doesn't count until everything was seen up.
-                if (!seenUp)
-                {
-                    held = now;
-                    seenUp = now == GamepadButtons.None;
-                    return;
-                }
-                if (now == held)
-                    return;
-                if (held != GamepadButtons.None && (held & ~now) != GamepadButtons.None)
-                    done.TrySetResult(new(new GamepadChord(held).ToString(), null));
-                held = now;
-            });
-            using var timeout = new CancellationTokenSource(RecordTimeout, time);
-            using var link = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
-            using (link.Token.Register(() => done.TrySetResult(new(null,
-                cancellationToken.IsCancellationRequested ? GamepadRecord.Stopped : GamepadRecord.TimedOut))))
-            {
-                return await done.Task.ConfigureAwait(false);
-            }
-        }
-        finally
-        {
-            if (Interlocked.Decrement(ref _recordings) == 0)
-                RecordingChanged?.Invoke(false);
-        }
-    }
 
     public void Dispose()
     {
@@ -178,10 +95,8 @@ public sealed class GamepadService(IPadBackend backend, TimeProvider time) : IGa
     private void Update()
     {
         _snapshot = [.. _listeners];
-        var want = _listeners.Count > 0 && !_suspended;
-        if (want)
+        if (_listeners.Count > 0)
         {
-            backend.SetFast(_listeners.Any(l => l.Fast));
             if (!_started)
             {
                 _started = true;
@@ -197,10 +112,8 @@ public sealed class GamepadService(IPadBackend backend, TimeProvider time) : IGa
         }
     }
 
-    private sealed class Listener(GamepadService owner, Action<PadReading> callback, bool fast) : IDisposable
+    private sealed class Listener(GamepadService owner, Action<PadReading> callback) : IDisposable
     {
-        public bool Fast { get; } = fast;
-
         public void OnReading(PadReading reading)
         {
             try

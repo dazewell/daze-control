@@ -19,7 +19,7 @@ public interface IXInput
 public sealed record PadInfo(int Slot, string? Battery);
 
 /// <summary>
-/// XInput polling, one step at a time (DESIGN §3.4, D-056): polls only the slots a scan found connected, merges them
+/// XInput polling at 60 Hz, one step at a time, only while a menu is open (DESIGN §3.4, D-056, D-086): polls only the slots a scan found connected, merges them
 /// into one <see cref="PadReading"/> and says how long to wait before the next step, or null when no pad is left (the
 /// caller parks until an arrival or a resume asks for <see cref="Scan"/>). Pure apart from <see cref="IXInput"/>, so the
 /// "no pad → no polling" rule is a unit test. Not thread-safe: one reader thread owns it.
@@ -27,7 +27,6 @@ public sealed record PadInfo(int Slot, string? Battery);
 public sealed class PadPoller(IXInput api)
 {
     public const int Slots = 4;
-    public static readonly TimeSpan SlowInterval = TimeSpan.FromMilliseconds(100); // 10 Hz while only chords listen (S1: 20 Hz ~410 ms / 10 min awake)
     public static readonly TimeSpan FastInterval = TimeSpan.FromMilliseconds(16);
 
     private const byte TriggerOn = 100;
@@ -67,7 +66,7 @@ public sealed class PadPoller(IXInput api)
     }
 
     /// <summary>Reads the pads and raises <see cref="Reading"/>; the delay until the next step, null when no pad is on.</summary>
-    public TimeSpan? Step(bool fast)
+    public TimeSpan? Step()
     {
         if (!AnyConnected)
             return null;
@@ -102,7 +101,7 @@ public sealed class PadPoller(IXInput api)
             return null;
         }
         Reading?.Invoke(new PadReading(buttons, x, y));
-        return fast ? FastInterval : SlowInterval;
+        return FastInterval;
     }
 
     /// <summary>The pads now connected (one scan; the reader needn't run).</summary>

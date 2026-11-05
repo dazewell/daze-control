@@ -66,13 +66,9 @@ public static class FlowTokens
         : "";
 }
 
-/// <summary>Words for the editor's side of the controller trigger (DESIGN §3.7); the engine writes the same texts into history.</summary>
+/// <summary>Words for the editor's side of the menu trigger (DESIGN §3.7); the engine writes the same texts into history.</summary>
 public static class TriggerTexts
 {
-    /// <summary>"Controller · View + Menu".</summary>
-    public static string Controller(string chord) =>
-        "Controller · " + (Core.Input.GamepadChord.TryParse(chord, out var parsed) ? parsed.Display : chord);
-
     /// <summary>"Menu · Couch": a flow launched from a menu.</summary>
     public static string Menu(string menuFlowName) => "Menu · " + menuFlowName;
 }
