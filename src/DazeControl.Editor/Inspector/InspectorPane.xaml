@@ -307,6 +307,18 @@
                         </StackPanel>
                     </RadioButton>
                 </RadioButtons>
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                    <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
+                           Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.PolicyIsSet), Mode=OneWay}" />
+                    <HyperlinkButton Command="{x:Bind ViewModel.ResetPolicyCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetPolicyTip, Mode=OneWay}"
+                                 Visibility="{x:Bind local:InspectorPane.ShowSet(ViewModel.IsStep, ViewModel.PolicyIsSet), Mode=OneWay}"
+                                 AutomationProperties.Name="Reset If it fails">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <FontIcon Glyph="&#xE777;" FontSize="12" />
+                        <TextBlock Text="Reset" Style="{StaticResource SettingsCardDescription}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                </StackPanel>
+                    </HyperlinkButton>
+                </StackPanel>
                 <!-- A fallback without hunting for an edge's menu: a new step, or one already in the flow, runs only if this fails. -->
                 <DropDownButton x:Name="FallbackButton" Margin="0,8,0,0" IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}"
                                 ToolTipService.ToolTip="Add a step that runs only if this one fails">
@@ -342,17 +354,80 @@
                 <StackPanel Visibility="{x:Bind ViewModel.IsStep, Mode=OneWay}" Spacing="8">
                     <TextBlock Text="Timing" Style="{StaticResource InspectorSection}" />
                     <NumberBox Header="Try again" Value="{x:Bind ViewModel.Retries, Mode=TwoWay}" Minimum="0" Maximum="10"
+                               Opacity="{x:Bind local:InspectorPane.Dim(ViewModel.RetriesIsSet), Mode=OneWay}"
                                SpinButtonPlacementMode="Inline" ValidationMode="InvalidInputOverwritten" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                        <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
+                                   Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.RetriesIsSet), Mode=OneWay}" />
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetRetriesCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetRetriesTip, Mode=OneWay}"
+                                         Visibility="{x:Bind local:InspectorPane.ShowSet(ViewModel.IsStep, ViewModel.RetriesIsSet), Mode=OneWay}"
+                                         AutomationProperties.Name="Reset Try again">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <FontIcon Glyph="&#xE777;" FontSize="12" />
+                                <TextBlock Text="Reset" Style="{StaticResource SettingsCardDescription}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            </StackPanel>
+                        </HyperlinkButton>
+                    </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <NumberBox Header="Wait between tries" Value="{x:Bind ViewModel.RetryDelay, Mode=TwoWay}" Minimum="0" Maximum="86400"
+                                   Opacity="{x:Bind local:InspectorPane.Dim(ViewModel.RetryDelayIsSet), Mode=OneWay}"
                                    SpinButtonPlacementMode="Inline" MinWidth="200" IsEnabled="{x:Bind ViewModel.CanRetryDelay, Mode=OneWay}" />
                         <TextBlock Text="s" VerticalAlignment="Bottom" Margin="0,0,0,8" />
                     </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                        <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
+                                   Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.RetryDelayIsSet), Mode=OneWay}" />
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetRetryDelayCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetRetryDelayTip, Mode=OneWay}"
+                                         Visibility="{x:Bind local:InspectorPane.ShowSet(ViewModel.IsStep, ViewModel.RetryDelayIsSet), Mode=OneWay}"
+                                         AutomationProperties.Name="Reset Wait between tries">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <FontIcon Glyph="&#xE777;" FontSize="12" />
+                                <TextBlock Text="Reset" Style="{StaticResource SettingsCardDescription}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            </StackPanel>
+                        </HyperlinkButton>
+                    </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <NumberBox Header="Give up after" Value="{x:Bind ViewModel.Timeout, Mode=TwoWay}" Minimum="0" Maximum="86400"
+                                   Opacity="{x:Bind local:InspectorPane.Dim(ViewModel.TimeoutIsSet), Mode=OneWay}"
                                    PlaceholderText="{x:Bind ViewModel.TimeoutPlaceholder, Mode=OneWay}" SpinButtonPlacementMode="Inline" MinWidth="200" />
                         <TextBlock Text="s" VerticalAlignment="Bottom" Margin="0,0,0,8" />
                     </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                        <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
+                                   Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.TimeoutIsSet), Mode=OneWay}" />
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetTimeoutCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetTimeoutTip, Mode=OneWay}"
+                                         Visibility="{x:Bind local:InspectorPane.ShowSet(ViewModel.IsStep, ViewModel.TimeoutIsSet), Mode=OneWay}"
+                                         AutomationProperties.Name="Reset Give up after">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <FontIcon Glyph="&#xE777;" FontSize="12" />
+                                <TextBlock Text="Reset" Style="{StaticResource SettingsCardDescription}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            </StackPanel>
+                        </HyperlinkButton>
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind ViewModel.DefaultsCaption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
+                               Visibility="{x:Bind ViewModel.HasDefaultsCaption, Mode=OneWay}" TextWrapping="Wrap" />
+                    <!-- Use these for all … steps… (DESIGN A5): the flyout says how many steps follow; Apply has Undo below. -->
+                    <Button Margin="0,4,0,0" HorizontalAlignment="Left" Content="{x:Bind ViewModel.UseForAllText, Mode=OneWay}"
+                            AutomationProperties.Name="{x:Bind ViewModel.UseForAllText, Mode=OneWay}">
+                        <Button.Flyout>
+                            <Flyout x:Name="UseForAllFlyout" Placement="Top">
+                                <StackPanel Spacing="8" MaxWidth="300">
+                                    <ItemsControl ItemsSource="{x:Bind ViewModel.UseForAllValues, Mode=OneWay}" IsTabStop="False" />
+                                    <TextBlock Text="{x:Bind ViewModel.UseForAllApplies, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button Content="Apply" Style="{StaticResource AccentButtonStyle}" Command="{x:Bind ViewModel.ApplyUseForAllCommand}" Click="OnUseForAllClosed" />
+                                        <Button Content="Cancel" Click="OnUseForAllClosed" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                    <InfoBar IsOpen="{x:Bind ViewModel.HasDefaultsNotice, Mode=OneWay}" Severity="Success" IsClosable="True" Message="{x:Bind ViewModel.DefaultsNotice, Mode=OneWay}"
+                             CloseButtonCommand="{x:Bind ViewModel.DismissDefaultsNoticeCommand}">
+                        <InfoBar.ActionButton>
+                            <Button Content="Undo" Command="{x:Bind ViewModel.UndoDefaultsCommand}" />
+                        </InfoBar.ActionButton>
+                    </InfoBar>
                 </StackPanel>
                 </ContentControl>
             </StackPanel>

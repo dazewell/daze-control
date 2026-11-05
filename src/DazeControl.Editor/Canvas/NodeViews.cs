@@ -127,7 +127,7 @@ internal sealed class PillView : NodeView
         _summary.Foreground = Theme.Brush(skipped ? "TextFillColorDisabledBrush" : "TextFillColorSecondaryBrush");
         ShowRunState();
         _badgeText.Text = Node.BadgeText;
-        _badgeText.Foreground = Theme.Brush(Node.HasProblem ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush");
+        _badgeText.Foreground = Theme.Brush(Node.HasProblem ? "SystemFillColorCautionBrush" : Node.BadgesInherited ? "TextFillColorTertiaryBrush" : "TextFillColorSecondaryBrush");
         _badge.Background = Theme.Brush("ControlFillColorSecondaryBrush");
         _badge.Visibility = showDetails && Node.HasBadges ? Visibility.Visible : Visibility.Collapsed;
 

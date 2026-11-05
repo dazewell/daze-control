@@ -44,7 +44,7 @@ public enum NodeRunState
 public sealed record NodeRunView(NodeRunState State, string Text = "", int Order = 0);
 
 /// <summary>A chip on a pill (UX §5.3): optional Segoe Fluent glyph + short text.</summary>
-public sealed record Badge(string Glyph, string Text)
+public sealed record Badge(string Glyph, string Text, bool Inherited = false)
 {
     public string Name => Text;
 }
@@ -92,6 +92,10 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     public partial string BadgeText { get; private set; } = "";
 
     public bool HasBadges => BadgeText.Length > 0;
+
+    /// <summary>Every chip shows a value the step inherits from its type's default (shown dimmer, DESIGN A5).</summary>
+    [ObservableProperty]
+    public partial bool BadgesInherited { get; private set; }
 
     /// <summary>Cards: "2 steps".</summary>
     [ObservableProperty]
@@ -191,12 +195,23 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     internal void Update(Node node, Configuration config, bool hasProblem, string waitsFor)
     {
         HasProblem = hasProblem;
-        MayFail = node.OnFailure == FailurePolicy.Ignore;
+        // A step shows its effective policy, retries and timeout (own > its type's default > built-in), dimmer when
+        // inherited, and only what differs from the built-in (DESIGN A5).
+        StepSettings? effective = null;
+        ProviderDescriptor? stepDescriptor = null;
+        if (node is StepNode own)
+        {
+            stepDescriptor = ProviderCatalog.Find(own.Step);
+            effective = StepSettings.Resolve(own, stepDescriptor, config.Settings.StepDefaults.GetValueOrDefault(own.Step));
+        }
+        var policy = effective?.OnFailure ?? node.OnFailure;
+        var policyInherited = node.OnFailure is null;
+        MayFail = policy == FailurePolicy.Ignore;
         var badges = new List<Badge>();
         if (MayFail)
-            badges.Add(new Badge("", "May fail"));
-        else if (node.OnFailure == FailurePolicy.Skip)
-            badges.Add(new Badge("", "Skip"));
+            badges.Add(new Badge("", "May fail", policyInherited));
+        else if (policy == FailurePolicy.Skip)
+            badges.Add(new Badge("", "Skip", policyInherited));
         if (node is GroupNode card)
         {
             Kind = CanvasNodeKind.Card;
@@ -218,14 +233,15 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             // Run a flow shows the called flow's own icon (DESIGN §6).
             Glyph = called is not null ? FlowGlyph.Decode(FlowGlyph.CodeOf(called)) : FlowItemViewModel.DecodeGlyph(descriptor?.Glyph ?? "E9CE");
             Count = "";
-            if (step.RetryCount is > 0 and var retries)
-                badges.Add(new Badge("", $"×{retries}"));
-            if (step.Timeout is { } timeout)
-                badges.Add(new Badge("", Duration.Format(timeout) ?? ""));
+            if (effective!.RetryCount > 0)
+                badges.Add(new Badge("", $"×{effective.RetryCount}", step.RetryCount is null));
+            if (step.Timeout is not null || stepDescriptor is not null && effective.Timeout != stepDescriptor.DefaultTimeout)
+                badges.Add(new Badge("", Duration.Format(effective.Timeout) ?? "", step.Timeout is null));
         }
         if (badges.Count > MaxBadges)
             badges = [.. badges.Take(MaxBadges), new Badge("", $"+{badges.Count - MaxBadges}")];
         Badges = badges;
+        BadgesInherited = badges.Count > 0 && badges.All(b => b.Inherited);
         BadgeText = string.Join("   ", badges.Select(b => b.Glyph.Length > 0 ? $"{b.Glyph} {b.Text}" : b.Text));
 
         var parts = new List<string> { Summary.Length == 0 ? Title : $"{Title}, {Summary}" };
