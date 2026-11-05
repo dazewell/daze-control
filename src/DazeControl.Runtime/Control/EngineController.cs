@@ -39,7 +39,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
     /// <summary>A step test runs as a flow with this id prefix; <c>cancel</c> with that id stops it.</summary>
     public const string TestPrefix = "test:";
 
-    /// <summary><c>devices gamepads</c>: the pads on now, whether or not any flow has a chord.</summary>
+    /// <summary><c>devices gamepads</c>: the pads on now.</summary>
     public const string GamepadKind = "gamepads";
 
     /// <summary>The trigger the history shows for a run from a desktop shortcut (D-049).</summary>
@@ -132,8 +132,6 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                 return await TestStepAsync(request, cancellationToken).ConfigureAwait(false);
             case Ops.RecordHotkey:
                 return RecordHotkey(request, cancellationToken);
-            case Ops.RecordGamepad:
-                return await RecordGamepadAsync(request, cancellationToken).ConfigureAwait(false);
             case Ops.Shortcuts:
             case Ops.CreateShortcut:
             case Ops.RemoveShortcut:
@@ -189,17 +187,6 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                 HotkeyRecordingChanged?.Invoke(false);
         }
         hook.Dispose();
-    }
-
-    /// <summary>The editor's "Add buttons" (DESIGN §3.6): the next chord in canonical text, or "no controller" / "timed out".</summary>
-    private async Task<PipeMessage> RecordGamepadAsync(PipeRequest request, CancellationToken connection)
-    {
-        if (gamepads is null)
-            return PipeMessage.Fail(request.Id, "This engine can't read controllers.");
-        var record = await gamepads.RecordAsync(connection).ConfigureAwait(false);
-        return record.Chord is { } chord
-            ? new PipeMessage { Id = request.Id, Ok = true, Yaml = chord }
-            : PipeMessage.Fail(request.Id, record.Error ?? GamepadRecord.TimedOut);
     }
 
     private async Task<PipeMessage> DevicesAsync(PipeRequest request, CancellationToken cancellationToken)

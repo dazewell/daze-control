@@ -107,6 +107,7 @@ public sealed class FlowDocument
 
     public List<string>? Hotkeys { get; set; }
 
+    /// <summary>Read only so an old file still loads (D-086); never written.</summary>
     public List<string>? Gamepad { get; set; }
 
     public string? WhenRunning { get; set; }

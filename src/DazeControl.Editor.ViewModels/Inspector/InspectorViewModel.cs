@@ -91,7 +91,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     private string? _stepType;
 
     public InspectorViewModel(ConfigSession session, FlowCanvasViewModel canvas, IEngineClient engine, Action<Action> post,
-        Func<string, bool>? fileExists = null, DesktopShortcutStore? desktop = null, IGamepadRecorder? recorder = null)
+        Func<string, bool>? fileExists = null, DesktopShortcutStore? desktop = null)
     {
         _session = session;
         _canvas = canvas;
@@ -100,7 +100,6 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         _fileExists = fileExists ?? (p => File.Exists(p) || Directory.Exists(p));
         _desktop = desktop ?? new DesktopShortcutStore(engine, session.Path);
         _desktop.Changed += OnDesktopChanged;
-        Recorder = new GamepadRecorderViewModel(recorder ?? new EngineGamepadRecorder(engine), UsedByOtherFlow, AddChord);
         _session.PropertyChanged += OnSessionChanged;
         _canvas.PropertyChanged += OnCanvasChanged;
         _engine.StateChanged += OnEngineStateChanged;
@@ -257,30 +256,6 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     public partial bool LineAbove { get; set; }
 
     public ObservableCollection<ShortcutViewModel> Shortcuts { get; } = [];
-
-    /// <summary>"Controller buttons" chips under Shortcuts (DESIGN §2.4, §3.7).</summary>
-    public ObservableCollection<ControllerButtonsViewModel> ControllerButtons { get; } = [];
-
-    /// <summary>The "Add buttons" flyout.</summary>
-    public GamepadRecorderViewModel Recorder { get; }
-
-    private bool UsedByOtherFlow(GamepadChord chord) =>
-        _session.Current.Flows.Any(f => f.Id != FlowId && f.Enabled
-            && !_session.Problems.Any(p => p.Severity == Severity.Error && p.FlowId == f.Id) && f.Gamepad.Any(g => GamepadChord.TryParse(g, out var other) && other == chord));
-
-    private void AddChord(GamepadChord chord)
-    {
-        if (Flow is not { } flow || flow.Gamepad.Any(g => GamepadChord.TryParse(g, out var have) && have == chord))
-            return;
-        EditFlow(f => f with { Gamepad = [.. f.Gamepad, chord.ToString()] });
-    }
-
-    [RelayCommand]
-    private void RemoveChord(ControllerButtonsViewModel chip)
-    {
-        if (Flow is { } flow && chip.Index < flow.Gamepad.Count)
-            EditFlow(f => f with { Gamepad = [.. f.Gamepad.Where((_, i) => i != chip.Index)] });
-    }
 
     /// <summary>"Test this step", or "Show the menu" for a menu (DESIGN §3.7).</summary>
     public string TestLabel => Node is StepNode { Step: ProviderCatalog.MenuShowId } ? "Show the menu" : "Test this step";
@@ -653,15 +628,6 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         WhenRunningIndex = (int)flow.WhenRunning;
         ShowPopup = flow.Popup;
         LoadInputs(flow);
-
-        var chordProblems = _session.Problems.Where(p => p.Path == $"flows.{flow.Id}.gamepad").Select(p => p.Message).ToList();
-        ControllerButtons.Clear();
-        for (var i = 0; i < flow.Gamepad.Count; i++)
-        {
-            var text = GamepadChord.TryParse(flow.Gamepad[i], out var chord) ? chord.Display : flow.Gamepad[i];
-            ControllerButtons.Add(new ControllerButtonsViewModel(i, flow.Gamepad[i],
-                chordProblems.FirstOrDefault(m => m.Contains(text, StringComparison.Ordinal) || m.Contains(flow.Gamepad[i], StringComparison.Ordinal))));
-        }
 
         var pending = Shortcuts.Where(s => s.Hotkey.Length == 0).ToList();
         // A refused key's reason lives until the next recorded key, not until the next refresh (same row, same value).

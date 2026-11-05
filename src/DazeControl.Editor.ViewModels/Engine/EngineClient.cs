@@ -47,7 +47,7 @@ public sealed class EngineClient : IEngineClient, IAsyncDisposable
     public async Task<PipeMessage?> SendAsync(PipeRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (request.Op is Ops.TestStep or Inspector.EngineGamepadRecorder.Op)
+        if (request.Op is Ops.TestStep)
             return await SendAloneAsync(request, cancellationToken).ConfigureAwait(false);
         await _requestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try

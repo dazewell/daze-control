@@ -174,8 +174,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 - **Menu step** (M12, designed; full spec [flow-menu/DESIGN.md](flow-menu/DESIGN.md) §3.7): Choices = token list of
   flows (glyph + name, ×, Alt+Up/Down, "Add a flow", own flow not offered, a missing one caution with #40), Title,
   Layout List / Grid, Size Normal / Large "For a TV across the room", Close after (s), "Wait for it to finish" (#41).
-  "Test this step" shows the real menu and runs nothing (#42). Flow settings: **Controller buttons** chips under
-  Shortcuts + "Add buttons" recorder (#34–#37, #43). "Controller buttons" is the name; "shortcut" stays a hotkey.
+  "Test this step" shows the real menu and runs nothing (#42). (Controller-button chords and their recorder were removed, D-086.)
 
 ## 5.5 Runs
 - Live: canvas overlays states; CommandBar "Running · 2 of 4" + Stop; finished pill summary becomes its
@@ -238,13 +237,10 @@ Control to add a desktop shortcut." · 26 "Daze Control can connect only headpho
 screens that are on now" · M12 flow menu: 28 "Nothing here can run right now" / "Turn on or fix these flows in
 Daze Control." · 29 captions "Running" · "Needs fixing" · "Turned off" · 30 hints "Ⓐ Run  Ⓑ Close" / "Enter Run · Esc
 Close" · 31 "Closing in 5 s" · 32 "The menu can't show over this full-screen game. Switch the game to borderless or
-windowed, then try again." · 33 "Couch TV didn't start. It needs fixing." · 34 "Press the buttons together on your
-controller, then let go." · 35 "Daze Control doesn't see a controller. Turn one on and try again." · 36 "Another
-flow uses View + Menu. Try another one." · 37 "Use at least two buttons, so a game doesn't start it by accident." ·
+windowed, then try again." · 33 "Couch TV didn't start. It needs fixing." · 34–37 (controller recorder) removed, D-086 ·
 38 "A menu can't list its own flow." · 39 "That would make a loop: Couch waits for TV menu, which waits for Couch."
 · 40 "Couch TV isn't there anymore. Remove it from the menu." · 41 "Wait for it to finish" / "Steps after the menu
-wait for the picked flow, and stop if it fails." · 42 "You picked Couch TV. Testing doesn't run it." · 43 "Start
-Daze Control to record controller buttons." · 44 "Nothing picked" · 45 "These steps start together now, so the "if it fails" or
+wait for the picked flow, and stop if it fails." · 42 "You picked Couch TV. Testing doesn't run it." · 43 (recorder) removed · 44 "Nothing picked" · 45 "These steps start together now, so the "if it fails" or
 "whatever happens" connection between them is gone." · 46 "If this fails, its fallback runs and the flow carries
 on, so it's set to "Skip what depends on it" now." · M13: 47 "Not needed" · 48 "Connect Technics didn't work, so
 Connect Sony ran instead." · 49 "A flow can't run itself." · 50 "That would make a loop: Headphones runs Make it the

@@ -75,7 +75,6 @@ public static class ConfigMapper
             Separator = flow.Tray.Separator ? "true" : null,
         },
         Hotkeys = flow.Hotkeys.Count == 0 ? null : [.. flow.Hotkeys],
-        Gamepad = flow.Gamepad.Count == 0 ? null : [.. flow.Gamepad],
         WhenRunning = flow.WhenRunning == WhenRunning.Ignore ? null : EnumText(flow.WhenRunning),
         Popup = flow.Popup ? null : "false",
         Enabled = flow.Enabled ? null : "false",
@@ -323,12 +322,13 @@ public static class ConfigMapper
                 Glyph = document.Glyph,
                 Tray = tray,
                 Hotkeys = new(document.Hotkeys ?? []),
-                Gamepad = new(document.Gamepad ?? []),
                 WhenRunning = Enum(document.WhenRunning, path + ".whenRunning", WhenRunning.Ignore),
                 Popup = Bool(document.Popup, path + ".popup", true),
                 Enabled = Bool(document.Enabled, path + ".enabled", true),
                 Inputs = ReadInputs(document.Inputs, path + ".inputs"),
             };
+            if (document.Gamepad is { Count: > 0 })
+                problems.Add(new Problem(Severity.Warning, path + ".gamepad", "Controller chords were removed (a controller now drives the menu step only): this setting is ignored and dropped on the next save.", id));
             _flowId = null;
             return flow;
         }

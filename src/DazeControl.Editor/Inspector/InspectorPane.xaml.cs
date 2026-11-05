@@ -145,18 +145,6 @@ public sealed partial class InspectorPane : UserControl
         }
     }
 
-    private void OnRemoveChord(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is ControllerButtonsViewModel chip)
-            _viewModel?.RemoveChordCommand.Execute(chip);
-    }
-
-    private void OnRecorderOpened(object sender, object e) => _ = _viewModel?.Recorder.StartAsync();
-
-    private void OnRecorderClosed(object sender, object e) => _viewModel?.Recorder.Cancel();
-
-    private void OnRecorderRetry(object sender, RoutedEventArgs e) => _ = _viewModel?.Recorder.StartAsync();
-
     private void OnRemoveToken(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is KeyTokenViewModel { Owner: { } field } token)

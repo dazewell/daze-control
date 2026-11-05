@@ -39,9 +39,6 @@ public sealed record Flow(string Id, string Name, ValueList<Node> Nodes)
     /// <summary>As written ("Alt+Z"); validation parses them with <see cref="Input.Hotkey"/>.</summary>
     public ValueList<string> Hotkeys { get; init; } = [];
 
-    /// <summary>Controller chords as written ("View+Menu", D-057); validation parses them with <see cref="Input.GamepadChord"/>.</summary>
-    public ValueList<string> Gamepad { get; init; } = [];
-
     public WhenRunning WhenRunning { get; init; } = WhenRunning.Ignore;
 
     public bool Popup { get; init; } = true;

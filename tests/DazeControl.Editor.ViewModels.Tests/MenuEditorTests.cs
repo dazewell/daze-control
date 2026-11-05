@@ -7,7 +7,7 @@ using DazeControl.Ipc;
 
 namespace DazeControl.Editor.ViewModels.Tests;
 
-/// <summary>T12.8: the <c>menu.show</c> inspector, the "Controller buttons" recorder, the template and trigger texts (DESIGN §3.7).</summary>
+/// <summary>T12.8: the <c>menu.show</c> inspector, the template and trigger texts (DESIGN §3.7).</summary>
 public sealed class MenuEditorTests : IDisposable
 {
     private const string Yaml = """
@@ -15,7 +15,6 @@ public sealed class MenuEditorTests : IDisposable
         flows:
           couch:
             name: Couch
-            gamepad: [View+Menu]
             nodes:
               - id: pick
                 step: menu.show
@@ -27,12 +26,10 @@ public sealed class MenuEditorTests : IDisposable
           desk:
             name: Desk
             enabled: false
-            gamepad: [A+B]
             nodes:
               - { id: n, step: notify, with: { text: x } }
           night:
             name: Night
-            gamepad: [LB+RB+Y]
             nodes:
               - { id: n, step: notify, with: { text: x } }
           plain:
@@ -45,7 +42,6 @@ public sealed class MenuEditorTests : IDisposable
     private readonly ManualTime _time = new();
     private readonly ConfigSession _session;
     private readonly FakeEngine _engine = new() { IsRunning = true };
-    private readonly FakeRecorder _recorder = new();
     private FlowCanvasViewModel _canvas = null!;
     private InspectorViewModel _inspector = null!;
 
@@ -66,7 +62,7 @@ public sealed class MenuEditorTests : IDisposable
         _inspector?.Dispose();
         _canvas?.Dispose();
         _canvas = new FlowCanvasViewModel(_session, flowId);
-        _inspector = new InspectorViewModel(_session, _canvas, _engine, action => action(), _ => true, recorder: _recorder);
+        _inspector = new InspectorViewModel(_session, _canvas, _engine, action => action(), _ => true);
     }
 
     public void Dispose()
@@ -76,28 +72,6 @@ public sealed class MenuEditorTests : IDisposable
         _session.Dispose();
         _time.Dispose();
         Directory.Delete(_folder, recursive: true);
-    }
-
-    private sealed class FakeRecorder : IGamepadRecorder
-    {
-        public GamepadRecording Next { get; set; } = new(GamepadRecordStatus.EngineOff);
-
-        public int Calls { get; private set; }
-
-        public bool Cancelled { get; private set; }
-
-        public TaskCompletionSource<GamepadRecording>? Hold { get; set; }
-
-        public async Task<GamepadRecording> RecordAsync(CancellationToken cancellationToken)
-        {
-            Calls++;
-            if (Hold is { } hold)
-            {
-                cancellationToken.Register(() => Cancelled = true);
-                return await hold.Task;
-            }
-            return Next;
-        }
     }
 
     private ParamFieldViewModel Items()
@@ -212,104 +186,6 @@ public sealed class MenuEditorTests : IDisposable
         Assert.Equal("Test this step", _inspector.TestLabel);
     }
 
-    // ---- Controller buttons ----
-
-    [Fact]
-    public void ControllerButtonsShowTheFlowsChords()
-    {
-        var chip = Assert.Single(_inspector.ControllerButtons);
-        Assert.Equal("View + Menu", chip.Text);
-        Assert.False(chip.HasProblem);
-        _inspector.RemoveChordCommand.Execute(chip);
-        Assert.Empty(_canvas.Flow!.Gamepad);
-        Assert.Empty(_inspector.ControllerButtons);
-    }
-
-    [Fact]
-    public async Task ARecordedChordIsAddedInCanonicalOrder()
-    {
-        Open("plain");
-        _recorder.Next = new(GamepadRecordStatus.Chord, "X+RB+LB");
-        await _inspector.Recorder.StartAsync();
-        Assert.Equal(RecorderPhase.Recorded, _inspector.Recorder.Phase);
-        Assert.Equal(["X+LB+RB"], _canvas.Flow!.Gamepad);
-        Assert.Equal("X + LB + RB", Assert.Single(_inspector.ControllerButtons).Text);
-    }
-
-    [Fact]
-    public async Task ARecorderThatHearsNothingExplainsWhy()
-    {
-        Open("plain");
-        _recorder.Next = new(GamepadRecordStatus.NoController);
-        await _inspector.Recorder.StartAsync();
-        Assert.Equal("Daze Control doesn't see a controller. Turn one on and try again.", _inspector.Recorder.Message);
-        _recorder.Next = new(GamepadRecordStatus.EngineOff);
-        await _inspector.Recorder.StartAsync();
-        Assert.Equal("Start Daze Control to record controller buttons.", _inspector.Recorder.Message);
-        _recorder.Next = new(GamepadRecordStatus.TimedOut);
-        await _inspector.Recorder.StartAsync();
-        Assert.True(_inspector.Recorder.IsProblem);
-        Assert.Empty(_canvas.Flow!.Gamepad);
-    }
-
-    [Fact]
-    public async Task OneButtonAndAnotherFlowsChordAreRefused()
-    {
-        Open("plain");
-        _recorder.Next = new(GamepadRecordStatus.Chord, "A");
-        await _inspector.Recorder.StartAsync();
-        Assert.Equal("Use at least two buttons, so a game doesn't start it by accident.", _inspector.Recorder.Message);
-        _recorder.Next = new(GamepadRecordStatus.Chord, "Menu+View");
-        await _inspector.Recorder.StartAsync();
-        Assert.Equal("Another flow uses View + Menu. Try another one.", _inspector.Recorder.Message);
-        Assert.Empty(_canvas.Flow!.Gamepad);
-    }
-
-    [Fact]
-    public async Task AChordOfATurnedOffFlowIsNotAClash()
-    {
-        Open("plain");
-        _recorder.Next = new(GamepadRecordStatus.Chord, "B+A");
-        await _inspector.Recorder.StartAsync();
-        Assert.Equal(["A+B"], _canvas.Flow!.Gamepad);
-    }
-
-    [Fact]
-    public async Task ARecordedChordTheFlowAlreadyHasIsNotAddedTwice()
-    {
-        _recorder.Next = new(GamepadRecordStatus.Chord, "Menu+View");
-        await _inspector.Recorder.StartAsync();
-        Assert.Equal(["View+Menu"], _canvas.Flow!.Gamepad);
-    }
-
-    [Fact]
-    public async Task ClosingTheFlyoutStopsTheRecording()
-    {
-        Open("plain");
-        _recorder.Hold = new();
-        var recording = _inspector.Recorder.StartAsync();
-        Assert.True(_inspector.Recorder.IsListening);
-        Assert.Equal("Press the buttons together on your controller, then let go.", _inspector.Recorder.Message);
-        await _inspector.Recorder.StartAsync();
-        Assert.Equal(1, _recorder.Calls);
-        _inspector.Recorder.Cancel();
-        _recorder.Hold.SetResult(new(GamepadRecordStatus.Chord, "Y+LB"));
-        await recording;
-        Assert.True(_recorder.Cancelled);
-        Assert.Equal(RecorderPhase.Idle, _inspector.Recorder.Phase);
-        Assert.Empty(_canvas.Flow!.Gamepad);
-    }
-
-    [Fact]
-    public void TheEngineRecorderReadsDesignsAnswers()
-    {
-        Assert.Equal(GamepadRecordStatus.EngineOff, EngineGamepadRecorder.Interpret(null).Status);
-        Assert.Equal("Y+LB", EngineGamepadRecorder.Interpret(new PipeMessage { Ok = true, Yaml = " Y+LB " }).Chord);
-        Assert.Equal(GamepadRecordStatus.NoController, EngineGamepadRecorder.Interpret(new PipeMessage { Error = "No controller found." }).Status);
-        Assert.Equal(GamepadRecordStatus.TimedOut, EngineGamepadRecorder.Interpret(new PipeMessage { Error = "Timed out." }).Status);
-        Assert.Equal(GamepadTexts.OldEngine, EngineGamepadRecorder.Interpret(new PipeMessage { Error = "Unknown request \"record-gamepad\"." }).Error);
-    }
-
     // ---- Template and trigger texts ----
 
     [Fact]
@@ -317,7 +193,6 @@ public sealed class MenuEditorTests : IDisposable
     {
         var flow = FlowsPageViewModel.ControllerMenu(_session.Current, "controller-menu");
         Assert.Equal("Controller menu", flow.Name);
-        Assert.Equal(["View+Menu"], flow.Gamepad);
         var step = Assert.IsType<StepNode>(Assert.Single(flow.Nodes));
         Assert.Equal("menu.show", step.Step);
         Assert.Equal(["couch", "tv", "desk", "night"], ((ListParam)step.With["items"]).Items.Select(i => ((ScalarParam)i).Text));
@@ -327,9 +202,8 @@ public sealed class MenuEditorTests : IDisposable
     }
 
     [Fact]
-    public void TriggerTextsNameTheChordAndTheMenu()
+    public void TriggerTextsNameTheMenu()
     {
-        Assert.Equal("Controller · View + Menu", TriggerTexts.Controller("Menu+View"));
         Assert.Equal("Menu · Couch", TriggerTexts.Menu("Couch"));
     }
 }

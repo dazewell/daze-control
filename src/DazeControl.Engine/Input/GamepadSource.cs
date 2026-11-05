@@ -6,7 +6,7 @@ namespace DazeControl.Engine.Input;
 
 /// <summary>
 /// XInput (<c>xinput1_4</c>) on the system, bound by hand (DESIGN §3.4, D-056). <c>xinput1_4.dll</c> loads on the
-/// first call, so an engine with no chord and no menu never maps it.
+/// first call, so an engine with no menu open never maps it.
 /// </summary>
 internal sealed unsafe partial class XInputApi : IXInput
 {
@@ -59,7 +59,7 @@ internal sealed unsafe partial class XInputApi : IXInput
 }
 
 /// <summary>
-/// Reads the pads on its own thread, only between <see cref="Start"/> and <see cref="Stop"/> (D-056): 10 Hz, or 60 Hz
+/// Reads the pads on its own thread, only between <see cref="Start"/> and <see cref="Halt"/> (D-056, D-086): 60 Hz
 /// while a menu is open, only the connected slots; with no pad on the thread waits on an event that a device arrival
 /// (or resume) sets, so it costs nothing. Everything is created on the first <see cref="Start"/>.
 /// </summary>
@@ -70,7 +70,6 @@ internal sealed class GamepadSource : IPadBackend
     private Thread? _thread;
     private DeviceArrival? _arrival;
     private volatile bool _stop;
-    private volatile bool _fast;
 
     public GamepadSource(IXInput? api = null)
     {
@@ -79,8 +78,6 @@ internal sealed class GamepadSource : IPadBackend
     }
 
     public event Action<PadReading>? Reading;
-
-    public void SetFast(bool fast) => _fast = fast;
 
     public IReadOnlyList<PadInfo> List() => _poller.List();
 
@@ -122,7 +119,7 @@ internal sealed class GamepadSource : IPadBackend
             _poller.Scan();
             while (!_stop)
             {
-                var delay = _poller.Step(_fast);
+                var delay = _poller.Step();
                 if (delay is null)
                 {
                     // No pad on: nothing to poll until an arrival or a resume.

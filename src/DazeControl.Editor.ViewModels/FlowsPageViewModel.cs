@@ -129,7 +129,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         _session.Update(c => c with { Flows = [.. c.Flows, new Flow(FlowIds.Unique("new-flow", ids), "New flow", [])] });
     }
 
-    /// <summary>"Controller menu" (DESIGN §3.7): a large menu of the first four flows, opened with View + Menu.</summary>
+    /// <summary>"Controller menu" (DESIGN §3.7): a large menu of the first four flows,. It has no trigger yet: give it a shortcut (D-086).</summary>
     public const string ControllerMenuName = "Controller menu";
 
     /// <summary>Builds the "Controller menu" flow for <paramref name="config"/>: items are the first four flows that exist.</summary>
@@ -141,10 +141,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         if (items.Length > 0)
             entries.Add(new("items", new ListParam([.. items])));
         entries.Add(new("size", (ParamValue)"large"));
-        return new Flow(id, ControllerMenuName, [new StepNode("menu", ProviderCatalog.MenuShowId) { With = new(entries) }])
-        {
-            Gamepad = ["View+Menu"],
-        };
+        return new Flow(id, ControllerMenuName, [new StepNode("menu", ProviderCatalog.MenuShowId) { With = new(entries) }]);
     }
 
     [RelayCommand]

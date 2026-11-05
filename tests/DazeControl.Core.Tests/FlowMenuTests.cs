@@ -6,7 +6,7 @@ using DazeControl.Core.Yaml;
 
 namespace DazeControl.Core.Tests;
 
-/// <summary>M12 core: <c>menu.show</c>, controller chords, <c>gamepad:</c> (flow-menu/DESIGN.md §2.1, §2.4, §2.5, §3.5).</summary>
+/// <summary>M12 core: <c>menu.show</c> (flow-menu/DESIGN.md §2.1, §2.4, §2.5, §3.5).</summary>
 public class FlowMenuTests
 {
     private const string Couch = """
@@ -14,7 +14,6 @@ public class FlowMenuTests
           couch:
             name: Couch
             glyph: E7FC
-            gamepad: [View+Menu]
             whenRunning: ignore
             nodes:
               - id: pick
@@ -63,75 +62,24 @@ public class FlowMenuTests
         var config = Load(yaml);
         var couch = config.Flows[0];
 
-        Assert.Equal(["View+Menu"], couch.Gamepad);
         var again = Load(ConfigYaml.Save(config));
         Assert.Equal(config, again);
         Assert.Empty(ConfigValidator.Validate(config));
         Assert.Equal(["couch-tv", "desk", "connect-technics", "tv-sleep"], ConfigValidator.MenuItems((StepNode)couch.Nodes[0]));
     }
 
-    [Theory]
-    [InlineData("View+Menu", "View+Menu")]
-    [InlineData("menu + view", "View+Menu")]
-    [InlineData("Y+RB+LB", "Y+LB+RB")]
-    [InlineData("up+down+Left+RIGHT", "Up+Down+Left+Right")]
-    public void AChordIsWrittenInTheCanonicalOrder(string written, string canonical)
-    {
-        Assert.True(GamepadChord.TryParse(written, out var chord));
-        Assert.Equal(canonical, chord.ToString());
-        Assert.Equal(chord, GamepadChord.TryParse(canonical, out var same) ? same : null);
-    }
-
     [Fact]
-    public void ADisplayChordHasSpacesAroundThePlus() =>
-        Assert.Equal("View + Menu", new GamepadChord(GamepadButtons.Menu | GamepadButtons.View).Display);
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("A")]
-    [InlineData("Guide")]
-    [InlineData("Guide+A")]
-    [InlineData("A+B+X+Y+LB")]
-    [InlineData("A+A")]
-    [InlineData("A+Select")]
-    [InlineData("A++B")]
-    public void ChordsThatAreRefused(string? text)
+    public void AGamepadKeyFromV040LoadsWithOneWarningAndIsDroppedOnSave()
     {
-        Assert.False(GamepadChord.TryParse(text, out var chord));
-        Assert.Null(chord);
-        Assert.NotNull(GamepadChord.Explain(text));
-    }
+        var yaml = Couch.Replace("glyph: E7FC", "glyph: E7FC\n    gamepad: [View+Menu]") + "\n" + Others;
+        var load = ConfigYaml.Load(yaml);
+        var config = load.Config!;
 
-    [Fact]
-    public void FourButtonsAreTheMostAndGuideSaysWhy()
-    {
-        Assert.True(GamepadChord.TryParse("A+B+X+Y", out _));
-        Assert.Contains("Game Bar", GamepadChord.Explain("Guide+A"));
-    }
-
-    [Fact]
-    public void ABadChordIsAnErrorOnTheFlowNotALoadFailure()
-    {
-        var problems = Validate(Menu("items: [a]", "gamepad: [Guide+A, View]"));
-
-        Assert.Equal(["flows.m.gamepad", "flows.m.gamepad"], problems.Select(p => p.Path));
-        Assert.All(problems, p => Assert.Equal((Severity.Error, "m"), (p.Severity, p.FlowId)));
-    }
-
-    [Fact]
-    public void ALaterFlowWithTheSameChordGetsTheError()
-    {
-        var problems = Validate("""
-            flows:
-              first: { name: First, gamepad: [View+Menu], nodes: [ { id: n, step: notify, with: { text: x } } ] }
-              second: { name: Second, gamepad: ["Menu + View"], nodes: [ { id: n, step: notify, with: { text: x } } ] }
-              off: { name: Off, enabled: false, gamepad: [A+B], nodes: [ { id: n, step: notify, with: { text: x } } ] }
-              third: { name: Third, gamepad: [A+B], nodes: [ { id: n, step: notify, with: { text: x } } ] }
-            """);
-
-        var problem = Assert.Single(problems);
-        Assert.Equal(("second", "flows.second.gamepad", "View + Menu already runs flow \"first\"."), (problem.FlowId, problem.Path, problem.Message));
+        var warning = Assert.Single(load.Problems);
+        Assert.Equal((Severity.Warning, "couch", "flows.couch.gamepad"), (warning.Severity, warning.FlowId, warning.Path));
+        Assert.Contains("removed", warning.Message);
+        Assert.Empty(ConfigValidator.Validate(config));
+        Assert.DoesNotContain("gamepad", ConfigYaml.Save(config));
     }
 
     [Fact]
@@ -303,19 +251,6 @@ public class FlowMenuTests
             """);
 
         Assert.Contains(problems, p => p.FlowId == "a" && p.Severity == Severity.Warning && p.Message.Contains("needs fixing"));
-    }
-
-    [Fact]
-    public void AFlowThatLostAHotkeyClashClaimsNoChord()
-    {
-        var problems = Validate("""
-            flows:
-              first: { name: First, hotkeys: [Alt+Z], nodes: [ { id: n, step: notify, with: { text: x } } ] }
-              second: { name: Second, hotkeys: [Alt+Z], gamepad: [A+B], nodes: [ { id: n, step: notify, with: { text: x } } ] }
-              third: { name: Third, gamepad: [A+B], nodes: [ { id: n, step: notify, with: { text: x } } ] }
-            """);
-
-        Assert.Equal(["second"], problems.Select(p => p.FlowId));
     }
 
     [Fact]
