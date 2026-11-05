@@ -7,7 +7,11 @@ namespace DazeControl.Runtime.Control;
 /// <param name="Library">The library that version was validated with.</param>
 /// <param name="Name">For messages: the flow's name, else its id.</param>
 /// <param name="Refusal">Why it can't run (#51 missing, #33 never valid, #52 turned off); null when it can.</param>
-public sealed record CalledFlow(Flow? Flow, Library Library, string Name, string? Refusal);
+/// <param name="Why">The kind of refusal, for a menu's captions (M12); a refusal without one counts as needing a fix.</param>
+public sealed record CalledFlow(Flow? Flow, Library Library, string Name, string? Refusal, CalledWhy Why = CalledWhy.None);
+
+/// <summary>Why a flow can't run, as a menu's caption tells it (DESIGN §2.1).</summary>
+public enum CalledWhy { None, Missing, NeedsFixing, TurnedOff }
 
 /// <summary>How a start-mode call went (DESIGN §2.2).</summary>
 /// <param name="Started">False = the step fails with <paramref name="Message"/>.</param>
@@ -19,6 +23,9 @@ public interface IFlowStarter
 {
     /// <summary>The called flow's runnable version in the current config.</summary>
     CalledFlow Resolve(string flowId);
+
+    /// <summary>True while the flow has a run (a menu captions it "Running").</summary>
+    bool IsRunning(string flowId);
 
     /// <summary>Start mode: starts the flow the way the tray does (own <c>whenRunning</c>, run record, pop-up).</summary>
     /// <param name="flowId">The flow to start.</param>
@@ -43,19 +50,21 @@ public sealed class FlowCalls(Func<ConfigSnapshot> snapshot) : IFlowStarter
     {
         var state = snapshot().Flows.FirstOrDefault(f => f.FlowId == flowId);
         if (state is null)
-            return new(null, Library.Empty, flowId, $"{flowId} isn't there anymore. Pick another flow.");
+            return new(null, Library.Empty, flowId, $"{flowId} isn't there anymore. Pick another flow.", CalledWhy.Missing);
         var name = state.Running?.Name ?? state.Written?.Name ?? flowId;
         // The file's On switch wins over a retained older version (D-021 keeps definitions, not "on"): §2.3.
         var enabled = (state.Written ?? state.Running)?.Enabled ?? false;
         return state.Running switch
         {
             _ when state.Written is { Enabled: false } || (state.Running is not null && !enabled) =>
-                new(null, Library.Empty, name, $"{name} is turned off, so it didn't run. Turn it on in Flows."),
-            null => new(null, Library.Empty, name, $"{name} didn't start. It needs fixing."),
-            { Enabled: false } => new(null, Library.Empty, name, $"{name} is turned off, so it didn't run. Turn it on in Flows."),
+                new(null, Library.Empty, name, $"{name} is turned off, so it didn't run. Turn it on in Flows.", CalledWhy.TurnedOff),
+            null => new(null, Library.Empty, name, $"{name} didn't start. It needs fixing.", CalledWhy.NeedsFixing),
+            { Enabled: false } => new(null, Library.Empty, name, $"{name} is turned off, so it didn't run. Turn it on in Flows.", CalledWhy.TurnedOff),
             var flow => new(flow, state.Library, name, null),
         };
     }
+
+    public bool IsRunning(string flowId) => Launcher?.IsRunning(flowId) ?? false;
 
     public StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain, IReadOnlyDictionary<string, string> inputs, string callerName)
     {
