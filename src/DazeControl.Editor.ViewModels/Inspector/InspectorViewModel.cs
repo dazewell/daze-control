@@ -265,7 +265,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     public GamepadRecorderViewModel Recorder { get; }
 
     private bool UsedByOtherFlow(GamepadChord chord) =>
-        _session.Current.Flows.Any(f => f.Id != FlowId && f.Gamepad.Any(g => GamepadChord.TryParse(g, out var other) && other == chord));
+        _session.Current.Flows.Any(f => f.Id != FlowId && f.Enabled
+            && !_session.Problems.Any(p => p.Severity == Severity.Error && p.FlowId == f.Id) && f.Gamepad.Any(g => GamepadChord.TryParse(g, out var other) && other == chord));
 
     private void AddChord(GamepadChord chord)
     {
@@ -1021,7 +1022,11 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     {
         if (Node is not StepNode step || Flow is not { } flow || !EngineRunning || IsTesting)
             return;
-        var yaml = ConfigYaml.Save(new Configuration { Library = _session.Current.Library, Flows = [flow] });
+        // A menu resolves its flows from the config, so it gets them all (edited flow in place); other steps run alone.
+        var flows = step.Step == ProviderCatalog.MenuShowId
+            ? _session.Current.Flows.Select(f => f.Id == flow.Id ? flow : f).ToArray()
+            : [flow];
+        var yaml = ConfigYaml.Save(new Configuration { Library = _session.Current.Library, Flows = [.. flows] });
         var nodeId = step.Id;
         using var cancel = new CancellationTokenSource();
         _test = cancel;
@@ -1051,7 +1056,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         else if (!answer.Ok)
             ShowResult(false, "Didn't work: " + answer.Error, null);
         else if (answer.Run?.Nodes.FirstOrDefault(n => n.NodeId == nodeId) is { } result)
-            ShowResult(result.Outcome == NodeOutcome.Succeeded, step.Step == ProviderCatalog.MenuShowId ? ExplainMenu(result) : Explain(result), result.Error);
+            ShowResult(result.Outcome == NodeOutcome.Succeeded, step.Step == ProviderCatalog.MenuShowId ? ExplainMenu(result, result.Summary) : Explain(result), result.Error);
     }
 
     [RelayCommand]

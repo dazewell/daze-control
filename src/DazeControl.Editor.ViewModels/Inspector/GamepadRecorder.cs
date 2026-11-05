@@ -153,6 +153,8 @@ public sealed partial class GamepadRecorderViewModel(IGamepadRecorder recorder, 
         {
             result = new(GamepadRecordStatus.Failed, Error: "Stopped.");
         }
+        if (!ReferenceEquals(_cancel, cancel))
+            return; // a newer recording owns the state now
         _cancel = null;
         if (cancel.IsCancellationRequested)
         {

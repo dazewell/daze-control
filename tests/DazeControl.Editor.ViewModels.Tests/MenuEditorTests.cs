@@ -27,6 +27,7 @@ public sealed class MenuEditorTests : IDisposable
           desk:
             name: Desk
             enabled: false
+            gamepad: [A+B]
             nodes:
               - { id: n, step: notify, with: { text: x } }
           night:
@@ -262,6 +263,15 @@ public sealed class MenuEditorTests : IDisposable
         await _inspector.Recorder.StartAsync();
         Assert.Equal("Another flow uses View + Menu. Try another one.", _inspector.Recorder.Message);
         Assert.Empty(_canvas.Flow!.Gamepad);
+    }
+
+    [Fact]
+    public async Task AChordOfATurnedOffFlowIsNotAClash()
+    {
+        Open("plain");
+        _recorder.Next = new(GamepadRecordStatus.Chord, "B+A");
+        await _inspector.Recorder.StartAsync();
+        Assert.Equal(["A+B"], _canvas.Flow!.Gamepad);
     }
 
     [Fact]
