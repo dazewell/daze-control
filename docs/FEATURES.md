@@ -49,6 +49,11 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
   one device picker per input; the Runs page expands a call into the called flow's steps · M12 (designed): `menu.show` — a
   no-focus menu of flows over every window, controller/keyboard/mouse, picking launches the flow (D-054, D-055).
 
+**M14 (designed, D-080..D-082):** per-step-type defaults for Try again / Wait between tries / Give up after / If it fails
+(`settings.stepDefaults`, set in Settings or "Use these for all <type> steps"); per-step **Only if…** (skips a step that has
+nothing to do, e.g. Connect when already connected; the flow carries on) and **Check** steps (Bluetooth, audio, program,
+service, file; they fail when unmet, so an "if it isn't" branch works). Spec: docs/step-settings/DESIGN.md.
+
 **F4 Library** — named, reusable resources referenced by steps: audio devices (match text + flow), Bluetooth
 devices (address + name), display layouts/outputs, Android devices + inputs (edited on the card: moves as an Up/Down list, D-078), programs, credentials (secret in
 Windows Credential Manager, only the name in YAML). Each has a Test action.

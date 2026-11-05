@@ -1078,3 +1078,50 @@ Status: accepted (user, 2026-11-04). Supersedes the per-PR version bump (repo-wo
 - Why not keep `<Version>` per PR: every parallel PR conflicted on that one line. Why not squash: it rewrote history
   so stacked and merged-in branches conflicted again (the old §6 "Stacked PRs" recipe).
 - Revisit if: auto-merge lands something a later review would have stopped, or releases need a version before tagging.
+
+## D-080 · 2026-11-04 · Default timing and failure policy per step type live in config.yaml `settings.stepDefaults`
+Status: accepted (design; user asked 2026-11-04). Design: docs/step-settings/DESIGN.md Part A.
+- Decision: `settings.stepDefaults.<step id>: { timeout, retry: { count, delay }, onFailure }`, each field optional and
+  resolved alone: the step's own value > the type default > the built-in (descriptor timeout, 0 retries, `stop`). The
+  model keeps "not set" as null (`Node.OnFailure` and the retry fields become nullable; an explicit `stop` is now
+  written), and `StepDefaults.Apply` fills a flow before the run so the Scheduler and runner are untouched. The
+  inspector shows each field as Default or Set with a Reset link and a "Use these for all <type> steps…" button;
+  Settings gets a "Step defaults" card with "Used by n steps".
+- Why: the engine only reads config.yaml; a default that changes a run must be in the file the run is built from,
+  survive the editor being closed, and be diffable. Inheriting (null) means a changed default reaches every step that
+  never overrode it, which is the point. No schema bump: additive, and no key means the old behaviour.
+- Why not editor.json: the engine can't read it (D-068). Why not copying the default into each step on creation: later
+  changes wouldn't reach existing steps and every step would grow keys. Why not retry as one unit: "Wait between tries"
+  alone would turn "Try again" into Set. Why not per area or per flow: the user asked for step types; an area mixes very
+  different operations (Audio: set default vs volume). Why not resolve in the mapper: save would lose which fields were set.
+- Revisit if: users want per-flow defaults (then a middle level between step and type).
+
+## D-081 · 2026-11-04 · "Only if" is a per-step condition and checks are step types; both read one shared read-only probe
+Status: accepted (design; user asked 2026-11-04). Design: docs/step-settings/DESIGN.md Part B.
+- Decision: providers may implement read-only fact probes (`bluetooth.connected` …). A step's `only:` (a scalar id from
+  its descriptor's `Conditions`; absent or `always` = run) skips the step when unmet; a check step type per area
+  (`bluetooth.check`, `audio.check`, `process.check`, `service.check`, `file.check`, later `display.check`, `android.check`;
+  `flag.check` stays) fails when the fact isn't what was chosen. A condition-skipped step ends **Succeeded with a note**
+  (not `Skipped`, not `NotNeeded`): `success` dependents run, `failure` fallbacks don't fire, the flow is Done. A probe runs
+  when the step runs, once, after the resource lock, inside the attempt's timeout; if it can't answer, the step runs.
+  Dry run assumes conditions are met; "Test this step" evaluates for real.
+- Why: "skip straight to the next step when already connected" must keep dependents running, which `Skipped` (skips
+  propagate, D-003) can't do, and `NotNeeded` is fallback bookkeeping (D-065). A failing check reuses failure edges,
+  retries and policies, so branching and "wait until connected" need no new runtime. One shared probe keeps the two
+  from disagreeing; the cost is one read per use.
+- Why not only a check step: "Connect unless connected" would need a check, a failure edge and a fallback hop on every
+  step, and the failure would read as red. Why not only `only:`: it can't stop or branch. Why not a new outcome that fires
+  `success`: every consumer (pop-up, Runs, canvas, tray) would learn it, for what a note already says (D-065 made the same
+  call). Why not skip when the probe can't tell: a wrong skip silently leaves the PC in the wrong state; a needless run
+  repeats an idempotent step. Why not poll or subscribe to state: idle = zero.
+- Revisit if: users want a step to depend on another area's check (extend `only` to `{ check, with }`).
+
+## D-082 · 2026-11-04 · Branching stays "check + failure edge"; no if/else, no expressions
+Status: accepted (design). Design: docs/step-settings/DESIGN.md B9.
+- Decision: M14 adds no conditional edges. A choice is a check step with a `success` dependent and a `failure` fallback
+  (D-024/D-065); the pop-up gets "X isn't connected, so Y ran instead" wording for checks.
+- Why: the model already branches this way and the editor draws and validates it; a second mechanism would need its
+  own validation, canvas states and wording for the same flows.
+- Why not `if:`/`else:` blocks or an expression language: new graph semantics (joins after branches, skips) for no scenario
+  the user has. Why not conditions on edges: every edge editor and the scheduler's edge logic would change.
+- Revisit if: a real flow needs three or more ways out of one check, or a condition across two checks.
