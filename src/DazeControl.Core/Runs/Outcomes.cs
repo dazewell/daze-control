@@ -47,6 +47,10 @@ public sealed record NodeResult(string NodeId, NodeOutcome Outcome, int Attempts
     /// <summary>What the step says about itself ("Picked Couch TV", M12): shown beside its result. Null = nothing to add.</summary>
     public string? Summary { get; init; }
 
+    /// <summary>Set when "Only if" wasn't met and the step was skipped (D-081): why, in the probe's words ("Technics is
+    /// connected"). The outcome is Succeeded; readers prefix "Skipped: ". Null otherwise and in runs recorded before 0.41.</summary>
+    public string? SkippedBecause { get; init; }
+
     /// <summary>Succeeded, but the flow it ran ended with a problem: a problem for the caller (DESIGN §2.2).</summary>
     public bool IsPartialCall => Outcome == NodeOutcome.Succeeded && Called?.Outcome == FlowOutcome.PartiallySucceeded;
 }
