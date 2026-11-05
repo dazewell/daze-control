@@ -541,9 +541,24 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     {
         var target = Node("vol");
         Assert.Equal(DropZone.RunAfter, FlowCanvasViewModel.ZoneAt(target, new Point(target.Bounds.Right - 2, target.Bounds.CenterY)));
-        Assert.Equal(DropZone.RunTogether, FlowCanvasViewModel.ZoneAt(target, new Point(target.X + 10, target.Bounds.CenterY)));
-        Assert.Equal(DropZone.None, FlowCanvasViewModel.ZoneAt(target, new Point(target.X + 10, target.Y + 2)));
-        Assert.Equal(DropZone.RunTogether, FlowCanvasViewModel.ZoneAt(Node("both"), new Point(Node("both").X + 10, Node("both").Y + 2)));
+        Assert.Equal(DropZone.RunBefore, FlowCanvasViewModel.ZoneAt(target, new Point(target.X + 10, target.Bounds.CenterY)));
+        Assert.Equal(DropZone.RunTogether, FlowCanvasViewModel.ZoneAt(target, new Point(target.X + target.Width / 2, target.Bounds.CenterY)));
+        Assert.Equal(DropZone.None, FlowCanvasViewModel.ZoneAt(target, new Point(target.X + target.Width / 2, target.Y + 2)));
+        Assert.Equal(DropZone.RunTogether, FlowCanvasViewModel.ZoneAt(Node("both"), new Point(Node("both").X + Node("both").Width / 2, Node("both").Y + 2)));
+        Assert.Equal(DropZone.RunBefore, FlowCanvasViewModel.ZoneAt(Node("both"), new Point(Node("both").X + 10, Node("both").Y + 2)));
+    }
+
+    [Fact]
+    public void RunBeforeIsOneUndoStepAndTheMenuRouteMatches()
+    {
+        var before = _canvas.Flow;
+        Assert.Contains(_canvas.RunBeforeCandidates("note"), n => n.Id == "bt");
+
+        Assert.Equal(ConnectRefusal.None, _canvas.RunBefore("note", "bt"));
+        Assert.Contains(new Edge("note"), _canvas.Flow!.FindNode("bt")!.After);
+
+        _canvas.Undo();
+        Assert.Equal(before, _canvas.Flow);
     }
 
     [Fact]

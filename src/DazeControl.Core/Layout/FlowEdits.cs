@@ -215,6 +215,35 @@ public static class FlowEdits
         return FlowGraph.HasLoop(result) ? (flow, ConnectRefusal.Loop) : (result, ConnectRefusal.None);
     }
 
+    /// <summary>
+    /// Drop on a pill's left third: run before it (D-083). The dragged step takes all of the target's incoming edges,
+    /// kinds kept, replacing its own; the target then waits only for it. Its dependents stay as they are.
+    /// <see cref="GroupResult.DroppedFallback"/> says an "if it fails" / "whatever happens" link of its own went.
+    /// </summary>
+    public static GroupResult RunBefore(Flow flow, string dragged, string target)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        var cardOf = FlowLayout.CardOf(flow);
+        var targetTop = cardOf.GetValueOrDefault(target, target);
+        if (flow.FindNode(dragged) is null || flow.FindNode(target) is null || cardOf.GetValueOrDefault(dragged, dragged) == targetTop)
+            return new(flow, cardOf.TryGetValue(dragged, out var own) && own == targetTop ? ConnectRefusal.SameCard : ConnectRefusal.None);
+        var (free, refusal) = TakeOut(flow, dragged);
+        if (refusal != ConnectRefusal.None)
+            return new(flow, refusal);
+        if (free.FindNode(targetTop) is null)
+            targetTop = target;
+        var incoming = free.FindNode(targetTop)!.After;
+        var lost = free.FindNode(dragged)!.After.Any(e => e.When != EdgeWhen.Success && incoming.All(i => i.From != e.From || i.When != e.When));
+        var result = free with
+        {
+            Nodes = [.. free.Nodes.Select(n =>
+                n.Id == dragged ? n with { After = [.. incoming.Where(e => e.From != dragged)] }
+                : n.Id == targetTop ? n with { After = [new Edge(dragged)] }
+                : n)],
+        };
+        return FlowGraph.HasLoop(result) ? new(flow, ConnectRefusal.Loop) : new(result, ConnectRefusal.None, lost);
+    }
+
     private static bool Conflicts(IEnumerable<Edge> edges) =>
         edges.GroupBy(e => e.From, StringComparer.Ordinal).Any(g => g.Select(e => e.When).Distinct().Count() > 1);
 

@@ -409,4 +409,82 @@ public class FlowEditsTests
 
         Assert.Equal([E("g")], After(FlowEdits.RunAfter(flow, "s", "m2").Flow, "s"));
     }
+
+    [Fact]
+    public void RunBeforeTheFirstStepMakesItTheNewFirst()
+    {
+        var flow = FlowOf(Step("a"), Step("b"), Step("c", "b"));
+
+        var (result, refusal, _) = FlowEdits.RunBefore(flow, "b", "a");
+
+        Assert.Equal(ConnectRefusal.None, refusal);
+        Assert.Empty(After(result, "b"));
+        Assert.Equal([E("b")], After(result, "a"));
+        Assert.Equal([E("b")], After(result, "c")); // dependents stay
+    }
+
+    [Fact]
+    public void RunBeforeAMiddleStepTakesItsIncomingEdgesWithTheirKinds()
+    {
+        var flow = FlowOf(Step("a"), Step("t") with { After = [new Edge("a", EdgeWhen.Failure)] }, Step("x", "a"));
+
+        var (result, refusal, _) = FlowEdits.RunBefore(flow, "x", "t");
+
+        Assert.Equal(ConnectRefusal.None, refusal);
+        Assert.Equal([new Edge("a", EdgeWhen.Failure)], After(result, "x"));
+        Assert.Equal([E("x")], After(result, "t"));
+    }
+
+    [Fact]
+    public void RunBeforeReportsALostFallbackLink()
+    {
+        var flow = FlowOf(Step("a"), Step("t"), Step("x") with { After = [new Edge("a", EdgeWhen.Always)] });
+
+        Assert.True(FlowEdits.RunBefore(flow, "x", "t").DroppedFallback);
+    }
+
+    [Fact]
+    public void RunBeforeRefusesALoop()
+    {
+        var flow = FlowOf(Step("a"), Step("t", "a"), Step("d", "t"));
+
+        var result = FlowEdits.RunBefore(flow, "a", "d");
+
+        Assert.Equal(ConnectRefusal.Loop, result.Refusal);
+        Assert.Same(flow, result.Flow);
+    }
+
+    [Fact]
+    public void RunBeforeACardTargetsTheWholeCard()
+    {
+        var flow = FlowOf(Step("a"), new GroupNode("g", ["m1", "m2"]) { After = [E("a")] }, Step("m1"), Step("m2"), Step("s"));
+
+        var (result, _, _) = FlowEdits.RunBefore(flow, "s", "m2");
+
+        Assert.Equal([E("a")], After(result, "s"));
+        Assert.Equal([E("s")], After(result, "g"));
+    }
+
+    [Fact]
+    public void RunBeforeADraggedMemberLeavesItsCard()
+    {
+        var flow = FlowOf(new GroupNode("g", ["m1", "m2"]), Step("m1"), Step("m2"), Step("t"));
+
+        var (result, refusal, _) = FlowEdits.RunBefore(flow, "m1", "t");
+
+        Assert.Equal(ConnectRefusal.None, refusal);
+        Assert.Null(result.FindNode("g")); // a card of one dissolves
+        Assert.Equal([E("m1")], After(result, "t"));
+    }
+
+    [Fact]
+    public void RunBeforeAStepOfItsOwnCardIsRefused()
+    {
+        var flow = FlowOf(new GroupNode("g", ["m1", "m2"]), Step("m1"), Step("m2"));
+
+        var result = FlowEdits.RunBefore(flow, "m1", "m2");
+
+        Assert.Equal(ConnectRefusal.SameCard, result.Refusal);
+        Assert.Same(flow, result.Flow);
+    }
 }

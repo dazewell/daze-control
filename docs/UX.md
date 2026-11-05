@@ -49,8 +49,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   selected node's output port (adds connected after) · "+" on an edge midpoint (insert).
 - Connect: drag from output port (right) to an input port / node body (left); valid targets glow accent; a
   cycle shows not-allowed + teaching tip (§5.7 #3), never creates the edge.
-- Parallel vs sequence: fan-out = "at the same time". Dragging a pill over another shows two drop zones:
-  right third "Run after", body "Run together" (makes a card). Linked steps may be dropped together: the drop
+- Parallel vs sequence: fan-out = "at the same time". Dragging a pill over another shows three drop zones:
+  left third "Run before" (D-083: it takes the target's incoming links, the target waits for it; keyboard route: the
+  step menu's "Run before…"), right third "Run after", body "Run together" (makes a card). Linked steps may be dropped together: the drop
   fixes the order, so the dragged step's links on a path to or from the target go (D-058).
 - Cards: select ≥ 2 → Ctrl+G / "Run together" (members' outer edges move to the card); Ctrl+Shift+G ungroups
   (stacked in one column, edges kept); drag pills in/out/between cards. No nested cards; grouping linked steps drops the
