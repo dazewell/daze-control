@@ -58,7 +58,7 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   "Test this step" answer. Fake probe + fake provider only. Done when: Runtime tests for B4 (unmet → skipped with note and `success`
   dependents run, `failure` edge doesn't fire, flow Succeeded; probe throws → step runs; retry doesn't re-probe; card member), a
   Core round-trip with `only: always`, old run-history files still read; `dctl run --dry-run` shows normal results.
-- [ ] T14.6 Bluetooth condition + check (feat/m14-bluetooth-check, after T14.5). Files: `Providers/Bluetooth` (probe `bluetooth.connected` from the
+- [x] T14.6 Bluetooth condition + check (feat/m14-bluetooth-check, after T14.5). Files: `Providers/Bluetooth` (probe `bluetooth.connected` from the
   picker's device state), `bluetooth.check`, `Conditions` on connect/disconnect, catalog entries. Done when: provider tests with the
   fake query; on the dev PC (read-only) `dctl run` of a one-step check flow reports connected / not connected for the Technics
   library entry in < 1 s. A live Connect/Disconnect is not run without asking the user.

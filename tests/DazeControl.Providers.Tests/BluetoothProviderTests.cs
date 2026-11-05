@@ -1,3 +1,4 @@
+using DazeControl.Core.Catalog;
 using DazeControl.Core.Model;
 using DazeControl.Providers.Bluetooth;
 using DazeControl.Runtime.Providers;
@@ -69,5 +70,56 @@ public class BluetoothProviderTests
         Assert.InRange(active, 0, total);
         if (Environment.GetEnvironmentVariable("DAZE_DEV_PC") == "1")
             Assert.True(total >= 2, $"{total} endpoints"); // A2DP + hands-free at least
+    }
+
+    private sealed class FakeState(bool? connected) : IBluetoothState
+    {
+        public Task<bool?> IsConnectedAsync(BluetoothDevice device, CancellationToken cancellationToken) =>
+            Task.FromResult(connected);
+    }
+
+    private static Task<FactReading> Read(bool? connected) =>
+        new BluetoothConnectedProbe(new FakeState(connected)).ReadAsync(
+            Steps.Context("bluetooth.connect", ("device", "technics")) with { Library = new Library { Bluetooth = [Technics] } },
+            TestContext.Current.CancellationToken);
+
+    [Fact]
+    public async Task TheProbeSaysInWordsWhetherTheDeviceIsConnected()
+    {
+        Assert.Equal(new FactReading(true, "Technics EAH-AZ80 is connected"), await Read(true));
+        Assert.Equal(new FactReading(false, "Technics EAH-AZ80 isn't connected"), await Read(false));
+    }
+
+    [Fact]
+    public async Task TheProbeThrowsWhenWindowsDoesNotSay() =>
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Read(null));
+
+    [Theory]
+    [InlineData(true, null, true)]
+    [InlineData(false, null, false)]
+    [InlineData(true, "disconnected", false)]
+    [InlineData(false, "disconnected", true)]
+    public async Task TheCheckFailsWhenTheDeviceIsNotAsChosen(bool connected, string? @is, bool passes)
+    {
+        var check = new BluetoothCheckProvider(new BluetoothConnectedProbe(new FakeState(connected)));
+        var context = Steps.Context("bluetooth.check", @is is null ? [("device", "technics")] : [("device", "technics"), ("is", @is)]) with
+        {
+            Library = new Library { Bluetooth = [Technics] },
+        };
+        var run = check.ExecuteAsync(context, TestContext.Current.CancellationToken);
+        if (passes)
+            await run;
+        else
+            Assert.Equal(connected ? "Technics EAH-AZ80 is connected." : "Technics EAH-AZ80 isn't connected.",
+                (await Assert.ThrowsAsync<StepFailedException>(() => run)).Message);
+    }
+
+    [Fact]
+    public void ConnectAndDisconnectOfferOnlyIfOnTheSameFact()
+    {
+        Assert.Equal(("disconnected", false), (ProviderCatalog.Find("bluetooth.connect")!.Conditions[0].Id, ProviderCatalog.Find("bluetooth.connect")!.Conditions[0].Expected));
+        Assert.Equal(("connected", true), (ProviderCatalog.Find("bluetooth.disconnect")!.Conditions[0].Id, ProviderCatalog.Find("bluetooth.disconnect")!.Conditions[0].Expected));
+        Assert.All(["bluetooth.connect", "bluetooth.disconnect"], id =>
+            Assert.Equal("bluetooth.connected", ProviderCatalog.Find(id)!.Conditions[0].Fact));
     }
 }

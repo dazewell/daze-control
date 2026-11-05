@@ -58,7 +58,7 @@ public static class Program
 
         var paths = EnginePaths.Default(ConfigPathOf(arguments));
         Log.Info($"engine: config {paths.Config}");
-        using var host = new EngineHost(paths, notifier => BuiltInProviders.Create(TimeProvider.System, notifier), BuiltInProviders.Devices());
+        using var host = new EngineHost(paths, notifier => BuiltInProviders.Create(TimeProvider.System, notifier), BuiltInProviders.Devices(), BuiltInProviders.Probes());
         using var updates = installed
             ? new UpdateCheck(Path.Combine(AppContext.BaseDirectory, "dctl.exe"), TimeProvider.System)
             : null;
