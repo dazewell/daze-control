@@ -18,7 +18,7 @@ public enum HotkeyRejection
 {
     None,
 
-    /// <summary>H1: not a key a shortcut can use (Space, Tab, arrows, the pad's * …).</summary>
+    /// <summary>H1: not a key a shortcut can use (Space, Tab, arrows, the pad's Enter …).</summary>
     NotAKey,
 
     /// <summary>H2: a usable key, but Win, Ctrl or Alt is missing.</summary>
@@ -37,12 +37,22 @@ public enum HotkeyRejection
 /// <summary>
 /// A global shortcut as written in config.yaml and shown in the editor (ported from OSD D-020..D-022): "Win+Alt+A".
 /// <paramref name="Key"/> is a virtual-key code: A–Z, 0–9, F1–F24, the punctuation keys under their US names
-/// (<c>[ ] \ ; ' , . / ` - =</c>) or the number pad's Num0–Num9 (D-071). Win, Ctrl or Alt is required, so a
-/// hotkey never swallows plain typing, except for Num0–Num9, which may stand alone; Shift never goes with a Num key.
+/// (<c>[ ] \ ; ' , . / ` - =</c>) or the number pad's keys Num0–Num9 and Num* Num+ Num- Num. Num/ (D-071, D-085). Win, Ctrl or Alt is required, so a
+/// hotkey never swallows plain typing, except for the number pad keys, which may stand alone; Shift never goes with a Num key.
 /// </summary>
 public sealed record Hotkey(HotkeyModifiers Modifiers, uint Key)
 {
     private const uint NumPad0 = 0x60, NumPad9 = 0x69;
+
+    /// <summary>The pad's operator keys (VK_MULTIPLY, ADD, SUBTRACT, DECIMAL, DIVIDE) with their canonical symbol and aliases (D-085).</summary>
+    private static readonly (uint Key, char Symbol, string[] Aliases)[] PadOperators =
+    [
+        (0x6A, '*', ["MULTIPLY", "TIMES", "STAR", "ASTERISK"]),
+        (0x6B, '+', ["ADD", "PLUS"]),
+        (0x6D, '-', ["SUBTRACT", "MINUS"]),
+        (0x6E, '.', ["DECIMAL", "DOT", "PERIOD"]),
+        (0x6F, '/', ["DIVIDE", "SLASH"]),
+    ];
 
     private static readonly (string Name, HotkeyModifiers Flag)[] ModifierNames =
     [
@@ -65,7 +75,23 @@ public sealed record Hotkey(HotkeyModifiers Modifiers, uint Key)
         hotkey = null;
         if (string.IsNullOrWhiteSpace(text))
             return false;
-        var parts = text.Split('+', StringSplitOptions.TrimEntries);
+        text = text.Trim();
+        string[] parts;
+        if (text.EndsWith('+'))
+        {
+            // "Num+" and "Win+Num++": a trailing '+' is the pad's plus key when "Num"/"Numpad" comes right before it.
+            var body = text[..^1].TrimEnd();
+            if (body.EndsWith('+'))
+                body = body[..^1].TrimEnd();
+            parts = body.Split('+', StringSplitOptions.TrimEntries);
+            if (parts[^1].ToUpperInvariant() is not ("NUM" or "NUMPAD"))
+                return false;
+            parts[^1] = "Num+";
+        }
+        else
+        {
+            parts = text.Split('+', StringSplitOptions.TrimEntries);
+        }
         var modifiers = HotkeyModifiers.None;
         foreach (var part in parts[..^1])
         {
@@ -92,8 +118,9 @@ public sealed record Hotkey(HotkeyModifiers Modifiers, uint Key)
         return valid;
     }
 
-    /// <summary>VK_NUMPAD0–VK_NUMPAD9: the pad's digits, which Windows sends only while Num Lock is on.</summary>
-    public static bool IsNumberPad(uint key) => key is >= NumPad0 and <= NumPad9;
+    /// <summary>VK_NUMPAD0–9 and the pad's operators; the digits and Num. arrive only while Num Lock is on. Num Enter is not here: RegisterHotKey can't tell it from Enter (D-085).</summary>
+    public static bool IsNumberPad(uint key) =>
+        key is >= NumPad0 and <= NumPad9 || Array.Exists(PadOperators, o => o.Key == key);
 
     /// <summary>Why <paramref name="key"/> with <paramref name="modifiers"/> can't be a shortcut, or <see cref="HotkeyRejection.None"/>.</summary>
     public static HotkeyRejection Check(HotkeyModifiers modifiers, uint key)
@@ -123,8 +150,18 @@ public sealed record Hotkey(HotkeyModifiers Modifiers, uint Key)
         if (name.Length > 1 && name[0] == 'F' && int.TryParse(name.AsSpan(1), out var n) && n is >= 1 and <= 24
             && name[1] != '0')
             return (uint)(0x70 + n - 1); // VK_F1
+        name = name.Replace(" ", "");
         foreach (var prefix in (ReadOnlySpan<string>)["NUMPAD", "NUM"])
         {
+            if (name.StartsWith(prefix, StringComparison.Ordinal) && name.Length > prefix.Length)
+            {
+                var rest = name[prefix.Length..];
+                foreach (var (key, symbol, aliases) in PadOperators)
+                {
+                    if (rest.Length == 1 && rest[0] == symbol || Array.IndexOf(aliases, rest) >= 0)
+                        return key;
+                }
+            }
             if (name.Length == prefix.Length + 1 && name.StartsWith(prefix, StringComparison.Ordinal) && char.IsAsciiDigit(name[^1]))
                 return NumPad0 + (uint)(name[^1] - '0');
         }
@@ -136,6 +173,7 @@ public sealed record Hotkey(HotkeyModifiers Modifiers, uint Key)
     {
         >= 0x70 and <= 0x87 => "F" + (Key - 0x70 + 1),
         >= NumPad0 and <= NumPad9 => "Num" + (Key - NumPad0),
+        _ when Array.FindIndex(PadOperators, o => o.Key == Key) is >= 0 and var j => "Num" + PadOperators[j].Symbol,
         _ when Array.FindIndex(Punctuation, p => p.Key == Key) is >= 0 and var i => Punctuation[i].Name.ToString(),
         _ => ((char)Key).ToString(),
     };

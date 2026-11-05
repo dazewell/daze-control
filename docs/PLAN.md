@@ -90,6 +90,9 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   (`TryParseTyped`), tests. Typed text goes through `Hotkey.TryParse` (not free text, so D-021 stands) and then `SetShortcut` like a
   recorded chord (same clash checks).
 
+- [x] T14.13 Number pad operators as shortcut keys (feat/numpad-operators, D-085; independent of T14.1–T14.12). Files: `Core/Input/Hotkey.cs`,
+  `Editor/Inspector/HotkeyRecorder.xaml.cs` (pad Delete = Num.), tests, UX/FEATURES.
+
 ## M15 Edit several steps at once (user, 2026-11-04) — after all M14 tasks (needs the M14 Default/Set and "Only if" rows)
 Designed 2026-11-04: docs/step-settings/DESIGN.md Part D, D-084. Selection (click, Ctrl+click, marquee, Ctrl+A) already exists;
 `InspectorMode.Many` shows only "n selected". Order T15.1 → T15.2 → T15.3 (all in `Editor.ViewModels/Inspector`: serial).

@@ -1150,3 +1150,15 @@ Status: accepted (design; user asked 2026-11-04). Design: docs/step-settings/DES
   Why not "first selected wins" instead of Mixed: hides the difference and overwrites it on any touch. Why not per-key
   apply for text: dozens of Undo entries for one word.
 - Revisit if: users want to copy a step's settings onto others (a paste-style command).
+
+## D-085 · 2026-11-04 · Shortcut keys: the number pad's * + - . / too; Num Enter never
+Status: accepted (user, 2026-11-04: no numpad on the dev PC, asked for the operators); built T14.13. Extends D-071.
+- Decision: `Hotkey` also takes VK_MULTIPLY 0x6A `Num*`, VK_ADD 0x6B `Num+`, VK_SUBTRACT 0x6D `Num-`, VK_DECIMAL 0x6E
+  `Num.`, VK_DIVIDE 0x6F `Num/`, with the digits' rules (may stand alone, Shift refused, `IsNumberPad` true). Parsing
+  accepts `Numpad…` and words (`NumDivide`, `NumPlus`, `NumStar`, `NumPeriod`…), any case, spaces ignored; a trailing
+  `+` after Num/Numpad is the plus key (`Win+Num++`). The engine's `RegisterHotKey` takes the VK, so it needed no change.
+- Num Lock: the operators arrive as themselves either way; `Num.` is Delete with Num Lock off, so the recorder now
+  reports H3 for the pad's non-extended Delete instead of clearing the box.
+- Why not Num Enter: it is VK_RETURN with the extended flag, which `RegisterHotKey` can't see, so it would register
+  plain Enter. Left out (a hook is ruled out, D-071).
+

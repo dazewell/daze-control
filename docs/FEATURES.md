@@ -27,7 +27,7 @@ What Daze Control does, stack-independent. Source: the 2026-10-31 plan §2. Stat
   An invalid flow is disabled with its problems listed; every other flow keeps working.
 
 **F2 Triggers** — v1: global hotkey (Win/Ctrl/Alt plus a letter, number, F1–F24 or a key like `[` `]` `\`;
-number-pad Num0–Num9 with or without them, D-071; the recorder says why a key is refused, D-073), tray item, CLI (`dctl run`), editor Run/Test, desktop shortcut per flow
+number-pad Num0–Num9 and Num* Num+ Num- Num. Num/ with or without them, D-071; the recorder says why a key is refused, D-073), tray item, CLI (`dctl run`), editor Run/Test, desktop shortcut per flow
 (`DazeControl.exe --run <flow>`, starts the engine when needed, D-049). M12 (designed): controller buttons
 (`gamepad: [View+Menu]`, D-057) and a pick in a flow menu (D-054). Later: device events (BT
 connected, display change), schedule, session unlock/resume, app start.

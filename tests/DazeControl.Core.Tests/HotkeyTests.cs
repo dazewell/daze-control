@@ -38,6 +38,12 @@ public class HotkeyTests
     [InlineData("Num10")]
     [InlineData("Num")]
     [InlineData("Win+Numpad")]
+    [InlineData("Shift+Num*")]
+    [InlineData("Shift+Num+")]
+    [InlineData("Ctrl+Shift+Num/")]
+    [InlineData("Win+Num")]
+    [InlineData("Num++ +")]
+    [InlineData("NumEnter")]       // RegisterHotKey can't tell it from Enter (D-085)
     [InlineData("Win+#")]          // not a key of its own on a US layout
     public void Rejects(string? text) => Assert.False(Hotkey.TryParse(text, out _));
 
@@ -100,6 +106,21 @@ public class HotkeyTests
     [InlineData("alt+NUMPAD7", "Alt+Num7")]
     [InlineData("num3", "Num3")]
     [InlineData("ctrl + ]", "Ctrl+]")]
+    [InlineData("Numpad/", "Num/")]
+    [InlineData("NumDivide", "Num/")]
+    [InlineData("num divide", "Num/")]
+    [InlineData("Num*", "Num*")]
+    [InlineData("Numpad Multiply", "Num*")]
+    [InlineData("NumStar", "Num*")]
+    [InlineData("Num+", "Num+")]
+    [InlineData("Win+Num++", "Win+Num+")]
+    [InlineData("ctrl + numpad +", "Ctrl+Num+")]
+    [InlineData("NumPlus", "Num+")]
+    [InlineData("Num-", "Num-")]
+    [InlineData("Alt+NumSubtract", "Alt+Num-")]
+    [InlineData("Num.", "Num.")]
+    [InlineData("Ctrl+NumDecimal", "Ctrl+Num.")]
+    [InlineData("NumPeriod", "Num.")]
     public void FormatsNumberPadAndPunctuationCanonically(string text, string canonical)
     {
         Assert.True(Hotkey.TryParse(text, out var hotkey));
@@ -114,8 +135,13 @@ public class HotkeyTests
     [InlineData(HotkeyModifiers.Shift, 0xDBu, HotkeyRejection.NeedsModifier)]               // Shift+[
     [InlineData(HotkeyModifiers.Win, 0x20u, HotkeyRejection.NotAKey)]                       // Space
     [InlineData(HotkeyModifiers.None, 0x20u, HotkeyRejection.NotAKey)]
-    [InlineData(HotkeyModifiers.Win, 0x6Au, HotkeyRejection.NotAKey)]                       // numpad *
     [InlineData(HotkeyModifiers.Shift, 0x61u, HotkeyRejection.ShiftWithNumberPad)]
+    [InlineData(HotkeyModifiers.None, 0x6Au, HotkeyRejection.None)]                         // Num* alone
+    [InlineData(HotkeyModifiers.None, 0x6Fu, HotkeyRejection.None)]                         // Num/ alone
+    [InlineData(HotkeyModifiers.Win, 0x6Bu, HotkeyRejection.None)]                          // Win+Num+
+    [InlineData(HotkeyModifiers.Shift, 0x6Du, HotkeyRejection.ShiftWithNumberPad)]
+    [InlineData(HotkeyModifiers.Ctrl | HotkeyModifiers.Shift, 0x6Eu, HotkeyRejection.ShiftWithNumberPad)]
+    [InlineData(HotkeyModifiers.None, 0x6Cu, HotkeyRejection.NotAKey)]                     // VK_SEPARATOR
     [InlineData(HotkeyModifiers.Ctrl | HotkeyModifiers.Shift, 0x61u, HotkeyRejection.ShiftWithNumberPad)]
     public void ChecksWhyAKeyIsRefused(HotkeyModifiers modifiers, uint key, HotkeyRejection expected)
     {
@@ -129,6 +155,11 @@ public class HotkeyTests
     [InlineData("Win+]")]
     [InlineData("Ctrl+Num1")]
     [InlineData("Num5")]
+    [InlineData("Num*")]
+    [InlineData("Num+")]
+    [InlineData("Win+Num-")]
+    [InlineData("Num.")]
+    [InlineData("Ctrl+Num/")]
     [InlineData("Win+'")]
     [InlineData("Win+,")]
     [InlineData("Win+`")]

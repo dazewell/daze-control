@@ -120,7 +120,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   Library items first, then "From Windows" live group (picking adds to Library silently); missing ref stays
   selected as "Not found on this PC"; refreshes live while open.
 - Hotkey: OSD HotkeyRecorder with its conflict note. M13b (D-071..D-073): it also takes [ ] \ ; ' , . / ` - = and
-  Num0–Num9 (alone or with Win/Ctrl/Alt); a refused or taken key shows why under the box (§5.7 H1–H7), and a
+  Num0–Num9 and Num* Num+ Num- Num. Num/ (alone or with Win/Ctrl/Alt); a refused or taken key shows why under the box (§5.7 H1–H7), and a
   number-pad shortcut alone shows the H8 tip under its row. File: TextBox + Browse, inline "Can't find this file."
   Number+unit: NumberBox + suffix ("s"; stored as ms). Key/value rows + "Add header". Script: monospace 8 lines
   + "Open in editor".
