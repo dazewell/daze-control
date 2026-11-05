@@ -18,6 +18,23 @@ public sealed partial class GroupItemViewModel : ObservableObject
         Name = name;
     }
 
+    /// <summary>The members this header stands for (the ones a search shows).</summary>
+    internal IReadOnlyList<FlowItemViewModel> Members => _members;
+
+    /// <summary>All members are selected (D-090).</summary>
+    [ObservableProperty]
+    public partial bool IsSelected { get; private set; }
+
+    /// <summary>The Select toggle is on: the header shows a checkbox.</summary>
+    [ObservableProperty]
+    public partial bool ShowCheck { get; private set; }
+
+    internal void UpdateSelection(bool selected, bool showCheck)
+    {
+        IsSelected = selected;
+        ShowCheck = showCheck;
+    }
+
     /// <summary>The id a drop "before this group" names (a group stands for its first member).</summary>
     public string? FirstMemberId => _members.Count > 0 ? _members[0].Id : null;
 
