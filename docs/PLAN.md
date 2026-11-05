@@ -138,7 +138,7 @@ T16.4 edits the card/rows, T16.5 the command bar); `T16.4 + T16.5 → T16.6 → 
   can't be made reliable record an X-xxx. Done when: drag a flow within, into and out of a group, a group as a block, Esc cancels,
   auto-scroll; Alt+↑/↓/← and "Move up/down" give the same results; Undo/Ctrl+Z restores; drag is off while sorted/filtered with the
   reason in the tooltip; tests for the Undo stack and drop-position maths; screenshots/recording of the insertion line.
-- [ ] T16.5 Sort, search, filter (feat/m16-sort-filter, after T16.3). Files: `FlowsPageViewModel.cs` view layer, command bar in
+- [x] T16.5 Sort, search, filter (feat/m16-sort-filter, after T16.3). Files: `FlowsPageViewModel.cs` view layer, command bar in
   `ShellWindow.xaml`, `editor.json` (`flowList.sort`, `filter`). Done when: tests: sorts keep groups in place and ties in Your order;
   search matches name, shortcut, group, step titles and expands groups; filters; "Make this my order" writes the visible order as
   one Undo; empty-result state with Clear; Ctrl+F.
