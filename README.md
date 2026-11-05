@@ -52,11 +52,15 @@ with their settings ([docs/FEATURES.md](docs/FEATURES.md) has the whole model).
 
 ### Menu with a controller
 
-A `menu.show` step pops up a menu of flows over every window. A flow with that step is started like any other (shortcut,
-tray, `dctl run`); while the menu is open an Xbox pad (or a Steam Controller's Xbox mode) drives it: D-pad or left stick
-to move, A to run, B to close. Buttons already held when the menu opens are ignored until you let go. Daze Control reads
-the pad only while a menu is open. Starting a flow from a pad button is done with a shortcut: map the button to a key in
-Steam Input and give the flow that key as its shortcut.
+A `menu.show` step pops up a menu of flows over every window, without taking focus. A flow with that step is started like
+any other (shortcut, tray, `dctl run`). Choose with the mouse, the keys (arrows, Enter, Esc, 1–9) or, while the menu is
+open, an Xbox pad (a Steam Controller reaches it as arrows, Enter and Esc): D-pad or left stick to move, A to run, B to
+close. Buttons already held when the menu opens are ignored until you let go. Daze Control reads the pad only while a menu
+is open.
+
+Known limits: games still see your pad presses while the menu is open; it shows over borderless and windowed games, not
+over a game in its own full-screen mode (set the game to borderless); a key another app owns as a global shortcut won't
+reach the menu; there is no screen-reader support.
 
 ### Command line
 

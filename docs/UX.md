@@ -172,7 +172,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   device with the Library's first one. Device pickers in that flow get a group "This flow's inputs" ("Output" /
   "Technics unless the caller picks another") above "Library"; a step using one shows its name on the pill. Removing a
   used input, or changing its kind, writes its default into the steps, with tip #61.
-- **Menu step** (M12, designed; full spec [flow-menu/DESIGN.md](flow-menu/DESIGN.md) §3.7): Choices = token list of
+- **Menu step** (M12, built): Choices = token list of
   flows (glyph + name, ×, Alt+Up/Down, "Add a flow", own flow not offered, a missing one caution with #40), Title,
   Layout List / Grid, Size Normal / Large "For a TV across the room", Close after (s), "Wait for it to finish" (#41).
   "Test this step" shows the real menu and runs nothing (#42). (Controller-button chords and their recorder were removed, D-086.)
@@ -201,8 +201,20 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   running"); invalid flow greyed "TV only (needs fixing)"; then separator · Open Daze Control · Pause
   shortcuts (checked) · separator · Exit. Icon variants busy / paused; tooltip "Daze Control · Running
   Connect Technics".
-- Flow menu (M12, designed): the pop-up's surface as a no-focus menu of flows, centred on the foreground window's
-  screen; layout, focus visual and input map in [flow-menu/DESIGN.md](flow-menu/DESIGN.md) §4.
+- Flow menu (M12, built): the pop-up's surface (acrylic, radius 8, padding 16, 4-px grid) as a no-focus menu, centred on
+  the foreground window's monitor. **List** (default) 400 DIP wide (Large 560): title row (Subtitle, Large: Title) with
+  a Caption "4 choices"; rows 56 (Large 72), glyph 24 (32) in a 40 (48) square, name Body one line, state caption right
+  ("Running", "Needs fixing", "Turned off"); scrolls under work-area height − 48. **Grid** tiles 136×112 (Large 184×152),
+  glyph 32 (48) over a two-line name; 1–3 items one row, 4 → 2×2, 5–9 → 3 columns, 10–12 → 4; moves in 2D, no wrap.
+  Focus = accent fill, on-accent text, 2-DIP two-tone ring, semibold name; slides in 120 ms (animations off: instant);
+  hover = subtle fill; high contrast: Highlight fill, 3-DIP ring. Never colour alone. An off choice can be focused (its
+  reason reads) but A/Enter only shakes it. Hint row (Caption) follows the last input: pad "Ⓐ Run  Ⓑ Close", keys
+  "Enter Run · Esc Close", mouse none (#30); last 5 s of the close timer "Closing in 5 s" (#31). All off → #28.
+  Input: pad D-pad/left stick move, A run, B close; keys arrows/Tab/Shift+Tab/Home/End move, Enter/Space run, Esc close,
+  1–9 pick; mouse hover focuses, click picks, wheel scrolls, click outside closes. Steam Controller reaches it as arrows,
+  Enter, Esc. Text size grows rows and tiles. Known limits (README): games still see pad presses; borderless or windowed
+  games only (#32 over exclusive/FSO); keys another app owns as global shortcuts don't reach the menu; no Narrator (D-091);
+  Steam turns View+Menu into Alt+Tab (unbind it in Steam's desktop layout, D-057).
 - Pop-up: 340 wide, padding 16, spacing 12, radius 8, acrylic, no-activate, the OSD's six positions. Row 1 (min
   28): glyph 20 | name BodyStrong | status Caption "2 of 3" on 20/*/44 columns · Row 2: 4-px determinate track
   (finished nodes) · Row 3: Caption current step "Connecting Technics…". ~104 DIP, grows with text size.
@@ -298,9 +310,14 @@ contrast: solid background, no dots.
 - All strings sentence case, no jargon.
 - M11: a desktop shortcut shows the flow's glyph and runs it with the engine stopped and running; every free-text
   param has a picker or an Examples menu; the Bluetooth picker matches Settings › Bluetooth & devices.
-- M12: the menu shows over a borderless game without changing the foreground window; focus is readable from 3 m
-  (Large, light/dark/high contrast, not colour alone); pad, keys and mouse each pick and close; nothing picked shows
-  no pop-up; animation effects off = no motion; 225 % text doesn't clip rows or tiles.
+- M12 (checked 2026-11-05 by code and tests unless noted): [x] pad, keys and mouse each pick and close (`MenuModelTests`,
+  `GamepadServiceTests`, `MenuPlumbingTests`: the model and seams; the real pad is open, below); [x] nothing picked
+  shows no pop-up and ends the flow Cancelled (`MenuProviderTests`); [x] a full-screen game is refused with #32, never
+  drawn over (`FullScreenGuardPresenter`, S2); [x] the menu never activates, foreground unchanged over a borderless
+  test app (S2 probe, SPIKES.md); [x] editor inspector, validation #38–#41, Test shows the menu (`MenuEditorTests`,
+  `FlowMenuTests`). **Open, for the user** (list in [flow-menu/DESIGN.md](flow-menu/DESIGN.md)): a real Xbox / Steam
+  pad driving the menu; focus readable from 3 m (Large, light/dark/high contrast); animation effects off = no motion;
+  225 % text doesn't clip rows or tiles; the menu over a real borderless game, and #32 over a real exclusive one.
 - M13: right-drag pans and a still right click opens the menu; a 7-step chain then a fork leaves no long empty line
   (the fork starts under the chain); every Layout choice changes the canvas visibly on a sample flow; the Flows card
   shows the flow's icon and runs it with Run (keyboard: Tab to the card, Enter opens); nav Flows leaves the editor;
