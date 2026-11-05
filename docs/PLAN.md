@@ -391,7 +391,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   edges don't run; two menus serialize on the presenter gate; a `wait: true` parent picking a submenu flow shows the
   child's menu (gate released before the launch) and takes its outcome; "Back" to a parent that is still running
   follows its `whenRunning`; dry run doesn't show; test-step returns the pick without a run.
-- [ ] T12.5 Runtime: pure `MenuModel` + `GamepadChordRecognizer` + `GamepadTable` (feat/m12-runtime, DESIGN §2.4,
+- [x] T12.5 Runtime: pure `MenuModel` + `GamepadChordRecognizer` + `GamepadTable` (feat/m12-runtime, PR #60, DESIGN §2.4,
   §3.4, §4.3). Done when: tests with `ManualTime`: list/grid moves (no wrap, 2D), repeat 400/120 ms, stick hysteresis,
   released-since-open, 1–9, close timer restarts on input and ends as cancel, last pick focused first, Steam dedupe
   (key within 100 ms of the same pad move dropped); chord fires on first release only for the exact set, never inside
