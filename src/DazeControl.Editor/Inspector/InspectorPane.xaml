@@ -40,7 +40,13 @@
         </DataTemplate>
 
         <!-- Suggestion rows: value + caption (UX §5.4, D-050). -->
-                        <DataTemplate x:Key="ParamFieldTemplate" x:DataType="vmi:ParamFieldViewModel">
+        <DataTemplate x:Key="SuggestionTemplate" x:DataType="vmi:SuggestionItem">
+            <StackPanel AutomationProperties.Name="{x:Bind AutomationName}">
+                <TextBlock Text="{x:Bind Value}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{x:Bind Caption}" Visibility="{x:Bind HasCaption}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate x:Key="ParamFieldTemplate" x:DataType="vmi:ParamFieldViewModel">
                             <StackPanel>
                                 <TextBlock Text="{x:Bind Title}" Style="{StaticResource FieldTitle}" />
                                 <TextBox Visibility="{x:Bind IsText}" Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder, Mode=OneWay}"
@@ -210,12 +216,6 @@
                                 <TextBlock Text="{x:Bind Help}" Visibility="{x:Bind HasHelp}" Style="{StaticResource SettingsCardDescription}" Margin="0,4,0,0" />
                             </StackPanel>
                         </DataTemplate>
-        <DataTemplate x:Key="SuggestionTemplate" x:DataType="vmi:SuggestionItem">
-            <StackPanel AutomationProperties.Name="{x:Bind AutomationName}">
-                <TextBlock Text="{x:Bind Value}" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{x:Bind Caption}" Visibility="{x:Bind HasCaption}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
-            </StackPanel>
-        </DataTemplate>
     </UserControl.Resources>
 
     <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">

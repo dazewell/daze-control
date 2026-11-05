@@ -102,9 +102,17 @@ public sealed class BulkEdit
         return rows;
     }
 
-    /// <summary>Lists, maps and flow pickers (they carry per-step inputs) stay single-step.</summary>
+    /// <summary>
+    /// Lists, maps and flow pickers (per-step inputs), display layouts (captured per step) and params with suggestions
+    /// (listed per step) stay single-step.
+    /// </summary>
     private static bool Bulkable(ParamSpec p) =>
-        p.Kind is not (ParamKind.TextList or ParamKind.TextMap) && p.RefersTo is null;
+        p.Kind is not (ParamKind.TextList or ParamKind.TextMap) && p.RefersTo is null && p.Suggest is null && p.Library != LibraryKind.Display;
+
+    /// <summary>Same value domain: a shared control must offer only values every type accepts.</summary>
+    private static bool SameDomain(ParamSpec a, ParamSpec b) =>
+        a.Name == b.Name && a.Kind == b.Kind && a.Library == b.Library && a.Required == b.Required && a.Default == b.Default
+        && a.Min == b.Min && a.Max == b.Max && a.Choices.SequenceEqual(b.Choices);
 
     private List<BulkParam> BuildParams()
     {
@@ -116,7 +124,7 @@ public sealed class BulkEdit
             return result;
         foreach (var spec in descriptors[0]!.Params.Where(Bulkable))
         {
-            if (descriptors.Skip(1).Any(d => !d!.Params.Any(o => o.Name == spec.Name && o.Kind == spec.Kind && o.Library == spec.Library)))
+            if (descriptors.Skip(1).Any(d => !d!.Params.Any(o => SameDomain(spec, o))))
                 continue;
             var owns = _steps.Select(s => s.With.TryGetValue(spec.Name, out var v) ? v : null).ToList();
             var anySet = owns.Any(o => o is not null);

@@ -119,11 +119,28 @@ public sealed class InspectorManyParamsTests : IDisposable
         Assert.Empty(_inspector.ManyFields);
         Assert.False(_inspector.ManyHasFields);
 
-        _canvas.SelectOnly(["a1", "v1"]); // two audio types: the audio device is shared, "Use for" and "Volume" are not
+        _canvas.SelectOnly(["a1", "v1"]); // a required and an optional device differ in meaning: not shared
+        Assert.Empty(_inspector.ManyFields);
+
+        _canvas.Edit(f => f with { Nodes = [.. f.Nodes, new StepNode("k1", "audio.check")] });
+        _canvas.SelectOnly(["a1", "k1"]); // two audio types with the same required device: shared; "Use for" / "Is" are not
         Assert.Equal(["device"], _inspector.ManyFields.Select(f => f.Name));
-        Assert.False(Field("device").IsMixed);
 
         _canvas.SelectOnly(["a1", "n1"]);
         Assert.Empty(_inspector.ManyFields);
+    }
+
+    [Fact]
+    public void ParamsWithDifferentChoicesAreNotShared()
+    {
+        // audio.check and bluetooth.check both have "is", with different choices (and different library kinds for device).
+        _canvas.Edit(f => f with
+        {
+            Nodes = [.. f.Nodes,
+                new StepNode("c1", "audio.check"),
+                new StepNode("c2", "bluetooth.check")],
+        });
+        _canvas.SelectOnly(["c1", "c2"]);
+        Assert.DoesNotContain(_inspector.ManyFields, f => f.Name == "is");
     }
 }
