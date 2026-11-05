@@ -13,7 +13,6 @@ using DazeControl.Ipc;
 
 namespace DazeControl.Editor.ViewModels;
 
-/// <summary>Flows page (UX §5.1): one card per flow in YAML order; a click opens it, Run runs it (D-070).</summary>
 /// <summary>The "Show" filter of the command bar (DESIGN Part E).</summary>
 public enum FlowFilter
 {
@@ -24,6 +23,7 @@ public enum FlowFilter
     NotInTray,
 }
 
+/// <summary>Flows page (UX §5.1): one card per flow in YAML order; a click opens it, Run runs it (D-070).</summary>
 public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
 {
     private const int HistoryLimit = 100; // RunHistory.Capacity: the engine keeps (and answers with) 100 runs, not the file's 200 lines (D-089)
@@ -43,8 +43,8 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         _settings = settings;
         foreach (var name in settings?.Settings.FlowList.CollapsedGroups ?? [])
             _collapsed.Add(name);
-        _sort = Enum.TryParse<FlowSort>(settings?.Settings.FlowList.Sort, out var sort) && Enum.IsDefined(sort) ? sort : FlowSort.Yours;
-        _filter = Enum.TryParse<FlowFilter>(settings?.Settings.FlowList.Filter, out var filter) && Enum.IsDefined(filter) ? filter : FlowFilter.All;
+        _sort = Enum.TryParse<FlowSort>(settings?.Settings.FlowList.Sort, out var sort) && Enum.GetNames<FlowSort>().Contains(settings!.Settings.FlowList.Sort) ? sort : FlowSort.Yours;
+        _filter = Enum.TryParse<FlowFilter>(settings?.Settings.FlowList.Filter, out var filter) && Enum.GetNames<FlowFilter>().Contains(settings!.Settings.FlowList.Filter) ? filter : FlowFilter.All;
         _session = session;
         _engine = engine;
         _post = post;
@@ -759,6 +759,9 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         {
             ClearUndo(); // the file became unreadable or readable again: the snapshots may be stale
             OnPropertyChanged(nameof(CanEdit));
+            OnPropertyChanged(nameof(CanReorder));
+            OnPropertyChanged(nameof(CanMakeOrder));
+            MakeOrderCommand.NotifyCanExecuteChanged();
             Sync();
         }
     }
@@ -1042,7 +1045,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
             NotInTray = !flow.Tray.Show;
             UsedBy = FlowRowFacts.UsedBy(callers);
             SearchHaystack = string.Join('\n', new[] { flow.Name, ShortcutTip, Shortcut, flow.Tray.Folder ?? "" }
-                .Concat(flow.Nodes.OfType<StepNode>().Select(n => n.Step.Replace('.', ' ').Replace('_', ' ').Replace('-', ' '))));
+                .Concat(flow.Nodes.OfType<StepNode>().SelectMany(n => new[] { n.Name ?? "", ProviderCatalog.Find(n.Step)?.Title ?? "", n.Step })));
             UpdateTimes(now);
             HasProblems = errors > 0;
             Problems = errors switch { 0 => "", 1 => "1 problem", _ => $"{errors} problems" };

@@ -14,7 +14,7 @@ public sealed class FlowViewTests : IDisposable
           b: { name: Mid, tray: { folder: Audio }, nodes: [ { id: w, step: wait, with: { duration: 1s } } ] }
           c: { name: Alpha, tray: { show: false }, nodes: [ { id: w, step: wait, with: { duration: 1s } } ] }
           d: { name: Beta, enabled: false, tray: { folder: Audio }, nodes: [ { id: w, step: wait, with: { duration: 1s } } ] }
-          e: { name: Echo, hotkeys: [ "Alt+Q" ], nodes: [ { id: w, step: wait, with: { duration: 1s } } ] }
+          e: { name: Echo, hotkeys: [ "Alt+Q" ], nodes: [ { id: w, name: Pause here, step: wait, with: { duration: 1s } } ] }
         """;
 
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "DazeControl.Tests-" + Guid.NewGuid().ToString("N"));
@@ -65,6 +65,8 @@ public sealed class FlowViewTests : IDisposable
         Assert.Equal("a [Audio] c e", Shown(page));
 
         page.SearchText = "alt+q";
+        Assert.Equal("e", Shown(page));
+        page.SearchText = "pause"; // a step's own label
         Assert.Equal("e", Shown(page));
         page.SearchText = "audio"; // the group's name matches its members; collapsed groups open
         Assert.Equal("[Audio] b d", Shown(page));
