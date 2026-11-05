@@ -22,7 +22,7 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         ["status"] = new(0, 0, "status takes no arguments."),
         ["history"] = new(0, 1, "history takes at most one flow.", "--limit"),
         ["autostart"] = new(0, 1, "autostart takes on or off."),
-        ["devices"] = new(1, 1, "devices needs one kind: audio, bluetooth, displays or adb."),
+        ["devices"] = new(1, 1, "devices needs one kind: audio, bluetooth, displays, adb or gamepads."),
         ["capture-display-layout"] = new(1, 1, "capture-display-layout needs a name for the layout."),
         ["update"] = new(0, 0, "update takes no arguments."),
         ["shortcut"] = new(1, 1, "shortcut needs one flow.", "--remove"),

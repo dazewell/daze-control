@@ -3,6 +3,7 @@ using DazeControl.Core;
 using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
 using DazeControl.Engine.Diagnostics;
+using DazeControl.Engine.Input;
 using DazeControl.Engine.Shell;
 using DazeControl.Ipc;
 using DazeControl.Runtime;
@@ -14,7 +15,9 @@ using DazeControl.Providers.Basic;
 using DazeControl.Runtime.Providers;
 using DazeControl.Runtime.Tray;
 using DazeControl.Runtime.Triggers;
+using DazeControl.Core.Input;
 using Windows.Win32;
+using Windows.Win32.Foundation;
 
 namespace DazeControl.Engine;
 
@@ -49,6 +52,9 @@ internal sealed class EngineHost : IDisposable
     private readonly FlowMenu _menu;
     private readonly RunPopupModel _popupModel = new();
     private readonly HotkeyTable _hotkeyTable;
+    private readonly GamepadService _gamepads = new(new GamepadSource(), TimeProvider.System);
+    private readonly GamepadTable _gamepadTable = new();
+    private IDisposable? _chordListener; // message thread: held while some chord listens
     private readonly ConfigHost _config;
     private readonly RunHistory _history;
     private readonly FlowLauncher _launcher;
@@ -74,7 +80,10 @@ internal sealed class EngineHost : IDisposable
             return true;
         };
         _hotkeys = new GlobalHotkey(_window);
-        _menu = new FlowMenu(_window, null, TimeProvider.System); // T12.6 hands it the controller feed
+        _menu = new FlowMenu(_window, new GamepadMenuFeed(_gamepads), TimeProvider.System);
+        _gamepadTable.ActiveChanged += SyncChordListener;
+        _gamepads.RecordingChanged += on => _window.Post(() => OnGamepadRecording(on));
+        _window.Add(OnPowerMessage);
         _hotkeyTable = new HotkeyTable(_hotkeys);
         _hotkeys.Pressed += OnHotkey;
         _hotkeyTable.FailuresChanged += OnShortcutFailuresChanged;
@@ -109,7 +118,7 @@ internal sealed class EngineHost : IDisposable
             new EngineInfo(version, Environment.ProcessId, exe, paths.Config, paths.ConfigArgument), Log.Info, devices,
             // Step tests share the providers and locks but raise no run events: no pop-up, no history.
             new FlowRunner(stepProviders, TimeProvider.System, locks) { Flows = calls },
-            FlowShortcuts.Create(paths.ConfigArgument, EnginePaths.DefaultConfig, Log.Info));
+            FlowShortcuts.Create(paths.ConfigArgument, EnginePaths.DefaultConfig, Log.Info), _gamepads);
         _controller.RunRefused += refusal => _window.Post(() => ShowRefusal(refusal));
         _controller.HotkeyRecordingChanged += on => _window.Post(() => OnHotkeyRecording(on));
         _pipe = new PipeServer(Protocol.CurrentPipeName(), _controller.HandleAsync, (what, e) => Log.Error(what, e));
@@ -159,6 +168,9 @@ internal sealed class EngineHost : IDisposable
         _hotkeyTable.Apply(snapshot.RunnableFlows);
         foreach (var invalid in _hotkeyTable.Invalid)
             Log.Info($"hotkey: not a valid shortcut: {invalid}");
+        _gamepadTable.Apply(snapshot.RunnableFlows);
+        foreach (var invalid in _gamepadTable.Invalid)
+            Log.Info($"gamepad: not a valid chord: {invalid}");
         Log.Info($"config: {snapshot.Flows.Count} flow(s), {snapshot.RunnableFlows.Count()} runnable, "
             + $"{_hotkeyTable.Wanted.Count - _hotkeyTable.Failures.Count} shortcut(s)");
         PublishShell();
@@ -208,9 +220,15 @@ internal sealed class EngineHost : IDisposable
                 break;
             case TrayCommand.PauseShortcuts:
                 if (_hotkeyTable.Paused)
+                {
                     _hotkeyTable.Resume();
+                    _gamepadTable.Resume();
+                }
                 else
+                {
                     _hotkeyTable.Pause();
+                    _gamepadTable.Pause();
+                }
                 Log.Info($"hotkey: shortcuts {(_hotkeyTable.Paused ? "paused" : "resumed")}");
                 PublishShell();
                 UpdateTray();
@@ -219,6 +237,64 @@ internal sealed class EngineHost : IDisposable
                 OpenEditor();
                 break;
         }
+    }
+
+    /// <summary>On the message thread: starts the pad reader when a chord listens, stops it when none does (D-056).</summary>
+    private void SyncChordListener()
+    {
+        if (_gamepadTable.NeedsSource == (_chordListener is not null))
+            return;
+        if (!_gamepadTable.NeedsSource)
+        {
+            _chordListener!.Dispose();
+            _chordListener = null;
+            return;
+        }
+        var last = GamepadButtons.None; // the reader thread's only
+        _chordListener = _gamepads.Listen(reading =>
+        {
+            if (reading.Buttons == last)
+                return; // chords care about changes only
+            last = reading.Buttons;
+            var buttons = reading.Buttons;
+            _window.Post(() => OnPadButtons(buttons));
+        });
+    }
+
+    /// <summary>On the message thread, like WM_HOTKEY: a chord that was held and let go runs its flow.</summary>
+    private void OnPadButtons(GamepadButtons held)
+    {
+        var fired = _gamepadTable.Feed(held);
+        if (fired is not var (flowId, chord) || _menu.IsOpen)
+            return; // an open menu has the pad (chords off)
+        _controller.TriggerAsync(flowId, $"Controller · {chord.Display}");
+    }
+
+    private void OnGamepadRecording(bool on)
+    {
+        if (on)
+            _gamepadTable.StartRecording();
+        else
+            _gamepadTable.StopRecording();
+        Log.Info($"gamepad: chords {(on ? "let go while the editor records one" : "back after recording")}");
+    }
+
+    private bool OnPowerMessage(uint message, WPARAM wParam, LPARAM lParam)
+    {
+        const uint WmPowerBroadcast = 0x218;
+        if (message != WmPowerBroadcast)
+            return false;
+        switch ((int)wParam.Value)
+        {
+            case 4: // PBT_APMSUSPEND
+                _gamepads.Suspend();
+                break;
+            case 7: // PBT_APMRESUMESUSPEND
+            case 0x12: // PBT_APMRESUMEAUTOMATIC
+                _gamepads.Resume();
+                break;
+        }
+        return false; // Windows still gets its default answer
     }
 
     /// <summary>The editor brings its own window to the front (single instance, T6.1).</summary>
@@ -380,6 +456,8 @@ internal sealed class EngineHost : IDisposable
 
     public void Dispose()
     {
+        _chordListener?.Dispose();
+        _gamepads.Dispose();
         _hotkeys.Dispose();
         _menu.Dispose();
         _popup.Dispose();

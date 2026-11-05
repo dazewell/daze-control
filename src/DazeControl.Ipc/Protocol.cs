@@ -46,6 +46,10 @@ public static class Ops
     /// <summary>The editor's shortcut box has focus (<see cref="PipeRequest.On"/>) or lost it: the engine lets go of
     /// its shortcuts meanwhile, so the box can record a chord the engine owns (D-072). Ends when the connection does.</summary>
     public const string RecordHotkey = "record-hotkey";
+
+    /// <summary>The editor's "Add buttons": answers the next controller chord (canonical text in <see cref="PipeMessage.Yaml"/>)
+    /// or an error that says "no controller" or "timed out". Ends when the connection does (DESIGN §3.6).</summary>
+    public const string RecordGamepad = "record-gamepad";
 }
 
 public sealed class PipeRequest
@@ -85,7 +89,7 @@ public sealed class PipeRequest
     /// <summary>run: for the history ("Command line", "Editor").</summary>
     public string? Trigger { get; init; }
 
-    /// <summary>devices: audio, bluetooth, displays or adb.</summary>
+    /// <summary>devices: audio, bluetooth, displays, adb or gamepads.</summary>
     public string? Kind { get; init; }
 
     /// <summary>capture-display-layout: the library key the layout is saved under.</summary>

@@ -7,6 +7,7 @@ using DazeControl.Core.Yaml;
 using DazeControl.Ipc;
 using DazeControl.Runtime.Lifecycle;
 using DazeControl.Runtime.Providers;
+using DazeControl.Runtime.Triggers;
 
 namespace DazeControl.Runtime.Control;
 
@@ -33,10 +34,13 @@ public sealed record RunRefusal(string FlowId, string Title, string Message);
 /// </summary>
 public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher launcher, RunHistory? history,
     FlowRunner dryRunner, Autostart autostart, EngineInfo info, Action<string> log, IDeviceQueries? devices = null,
-    FlowRunner? stepRunner = null, DesktopShortcuts? shortcuts = null)
+    FlowRunner? stepRunner = null, DesktopShortcuts? shortcuts = null, IGamepadControl? gamepads = null)
 {
     /// <summary>A step test runs as a flow with this id prefix; <c>cancel</c> with that id stops it.</summary>
     public const string TestPrefix = "test:";
+
+    /// <summary><c>devices gamepads</c>: the pads on now, whether or not any flow has a chord.</summary>
+    public const string GamepadKind = "gamepads";
 
     /// <summary>The trigger the history shows for a run from a desktop shortcut (D-049).</summary>
     public const string DesktopTrigger = "Desktop shortcut";
@@ -128,6 +132,8 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                 return await TestStepAsync(request, cancellationToken).ConfigureAwait(false);
             case Ops.RecordHotkey:
                 return RecordHotkey(request, cancellationToken);
+            case Ops.RecordGamepad:
+                return await RecordGamepadAsync(request, cancellationToken).ConfigureAwait(false);
             case Ops.Shortcuts:
             case Ops.CreateShortcut:
             case Ops.RemoveShortcut:
@@ -185,8 +191,33 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         hook.Dispose();
     }
 
+    /// <summary>The editor's "Add buttons" (DESIGN §3.6): the next chord in canonical text, or "no controller" / "timed out".</summary>
+    private async Task<PipeMessage> RecordGamepadAsync(PipeRequest request, CancellationToken connection)
+    {
+        if (gamepads is null)
+            return PipeMessage.Fail(request.Id, "This engine can't read controllers.");
+        var record = await gamepads.RecordAsync(connection).ConfigureAwait(false);
+        return record.Chord is { } chord
+            ? new PipeMessage { Id = request.Id, Ok = true, Yaml = chord }
+            : PipeMessage.Fail(request.Id, record.Error ?? GamepadRecord.TimedOut);
+    }
+
     private async Task<PipeMessage> DevicesAsync(PipeRequest request, CancellationToken cancellationToken)
     {
+        if (gamepads is not null && request.Kind == GamepadKind)
+        {
+            return new PipeMessage
+            {
+                Id = request.Id,
+                Ok = true,
+                Devices = [.. gamepads.List().Select(p => new DeviceInfo
+                {
+                    Name = $"Controller {p.Slot + 1}",
+                    Detail = p.Battery,
+                    State = "connected",
+                })],
+            };
+        }
         if (devices is null)
             return PipeMessage.Fail(request.Id, "This engine can't list devices.");
         if (request.Kind is not { } kind || !devices.Kinds.Contains(kind, StringComparer.Ordinal))
