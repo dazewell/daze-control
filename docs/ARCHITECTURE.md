@@ -108,8 +108,8 @@ flows:
 No coordinates: layout is computed (D-020); node order within a column is the order in `nodes`.
 Edges are `after: [id | {id, when}]` on the target node; a card is
 `{ id: g1, group: [hp, buds], after: [...] }` and its members carry no `after`. Node keys: `id`, `step` |
-`group`, `name`, `with`, `after`, `onFailure` (stop/skip/ignore), `timeout`, `retry: { count, delay }`;
-cards take no `with`/`timeout`/`retry`. A failed node with an outgoing `when: failure` edge has
+`group`, `name`, `with`, `after`, `onFailure` (stop/skip/ignore), `timeout`, `retry: { count, delay }`, `only` (a `ProviderDescriptor.Conditions` id or `always`, D-081);
+cards take no `with`/`timeout`/`retry`/`only`. A failed node with an outgoing `when: failure` edge has
 `settings.stepDefaults` (D-080) holds per-step-type `timeout`, `retry`, `onFailure`; a node field left null inherits it (own > type > built-in, per field, `StepSettings.Resolve`; `StepDefaults.Apply` fills a flow). An explicit `onFailure: stop` is kept on save.
 handled its failure: its `onFailure` policy is not applied, the fallback runs, its `success` dependents are
 skipped, and if nothing else went wrong the flow ends Succeeded (D-024, D-065). `Model/FlowShape`: `Fallbacks`
@@ -142,6 +142,7 @@ starts), the Runs sentence (`RunWords.Sentence(run, title, flow)`) and the canva
 descriptor's) on the injected `TimeProvider`. `WaitAsync` ends an attempt on time even if a provider ignores
 its token (the abandoned task is observed). A stopped or cancelled flow cancels the running steps; the runner
 awaits them all. Returns `RunResult` (flow outcome + `NodeResult` per node: attempts, error text, duration).
+"Only if" (D-081): at attempt 1, after the lock and inside the timeout, the runner asks the `IFactProbe` named by the step's `ConditionSpec.Fact` (`Runtime/Providers`; read-only, only when the step runs). Unmet = the attempt ends Succeeded with `NodeResult.SkippedBecause` (the probe's sentence; not `NodeOutcome.Skipped`); a throw, a timeout or no probe = run the step. Never again on a retry. The dry runner has no probes, so every condition counts as met. Run history keeps the field (old records read as null).
 `ResourceLocks` (one per engine, shared by all runners): around each attempt the runner takes the descriptor's
 `Resources` with `{param}` filled in (a Bluetooth ref becomes the device's address, so aliases share a lock), in ordinal order (no deadlocks). Waiting counts
 toward the attempt's timeout. The lock is let go when the attempt ends, even if a timed-out provider is

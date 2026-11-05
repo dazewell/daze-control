@@ -52,7 +52,7 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   the fallback menu's Stop→Skip switch (uses effective policy). Done when: view-model tests: Reset clears one field; a changed
   default moves inherited steps and not set ones; "Use for all" shows n steps and has Undo; D-059 switch sets Skip when the
   inherited policy is Stop; screenshots of a step with inherited and set rows. (PR #81 merged without the screenshots: still to do.)
-- [ ] T14.5 Conditions core + runtime (feat/m14-conditions-core, after T14.2: same Core/Runtime files). Files: `ProviderDescriptor.Conditions`,
+- [x] T14.5 Conditions core + runtime (feat/m14-conditions-core, after T14.2: same Core/Runtime files). Files: `ProviderDescriptor.Conditions`,
   `IFactProbe` (`Runtime/Providers`), `StepNode.Only` + YAML + validator (B7), `FlowRunner` (probe after the lock, once, inside the
   timeout; cannot tell → run; skip = Succeeded + note), `NodeResult` note through events, IPC and run history, dry-run assumption,
   "Test this step" answer. Fake probe + fake provider only. Done when: Runtime tests for B4 (unmet → skipped with note and `success`

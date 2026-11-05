@@ -36,15 +36,18 @@ public sealed class FlowRunner
     private readonly IReadOnlyList<ProviderDescriptor> _catalog;
     private readonly ResourceLocks _locks;
     private readonly Action<RunEvent>? _events;
+    private readonly Dictionary<string, IFactProbe> _probes;
 
     /// <param name="providers">One per step type the engine can run.</param>
     /// <param name="time">Clock for timeouts and retry delays.</param>
     /// <param name="locks">Shared by every runner in the engine, so locks hold across flows.</param>
     /// <param name="catalog">Step types; the compiled-in catalog by default.</param>
     /// <param name="events">Receives <see cref="RunEvent"/>s from pool threads; must be quick and thread-safe.</param>
+    /// <param name="probes">Read-only fact probes for "Only if" (D-081). None (the dry runner) = every condition counts as met.</param>
     public FlowRunner(IEnumerable<IStepProvider> providers, TimeProvider time, ResourceLocks? locks = null,
-        IReadOnlyList<ProviderDescriptor>? catalog = null, Action<RunEvent>? events = null)
+        IReadOnlyList<ProviderDescriptor>? catalog = null, Action<RunEvent>? events = null, IEnumerable<IFactProbe>? probes = null)
     {
+        _probes = (probes ?? []).ToDictionary(p => p.Fact);
         _events = events;
         _locks = locks ?? new ResourceLocks();
         _providers = providers.ToDictionary(p => p.Id);
@@ -128,7 +131,7 @@ public sealed class FlowRunner
 
         NodeResult ResultOf(string id) => results.TryGetValue(id, out var r)
             ? new NodeResult(id, scheduler.Outcomes[id], r.Attempts, r.Error, r.Duration, r.Start, order[id],
-                r.Retries.Count > 0 ? [.. r.Retries] : null) { Called = r.Called, Summary = r.Summary }
+                r.Retries.Count > 0 ? [.. r.Retries] : null) { Called = r.Called, Summary = r.Summary, SkippedBecause = r.SkippedBecause }
             : new NodeResult(id, scheduler.Outcomes[id], Attempts: 0);
 
         void ReportFinished()
@@ -193,11 +196,12 @@ public sealed class FlowRunner
     /// <param name="Called">A call that waited: its last try's nested run.</param>
     /// <param name="Summary">What the step said about itself (<see cref="StepContext.SetSummary"/>), last try's.</param>
     /// <param name="Quiet">The step ended the run on purpose, or the called flow ended quietly: this run ends quietly too.</param>
+    /// <param name="SkippedBecause">"Only if" wasn't met: the probe's sentence (D-081). The result is Succeeded.</param>
     private readonly record struct StepRun(StepResult Result, int Attempts, string? Error, TimeSpan Duration, TimeSpan Start,
-        List<TimeSpan> Retries, CalledRun? Called = null, bool Quiet = false, string? Summary = null);
+        List<TimeSpan> Retries, CalledRun? Called = null, bool Quiet = false, string? Summary = null, string? SkippedBecause = null);
 
     /// <summary>One try of an ordinary step: null <paramref name="Error"/> = it worked; <paramref name="EndsFlow"/> = see <see cref="StepEndsFlowException"/>.</summary>
-    private readonly record struct AttemptResult(string? Error, bool EndsFlow = false);
+    private readonly record struct AttemptResult(string? Error, bool EndsFlow = false, string? SkippedBecause = null);
 
     /// <param name="Chain">Flow ids from the top run down to this run's flow.</param>
     private sealed record RunScope(Guid RunId, string[] Chain, Guid? ParentRunId, string? ParentNodeId);
@@ -217,8 +221,9 @@ public sealed class FlowRunner
         CalledRun? called = null;
         var quiet = false;
         string? summary = null;
+        string? skipped = null;
         StepRun Done(StepResult result, int attempts, string? error) =>
-            new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet, summary);
+            new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet, summary, skipped);
         var descriptor = _catalog.FirstOrDefault(d => d.Id == node.Step);
         var waits = Flows is not null && node.Step == ProviderCatalog.RunFlowId && !IsOff(node, "wait");
         IStepProvider? provider = null;
@@ -266,6 +271,7 @@ public sealed class FlowRunner
                 var attemptResult = await AttemptAsync(provider!, context, timeout, flowToken).ConfigureAwait(false);
                 error = attemptResult.Error;
                 summary = context.Summary;
+                skipped = attemptResult.SkippedBecause;
                 called = context.Called ?? called;
                 if (attemptResult.EndsFlow)
                 {
@@ -389,6 +395,10 @@ public sealed class FlowRunner
         using var release = held;
         if (linked.IsCancellationRequested) // AcquireAsync with no resources doesn't check
             return new(flowToken.IsCancellationRequested ? "Cancelled." : $"Didn't finish within {Duration.Format(timeout)}.");
+        if (context.Attempt == 1 && await UnmetAsync(context, linked.Token).ConfigureAwait(false) is { } unmet)
+            return new(null, SkippedBecause: unmet); // Succeeded with a note, never NodeOutcome.Skipped (D-081)
+        if (linked.IsCancellationRequested) // the probe used up the time or the run was cancelled meanwhile
+            return new(flowToken.IsCancellationRequested ? "Cancelled." : $"Didn't finish within {Duration.Format(timeout)}.");
         // On the pool, so a provider that blocks before returning its task is still bounded by WaitAsync.
         var execution = Task.Run(() => provider.ExecuteAsync(context, linked.Token), CancellationToken.None);
         try
@@ -411,6 +421,30 @@ public sealed class FlowRunner
 #pragma warning restore CA1031
         {
             return new(e.Message);
+        }
+    }
+
+    /// <summary>
+    /// "Only if" (D-081), read once at the first attempt, after the lock, inside the timeout. Returns the probe's sentence
+    /// when the condition is not met (skip the step); null = run it. Anything that stops the answer (no probe, a throw,
+    /// a timeout) means "cannot tell": run, never skip on doubt.
+    /// </summary>
+    private async Task<string?> UnmetAsync(StepContext context, CancellationToken token)
+    {
+        if (context.Node.Only is not { } only || only == StepNode.OnlyAlways
+            || context.Descriptor.Conditions.FirstOrDefault(c => c.Id == only) is not { } condition
+            || !_probes.TryGetValue(condition.Fact, out var probe))
+            return null;
+        try
+        {
+            var reading = await probe.ReadAsync(context, token).WaitAsync(token).ConfigureAwait(false);
+            return reading.Value == condition.Expected ? null : reading.Text;
+        }
+#pragma warning disable CA1031 // fail-soft: a probe that can't answer lets the step run (D-081)
+        catch (Exception)
+#pragma warning restore CA1031
+        {
+            return null;
         }
     }
 

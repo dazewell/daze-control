@@ -432,6 +432,12 @@ public static partial class ConfigValidator
                     : $"\"{step.Step}\" isn't a known step type.");
                 return;
             }
+            if (step.Only is { } only && only != StepNode.OnlyAlways && descriptor.Conditions.All(c => c.Id != only))
+            {
+                Error(path + ".only", descriptor.Conditions.Count == 0
+                    ? $"{descriptor.Title} has no \"only\" condition."
+                    : $"{descriptor.Title} can't be \"only: {only}\" ({string.Join(", ", descriptor.Conditions.Select(c => c.Id))}, {StepNode.OnlyAlways}).");
+            }
             foreach (var (name, value) in step.With)
             {
                 if (descriptor.FindParam(name) is { } spec)

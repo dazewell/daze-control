@@ -163,6 +163,8 @@ public sealed class NodeDocument
     public string? Timeout { get; set; }
 
     public RetryDocument? Retry { get; set; }
+
+    public string? Only { get; set; }
 }
 
 [YamlSerializable]

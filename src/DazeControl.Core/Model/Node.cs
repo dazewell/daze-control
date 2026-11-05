@@ -48,6 +48,12 @@ public sealed record StepNode(string Id, string Step) : Node(Id)
 
     /// <summary>Wait between attempts; null = inherit, else <see cref="StepSettings.DefaultRetryDelay"/>.</summary>
     public TimeSpan? RetryDelay { get; init; }
+
+    /// <summary>"Only if" (D-081): a <see cref="OnlyAlways"/> or a <c>ConditionSpec.Id</c> of the step type. Null = absent = always.</summary>
+    public string? Only { get; init; }
+
+    /// <summary>The explicit "run it every time" (kept in YAML so a later type default can't override it, B8).</summary>
+    public const string OnlyAlways = "always";
 }
 
 /// <summary>
