@@ -38,7 +38,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     public bool HasHelp => Help.Length > 0;
 
     /// <summary>The default, shown where nothing is written.</summary>
-    public string Placeholder => Kind switch
+    public string Placeholder => IsMixed ? "Mixed" : Kind switch
     {
         ParamKind.TextList => "One per line",
         ParamKind.TextMap => "Name: value, one per line",
@@ -230,17 +230,29 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     public bool HasError => Error is not null;
 
     /// <summary>The control's accessible name: title, plus the problem.</summary>
-    public string AutomationName => Error is null ? Title : $"{Title}. {Error}";
+    public string AutomationName => (Error is null ? Title : $"{Title}. {Error}") + (IsMixed ? ", mixed" : "");
+
+    /// <summary>Many mode (T15.3): the selected steps hold different values; the control shows "Mixed" and nothing is chosen.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Placeholder), nameof(AutomationName), nameof(MixedText))]
+    public partial bool IsMixed { get; private set; }
+
+    /// <summary>"Mixed" while the steps differ, else empty (a ComboBox placeholder and a caption).</summary>
+    public string MixedText => IsMixed ? "Mixed" : "";
+
+    public bool HasMixedCaption => IsMixed && Kind == ParamKind.Boolean;
 
     /// <summary>A device row was picked that isn't a Library key yet (from Windows, capture): the inspector handles it.</summary>
     internal event Action<ParamFieldViewModel, DeviceOption>? DevicePicked;
 
     /// <summary>Shows the step's value and problem without writing anything back.</summary>
-    internal void Load(ParamValue? value, string? problem)
+    internal void Load(ParamValue? value, string? problem, bool mixed = false)
     {
         _loading = true;
         try
         {
+            IsMixed = mixed;
+            OnPropertyChanged(nameof(HasMixedCaption));
             var scalar = (value as ScalarParam)?.Text;
             switch (Kind)
             {
@@ -280,6 +292,10 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                     Text = scalar ?? "";
                     break;
             }
+            if (mixed && Kind == ParamKind.Choice)
+                Choice = null;
+            if (mixed && IsDevice)
+                Device = null;
             Error = problem ?? FileProblem();
             OnPropertyChanged(nameof(AutomationName));
         }
@@ -305,6 +321,8 @@ public sealed partial class ParamFieldViewModel : ObservableObject
             }
             Device = Devices.FirstOrDefault(o => o.Key == current?.Trim() && o.IsValue)
                 ?? Devices.FirstOrDefault(o => o.Source == DeviceSource.None);
+            if (IsMixed)
+                Device = null;
         }
         finally
         {

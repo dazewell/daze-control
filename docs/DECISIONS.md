@@ -1149,6 +1149,7 @@ Status: accepted (design; user asked 2026-11-04). Design: docs/step-settings/DES
 - Why not the union of settings across types: a value would silently apply to a step that doesn't have the field.
   Why not "first selected wins" instead of Mixed: hides the difference and overwrites it on any touch. Why not per-key
   apply for text: dozens of Undo entries for one word.
+- Built (T15.3): params in Many mode skip lists, maps, flow pickers (`flow.run` inputs are per step), display layouts (captured per step) and params with suggestions (listed per step), and are shared only when name, kind, library kind, required, default, range and choices all match (Copilot review); while Mixed, an empty write is ignored (an editable box echoing its empty text on focus must not wipe differing values), so pick or type a value first, then clear.
 - Revisit if: users want to copy a step's settings onto others (a paste-style command).
 
 ## D-085 · 2026-11-04 · Shortcut keys: the number pad's * + - . / too; Num Enter never

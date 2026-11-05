@@ -106,7 +106,7 @@ No version bumps (D-079). Opus medium.
   section of the inspector XAML, header text, context menu "Select all <type> steps" in `FlowCanvasViewModel`/`FlowCanvas.xaml.cs`,
   UX §5.4/§5.7. Done when: tests for the Mixed placeholders and captions, "Reset all", text applies on commit as one Undo;
   Narrator names read "…, mixed" / "…, default"; keyboard reaches every row. (Screenshots moved to T15.3.)
-- [ ] T15.3 Many-mode params (feat/m15-bulk-params, after T15.2). Files: `ParamFieldViewModel.cs`, `InspectorViewModel.cs` param
+- [x] T15.3 Many-mode params (feat/m15-bulk-params, after T15.2; M15 acceptance rows folded into UX.md). Files: `ParamFieldViewModel.cs`, `InspectorViewModel.cs` param
   builder. Done when: tests: params of a one-type selection edit all (a device pick for all, a text for all, a bool), `device`
   fields with different library kinds across types are not shown, a required param can't be cleared, an optional one clears
   for all; one Undo each; screenshots of a one-type selection (mixed and uniform) and a two-type selection (moved from T15.2).

@@ -374,7 +374,10 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             if (mode == InspectorMode.Many)
                 LoadMany(selected);
             else
+            {
                 _bulk = null;
+                ClearManyFields();
+            }
             if (node is not StepNode { Step: ProviderCatalog.RunFlowId })
                 CalledFlowId = null;
             if (node is not StepNode)
@@ -681,6 +684,19 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             _live[kind] = devices;
             if (Mode == InspectorMode.Flow && Flow is { } flow)
                 LoadInputs(flow);
+            if (Mode == InspectorMode.Many && _bulk is { } bulk)
+            {
+                _loading = true;
+                try
+                {
+                    foreach (var field in ManyFields.Where(f => f.Spec.Library == kind))
+                        ShowMany(field, bulk.Param(field.Name)!);
+                }
+                finally
+                {
+                    _loading = false;
+                }
+            }
             if (Node is StepNode step)
             {
                 _loading = true;
@@ -721,6 +737,11 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
 
     private void WriteParam(ParamFieldViewModel field, ParamValue? value)
     {
+        if (Mode == InspectorMode.Many)
+        {
+            WriteManyParam(field, value);
+            return;
+        }
         // An editable ComboBox pushes its text back on focus: the same value must not make the flow dirty.
         if (Node is StepNode now && Equals(now.With.TryGetValue(field.Name, out var old) ? old : null, value))
             return;
