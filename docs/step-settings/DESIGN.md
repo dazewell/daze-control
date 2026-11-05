@@ -1,6 +1,6 @@
 # Step defaults, checks and "Only if" (M14) — design
 
-Two features, designed 2026-11-04, **not built yet**. Decisions: D-080 (defaults), D-081..D-082 (conditions).
+Features (Parts A–D), designed 2026-11-04, **not built yet**. Decisions: D-080 (defaults), D-081..D-082 (conditions).
 Tasks: [PLAN.md](../PLAN.md) → M14. Strings below are drafts; the task that builds a part moves the as-built facts
 into ARCHITECTURE/UX/FEATURES and cuts them here (D-053). User text never says node, DAG or OSD.
 
@@ -239,3 +239,51 @@ that step, mirroring the right third's "Run after" (UX §5.2). Small, independen
 - **Tests:** `FlowEdits.RunBefore` (first step, middle step, target with `failure`/`always` incoming, target in a card,
   dragged member of a card, loop refusal, same-card no-op), `ZoneAt` thirds, `Drop` undo as one step, Outline text.
 - **Not done:** carrying the dragged step's dependents along, dropping before a whole branch.
+# Part D — Edit several steps at once (M15, D-084)
+
+User (2026-11-04, via the M13 session): select several steps and change the settings they share in one go. Comes
+after M14: it reuses its Default/Set rows and the "Only if" row.
+
+## D1. What exists
+Selection already works (UX §5.2): click, Ctrl+click, marquee, Ctrl+A; `FlowCanvasViewModel.SelectedIds`. With more than
+one selected the inspector is in `InspectorMode.Many` and shows only "n selected" (`ManyText`). Nothing to add to
+selection except one optional shortcut: context menu **"Select all <type> steps"** (T15.2).
+
+## D2. What the inspector shows for a selection
+| Selection | Shown |
+|---|---|
+| Steps of one type | "If it fails", Timing (Try again, Wait between tries, Give up after), "Only if" (when the type has conditions), and every provider param (T15.3) |
+| Steps of several types | "If it fails", Timing, and params only when name, kind and library kind (`RefersTo`) are identical on every selected type (e.g. a text `name`) |
+| Steps and cards | "If it fails" only (cards have no timing or params) |
+| Cards only | "If it fails" only |
+
+Header: "3 steps selected" (plus " · Set default device" for one type); it never lists ids. "Test this step", fallback
+menus and Connections stay single-step. Params that need a per-step choice (`device` picks differ by step) show Mixed
+and are left alone until the user picks one value for all.
+
+## D3. Row states (extends A5)
+Each row looks at the selected steps' own values and effective values:
+
+| Own values | Row shows |
+|---|---|
+| all unset | Default state, the effective value, "Default" |
+| all set to the same value | Set state, the value, "Reset" |
+| some set and some not, or different values | **Mixed**: NumberBox placeholder "Mixed", radios none chosen with Caption "Mixed", ComboBox "Mixed", text empty with placeholder "Mixed"; "Reset" shown when at least one step sets it |
+
+- **Set:** typing/picking a value writes it as **Set on every selected step** (a value equal to the default still counts
+  as set, as for one step). **Reset:** removes that field from every selected step ("Reset all"). Text fields apply on
+  commit (focus lost or Enter), not per key, so one edit is one Undo.
+- **Params:** an optional param can be cleared for all with its existing clear; a required one cannot be emptied.
+- **Validation:** each step is validated after the change, as when edited alone (library refs, `wait` duration against
+  the resolved timeout, …); problems appear in the Problems list per step. The change is never partly applied: it
+  lands on all selected steps or none.
+- **Undo:** the whole change is one history entry through the same `UpdateDraft` path as a single edit.
+
+## D4. Keyboard and Narrator
+Same controls as the single-step inspector, same tab order; accessible names carry the state: "Give up after, mixed",
+"Give up after, 10 seconds, default". The header is a heading announcing the count and type. "Reset all" has the
+tooltip and name "Use the default for all 3 steps".
+
+## D5. Not done
+Editing edges (Connections) or step names for several steps, bulk Test, bulk "Use these for all <type> steps" (it keeps
+meaning the one selected step's type), copying settings from one step to others (paste-style).

@@ -86,6 +86,25 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   Core tests for the Part C table (incoming kinds kept, loop refused, card target, member dragged), `ZoneAt` thirds, one Undo
   restores the flow, Outline text; a screenshot of the left-third highlight; keyboard route reaches the same result.
 
+## M15 Edit several steps at once (user, 2026-11-04) — after all M14 tasks (needs the M14 Default/Set and "Only if" rows)
+Designed 2026-11-04: docs/step-settings/DESIGN.md Part D, D-084. Selection (click, Ctrl+click, marquee, Ctrl+A) already exists;
+`InspectorMode.Many` shows only "n selected". Order T15.1 → T15.2 → T15.3 (all in `Editor.ViewModels/Inspector`: serial).
+No version bumps (D-079). Opus medium.
+- [ ] T15.1 Bulk-edit model (feat/m15-bulk-core, after T14.4, T14.7, T14.10). Files: new `Editor.ViewModels/Inspector/BulkEdit.cs`
+  (shared fields of a selection, per-field state All default / All set / Mixed, apply Set / Reset to many steps through one
+  `UpdateDraft`). Done when: view-model tests: one type vs several types vs steps+cards give the Part D2 field sets; Mixed when
+  values differ or are partly inherited; Set writes every step, Reset clears every step; one Undo restores all; per-step
+  validation problems appear and nothing is half-applied.
+- [ ] T15.2 Many-mode inspector: policy, Timing, Only if (feat/m15-bulk-inspector, after T15.1). Files: `InspectorViewModel*.cs`, the Many
+  section of the inspector XAML, header text, context menu "Select all <type> steps" in `FlowCanvasViewModel`/`FlowCanvas.xaml.cs`,
+  UX §5.4/§5.7. Done when: tests for the Mixed placeholders and captions, "Reset all", text applies on commit as one Undo;
+  screenshots of a one-type selection (mixed and uniform) and a two-type selection; Narrator names read "…, mixed" /
+  "…, default"; keyboard reaches every row.
+- [ ] T15.3 Many-mode params (feat/m15-bulk-params, after T15.2). Files: `ParamFieldViewModel.cs`, `InspectorViewModel.cs` param
+  builder. Done when: tests: params of a one-type selection edit all (a device pick for all, a text for all, a bool), `device`
+  fields with different library kinds across types are not shown, a required param can't be cleared, an optional one clears
+  for all; one Undo each.
+
 ## M13 fixes (user, 2026-11-03, v0.29.0 feedback) — first, before the remaining M13 tasks
 Designed 2026-11-03 (PR: docs/m13-fixes-plan): D-074..D-077, X-008, X-009, UX §5.1/§5.2/§5.7 #66–#70 "M13 fixes"
 notes. User answers (2026-11-03): right-drag is fine (it pans only where there's room to scroll; the user misread
