@@ -67,7 +67,7 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   "Test this step" Yes/No answer, UX §5.7 strings. Done when: view-model tests (row choices come from `Conditions`, "Always" stores
   or removes the key per B6, relabel for check steps), screenshots of an `only` chip, a skipped step after a run, and a check with a
   fallback; high contrast reads without colour.
-- [ ] T14.8 Audio, program, service and file checks (feat/m14-checks-a, after T14.5). Files: `Providers/Audio`, `Providers/Process`,
+- [x] T14.8 Audio, program, service and file checks (feat/m14-checks-a, after T14.5). Files: `Providers/Audio`, `Providers/Process`,
   `Providers/Service`, new `Providers/File`, catalog entries (B5 rows). Done when: provider tests with fakes for each probe and
   `Conditions` (`notDefault`, `notRunning`, `stopped`/`running`), `file.check` exists/missing on a temp file, descriptor-has-one-
   implementation test passes, a dry run of each.

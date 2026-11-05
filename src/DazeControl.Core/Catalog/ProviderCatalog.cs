@@ -8,7 +8,7 @@ namespace DazeControl.Core.Catalog;
 public static class ProviderCatalog
 {
     private const string Audio = "E767", Bluetooth = "E702", Display = "E7F4", Process = "E756", Script = "E943",
-        Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", RunFlow = "E768", MenuGlyph = "E700";
+        Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", File = "E8A5", RunFlow = "E768", MenuGlyph = "E700";
 
     private static readonly TimeSpan Short = TimeSpan.FromSeconds(10);
 
@@ -29,7 +29,15 @@ public static class ProviderCatalog
             Ref("device", "Device", LibraryKind.Audio),
             new("roles", ParamKind.Choice, "Use for") { Choices = ["all", "console", "communications"], Default = "all" },
         ])
-        { Resources = ["audio"] },
+        {
+            Resources = ["audio"],
+            Conditions = [new ConditionSpec("notDefault", "It isn't the default", "audio.isDefault", false)],
+        },
+        new("audio.check", "Check default device", Audio, Short,
+        [
+            Ref("device", "Device", LibraryKind.Audio),
+            new("is", ParamKind.Choice, "Is") { Choices = ["default", "notDefault"], Default = "default" },
+        ]),
         new("audio.setVolume", "Set volume", Audio, Short,
         [
             Ref("device", "Device", LibraryKind.Audio, required: false, help: "Empty = the current default device."),
@@ -71,6 +79,14 @@ public static class ProviderCatalog
             new("cwd", ParamKind.FolderPath, "Start in"),
             new("wait", ParamKind.Boolean, "Wait until it exits") { Default = "true" },
             new("exitCodes", ParamKind.TextList, "Exit codes that mean success") { Default = "0" },
+        ])
+        {
+            Conditions = [new ConditionSpec("notRunning", "It isn't running", "process.running", false)],
+        },
+        new("process.check", "Check a program is running", Process, Short,
+        [
+            new("program", ParamKind.Text, "Program") { Required = true, Help = "Its name or path, like Spotify or Spotify.exe." },
+            new("is", ParamKind.Choice, "Is") { Choices = ["running", "notRunning"], Default = "running" },
         ]),
         new("script.powershell", "Run PowerShell", Script, TimeSpan.FromSeconds(60),
             [new("script", ParamKind.MultilineText, "Script") { Required = true, Examples = PowerShellExamples }]),
@@ -114,10 +130,26 @@ public static class ProviderCatalog
         { Resources = ["adb:{device}"] },
         new("service.start", "Start service", Service, TimeSpan.FromSeconds(30),
             [new("name", ParamKind.Text, "Service name") { Required = true, Suggest = ParamSuggest.Devices("services") }])
-        { Resources = ["service:{name}"] },
+        {
+            Resources = ["service:{name}"],
+            Conditions = [new ConditionSpec("stopped", "It isn't running", "service.running", false)],
+        },
         new("service.stop", "Stop service", Service, TimeSpan.FromSeconds(30),
             [new("name", ParamKind.Text, "Service name") { Required = true, Suggest = ParamSuggest.Devices("services") }])
-        { Resources = ["service:{name}"] },
+        {
+            Resources = ["service:{name}"],
+            Conditions = [new ConditionSpec("running", "It's running", "service.running", true)],
+        },
+        new("service.check", "Check a service", Service, Short,
+        [
+            new("name", ParamKind.Text, "Service name") { Required = true, Suggest = ParamSuggest.Devices("services") },
+            new("is", ParamKind.Choice, "Is") { Choices = ["running", "stopped"], Default = "running" },
+        ]),
+        new("file.check", "Check a file or folder", File, Short,
+        [
+            new("path", ParamKind.Text, "File or folder") { Required = true, Help = "A full path; %VARIABLES% work." },
+            new("is", ParamKind.Choice, "Is") { Choices = ["exists", "missing"], Default = "exists" },
+        ]),
         new("wait", "Wait", Wait, TimeSpan.FromHours(1),
             [new("duration", ParamKind.Duration, "How long") { Required = true }]),
         new("notify", "Show a message", Message, Short,
