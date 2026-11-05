@@ -1,6 +1,6 @@
 # Flow list (M16) — design
 
-Features (Parts A–G), designed 2026-11-04, **not built yet**. Decisions: D-087..D-090. Tasks: [PLAN.md](../PLAN.md) → M16.
+Features (Parts A–G), designed 2026-11-04, **not built yet** (the user approved the design and its nine open choices as recommended, 2026-11-04). Decisions: D-087..D-090. Tasks: [PLAN.md](../PLAN.md) → M16.
 Strings are drafts; the task that builds a part moves the as-built facts into ARCHITECTURE/UX/FEATURES and cuts them
 here (D-053). User text never says node, DAG or OSD. Style follows [step-settings/DESIGN.md](../step-settings/DESIGN.md).
 
@@ -157,17 +157,3 @@ icons, On, Run.
 - **Accessibility:** every drag has a keyboard and a menu equivalent (B3); focus is visible on cards, grips and group headers; a group
   header is an expandable item ("Audio, group, 4 flows, expanded"); no colour-only state (badges carry icon and text); theme brushes
   for contrast; the insertion line does not animate under reduced motion.
-
-# Open choices for the user (recommended answer first)
-
-1. **Groups merge with tray folders?** *Yes, one concept* (D-087). Alternative: separate list-only groups (a second field, and the list
-   and tray can disagree).
-2. **UI name "Group" or "Folder"?** *"Group", caption "Also the folder in the tray menu".*
-3. **Empty groups?** *Not kept; a group is created with its first flow.*
-4. **Does sort write the order?** *No, view-only, with "Make this my order"* (D-088).
-5. **Selection gesture:** *Ctrl/Shift+click plus a "Select" toggle with checkboxes.* Alternative: always-visible checkboxes (noisy for the
-   common one-flow case).
-6. **Duplicate clears shortcuts?** *Yes.* Alternative: keep them and flag the clash as a problem.
-7. **"Not run yet" becomes "No recent run"?** *Yes*, it is true with a 200-run history.
-8. **Row extras (step-icon strip, inline F2 rename):** *later, not in M16.*
-9. **Bulk Run and flow export/import:** *out.*
