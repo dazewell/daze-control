@@ -640,9 +640,16 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     {
         FlowName = flow.Name;
         FlowGlyph = FlowItemViewModel.DecodeGlyph(flow.Glyph ?? FirstGlyph(flow));
-        TrayFolder = flow.Tray.Folder ?? "";
+        // Typing in the editable Tray folder box saves each key and lands here: rewriting its text (a trimmed
+        // "My " loses the space) or swapping its item list resets the box, drops focus and selects all (issue #74).
+        if (TrayFolder.Trim() != (flow.Tray.Folder ?? ""))
+            TrayFolder = flow.Tray.Folder ?? "";
         LineAbove = flow.Tray.Separator;
-        Folders = [.. _session.Current.Flows.Select(f => f.Tray.Folder).OfType<string>().Distinct(StringComparer.Ordinal).Order(StringComparer.CurrentCulture)];
+        // Other flows' folders only: this flow's own text would grow the list with every typed letter.
+        var folders = _session.Current.Flows.Where(f => f.Id != flow.Id).Select(f => f.Tray.Folder).OfType<string>()
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.CurrentCulture).ToList();
+        if (!folders.SequenceEqual(Folders))
+            Folders = folders;
         WhenRunningIndex = (int)flow.WhenRunning;
         ShowPopup = flow.Popup;
         LoadInputs(flow);

@@ -387,6 +387,28 @@ public sealed class InspectorViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TypingATrayFolderDoesNotRebuildItsListOrRewriteItsText()
+    {
+        var rebuilt = 0;
+        var texts = new List<string>();
+        _inspector.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(InspectorViewModel.Folders))
+                rebuilt++;
+            if (e.PropertyName == nameof(InspectorViewModel.TrayFolder))
+                texts.Add(_inspector.TrayFolder);
+        };
+
+        foreach (var typed in new[] { "M", "My", "My ", "My F", "My Folder" })
+            _inspector.TrayFolder = typed;
+
+        Assert.Equal(0, rebuilt); // an items reset drops the box's focus and selects its text
+        Assert.Equal(["M", "My", "My ", "My F", "My Folder"], texts); // never rewritten under the caret
+        Assert.Equal("My Folder", _canvas.Flow!.Tray.Folder);
+        Assert.DoesNotContain("My Folder", _inspector.Folders); // this flow's own text isn't a choice
+    }
+
+    [Fact]
     public void ShortcutsAreRecordedAddedAndRemoved()
     {
         _inspector.AddShortcutCommand.Execute(null);
