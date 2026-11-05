@@ -22,7 +22,11 @@ public sealed record NodeStarted(Guid RunId, string FlowId, DateTimeOffset At, s
 /// <summary>Also raised for nodes that never ran (Skipped, Cancelled), so every node ends with one.</summary>
 public sealed record NodeFinished(Guid RunId, string FlowId, DateTimeOffset At, NodeResult Result) : RunEvent(RunId, FlowId, At);
 
-public sealed record RunFinished(Guid RunId, string FlowId, DateTimeOffset At, FlowOutcome Outcome) : RunEvent(RunId, FlowId, At);
+public sealed record RunFinished(Guid RunId, string FlowId, DateTimeOffset At, FlowOutcome Outcome) : RunEvent(RunId, FlowId, At)
+{
+    /// <summary>The user ended the run on purpose (a menu closed with nothing picked, D-054): no pop-up, no tray problem.</summary>
+    public bool Quiet { get; init; }
+}
 
 /// <summary>One finished run as kept in the history (last 100, <c>history.jsonl</c>).</summary>
 /// <param name="RunId">Same id as the run's events.</param>

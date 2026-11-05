@@ -556,6 +556,13 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
 
         public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
         {
+            // A dry run never shows a window (DESIGN §3.2): it only says what it would have shown.
+            if (context.Node.Step == ProviderCatalog.MenuShowId)
+            {
+                var count = MenuProvider.IdsOf(context.Node).Count;
+                context.SetSummary($"Would show {count} {(count == 1 ? "choice" : "choices")}");
+                return Task.CompletedTask;
+            }
             foreach (var spec in context.Descriptor.Params.Where(p => p.Kind == ParamKind.LibraryRef && p.Library is not null))
             {
                 var key = context.Node.With.TryGetValue(spec.Name, out var value) && value is ScalarParam s ? s.Text : "";

@@ -204,6 +204,8 @@ public sealed class FlowInputRunTests : IDisposable
                 ? new(flow, Library, flow.Name, null)
                 : new(null, Library.Empty, flowId, $"{flowId} isn't there anymore. Pick another flow.");
 
+        public bool IsRunning(string flowId) => false;
+
         public StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain, IReadOnlyDictionary<string, string> inputs, string callerName)
         {
             lock (Started)

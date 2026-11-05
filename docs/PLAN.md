@@ -384,7 +384,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   (order, `+` spacing, Guide/one button/5 buttons refused); validator tests for own flow, unknown and duplicate item,
   `wait` loop, 0/13 items, `closeAfter` range, `timeout` ≤ `closeAfter`, chord clash (later flow); a flow rename
   rewrites menu items (Core edit + test); catalog test still passes (items has Suggest).
-- [ ] T12.4 Runtime: `MenuProvider`, `IMenuPresenter`, `IFlowStarter` in `EngineController`, `StepContext.SetSummary`,
+- [x] T12.4 Runtime: `MenuProvider`, `IMenuPresenter`, `IFlowStarter` in `EngineController`, `StepContext.SetSummary`,
   `StepEndsFlowException` + `RunFinished.Quiet`, resource `menu`, dry run and test-step (feat/m12-runtime, DESIGN
   §3.2). Done when: Runtime.Tests with a fake presenter: pick launches with trigger "Menu · Couch" and summary; ignore
   while running; `wait` takes a failed child's outcome; nothing picked → node and flow Cancelled, quiet, `always`
