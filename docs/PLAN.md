@@ -128,7 +128,7 @@ T16.4 edits the card/rows, T16.5 the command bar); `T16.4 + T16.5 → T16.6 → 
   count, last run word + relative time, not-in-tray, desktop, "Used by n flows", accessible name; `Limit` 100), card template in
   `ShellWindow.xaml`, UX §5.1. Done when: view-model tests for each fact incl. "No recent run" and times only recomputed on
   page show / activation / run events (no timer); screenshots of a plain, a running, a failing and a hidden-from-tray flow.
-- [ ] T16.3 Grouped list (feat/m16-groups, after T16.1, T16.2, D-087). Files: `FlowsPageViewModel.cs` (flat rows: group headers +
+- [x] T16.3 Grouped list (feat/m16-groups, after T16.1, T16.2, D-087). Files: `FlowsPageViewModel.cs` (flat rows: group headers +
   flows), `ShellWindow.xaml` (+ `.cs`) header template, `editor.json` store (`flowList.collapsedGroups`), group menu (Rename,
   Ungroup, Turn all on/off, Move up/down), context menu "Move to ›" / "New group…", Flow settings "Tray folder" → "Group", UX
   §5.4/§5.1/§5.9, FEATURES. Done when: tests for the rows and the menu actions; Narrator names ("Audio, group, 4 flows, expanded"),
