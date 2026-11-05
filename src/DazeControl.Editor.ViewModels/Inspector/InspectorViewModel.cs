@@ -91,7 +91,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     private string? _stepType;
 
     public InspectorViewModel(ConfigSession session, FlowCanvasViewModel canvas, IEngineClient engine, Action<Action> post,
-        Func<string, bool>? fileExists = null, DesktopShortcutStore? desktop = null)
+        Func<string, bool>? fileExists = null, DesktopShortcutStore? desktop = null, IGamepadRecorder? recorder = null)
     {
         _session = session;
         _canvas = canvas;
@@ -100,6 +100,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         _fileExists = fileExists ?? (p => File.Exists(p) || Directory.Exists(p));
         _desktop = desktop ?? new DesktopShortcutStore(engine, session.Path);
         _desktop.Changed += OnDesktopChanged;
+        Recorder = new GamepadRecorderViewModel(recorder ?? new EngineGamepadRecorder(engine), UsedByOtherFlow, AddChord);
         _session.PropertyChanged += OnSessionChanged;
         _canvas.PropertyChanged += OnCanvasChanged;
         _engine.StateChanged += OnEngineStateChanged;
@@ -201,6 +202,18 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
 
     public bool IsIdle => !IsTesting;
 
+    /// <summary>UX #42 "You picked Couch TV. Testing doesn't run it." / #44 "Nothing picked".</summary>
+    /// <param name="result">The step's result.</param>
+    /// <param name="summary">"Picked Couch TV": <c>NodeResult.Summary</c> once T12.4 lands it (null until then).</param>
+    public static string ExplainMenu(NodeResult result, string? summary = null) => result.Outcome switch
+    {
+        NodeOutcome.Succeeded when summary?.StartsWith("Picked ", StringComparison.Ordinal) == true =>
+            $"You picked {summary["Picked ".Length..]}. Testing doesn't run it.",
+        NodeOutcome.Succeeded => "Worked. Testing doesn't run the choice.",
+        NodeOutcome.Cancelled => "Nothing picked.",
+        _ => Explain(result),
+    };
+
     /// <summary>"Worked in 1.2 s." / "Didn't work: …"; null = no result to show.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasTestResult), nameof(ShowTestSuccess), nameof(ShowTestFailure))]
@@ -244,6 +257,36 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     public partial bool LineAbove { get; set; }
 
     public ObservableCollection<ShortcutViewModel> Shortcuts { get; } = [];
+
+    /// <summary>"Controller buttons" chips under Shortcuts (DESIGN §2.4, §3.7).</summary>
+    public ObservableCollection<ControllerButtonsViewModel> ControllerButtons { get; } = [];
+
+    /// <summary>The "Add buttons" flyout.</summary>
+    public GamepadRecorderViewModel Recorder { get; }
+
+    private bool UsedByOtherFlow(GamepadChord chord) =>
+        _session.Current.Flows.Any(f => f.Id != FlowId && f.Gamepad.Any(g => GamepadChord.TryParse(g, out var other) && other == chord));
+
+    private void AddChord(GamepadChord chord)
+    {
+        if (Flow is not { } flow || flow.Gamepad.Any(g => GamepadChord.TryParse(g, out var have) && have == chord))
+            return;
+        EditFlow(f => f with { Gamepad = [.. f.Gamepad, chord.ToString()] });
+    }
+
+    [RelayCommand]
+    private void RemoveChord(ControllerButtonsViewModel chip)
+    {
+        if (Flow is { } flow && chip.Index < flow.Gamepad.Count)
+            EditFlow(f => f with { Gamepad = [.. f.Gamepad.Where((_, i) => i != chip.Index)] });
+    }
+
+    /// <summary>"Test this step", or "Show the menu" for a menu (DESIGN §3.7).</summary>
+    public string TestLabel => Node is StepNode { Step: ProviderCatalog.MenuShowId } ? "Show the menu" : "Test this step";
+
+    public string TestTip => Node is StepNode { Step: ProviderCatalog.MenuShowId }
+        ? "Shows the menu on screen. Picking a choice doesn't run it"
+        : "Runs just this step now, with the values shown here";
 
     /// <summary>"If it's already running": 0 Ignore it, 1 Run it after, 2 Start over.</summary>
     [ObservableProperty]
@@ -330,6 +373,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     /// <summary>Re-reads the selection and the config; values the user didn't change stay as they are.</summary>
     private void Load()
     {
+        OnPropertyChanged(nameof(TestLabel));
+        OnPropertyChanged(nameof(TestTip));
         _loading = true;
         try
         {
@@ -440,6 +485,9 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             case { Source: SuggestSource.Devices, Kind: var kind }:
                 field.SetSuggestions(_suggested.GetValueOrDefault(kind)?.Select(d => new SuggestionItem(d.Value ?? d.Name, Caption(d))) ?? [],
                     "");
+                break;
+            case { Source: SuggestSource.Config, Kind: ParamSuggest.Flows } when field.IsFlowList:
+                field.SetFlowContext(_session.Current, _session.Problems, FlowId);
                 break;
             case { Source: SuggestSource.Config, Kind: ParamSuggest.Flows }:
                 // Trimmed like ConfigValidator.CalledFlow and the runner, so a padded id still finds its flow.
@@ -597,6 +645,15 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         WhenRunningIndex = (int)flow.WhenRunning;
         ShowPopup = flow.Popup;
         LoadInputs(flow);
+
+        var chordProblems = _session.Problems.Where(p => p.Path == $"flows.{flow.Id}.gamepad").Select(p => p.Message).ToList();
+        ControllerButtons.Clear();
+        for (var i = 0; i < flow.Gamepad.Count; i++)
+        {
+            var text = GamepadChord.TryParse(flow.Gamepad[i], out var chord) ? chord.Display : flow.Gamepad[i];
+            ControllerButtons.Add(new ControllerButtonsViewModel(i, flow.Gamepad[i],
+                chordProblems.FirstOrDefault(m => m.Contains(text, StringComparison.Ordinal) || m.Contains(flow.Gamepad[i], StringComparison.Ordinal))));
+        }
 
         var pending = Shortcuts.Where(s => s.Hotkey.Length == 0).ToList();
         // A refused key's reason lives until the next recorded key, not until the next refresh (same row, same value).
@@ -994,7 +1051,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         else if (!answer.Ok)
             ShowResult(false, "Didn't work: " + answer.Error, null);
         else if (answer.Run?.Nodes.FirstOrDefault(n => n.NodeId == nodeId) is { } result)
-            ShowResult(result.Outcome == NodeOutcome.Succeeded, Explain(result), result.Error);
+            ShowResult(result.Outcome == NodeOutcome.Succeeded, step.Step == ProviderCatalog.MenuShowId ? ExplainMenu(result) : Explain(result), result.Error);
     }
 
     [RelayCommand]
