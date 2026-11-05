@@ -320,6 +320,14 @@
                                                                     <FontIcon Glyph="&#xE8B7;" />
                                                                 </MenuFlyoutSubItem.Icon>
                                                             </MenuFlyoutSubItem>
+                                                            <MenuFlyoutItem Text="Duplicate" AutomationProperties.AutomationId="FlowDuplicate" Tag="{x:Bind Id}" Click="OnFlowDuplicateClick"
+                                                                            IsEnabled="{x:Bind CanDelete, Mode=OneWay}">
+                                                                <MenuFlyoutItem.Icon>
+                                                                    <FontIcon Glyph="&#xE8C8;" />
+                                                                </MenuFlyoutItem.Icon>
+                                                            </MenuFlyoutItem>
+                                                            <ToggleMenuFlyoutItem Text="Show in tray menu" AutomationProperties.AutomationId="FlowTrayShow" Tag="{x:Bind Id}" Click="OnFlowTrayShowClick" />
+                                                            <ToggleMenuFlyoutItem Text="Line above in tray" AutomationProperties.AutomationId="FlowTrayLine" Tag="{x:Bind Id}" Click="OnFlowTrayLineClick" />
                                                             <MenuFlyoutSeparator />
                                                             <MenuFlyoutItem AutomationProperties.AutomationId="OneFlowOnly" Text="{x:Bind DesktopMenuText, Mode=OneWay}" Tag="{x:Bind Id}" Click="OnFlowDesktopClick"
                                                                             IsEnabled="{x:Bind CanChangeDesktop, Mode=OneWay}">

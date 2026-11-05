@@ -325,7 +325,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     private static Configuration Restore(Configuration current, Configuration previous) => current with
     {
         Flows = [.. previous.Flows.Select(p => current.Flows.FirstOrDefault(f => f.Id == p.Id) is { } now
-            ? now with { Enabled = p.Enabled, Tray = now.Tray with { Folder = p.Tray.Folder } }
+            ? now with { Enabled = p.Enabled, Tray = now.Tray with { Folder = p.Tray.Folder, Show = p.Tray.Show, Separator = p.Tray.Separator } }
             : p)],
     };
 
@@ -626,6 +626,39 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             SaveCollapsed();
         Apply(c => FlowListModel.SetGroup(c, ids, group));
     }
+
+    /// <summary>Duplicate (D-090): "X copy" right after each original, shortcuts cleared, one Undo step. Returns the new ids.</summary>
+    public IReadOnlyList<string> Duplicate(IReadOnlyCollection<string> ids)
+    {
+        var made = new List<string>();
+        if (ids.Count == 0 || !_session.CanEdit)
+            return made;
+        var order = _session.Current.Flows.Select(f => f.Id).ToList();
+        Apply(c =>
+        {
+            made.Clear();
+            foreach (var id in order.Where(ids.Contains))
+            {
+                c = FlowListModel.Duplicate(c, id, out var newId);
+                if (newId is not null)
+                    made.Add(newId);
+            }
+            return c;
+        });
+        return made;
+    }
+
+    /// <summary>"Show in tray menu": the flows appear in (or leave) the tray menu, which the engine rebuilds on the saved file.</summary>
+    public void SetShowInTray(IReadOnlyCollection<string> ids, bool show) => Apply(c => c with
+    {
+        Flows = [.. c.Flows.Select(f => ids.Contains(f.Id) && f.Tray.Show != show ? f with { Tray = f.Tray with { Show = show } } : f)],
+    });
+
+    /// <summary>"Line above in tray": a separator line above the item in the tray menu.</summary>
+    public void SetLineAbove(IReadOnlyCollection<string> ids, bool on) => Apply(c => c with
+    {
+        Flows = [.. c.Flows.Select(f => ids.Contains(f.Id) && f.Tray.Separator != on ? f with { Tray = f.Tray with { Separator = on } } : f)],
+    });
 
     /// <summary>Delete for the selection (D-090): one bar, one Undo.</summary>
     public void DeleteSelected() => DeleteMany(SelectedIds);
@@ -1130,6 +1163,10 @@ public sealed partial class FlowItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(Summary))]
     public partial bool NotInTray { get; private set; }
 
+    /// <summary>The tray menu draws a line above this flow.</summary>
+    [ObservableProperty]
+    public partial bool LineAbove { get; private set; }
+
     /// <summary>"Used by 2 flows"; empty when no flow runs this one.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasUsedBy), nameof(Summary))]
@@ -1234,6 +1271,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
             ShortcutTip = FlowRowFacts.ShortcutTip(_hotkeys);
             Steps = FlowRowFacts.Steps(_steps);
             NotInTray = !flow.Tray.Show;
+            LineAbove = flow.Tray.Separator;
             UsedBy = FlowRowFacts.UsedBy(callers);
             SearchHaystack = string.Join('\n', new[] { flow.Name, ShortcutTip, Shortcut, flow.Tray.Folder ?? "" }
                 .Concat(flow.Nodes.OfType<StepNode>().SelectMany(n => new[] { n.Name ?? "", ProviderCatalog.Find(n.Step)?.Title ?? "", n.Step })));
