@@ -282,11 +282,14 @@
                                  Visibility="{x:Bind ViewModel.CanOpenCalledFlow, Mode=OneWay}" />
 
                 <!-- Only if (D-081): the choices come from the step type's conditions; not shown when it has none. -->
-                <StackPanel Visibility="{x:Bind ViewModel.HasOnlyIf, Mode=OneWay}" Spacing="4">
+                <StackPanel Visibility="{x:Bind ViewModel.HasOnlyIf, Mode=OneWay}" Spacing="4"
+                            Opacity="{x:Bind local:InspectorPane.DimStep(ViewModel.IsStep, ViewModel.OnlyIfIsSet), Mode=OneWay}">
                     <ComboBox x:Name="OnlyIfBox" Header="Only if" HorizontalAlignment="Stretch" ItemsSource="{x:Bind ViewModel.OnlyIfOptions, Mode=OneWay}"
                               SelectedIndex="{x:Bind ViewModel.OnlyIfIndex, Mode=TwoWay}" AutomationProperties.Name="Only if"
                               IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" />
                     <TextBlock Text="Otherwise this step is skipped and the flow carries on." Style="{StaticResource SettingsCardDescription}" />
+                    <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}"
+                               Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.OnlyIfIsSet), Mode=OneWay}" />
                     <HyperlinkButton Command="{x:Bind ViewModel.ResetOnlyIfCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetOnlyIfTip, Mode=OneWay}"
                                      Visibility="{x:Bind local:InspectorPane.ShowSet(ViewModel.IsStep, ViewModel.OnlyIfIsSet), Mode=OneWay}"
                                      AutomationProperties.Name="Reset Only if">

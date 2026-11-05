@@ -103,8 +103,13 @@ public sealed partial class InspectorViewModel
                 : "Don't try again",
             StepDefaultRow.Policy(effective.OnFailure),
         ];
-        if (descriptor?.Conditions.Count > 0 && effective.Only is { } only && only != StepNode.OnlyAlways)
-            UseForAllValues = [.. UseForAllValues, "Only if " + CanvasNodeViewModel.OnlyLabel(step.Step, only)];
+        if (descriptor?.Conditions.Count > 0 && effective.Only is { } only)
+        {
+            if (only != StepNode.OnlyAlways)
+                UseForAllValues = [.. UseForAllValues, "Only if " + CanvasNodeViewModel.OnlyLabel(step.Step, only)];
+            else if (typeDefault?.Only is not null)
+                UseForAllValues = [.. UseForAllValues, "Always"]; // overrides the current default
+        }
         UseForAllApplies = Applies(step);
 
         if (_noticeNode != step.Id)
