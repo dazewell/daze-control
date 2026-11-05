@@ -38,13 +38,16 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
     public Task SetMuteAsync(string id, bool muted, CancellationToken cancellationToken) =>
         ComThread.RunAsync(() => WithVolume(id, volume => volume->SetMute(muted, null)), cancellationToken);
 
-    private static AudioEndpoint? Default(AudioFlow flow)
+    public Task<IReadOnlyList<AudioEndpoint?>> DefaultsAsync(AudioFlow flow, AudioRoles roles, CancellationToken cancellationToken) =>
+        ComThread.RunAsync<IReadOnlyList<AudioEndpoint?>>(() => [.. Roles(roles).Select(role => Default(flow, role))], cancellationToken);
+
+    private static AudioEndpoint? Default(AudioFlow flow, ERole role = ERole.eConsole)
     {
         using var enumerator = Enumerator.Create();
         IMMDevice* device;
         try
         {
-            enumerator.Value->GetDefaultAudioEndpoint(DataFlow(flow), ERole.eConsole, &device);
+            enumerator.Value->GetDefaultAudioEndpoint(DataFlow(flow), role, &device);
         }
         catch (COMException)
         {

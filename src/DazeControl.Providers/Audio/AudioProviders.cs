@@ -23,6 +23,10 @@ public interface IAudioEndpoints
 
     Task<AudioEndpoint?> DefaultAsync(AudioFlow flow, CancellationToken cancellationToken);
 
+    /// <summary>The current default of each role <paramref name="roles"/> stands for (read-only), in the order
+    /// <c>SetDefaultAsync</c> sets them; null where there is none.</summary>
+    Task<IReadOnlyList<AudioEndpoint?>> DefaultsAsync(AudioFlow flow, AudioRoles roles, CancellationToken cancellationToken);
+
     Task SetDefaultAsync(string id, AudioRoles roles, CancellationToken cancellationToken);
 
     Task SetVolumeAsync(string id, float level, CancellationToken cancellationToken);
@@ -39,6 +43,13 @@ internal static class AudioSteps
         return context.Library.Audio.FirstOrDefault(d => d.Key == key)
             ?? throw new StepFailedException($"No audio device called \"{key}\" in the library.");
     }
+
+    public static AudioRoles Roles(StepContext context) => context.Text("roles") switch
+    {
+        "console" => AudioRoles.Console,
+        "communications" => AudioRoles.Communications,
+        _ => AudioRoles.All,
+    };
 
     /// <summary>The named device (waiting for it), else the current default output.</summary>
     public static async Task<AudioEndpoint> TargetAsync(IAudioEndpoints audio, StepContext context, CancellationToken cancellationToken)
@@ -58,12 +69,7 @@ public sealed class AudioSetDefaultProvider(IAudioEndpoints audio) : IStepProvid
     public async Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
     {
         var device = AudioSteps.Device(context) ?? throw new StepFailedException("Choose a device.");
-        var roles = context.Text("roles") switch
-        {
-            "console" => AudioRoles.Console,
-            "communications" => AudioRoles.Communications,
-            _ => AudioRoles.All,
-        };
+        var roles = AudioSteps.Roles(context);
         var endpoint = await audio.WaitForAsync(device.Match, device.Flow, cancellationToken).ConfigureAwait(false);
         await audio.SetDefaultAsync(endpoint.Id, roles, cancellationToken).ConfigureAwait(false);
     }

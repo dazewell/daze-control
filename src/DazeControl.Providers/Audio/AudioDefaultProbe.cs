@@ -10,9 +10,11 @@ public sealed class AudioDefaultProbe(IAudioEndpoints audio) : IFactProbe
     public async Task<FactReading> ReadAsync(StepContext context, CancellationToken cancellationToken)
     {
         var device = AudioSteps.Device(context) ?? throw new StepFailedException("Choose a device.");
-        var current = await audio.DefaultAsync(device.Flow, cancellationToken).ConfigureAwait(false);
+        // Every role the step would set must already be this device (a Set default step's "Use for"; a check has none = all).
+        var roles = context.Descriptor.FindParam("roles") is null ? AudioRoles.All : AudioSteps.Roles(context);
+        var current = await audio.DefaultsAsync(device.Flow, roles, cancellationToken).ConfigureAwait(false);
         var kind = device.Flow.ToString().ToLowerInvariant();
-        var isDefault = current is not null && current.Name.Contains(device.Match, StringComparison.OrdinalIgnoreCase);
+        var isDefault = current.All(e => e is not null && e.Name.Contains(device.Match, StringComparison.OrdinalIgnoreCase));
         return new(isDefault, isDefault ? $"{device.Key} is the default {kind}" : $"{device.Key} isn't the default {kind}");
     }
 }

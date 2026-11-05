@@ -12,12 +12,15 @@ namespace DazeControl.Providers.Tests;
 /// <summary>Facts and check steps (T14.8, D-081): read-only, fakes only; the real file and process probes read this test host.</summary>
 public class CheckTests
 {
-    private sealed class FakeAudio(string? defaultName) : IAudioEndpoints
+    private sealed class FakeAudio(string? defaultName, AudioEndpoint?[]? roleDefaults = null) : IAudioEndpoints
     {
         public Task<AudioEndpoint?> DefaultAsync(AudioFlow flow, CancellationToken cancellationToken) =>
             Task.FromResult(defaultName is null ? null : new AudioEndpoint("{d}", defaultName));
 
         public Task<AudioEndpoint> WaitForAsync(string match, AudioFlow flow, CancellationToken cancellationToken) => throw new InvalidOperationException("a check never waits or changes");
+
+        public Task<IReadOnlyList<AudioEndpoint?>> DefaultsAsync(AudioFlow flow, AudioRoles roles, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<AudioEndpoint?>>(roleDefaults ?? [defaultName is null ? null : new AudioEndpoint("{d}", defaultName)]);
 
         public Task SetDefaultAsync(string id, AudioRoles roles, CancellationToken cancellationToken) => throw new InvalidOperationException();
 
@@ -60,6 +63,17 @@ public class CheckTests
         var reading = await new AudioDefaultProbe(new FakeAudio(current)).ReadAsync(WithAudio(Steps.Context("audio.setDefault", ("device", "tv"))), Token);
         Assert.Equal(expected, reading.Value);
         Assert.Equal(expected ? "tv is the default output" : "tv isn't the default output", reading.Text);
+    }
+
+    [Fact]
+    public async Task AudioFactNeedsEveryRoleTheStepWouldSet()
+    {
+        var tv = new AudioEndpoint("{tv}", "Samsung HDMI");
+        var other = new AudioEndpoint("{o}", "Speakers");
+        var probe = new AudioDefaultProbe(new FakeAudio(null, [tv, tv, other]));
+        // One role still points elsewhere: not yet the default, so the setter must still run.
+        Assert.False((await probe.ReadAsync(WithAudio(Steps.Context("audio.setDefault", ("device", "tv"))), Token)).Value);
+        Assert.True((await new AudioDefaultProbe(new FakeAudio(null, [tv, tv, tv])).ReadAsync(WithAudio(Steps.Context("audio.setDefault", ("device", "tv"))), Token)).Value);
     }
 
     [Fact]

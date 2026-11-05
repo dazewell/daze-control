@@ -20,6 +20,9 @@ public class AudioProviderTests
 
         public Task<AudioEndpoint?> DefaultAsync(AudioFlow flow, CancellationToken cancellationToken) => Task.FromResult(Default);
 
+        public Task<IReadOnlyList<AudioEndpoint?>> DefaultsAsync(AudioFlow flow, AudioRoles roles, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<AudioEndpoint?>>([Default]);
+
         public Task SetDefaultAsync(string id, AudioRoles roles, CancellationToken cancellationToken)
         {
             Calls.Add($"default {id} {roles}");
