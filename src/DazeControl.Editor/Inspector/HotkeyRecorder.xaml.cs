@@ -1,4 +1,5 @@
 using DazeControl.Core.Input;
+using DazeControl.Editor.ViewModels.Inspector;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -155,6 +156,65 @@ public sealed partial class HotkeyRecorder : UserControl
         _recording = false;
         RecordingChanged?.Invoke(this, false);
         Box.Text = Hotkey;
+    }
+
+    /// <summary>Typed text was refused; the owner shows why (same place as <see cref="Rejected"/>).</summary>
+    public event EventHandler<string>? TypedRefused;
+
+    private void OnTypeLink(object sender, RoutedEventArgs e)
+    {
+        Box.Visibility = Visibility.Collapsed;
+        TypeLink.Visibility = Visibility.Collapsed;
+        TypeBox.Visibility = Visibility.Visible;
+        TypeNote.Visibility = Visibility.Visible;
+        TypeBox.Text = Hotkey;
+        TypeBox.Focus(FocusState.Programmatic);
+        TypeBox.SelectAll();
+    }
+
+    private void EndTyping(bool refocusLink)
+    {
+        TypeBox.Visibility = Visibility.Collapsed;
+        TypeNote.Visibility = Visibility.Collapsed;
+        Box.Visibility = Visibility.Visible;
+        TypeLink.Visibility = Visibility.Visible;
+        if (refocusLink)
+            TypeLink.Focus(FocusState.Programmatic);
+    }
+
+    private void OnTypeKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Escape)
+        {
+            e.Handled = true;
+            EndTyping(true);
+        }
+        else if (e.Key == VirtualKey.Enter)
+        {
+            e.Handled = true;
+            if (TypeBox.Text.Trim().Length == 0)
+            {
+                EndTyping(true);
+                return;
+            }
+            if (ShortcutTexts.TryParseTyped(TypeBox.Text, out var hotkey, out var error))
+            {
+                EndTyping(true);
+                Recorded?.Invoke(this, hotkey);
+                ShowRecorded();
+            }
+            else
+            {
+                TypedRefused?.Invoke(this, error!);
+                Announce(error!);
+            }
+        }
+    }
+
+    private void OnTypeLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (TypeBox.Visibility == Visibility.Visible)
+            EndTyping(false);
     }
 
     private void OnReset(object sender, RoutedEventArgs e) => Recorded?.Invoke(this, DefaultHotkey);

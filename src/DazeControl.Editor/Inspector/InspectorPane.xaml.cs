@@ -319,5 +319,11 @@ public sealed partial class InspectorPane : UserControl
             recorder.Announce(text);
     }
 
+    private void OnShortcutTypedRefused(object? sender, string text)
+    {
+        if ((sender as FrameworkElement)?.Tag is ShortcutViewModel shortcut)
+            _viewModel?.RejectShortcutText(shortcut.Index, text);
+    }
+
     private void OnShortcutRecording(object? sender, bool recording) => _viewModel?.SetRecordingShortcut(recording);
 }

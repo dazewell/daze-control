@@ -85,6 +85,10 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   `FlowCanvasViewModel.cs` / `FlowCanvas.xaml.cs` with T14.4 and T14.7 (chips, rings): take both sides on conflict.** Done when:
   Core tests for the Part C table (incoming kinds kept, loop refused, card target, member dragged), `ZoneAt` thirds, one Undo
   restores the flow, Outline text; a screenshot of the left-third highlight; keyboard route reaches the same result.
+- [x] T14.12 Type a shortcut instead of pressing it (feat/typed-shortcut; independent of T14.1–T14.11; user has no numpad). Files:
+  `Editor/Inspector/HotkeyRecorder.xaml(.cs)` ("Type it instead" link, text box, Enter/Esc), `ViewModels/Inspector/ShortcutTexts.cs`
+  (`TryParseTyped`), tests. Typed text goes through `Hotkey.TryParse` (not free text, so D-021 stands) and then `SetShortcut` like a
+  recorded chord (same clash checks).
 
 ## M13 fixes (user, 2026-11-03, v0.29.0 feedback) — first, before the remaining M13 tasks
 Designed 2026-11-03 (PR: docs/m13-fixes-plan): D-074..D-077, X-008, X-009, UX §5.1/§5.2/§5.7 #66–#70 "M13 fixes"
