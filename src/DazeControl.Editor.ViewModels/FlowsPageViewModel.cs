@@ -13,6 +13,16 @@ using DazeControl.Ipc;
 
 namespace DazeControl.Editor.ViewModels;
 
+/// <summary>The "Show" filter of the command bar (DESIGN Part E).</summary>
+public enum FlowFilter
+{
+    All,
+    On,
+    Off,
+    NeedsFixing,
+    NotInTray,
+}
+
 /// <summary>Flows page (UX §5.1): one card per flow in YAML order; a click opens it, Run runs it (D-070).</summary>
 public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
 {
@@ -33,6 +43,8 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         _settings = settings;
         foreach (var name in settings?.Settings.FlowList.CollapsedGroups ?? [])
             _collapsed.Add(name);
+        _sort = Enum.TryParse<FlowSort>(settings?.Settings.FlowList.Sort, out var sort) && Enum.GetNames<FlowSort>().Contains(settings!.Settings.FlowList.Sort) ? sort : FlowSort.Yours;
+        _filter = Enum.TryParse<FlowFilter>(settings?.Settings.FlowList.Filter, out var filter) && Enum.GetNames<FlowFilter>().Contains(settings!.Settings.FlowList.Filter) ? filter : FlowFilter.All;
         _session = session;
         _engine = engine;
         _post = post;
@@ -94,6 +106,144 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     private readonly EditorSettingsStore? _settings;
     private readonly HashSet<string> _collapsed = new(StringComparer.CurrentCultureIgnoreCase);
     private readonly Dictionary<string, GroupItemViewModel> _groups = new(StringComparer.CurrentCultureIgnoreCase);
+
+    private FlowSort _sort;
+    private FlowFilter _filter;
+    private string _search = "";
+
+    /// <summary>Your order (the file / tray order), Name or Last run; view-only, remembered per PC (D-088).</summary>
+    public FlowSort Sort
+    {
+        get => _sort;
+        set
+        {
+            if (_sort == value)
+                return;
+            _sort = value;
+            _settings?.Update(s => s.FlowList.Sort = value == FlowSort.Yours ? null : value.ToString());
+            ViewChanged(nameof(Sort));
+        }
+    }
+
+    /// <summary>All, On, Off, Needs fixing or Not in tray; remembered per PC.</summary>
+    public FlowFilter Filter
+    {
+        get => _filter;
+        set
+        {
+            if (_filter == value)
+                return;
+            _filter = value;
+            _settings?.Update(s => s.FlowList.Filter = value == FlowFilter.All ? null : value.ToString());
+            ViewChanged(nameof(Filter));
+        }
+    }
+
+    /// <summary>The combo boxes' index (the enums' order).</summary>
+    public int SortIndex
+    {
+        get => (int)_sort;
+        set
+        {
+            if (value >= 0)
+                Sort = (FlowSort)value;
+        }
+    }
+
+    public int FilterIndex
+    {
+        get => (int)_filter;
+        set
+        {
+            if (value >= 0)
+                Filter = (FlowFilter)value;
+        }
+    }
+
+    /// <summary>The search box; not remembered.</summary>
+    public string SearchText
+    {
+        get => _search;
+        set
+        {
+            value ??= "";
+            if (_search == value)
+                return;
+            _search = value;
+            ViewChanged(nameof(SearchText));
+        }
+    }
+
+    private bool Searching => _search.Trim().Length > 0;
+
+    /// <summary>A search or a filter hides rows.</summary>
+    public bool IsFiltering => Searching || _filter != FlowFilter.All;
+
+    /// <summary>Anything but plain Your order with nothing hidden.</summary>
+    public bool ViewActive => IsFiltering || _sort != FlowSort.Yours;
+
+    /// <summary>Drag, Alt+arrows and Move to rearrange the file, so they need the file's own order on screen (D-088).</summary>
+    public bool CanReorder => _session.CanEdit && !ViewActive;
+
+    /// <summary>Why reordering is off because of the view; null when it isn't.</summary>
+    public string? ReorderOffReason => !_session.CanEdit ? null
+        : _sort != FlowSort.Yours ? $"Sorted by {(_sort == FlowSort.Name ? "name" : "last run")}. Switch to Your order to rearrange."
+        : IsFiltering ? "Clear the search and filter to rearrange." : null;
+
+    /// <summary>"Make this my order" is offered while a sort is on.</summary>
+    public bool CanMakeOrder => _session.CanEdit && _sort != FlowSort.Yours;
+
+    /// <summary>The search or filter hid every flow.</summary>
+    public bool NoMatches => Items.Count > 0 && Rows.Count == 0;
+
+    private void ViewChanged(string name)
+    {
+        OnPropertyChanged(name);
+        OnPropertyChanged(nameof(SortIndex));
+        OnPropertyChanged(nameof(FilterIndex));
+        OnPropertyChanged(nameof(IsFiltering));
+        OnPropertyChanged(nameof(ViewActive));
+        OnPropertyChanged(nameof(CanReorder));
+        OnPropertyChanged(nameof(ReorderOffReason));
+        OnPropertyChanged(nameof(CanMakeOrder));
+        MakeOrderCommand.NotifyCanExecuteChanged();
+        Sync();
+    }
+
+    /// <summary>The empty state's Clear: no search, no filter (the sort stays).</summary>
+    [RelayCommand]
+    private void ClearFilter()
+    {
+        Filter = FlowFilter.All;
+        SearchText = "";
+    }
+
+    /// <summary>"Make this my order": the visible sorted order becomes the file's (one Undo), then the view is Your order.</summary>
+    [RelayCommand(CanExecute = nameof(CanMakeOrder))]
+    private void MakeOrder()
+    {
+        var sort = _sort;
+        if (!CanMakeOrder)
+            return;
+        var map = _lastRuns.ToDictionary(r => r.Key, r => r.Value.Started, StringComparer.Ordinal);
+        Commit(c => FlowListModel.MakeOrder(c, sort, id => map.TryGetValue(id, out var t) ? t : null));
+        Sort = FlowSort.Yours;
+    }
+
+    private DateTimeOffset? LastRunOf(string id) => _lastRuns.TryGetValue(id, out var r) ? r.Started : null;
+
+    private bool Matches(FlowItemViewModel item)
+    {
+        var ok = _filter switch
+        {
+            FlowFilter.On => item.IsEnabled,
+            FlowFilter.Off => !item.IsEnabled,
+            FlowFilter.NeedsFixing => item.HasProblems,
+            FlowFilter.NotInTray => item.NotInTray,
+            _ => true,
+        };
+        return ok && (!Searching || item.SearchHaystack.Contains(_search.Trim(), StringComparison.CurrentCultureIgnoreCase));
+    }
 
     /// <summary>The groups in list order, for the "Move to" menu.</summary>
     public IReadOnlyList<string> GroupNames => [.. FlowListModel.Rows(_session.Current).OfType<GroupRow>().Select(g => g.Name)];
@@ -228,6 +378,8 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     /// <summary>The group menu's Move up / down: one place among the top-level items.</summary>
     public void MoveGroup(string name, int delta)
     {
+        if (!CanReorder)
+            return;
         var units = TopLevelUnits(_session.Current);
         var at = units.FindIndex(u => u.Group is not null && StringComparer.CurrentCultureIgnoreCase.Equals(u.Group, name));
         var to = at + delta;
@@ -241,6 +393,8 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     public void MoveFlowToGroup(string flowId, string? group)
     {
         if (group is not null && !FlowListModel.IsValidGroupName(group))
+            return;
+        if (!CanReorder)
             return;
         var current = Items.FirstOrDefault(i => i.Id == flowId)?.Group;
         if (group is null ? current is null : current is not null && StringComparer.CurrentCultureIgnoreCase.Equals(group.Trim(), current))
@@ -261,8 +415,8 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     /// <summary>A flow dropped (DESIGN B2): into <paramref name="group"/> (null = top level) before <paramref name="beforeId"/>.</summary>
     public void DropFlow(string flowId, string? group, string? beforeId)
     {
-        if (beforeId == flowId)
-            return; // dropped on itself
+        if (beforeId == flowId || !CanReorder)
+            return; // dropped on itself, or the view isn't Your order
         if (group is not null && _collapsed.Remove(group)) // dropped in: it shows
             SaveCollapsed();
         ApplyOrder(c => FlowListModel.Move(c, [flowId], group, beforeId));
@@ -274,7 +428,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     /// <summary>A reorder that lands where it started (a drop on itself) changes nothing and is no Undo step.</summary>
     private void ApplyOrder(Func<Configuration, Configuration> change)
     {
-        if (!_session.CanEdit)
+        if (!CanReorder)
             return;
         var next = change(_session.Current);
         if (Shape(next) != Shape(_session.Current))
@@ -286,6 +440,8 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     /// <summary>Alt+Up / Alt+Down and the menu's Move up / down: one place within the flow's container (its group, or the top level).</summary>
     public void MoveFlow(string flowId, int delta)
     {
+        if (!CanReorder)
+            return;
         var group = Items.FirstOrDefault(i => i.Id == flowId)?.Group;
         if (group is not null)
         {
@@ -329,18 +485,24 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         var units = TopLevelUnits(_session.Current);
         var desired = new List<object>();
         var live = new HashSet<string>(StringComparer.CurrentCultureIgnoreCase);
-        foreach (var row in FlowListModel.Rows(_session.Current))
+        var filtering = IsFiltering; // a search or filter shows what it found, groups open
+        var reorder = CanReorder;
+        foreach (var row in FlowListModel.Rows(_session.Current, _sort, LastRunOf))
         {
             if (row is GroupRow g)
             {
+                var shown = g.FlowIds.Select(id => byId[id]).Where(Matches).ToList();
+                if (filtering && shown.Count == 0)
+                    continue; // no header over nothing
                 if (!_groups.TryGetValue(g.Name, out var header))
                     _groups[g.Name] = header = new GroupItemViewModel(this, g.Name);
                 var at = units.FindIndex(u => u.Group is not null && StringComparer.CurrentCultureIgnoreCase.Equals(u.Group, g.Name));
-                header.Update(g.Name, [.. g.FlowIds.Select(id => byId[id])], !_collapsed.Contains(g.Name), _session.CanEdit, at > 0, at >= 0 && at < units.Count - 1);
+                header.Update(g.Name, filtering ? shown : [.. g.FlowIds.Select(id => byId[id])], filtering || !_collapsed.Contains(g.Name), _session.CanEdit,
+                    reorder && at > 0, reorder && at >= 0 && at < units.Count - 1, reorder);
                 live.Add(g.Name);
                 desired.Add(header);
             }
-            else if (row is FlowRow f && (f.Group is null || !_collapsed.Contains(f.Group)))
+            else if (row is FlowRow f && (f.Group is null || filtering || !_collapsed.Contains(f.Group)) && Matches(byId[f.FlowId]))
             {
                 desired.Add(byId[f.FlowId]);
             }
@@ -365,6 +527,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             else
                 Rows.Insert(i, desired[i]);
         }
+        OnPropertyChanged(nameof(NoMatches));
     }
 
     /// <summary>Why the last Run from a card was refused; null when it wasn't.</summary>
@@ -577,7 +740,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             {
                 Items.Move(Items.IndexOf(existing), i);
             }
-            existing.Update(flow, _lastRuns.GetValueOrDefault(flow.Id), withErrors.GetValueOrDefault(flow.Id), _session.CanEdit,
+            existing.Update(flow, _lastRuns.GetValueOrDefault(flow.Id), withErrors.GetValueOrDefault(flow.Id), _session.CanEdit, CanReorder, ReorderOffReason,
                 FlowRefs.Callers(_session.Current, flow.Id).Count, now);
             existing.UpdateDelete(_session.CanEdit, DeleteOffReason(flow.Id));
             existing.UpdateRun(_engine.IsRunning, _liveRuns.ContainsValue(flow.Id));
@@ -596,6 +759,9 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         {
             ClearUndo(); // the file became unreadable or readable again: the snapshots may be stale
             OnPropertyChanged(nameof(CanEdit));
+            OnPropertyChanged(nameof(CanReorder));
+            OnPropertyChanged(nameof(CanMakeOrder));
+            MakeOrderCommand.NotifyCanExecuteChanged();
             Sync();
         }
     }
@@ -844,10 +1010,20 @@ public sealed partial class FlowItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(DragTip))]
     public partial bool CanEdit { get; private set; }
 
-    /// <summary>The grip's tooltip: what dragging does, or why it is off.</summary>
-    public string DragTip => CanEdit ? "Drag to reorder" : "This file is read-only, so the list can't be rearranged.";
+    /// <summary>Drag, Alt+arrows and Move to work: the file is editable and the list shows Your order.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DragTip))]
+    public partial bool CanReorder { get; private set; }
 
-    internal void Update(Flow flow, RunRecord? lastRun, int errors, bool canEdit, int callers, DateTimeOffset now)
+    private string? _reorderOff;
+
+    /// <summary>Name, shortcut, group and step names in one string for the search box.</summary>
+    internal string SearchHaystack { get; private set; } = "";
+
+    /// <summary>The grip's tooltip: what dragging does, or why it is off.</summary>
+    public string DragTip => !CanEdit ? "This file is read-only, so the list can't be rearranged." : CanReorder ? "Drag to reorder" : _reorderOff ?? "Drag to reorder";
+
+    internal void Update(Flow flow, RunRecord? lastRun, int errors, bool canEdit, bool canReorder, string? reorderOff, int callers, DateTimeOffset now)
     {
         _syncing = true;
         try
@@ -855,6 +1031,9 @@ public sealed partial class FlowItemViewModel : ObservableObject
             Name = flow.Name;
             Glyph = FlowGlyph.Decode(FlowGlyph.CodeOf(flow));
             CanEdit = canEdit;
+            _reorderOff = reorderOff;
+            CanReorder = canReorder;
+            OnPropertyChanged(nameof(DragTip));
             _hotkeys = [.. flow.Hotkeys];
             _steps = flow.Nodes.OfType<StepNode>().Count();
             _folder = flow.Tray.Folder;
@@ -865,6 +1044,8 @@ public sealed partial class FlowItemViewModel : ObservableObject
             Steps = FlowRowFacts.Steps(_steps);
             NotInTray = !flow.Tray.Show;
             UsedBy = FlowRowFacts.UsedBy(callers);
+            SearchHaystack = string.Join('\n', new[] { flow.Name, ShortcutTip, Shortcut, flow.Tray.Folder ?? "" }
+                .Concat(flow.Nodes.OfType<StepNode>().SelectMany(n => new[] { n.Name ?? "", ProviderCatalog.Find(n.Step)?.Title ?? "", n.Step })));
             UpdateTimes(now);
             HasProblems = errors > 0;
             Problems = errors switch { 0 => "", 1 => "1 problem", _ => $"{errors} problems" };

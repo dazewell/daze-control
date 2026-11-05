@@ -28,6 +28,12 @@ public sealed class FlowListSettings
 {
     public List<string> CollapsedGroups { get; set; } = [];
 
+    /// <summary>"Name" or "LastRun"; anything else (or missing) = Your order (D-088).</summary>
+    public string? Sort { get; set; }
+
+    /// <summary>"On", "Off", "NeedsFixing" or "NotInTray"; anything else (or missing) = All.</summary>
+    public string? Filter { get; set; }
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Other { get; set; }
 }

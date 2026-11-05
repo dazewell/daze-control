@@ -520,6 +520,26 @@ public sealed partial class ShellWindow : Window
             card.ClearValue(Panel.BackgroundProperty); // back to the SettingsCard style's fill
     }
 
+    // ---- Sort, search, filter (T16.5, DESIGN Part E) ----
+
+    /// <summary>Ctrl+F on the Flows page: into the search box, its text selected.</summary>
+    private void OnFlowSearchAccelerator(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        FlowSearchBox.Focus(FocusState.Keyboard);
+        FlowSearchBox.SelectAll();
+    }
+
+    /// <summary>Esc empties the search box.</summary>
+    private void OnFlowSearchKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Escape && FlowSearchBox.Text.Length > 0)
+        {
+            FlowSearchBox.Text = "";
+            e.Handled = true;
+        }
+    }
+
     // ---- Reordering the Flows list (T16.4, DESIGN B2/B3) ----
 
     private (string Key, bool IsGroup)? _drag;

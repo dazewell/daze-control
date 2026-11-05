@@ -54,6 +54,9 @@ public sealed partial class GroupItemViewModel : ObservableObject
     public partial bool CanEdit { get; private set; }
 
     [ObservableProperty]
+    public partial bool CanReorder { get; private set; }
+
+    [ObservableProperty]
     public partial bool CanMoveUp { get; private set; }
 
     [ObservableProperty]
@@ -62,12 +65,13 @@ public sealed partial class GroupItemViewModel : ObservableObject
     [RelayCommand]
     private void Toggle() => _page.ToggleGroup(Name);
 
-    internal void Update(string name, IReadOnlyList<FlowItemViewModel> members, bool expanded, bool canEdit, bool canMoveUp, bool canMoveDown)
+    internal void Update(string name, IReadOnlyList<FlowItemViewModel> members, bool expanded, bool canEdit, bool canMoveUp, bool canMoveDown, bool canReorder)
     {
         Name = name;
         _members = members;
         IsExpanded = expanded;
         CanEdit = canEdit;
+        CanReorder = canReorder;
         CanMoveUp = canEdit && canMoveUp;
         CanMoveDown = canEdit && canMoveDown;
         Refresh();
