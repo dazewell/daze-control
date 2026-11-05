@@ -114,8 +114,12 @@ public sealed class FlowReorderTests : IDisposable
     public void DropOnItselfIsNoUndoStep()
     {
         using var page = Page();
+        page.DropFlow("a", null, "b"); // the first write makes the scattered group contiguous (D-088): a step
+        Assert.True(page.CanUndo);
+        page.ClearUndo();
         page.DropFlow("c", null, "c");
         page.DropFlow("a", null, "b"); // a stays before the group
+        page.DropFlow("c", null, "e"); // c stays before e
         Assert.Equal("a [Audio] b d c e", Shown(page));
         Assert.False(page.CanUndo);
     }
