@@ -1178,3 +1178,51 @@ Status: accepted (user, 2026-11-04); supersedes D-057 and the chord parts of D-0
 - Why not keep chords as an option: untested on real pads (T12.6's live legs never ran), a second backend consumer, and
   the idle cost (10 Hz poll, arrival and power hooks) for a feature nobody will use. Also removes T12.10's Steam recipe
   for chords; the README explains the shortcut route instead.
+
+## D-087 · 2026-11-04 · Flow groups in the list are the tray folders: one concept, no new config key
+Status: proposed (design docs/flow-list/DESIGN.md; user to approve open choices 1–3)
+- Decision: a group *is* `tray.folder`. The list shows groups as expandable headers; creating, renaming, ungrouping and
+  moving write `tray.folder` on the members. No `groups:` key, no schema bump, no migration. A group exists while it has a
+  member (no persisted empty groups). Flow settings' "Tray folder" is renamed "Group" ("Also the folder in the tray menu").
+  Flows hidden from the tray (`show: false`, Off) can still be grouped; the list dims them.
+- Why: the user asked whether to merge; the data already has it (folder = a submenu, placed at its first member), the tray
+  needs no change, and one name for one thing means the list never disagrees with the tray menu.
+- Why not list-only groups (`group:` field): two things to keep in step, a flow could sit in "Audio" in the list and "TV" in
+  the tray. Why not a top-level `groups:` list: lets empty groups exist that the tray cannot show, and a second source of truth.
+- Revisit if: users want list groups that differ from tray folders, or nested groups (the tray menu would need nesting too).
+
+## D-088 · 2026-11-04 · List order is the tray order; a reorder writes the displayed order; sort and filter are view-only
+Status: proposed (design docs/flow-list/DESIGN.md; open choice 4)
+- Decision: the list shows what `TrayMenu.Build` shows (groups at their first member's place, members in file order). Drag,
+  Alt+↑/↓/← and "Move to" call pure `FlowListModel` operations and write the whole displayed order to `flows:` (autosaved,
+  Undo stack of 20 cleared as D-076). Sort (Name, Last run), search and filters only change the view and turn dragging off;
+  "Make this my order" writes a sort on purpose.
+- Why: `flows:` order already is the tray order, so a reorder needs no new field; writing the displayed order makes a
+  hand-scattered group contiguous without changing the tray, and every picker follows. A view that silently rewrote the file
+  would change the tray menu by looking at it.
+- Why not `ListView.CanReorderItems`: no cross-section reorder with groups, replaces `FlowCard` (D-070). Why not a separate
+  `order:` list: a second source of truth that the engine would have to read.
+- Revisit if: the drag can't be made reliable on `ItemsRepeater` (then a prototype result goes to DEADENDS first).
+
+## D-089 · 2026-11-04 · Row facts come from the config and the history op; relative times refresh on events, not on a timer
+Status: proposed (design docs/flow-list/DESIGN.md Part D; open choice 7)
+- Decision: a row shows shortcut (first, "+n"), step count, last run (result + relative time), and icons for not-in-tray and
+  desktop shortcut; "Used by n flows" and all shortcuts are tooltips. Last run uses the existing `history` op with `Limit`
+  200 (newest per flow); a flow with no record says "No recent run". Times are recomputed when the page shows, the window
+  activates and on run events; nothing ticks.
+- Why: every fact is already in `Configuration`, `RunRecord` or the desktop store: no engine change, no new IPC. A timer
+  would break "idle = zero" for no gain; "Not run yet" is false once a run falls out of the 200-run history.
+- Why not a `lastRuns` op or storing last-run data in config.yaml: new surface for a cosmetic fact; config would change
+  on every run.
+- Revisit if: a user needs run counts or a longer history (then a persisted per-flow summary, engine-side).
+
+## D-090 · 2026-11-04 · List selection is additive: a plain click still opens; Ctrl/Shift+click and a Select toggle select
+Status: proposed (design docs/flow-list/DESIGN.md Part F; open choices 5–6)
+- Decision: Ctrl+click toggles, Shift+click selects a range, Ctrl+A all visible, Ctrl+Space toggles the focused card, Esc
+  clears; a Select command-bar toggle shows checkboxes. A selection drags together and takes Group…, Move to, Turn on/off,
+  Delete (D-076 for many) and Duplicate; Run stays single. Duplicate clears shortcuts (D-072 clash) and lands after the original.
+- Why: D-070 made a click open the flow and Enter/Space is the keyboard open; selection must not change either, so it hides
+  behind modifiers and an explicit mode (touch, discoverability).
+- Why not always-visible checkboxes: noise for the usual one-flow case. Why not bulk Run: several flows at once fight for
+  the same devices (resource locks) and have no clear stop.
+- Revisit if: users expect click-to-select (then make the card's body select and move "open" to a button).

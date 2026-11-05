@@ -112,6 +112,46 @@ No version bumps (D-079). Opus medium.
   fields with different library kinds across types are not shown, a required param can't be cleared, an optional one clears
   for all; one Undo each.
 
+## M16 Flow list: reorder, groups, richer rows (user, 2026-11-04) — after the user approves docs/flow-list/DESIGN.md
+Designed 2026-11-04: docs/flow-list/DESIGN.md, D-087..D-090 (proposed until approved; if the user answers an open choice
+differently, fix the design and the decision first). Groups are the tray folders: no config.yaml change. One PR per task, no
+version bumps (D-079); each moves its as-built facts from DESIGN into ARCHITECTURE/UX/FEATURES and cuts them there (D-053). Opus medium.
+**Order and parallelism** (editor files that clash are named): `T16.1 ∥ T16.2` (T16.1 adds only new files under
+`Editor.ViewModels/FlowList`; T16.2 edits `FlowsPageViewModel.cs` and the card template in `ShellWindow.xaml`);
+`T16.1 + T16.2 → T16.3 → T16.4`; `T16.3 → T16.5` (`T16.4 ∥ T16.5` only if the second takes both sides of `ShellWindow.xaml`:
+T16.4 edits the card/rows, T16.5 the command bar); `T16.4 + T16.5 → T16.6 → T16.7`.
+
+- [ ] T16.1 List model: Core of the ordering (feat/m16-list-model, D-087, D-088). Files: new `Editor.ViewModels/FlowList/FlowListModel.cs`
+  (+ tests). `Rows(config)` = tray order with groups; `Move`, `MoveGroup`, `SetGroup`, `RenameGroup`, `Ungroup`, `Duplicate`, `MakeOrder(sort)`.
+  Done when: tests: display order equals `TrayMenu.Build` order (scattered group, hidden flows, separators, case-insensitive
+  folder names); each op changes only order/`tray.folder`; moves into/out of/within groups and a group as a block; rename onto an
+  existing group merges; a group with no member disappears; the written order round-trips through YAML and the tray looks the same.
+- [ ] T16.2 Richer row (feat/m16-row-info, D-089). Files: `FlowsPageViewModel.cs` (`FlowItemViewModel`: shortcut summary, step
+  count, last run word + relative time, not-in-tray, desktop, "Used by n flows", accessible name; `Limit` 200), card template in
+  `ShellWindow.xaml`, UX §5.1. Done when: view-model tests for each fact incl. "No recent run" and times only recomputed on
+  page show / activation / run events (no timer); screenshots of a plain, a running, a failing and a hidden-from-tray flow.
+- [ ] T16.3 Grouped list (feat/m16-groups, after T16.1, T16.2, D-087). Files: `FlowsPageViewModel.cs` (flat rows: group headers +
+  flows), `ShellWindow.xaml` (+ `.cs`) header template, `editor.json` store (`flowList.collapsedGroups`), group menu (Rename,
+  Ungroup, Turn all on/off, Move up/down), context menu "Move to ›" / "New group…", Flow settings "Tray folder" → "Group", UX
+  §5.4/§5.1/§5.9, FEATURES. Done when: tests for the rows and the menu actions; Narrator names ("Audio, group, 4 flows, expanded"),
+  Expand/Collapse works; screenshots (expanded, collapsed, ungrouped mix); the tray menu on a sample file matches the list.
+- [ ] T16.4 Drag and drop, keyboard move, Undo (feat/m16-reorder, after T16.3, D-088). Files: `FlowCard.cs` (drag source, Alt+arrows),
+  list host in `ShellWindow.xaml.cs`, `FlowsPageViewModel.cs` (Undo stack, UIA notification). Prototype first; if `ItemsRepeater` drag
+  can't be made reliable record an X-xxx. Done when: drag a flow within, into and out of a group, a group as a block, Esc cancels,
+  auto-scroll; Alt+↑/↓/← and "Move up/down" give the same results; Undo/Ctrl+Z restores; drag is off while sorted/filtered with the
+  reason in the tooltip; tests for the Undo stack and drop-position maths; screenshots/recording of the insertion line.
+- [ ] T16.5 Sort, search, filter (feat/m16-sort-filter, after T16.3). Files: `FlowsPageViewModel.cs` view layer, command bar in
+  `ShellWindow.xaml`, `editor.json` (`flowList.sort`, `filter`). Done when: tests: sorts keep groups in place and ties in Your order;
+  search matches name, shortcut, group, step titles and expands groups; filters; "Make this my order" writes the visible order as
+  one Undo; empty-result state with Clear; Ctrl+F.
+- [ ] T16.6 Multi-select and bulk actions (feat/m16-select, after T16.4, T16.5, D-090). Files: `FlowCard.cs`, list host, view model,
+  command bar. Done when: tests for the selection rules (range over visible rows only, groups select members) and each bulk action
+  as one Undo; bulk Delete InfoBar + reason line; a selection drags together; Narrator reads "3 selected"; every action reachable by keyboard.
+- [ ] T16.7 Duplicate, tray toggles, gate (feat/m16-duplicate, after T16.6). Files: context menu, `FlowListModel.Duplicate` wiring,
+  UX §5.9 acceptance rows for M16, ARCHITECTURE (Flow list section), FEATURES, cut DESIGN to what is left. Done when: Duplicate
+  clears shortcuts and lands after the original; "Show in tray menu" / "Line above in tray" toggles change the tray menu live
+  (checked with the engine running); the §5.9 M16 rows are ticked or listed as open for the user.
+
 ## M13 fixes (user, 2026-11-03, v0.29.0 feedback) — first, before the remaining M13 tasks
 Designed 2026-11-03 (PR: docs/m13-fixes-plan): D-074..D-077, X-008, X-009, UX §5.1/§5.2/§5.7 #66–#70 "M13 fixes"
 notes. User answers (2026-11-03): right-drag is fine (it pans only where there's room to scroll; the user misread
