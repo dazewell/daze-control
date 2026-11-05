@@ -102,7 +102,7 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
   leaves full screen and `Present` returns `DXGI_STATUS_OCCLUDED`: the game is kicked to the desktop. Same with FSO
   off (true exclusive). Hotkeys + mouse hook with no visible window leave it untouched. And
   `SHQueryUserNotificationState` says `QUNS_RUNNING_D3D_FULL_SCREEN` for FSO too, so it can't tell the two apart.
-- Evidence: [flow-menu/DESIGN.md](flow-menu/DESIGN.md) §5 S2 result, screenshots `flow-menu/s2/`, 2026-11-04.
+- Evidence: [flow-menu/SPIKES.md](flow-menu/SPIKES.md) S2 result, screenshots `flow-menu/s2/`, 2026-11-04.
 - Retry only if: a documented overlay band without uiAccess appears, or with a game in borderless/windowed mode
   (works: S2 mode 1). Never show any window of ours while QUNS = 3.
 

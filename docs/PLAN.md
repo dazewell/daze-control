@@ -555,7 +555,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 - [~] T12.9 DROPPED (D-091, no Narrator work). Was: Narrator: UIA notifications from the menu without focus, sharing issue #26's provider (feat/m12-narrator).
   Done when: Narrator reads "Couch menu, 4 choices. Connect TV, 1 of 4." on open and the new choice on each move,
   the foreground window unchanged; #26's pop-up announcement may land in the same PR.
-- [ ] T12.10 Acceptance + docs fold-in (DESIGN §4, UX §5.9 M12; no Narrator checks, D-091). Done when: the checklist's M12 lines pass on the dev
+- [x] T12.10 (docs/m12-fold-in; live pad rows left to the user, flow-menu/DESIGN.md) Acceptance + docs fold-in (DESIGN §4, UX §5.9 M12; no Narrator checks, D-091). Done when: the checklist's M12 lines pass on the dev
   PC (or are listed as the user's), README says how to drive the menu with a pad (D-pad/stick, A, B; Steam-mapped keys work as shortcuts, D-086 — the Steam recipe text belongs to the F13–F24 session) and the known limits (DESIGN §4.6); chord lines of the checklist are superseded,
   DESIGN.md holds only what's still open, GOALS status current.
 
