@@ -1208,10 +1208,10 @@ Status: accepted (user, 2026-11-04)
 Status: accepted (user, 2026-11-04)
 - Decision: a row shows shortcut (first, "+n"), step count, last run (result + relative time), and icons for not-in-tray and
   desktop shortcut; "Used by n flows" and all shortcuts are tooltips. Last run uses the existing `history` op with `Limit`
-  200 (newest per flow); a flow with no record says "No recent run". Times are recomputed when the page shows, the window
+  100 (newest per flow); a flow with no record says "No recent run". Times are recomputed when the page shows, the window
   activates and on run events; nothing ticks.
 - Why: every fact is already in `Configuration`, `RunRecord` or the desktop store: no engine change, no new IPC. A timer
-  would break "idle = zero" for no gain; "Not run yet" is false once a run falls out of the 200-run history.
+  would break "idle = zero" for no gain; "Not run yet" is false once a run falls out of the 100-run history (the engine's `RunHistory.Capacity`; the file holds up to 200 lines before it is cut).
 - Why not a `lastRuns` op or storing last-run data in config.yaml: new surface for a cosmetic fact; config would change
   on every run.
 - Revisit if: a user needs run counts or a longer history (then a persisted per-flow summary, engine-side).
