@@ -49,7 +49,7 @@ public sealed class BulkEdit
         _typeDefault = typeDefault;
         _steps = [.. _nodes.OfType<StepNode>()];
         var types = _steps.Select(s => s.Step).Distinct(StringComparer.Ordinal).ToList();
-        StepType = types.Count == 1 ? types[0] : null;
+        StepType = types.Count == 1 && _nodes.Count == _steps.Count ? types[0] : null;
         Descriptor = StepType is null ? null : ProviderCatalog.Find(StepType);
         Rows = BuildRows();
     }
@@ -98,7 +98,10 @@ public sealed class BulkEdit
         var list = items.ToList();
         var owns = list.Select(own).ToList();
         var anySet = owns.Any(o => o is not null);
-        var values = (anySet && owns.All(o => o is not null) ? owns.Select(o => (object?)o) : list.Select(n => (object?)effective(n))).ToList();
+        var allSet = owns.All(o => o is not null);
+        if (anySet && !allSet)
+            return new BulkRow(field, BulkState.Mixed, null, true); // partly inherited, even when the values agree
+        var values = (allSet ? owns.Select(o => (object?)o) : list.Select(n => (object?)effective(n))).ToList();
         var same = values.All(v => Equals(v, values[0]));
         if (!same)
             return new BulkRow(field, BulkState.Mixed, null, anySet);
@@ -142,7 +145,7 @@ public sealed class BulkEdit
     /// </summary>
     public static BulkResult Apply(ConfigSession session, FlowCanvasViewModel canvas, Func<Flow, Flow> change)
     {
-        if (!session.CanEdit || canvas.Flow is not { } flow)
+        if (!session.CanEdit || !canvas.CanEdit || canvas.Flow is not { } flow)
             return new BulkResult(false, []);
         var next = change(flow);
         if (next == flow)
@@ -153,6 +156,6 @@ public sealed class BulkEdit
         if (added.Count > 0)
             return new BulkResult(false, added);
         canvas.Edit(_ => next);
-        return new BulkResult(true, []);
+        return new BulkResult(canvas.Flow == next, []);
     }
 }

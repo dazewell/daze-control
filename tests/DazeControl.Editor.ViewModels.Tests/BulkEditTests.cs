@@ -69,6 +69,18 @@ public sealed class BulkEditTests : IDisposable
     }
 
     [Fact]
+    public void ACardInTheSelectionDropsTheType() => Assert.Null(Bulk("w1", "w2", "both").StepType);
+
+    [Fact]
+    public void ExplicitAndInheritedAreMixedEvenWhenEqual()
+    {
+        _canvas.Edit(f => f with { Nodes = [.. f.Nodes.Select(n => n.Id == "w1" ? ((StepNode)n) with { OnFailure = FailurePolicy.Stop } : n)] });
+        var row = Bulk("w1", "w2").Row(BulkField.OnFailure)!;
+        Assert.Equal(BulkState.Mixed, row.State);
+        Assert.True(row.AnySet);
+    }
+
+    [Fact]
     public void ASingleItemHasNoBulkRows() => Assert.Empty(Bulk("w1").Rows);
 
     [Fact]
