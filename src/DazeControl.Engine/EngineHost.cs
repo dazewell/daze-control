@@ -11,6 +11,7 @@ using DazeControl.Runtime.Control;
 using DazeControl.Runtime.Lifecycle;
 using DazeControl.Runtime.Menus;
 using DazeControl.Runtime.Popup;
+using DazeControl.Providers;
 using DazeControl.Providers.Basic;
 using DazeControl.Runtime.Providers;
 using DazeControl.Runtime.Tray;
