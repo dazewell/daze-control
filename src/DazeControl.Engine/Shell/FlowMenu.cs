@@ -39,6 +39,9 @@ internal sealed unsafe class FlowMenu : AcrylicSurface, IMenuPresenter
     private readonly MenuKeys _keys;
     private readonly MenuMouseHook _mouse = new();
     private readonly IMenuPadFeed? _pad;
+
+    /// <summary>A menu is up (message thread): the pad drives it, chords are off.</summary>
+    public bool IsOpen => _model is not null;
     private readonly TimeProvider _time;
 
     private MenuRequest? _request;

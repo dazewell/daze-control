@@ -671,6 +671,7 @@ the background with Steam on and off; pad on and untouched, 600 s: 234 ms, 866 M
 poll; the pad slept after about 4 min, so it was polled about 5.5 min). Kept on for the whole window, 20 Hz would be
 about 410 ms, over the 300 ms budget: T12.6 measures the real `GamepadSource` and, if it is over, polls at 10 Hz
 while only chords listen. Sleep/resume was not run.
+T12.6: `GamepadSource` polls at 10 Hz while only chords listen (a chord fires on release, 100 ms is unnoticeable), 60 Hz in a menu.
 (user, 2026-11-03: polling while a pad is on is acceptable.)
 - Decision: `Engine/Input/GamepadSource` reads Xbox/XInput pads. First choice: the inbox `GameInput.dll` (present on
   the dev PC, 0.2309.26100, no redist) with reading + device callbacks and background input. Fallback: `xinput1_4`
