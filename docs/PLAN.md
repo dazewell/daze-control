@@ -142,7 +142,7 @@ T16.4 edits the card/rows, T16.5 the command bar); `T16.4 + T16.5 → T16.6 → 
   `ShellWindow.xaml`, `editor.json` (`flowList.sort`, `filter`). Done when: tests: sorts keep groups in place and ties in Your order;
   search matches name, shortcut, group, step titles and expands groups; filters; "Make this my order" writes the visible order as
   one Undo; empty-result state with Clear; Ctrl+F.
-- [ ] T16.6 Multi-select and bulk actions (feat/m16-select, after T16.4, T16.5, D-090). Files: `FlowCard.cs`, list host, view model,
+- [x] T16.6 Multi-select and bulk actions (feat/m16-select, after T16.4, T16.5, D-090). Files: `FlowCard.cs`, list host, view model,
   command bar. Done when: tests for the selection rules (range over visible rows only, groups select members) and each bulk action
   as one Undo; bulk Delete InfoBar + reason line; a selection drags together; Narrator reads "3 selected"; every action reachable by keyboard.
 - [ ] T16.7 Duplicate, tray toggles, gate (feat/m16-duplicate, after T16.6). Files: context menu, `FlowListModel.Duplicate` wiring,

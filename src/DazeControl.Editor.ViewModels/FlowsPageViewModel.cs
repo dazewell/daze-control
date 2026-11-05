@@ -419,7 +419,10 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             return; // dropped on itself, or the view isn't Your order
         if (group is not null && _collapsed.Remove(group)) // dropped in: it shows
             SaveCollapsed();
-        ApplyOrder(c => FlowListModel.Move(c, [flowId], group, beforeId));
+        var ids = ActionIds(flowId); // a selected card takes the whole selection along (D-090)
+        if (beforeId is not null && ids.Count > 1 && ids.Contains(beforeId))
+            return;
+        ApplyOrder(c => FlowListModel.Move(c, ids, group, beforeId));
     }
 
     /// <summary>A group dropped as a block before the top-level item holding <paramref name="beforeId"/> (null = at the end).</summary>
@@ -479,6 +482,154 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         return units;
     }
 
+    // ---- Selection and bulk actions (T16.6, D-090) ----
+
+    private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
+    private string? _anchor;
+
+    /// <summary>The Select toggle: every card shows a checkbox and a click toggles it.</summary>
+    [ObservableProperty]
+    public partial bool SelectMode { get; set; }
+
+    partial void OnSelectModeChanged(bool value)
+    {
+        if (!value)
+            _selected.Clear();
+        RefreshSelection();
+    }
+
+    public int SelectedCount => _selected.Count;
+
+    public bool HasSelection => _selected.Count > 0;
+
+    /// <summary>"3 selected".</summary>
+    public string SelectionText => $"{_selected.Count} selected";
+
+    /// <summary>The selected flows, in list order.</summary>
+    public IReadOnlyList<string> SelectedIds => [.. Items.Where(i => _selected.Contains(i.Id)).Select(i => i.Id)];
+
+    /// <summary>The flows an action on <paramref name="flowId"/> applies to: the whole selection when it is part of one, else itself.</summary>
+    public IReadOnlyList<string> ActionIds(string flowId) => _selected.Count > 1 && _selected.Contains(flowId) ? SelectedIds : [flowId];
+
+    public bool CanBulkEdit => _session.CanEdit && HasSelection;
+
+    public bool CanBulkMove => CanReorder && HasSelection;
+
+    /// <summary>Why Delete is off for the selection (another flow runs one of them); null when it is on or nothing is selected.</summary>
+    public string? BulkDeleteOffReason => HasSelection ? DeleteOffReason(SelectedIds) : null;
+
+    public bool HasBulkDeleteOffReason => BulkDeleteOffReason is not null;
+
+    public bool CanBulkDelete => CanBulkEdit && BulkDeleteOffReason is null;
+
+    /// <summary>Flow ids of the rows on screen, in order: a collapsed group's members are not among them.</summary>
+    private List<string> VisibleIds() => [.. Rows.OfType<FlowItemViewModel>().Select(f => f.Id)];
+
+    /// <summary>Ctrl+click, Ctrl+Space, a checkbox: toggles one flow.</summary>
+    public void ToggleSelected(string flowId)
+    {
+        if (!_selected.Remove(flowId))
+            _selected.Add(flowId);
+        _anchor = flowId;
+        RefreshSelection();
+    }
+
+    /// <summary>Shift+click: the visible rows between the last toggled one and this one (the anchor stays).</summary>
+    public void SelectRange(string flowId)
+    {
+        var visible = VisibleIds();
+        var from = _anchor is null ? -1 : visible.IndexOf(_anchor);
+        var to = visible.IndexOf(flowId);
+        if (from < 0 || to < 0)
+        {
+            ToggleSelected(flowId);
+            return;
+        }
+        for (var i = Math.Min(from, to); i <= Math.Max(from, to); i++)
+            _selected.Add(visible[i]);
+        RefreshSelection();
+    }
+
+    /// <summary>Ctrl+A: every row on screen.</summary>
+    public void SelectAll()
+    {
+        foreach (var id in VisibleIds())
+            _selected.Add(id);
+        RefreshSelection();
+    }
+
+    /// <summary>A group header: all its (shown) members, or none when they all are selected already.</summary>
+    public void ToggleGroupSelected(string name)
+    {
+        if (!_groups.TryGetValue(name, out var header) || header.Members.Count == 0)
+            return;
+        var ids = header.Members.Select(m => m.Id).ToList();
+        if (ids.TrueForAll(_selected.Contains))
+            ids.ForEach(id => _selected.Remove(id));
+        else
+            ids.ForEach(id => _selected.Add(id));
+        _anchor = ids[0];
+        RefreshSelection();
+    }
+
+    /// <summary>Esc, Clear.</summary>
+    [RelayCommand]
+    public void ClearSelection()
+    {
+        if (_selected.Count == 0)
+            return;
+        _selected.Clear();
+        _anchor = null;
+        RefreshSelection();
+    }
+
+    /// <summary>Pushes the selection to the cards and headers and the bar's bindings.</summary>
+    private void RefreshSelection()
+    {
+        foreach (var item in Items)
+            item.UpdateSelection(_selected.Contains(item.Id), SelectMode);
+        foreach (var header in _groups.Values)
+            header.UpdateSelection(header.Members.Count > 0 && header.Members.All(m => _selected.Contains(m.Id)), SelectMode);
+        OnPropertyChanged(nameof(SelectedCount));
+        OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(SelectionText));
+        OnPropertyChanged(nameof(CanBulkEdit));
+        OnPropertyChanged(nameof(CanBulkMove));
+        OnPropertyChanged(nameof(BulkDeleteOffReason));
+        OnPropertyChanged(nameof(HasBulkDeleteOffReason));
+        OnPropertyChanged(nameof(CanBulkDelete));
+    }
+
+    /// <summary>What a search, a filter or a delete hid or removed is no longer selected.</summary>
+    private void PruneSelection()
+    {
+        var shown = Items.Where(Matches).Select(i => i.Id).ToHashSet(StringComparer.Ordinal);
+        _selected.RemoveWhere(id => !shown.Contains(id));
+        if (_anchor is not null && !shown.Contains(_anchor))
+            _anchor = null;
+        RefreshSelection();
+    }
+
+    /// <summary>Turn on / Turn off for the selection: one Undo step.</summary>
+    public void SetSelectedEnabled(bool enabled)
+    {
+        var ids = _selected.ToHashSet(StringComparer.Ordinal);
+        Apply(c => c with { Flows = [.. c.Flows.Select(f => ids.Contains(f.Id) && f.Enabled != enabled ? f with { Enabled = enabled } : f)] });
+    }
+
+    /// <summary>Group… and Move to ›: the flows into a group (made when new) or out of theirs, as one Undo step.</summary>
+    public void MoveToGroup(IReadOnlyCollection<string> ids, string? group)
+    {
+        if (ids.Count == 0 || (group is not null && !FlowListModel.IsValidGroupName(group)) || !CanReorder)
+            return;
+        if (group is not null && _collapsed.Remove(group)) // flows moved in show
+            SaveCollapsed();
+        Apply(c => FlowListModel.SetGroup(c, ids, group));
+    }
+
+    /// <summary>Delete for the selection (D-090): one bar, one Undo.</summary>
+    public void DeleteSelected() => DeleteMany(SelectedIds);
+
     private void SyncRows()
     {
         var byId = Items.ToDictionary(i => i.Id, StringComparer.Ordinal);
@@ -528,6 +679,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
                 Rows.Insert(i, desired[i]);
         }
         OnPropertyChanged(nameof(NoMatches));
+        PruneSelection();
     }
 
     /// <summary>Why the last Run from a card was refused; null when it wasn't.</summary>
@@ -616,8 +768,8 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         Commit(c => c with { Flows = [.. c.Flows, flow] });
     }
 
-    /// <summary>The flow Undo would put back, and where it was (D-076).</summary>
-    private (Flow Flow, int Index)? _deleted;
+    /// <summary>The flows Undo would put back, and where they were (D-076).</summary>
+    private List<(Flow Flow, int Index)>? _deleted;
 
     /// <summary>The Undo bar's text (#67); null when there's nothing to undo.</summary>
     [ObservableProperty]
@@ -638,23 +790,44 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         };
     }
 
-    /// <summary>The card's Delete (D-076): the flow goes now (autosaved), and the bar offers Undo.</summary>
-    public void Delete(string flowId)
+    /// <summary>Why the selection can't be deleted: flows outside it run one of them (D-090). Null when it can.</summary>
+    public string? DeleteOffReason(IReadOnlyCollection<string> ids)
     {
-        if (!_session.CanEdit || DeleteOffReason(flowId) is not null)
-            return;
-        var index = _session.Current.Flows.ToList().FindIndex(f => f.Id == flowId);
-        if (index < 0)
-            return;
-        _ = EndUndoAsync();
-        var flow = _session.Current.Flows[index];
-        Commit(c => c with { Flows = [.. c.Flows.Where(f => f.Id != flowId)] });
-        _deleted = (flow, index);
-        _deleteMark = _undo.Count; // the stack's top is this delete: the bar's Undo and Ctrl+Z are one step
-        DeletedText = $"{flow.Name} was deleted.";
+        if (ids.Count == 1)
+            return DeleteOffReason(ids.First());
+        var chosen = ids.ToHashSet(StringComparer.Ordinal);
+        var callers = ids.SelectMany(id => FlowRefs.Callers(_session.Current, id)).Where(f => !chosen.Contains(f.Id))
+            .Select(f => f.Name).Distinct().ToList();
+        return callers.Count switch
+        {
+            0 => null,
+            1 => $"{callers[0]} runs one of these flows. Remove that step first.",
+            _ => $"{string.Join(", ", callers[..^1])} and {callers[^1]} run these flows. Remove those steps first.",
+        };
     }
 
-    /// <summary>Undo: the flow back at its place, with its id.</summary>
+    /// <summary>The card's Delete (D-076): the flow goes now (autosaved), and the bar offers Undo.</summary>
+    public void Delete(string flowId) => DeleteMany([flowId]);
+
+    /// <summary>Deletes several flows as one step: one bar, one Undo (D-090).</summary>
+    public void DeleteMany(IReadOnlyCollection<string> ids)
+    {
+        if (!_session.CanEdit || ids.Count == 0 || DeleteOffReason(ids) is not null)
+            return;
+        var all = _session.Current.Flows.ToList();
+        var gone = ids.Select(id => (Flow: all.Find(f => f.Id == id), Index: all.FindIndex(f => f.Id == id)))
+            .Where(g => g.Flow is not null).OrderBy(g => g.Index).Select(g => (g.Flow!, g.Index)).ToList();
+        if (gone.Count == 0)
+            return;
+        _ = EndUndoAsync();
+        var chosen = gone.Select(g => g.Item1.Id).ToHashSet(StringComparer.Ordinal);
+        Commit(c => c with { Flows = [.. c.Flows.Where(f => !chosen.Contains(f.Id))] });
+        _deleted = gone;
+        _deleteMark = _undo.Count; // the stack's top is this delete: the bar's Undo and Ctrl+Z are one step
+        DeletedText = gone.Count == 1 ? $"{gone[0].Item1.Name} was deleted." : $"{gone.Count} flows were deleted.";
+    }
+
+    /// <summary>Undo: the flows back at their places, with their ids.</summary>
     [RelayCommand]
     private void UndoDelete()
     {
@@ -667,31 +840,35 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         }
         _deleted = null;
         DeletedText = null;
-        if (_session.Current.Flows.Any(f => f.Id == deleted.Flow.Id))
-            return; // the file got a flow with that id meanwhile
         Commit(c =>
         {
             var flows = c.Flows.ToList();
-            flows.Insert(Math.Min(deleted.Index, flows.Count), deleted.Flow);
+            foreach (var (flow, index) in deleted)
+            {
+                if (!flows.Any(f => f.Id == flow.Id)) // the file got a flow with that id meanwhile: leave it
+                    flows.Insert(Math.Min(index, flows.Count), flow);
+            }
             return c with { Flows = [.. flows] };
         });
     }
 
     /// <summary>
     /// The chance to undo ends (another Delete, New flow, opening a flow, leaving the page, closing the editor): only now
-    /// does the deleted flow's desktop shortcut go.
+    /// do the deleted flows' desktop shortcuts go.
     /// </summary>
-    public Task EndUndoAsync()
+    public async Task EndUndoAsync()
     {
         ClearUndo();
         if (_deleted is not { } deleted)
-            return Task.CompletedTask;
+            return;
         _deleted = null;
         DeletedText = null;
         // Asked of the engine, not the cached list: a shortcut made by dctl or another editor counts too.
-        return !_session.Current.Flows.Any(f => f.Id == deleted.Flow.Id)
-            ? RemoveShortcutAsync(deleted.Flow.Id)
-            : Task.CompletedTask;
+        foreach (var (flow, _) in deleted)
+        {
+            if (!_session.Current.Flows.Any(f => f.Id == flow.Id))
+                await RemoveShortcutAsync(flow.Id).ConfigureAwait(false);
+        }
     }
 
     private async Task RemoveShortcutAsync(string flowId)
@@ -1003,6 +1180,20 @@ public sealed partial class FlowItemViewModel : ObservableObject
     {
         DeleteOffReason = offReason;
         CanDelete = canEdit && offReason is null;
+    }
+
+    /// <summary>Part of the selection (D-090).</summary>
+    [ObservableProperty]
+    public partial bool IsSelected { get; private set; }
+
+    /// <summary>The Select toggle is on: the card shows a checkbox.</summary>
+    [ObservableProperty]
+    public partial bool ShowCheck { get; private set; }
+
+    internal void UpdateSelection(bool selected, bool showCheck)
+    {
+        IsSelected = selected;
+        ShowCheck = showCheck;
     }
 
     /// <summary>False while the file is read-only for the editor.</summary>

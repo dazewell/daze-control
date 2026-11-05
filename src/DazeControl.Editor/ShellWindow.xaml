@@ -144,6 +144,7 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <TextBox x:Name="FlowSearchBox" PlaceholderText="Search flows (Ctrl+F)" AutomationProperties.Name="Search flows"
                                              Text="{x:Bind ViewModel.Flows.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyDown="OnFlowSearchKeyDown">
@@ -168,6 +169,38 @@
                                     <Button Grid.Column="3" Content="Make this my order" Command="{x:Bind ViewModel.Flows.MakeOrderCommand}"
                                             Visibility="{x:Bind ViewModel.Flows.CanMakeOrder, Mode=OneWay}"
                                             ToolTipService.ToolTip="Write the order shown here as the list and tray order" />
+                                    <!-- Select (D-090): a checkbox on every card; a click toggles it. Ctrl/Shift+click and Ctrl+Space work without it. -->
+                                    <ToggleButton Grid.Column="4" Content="Select" IsChecked="{x:Bind ViewModel.Flows.SelectMode, Mode=TwoWay}"
+                                                  IsEnabled="{x:Bind ViewModel.Flows.CanEdit, Mode=OneWay}"
+                                                  ToolTipService.ToolTip="Pick several flows to group, turn on or off, or delete them together" />
+                                </Grid>
+                                <!-- With a selection (DESIGN Part F): "3 selected" and the bulk actions. -->
+                                <Grid x:Name="FlowSelectionBar" ColumnSpacing="8" Margin="0,0,0,8" Visibility="{x:Bind ViewModel.Flows.HasSelection, Mode=OneWay}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind ViewModel.Flows.SelectionText, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                        <TextBlock Text="{x:Bind ViewModel.Flows.BulkDeleteOffReason, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
+                                                   Visibility="{x:Bind ViewModel.Flows.HasBulkDeleteOffReason, Mode=OneWay}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Group…" Click="OnBulkGroupClick" IsEnabled="{x:Bind ViewModel.Flows.CanBulkMove, Mode=OneWay}" />
+                                    <Button Grid.Column="2" Content="Move to" IsEnabled="{x:Bind ViewModel.Flows.CanBulkMove, Mode=OneWay}">
+                                        <Button.Flyout>
+                                            <MenuFlyout x:Name="BulkMoveFlyout" Opening="OnBulkMoveOpening" />
+                                        </Button.Flyout>
+                                    </Button>
+                                    <Button Grid.Column="3" Content="Turn on" Click="OnBulkOnClick" IsEnabled="{x:Bind ViewModel.Flows.CanBulkEdit, Mode=OneWay}" />
+                                    <Button Grid.Column="4" Content="Turn off" Click="OnBulkOffClick" IsEnabled="{x:Bind ViewModel.Flows.CanBulkEdit, Mode=OneWay}" />
+                                    <Button Grid.Column="5" Content="Delete" Click="OnBulkDeleteClick" IsEnabled="{x:Bind ViewModel.Flows.CanBulkDelete, Mode=OneWay}" />
+                                    <Button Grid.Column="6" Content="Clear" Command="{x:Bind ViewModel.Flows.ClearSelectionCommand}" ToolTipService.ToolTip="Clear the selection (Esc)" />
                                 </Grid>
                                 <StackPanel Visibility="{x:Bind ViewModel.Flows.NoMatches, Mode=OneWay}" Spacing="8" Margin="0,32,0,0" HorizontalAlignment="Center">
                                     <TextBlock Text="No flows match." HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" AutomationProperties.LiveSetting="Polite" />
@@ -203,6 +236,7 @@
                                             <DataTemplate x:DataType="vm:GroupItemViewModel">
                                                 <!-- Group header (D-087): a tray folder. The chevron and a click on the row expand or collapse it. -->
                                                 <Grid Style="{StaticResource SettingsCard}" Margin="0,8,0,0" Tag="{x:Bind Name, Mode=OneWay}" Tapped="OnGroupHeaderTapped"
+                                                      BorderBrush="{x:Bind local:RowFormat.SelectBorder(IsSelected), Mode=OneWay}"
                                                       CanDrag="{x:Bind CanReorder, Mode=OneWay}" DragStarting="OnGroupDragStarting" DropCompleted="OnDragCompleted"
                                                       AutomationProperties.Name="{x:Bind Summary, Mode=OneWay}">
                                                     <Grid.ColumnDefinitions>
@@ -216,7 +250,11 @@
                                                             AutomationProperties.Name="{x:Bind ToggleName, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind ToggleName, Mode=OneWay}">
                                                         <FontIcon Glyph="{x:Bind ChevronGlyph, Mode=OneWay}" FontSize="12" />
                                                     </Button>
-                                                    <FontIcon Grid.Column="1" Glyph="&#xE8B7;" Style="{StaticResource SettingsCardIcon}" Margin="4,0,12,0" />
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="4,0,12,0" Spacing="8">
+                                                        <CheckBox IsChecked="{x:Bind IsSelected, Mode=OneWay}" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupCheckClick" MinWidth="0" Padding="0"
+                                                                  Visibility="{x:Bind ShowCheck, Mode=OneWay}" AutomationProperties.Name="Select all in this group" />
+                                                        <FontIcon Glyph="&#xE8B7;" Style="{StaticResource SettingsCardIcon}" />
+                                                    </StackPanel>
                                                     <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                                         <TextBlock Text="{x:Bind Name, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" />
                                                         <TextBlock Text="{x:Bind Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
@@ -251,27 +289,27 @@
                                                   BorderThickness="{x:Bind local:RowFormat.Rail(InGroup), Mode=OneWay}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
                                             <!-- A click anywhere but the switch and Run opens the flow; so do Enter and Space on the card (D-070). -->
                                             <local:FlowCard Tag="{x:Bind Id}" CanDrag="{x:Bind CanReorder, Mode=OneWay}" DragStarting="OnFlowDragStarting" DropCompleted="OnDragCompleted"
-                                                            MoveRequested="OnFlowCardMoveRequested" TakeOutRequested="OnFlowCardTakeOutRequested" Invoked="OnFlowCardInvoked" DeleteRequested="OnFlowCardDeleteRequested" CornerRadius="{ThemeResource OverlayCornerRadius}"
+                                                            SelectKey="OnFlowCardSelectKey" MoveRequested="OnFlowCardMoveRequested" TakeOutRequested="OnFlowCardTakeOutRequested" Invoked="OnFlowCardInvoked" DeleteRequested="OnFlowCardDeleteRequested" CornerRadius="{ThemeResource OverlayCornerRadius}"
                                                                 AutomationProperties.Name="{x:Bind Summary, Mode=OneWay}">
                                                     <local:FlowCard.ContextFlyout>
                                                         <MenuFlyout Opening="OnFlowMenuOpening">
-                                                            <MenuFlyoutItem Text="Open" Tag="{x:Bind Id}" Click="OnFlowOpenClick">
+                                                            <MenuFlyoutItem Text="Open" AutomationProperties.AutomationId="OneFlowOnly" Tag="{x:Bind Id}" Click="OnFlowOpenClick">
                                                                 <MenuFlyoutItem.Icon>
                                                                     <FontIcon Glyph="&#xE70F;" />
                                                                 </MenuFlyoutItem.Icon>
                                                             </MenuFlyoutItem>
-                                                            <MenuFlyoutItem Text="{x:Bind RunText, Mode=OneWay}" Command="{x:Bind RunCommand}">
+                                                            <MenuFlyoutItem AutomationProperties.AutomationId="OneFlowOnly" Text="{x:Bind RunText, Mode=OneWay}" Command="{x:Bind RunCommand}">
                                                                 <MenuFlyoutItem.Icon>
                                                                     <FontIcon Glyph="&#xE768;" />
                                                                 </MenuFlyoutItem.Icon>
                                                             </MenuFlyoutItem>
                                                             <MenuFlyoutSeparator />
-                                                            <MenuFlyoutItem Text="Move up" Tag="{x:Bind Id}" Click="OnFlowMoveUpClick" IsEnabled="{x:Bind CanReorder, Mode=OneWay}">
+                                                            <MenuFlyoutItem Text="Move up" AutomationProperties.AutomationId="OneFlowOnly" Tag="{x:Bind Id}" Click="OnFlowMoveUpClick" IsEnabled="{x:Bind CanReorder, Mode=OneWay}">
                                                                 <MenuFlyoutItem.Icon>
                                                                     <FontIcon Glyph="&#xE74A;" />
                                                                 </MenuFlyoutItem.Icon>
                                                             </MenuFlyoutItem>
-                                                            <MenuFlyoutItem Text="Move down" Tag="{x:Bind Id}" Click="OnFlowMoveDownClick" IsEnabled="{x:Bind CanReorder, Mode=OneWay}">
+                                                            <MenuFlyoutItem Text="Move down" AutomationProperties.AutomationId="OneFlowOnly" Tag="{x:Bind Id}" Click="OnFlowMoveDownClick" IsEnabled="{x:Bind CanReorder, Mode=OneWay}">
                                                                 <MenuFlyoutItem.Icon>
                                                                     <FontIcon Glyph="&#xE74B;" />
                                                                 </MenuFlyoutItem.Icon>
@@ -283,25 +321,26 @@
                                                                 </MenuFlyoutSubItem.Icon>
                                                             </MenuFlyoutSubItem>
                                                             <MenuFlyoutSeparator />
-                                                            <MenuFlyoutItem Text="{x:Bind DesktopMenuText, Mode=OneWay}" Tag="{x:Bind Id}" Click="OnFlowDesktopClick"
+                                                            <MenuFlyoutItem AutomationProperties.AutomationId="OneFlowOnly" Text="{x:Bind DesktopMenuText, Mode=OneWay}" Tag="{x:Bind Id}" Click="OnFlowDesktopClick"
                                                                             IsEnabled="{x:Bind CanChangeDesktop, Mode=OneWay}">
                                                                 <MenuFlyoutItem.Icon>
                                                                     <FontIcon Glyph="&#xE8A7;" />
                                                                 </MenuFlyoutItem.Icon>
                                                             </MenuFlyoutItem>
                                                             <MenuFlyoutSeparator />
-                                                            <MenuFlyoutItem Text="Delete" Tag="{x:Bind Id}" Click="OnFlowDeleteClick"
+                                                            <MenuFlyoutItem Text="Delete" AutomationProperties.AutomationId="FlowDelete" Tag="{x:Bind Id}" Click="OnFlowDeleteClick"
                                                                             IsEnabled="{x:Bind CanDelete, Mode=OneWay}">
                                                                 <MenuFlyoutItem.Icon>
                                                                     <FontIcon Glyph="&#xE74D;" />
                                                                 </MenuFlyoutItem.Icon>
                                                             </MenuFlyoutItem>
                                                             <!-- #68: why Delete is off, as a greyed line under it. -->
-                                                            <MenuFlyoutItem Text="{x:Bind DeleteOffReason, Mode=OneWay}" IsEnabled="False"
+                                                            <MenuFlyoutItem AutomationProperties.AutomationId="FlowDeleteReason" Text="{x:Bind DeleteOffReason, Mode=OneWay}" IsEnabled="False"
                                                                             Visibility="{x:Bind HasDeleteOffReason, Mode=OneWay}" />
                                                         </MenuFlyout>
                                                     </local:FlowCard.ContextFlyout>
                                                 <Grid Style="{StaticResource SettingsCard}" Tag="{x:Bind Id}" Tapped="OnFlowCardTapped"
+                                                      BorderBrush="{x:Bind local:RowFormat.SelectBorder(IsSelected), Mode=OneWay}"
                                                       PointerEntered="OnFlowCardPointerEntered" PointerExited="OnFlowCardPointerExited">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
@@ -311,7 +350,11 @@
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
-                                                    <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}" Style="{StaticResource SettingsCardIcon}" />
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <CheckBox IsChecked="{x:Bind IsSelected, Mode=OneWay}" Tag="{x:Bind Id}" Click="OnFlowCheckClick" MinWidth="0" Padding="0"
+                                                                  Visibility="{x:Bind ShowCheck, Mode=OneWay}" IsTabStop="False" AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" />
+                                                        <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}" Style="{StaticResource SettingsCardIcon}" />
+                                                    </StackPanel>
                                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                         <TextBlock Text="{x:Bind Name, Mode=OneWay}" />
                                                         <TextBlock Text="{x:Bind Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"

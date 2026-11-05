@@ -362,14 +362,96 @@ public sealed partial class ShellWindow : Window
     private void OnFlowDeleteClick(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string id })
-            ViewModel.Flows.Delete(id);
+            ViewModel.Flows.DeleteMany(ViewModel.Flows.ActionIds(id)); // the whole selection when the card is part of one (D-090)
     }
 
     /// <summary>Delete on a focused card: as the menu's Delete, which ignores it while it's off.</summary>
     private void OnFlowCardDeleteRequested(object? sender, EventArgs e)
     {
         if (sender is FrameworkElement { Tag: string id })
-            ViewModel.Flows.Delete(id);
+            ViewModel.Flows.DeleteMany(ViewModel.Flows.ActionIds(id));
+    }
+
+    // ---- Selection and bulk actions (T16.6, DESIGN Part F, D-090) ----
+
+    private static bool KeyDown(VirtualKey key) =>
+        InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down);
+
+    /// <summary>Ctrl+Space toggles the focused card, Ctrl+A selects every row on screen, Esc clears (handled only when it did something).</summary>
+    private void OnFlowCardSelectKey(object? sender, SelectKeyEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string id })
+            return;
+        switch (e.Key)
+        {
+            case VirtualKey.Space:
+                ViewModel.Flows.ToggleSelected(id);
+                e.Handled = true;
+                break;
+            case VirtualKey.A:
+                ViewModel.Flows.SelectAll();
+                e.Handled = true;
+                break;
+            case VirtualKey.Escape when ViewModel.Flows.HasSelection:
+                ViewModel.Flows.ClearSelection();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void OnFlowCheckClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string id })
+            ViewModel.Flows.ToggleSelected(id);
+    }
+
+    private void OnGroupCheckClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string name })
+            ViewModel.Flows.ToggleGroupSelected(name);
+    }
+
+    private void OnBulkOnClick(object sender, RoutedEventArgs e) => ViewModel.Flows.SetSelectedEnabled(true);
+
+    private void OnBulkOffClick(object sender, RoutedEventArgs e) => ViewModel.Flows.SetSelectedEnabled(false);
+
+    private void OnBulkDeleteClick(object sender, RoutedEventArgs e) => ViewModel.Flows.DeleteSelected();
+
+    private async void OnBulkGroupClick(object sender, RoutedEventArgs e)
+    {
+        if (await AskGroupNameAsync("New group", "", "Create") is { } name)
+            ViewModel.Flows.MoveToGroup(ViewModel.Flows.SelectedIds, name);
+    }
+
+    /// <summary>The command bar's "Move to": No group, each group, New group… for the whole selection.</summary>
+    private void OnBulkMoveOpening(object? sender, object e)
+    {
+        var menu = BulkMoveFlyout.Items;
+        menu.Clear();
+        AddBulkMoveItems(menu);
+    }
+
+    private void AddBulkMoveItems(IList<MenuFlyoutItemBase> items)
+    {
+        var ids = ViewModel.Flows.SelectedIds;
+        AddMoveItem(items, "No group", ids, null);
+        foreach (var group in ViewModel.Flows.GroupNames)
+            AddMoveItem(items, group, ids, group);
+        items.Add(new MenuFlyoutSeparator());
+        var create = new MenuFlyoutItem { Text = "New group…" };
+        create.Click += async (_, _) =>
+        {
+            if (await AskGroupNameAsync("New group", "", "Create") is { } name)
+                ViewModel.Flows.MoveToGroup(ids, name);
+        };
+        items.Add(create);
+    }
+
+    private void AddMoveItem(IList<MenuFlyoutItemBase> items, string text, IReadOnlyList<string> ids, string? group)
+    {
+        var item = new MenuFlyoutItem { Text = text };
+        item.Click += (_, _) => ViewModel.Flows.MoveToGroup(ids, group);
+        items.Add(item);
     }
 
     /// <summary>A click on a group header's row (not its buttons) expands or collapses it.</summary>
@@ -383,7 +465,10 @@ public sealed partial class ShellWindow : Window
         if (sender is FrameworkElement { Tag: string name })
         {
             e.Handled = true;
-            ViewModel.Flows.ToggleGroup(name);
+            if (KeyDown(VirtualKey.Control) || KeyDown(VirtualKey.Shift) || ViewModel.Flows.SelectMode)
+                ViewModel.Flows.ToggleGroupSelected(name); // a header selects its members (D-090)
+            else
+                ViewModel.Flows.ToggleGroup(name);
         }
     }
 
@@ -431,8 +516,34 @@ public sealed partial class ShellWindow : Window
         if (sender is not MenuFlyout { Target: FrameworkElement { Tag: string id } } flyout
             || flyout.Items.OfType<MenuFlyoutSubItem>().FirstOrDefault() is not { } sub)
             return;
-        var current = ViewModel.Flows.Items.FirstOrDefault(i => i.Id == id)?.Group;
+        var ids = ViewModel.Flows.ActionIds(id);
+        var many = ids.Count > 1;
+        // One flow keeps the full menu; for a selection the one-flow items (Open, Run, Move up/down, desktop shortcut) step aside.
+        var one = ViewModel.Flows.Items.FirstOrDefault(i => i.Id == id);
+        foreach (var item in flyout.Items.OfType<MenuFlyoutItem>())
+        {
+            switch (Microsoft.UI.Xaml.Automation.AutomationProperties.GetAutomationId(item))
+            {
+                case "OneFlowOnly":
+                    item.Visibility = many ? Visibility.Collapsed : Visibility.Visible;
+                    break;
+                case "FlowDelete":
+                    item.Text = many ? $"Delete {ids.Count} flows" : "Delete";
+                    item.IsEnabled = many ? ViewModel.Flows.CanEdit && ViewModel.Flows.DeleteOffReason(ids) is null : one?.CanDelete ?? false;
+                    break;
+                case "FlowDeleteReason":
+                    item.Text = (many ? ViewModel.Flows.DeleteOffReason(ids) : one?.DeleteOffReason) ?? "";
+                    item.Visibility = item.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+                    break;
+            }
+        }
+        var current = one?.Group;
         sub.Items.Clear();
+        if (many)
+        {
+            AddBulkMoveItems(sub.Items);
+            return;
+        }
         sub.Items.Add(MoveToItem("No group", id, null, current is null));
         foreach (var group in ViewModel.Flows.GroupNames)
             sub.Items.Add(MoveToItem(group, id, group, StringComparer.CurrentCultureIgnoreCase.Equals(group, current)));
@@ -504,7 +615,12 @@ public sealed partial class ShellWindow : Window
         if (sender is FrameworkElement { Tag: string id })
         {
             e.Handled = true;
-            ViewModel.OpenFlow(id);
+            if (KeyDown(VirtualKey.Shift))
+                ViewModel.Flows.SelectRange(id);
+            else if (KeyDown(VirtualKey.Control) || ViewModel.Flows.SelectMode)
+                ViewModel.Flows.ToggleSelected(id); // additive: a plain click still opens (D-090)
+            else
+                ViewModel.OpenFlow(id);
         }
     }
 
