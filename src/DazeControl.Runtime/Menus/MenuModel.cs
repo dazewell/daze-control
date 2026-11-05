@@ -1,3 +1,4 @@
+using DazeControl.Core.Input;
 using DazeControl.Runtime.Triggers;
 
 namespace DazeControl.Runtime.Menus;
@@ -49,8 +50,8 @@ public sealed class MenuModel : IDisposable
     private long _deadline;
     private bool _done;
 
-    private PadButtons _armed;
-    private PadButtons _padHeld;
+    private GamepadButtons _armed;
+    private GamepadButtons _padHeld;
     private MenuDirection? _stickDir;
     private MenuDirection? _padDir;
     private long _nextRepeat;
@@ -187,7 +188,7 @@ public sealed class MenuModel : IDisposable
         _armed |= ~reading.Buttons;
         var held = reading.Buttons & _armed;
         var pressed = held & ~_padHeld;
-        var input = pressed != PadButtons.None;
+        var input = pressed != GamepadButtons.None;
         _padHeld = held;
 
         _stickDir = Stick(reading.StickX, reading.StickY);
@@ -210,18 +211,18 @@ public sealed class MenuModel : IDisposable
 
         if (input)
             LastInput = MenuInput.Pad;
-        if ((pressed & PadButtons.A) != 0)
+        if ((pressed & GamepadButtons.A) != 0)
             ActivateFocus();
-        else if ((pressed & PadButtons.B) != 0)
+        else if ((pressed & GamepadButtons.B) != 0)
             Finish(new MenuOutcome(null, MenuCloseReason.Cancelled));
         return input;
     }, restartTimer: false);
 
-    private static MenuDirection? DpadDirection(PadButtons held) =>
-        (held & PadButtons.Up) != 0 ? MenuDirection.Up
-        : (held & PadButtons.Down) != 0 ? MenuDirection.Down
-        : (held & PadButtons.Left) != 0 ? MenuDirection.Left
-        : (held & PadButtons.Right) != 0 ? MenuDirection.Right
+    private static MenuDirection? DpadDirection(GamepadButtons held) =>
+        (held & GamepadButtons.Up) != 0 ? MenuDirection.Up
+        : (held & GamepadButtons.Down) != 0 ? MenuDirection.Down
+        : (held & GamepadButtons.Left) != 0 ? MenuDirection.Left
+        : (held & GamepadButtons.Right) != 0 ? MenuDirection.Right
         : null;
 
     /// <summary>Past 0.5 moves; stays on until back under 0.3 (hysteresis), so a stick resting near the edge doesn't flutter.</summary>

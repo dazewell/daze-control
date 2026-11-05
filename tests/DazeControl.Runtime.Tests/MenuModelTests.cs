@@ -1,3 +1,4 @@
+using DazeControl.Core.Input;
 using DazeControl.Runtime.Menus;
 using DazeControl.Runtime.Triggers;
 
@@ -22,9 +23,9 @@ public sealed class MenuModelTests : IDisposable
         return menu;
     }
 
-    private static PadReading Press(PadButtons b) => new(b);
+    private static PadReading Press(GamepadButtons b) => new(b);
 
-    private static readonly PadReading Up = new(PadButtons.None);
+    private static readonly PadReading Up = new(GamepadButtons.None);
 
     [Fact]
     public void ListMovesAndStopsAtTheEnds()
@@ -83,22 +84,22 @@ public sealed class MenuModelTests : IDisposable
     public void DpadRepeatsAfter400MsThenEvery120()
     {
         using var m = Menu(12);
-        m.Pad(Press(PadButtons.Down));
+        m.Pad(Press(GamepadButtons.Down));
         Assert.Equal(1, m.Focus);
         _time.Advance(TimeSpan.FromMilliseconds(399));
-        m.Pad(Press(PadButtons.Down));
+        m.Pad(Press(GamepadButtons.Down));
         Assert.Equal(1, m.Focus);
         _time.Advance(TimeSpan.FromMilliseconds(1));
-        m.Pad(Press(PadButtons.Down));
+        m.Pad(Press(GamepadButtons.Down));
         Assert.Equal(2, m.Focus);
         _time.Advance(TimeSpan.FromMilliseconds(119));
-        m.Pad(Press(PadButtons.Down));
+        m.Pad(Press(GamepadButtons.Down));
         Assert.Equal(2, m.Focus);
         _time.Advance(TimeSpan.FromMilliseconds(1));
-        m.Pad(Press(PadButtons.Down));
+        m.Pad(Press(GamepadButtons.Down));
         Assert.Equal(3, m.Focus);
         m.Pad(Up);
-        m.Pad(Press(PadButtons.Down)); // released and pressed again: immediate
+        m.Pad(Press(GamepadButtons.Down)); // released and pressed again: immediate
         Assert.Equal(4, m.Focus);
     }
 
@@ -106,17 +107,17 @@ public sealed class MenuModelTests : IDisposable
     public void StickHasHysteresis()
     {
         using var m = Menu(12);
-        m.Pad(new PadReading(PadButtons.None, 0, -0.4f));
+        m.Pad(new PadReading(GamepadButtons.None, 0, -0.4f));
         Assert.Equal(0, m.Focus); // under 0.5: no move
-        m.Pad(new PadReading(PadButtons.None, 0, -0.6f));
+        m.Pad(new PadReading(GamepadButtons.None, 0, -0.6f));
         Assert.Equal(1, m.Focus);
         _time.Advance(TimeSpan.FromMilliseconds(100));
-        m.Pad(new PadReading(PadButtons.None, 0, -0.4f)); // still held (above 0.3): no new move, no early repeat
+        m.Pad(new PadReading(GamepadButtons.None, 0, -0.4f)); // still held (above 0.3): no new move, no early repeat
         Assert.Equal(1, m.Focus);
-        m.Pad(new PadReading(PadButtons.None, 0, -0.2f)); // under 0.3: re-armed
-        m.Pad(new PadReading(PadButtons.None, 0, -0.4f)); // 0.4 isn't enough to start again
+        m.Pad(new PadReading(GamepadButtons.None, 0, -0.2f)); // under 0.3: re-armed
+        m.Pad(new PadReading(GamepadButtons.None, 0, -0.4f)); // 0.4 isn't enough to start again
         Assert.Equal(1, m.Focus);
-        m.Pad(new PadReading(PadButtons.None, 0, -0.7f));
+        m.Pad(new PadReading(GamepadButtons.None, 0, -0.7f));
         Assert.Equal(2, m.Focus);
     }
 
@@ -124,7 +125,7 @@ public sealed class MenuModelTests : IDisposable
     public void StickRightMovesTheGrid()
     {
         using var m = Menu(4, MenuLayout.Grid);
-        m.Pad(new PadReading(PadButtons.None, 0.9f, 0.1f));
+        m.Pad(new PadReading(GamepadButtons.None, 0.9f, 0.1f));
         Assert.Equal(1, m.Focus);
     }
 
@@ -132,11 +133,11 @@ public sealed class MenuModelTests : IDisposable
     public void ButtonsHeldWhenTheMenuOpensCountOnlyAfterTheyWereReleased()
     {
         using var m = Menu(3, armed: false);
-        m.Pad(Press(PadButtons.A | PadButtons.Down)); // both held from the chord/game
+        m.Pad(Press(GamepadButtons.A | GamepadButtons.Down)); // both held from the chord/game
         Assert.Null(m.Outcome);
         Assert.Equal(0, m.Focus);
         m.Pad(Up);
-        m.Pad(Press(PadButtons.A));
+        m.Pad(Press(GamepadButtons.A));
         Assert.Equal("f1", m.Outcome?.FlowId);
         Assert.Equal(MenuCloseReason.Picked, m.Outcome?.Reason);
     }
@@ -146,7 +147,7 @@ public sealed class MenuModelTests : IDisposable
     {
         using var m = Menu(3);
         m.Pad(Up);
-        m.Pad(Press(PadButtons.B));
+        m.Pad(Press(GamepadButtons.B));
         Assert.Equal(new MenuOutcome(null, MenuCloseReason.Cancelled), m.Outcome);
     }
 
@@ -228,7 +229,7 @@ public sealed class MenuModelTests : IDisposable
         m.KeyMove(MenuDirection.Down);
         _time.Advance(TimeSpan.FromSeconds(25));
         Assert.Null(m.Outcome);
-        m.Pad(Press(PadButtons.Down)); // pad input restarts it too
+        m.Pad(Press(GamepadButtons.Down)); // pad input restarts it too
         _time.Advance(TimeSpan.FromSeconds(25));
         Assert.Null(m.Outcome);
         m.Hover(0);
@@ -276,7 +277,7 @@ public sealed class MenuModelTests : IDisposable
     public void SteamEchoKeyWithin100MsOfTheSamePadMoveIsDropped()
     {
         using var m = Menu(12);
-        m.Pad(Press(PadButtons.Down));
+        m.Pad(Press(GamepadButtons.Down));
         Assert.Equal(1, m.Focus);
         _time.Advance(TimeSpan.FromMilliseconds(50));
         Assert.False(m.KeyMove(MenuDirection.Down)); // Steam's arrow for the same press
@@ -284,7 +285,7 @@ public sealed class MenuModelTests : IDisposable
         Assert.True(m.KeyMove(MenuDirection.Up)); // another direction is a real key
         Assert.Equal(0, m.Focus);
         m.Pad(Up);
-        m.Pad(Press(PadButtons.Down));
+        m.Pad(Press(GamepadButtons.Down));
         _time.Advance(TimeSpan.FromMilliseconds(100));
         Assert.True(m.KeyMove(MenuDirection.Down)); // 100 ms later: a real key
         Assert.Equal(2, m.Focus);
@@ -297,7 +298,7 @@ public sealed class MenuModelTests : IDisposable
         Assert.Equal(MenuInput.None, m.LastInput);
         m.KeyMove(MenuDirection.Down);
         Assert.Equal(MenuInput.Keyboard, m.LastInput);
-        m.Pad(Press(PadButtons.Down));
+        m.Pad(Press(GamepadButtons.Down));
         Assert.Equal(MenuInput.Pad, m.LastInput);
         m.Hover(0);
         Assert.Equal(MenuInput.Mouse, m.LastInput);

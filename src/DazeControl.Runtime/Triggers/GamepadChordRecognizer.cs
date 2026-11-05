@@ -1,3 +1,4 @@
+using DazeControl.Core.Input;
 namespace DazeControl.Runtime.Triggers;
 
 /// <summary>
@@ -8,29 +9,29 @@ namespace DazeControl.Runtime.Triggers;
 /// </summary>
 public sealed class GamepadChordRecognizer
 {
-    private HashSet<PadButtons> _chords = [];
-    private PadButtons _held;
+    private HashSet<GamepadButtons> _chords = [];
+    private GamepadButtons _held;
     private bool _released;
 
     /// <summary>Chords to listen for; a press in progress carries over.</summary>
-    public void SetChords(IEnumerable<PadButtons> chords) => _chords = [.. chords];
+    public void SetChords(IEnumerable<GamepadButtons> chords) => _chords = [.. chords];
 
     /// <summary>The pad went away or listening stopped: forget the press without firing.</summary>
     public void Reset()
     {
-        _held = PadButtons.None;
+        _held = GamepadButtons.None;
         _released = false;
     }
 
     /// <summary>Feeds the buttons now held; returns the chord that fired, if any.</summary>
-    public PadButtons? Update(PadButtons held)
+    public GamepadButtons? Update(GamepadButtons held)
     {
         if (held == _held)
             return null;
-        PadButtons? fired = null;
-        if (_held == PadButtons.None)
+        GamepadButtons? fired = null;
+        if (_held == GamepadButtons.None)
             _released = false;
-        else if ((_held & ~held) != PadButtons.None && !_released)
+        else if ((_held & ~held) != GamepadButtons.None && !_released)
         {
             _released = true;
             if (_chords.Contains(_held))
