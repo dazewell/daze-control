@@ -352,6 +352,9 @@ Status: accepted (user, 2026-11-01: "Accept, merge")
   numbers stay well inside 15 MB / 35 MB / 0 ms (8.8 / 24.9 / 0).
 - Why not a GDI rewrite: more code (own alpha handling, no antialiased ring) to save ~2.5 MB.
 - Revisit if: the post-pop-up footprint grows with runs, or another feature needs that headroom.
+- Amended 2026-11-04 (user, T12.7): the post-run line is **+6.5 MB** once the flow menu has shown (measured +6.3 after 10 menus,
+  flat). Why: the menu's software-drawn surface is ~700×700 px at 175 % against the pop-up's ~600×180. Absolute budgets still
+  hold (12.6 / 27.5 MB). Revisit if it grows with menus.
 
 ## D-037 · 2026-11-01 · Canvas edges are a few XAML paths batched by style; pills are built in code
 Status: accepted
