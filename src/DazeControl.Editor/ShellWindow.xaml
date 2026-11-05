@@ -144,17 +144,66 @@
                                     </InfoBar.ActionButton>
                                 </InfoBar>
                                 <!-- Local: every card is a Tab stop (a repeater is one stop by default). -->
-                                <ItemsRepeater ItemsSource="{x:Bind ViewModel.Flows.Items}" TabFocusNavigation="Local">
+                                <ItemsRepeater ItemsSource="{x:Bind ViewModel.Flows.Rows}" TabFocusNavigation="Local">
                                     <ItemsRepeater.Layout>
                                         <StackLayout Spacing="4" />
                                     </ItemsRepeater.Layout>
                                     <ItemsRepeater.ItemTemplate>
+                                      <local:FlowRowTemplateSelector>
+                                        <local:FlowRowTemplateSelector.GroupTemplate>
+                                            <DataTemplate x:DataType="vm:GroupItemViewModel">
+                                                <!-- Group header (D-087): a tray folder. The chevron and a click on the row expand or collapse it. -->
+                                                <Grid Style="{StaticResource SettingsCard}" Margin="0,8,0,0" Tag="{x:Bind Name, Mode=OneWay}" Tapped="OnGroupHeaderTapped"
+                                                      AutomationProperties.Name="{x:Bind Summary, Mode=OneWay}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Button Command="{x:Bind ToggleCommand}" Padding="8" Background="Transparent" BorderThickness="0"
+                                                            AutomationProperties.Name="{x:Bind ToggleName, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind ToggleName, Mode=OneWay}">
+                                                        <FontIcon Glyph="{x:Bind ChevronGlyph, Mode=OneWay}" FontSize="12" />
+                                                    </Button>
+                                                    <FontIcon Grid.Column="1" Glyph="&#xE8B7;" Style="{StaticResource SettingsCardIcon}" Margin="4,0,12,0" />
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                        <TextBlock Text="{x:Bind Name, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                        <TextBlock Text="{x:Bind Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,8,0"
+                                                                Visibility="{x:Bind HasProblems, Mode=OneWay}">
+                                                        <FontIcon Glyph="&#xEA39;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                                        <TextBlock Text="{x:Bind Problems, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" />
+                                                    </StackPanel>
+                                                    <Button Grid.Column="4" Content="&#xE712;" FontFamily="{ThemeResource SymbolThemeFontFamily}" Background="Transparent" BorderThickness="0"
+                                                            AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" ToolTipService.ToolTip="Group menu">
+                                                        <Button.Flyout>
+                                                            <MenuFlyout>
+                                                                <MenuFlyoutItem Text="Rename…" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupRenameClick" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" />
+                                                                <MenuFlyoutItem Text="Ungroup" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupUngroupClick" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" />
+                                                                <MenuFlyoutSeparator />
+                                                                <MenuFlyoutItem Text="Turn all on" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupAllOnClick" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" />
+                                                                <MenuFlyoutItem Text="Turn all off" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupAllOffClick" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" />
+                                                                <MenuFlyoutSeparator />
+                                                                <MenuFlyoutItem Text="Move up" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupUpClick" IsEnabled="{x:Bind CanMoveUp, Mode=OneWay}" />
+                                                                <MenuFlyoutItem Text="Move down" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupDownClick" IsEnabled="{x:Bind CanMoveDown, Mode=OneWay}" />
+                                                            </MenuFlyout>
+                                                        </Button.Flyout>
+                                                    </Button>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </local:FlowRowTemplateSelector.GroupTemplate>
+                                        <local:FlowRowTemplateSelector.FlowTemplate>
                                         <DataTemplate x:DataType="vm:FlowItemViewModel">
+                                          <!-- Members of a group sit 24 DIP in, on a thin rail. -->
+                                          <Border Margin="{x:Bind local:RowFormat.Indent(InGroup), Mode=OneWay}" Padding="{x:Bind local:RowFormat.RailPadding(InGroup), Mode=OneWay}"
+                                                  BorderThickness="{x:Bind local:RowFormat.Rail(InGroup), Mode=OneWay}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
                                             <!-- A click anywhere but the switch and Run opens the flow; so do Enter and Space on the card (D-070). -->
                                             <local:FlowCard Tag="{x:Bind Id}" Invoked="OnFlowCardInvoked" DeleteRequested="OnFlowCardDeleteRequested" CornerRadius="{ThemeResource OverlayCornerRadius}"
                                                                 AutomationProperties.Name="{x:Bind Summary, Mode=OneWay}">
                                                     <local:FlowCard.ContextFlyout>
-                                                        <MenuFlyout>
+                                                        <MenuFlyout Opening="OnFlowMenuOpening">
                                                             <MenuFlyoutItem Text="Open" Tag="{x:Bind Id}" Click="OnFlowOpenClick">
                                                                 <MenuFlyoutItem.Icon>
                                                                     <FontIcon Glyph="&#xE70F;" />
@@ -165,6 +214,13 @@
                                                                     <FontIcon Glyph="&#xE768;" />
                                                                 </MenuFlyoutItem.Icon>
                                                             </MenuFlyoutItem>
+                                                            <MenuFlyoutSeparator />
+                                                            <!-- "Move to ›" is filled when the menu opens (the groups change). -->
+                                                            <MenuFlyoutSubItem Text="Move to" IsEnabled="{x:Bind CanEdit, Mode=OneWay}">
+                                                                <MenuFlyoutSubItem.Icon>
+                                                                    <FontIcon Glyph="&#xE8B7;" />
+                                                                </MenuFlyoutSubItem.Icon>
+                                                            </MenuFlyoutSubItem>
                                                             <MenuFlyoutSeparator />
                                                             <MenuFlyoutItem Text="{x:Bind DesktopMenuText, Mode=OneWay}" Tag="{x:Bind Id}" Click="OnFlowDesktopClick"
                                                                             IsEnabled="{x:Bind CanChangeDesktop, Mode=OneWay}">
@@ -226,7 +282,10 @@
                                                     </Border>
                                                 </Grid>
                                             </local:FlowCard>
+                                          </Border>
                                         </DataTemplate>
+                                        </local:FlowRowTemplateSelector.FlowTemplate>
+                                      </local:FlowRowTemplateSelector>
                                     </ItemsRepeater.ItemTemplate>
                                 </ItemsRepeater>
                             </StackPanel>

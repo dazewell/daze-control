@@ -138,7 +138,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 - Several selected (M15, D-084): header "3 steps selected · Set default device" (a heading), then "Only if" (one type with conditions), "If it fails", Timing; steps and cards show only "If it fails". Rows read as for one step, but differing values are **Mixed** (NumberBox/ComboBox placeholder "Mixed", no radio chosen, caption "Mixed"); "Reset" (tip "Use the default for all 3 steps") shows when any step sets the field; accessible names "Give up after, mixed" / "Give up after, 10 s, default". A pick or a committed number is Set on all steps as one Undo; a refused change shows its problem and applies to none. Right-click a step: "Select all <type> steps". Under "Settings" (a heading) come the params every selected step has (one type, or the same name, kind and library kind across types; none with a card selected): the same controls as for one step, differing values read "Mixed" (device and choice placeholder, text box placeholder, "Mixed" caption for a switch; name ends ", mixed"). Lists, maps and flow pickers stay single-step. A pick or a committed value is written to all as one Undo; a required param can't be emptied (the problem shows, nothing changes); an optional one clears for all with the device picker's "Current default" row or an empty text.
 - Test: runs this step alone with on-screen values; "Testing…" + ProgressRing + Cancel; result InfoBar
   ("Worked in 1.2 s" / error + "Show details" expander); the pill ring shows it for 3 s.
-- Flow settings: name, icon (glyph GridView flyout), tray folder (editable ComboBox) + "Line above it",
+- Flow settings: name, icon (glyph GridView flyout), **Group** (editable ComboBox, caption "Also the folder in the tray menu", D-087) + "Line above it",
   shortcuts list + "Add shortcut", "If it's already running": Ignore it / Run it after / Start over, pop-up toggle.
   M11: a **Desktop shortcut** row: "Add to desktop" (#23); once there "On your desktop" + "Remove"; if the
   shortcut still has an old name, "Update". Engine not running → button off with #25. The Flows list card's context
@@ -294,6 +294,7 @@ sizes, check 225 % text. 6 DPI: canvas in DIP, minimap re-renders on DPI change,
 contrast: solid background, no dots.
 
 ## 5.9 Design acceptance checklist (screenshot-verifiable)
+- Flows list groups (M16, D-087): a header row per tray folder (chevron, folder glyph, name, "4 flows · 1 running", "n flows need fixing", `…` menu: Rename…, Ungroup, Turn all on/off, Move up/down); members 24 DIP in on a thin rail; the chevron or a click on the header collapses (per PC, `editor.json` `flowList.collapsedGroups`); card menu "Move to ›" = No group · each group · New group…. Header name "Audio, group, 4 flows, expanded".
 - Light/dark/high contrast: every run state distinguishable without colour.
 - May-fail pill: dashed border + "May fail" chip + dashed incoming edge.
 - Dragging into a cycle shows the refusal tip and leaves no edge.

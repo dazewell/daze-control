@@ -15,7 +15,19 @@ public sealed class EditorSettings
     /// <summary>Per-flow view choices by flow id (T13.6's layout choices, D-067).</summary>
     public Dictionary<string, FlowViewSettings> Flows { get; set; } = new(StringComparer.Ordinal);
 
+    /// <summary>The Flows list's view choices (D-087).</summary>
+    public FlowListSettings FlowList { get; set; } = new();
+
     /// <summary>Keys a newer editor wrote: kept, so going back a version doesn't lose them.</summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Other { get; set; }
+}
+
+/// <summary>The Flows list on this PC. Groups start expanded; only the collapsed ones are named.</summary>
+public sealed class FlowListSettings
+{
+    public List<string> CollapsedGroups { get; set; } = [];
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Other { get; set; }
 }
@@ -149,6 +161,8 @@ public sealed class EditorSettingsStore : IDisposable
             var settings = JsonSerializer.Deserialize(text, EditorSettingsJson.Default.EditorSettings)
                 ?? throw new JsonException("The file holds null.");
             settings.Flows = new Dictionary<string, FlowViewSettings>(settings.Flows ?? [], StringComparer.Ordinal);
+            settings.FlowList ??= new FlowListSettings();
+            settings.FlowList.CollapsedGroups ??= [];
             return settings;
         }
         catch (JsonException e)
