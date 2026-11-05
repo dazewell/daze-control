@@ -113,15 +113,14 @@ No version bumps (D-079). Opus medium.
   for all; one Undo each.
 
 ## M16 Flow list: reorder, groups, richer rows (user, 2026-11-04) — after the user approves docs/flow-list/DESIGN.md
-Designed 2026-11-04: docs/flow-list/DESIGN.md, D-087..D-090 (proposed until approved; if the user answers an open choice
-differently, fix the design and the decision first). Groups are the tray folders: no config.yaml change. One PR per task, no
+Designed 2026-11-04: docs/flow-list/DESIGN.md, D-087..D-090 (accepted by the user, 2026-11-04, all open choices as recommended). Groups are the tray folders: no config.yaml change. One PR per task, no
 version bumps (D-079); each moves its as-built facts from DESIGN into ARCHITECTURE/UX/FEATURES and cuts them there (D-053). Opus medium.
 **Order and parallelism** (editor files that clash are named): `T16.1 ∥ T16.2` (T16.1 adds only new files under
 `Editor.ViewModels/FlowList`; T16.2 edits `FlowsPageViewModel.cs` and the card template in `ShellWindow.xaml`);
 `T16.1 + T16.2 → T16.3 → T16.4`; `T16.3 → T16.5` (`T16.4 ∥ T16.5` only if the second takes both sides of `ShellWindow.xaml`:
 T16.4 edits the card/rows, T16.5 the command bar); `T16.4 + T16.5 → T16.6 → T16.7`.
 
-- [ ] T16.1 List model: Core of the ordering (feat/m16-list-model, D-087, D-088). Files: new `Editor.ViewModels/FlowList/FlowListModel.cs`
+- [x] T16.1 List model: Core of the ordering (feat/m16-list-model, D-087, D-088). Files: new `Editor.ViewModels/FlowList/FlowListModel.cs`
   (+ tests). `Rows(config)` = tray order with groups; `Move`, `MoveGroup`, `SetGroup`, `RenameGroup`, `Ungroup`, `Duplicate`, `MakeOrder(sort)`.
   Done when: tests: display order equals `TrayMenu.Build` order (scattered group, hidden flows, separators, case-insensitive
   folder names); each op changes only order/`tray.folder`; moves into/out of/within groups and a group as a block; rename onto an

@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DazeControl.Editor.ViewModels\DazeControl.Editor.ViewModels.csproj" />
+    <ProjectReference Include="..\..\src\DazeControl.Runtime\DazeControl.Runtime.csproj" />
   </ItemGroup>
 
   <ItemGroup>
