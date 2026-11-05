@@ -17,6 +17,31 @@ public static class ShortcutTexts
         _ => null,
     };
 
+    /// <summary>
+    /// Typed instead of pressed (T14.12): the same <see cref="Hotkey.TryParse"/> the config uses, so a typed chord is as valid as a
+    /// recorded one. <paramref name="hotkey"/> is the formatted chord; on false <paramref name="error"/> says why in plain words.
+    /// </summary>
+    public static bool TryParseTyped(string? text, out string hotkey, out string? error)
+    {
+        hotkey = "";
+        error = null;
+        if (Hotkey.TryParse(text, out var parsed))
+        {
+            hotkey = parsed.ToString();
+            return true;
+        }
+        var parts = (text ?? "").Split('+', StringSplitOptions.TrimEntries);
+        var hasShift = parts[..^1].Any(p => p.Equals("Shift", StringComparison.OrdinalIgnoreCase));
+        if (hasShift && Hotkey.TryParse("Ctrl+" + string.Join('+', parts.Where(p => !p.Equals("Shift", StringComparison.OrdinalIgnoreCase))), out var noShift)
+            && Hotkey.IsNumberPad(noShift.Key))
+            error = Rejection(HotkeyRejection.ShiftWithNumberPad);
+        else if (Hotkey.TryParse("Ctrl+" + text, out _))
+            error = Rejection(HotkeyRejection.NeedsModifier);
+        else
+            error = "I couldn't read that. Write it like Ctrl+Alt+A or Numpad1: Win, Ctrl, Alt or Shift first, joined with +, then one key.";
+        return false;
+    }
+
     /// <summary>H8, for a number-pad key on its own ("Num1"), which takes that digit from typing; else null.</summary>
     public static string? NumLockTip(string hotkey) =>
         Hotkey.TryParse(hotkey, out var parsed) && parsed.Modifiers == HotkeyModifiers.None && Hotkey.IsNumberPad(parsed.Key)

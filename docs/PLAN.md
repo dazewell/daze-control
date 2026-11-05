@@ -85,6 +85,10 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   `FlowCanvasViewModel.cs` / `FlowCanvas.xaml.cs` with T14.4 and T14.7 (chips, rings): take both sides on conflict.** Done when:
   Core tests for the Part C table (incoming kinds kept, loop refused, card target, member dragged), `ZoneAt` thirds, one Undo
   restores the flow, Outline text; a screenshot of the left-third highlight; keyboard route reaches the same result.
+- [x] T14.12 Type a shortcut instead of pressing it (feat/typed-shortcut; independent of T14.1–T14.11; user has no numpad). Files:
+  `Editor/Inspector/HotkeyRecorder.xaml(.cs)` ("Type it instead" link, text box, Enter/Esc), `ViewModels/Inspector/ShortcutTexts.cs`
+  (`TryParseTyped`), tests. Typed text goes through `Hotkey.TryParse` (not free text, so D-021 stands) and then `SetShortcut` like a
+  recorded chord (same clash checks).
 
 ## M15 Edit several steps at once (user, 2026-11-04) — after all M14 tasks (needs the M14 Default/Set and "Only if" rows)
 Designed 2026-11-04: docs/step-settings/DESIGN.md Part D, D-084. Selection (click, Ctrl+click, marquee, Ctrl+A) already exists;

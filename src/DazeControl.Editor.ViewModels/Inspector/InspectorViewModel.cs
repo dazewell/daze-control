@@ -906,6 +906,13 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             Shortcuts[index].Rejection = ShortcutTexts.Rejection(reason);
     }
 
+    /// <summary>Typed text at <paramref name="index"/> couldn't be read as a shortcut (T14.12): say why under the box.</summary>
+    public void RejectShortcutText(int index, string text)
+    {
+        if (index < Shortcuts.Count)
+            Shortcuts[index].Rejection = text;
+    }
+
     [RelayCommand]
     private void RemoveShortcut(ShortcutViewModel shortcut) => SetShortcut(shortcut.Index, "");
 

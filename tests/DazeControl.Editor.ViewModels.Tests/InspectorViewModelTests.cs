@@ -411,6 +411,52 @@ public sealed class InspectorViewModelTests : IDisposable
         Assert.Equal("Alt+T already runs flow \"g\".", _inspector.Shortcuts[0].Problem);
     }
 
+    [Theory] // T14.12: typed chords go through the same parser as the config
+    [InlineData("Numpad1", "Num1")]
+    [InlineData("ctrl + alt + num5", "Ctrl+Alt+Num5")]
+    [InlineData("Win+Numpad3", "Win+Num3")]
+    [InlineData("Alt+T", "Alt+T")]
+    public void ATypedShortcutIsParsedAndFormatted(string typed, string expected)
+    {
+        Assert.True(ShortcutTexts.TryParseTyped(typed, out var hotkey, out var error));
+        Assert.Equal(expected, hotkey);
+        Assert.Null(error);
+    }
+
+    [Theory]
+    [InlineData("T", "Add Win, Ctrl or Alt, so the shortcut doesn't get in the way of your typing.")]
+    [InlineData("Shift+Numpad1", "Shift doesn't work with number pad keys. Use Win, Ctrl or Alt instead.")]
+    [InlineData("Ctrl+Banana", "I couldn't read that. Write it like Ctrl+Alt+A or Numpad1: Win, Ctrl, Alt or Shift first, joined with +, then one key.")]
+    [InlineData("", "I couldn't read that. Write it like Ctrl+Alt+A or Numpad1: Win, Ctrl, Alt or Shift first, joined with +, then one key.")]
+    public void BadTypedTextSaysWhy(string typed, string message)
+    {
+        Assert.False(ShortcutTexts.TryParseTyped(typed, out var hotkey, out var error));
+        Assert.Equal("", hotkey);
+        Assert.Equal(message, error);
+    }
+
+    [Fact]
+    public void ATypedNumpadShortcutIsStoredAndClashesLikeARecordedOne()
+    {
+        _session.Update(c => c with { Flows = [new Flow("g", "Other", [new StepNode("a", "notify") { With = new([new("text", (ParamValue)"x")]) }]) { Hotkeys = ["Num1"] }, .. c.Flows] });
+        Assert.True(ShortcutTexts.TryParseTyped("Numpad1", out var hotkey, out _));
+
+        _inspector.SetShortcut(0, hotkey);
+
+        Assert.Equal(["Num1"], _canvas.Flow!.Hotkeys);
+        Assert.Equal("Num1 already runs flow \"g\".", _inspector.Shortcuts[0].Problem);
+    }
+
+    [Fact]
+    public void RefusedTypedTextShowsUnderTheBoxAndChangesNothing()
+    {
+        _inspector.SetShortcut(0, "Alt+T");
+        _inspector.RejectShortcutText(0, "I couldn't read that.");
+
+        Assert.Equal("I couldn't read that.", _inspector.Shortcuts[0].Note);
+        Assert.Equal(["Alt+T"], _canvas.Flow!.Hotkeys);
+    }
+
     [Theory] // UX §5.7 H1–H4, H7 (D-073)
     [InlineData(HotkeyRejection.NotAKey, "That key can't be a shortcut. Try a letter, a number, F1–F24, a key like [ or \\, or a number pad key.")]
     [InlineData(HotkeyRejection.NeedsModifier, "Add Win, Ctrl or Alt, so the shortcut doesn't get in the way of your typing.")]

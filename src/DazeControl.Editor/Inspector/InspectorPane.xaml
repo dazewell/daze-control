@@ -408,7 +408,7 @@
                         <DataTemplate x:DataType="vmi:ShortcutViewModel">
                             <StackPanel>
                                 <local:HotkeyRecorder Hotkey="{x:Bind Hotkey, Mode=OneWay}" Tag="{x:Bind}" AccessibleName="Shortcut"
-                                                      Recorded="OnShortcutRecorded" Rejected="OnShortcutRejected" RecordingChanged="OnShortcutRecording"
+                                                      Recorded="OnShortcutRecorded" Rejected="OnShortcutRejected" TypedRefused="OnShortcutTypedRefused" RecordingChanged="OnShortcutRecording"
                                                       HorizontalAlignment="Left" />
                                 <!-- UX §5.7 H1–H4, H7 or the shortcut's problem; a refusal is read out by the recorder's UIA notification (no live region: it would read twice). -->
                                 <TextBlock Text="{x:Bind Note, Mode=OneWay}" Visibility="{x:Bind HasNote, Mode=OneWay}" Style="{StaticResource FieldError}" />
