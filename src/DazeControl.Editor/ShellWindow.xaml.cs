@@ -56,6 +56,8 @@ public sealed partial class ShellWindow : Window
         };
         SecondsBox.Minimum = SettingsPageViewModel.MinPopupSeconds;
         SecondsBox.Maximum = SettingsPageViewModel.MaxPopupSeconds;
+        ViewModel.Settings.StepDefaults.Rows.CollectionChanged += (_, _) => ShowStepDefaultsEmpty();
+        ShowStepDefaultsEmpty();
         VersionText.Text = "Version " + ShellViewModel.Version;
         AppFolderText.Text = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
 
@@ -821,6 +823,39 @@ public sealed partial class ShellWindow : Window
     }
 
     private void OnOpenConfigFolder(object sender, RoutedEventArgs e) => OpenFolder(Path.GetDirectoryName(ViewModel.Session.Path)!);
+
+    private void ShowStepDefaultsEmpty() =>
+        StepDefaultsEmpty.Visibility = ViewModel.Settings.StepDefaults.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>The "Add a step type…" menu: types without an entry, by area as the palette groups them.</summary>
+    private void OnAddDefaultOpening(object sender, object e)
+    {
+        var menu = (MenuFlyout)sender;
+        menu.Items.Clear();
+        foreach (var area in ViewModel.Settings.StepDefaults.Addable.GroupBy(i => i.Area))
+        {
+            var sub = new MenuFlyoutSubItem { Text = area.Key };
+            foreach (var item in area)
+            {
+                var entry = new MenuFlyoutItem { Text = item.Title, Tag = item.Step };
+                entry.Click += (s, _) => ViewModel.Settings.StepDefaults.Add((string)((MenuFlyoutItem)s).Tag);
+                sub.Items.Add(entry);
+            }
+            menu.Items.Add(sub);
+        }
+    }
+
+    private static StepDefaultRow RowOf(object sender) => (StepDefaultRow)((FrameworkElement)sender).Tag;
+
+    private void OnResetTimeout(object sender, RoutedEventArgs e) => RowOf(sender).ResetTimeout();
+
+    private void OnResetRetryCount(object sender, RoutedEventArgs e) => RowOf(sender).ResetRetryCount();
+
+    private void OnResetRetryDelay(object sender, RoutedEventArgs e) => RowOf(sender).ResetRetryDelay();
+
+    private void OnResetPolicy(object sender, RoutedEventArgs e) => RowOf(sender).ResetPolicy();
+
+    private void OnRemoveDefault(object sender, RoutedEventArgs e) => ViewModel.Settings.StepDefaults.Remove(RowOf(sender).StepId);
 
     private void OnOpenLogsFolder(object sender, RoutedEventArgs e) => OpenFolder(ViewModel.Settings.LogsFolder);
 
