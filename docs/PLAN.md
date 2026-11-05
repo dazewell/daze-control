@@ -102,7 +102,7 @@ No version bumps (D-079). Opus medium.
   `UpdateDraft`). Done when: view-model tests: one type vs several types vs steps+cards give the Part D2 field sets; Mixed when
   values differ or are partly inherited; Set writes every step, Reset clears every step; one Undo restores all; per-step
   validation problems appear and nothing is half-applied.
-- [ ] T15.2 Many-mode inspector: policy, Timing, Only if (feat/m15-bulk-inspector, after T15.1). Files: `InspectorViewModel*.cs`, the Many
+- [x] T15.2 Many-mode inspector: policy, Timing, Only if (feat/m15-bulk-inspector, after T15.1; screenshots not taken, see PR). Files: `InspectorViewModel*.cs`, the Many
   section of the inspector XAML, header text, context menu "Select all <type> steps" in `FlowCanvasViewModel`/`FlowCanvas.xaml.cs`,
   UX §5.4/§5.7. Done when: tests for the Mixed placeholders and captions, "Reset all", text applies on commit as one Undo;
   screenshots of a one-type selection (mixed and uniform) and a two-type selection; Narrator names read "…, mixed" /

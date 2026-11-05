@@ -263,6 +263,8 @@ public sealed partial class InspectorPane : UserControl
 
     public static double Dim(bool isSet) => isSet ? 1 : 0.6;
 
+    public static double DimRow(BulkRowView view) => view.IsDim ? 0.6 : 1;
+
     private void OnUseForAllClosed(object sender, RoutedEventArgs e) => UseForAllFlyout.Hide();
 
     private void OnFallbackMenuOpening(object? sender, object e)

@@ -313,6 +313,17 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         ApplySelection();
     }
 
+    /// <summary>The step type when the selection is one step: the menu's "Select all Set default device steps" (D-084).</summary>
+    public string? SelectedStepType => _selected.Count == 1 && Flow?.FindNode(_selected.First()) is StepNode step ? step.Step : null;
+
+    /// <summary>Selects every step of <paramref name="stepType"/> in the flow (never cards).</summary>
+    public void SelectAllOfType(string stepType)
+    {
+        if (Flow is not { } flow)
+            return;
+        SelectOnly(flow.Nodes.OfType<StepNode>().Where(s => s.Step == stepType).Select(s => s.Id));
+    }
+
     public void ClearSelection()
     {
         _selected.Clear();
