@@ -411,11 +411,11 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   close path (a test app registers Up); footprint after 10 menus within D-036. The menu must check
   `SHQueryUserNotificationState` before drawing or taking keys: QUNS = 3 (exclusive mode or FSO) → #32 in history
   and one log line, no window, no pop-up (D-055, X-010); a unit seam fakes QUNS for the test.
-- [ ] T12.8 Editor: `menu.show` inspector (flow token list, title, layout, size, close after, wait), Test shows the
+- [x] T12.8 Editor: `menu.show` inspector (flow token list, title, layout, size, close after, wait), Test shows the
   menu, "Controller buttons" recorder, "Controller menu" template, trigger texts (feat/m12-editor, DESIGN §3.7). Done
   when: VM tests (add/remove/reorder items, own flow not offered, missing flow chip, recorder states incl. engine off
   and no pad, template content); screenshots light/dark of the inspector and the recorder; Narrator names on the
-  token list and recorder.
+  token list and recorder. Done (PR #63): recorder codes to DESIGN §3.6 until T12.6 lands `record-gamepad`; Layout and Size are drop-downs, not drawn radios.
 - [ ] T12.9 Narrator: UIA notifications from the menu without focus, sharing issue #26's provider (feat/m12-narrator).
   Done when: Narrator reads "Couch menu, 4 choices. Connect TV, 1 of 4." on open and the new choice on each move,
   the foreground window unchanged; #26's pop-up announcement may land in the same PR.
