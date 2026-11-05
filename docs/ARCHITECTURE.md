@@ -11,7 +11,7 @@ Rewrite sections when things change (`knowledge-log` skill).
         └─ reads/writes config.yaml (atomic, .bak) ─────────┐                          │
                                                             ▼                          ▼
  DazeControl.exe  (engine, Native AOT, resident, no UI framework)
-   message thread: TrayIcon · GlobalHotkey · RunPopup (Win32 + DWM backdrop + D2D/DirectWrite)
+   message thread: TrayIcon · GlobalHotkey · RunPopup + FlowMenu (AcrylicSurface: Win32 + DWM backdrop + D2D/DirectWrite)
    ConfigHost: FileSystemWatcher (debounced) → YAML → validate → compile → atomic swap (last-good kept)
    FlowRunner (DAG scheduler) ─► ResourceLocks ─► IStepProvider implementations (lazy COM workers)
    PipeServer (current-user-only) · RunHistory · Log
@@ -33,7 +33,7 @@ src/DazeControl.Providers/   Windows implementations (CsWin32 NativeMethods.txt,
                              undocumented): Audio, Bluetooth, Display, Process, Script, Http, Android,
                              Service, Wait, Notify, Flag, Credentials
 src/DazeControl.Ipc/         protocol records (source-gen JSON), PipeServer, PipeClient
-src/DazeControl.Engine/      AOT WinExe: Program, Shell/ (TrayIcon, GlobalHotkey, RunPopup), Lifecycle/
+src/DazeControl.Engine/      AOT WinExe: Program, Shell/ (TrayIcon, GlobalHotkey, AcrylicSurface, RunPopup, FlowMenu), Lifecycle/
                              (SingleInstance, Autostart), Diagnostics/Log, composition root (hand-written)
 src/DazeControl.Cli/         AOT console exe dctl.exe (pipe client; offline `validate`/`list`)
 src/DazeControl.Editor.ViewModels/  CommunityToolkit.Mvvm VMs, canvas model, undo stack — no WinUI refs
@@ -177,6 +177,7 @@ start a fresh chain. With `Flows` null (the dry runner) a call is an ordinary st
 step in it, unknown #51 (errors); turned off #52, called flow with errors (warnings).
 Menu core (T12.3, DESIGN flow-menu §2.5/§3.5): `menu.show` is a catalog step (`items` TextList with `RefersTo = Flow`, so
 Menu runtime (T12.4, flow-menu DESIGN §3.2): `Providers/MenuProvider` shows the menu through `IMenuPresenter` (Engine fills it; wrap it in `GatedMenuPresenter` so one menu is on screen and the gate is held only around `ShowAsync`) and launches the pick with `IFlowStarter.Start` (trigger "Menu · <flow>", fresh chain, so menus may point at each other); `wait` runs it nested through `StepContext.RunNested` (the runner's `CallAsync` with the step's own token). Contract: `StepContext.SetSummary` → `NodeResult.Summary`; a provider throwing `StepEndsFlowException` makes its node Cancelled with the message, cancels the run and sets `RunResult.Quiet` / `RunFinished.Quiet` (`RunPopupModel` shows nothing; a flow of only `menu.show` steps has no pop-up). A test-step (flow id `test:`) shows the menu and runs nothing; the dry run says "Would show N choices". `IFlowStarter.IsRunning` and `CalledFlow.Why` feed the captions.
+Menu window (T12.7, DESIGN flow-menu §3.3/§4): `Shell/AcrylicSurface` is the abstract window both `RunPopup` and `Shell/FlowMenu` stand on (WS_POPUP + NOACTIVATE/TOOLWINDOW/TOPMOST/LAYERED, transient-window backdrop, software D2D HWND target, d2d1/DWrite loaded only while shown, layered-alpha fades, `WM_MOUSEACTIVATE` → no activate; a static hwnd → surface map feeds one `WndProc`). `FlowMenu` is the engine's `IMenuPresenter`: `ShowAsync` posts to the message thread, builds a `MenuModel`, lays out list/grid in DIPs (scrolls under work-area height − 48, focus kept in view with a row of context), and draws focus fill (slides 120 ms), two-tone ring (3-DIP system colours in high contrast), hint row (pad badges / "Enter Run · Esc Close" / none for mouse), "Closing in N s" for the last 5 s (one timer, then 1 s ticks, nothing otherwise), the empty state and the shake for a choice that is off. `Shell/MenuKeys` registers Up Down Left Right Tab Shift+Tab Home End Enter Space Esc 1–9 (`Runtime/Menus/MenuKeyMap`) only while open; `MenuMouseHook` is a pass-through `WH_MOUSE_LL` only while open (press outside → cancel, wheel over → scroll). Every close path (pick, cancel, timeout, step cancel, engine exit) runs `Teardown` (keys, hook, pad feed, model). Placement: monitor of the foreground window else the cursor, work area (whole monitor under a covering borderless window), centred. Presenter chain in `EngineHost`: `GatedMenuPresenter(FullScreenGuardPresenter(FlowMenu, FullScreen.OverGame))`; the guard asks `SHQueryUserNotificationState` (QUNS 3, FSO too) before anything is drawn: the step fails with UX #32 and one log line (D-055, X-010). `IMenuPadFeed` is the seam for T12.6's controller source (the engine passes none yet, so the menu answers keys and mouse). A quiet run finish hides the pop-up (`EngineHost.ShowPopup`: `Apply` true with no `Current` → `Hide`). Not built: open scale 0.96→1, tile scale 1.03 and the pick flash (motion polish), Narrator announcements (T12.9).
 `FlowRefs.Callers/Rename` also read list items); `Flow.Gamepad` holds chords as written, parsed by `Input/GamepadChord`
 (canonical order, 2–4 buttons, no Guide); chord clashes follow the hotkey rule (`ClaimChords`). `CheckMenus`: own flow
 #38 error, unknown/duplicate items warnings, 0 or >12 items and `closeAfter` outside 5 s..10 min errors, explicit
@@ -441,6 +442,14 @@ Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 i
 
 | 2026-11-02 | 4328146 (M10 gate, Release AOT, exe 11.6 MB with Velopack) | no config, not installed (no update checks), 5 threads | 5.4 | 21.7 | 0 (600 s) |
 
+| 2026-11-04 | T12.7 (Release AOT, dev PC 4K at 175 %) | idle, no config chords, 9 threads | 6.3 | 20.8 | — |
+| 2026-11-04 | same | after 10 menus (list/grid, Esc, one pick; +20 s) | 12.7 (+6.3) | 27.6 | 0 (60 s, +80 s) |
+| 2026-11-04 | same | same engine after 10 plain pop-up runs (comparison) | 10.1 (+3.7) | 25.0 | — |
+
+M12/T12.7: flat over menus (14.1 after the first, 12.7 after ten, back to 12.6 at +80 s), 0 ms CPU idle, d2d1/DWrite unloaded.
+Absolute budget holds (12.6 ≤ 15 MB, 27.5 ≤ 35 MB) but the +6.3 MB is ~1.8 MB over D-036's +4.5 line: the menu's software
+surface is ~700×700 px at 175 % (≈2 MB) against the pop-up's ~600×180. The user decides whether to widen the line.
+
 M5: absolute budget holds; the pop-up's first showing costs ~+2.5 MB private once (flat from 3 to 10 runs); the user
 accepted it and the post-run line now allows it (D-036).
 
@@ -455,11 +464,11 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   like a hot-plug restore. Not fixed: a settle wait (WM_DISPLAYCHANGE, timeout) before `DisplayCheck` is the first
   thing to try, then a second check.
 - Run pop-up over a full-screen game: spike S2 (X-010) showed that any window of ours over a DXGI full-screen game
-  (FSO included) knocks the game out of full screen. `RunPopup` shows without checking
-  `SHQueryUserNotificationState`, so a shortcut run during such a game probably does the same. Untested with
+  (FSO included) knocks the game out of full screen. The menu checks `SHQueryUserNotificationState` (T12.7), but
+  `RunPopup` still shows without checking, so a shortcut run during such a game probably does the same. Untested with
   `RunPopup` itself. The likely fix is to skip the pop-up while QUNS = 3; history still records the run.
-- Designed, not built: the flow menu and controller input (M12) — [flow-menu/DESIGN.md](flow-menu/DESIGN.md)
-  §3 (D-053..D-057). Each M12 task moves its part into the sections above.
+- Designed, not built: controller input (M12, T12.6) — [flow-menu/DESIGN.md](flow-menu/DESIGN.md)
+  §3.4 (D-056). Each M12 task moves its part into the sections above.
 - Built in M13 (PLAN → M13): the Layout menu's `LayoutOptions` (D-067, T13.6) and the editor for flow calls and inputs (T13.10). Each task rewrites the
   section it changes. Fallback outcomes (D-065) are built (T13.7: Config, Runtime).
 - Designed, not built (PLAN → M13 fixes, v0.29.0 feedback): Ctrl+S's accelerator

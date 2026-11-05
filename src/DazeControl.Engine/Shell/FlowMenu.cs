@@ -545,7 +545,8 @@ internal sealed unsafe class FlowMenu : AcrylicSurface, IMenuPresenter
         DrawCentred(target, brush, _count, _width - PaddingDip - _countWidth, PaddingDip, _titleRow);
 
         // Body, clipped to the viewport.
-        var clip = new D2D_RECT_F { left = 0, top = _bodyTop, right = _width, bottom = _bodyTop + _viewport };
+        // The focus ring sits 2 DIPs outside its choice: clip a little wider than the viewport so the first and last row keep it.
+        var clip = new D2D_RECT_F { left = 0, top = _bodyTop - 4, right = _width, bottom = _bodyTop + _viewport + 4 };
         target->PushAxisAlignedClip(&clip, D2D1_ANTIALIAS_MODE.D2D1_ANTIALIAS_MODE_ALIASED);
         var offset = _bodyTop - _scroll;
 
