@@ -369,9 +369,12 @@ comes from T13.8.
 Order: T12.1 and T12.2 (spikes, gates) first, either order; then T12.3 → T12.4 → T12.5, T12.6, T12.7 → T12.8 →
 T12.9 → T12.10. One PR per task unless two share a branch; no version bumps (D-079). Each task moves what it
 built from DESIGN.md into ARCHITECTURE/UX (D-053).
-- [ ] T12.1 Spike S1: controller input in AOT (spike/gamepad-input, DESIGN §5). Done when: gate (a)–(g) answered on
-  the dev PC with the user's Xbox pad (ask the user to plug it in; Steam on and off); D-056 set to accepted with the
-  backend and numbers; Footprint rows added; probe deleted or left in `spikes/` untracked by the solution.
+- [x] T12.1 Spike S1: controller input in AOT (spike/gamepad-input, PR #58, DESIGN §5). Done when: gate (a)–(g)
+  answered on the dev PC with the user's Xbox pad (ask the user to plug it in; Steam on and off); D-056 set to
+  accepted with the backend and numbers; Footprint rows added; probe deleted or left in `spikes/` untracked by the
+  solution. Done 2026-11-04 with the Steam Controller (no Xbox pad that day): XInput accepted (D-056, X-011); the
+  probe stays in `spikes/GamepadProbe` (`gi`/`xi`, `--keys`, `--raw`, `--quiet`). Moved to T12.6: S1 (c) and (d),
+  and sleep/resume, with an Xbox pad.
 - [x] T12.2 Spike S2: no-activate menu window over apps and games (spike/menu-window, DESIGN §5). Done when: gate
   (a)–(e) answered with the throwaway D3D11 app in three modes, screenshots of the menu over each; D-055 updated
   with what held; a failed (a) stops M12 and goes to the user.
@@ -402,7 +405,9 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   records the first chord and releases it on answer, timeout and client gone; `devices gamepads` lists a pad with no
   chord configured); on the dev PC a chord on a test flow runs it with another app
   in front and history says "Controller · View + Menu"; `dctl devices gamepads` lists the pad; footprint per DESIGN
-  §3.8 measured (no chord; chord + no pad; pad on) and recorded.
+  §3.8 measured (no chord; chord + no pad; pad on) and recorded; S1's open gates with an Xbox pad (pad on and
+  untouched ≤ 300 ms over 10 min, reads with a full-screen app in front, sleep/resume only with the user's OK; else
+  revisit D-056).
 - [x] T12.7 Engine: `AcrylicSurface` cut from `RunPopup`, `FlowMenu` (list, grid, large, focus visual, hint row,
   close countdown, empty state), `MenuKeys`, mouse hook, placement, full-screen check, animation and high contrast
   (feat/m12-menu-window, DESIGN §3.3, §4). Done when: RunPopup unchanged (screenshots before/after); screenshots of

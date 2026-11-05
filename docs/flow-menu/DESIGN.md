@@ -277,6 +277,14 @@ app registered as global shortcuts don't reach the menu; Narrator hears announce
   in front; (e) arrival/removal and sleep/resume restart reading without leaks; (f) no install, no admin;
   (g) with Steam Input on, list what Steam also sends (keys) for D-pad/A/B. Pass (a–f) with GameInput → GameInput;
   else XInput. Record which and the numbers in D-056 and ARCHITECTURE → Footprint.
+  **Result 2026-11-04 (probe `spikes/GamepadProbe`, Steam Controller on its wireless puck; no Xbox pad that day):**
+  XInput (D-056 accepted). (a) holds; GameInput fails, since its reading callbacks are E_NOTIMPL (X-011); (b) 0 ms;
+  (e) arrival and removal hold, sleep/resume not run; (f) holds. (c) and (d) wait for an Xbox pad, which T12.6 measures.
+  (g) The Steam Controller never shows up as an XInput or GameInput pad. With Steam on, Steam injects keys
+  (`LLKHF_INJECTED`, no device): A Enter, B Esc, X Space, Y nothing, D-pad arrows, View+Menu Tab+Esc, right pad
+  injected mouse moves. With Steam off, the puck's own HID keyboard/mouse (VID_28DE PID_1304) sends the same keys
+  except X (nothing), plus mouse moves, clicks and wheel. So the menu's arrows/Enter/Esc work with this pad in both
+  states, chords can't come from it, and the §4 dedupe only matters for Xbox pads with Steam Input on.
 - **S2 Menu window over apps and games (T12.2).** Extend a copy of the RunPopup spike into a no-activate menu with
   temporary hotkeys and the pass-through mouse hook, plus a throwaway D3D11 test app (no user games needed) in
   three modes: borderless window, flip-model full screen (fullscreen optimisations), and exclusive
