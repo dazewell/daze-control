@@ -100,6 +100,9 @@ With a review:
    section, and leave it for the user.
 7. Waiting: one background poll per thing you actually need (the review), never a loop of short checks, and
    never wait for CI (auto-merge does). If CI fails, the app's Auto-fix or the coordinator wakes you.
+   To know when PRs landed (a dependency, a release), run `pwsh scripts/wait-pr.ps1 60,61` with
+   `run_in_background`: it exits when they merge (1 if closed unmerged or after 120 min) and re-invokes you, with
+   no model calls while it waits. Never poll `gh pr view` by hand, never ask the user "is it merged?".
 
 Stacked PRs: with merge commits, a branch that already contains its base merges cleanly once the base lands;
 just `git merge origin/main`. Never rebase or force-push.
