@@ -137,6 +137,42 @@
                                     </SplitButton>
                                     </StackPanel>
                                 </Grid>
+                                <!-- Command bar (DESIGN Part E): sort, search (Ctrl+F), show. View-only; drag is off while any is on (D-088). -->
+                                <Grid ColumnSpacing="8" Margin="0,0,0,8" x:Name="FlowCommandBar">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="FlowSearchBox" PlaceholderText="Search flows (Ctrl+F)" AutomationProperties.Name="Search flows"
+                                             Text="{x:Bind ViewModel.Flows.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyDown="OnFlowSearchKeyDown">
+                                        <TextBox.KeyboardAccelerators>
+                                            <KeyboardAccelerator Key="F" Modifiers="Control" Invoked="OnFlowSearchAccelerator" />
+                                        </TextBox.KeyboardAccelerators>
+                                    </TextBox>
+                                    <ComboBox Grid.Column="1" MinWidth="150" Header="" AutomationProperties.Name="Sort by" ToolTipService.ToolTip="Sort by"
+                                              SelectedIndex="{x:Bind ViewModel.Flows.SortIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="Sort: Your order" />
+                                        <ComboBoxItem Content="Sort: Name" />
+                                        <ComboBoxItem Content="Sort: Last run" />
+                                    </ComboBox>
+                                    <ComboBox Grid.Column="2" MinWidth="150" AutomationProperties.Name="Show" ToolTipService.ToolTip="Show"
+                                              SelectedIndex="{x:Bind ViewModel.Flows.FilterIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="Show: All" />
+                                        <ComboBoxItem Content="Show: On" />
+                                        <ComboBoxItem Content="Show: Off" />
+                                        <ComboBoxItem Content="Show: Needs fixing" />
+                                        <ComboBoxItem Content="Show: Not in tray" />
+                                    </ComboBox>
+                                    <Button Grid.Column="3" Content="Make this my order" Command="{x:Bind ViewModel.Flows.MakeOrderCommand}"
+                                            Visibility="{x:Bind ViewModel.Flows.CanMakeOrder, Mode=OneWay}"
+                                            ToolTipService.ToolTip="Write the order shown here as the list and tray order" />
+                                </Grid>
+                                <StackPanel Visibility="{x:Bind ViewModel.Flows.NoMatches, Mode=OneWay}" Spacing="8" Margin="0,32,0,0" HorizontalAlignment="Center">
+                                    <TextBlock Text="No flows match." HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" AutomationProperties.LiveSetting="Polite" />
+                                    <Button Content="Clear" Command="{x:Bind ViewModel.Flows.ClearFilterCommand}" HorizontalAlignment="Center" />
+                                </StackPanel>
                                 <StackPanel Visibility="{x:Bind ViewModel.Flows.IsEmpty, Mode=OneWay}" Spacing="8" Margin="0,48,0,0"
                                             HorizontalAlignment="Center">
                                     <FontIcon Glyph="&#xE945;" FontSize="40" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -167,7 +203,7 @@
                                             <DataTemplate x:DataType="vm:GroupItemViewModel">
                                                 <!-- Group header (D-087): a tray folder. The chevron and a click on the row expand or collapse it. -->
                                                 <Grid Style="{StaticResource SettingsCard}" Margin="0,8,0,0" Tag="{x:Bind Name, Mode=OneWay}" Tapped="OnGroupHeaderTapped"
-                                                      CanDrag="{x:Bind CanEdit, Mode=OneWay}" DragStarting="OnGroupDragStarting" DropCompleted="OnDragCompleted"
+                                                      CanDrag="{x:Bind CanReorder, Mode=OneWay}" DragStarting="OnGroupDragStarting" DropCompleted="OnDragCompleted"
                                                       AutomationProperties.Name="{x:Bind Summary, Mode=OneWay}">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
@@ -214,7 +250,7 @@
                                           <Border Margin="{x:Bind local:RowFormat.Indent(InGroup), Mode=OneWay}" Padding="{x:Bind local:RowFormat.RailPadding(InGroup), Mode=OneWay}"
                                                   BorderThickness="{x:Bind local:RowFormat.Rail(InGroup), Mode=OneWay}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
                                             <!-- A click anywhere but the switch and Run opens the flow; so do Enter and Space on the card (D-070). -->
-                                            <local:FlowCard Tag="{x:Bind Id}" CanDrag="{x:Bind CanEdit, Mode=OneWay}" DragStarting="OnFlowDragStarting" DropCompleted="OnDragCompleted"
+                                            <local:FlowCard Tag="{x:Bind Id}" CanDrag="{x:Bind CanReorder, Mode=OneWay}" DragStarting="OnFlowDragStarting" DropCompleted="OnDragCompleted"
                                                             MoveRequested="OnFlowCardMoveRequested" TakeOutRequested="OnFlowCardTakeOutRequested" Invoked="OnFlowCardInvoked" DeleteRequested="OnFlowCardDeleteRequested" CornerRadius="{ThemeResource OverlayCornerRadius}"
                                                                 AutomationProperties.Name="{x:Bind Summary, Mode=OneWay}">
                                                     <local:FlowCard.ContextFlyout>
@@ -230,18 +266,18 @@
                                                                 </MenuFlyoutItem.Icon>
                                                             </MenuFlyoutItem>
                                                             <MenuFlyoutSeparator />
-                                                            <MenuFlyoutItem Text="Move up" Tag="{x:Bind Id}" Click="OnFlowMoveUpClick" IsEnabled="{x:Bind CanEdit, Mode=OneWay}">
+                                                            <MenuFlyoutItem Text="Move up" Tag="{x:Bind Id}" Click="OnFlowMoveUpClick" IsEnabled="{x:Bind CanReorder, Mode=OneWay}">
                                                                 <MenuFlyoutItem.Icon>
                                                                     <FontIcon Glyph="&#xE74A;" />
                                                                 </MenuFlyoutItem.Icon>
                                                             </MenuFlyoutItem>
-                                                            <MenuFlyoutItem Text="Move down" Tag="{x:Bind Id}" Click="OnFlowMoveDownClick" IsEnabled="{x:Bind CanEdit, Mode=OneWay}">
+                                                            <MenuFlyoutItem Text="Move down" Tag="{x:Bind Id}" Click="OnFlowMoveDownClick" IsEnabled="{x:Bind CanReorder, Mode=OneWay}">
                                                                 <MenuFlyoutItem.Icon>
                                                                     <FontIcon Glyph="&#xE74B;" />
                                                                 </MenuFlyoutItem.Icon>
                                                             </MenuFlyoutItem>
                                                             <!-- "Move to ›" is filled when the menu opens (the groups change). -->
-                                                            <MenuFlyoutSubItem Text="Move to" IsEnabled="{x:Bind CanEdit, Mode=OneWay}">
+                                                            <MenuFlyoutSubItem Text="Move to" IsEnabled="{x:Bind CanReorder, Mode=OneWay}">
                                                                 <MenuFlyoutSubItem.Icon>
                                                                     <FontIcon Glyph="&#xE8B7;" />
                                                                 </MenuFlyoutSubItem.Icon>
