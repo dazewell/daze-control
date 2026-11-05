@@ -152,7 +152,7 @@
                                         <DataTemplate x:DataType="vm:FlowItemViewModel">
                                             <!-- A click anywhere but the switch and Run opens the flow; so do Enter and Space on the card (D-070). -->
                                             <local:FlowCard Tag="{x:Bind Id}" Invoked="OnFlowCardInvoked" DeleteRequested="OnFlowCardDeleteRequested" CornerRadius="{ThemeResource OverlayCornerRadius}"
-                                                                AutomationProperties.Name="{x:Bind OpenName, Mode=OneWay}">
+                                                                AutomationProperties.Name="{x:Bind Summary, Mode=OneWay}">
                                                     <local:FlowCard.ContextFlyout>
                                                         <MenuFlyout>
                                                             <MenuFlyoutItem Text="Open" Tag="{x:Bind Id}" Click="OnFlowOpenClick">
@@ -192,24 +192,33 @@
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
                                                     <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}" Style="{StaticResource SettingsCardIcon}" />
                                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                         <TextBlock Text="{x:Bind Name, Mode=OneWay}" />
-                                                        <TextBlock Style="{StaticResource SettingsCardDescription}">
-                                                            <Run Text="{x:Bind Shortcut, Mode=OneWay}" /><Run Text=" · " /><Run Text="{x:Bind LastRun, Mode=OneWay}" />
-                                                        </TextBlock>
+                                                        <TextBlock Text="{x:Bind Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
+                                                                   ToolTipService.ToolTip="{x:Bind ShortcutTip, Mode=OneWay}" />
                                                     </StackPanel>
-                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                                    <!-- Small status icons (DESIGN Part D): their meaning is in the tooltips and the card's name. -->
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                        <FontIcon Glyph="&#xE7B3;" FontSize="14" Visibility="{x:Bind NotInTray, Mode=OneWay}"
+                                                                  ToolTipService.ToolTip="Not in the tray menu" />
+                                                        <FontIcon Glyph="&#xE8A7;" FontSize="14" Visibility="{x:Bind HasDesktopShortcut, Mode=OneWay}"
+                                                                  ToolTipService.ToolTip="On your desktop" />
+                                                        <FontIcon Glyph="&#xE71B;" FontSize="14" Visibility="{x:Bind HasUsedBy, Mode=OneWay}"
+                                                                  ToolTipService.ToolTip="{x:Bind UsedBy, Mode=OneWay}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
                                                                 Visibility="{x:Bind HasProblems, Mode=OneWay}">
                                                         <FontIcon Glyph="&#xEA39;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
                                                         <TextBlock Text="{x:Bind Problems, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" />
                                                     </StackPanel>
-                                                    <ToggleSwitch Grid.Column="3" IsOn="{x:Bind IsEnabled, Mode=TwoWay}" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" MinWidth="0"
+                                                    <ToggleSwitch Grid.Column="4" IsOn="{x:Bind IsEnabled, Mode=TwoWay}" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" MinWidth="0"
                                                                   OnContent="On" OffContent="Off" AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" />
                                                     <!-- The host carries the tooltip, so the reason shows while Run is off (#62), and keeps a
                                                          click on the off button from opening the flow. -->
-                                                    <Border Grid.Column="4" Background="Transparent" VerticalAlignment="Center" Tapped="OnRunHostTapped"
+                                                    <Border Grid.Column="5" Background="Transparent" VerticalAlignment="Center" Tapped="OnRunHostTapped"
                                                             ToolTipService.ToolTip="{x:Bind RunTip, Mode=OneWay}">
                                                         <Button Command="{x:Bind RunCommand}" Content="{x:Bind RunText, Mode=OneWay}" MinWidth="72"
                                                                 AutomationProperties.Name="{x:Bind RunName, Mode=OneWay}"

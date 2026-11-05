@@ -15,18 +15,20 @@ namespace DazeControl.Editor.ViewModels;
 /// <summary>Flows page (UX §5.1): one card per flow in YAML order; a click opens it, Run runs it (D-070).</summary>
 public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
 {
-    private const int HistoryLimit = 100;
+    private const int HistoryLimit = 200; // the history file's own cap: the newest run of every flow (D-089)
 
     private readonly ConfigSession _session;
     private readonly IEngineClient _engine;
     private readonly Action<Action> _post;
+    private readonly TimeProvider _time;
     private Dictionary<string, RunRecord> _lastRuns = [];
 
     /// <summary>Live runs by id → flow, from the engine's events (UI thread).</summary>
     private readonly Dictionary<Guid, string> _liveRuns = [];
 
-    public FlowsPageViewModel(ConfigSession session, IEngineClient engine, Action<Action> post, DesktopShortcutStore? desktop = null)
+    public FlowsPageViewModel(ConfigSession session, IEngineClient engine, Action<Action> post, DesktopShortcutStore? desktop = null, TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         _session = session;
         _engine = engine;
         _post = post;
@@ -119,6 +121,17 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             _lastRuns = last;
             Sync();
         });
+    }
+
+    /// <summary>
+    /// Recomputes the relative times ("2 h ago"). Called when the page shows and the window activates; a run event does it
+    /// through <see cref="Sync"/>. No timer ticks them (D-009).
+    /// </summary>
+    public void RefreshTimes()
+    {
+        var now = _time.GetUtcNow();
+        foreach (var item in Items)
+            item.UpdateTimes(now);
     }
 
     [RelayCommand]
@@ -255,6 +268,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             if (!flows.Any(f => f.Id == Items[i].Id))
                 Items.RemoveAt(i);
         }
+        var now = _time.GetUtcNow();
         for (var i = 0; i < flows.Count; i++)
         {
             var flow = flows[i];
@@ -269,7 +283,8 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             {
                 Items.Move(Items.IndexOf(existing), i);
             }
-            existing.Update(flow, _lastRuns.GetValueOrDefault(flow.Id), withErrors.GetValueOrDefault(flow.Id), _session.CanEdit);
+            existing.Update(flow, _lastRuns.GetValueOrDefault(flow.Id), withErrors.GetValueOrDefault(flow.Id), _session.CanEdit,
+                FlowRefs.Callers(_session.Current, flow.Id).Count, now);
             existing.UpdateDelete(_session.CanEdit, DeleteOffReason(flow.Id));
             existing.UpdateRun(_engine.IsRunning, _liveRuns.ContainsValue(flow.Id));
         }
@@ -362,8 +377,36 @@ public sealed partial class FlowItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(OpenName), nameof(RunName))]
     public partial string Name { get; private set; } = "";
 
-    /// <summary>The card's UIA name: it opens the flow on Enter/Space (D-070).</summary>
+    /// <summary>The card's invoke name: it opens the flow on Enter/Space (D-070).</summary>
     public string OpenName => $"Open {Name}";
+
+    /// <summary>The card's UIA name: "Connect Technics, Alt+Z, 5 steps, done 2 hours ago, in Audio, turned on".</summary>
+    public string Summary
+    {
+        get
+        {
+            var parts = new List<string> { Name, _hotkeys.Count == 0 ? "no shortcut" : FlowRowFacts.ShortcutTip(_hotkeys), FlowRowFacts.Steps(_steps).ToLowerInvariant(),
+                IsRunning ? "running" : _lastRun is null ? "no recent run" : FlowRowFacts.LastRun(_lastRun, _now, spoken: true) };
+            if (_folder is not null)
+                parts.Add($"in {_folder}");
+            parts.Add(IsEnabled ? "turned on" : "turned off");
+            if (_errors > 0)
+                parts.Add("needs fixing");
+            if (NotInTray)
+                parts.Add("not in the tray menu");
+            if (HasDesktopShortcut)
+                parts.Add("on your desktop");
+            if (UsedBy.Length > 0)
+                parts.Add(UsedBy.ToLowerInvariant());
+            return string.Join(", ", parts);
+        }
+    }
+
+    private IReadOnlyList<string> _hotkeys = [];
+    private int _steps;
+    private string? _folder;
+    private RunRecord? _lastRun;
+    private DateTimeOffset _now;
 
     /// <summary>The Run button's UIA name.</summary>
     public string RunName => $"{RunText} {Name}";
@@ -373,7 +416,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
 
     /// <summary>A run of this flow is going on.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RunText), nameof(RunName), nameof(RunTip))]
+    [NotifyPropertyChangedFor(nameof(RunText), nameof(RunName), nameof(RunTip), nameof(Caption), nameof(Summary))]
     [NotifyCanExecuteChangedFor(nameof(RunCommand))]
     public partial bool IsRunning { get; private set; }
 
@@ -412,11 +455,37 @@ public sealed partial class FlowItemViewModel : ObservableObject
     [ObservableProperty]
     public partial string Glyph { get; private set; } = DefaultGlyph;
 
+    /// <summary>First shortcut, or "No shortcut".</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Caption))]
     public partial string Shortcut { get; private set; } = "";
 
+    /// <summary>All shortcuts, for the tooltip.</summary>
     [ObservableProperty]
+    public partial string ShortcutTip { get; private set; } = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Caption))]
+    public partial string Steps { get; private set; } = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Caption))]
     public partial string LastRun { get; private set; } = "";
+
+    /// <summary>Line 2 of the card: "Alt+Z · 5 steps · Done 2 h ago"; "Running" while a run goes on.</summary>
+    public string Caption => $"{Shortcut} · {Steps} · {(IsRunning ? "Running" : LastRun)}";
+
+    /// <summary>The flow isn't in the tray menu.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Summary))]
+    public partial bool NotInTray { get; private set; }
+
+    /// <summary>"Used by 2 flows"; empty when no flow runs this one.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUsedBy), nameof(Summary))]
+    public partial string UsedBy { get; private set; } = "";
+
+    public bool HasUsedBy => UsedBy.Length > 0;
 
     [ObservableProperty]
     public partial string Problems { get; private set; } = "";
@@ -428,7 +497,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
     public partial bool IsEnabled { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(DesktopMenuText))]
+    [NotifyPropertyChangedFor(nameof(DesktopMenuText), nameof(Summary))]
     public partial bool HasDesktopShortcut { get; private set; }
 
     /// <summary>The context menu's item: "Add to desktop" (#23), "Remove from desktop", or #25 (off) without the engine.</summary>
@@ -467,7 +536,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
     [ObservableProperty]
     public partial bool CanEdit { get; private set; }
 
-    internal void Update(Flow flow, RunRecord? lastRun, int errors, bool canEdit)
+    internal void Update(Flow flow, RunRecord? lastRun, int errors, bool canEdit, int callers, DateTimeOffset now)
     {
         _syncing = true;
         try
@@ -475,8 +544,16 @@ public sealed partial class FlowItemViewModel : ObservableObject
             Name = flow.Name;
             Glyph = FlowGlyph.Decode(FlowGlyph.CodeOf(flow));
             CanEdit = canEdit;
-            Shortcut = flow.Hotkeys.Count == 0 ? "No shortcut" : string.Join(", ", flow.Hotkeys);
-            LastRun = lastRun is null ? "Not run yet" : $"{Runs.RunWords.Chip(lastRun.Outcome)} · {lastRun.Started.ToLocalTime():g}";
+            _hotkeys = [.. flow.Hotkeys];
+            _steps = flow.Nodes.OfType<StepNode>().Count();
+            _folder = flow.Tray.Folder;
+            _lastRun = lastRun;
+            Shortcut = FlowRowFacts.Shortcut(_hotkeys);
+            ShortcutTip = FlowRowFacts.ShortcutTip(_hotkeys);
+            Steps = FlowRowFacts.Steps(_steps);
+            NotInTray = !flow.Tray.Show;
+            UsedBy = FlowRowFacts.UsedBy(callers);
+            UpdateTimes(now);
             HasProblems = errors > 0;
             Problems = errors switch { 0 => "", 1 => "1 problem", _ => $"{errors} problems" };
             IsEnabled = flow.Enabled;
@@ -495,11 +572,19 @@ public sealed partial class FlowItemViewModel : ObservableObject
         }
     }
 
+    internal void UpdateTimes(DateTimeOffset now)
+    {
+        _now = now;
+        LastRun = FlowRowFacts.LastRun(_lastRun, now);
+        OnPropertyChanged(nameof(Summary));
+    }
+
     /// <summary>YAML holds the code point in hex ("E7F4"); anything else falls back to the default.</summary>
     internal static string DecodeGlyph(string? code) => FlowGlyph.Decode(code);
 
     partial void OnIsEnabledChanged(bool value)
     {
+        OnPropertyChanged(nameof(Summary));
         OnPropertyChanged(nameof(RunOffReason));
         OnPropertyChanged(nameof(CanRun));
         OnPropertyChanged(nameof(RunTip));

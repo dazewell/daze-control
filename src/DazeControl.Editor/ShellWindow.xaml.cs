@@ -99,6 +99,11 @@ public sealed partial class ShellWindow : Window
         }
 
         Activated += OnFirstActivated;
+        Activated += (_, args) =>
+        {
+            if (args.WindowActivationState != WindowActivationState.Deactivated)
+                ViewModel.Flows.RefreshTimes(); // no timer ticks them (D-009)
+        };
         AppWindow.Closing += OnClosing;
         Closed += (_, _) =>
         {

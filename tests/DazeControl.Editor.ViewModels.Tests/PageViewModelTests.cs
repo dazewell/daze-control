@@ -248,8 +248,8 @@ public sealed class PageViewModelTests : IDisposable
         history = [Run(FlowOutcome.Failed, 0), Run(FlowOutcome.Succeeded, 5)];
         _engine.Raise(new PipeEvent { Kind = EventKinds.RunFinished, FlowId = "tv" });
 
-        Assert.StartsWith("Done ·", page.Items[1].LastRun, StringComparison.Ordinal);
-        Assert.Equal("Not run yet", page.Items[0].LastRun);
+        Assert.StartsWith("Done ", page.Items[1].LastRun, StringComparison.Ordinal);
+        Assert.Equal("No recent run", page.Items[0].LastRun);
     }
 
     [Fact]

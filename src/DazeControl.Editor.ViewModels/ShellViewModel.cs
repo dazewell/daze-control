@@ -165,6 +165,12 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
     public string Subtitle => Page.ToString();
 
+    partial void OnPageChanged(EditorPage value)
+    {
+        if (value == EditorPage.Flows)
+            Flows.RefreshTimes();
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(EngineMissing))]
     public partial bool EngineRunning { get; private set; }
