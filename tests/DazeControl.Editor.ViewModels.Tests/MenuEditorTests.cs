@@ -297,6 +297,7 @@ public sealed class MenuEditorTests : IDisposable
         Assert.Equal("Y+LB", EngineGamepadRecorder.Interpret(new PipeMessage { Ok = true, Yaml = " Y+LB " }).Chord);
         Assert.Equal(GamepadRecordStatus.NoController, EngineGamepadRecorder.Interpret(new PipeMessage { Error = "No controller found." }).Status);
         Assert.Equal(GamepadRecordStatus.TimedOut, EngineGamepadRecorder.Interpret(new PipeMessage { Error = "Timed out." }).Status);
+        Assert.Equal(GamepadTexts.OldEngine, EngineGamepadRecorder.Interpret(new PipeMessage { Error = "Unknown request \"record-gamepad\"." }).Error);
     }
 
     // ---- Template and trigger texts ----

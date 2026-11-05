@@ -107,7 +107,7 @@
                             <StackPanel x:Name="FlowsPage" Grid.Row="1" Spacing="4">
                                 <Grid Margin="0,0,0,12">
                                     <TextBlock Text="Flows" Style="{StaticResource TitleTextBlockStyle}" />
-                                    <SplitButton HorizontalAlignment="Right" Style="{StaticResource AccentSplitButtonStyle}"
+                                    <SplitButton HorizontalAlignment="Right" Background="{ThemeResource AccentFillColorDefaultBrush}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                                             IsEnabled="{x:Bind ViewModel.Flows.CanEdit, Mode=OneWay}" AutomationProperties.Name="New flow"
                                             Command="{x:Bind ViewModel.Flows.NewFlowCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="8">

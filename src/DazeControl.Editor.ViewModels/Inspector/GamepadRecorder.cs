@@ -56,6 +56,8 @@ public sealed class EngineGamepadRecorder(IEngineClient engine) : IGamepadRecord
         if (answer is { Ok: true, Yaml: { Length: > 0 } chord })
             return new(GamepadRecordStatus.Chord, chord.Trim());
         var error = answer.Error ?? "";
+        if (error.Contains("unknown request", StringComparison.OrdinalIgnoreCase))
+            return new(GamepadRecordStatus.Failed, Error: GamepadTexts.OldEngine);
         return error.Contains("no controller", StringComparison.OrdinalIgnoreCase) ? new(GamepadRecordStatus.NoController)
             : error.Contains("timed out", StringComparison.OrdinalIgnoreCase) ? new(GamepadRecordStatus.TimedOut)
             : new(GamepadRecordStatus.Failed, Error: error);
@@ -70,6 +72,7 @@ public static class GamepadTexts
     public const string TooFew = "Use at least two buttons, so a game doesn't start it by accident.";
     public const string EngineOff = "Start Daze Control to record controller buttons.";
     public const string TimedOut = "Nothing came through. Press the buttons together and try again.";
+    public const string OldEngine = "This version of Daze Control can't record controller buttons yet. Update it and try again.";
 
     public static string Clash(GamepadChord chord) => $"Another flow uses {chord.Display}. Try another one.";
 }
