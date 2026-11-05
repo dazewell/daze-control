@@ -443,6 +443,7 @@ Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 i
 | 2026-11-02 | 4328146 (M10 gate, Release AOT, exe 11.6 MB with Velopack) | no config, not installed (no update checks), 5 threads | 5.4 | 21.7 | 0 (600 s) |
 
 | 2026-11-04 | T12.1 probe (`spikes/GamepadProbe xi`, AOT exe 1.5 MB, not the engine) | XInput reader + device-interface and suspend/resume notifications, no XInput pad (Steam Controller puck present), 7 threads | 5.4 | 15.8 | 0 (600 s; 22.7 M cycles); an earlier run 16 (one tick) |
+| 2026-11-04 | same probe | Xbox pad (Flydigi Vader 4 Pro, wireless adapter, XInput) on and untouched, 20 Hz; the pad slept after ~4 min, so ~5.5 min polled (5493 polls) | 5.7 | 17.1 | 234 (600 s; 866 M cycles, ~50 µs per poll; ~410 if awake all along) |
 
 | 2026-11-04 | T12.7 (Release AOT, dev PC 4K at 175 %) | idle, no config chords, 9 threads | 6.3 | 20.8 | — |
 | 2026-11-04 | same | after 10 menus (list/grid, Esc, one pick; +20 s) | 12.7 (+6.3) | 27.6 | 0 (60 s, +80 s) |
