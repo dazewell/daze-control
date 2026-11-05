@@ -133,7 +133,7 @@ T16.4 edits the card/rows, T16.5 the command bar); `T16.4 + T16.5 → T16.6 → 
   Ungroup, Turn all on/off, Move up/down), context menu "Move to ›" / "New group…", Flow settings "Tray folder" → "Group", UX
   §5.4/§5.1/§5.9, FEATURES. Done when: tests for the rows and the menu actions; Narrator names ("Audio, group, 4 flows, expanded"),
   Expand/Collapse works; screenshots (expanded, collapsed, ungrouped mix); the tray menu on a sample file matches the list.
-- [ ] T16.4 Drag and drop, keyboard move, Undo (feat/m16-reorder, after T16.3, D-088). Files: `FlowCard.cs` (drag source, Alt+arrows),
+- [x] T16.4 Drag and drop, keyboard move, Undo (feat/m16-reorder, after T16.3, D-088). Files: `FlowCard.cs` (drag source, Alt+arrows),
   list host in `ShellWindow.xaml.cs`, `FlowsPageViewModel.cs` (Undo stack, UIA notification). Prototype first; if `ItemsRepeater` drag
   can't be made reliable record an X-xxx. Done when: drag a flow within, into and out of a group, a group as a block, Esc cancels,
   auto-scroll; Alt+↑/↓/← and "Move up/down" give the same results; Undo/Ctrl+Z restores; drag is off while sorted/filtered with the
