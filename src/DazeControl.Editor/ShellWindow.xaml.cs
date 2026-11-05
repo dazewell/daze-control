@@ -527,6 +527,17 @@ public sealed partial class ShellWindow : Window
                 case "OneFlowOnly":
                     item.Visibility = many ? Visibility.Collapsed : Visibility.Visible;
                     break;
+                case "FlowTrayShow" when item is ToggleMenuFlyoutItem show:
+                    show.IsEnabled = ViewModel.Flows.CanEdit;
+                    show.IsChecked = ViewModel.Flows.Items.Where(i => ids.Contains(i.Id)).All(i => !i.NotInTray);
+                    break;
+                case "FlowTrayLine" when item is ToggleMenuFlyoutItem line:
+                    line.IsEnabled = ViewModel.Flows.CanEdit;
+                    line.IsChecked = ViewModel.Flows.Items.Where(i => ids.Contains(i.Id)).All(i => i.LineAbove);
+                    break;
+                case "FlowDuplicate":
+                    item.IsEnabled = ViewModel.Flows.CanEdit;
+                    break;
                 case "FlowDelete":
                     item.Text = many ? $"Delete {ids.Count} flows" : "Delete";
                     item.IsEnabled = many ? ViewModel.Flows.CanEdit && ViewModel.Flows.DeleteOffReason(ids) is null : one?.CanDelete ?? false;
@@ -598,6 +609,25 @@ public sealed partial class ShellWindow : Window
     private void OnRunHostTapped(object sender, TappedRoutedEventArgs e) => e.Handled = true;
 
     /// <summary>The card's context menu: Add to desktop / Remove from desktop (D-049).</summary>
+    private void OnFlowDuplicateClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string id })
+            ViewModel.Flows.Duplicate(ViewModel.Flows.ActionIds(id));
+    }
+
+    // The toggle has already flipped when Click fires: IsChecked is the state the user asked for.
+    private void OnFlowTrayShowClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is ToggleMenuFlyoutItem { Tag: string id } item)
+            ViewModel.Flows.SetShowInTray(ViewModel.Flows.ActionIds(id), item.IsChecked);
+    }
+
+    private void OnFlowTrayLineClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is ToggleMenuFlyoutItem { Tag: string id } item)
+            ViewModel.Flows.SetLineAbove(ViewModel.Flows.ActionIds(id), item.IsChecked);
+    }
+
     private void OnFlowDesktopClick(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string id })

@@ -145,7 +145,7 @@ T16.4 edits the card/rows, T16.5 the command bar); `T16.4 + T16.5 → T16.6 → 
 - [x] T16.6 Multi-select and bulk actions (feat/m16-select, after T16.4, T16.5, D-090). Files: `FlowCard.cs`, list host, view model,
   command bar. Done when: tests for the selection rules (range over visible rows only, groups select members) and each bulk action
   as one Undo; bulk Delete InfoBar + reason line; a selection drags together; Narrator reads "3 selected"; every action reachable by keyboard.
-- [ ] T16.7 Duplicate, tray toggles, gate (feat/m16-duplicate, after T16.6). Files: context menu, `FlowListModel.Duplicate` wiring,
+- [x] T16.7 Duplicate, tray toggles, gate (feat/m16-duplicate, after T16.6; the live tray check and the §5.9 rows are open for the user). Files: context menu, `FlowListModel.Duplicate` wiring,
   UX §5.9 acceptance rows for M16, ARCHITECTURE (Flow list section), FEATURES, cut DESIGN to what is left. Done when: Duplicate
   clears shortcuts and lands after the original; "Show in tray menu" / "Line above in tray" toggles change the tray menu live
   (checked with the engine running); the §5.9 M16 rows are ticked or listed as open for the user.

@@ -408,6 +408,16 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
 - `--config <path>` makes the editor edit another file (tests, screenshots); its backups go to `backups/<file>/`
   next to it, and its single-instance names are scoped by path.
 
+## Flow list (M16, D-087..D-090)
+
+`FlowListModel` (`Editor.ViewModels/FlowList`, pure and unit-tested) reads and rewrites `config.yaml` `flows:` order and
+`tray.folder` / `tray.separator` / `tray.show`: `Rows` is the tray order (a group stands at its first visible member), `Move`,
+`SetGroup`, `MoveGroup`, `RenameGroup`, `Ungroup`, `Duplicate`, `MakeOrder` return a new `Configuration`; `DropMath` maps pointer
+positions to drop targets. `FlowsPageViewModel` is the view layer: sort/filter/search are view-only (Your order is the only editable
+view), every change goes through `Commit` (20-step Undo, restores order, enabled and tray settings), selection and bulk actions act on
+`ActionIds`. Sort, filter and collapsed groups live in `editor.json` `flowList`. No engine change: the engine rebuilds the tray from the
+saved file. Footprint: editor only, no timers.
+
 ## Adding a provider
 
 1. Add a descriptor in `Core/Catalog/` (id, glyph, title, params as `ParamSpec`, default timeout, resources).
