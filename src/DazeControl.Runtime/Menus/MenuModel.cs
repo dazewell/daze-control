@@ -130,9 +130,9 @@ public sealed class MenuModel : IDisposable
     /// <summary>Keyboard or Steam-layout move; false when dropped as Steam's echo of a pad move or when the menu is over.</summary>
     public bool KeyMove(MenuDirection direction) => Do(() =>
     {
-        LastInput = MenuInput.Keyboard;
         if (_lastPadMove == direction && _time.GetTimestamp() - _lastPadMoveAt < ToTicks(SteamEcho))
             return false;
+        LastInput = MenuInput.Keyboard;
         MoveFocus(direction);
         return true;
     });
@@ -315,7 +315,8 @@ public sealed class MenuModel : IDisposable
     {
         lock (_lock)
         {
-            if (_done)
+            // An input may have restarted the deadline after this callback was queued.
+            if (_done || _time.GetTimestamp() < _deadline)
                 return;
             Finish(new MenuOutcome(null, MenuCloseReason.TimedOut));
         }

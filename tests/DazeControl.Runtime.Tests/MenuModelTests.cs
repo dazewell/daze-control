@@ -281,6 +281,7 @@ public sealed class MenuModelTests : IDisposable
         Assert.Equal(1, m.Focus);
         _time.Advance(TimeSpan.FromMilliseconds(50));
         Assert.False(m.KeyMove(MenuDirection.Down)); // Steam's arrow for the same press
+        Assert.Equal(MenuInput.Pad, m.LastInput);
         Assert.Equal(1, m.Focus);
         Assert.True(m.KeyMove(MenuDirection.Up)); // another direction is a real key
         Assert.Equal(0, m.Focus);
@@ -302,5 +303,18 @@ public sealed class MenuModelTests : IDisposable
         Assert.Equal(MenuInput.Pad, m.LastInput);
         m.Hover(0);
         Assert.Equal(MenuInput.Mouse, m.LastInput);
+    }
+
+    [Fact]
+    public void StaleTimerCallbackAfterARestartDoesNotClose()
+    {
+        using var m = Menu(3, seconds: 30);
+        _time.Advance(TimeSpan.FromSeconds(29));
+        m.KeyMove(MenuDirection.Down); // deadline is now 59 s
+        _time.Advance(TimeSpan.FromSeconds(1));
+        // a callback queued for the old deadline runs late:
+        typeof(MenuModel).GetMethod("OnTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .Invoke(m, [null]);
+        Assert.Null(m.Outcome);
     }
 }
