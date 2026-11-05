@@ -860,6 +860,8 @@ public sealed partial class ShellWindow : Window
 
     private void OnResetPolicy(object sender, RoutedEventArgs e) => RowOf(sender).ResetPolicy();
 
+    private void OnResetOnly(object sender, RoutedEventArgs e) => RowOf(sender).ResetOnly();
+
     private void OnRemoveDefault(object sender, RoutedEventArgs e) => ViewModel.Settings.StepDefaults.Remove(RowOf(sender).StepId);
 
     private void OnOpenLogsFolder(object sender, RoutedEventArgs e) => OpenFolder(ViewModel.Settings.LogsFolder);

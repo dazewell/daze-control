@@ -403,6 +403,17 @@
                                                                     <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Reset" Tag="{x:Bind}" Click="OnResetPolicy"
                                                                             AutomationProperties.Name="Reset if it fails to the built-in value" />
                                                                 </Grid>
+                                                                <Grid ColumnSpacing="8" Visibility="{x:Bind HasOnly}">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <ComboBox Header="Only if" HorizontalAlignment="Stretch" PlaceholderText="Always"
+                                                                              AutomationProperties.Name="Only if" ItemsSource="{x:Bind OnlyOptions}"
+                                                                              SelectedIndex="{x:Bind OnlyIndex, Mode=TwoWay}" />
+                                                                    <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Reset" Tag="{x:Bind}" Click="OnResetOnly"
+                                                                            AutomationProperties.Name="Reset only if to the built-in value" />
+                                                                </Grid>
                                                             </StackPanel>
                                                         </Flyout>
                                                     </Button.Flyout>

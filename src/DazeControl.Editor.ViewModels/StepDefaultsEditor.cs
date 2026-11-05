@@ -130,6 +130,8 @@ public sealed partial class StepDefaultRow : ObservableObject
         StepId = item.Step;
         Title = $"{item.Area} › {item.Title}";
         Glyph = item.Glyph;
+        var conditions = ProviderCatalog.Find(item.Step)?.Conditions ?? [];
+        OnlyOptions = conditions.Count == 0 ? [] : ["Always", .. conditions.Select(c => c.Label)];
     }
 
     public string StepId { get; }
@@ -161,6 +163,15 @@ public sealed partial class StepDefaultRow : ObservableObject
     [ObservableProperty]
     public partial int PolicyIndex { get; set; } = -1;
 
+    /// <summary>"Always" then the type's conditions; empty when the type has none.</summary>
+    public IReadOnlyList<string> OnlyOptions { get; }
+
+    public bool HasOnly => OnlyOptions.Count > 0;
+
+    /// <summary>-1 = not set; 0 = Always, written as <c>only: always</c>; then the conditions.</summary>
+    [ObservableProperty]
+    public partial int OnlyIndex { get; set; } = -1;
+
     public string EditName => $"Edit defaults for {Title}";
 
     public string RemoveName => $"Remove defaults for {Title}";
@@ -174,13 +185,14 @@ public sealed partial class StepDefaultRow : ObservableObject
             RetryCount = value.RetryCount ?? double.NaN;
             RetryDelaySeconds = value.RetryDelay?.TotalSeconds ?? double.NaN;
             PolicyIndex = value.OnFailure is { } p ? (int)p : -1;
+            OnlyIndex = value.Only is null ? -1 : Inspector.InspectorViewModel.OnlyIndex(ProviderCatalog.Find(StepId)?.Conditions ?? [], value.Only);
             CanEdit = canEdit;
         }
         finally
         {
             _syncing = false;
         }
-        Summary = Describe(value);
+        Summary = Describe(value, StepId);
         UsedBy = Used(usage);
     }
 
@@ -191,6 +203,14 @@ public sealed partial class StepDefaultRow : ObservableObject
     public void ResetRetryDelay() => RetryDelaySeconds = double.NaN;
 
     public void ResetPolicy() => PolicyIndex = -1;
+
+    public void ResetOnly() => OnlyIndex = -1;
+
+    partial void OnOnlyIndexChanged(int value) => Push(d => d with
+    {
+        Only = value < 0 || value >= OnlyOptions.Count ? null
+            : Inspector.InspectorViewModel.OnlyAt(ProviderCatalog.Find(StepId)?.Conditions ?? [], value) ?? StepNode.OnlyAlways,
+    });
 
     partial void OnTimeoutSecondsChanged(double value) => Push(d => d with { Timeout = ToTime(value, StepDefaultsEditor.MaxTimeoutSeconds, minimum: 0.1) });
 
@@ -223,7 +243,7 @@ public sealed partial class StepDefaultRow : ObservableObject
     };
 
     /// <summary>"Give up after 30 s · Try again 2 times · Skip what depends on it".</summary>
-    internal static string Describe(StepDefault value)
+    internal static string Describe(StepDefault value, string? stepId = null)
     {
         var parts = new List<string>();
         if (value.Timeout is { } t)
@@ -234,6 +254,8 @@ public sealed partial class StepDefaultRow : ObservableObject
             parts.Add($"Wait {RunWords.Seconds(d)} between tries");
         if (value.OnFailure is { } p)
             parts.Add(Policy(p));
+        if (value.Only is { } only && stepId is not null)
+            parts.Add(only == StepNode.OnlyAlways ? "Always" : "Only if " + CanvasNodeViewModel.OnlyLabel(stepId, only));
         return string.Join(" · ", parts);
     }
 

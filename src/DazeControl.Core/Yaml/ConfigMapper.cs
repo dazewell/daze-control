@@ -34,6 +34,7 @@ public static class ConfigMapper
                 Timeout = Duration.Format(d.Value.Timeout),
                 Retry = RetryToDocument(d.Value.RetryCount, d.Value.RetryDelay),
                 OnFailure = d.Value.OnFailure is { } policy ? EnumText(policy) : null,
+                Only = d.Value.Only,
             })),
         },
         Library = config.Library == Library.Empty ? null : new LibraryDocument
@@ -211,7 +212,14 @@ public static class ConfigMapper
                 }
                 FailurePolicy? onFailure = TryEnum(document.OnFailure, path + ".onFailure", FailurePolicy.Stop, out var policy) && document.OnFailure is not null
                     ? policy : null;
-                var entry = new StepDefault { Timeout = timeout, RetryCount = count, RetryDelay = delay, OnFailure = onFailure };
+                var only = string.IsNullOrWhiteSpace(document.Only) ? null : document.Only.Trim();
+                if (only is not null && only != StepNode.OnlyAlways && ProviderCatalog.Find(id)!.Conditions.All(c => c.Id != only))
+                {
+                    var ids = ProviderCatalog.Find(id)!.Conditions.Select(c => c.Id).Append(StepNode.OnlyAlways);
+                    Error(path + ".only", $"Use one of: {string.Join(", ", ids)}.");
+                    only = null;
+                }
+                var entry = new StepDefault { Timeout = timeout, RetryCount = count, RetryDelay = delay, OnFailure = onFailure, Only = only };
                 if (!entry.IsEmpty)
                     entries.Add(KeyValuePair.Create(id, entry));
             }

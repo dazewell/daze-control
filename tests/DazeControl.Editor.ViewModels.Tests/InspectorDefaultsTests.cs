@@ -153,4 +153,30 @@ public sealed class InspectorDefaultsTests : IDisposable
         _canvas.AddFallback("bt", "notify");
         Assert.Equal(FailurePolicy.Skip, Step("bt").OnFailure); // inherited Stop: Skip is set on the step
     }
+
+    [Fact]
+    public void OnlyIfFollowsTheTypeDefaultAlwaysOverridesItAndResetReturns()
+    {
+        SetDefault("bluetooth.connect", new StepDefault { Only = "disconnected" });
+        _canvas.Select("bt");
+        Assert.Equal(1, _inspector.OnlyIfIndex); // follows the default, not set on the step
+        Assert.False(_inspector.OnlyIfIsSet);
+        Assert.Equal("Always", _inspector.OnlyIfOptions[0]);
+        Assert.Contains("it isn't connected", _inspector.ResetOnlyIfTip.Replace("’", "'"));
+        Assert.Contains(_canvas.Find("bt")!.Badges, b => b.Text == "Only if…" && b.Inherited);
+
+        _inspector.OnlyIfIndex = 0;
+        Assert.Equal("always", Step("bt").Only); // explicit: still runs
+        Assert.True(_inspector.OnlyIfIsSet);
+
+        _inspector.ResetOnlyIfCommand.Execute(null);
+        Assert.Null(Step("bt").Only);
+        Assert.Equal(1, _inspector.OnlyIfIndex);
+
+        SetDefault("bluetooth.connect", null);
+        _canvas.Select("bt");
+        Assert.Equal("Always (default)", _inspector.OnlyIfOptions[0]);
+        _inspector.OnlyIfIndex = 0;
+        Assert.Null(Step("bt").Only); // no default to override: no key
+    }
 }

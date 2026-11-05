@@ -239,7 +239,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             // Run a flow shows the called flow's own icon (DESIGN §6).
             Glyph = called is not null ? FlowGlyph.Decode(FlowGlyph.CodeOf(called)) : FlowItemViewModel.DecodeGlyph(descriptor?.Glyph ?? "E9CE");
             Count = "";
-            if (step.Only is { } only && only != StepNode.OnlyAlways)
+            if (effective!.Only is { } only && only != StepNode.OnlyAlways)
                 badges.Add(new Badge("", "Only if…", step.Only is null));
             if (effective!.RetryCount > 0)
                 badges.Add(new Badge("", $"×{effective.RetryCount}", step.RetryCount is null));
@@ -260,8 +260,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             parts.Add($"Runs together, {Count}");
         if (waitsFor.Length > 0)
             parts.Add($"Waits for {waitsFor}");
-        if (node is StepNode { Only: { } cond } && cond != StepNode.OnlyAlways)
-            parts.Add($"Only if {OnlyLabel(node as StepNode)}");
+        if (node is StepNode onlyStep && effective?.Only is { } cond && cond != StepNode.OnlyAlways)
+            parts.Add($"Only if {OnlyLabel(onlyStep.Step, cond)}");
         if (MayFail)
             parts.Add("May fail");
         if (hasProblem)
@@ -271,11 +271,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     }
 
     /// <summary>The chosen condition in the user's words ("it isn't connected"), else the id.</summary>
-    internal static string OnlyLabel(StepNode? step)
+    internal static string OnlyLabel(string stepId, string id)
     {
-        if (step?.Only is not { } id)
-            return "";
-        var label = ProviderCatalog.Find(step.Step)?.Conditions.FirstOrDefault(c => c.Id == id)?.Label ?? id;
+        var label = ProviderCatalog.Find(stepId)?.Conditions.FirstOrDefault(c => c.Id == id)?.Label ?? id;
         return label.Length > 0 ? char.ToLowerInvariant(label[0]) + label[1..] : label;
     }
 

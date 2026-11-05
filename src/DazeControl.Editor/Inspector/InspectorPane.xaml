@@ -287,6 +287,14 @@
                               SelectedIndex="{x:Bind ViewModel.OnlyIfIndex, Mode=TwoWay}" AutomationProperties.Name="Only if"
                               IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" />
                     <TextBlock Text="Otherwise this step is skipped and the flow carries on." Style="{StaticResource SettingsCardDescription}" />
+                    <HyperlinkButton Command="{x:Bind ViewModel.ResetOnlyIfCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetOnlyIfTip, Mode=OneWay}"
+                                     Visibility="{x:Bind local:InspectorPane.ShowSet(ViewModel.IsStep, ViewModel.OnlyIfIsSet), Mode=OneWay}"
+                                     AutomationProperties.Name="Reset Only if">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE777;" FontSize="12" />
+                            <TextBlock Text="Reset" Style="{StaticResource SettingsCardDescription}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        </StackPanel>
+                    </HyperlinkButton>
                 </StackPanel>
 
                 <!-- If it fails (UX §5.4): hover or focus previews what wouldn't run. -->

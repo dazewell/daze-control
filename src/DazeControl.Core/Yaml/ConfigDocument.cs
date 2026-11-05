@@ -36,6 +36,8 @@ public sealed class StepDefaultDocument
     public RetryDocument? Retry { get; set; }
 
     public string? OnFailure { get; set; }
+
+    public string? Only { get; set; }
 }
 
 [YamlSerializable]
