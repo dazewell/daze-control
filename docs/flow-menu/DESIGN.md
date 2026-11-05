@@ -213,7 +213,7 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
 
 ### 3.8 Footprint budget
 - No flow with a chord, no menu shown: unchanged (0 ms CPU / 10 min, nothing loaded).
-- Chords listening, no pad on: 0 ms CPU / 10 min, ≤ +0.5 MB private.
+- Chords listening, no pad on: 0 ms CPU / 10 min, ≤ +1 MB private (measured +0.8, XInput + cfgmgr32 loaded).
 - Pad on, untouched: GameInput path 0 ms; XInput path ≤ 300 ms CPU / 10 min (user-accepted, D-056).
 - After a menu has shown: within D-036's +4.5 MB (shares the pop-up's D2D/DWrite load), flat over 10 menus.
 - Menu open: ≤ 60 Hz redraws only on change; 0 when nothing moves.

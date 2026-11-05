@@ -399,7 +399,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   released-since-open, 1–9, close timer restarts on input and ends as cancel, last pick focused first, Steam dedupe
   (key within 100 ms of the same pad move dropped); chord fires on first release only for the exact set, never inside
   a longer chord; table diff on reload, Pause, `record-gamepad` pausing chords.
-- [ ] T12.6 Engine: `GamepadSource` (S1's backend) + `DeviceArrival` + suspend/resume, loaded only when needed; ops
+- [x] T12.6 Engine: `GamepadSource` (S1's backend) + `DeviceArrival` + suspend/resume, loaded only when needed; ops
   `devices gamepads`, `record-gamepad`; `dctl devices gamepads` (feat/m12-gamepad). Done when: unit tests on the seams
   (no chord → never started; last pad gone → stopped; `record-gamepad` with no chord in the config starts the source,
   records the first chord and releases it on answer, timeout and client gone; `devices gamepads` lists a pad with no
@@ -408,6 +408,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   §3.8 measured (no chord; chord + no pad; pad on) and recorded; S1's leftovers: pad on and untouched with the pad
   kept awake ≤ 300 ms over 10 min (S1: ~410 ms at 20 Hz, so 10 Hz while only chords listen, D-056), reads under a
   full-screen game, sleep/resume only with the user's OK.
+  **Done 2026-11-04 (#68), live pad legs deferred to T12.10:** seams and ops unit-tested (`GamepadServiceTests`), `devices gamepads`, `record-gamepad` and the menu's pad feed wired, no-pad footprint rows recorded (ARCHITECTURE → Footprint). No pad was powered during the session, so NOT run live: a real chord running a flow ("Controller · View + Menu"), the menu driven by a pad, pad-on CPU at 10 Hz, reads under a full-screen game, sleep/resume. T12.10's acceptance does them with the user at the pad.
 - [x] T12.7 Engine: `AcrylicSurface` cut from `RunPopup`, `FlowMenu` (list, grid, large, focus visual, hint row,
   close countdown, empty state), `MenuKeys`, mouse hook, placement, full-screen check, animation and high contrast
   (feat/m12-menu-window, DESIGN §3.3, §4). Done when: RunPopup unchanged (screenshots before/after); screenshots of

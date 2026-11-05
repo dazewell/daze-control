@@ -27,7 +27,7 @@ public sealed record PadInfo(int Slot, string? Battery);
 public sealed class PadPoller(IXInput api)
 {
     public const int Slots = 4;
-    public static readonly TimeSpan SlowInterval = TimeSpan.FromMilliseconds(50);
+    public static readonly TimeSpan SlowInterval = TimeSpan.FromMilliseconds(100); // 10 Hz while only chords listen (S1: 20 Hz ~410 ms / 10 min awake)
     public static readonly TimeSpan FastInterval = TimeSpan.FromMilliseconds(16);
 
     private const byte TriggerOn = 100;

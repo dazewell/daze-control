@@ -13,7 +13,7 @@ public interface IPadBackend : IDisposable
 
     void Halt();
 
-    /// <summary>60 Hz while a menu is open, 20 Hz otherwise.</summary>
+    /// <summary>60 Hz while a menu is open, 10 Hz otherwise (D-056).</summary>
     void SetFast(bool fast);
 
     /// <summary>The pads now on; one enumeration, the reader needn't run.</summary>
