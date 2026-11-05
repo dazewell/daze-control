@@ -17,6 +17,9 @@ public static class BuiltInProviders
     /// <summary>What <c>dctl devices</c> and <c>dctl capture-display-layout</c> read.</summary>
     public static IDeviceQueries Devices() => new SystemDevices(new CcdDisplays(), new AdbProcess(), new CfgMgrPairedBluetooth());
 
+    /// <summary>The read-only fact probes behind "Only if" and the check steps (D-081).</summary>
+    public static IReadOnlyList<IFactProbe> Probes() => [new BluetoothConnectedProbe(new SystemBluetoothState(new CfgMgrPairedBluetooth()))];
+
     public static IReadOnlyList<IStepProvider> Create(TimeProvider time, INotifier notifier)
     {
         var flags = new FlagStore();
@@ -39,6 +42,7 @@ public static class BuiltInProviders
             new AudioMuteProvider(audio),
             new BluetoothConnectProvider(bluetooth),
             new BluetoothDisconnectProvider(bluetooth),
+            new BluetoothCheckProvider(new BluetoothConnectedProbe(new SystemBluetoothState(new CfgMgrPairedBluetooth()))),
             new DisplayTopologyProvider(displays),
             new DisplayOutputsProvider(displays),
             new DisplayLayoutProvider(displays),

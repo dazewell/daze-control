@@ -50,3 +50,56 @@ public sealed class BluetoothDisconnectProvider(IBluetoothAudio bluetooth) : ISt
     public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken) =>
         bluetooth.DisconnectAsync(BluetoothSteps.Device(context), cancellationToken);
 }
+
+/// <summary>Whether a paired device is connected right now; null when Windows doesn't say (D-081).</summary>
+public interface IBluetoothState
+{
+    Task<bool?> IsConnectedAsync(BluetoothDevice device, CancellationToken cancellationToken);
+}
+
+/// <summary>The state <c>dctl devices bluetooth</c> and the picker show (D-052): the same queries, read on demand.</summary>
+public sealed class SystemBluetoothState(IPairedBluetooth paired) : IBluetoothState
+{
+    public async Task<bool?> IsConnectedAsync(BluetoothDevice device, CancellationToken cancellationToken)
+    {
+        var endpoints = await KsBluetoothAudio.ListAsync(cancellationToken).ConfigureAwait(false);
+        var list = BluetoothList.Merge(await Task.Run(paired.Present, cancellationToken).ConfigureAwait(false), endpoints);
+        var name = KsBluetoothAudio.Format(KsBluetoothAudio.Hex(device.Address));
+        return list.FirstOrDefault(d => string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase))?.State switch
+        {
+            "connected" => true,
+            "not connected" => false,
+            _ => null,
+        };
+    }
+}
+
+/// <summary>Fact <c>bluetooth.connected</c> for the step's <c>device</c>: backs "Only if" on Connect / Disconnect and the check step.</summary>
+public sealed class BluetoothConnectedProbe(IBluetoothState state) : IFactProbe
+{
+    public string Fact => Core.Catalog.ProviderCatalog.BluetoothConnected;
+
+    public async Task<FactReading> ReadAsync(StepContext context, CancellationToken cancellationToken)
+    {
+        var device = BluetoothSteps.Device(context);
+        var title = BluetoothSteps.Title(device);
+        // Unknown means "cannot tell": throw, so a condition runs the step and a check says so (D-081).
+        var connected = await state.IsConnectedAsync(device, cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidOperationException($"Windows doesn't say whether {title} is connected.");
+        return new FactReading(connected, connected ? $"{title} is connected" : $"{title} isn't connected");
+    }
+}
+
+/// <summary><c>bluetooth.check</c>: fails unless the device is (or isn't) connected, so failure edges branch (D-081).</summary>
+public sealed class BluetoothCheckProvider(IFactProbe probe) : IStepProvider
+{
+    public string Id => "bluetooth.check";
+
+    public async Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
+    {
+        var expected = context.Text("is") != "disconnected";
+        var reading = await probe.ReadAsync(context, cancellationToken).ConfigureAwait(false);
+        if (reading.Value != expected)
+            throw new StepFailedException(reading.Text + ".");
+    }
+}

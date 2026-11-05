@@ -64,7 +64,8 @@ internal sealed class EngineHost : IDisposable
     private readonly List<(Guid RunId, string FlowId)> _running = [];
     private string? _lastProblem;
 
-    public EngineHost(EnginePaths paths, Func<INotifier, IEnumerable<IStepProvider>> providers, IDeviceQueries? devices = null)
+    public EngineHost(EnginePaths paths, Func<INotifier, IEnumerable<IStepProvider>> providers, IDeviceQueries? devices = null,
+        IReadOnlyList<IFactProbe>? probes = null)
     {
         _window = new MessageWindow();
         _tray = new TrayIcon(_window, AppInfo.ProductName, BuildMenu);
@@ -96,7 +97,7 @@ internal sealed class EngineHost : IDisposable
         stepProviders.Add(new FlowProvider(calls));
         // menu.show (M12, D-055): one menu at a time; none over a full-screen game (#32); the window answers on the message thread.
         stepProviders.Add(new MenuProvider(new GatedMenuPresenter(new FullScreenGuardPresenter(_menu, FullScreen.OverGame, Log.Info)), calls));
-        var runner = new FlowRunner(stepProviders, TimeProvider.System, locks, events: OnRunEvent) { Flows = calls };
+        var runner = new FlowRunner(stepProviders, TimeProvider.System, locks, events: OnRunEvent, probes: probes) { Flows = calls };
         _launcher = new FlowLauncher(runner, _history);
         calls.Launcher = _launcher;
         _launcher.RunCompleted += OnRunCompleted;
@@ -112,7 +113,7 @@ internal sealed class EngineHost : IDisposable
             EngineController.CreateDryRunner(TimeProvider.System), new Autostart(),
             new EngineInfo(version, Environment.ProcessId, exe, paths.Config, paths.ConfigArgument), Log.Info, devices,
             // Step tests share the providers and locks but raise no run events: no pop-up, no history.
-            new FlowRunner(stepProviders, TimeProvider.System, locks) { Flows = calls },
+            new FlowRunner(stepProviders, TimeProvider.System, locks, probes: probes) { Flows = calls },
             FlowShortcuts.Create(paths.ConfigArgument, EnginePaths.DefaultConfig, Log.Info), _gamepads);
         _controller.RunRefused += refusal => _window.Post(() => ShowRefusal(refusal));
         _controller.HotkeyRecordingChanged += on => _window.Post(() => OnHotkeyRecording(on));

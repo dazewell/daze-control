@@ -755,7 +755,7 @@ public sealed class FlowCanvasViewModelTests : IDisposable
 
         palette.Query = "blue conn";
         var group = Assert.Single(palette.Groups);
-        Assert.Equal(["bluetooth.connect", "bluetooth.disconnect"], group.Items.Select(i => i.Step));
+        Assert.Equal(["bluetooth.connect", "bluetooth.disconnect", "bluetooth.check"], group.Items.Select(i => i.Step));
         Assert.Equal("Connect, Bluetooth", group.Items[0].Name);
 
         palette.Query = "zzz";
