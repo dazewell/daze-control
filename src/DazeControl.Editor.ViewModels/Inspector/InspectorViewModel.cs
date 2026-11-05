@@ -1113,7 +1113,10 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     private void OnCanvasChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(FlowCanvasViewModel.SelectedIds))
+        {
+            ManyProblem = ""; // a refusal belongs to the selection it was for
             Load();
+        }
         else if (e.PropertyName == nameof(FlowCanvasViewModel.CanEdit))
             OnPropertyChanged(nameof(CanEdit));
     }

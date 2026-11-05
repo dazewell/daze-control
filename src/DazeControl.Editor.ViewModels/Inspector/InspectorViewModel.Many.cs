@@ -162,10 +162,25 @@ public sealed partial class InspectorViewModel
     {
         if (_loading || _bulk is not { } bulk || !CanEdit)
             return;
-        var result = BulkEdit.Apply(_session, _canvas, reset ? bulk.Reset(field) : bulk.Set(field, value!));
+        var change = reset ? bulk.Reset(field) : bulk.Set(field, value!);
+        if (field == BulkField.Retries && !reset)
+            change = WithRetryDelays(bulk, change, (int)value!);
+        var result = BulkEdit.Apply(_session, _canvas, change);
         ManyProblem = result.Problems.Count > 0 ? result.Problems[0].Message : "";
         if (!result.Applied)
             Load(); // put the controls back to what the steps still say
+    }
+
+    /// <summary>As for one step (OnRetriesChanged): no tries means no delay; a first retry waits 1 s unless the type's default has a delay.</summary>
+    private Func<Flow, Flow> WithRetryDelays(BulkEdit bulk, Func<Flow, Flow> change, int count)
+    {
+        var ids = bulk.Nodes.Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
+        return flow => change(flow) is var next && next == flow ? flow : next with
+        {
+            Nodes = [.. next.Nodes.Select(n => n is StepNode s && ids.Contains(s.Id)
+                ? s with { RetryDelay = count == 0 ? null : s.RetryDelay ?? (TypeDefault(s.Step)?.RetryDelay is null ? TimeSpan.FromSeconds(1) : null) }
+                : n)],
+        };
     }
 
     partial void OnManyPolicyIndexChanged(int value)
@@ -188,7 +203,12 @@ public sealed partial class InspectorViewModel
 
     partial void OnManyTimeoutChanged(double value)
     {
-        if (!double.IsNaN(value) && value > 0)
+        if (double.IsNaN(value))
+            return;
+        // 0 clears the limit, as for one step.
+        if (value <= 0)
+            ApplyMany(BulkField.Timeout, null, reset: true);
+        else
             ApplyMany(BulkField.Timeout, TimeSpan.FromMilliseconds(Math.Round(value * 1000)));
     }
 

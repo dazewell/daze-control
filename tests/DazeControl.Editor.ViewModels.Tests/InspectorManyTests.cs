@@ -139,6 +139,26 @@ public sealed class InspectorManyTests : IDisposable
     }
 
     [Fact]
+    public void FirstRetryWaitsOneSecondAndNoRetriesDropTheDelay()
+    {
+        _canvas.SelectOnly(["w1", "w2"]);
+        _inspector.ManyRetries = 2;
+        Assert.Equal(TimeSpan.FromSeconds(1), Step("w1").RetryDelay);
+        _inspector.ManyRetries = 0;
+        Assert.Null(Step("w2").RetryDelay);
+    }
+
+    [Fact]
+    public void ZeroTimeoutClearsItOnAll()
+    {
+        _canvas.SelectOnly(["w1", "w2"]);
+        _inspector.ManyTimeout = 9;
+        _inspector.ManyTimeout = 0;
+        Assert.Null(Step("w1").Timeout);
+        Assert.Null(Step("w2").Timeout);
+    }
+
+    [Fact]
     public void OnlyIfIsSetOnAllStepsOfOneType()
     {
         _canvas.Edit(f => f with { Nodes = [.. f.Nodes, Step("bt") with { Id = "bt2" }] });
