@@ -21,6 +21,64 @@ Notes for next agent:
 
 ---
 
+## M14 Step defaults, checks and "Only if" (user, 2026-11-04) — before the remaining plan (M12 T12.9/T12.10, T10.5, M13 gate)
+Designed 2026-11-04: docs/step-settings/DESIGN.md, D-080..D-082. One PR per task, no version bumps (D-079); every task
+moves its as-built facts from DESIGN into ARCHITECTURE/UX/FEATURES and cuts them there (D-053). Opus medium each.
+**Order and parallelism** (files that clash are named; "after" = same files, merge it first):
+`T14.1 → T14.2`; `T14.1 → T14.3 → T14.4` (editor, parallel with T14.2); `T14.2 → T14.5` (Core/Runtime again);
+`T14.5 → T14.6, T14.8, T14.9` (providers: separate folders, all three add lines to `Core/Catalog/ProviderCatalog.cs` and
+`Providers/BuiltInProviders.cs`: take both sides on conflict); `T14.4 + T14.5 → T14.7` (editor); `T14.7 → T14.10`.
+Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
+
+- [ ] T14.1 Defaults model: Core (feat/m14-defaults-core, D-080). Files: `Core/Model/Node.cs` (`OnFailure?`, retry as two nullable
+  fields), `Model/Configuration.cs` (`Settings.StepDefaults`), `Yaml/ConfigDocument` + `ConfigMapper` (read/save,
+  explicit `stop` kept, null omitted), `Validation/ConfigValidator` (A4 table), new `Model/StepSettings.Resolve` and
+  `StepDefaults.Apply`. Done when: Core tests cover the precedence table per field (own > type > built-in; count set,
+  delay inherited), YAML round-trip of A2's sample, bad entries → Problems with the bad part dropped, and `full.yaml`
+  + `samples/user-config.yaml` load and save byte-identical; all existing tests pass unchanged except the ones that
+  assert `OnFailure`/`Retry` shapes.
+- [ ] T14.2 Defaults reach runs (feat/m14-defaults-runtime, after T14.1). Files: `Runtime/FlowRunner.cs` (apply defaults first in
+  `RunCoreAsync`, captured with the library at trigger), `Engine` run/test-step/dry-run entry, `Ipc` (config text already carries
+  settings; check). Done when: Runtime tests: a type default timeout of 1 s fails a hanging step at 1 s, an explicit step timeout
+  wins, a retry default retries, a default `skip` skips dependents; a default edited mid-run changes only the next run (D-021);
+  `dctl run` against a config with `stepDefaults` (fake or `wait`/`notify` steps) shows the effect; dry run and "Test this step"
+  use the on-screen defaults. Idle gate unchanged.
+- [ ] T14.3 Settings › Step defaults card (feat/m14-defaults-settings, after T14.1). Files: Settings page + `SettingsViewModel`,
+  new `StepDefaultsEditor` service (add/edit/remove entry, "Used by n steps in m flows" counts) in `Editor.ViewModels`, UX §5.7
+  strings. Done when: view-model tests for add/edit/remove/counts, autosave writes `stepDefaults` and nothing else, a screenshot
+  of the card (empty and with two rows), keyboard and Narrator names checked.
+- [ ] T14.4 Inspector: Default/Set rows, Reset, "Use these for all … steps…" (feat/m14-defaults-inspector, after T14.3: uses its service). Files:
+  `Editor.ViewModels/Inspector*`, the Timing and "If it fails" XAML, canvas chips (effective values, dimmer when inherited),
+  the fallback menu's Stop→Skip switch (uses effective policy). Done when: view-model tests: Reset clears one field; a changed
+  default moves inherited steps and not set ones; "Use for all" shows n steps and has Undo; D-059 switch sets Skip when the
+  inherited policy is Stop; screenshots of a step with inherited and set rows.
+- [ ] T14.5 Conditions core + runtime (feat/m14-conditions-core, after T14.2: same Core/Runtime files). Files: `ProviderDescriptor.Conditions`,
+  `IFactProbe` (`Runtime/Providers`), `StepNode.Only` + YAML + validator (B7), `FlowRunner` (probe after the lock, once, inside the
+  timeout; cannot tell → run; skip = Succeeded + note), `NodeResult` note through events, IPC and run history, dry-run assumption,
+  "Test this step" answer. Fake probe + fake provider only. Done when: Runtime tests for B4 (unmet → skipped with note and `success`
+  dependents run, `failure` edge doesn't fire, flow Succeeded; probe throws → step runs; retry doesn't re-probe; card member), a
+  Core round-trip with `only: always`, old run-history files still read; `dctl run --dry-run` shows normal results.
+- [ ] T14.6 Bluetooth condition + check (feat/m14-bluetooth-check, after T14.5). Files: `Providers/Bluetooth` (probe `bluetooth.connected` from the
+  picker's device state), `bluetooth.check`, `Conditions` on connect/disconnect, catalog entries. Done when: provider tests with the
+  fake query; on the dev PC (read-only) `dctl run` of a one-step check flow reports connected / not connected for the Technics
+  library entry in < 1 s. A live Connect/Disconnect is not run without asking the user.
+- [ ] T14.7 Editor for conditions and checks (feat/m14-conditions-editor, after T14.4 and T14.5). Files: inspector "Only if" row, palette entries,
+  "If it isn't" label, canvas chip and condition-skipped dashed ring + caption, Runs bar and log line, pop-up variant of #48 for checks,
+  "Test this step" Yes/No answer, UX §5.7 strings. Done when: view-model tests (row choices come from `Conditions`, "Always" stores
+  or removes the key per B6, relabel for check steps), screenshots of an `only` chip, a skipped step after a run, and a check with a
+  fallback; high contrast reads without colour.
+- [ ] T14.8 Audio, program, service and file checks (feat/m14-checks-a, after T14.5). Files: `Providers/Audio`, `Providers/Process`,
+  `Providers/Service`, new `Providers/File`, catalog entries (B5 rows). Done when: provider tests with fakes for each probe and
+  `Conditions` (`notDefault`, `notRunning`, `stopped`/`running`), `file.check` exists/missing on a temp file, descriptor-has-one-
+  implementation test passes, a dry run of each.
+- [ ] T14.9 Display and Android checks, optional (feat/m14-checks-b, after T14.5). Files: `Providers/Display` (reuse `DisplayCheck`, D-077),
+  `Providers/Android`; catalog. Done when: fake tests; `display.check` on the dev PC reports the current layout match without changing
+  the screens (read-only); `android.check` only behind an adb already running (no new process on a quiet PC, or noted in
+  FEATURES).
+- [ ] T14.10 `only` in step defaults (feat/m14-only-defaults, after T14.7). Files: `StepDefaults`/validator/mapper (`only`), Settings card row,
+  inspector row state (Default/Set). Done when: `bluetooth.connect: { only: disconnected }` skips a connected Connect, a step with
+  `only: always` still runs, Reset returns to the default, YAML round-trip.
+
 ## M13 fixes (user, 2026-11-03, v0.29.0 feedback) — first, before the remaining M13 tasks
 Designed 2026-11-03 (PR: docs/m13-fixes-plan): D-074..D-077, X-008, X-009, UX §5.1/§5.2/§5.7 #66–#70 "M13 fixes"
 notes. User answers (2026-11-03): right-drag is fine (it pans only where there's room to scroll; the user misread
