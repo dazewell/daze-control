@@ -22,7 +22,7 @@ Notes for next agent:
 ---
 
 ## M14 Step defaults, checks and "Only if" (user, 2026-11-04) — before the remaining plan (M12 T12.9/T12.10, T10.5, M13 gate)
-Designed 2026-11-04: docs/step-settings/DESIGN.md, D-080..D-082. One PR per task, no version bumps (D-079); every task
+Designed 2026-11-04: docs/step-settings/DESIGN.md, D-080..D-083. One PR per task, no version bumps (D-079); every task
 moves its as-built facts from DESIGN into ARCHITECTURE/UX/FEATURES and cuts them there (D-053). Opus medium each.
 **Order and parallelism** (files that clash are named; "after" = same files, merge it first):
 `T14.1 → T14.2`; `T14.1 → T14.3 → T14.4` (editor, parallel with T14.2); `T14.2 → T14.5` (Core/Runtime again);
@@ -78,6 +78,13 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
 - [ ] T14.10 `only` in step defaults (feat/m14-only-defaults, after T14.7). Files: `StepDefaults`/validator/mapper (`only`), Settings card row,
   inspector row state (Default/Set). Done when: `bluetooth.connect: { only: disconnected }` skips a connected Connect, a step with
   `only: always` still runs, Reset returns to the default, YAML round-trip.
+
+- [ ] T14.11 Drop on the left third: "Run before" (feat/m14-run-before, D-083, DESIGN Part C; independent of T14.1–T14.10). Files:
+  `Core/Layout/FlowEdits.cs` (`RunBefore`), `Editor.ViewModels/Canvas/FlowCanvasViewModel.cs` (`DropZone.RunBefore`, `ZoneAt`, `Drop`),
+  `Editor/Canvas/FlowCanvas.xaml.cs` (hint), step context menu + Outline "Run before…", UX §5.2/§5.7. **Shares
+  `FlowCanvasViewModel.cs` / `FlowCanvas.xaml.cs` with T14.4 and T14.7 (chips, rings): take both sides on conflict.** Done when:
+  Core tests for the Part C table (incoming kinds kept, loop refused, card target, member dragged), `ZoneAt` thirds, one Undo
+  restores the flow, Outline text; a screenshot of the left-third highlight; keyboard route reaches the same result.
 
 ## M13 fixes (user, 2026-11-03, v0.29.0 feedback) — first, before the remaining M13 tasks
 Designed 2026-11-03 (PR: docs/m13-fixes-plan): D-074..D-077, X-008, X-009, UX §5.1/§5.2/§5.7 #66–#70 "M13 fixes"

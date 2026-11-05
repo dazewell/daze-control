@@ -209,3 +209,33 @@ Check steps take the same timing defaults (a check is a normal step type, defaul
   check; the scalar form stays as the shorthand. Not in M14.
 - No polling "wait until" step: a check with Try again/Wait between tries is it, bounded by the timeout.
 - No condition on cards or whole flows (flows already have `whenRunning`; a leading check step does the rest).
+
+# Part C — Drop on the left of a step: "Run before" (D-083)
+
+User (2026-11-04, via the M13 session): drag a step onto the **left** part of another step to insert it *before*
+that step, mirroring the right third's "Run after" (UX §5.2). Small, independent of Parts A and B.
+
+- **Zones** (`FlowCanvasViewModel.ZoneAt`): left third → new `DropZone.RunBefore`; right third → `RunAfter` (as now);
+  middle keeps "Run together" with its top/bottom bands; a card's left/right thirds work like a pill's, its body is
+  "Run together". Highlight: the same 2 px accent bar as the right third, mirrored, over the left third, label
+  "Run before" (§5.7 string, mirrors "Run after"). A refused drop shows no highlight (as today).
+- **Rewiring** `FlowEdits.RunBefore(flow, dragged, target)` (a card target is its unit, a dragged member is taken
+  out first, exactly like `RunAfter`):
+  | Step | After the drop |
+  |---|---|
+  | dragged | waits for what the target waited for: **all** of the target's incoming edges, kinds kept (`success`, `failure`, `always`), replacing the dragged step's own incoming edges |
+  | target | waits only for the dragged step (`success`) |
+  | dragged's old dependents | unchanged (still wait for it), same as `RunAfter` leaves them; Delete's re-linking is not applied |
+  | others that waited for the target | unchanged |
+  A `failure` link into the target moves to the dragged step: the dragged step becomes the fallback and the target
+  runs after it; the policy tip for a new fallback (D-059) applies to the source as for any new fallback.
+  A removed incoming edge of the dragged step that was `failure`/`always` is named in a tip like #45.
+- **Cycles:** refused with the loop tip when the new edges close a loop (e.g. the dragged step has a dependent that the
+  target's predecessors wait for); nothing changes. Dropping onto itself or onto a step of its own card: no zone.
+- **Undo:** one step (one `Drop` call, one history entry), like the other zones.
+- **Keyboard/Narrator:** pointer-only gestures need the equivalent: the step's context menu and the Outline's gain
+  **"Run before…"** (and **"Run after…"** if missing), opening the same step picker as "If it fails, run…" (no loops
+  offered); the Outline reads "Waits for …" after the change. No new shortcut.
+- **Tests:** `FlowEdits.RunBefore` (first step, middle step, target with `failure`/`always` incoming, target in a card,
+  dragged member of a card, loop refusal, same-card no-op), `ZoneAt` thirds, `Drop` undo as one step, Outline text.
+- **Not done:** carrying the dragged step's dependents along, dropping before a whole branch.

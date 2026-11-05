@@ -1125,3 +1125,16 @@ Status: accepted (design). Design: docs/step-settings/DESIGN.md B9.
 - Why not `if:`/`else:` blocks or an expression language: new graph semantics (joins after branches, skips) for no scenario
   the user has. Why not conditions on edges: every edge editor and the scheduler's edge logic would change.
 - Revisit if: a real flow needs three or more ways out of one check, or a condition across two checks.
+
+## D-083 · 2026-11-04 · Dropping a step on another step's left third runs it before that step
+Status: accepted (design; user asked 2026-11-04). Design: docs/step-settings/DESIGN.md Part C.
+- Decision: new `DropZone.RunBefore` (left third) and `FlowEdits.RunBefore`: the dragged step takes all of the target's
+  incoming edges with their kinds, the target waits only for the dragged step; the dragged step's old incoming edges are
+  replaced, its dependents stay as they are; loops refuse; one undo step; context-menu/Outline "Run before…" is the
+  keyboard route.
+- Why: it mirrors `RunAfter`, which the user already uses, so the two ends of a step behave alike. Moving the incoming
+  edges (not just the success ones) keeps a fallback a fallback.
+- Why not only the target's success edges: a `failure` link would stay on the target, which then runs both after the
+  dragged step and as the fallback. Why not re-linking the dragged step's dependents to its old predecessors (as Delete
+  does): `RunAfter` and the right-third drop don't, and silent extra edits surprised the user before (D-058).
+- Revisit if: users expect the dragged step's dependents to follow it.
