@@ -258,7 +258,7 @@ public sealed class InspectorViewModelTests : IDisposable
         var step = Step("vol");
         Assert.Equal("Quieter", step.Name);
         Assert.Equal(FailurePolicy.Skip, step.OnFailure);
-        Assert.Null(step.Retry);
+        Assert.Null(step.RetryCount);
         Assert.Null(step.Timeout);
         _inspector.Name = "";
         Assert.Null(Step("vol").Name);

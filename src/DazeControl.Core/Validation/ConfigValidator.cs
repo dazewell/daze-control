@@ -39,7 +39,8 @@ public static partial class ConfigValidator
         var checkers = config.Flows.Select(f => new FlowChecker(f, config.Library, badLibraryItems, catalog, problems)).ToList();
         foreach (var checker in checkers)
             checker.Check();
-        CheckMenus(config.Flows, problems);
+        CheckMenus(config.Flows, config.Settings.StepDefaults, problems);
+        CheckWaits(config.Flows, config.Settings.StepDefaults, problems);
         CheckCalls(config.Flows, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, problems);
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
@@ -159,8 +160,26 @@ public static partial class ConfigValidator
             ? [.. list.Items.Cast<ScalarParam>().Select(i => i.Text.Trim())]
             : [];
 
+    private static TimeSpan ResolvedTimeout(StepNode step, ValueDictionary<StepDefault> defaults) =>
+        StepSettings.Resolve(step, ProviderCatalog.Find(step.Step), defaults.TryGetValue(step.Step, out var found) ? found : null).Timeout;
+
+    /// <summary>A wait at least as long as its (resolved) time limit would be cut short by the runner.</summary>
+    private static void CheckWaits(IReadOnlyList<Flow> flows, ValueDictionary<StepDefault> defaults, List<Problem> problems)
+    {
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == "wait"))
+            {
+                if (step.With.TryGetValue("duration", out var value) && value is ScalarParam { Text: var text }
+                    && Duration.TryParse(text, out var duration) && duration >= ResolvedTimeout(step, defaults))
+                    problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.timeout",
+                        "The step's time limit must be longer than the wait, or it ends the wait early.", flow.Id));
+            }
+        }
+    }
+
     /// <summary>Menu rules that need the other flows (DESIGN §2.5): own flow #38, unknown #40 and duplicate items, counts, times.</summary>
-    private static void CheckMenus(IReadOnlyList<Flow> flows, List<Problem> problems)
+    private static void CheckMenus(IReadOnlyList<Flow> flows, ValueDictionary<StepDefault> defaults, List<Problem> problems)
     {
         var ids = flows.Select(f => f.Id).ToHashSet(StringComparer.Ordinal);
         foreach (var flow in flows)
@@ -193,7 +212,7 @@ public static partial class ConfigValidator
                     if (parsed < ProviderCatalog.MinCloseAfter || parsed > ProviderCatalog.MaxCloseAfter)
                         problems.Add(new(Severity.Error, path + ".closeAfter", "Close after 5s to 10m.", flow.Id));
                 }
-                if (step.Timeout is { } timeout && timeout <= closeAfter)
+                if (ResolvedTimeout(step, defaults) <= closeAfter)
                     problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.timeout",
                         "The step's time limit must be longer than \"close after\", or it ends the menu first.", flow.Id));
             }
@@ -438,9 +457,9 @@ public static partial class ConfigValidator
             var path = NodePath(step);
             if (step.Timeout is { } timeout && (timeout <= TimeSpan.Zero || timeout > MaxDuration))
                 Error(path + ".timeout", "Give the step more than 0 s and at most 24h.");
-            if (step.Retry is { } retry && retry.Count is < 0 or > MaxRetries)
+            if (step.RetryCount is < 0 or > MaxRetries)
                 Error(path + ".retry.count", $"Try again 0 to {MaxRetries} times.");
-            if (step.Retry is { } wait && (wait.Delay < TimeSpan.Zero || wait.Delay > MaxDuration))
+            if (step.RetryDelay is { } wait && (wait < TimeSpan.Zero || wait > MaxDuration))
                 Error(path + ".retry.delay", "Wait 0 s to 24h between tries.");
             var descriptor = catalog.FirstOrDefault(d => d.Id == step.Step);
             if (descriptor is null)

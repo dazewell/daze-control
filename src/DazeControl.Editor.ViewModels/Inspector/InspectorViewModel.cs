@@ -431,9 +431,9 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             ? "Run " + target.Name
             : descriptor?.Title ?? step.Step;
         Name = step.Name ?? "";
-        PolicyIndex = (int)step.OnFailure;
-        Retries = step.Retry?.Count ?? 0;
-        RetryDelay = step.Retry?.Delay.TotalSeconds ?? 0;
+        PolicyIndex = (int)(step.OnFailure ?? FailurePolicy.Stop);
+        Retries = step.RetryCount ?? 0;
+        RetryDelay = step.RetryDelay?.TotalSeconds ?? 0;
         Timeout = step.Timeout?.TotalSeconds ?? double.NaN;
         TimeoutPlaceholder = descriptor is null ? "" : Seconds(descriptor.DefaultTimeout);
         OnPropertyChanged(nameof(CanRetryDelay));
@@ -633,7 +633,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         Kind = card.Members.Count == 1 ? "Runs together · 1 step" : $"Runs together · {card.Members.Count} steps";
         NamePlaceholder = "Run together";
         Name = card.Name ?? "";
-        PolicyIndex = (int)card.OnFailure;
+        PolicyIndex = (int)(card.OnFailure ?? FailurePolicy.Stop);
     }
 
     private void LoadFlow(Flow flow)
@@ -809,7 +809,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     partial void OnPolicyIndexChanged(int value)
     {
         if (value is >= 0 and <= 2)
-            EditNode(n => n with { OnFailure = (FailurePolicy)value });
+            EditNode(n => n with { OnFailure = value == (int)FailurePolicy.Stop ? null : (FailurePolicy)value });
     }
 
     partial void OnRetriesChanged(double value)
@@ -818,14 +818,15 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         var count = double.IsNaN(value) ? 0 : (int)Math.Clamp(Math.Round(value), 0, MaxRetries);
         EditStep(s => s with
         {
-            Retry = count == 0 ? null : new RetryPolicy(count, s.Retry?.Delay ?? TimeSpan.FromSeconds(1)),
+            RetryCount = count == 0 ? null : count,
+            RetryDelay = count == 0 ? null : s.RetryDelay ?? TimeSpan.FromSeconds(1),
         });
     }
 
     partial void OnRetryDelayChanged(double value)
     {
         var delay = TimeSpan.FromMilliseconds(Math.Round(Math.Max(0, double.IsNaN(value) ? 0 : value) * 1000));
-        EditStep(s => s.Retry is { } retry ? s with { Retry = retry with { Delay = delay } } : s);
+        EditStep(s => s.RetryCount is > 0 ? s with { RetryDelay = delay } : s);
     }
 
     partial void OnTimeoutChanged(double value) => EditStep(s => s with

@@ -218,8 +218,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             // Run a flow shows the called flow's own icon (DESIGN §6).
             Glyph = called is not null ? FlowGlyph.Decode(FlowGlyph.CodeOf(called)) : FlowItemViewModel.DecodeGlyph(descriptor?.Glyph ?? "E9CE");
             Count = "";
-            if (step.Retry is { Count: > 0 } retry)
-                badges.Add(new Badge("", $"×{retry.Count}"));
+            if (step.RetryCount is > 0 and var retries)
+                badges.Add(new Badge("", $"×{retries}"));
             if (step.Timeout is { } timeout)
                 badges.Add(new Badge("", Duration.Format(timeout) ?? ""));
         }

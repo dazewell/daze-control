@@ -23,6 +23,19 @@ public sealed class ConfigDocument
 public sealed class SettingsDocument
 {
     public PopupDocument? Popup { get; set; }
+
+    public Dictionary<string, StepDefaultDocument>? StepDefaults { get; set; }
+}
+
+/// <summary>A <c>settings.stepDefaults</c> entry (D-080): the step's timing keys, all optional.</summary>
+[YamlSerializable]
+public sealed class StepDefaultDocument
+{
+    public string? Timeout { get; set; }
+
+    public RetryDocument? Retry { get; set; }
+
+    public string? OnFailure { get; set; }
 }
 
 [YamlSerializable]
