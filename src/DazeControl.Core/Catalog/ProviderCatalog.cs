@@ -10,6 +10,9 @@ public static class ProviderCatalog
     private const string Audio = "E767", Bluetooth = "E702", Display = "E7F4", Process = "E756", Script = "E943",
         Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", File = "E8A5", RunFlow = "E768", MenuGlyph = "E700";
 
+    /// <summary>The fact id of <c>BluetoothConnectedProbe</c> (D-081).</summary>
+    public const string BluetoothConnected = "bluetooth.connected";
+
     private static readonly TimeSpan Short = TimeSpan.FromSeconds(10);
 
     /// <summary>UX §5.4.</summary>
@@ -52,9 +55,22 @@ public static class ProviderCatalog
         { Resources = ["audio"] },
         new("bluetooth.connect", "Connect", Bluetooth, TimeSpan.FromSeconds(20),
             [Ref("device", "Device", LibraryKind.Bluetooth)])
-        { Resources = ["bluetooth:{device}"] },
+        {
+            Resources = ["bluetooth:{device}"],
+            Conditions = [new ConditionSpec("disconnected", "It isn't connected", BluetoothConnected, false)],
+        },
         new("bluetooth.disconnect", "Disconnect", Bluetooth, TimeSpan.FromSeconds(20),
             [Ref("device", "Device", LibraryKind.Bluetooth)])
+        {
+            Resources = ["bluetooth:{device}"],
+            Conditions = [new ConditionSpec("connected", "It is connected", BluetoothConnected, true)],
+        },
+        // Read-only: takes the device's lock so it answers after a Connect that is still running.
+        new("bluetooth.check", "Check connection", Bluetooth, Short,
+        [
+            Ref("device", "Device", LibraryKind.Bluetooth),
+            new("is", ParamKind.Choice, "Is") { Choices = ["connected", "disconnected"], Default = "connected", Help = "Fails when it isn't; follow it with an \"if it fails\" branch." },
+        ])
         { Resources = ["bluetooth:{device}"] },
         new("display.topology", "Project", Display, Short,
         [

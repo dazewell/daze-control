@@ -22,7 +22,8 @@ public static class BuiltInProviders
     /// The read-only fact probes (D-081) behind "Only if" and the check steps. Each reads on demand from the same
     /// queries as the steps; nothing is held between runs (idle = zero).
     /// </summary>
-    public static IReadOnlyList<IFactProbe> Probes() => Probes(new CoreAudioEndpoints(), new WindowsProcesses(), new WindowsServices());
+    public static IReadOnlyList<IFactProbe> Probes() =>
+        [new BluetoothConnectedProbe(new SystemBluetoothState(new CfgMgrPairedBluetooth())), .. Probes(new CoreAudioEndpoints(), new WindowsProcesses(), new WindowsServices())];
 
     internal static IReadOnlyList<IFactProbe> Probes(IAudioEndpoints audio, IProcesses processes, IServices services) =>
     [
@@ -55,6 +56,7 @@ public static class BuiltInProviders
             new AudioMuteProvider(audio),
             new BluetoothConnectProvider(bluetooth),
             new BluetoothDisconnectProvider(bluetooth),
+            new BluetoothCheckProvider(new BluetoothConnectedProbe(new SystemBluetoothState(new CfgMgrPairedBluetooth()))),
             new DisplayTopologyProvider(displays),
             new DisplayOutputsProvider(displays),
             new DisplayLayoutProvider(displays),

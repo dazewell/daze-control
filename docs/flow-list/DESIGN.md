@@ -112,7 +112,7 @@ icons, On, Run.
 | Shortcut | `Hotkeys` | First one, "+1" when more ("Alt+Z +1"); "No shortcut" in tertiary text; all of them in the tooltip |
 | Steps | `Nodes.Count` | "5 steps"; "No steps" for a blank flow |
 | Last run | newest `RunRecord` | result word as the Runs page (`RunWords.Chip`) + relative time; older than a day → "Mon 14:02"; running → "Running" |
-| No record | none in history | "No recent run" (the history keeps ≤ 200 runs, so "Not run yet" would be untrue) |
+| No record | none in history | "No recent run" (the history keeps ≤ 100 runs, so "Not run yet" would be untrue) |
 | Not in tray | `!Tray.Show` | icon (E7B3), tooltip "Not in the tray menu"; text secondary when the flow is Off |
 | Desktop shortcut | `DesktopShortcutStore` | icon (E8A7), tooltip "On your desktop" |
 | Called by | `flow.run` steps in other flows | tooltip only: "Used by 2 flows" (wording as the Library's "Used by") |
@@ -122,7 +122,7 @@ icons, On, Run.
 - **Idle = zero (D-009):** relative times are computed when the page shows, when the window activates and on run events. No timer
   ticks them.
 - Accessible name: "Connect Technics, Alt+Z, 5 steps, worked 2 hours ago, in Audio, turned on" (+ "needs fixing", "not in the tray menu").
-- Last-run source stays the `history` op; T16.2 raises the page's `Limit` to the file's 200, newest per flow. No new IPC op (D-089).
+- Last-run source stays the `history` op; T16.2 asks for the engine's whole 100-run history, newest per flow. No new IPC op (D-089).
 
 # Part E — Sort, search, filter
 

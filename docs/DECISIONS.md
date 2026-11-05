@@ -1208,10 +1208,10 @@ Status: accepted (user, 2026-11-04)
 Status: accepted (user, 2026-11-04)
 - Decision: a row shows shortcut (first, "+n"), step count, last run (result + relative time), and icons for not-in-tray and
   desktop shortcut; "Used by n flows" and all shortcuts are tooltips. Last run uses the existing `history` op with `Limit`
-  200 (newest per flow); a flow with no record says "No recent run". Times are recomputed when the page shows, the window
+  100 (newest per flow); a flow with no record says "No recent run". Times are recomputed when the page shows, the window
   activates and on run events; nothing ticks.
 - Why: every fact is already in `Configuration`, `RunRecord` or the desktop store: no engine change, no new IPC. A timer
-  would break "idle = zero" for no gain; "Not run yet" is false once a run falls out of the 200-run history.
+  would break "idle = zero" for no gain; "Not run yet" is false once a run falls out of the 100-run history (the engine's `RunHistory.Capacity`; the file holds up to 200 lines before it is cut).
 - Why not a `lastRuns` op or storing last-run data in config.yaml: new surface for a cosmetic fact; config would change
   on every run.
 - Revisit if: a user needs run counts or a longer history (then a persisted per-flow summary, engine-side).
@@ -1226,3 +1226,12 @@ Status: accepted (user, 2026-11-04)
 - Why not always-visible checkboxes: noise for the usual one-flow case. Why not bulk Run: several flows at once fight for
   the same devices (resource locks) and have no clear stop.
 - Revisit if: users expect click-to-select (then make the card's body select and move "open" to a button).
+
+## D-091 · 2026-11-04 · No Narrator/screen-reader work; no live audio run
+Status: accepted (user, 2026-11-04)
+- Decision: no new Narrator / screen-reader work: T10.5 (pop-up, issue #26) and T12.9 (menu UIA announcements) are dropped,
+  as are Narrator checks in T12.10 / UX §5.9 M12 and flow-menu DESIGN §3.3/§4. Already-built names (list, Outline, recorder)
+  stay as they are. The DESIGN §1 B live audio run is not wanted: it changes the user's default audio device.
+- Why: the user does not use a screen reader and wants usage spent elsewhere; the live run touches their real audio setup.
+- Supersedes: the "Parked: pop-up for Narrator" note (user, 2026-11-03) and the Narrator part of the flow-menu design (D-056 area).
+- Revisit if: a user needs screen-reader support.

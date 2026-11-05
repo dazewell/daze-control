@@ -83,7 +83,7 @@ v0.22.0 is released (GitHub Releases; installed copies update themselves). What'
 4. **Releases** stay yours: `release.yml` publishes only on a `v<Version>` tag (D-043).
 5. **Open follow-ups:** desktop shortcuts on an installed copy (survive an update, uninstall removes them) — you'll
    test them (2026-11-03). The editor can't delete flows yet, so "deleting a flow removes its shortcut on Save" waits
-   for that feature. Parked: the pop-up for Narrator (issue #26). Settled by you (2026-11-03): a tray left click brings
+   for that feature. Dropped (2026-11-04, D-091): the pop-up for Narrator (issue #26). Settled by you (2026-11-03): a tray left click brings
    an open editor forward; the live view joining a running flow at its next step is fine for now.
 
 ## Waiting on the user

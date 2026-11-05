@@ -146,8 +146,7 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
   key is taken: one engine log line, run history, no pop-up.
 - Animation effects (`SPI_GETCLIENTAREAANIMATION`) off → no fade, no focus slide, instant. High contrast → system
   colours, solid background, 3-DIP focus ring.
-- Narrator (#26 shares this): the window can't take focus, so a minimal UIA provider raises
-  `UiaRaiseNotificationEvent` on open ("Couch menu, 4 choices. Connect TV, 1 of 4.") and on each move. T12.9.
+- Narrator: not supported, no UIA provider (D-091 drops T12.9 and issue #26).
 
 ### 3.4 Controller input in the AOT engine (D-056)
 | | GameInput (inbox `GameInput.dll`) | XInput (`xinput1_4`) | Windows.Gaming.Input | Raw Input / HID |
@@ -245,7 +244,7 @@ fade 100 ms. Pick: the focused row flashes once (100 ms) before the fade. Animat
 ### 4.6 Known limits (say so in README)
 Games still see controller presses while the menu is open; the menu shows only over borderless or windowed games,
 not over a game in its own full-screen mode (set the game to borderless); keys another
-app registered as global shortcuts don't reach the menu; Narrator hears announcements, not a focusable list (T12.9);
+app registered as global shortcuts don't reach the menu; Narrator is not supported (D-091);
 with Steam running, Steam turns View+Menu into Alt+Tab, so unbind that in Steam's desktop layout (D-057).
 
 ## 5. Spikes (throwaway, `spikes/`, results into D-055/D-056 and here)
@@ -305,7 +304,6 @@ with Steam running, Steam turns View+Menu into Alt+Tab, so unbind that in Steam'
     is theirs and exists without us.
   - Also: the run pop-up uses the same kind of window and doesn't check QUNS, so it may kick a full-screen game
     out too (ARCHITECTURE → Open questions).
-- Narrator announcements (T12.9) need no spike of their own: they ride on issue #26's provider work.
 
 ## 6. Open questions (decide in the task that meets them)
 - Battery level in `devices gamepads`: GameInput may expose it; XInput has `XInputGetBatteryInformation` (wireless

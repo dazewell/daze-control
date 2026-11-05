@@ -58,7 +58,7 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   "Test this step" answer. Fake probe + fake provider only. Done when: Runtime tests for B4 (unmet → skipped with note and `success`
   dependents run, `failure` edge doesn't fire, flow Succeeded; probe throws → step runs; retry doesn't re-probe; card member), a
   Core round-trip with `only: always`, old run-history files still read; `dctl run --dry-run` shows normal results.
-- [ ] T14.6 Bluetooth condition + check (feat/m14-bluetooth-check, after T14.5). Files: `Providers/Bluetooth` (probe `bluetooth.connected` from the
+- [x] T14.6 Bluetooth condition + check (feat/m14-bluetooth-check, after T14.5). Files: `Providers/Bluetooth` (probe `bluetooth.connected` from the
   picker's device state), `bluetooth.check`, `Conditions` on connect/disconnect, catalog entries. Done when: provider tests with the
   fake query; on the dev PC (read-only) `dctl run` of a one-step check flow reports connected / not connected for the Technics
   library entry in < 1 s. A live Connect/Disconnect is not run without asking the user.
@@ -125,8 +125,8 @@ T16.4 edits the card/rows, T16.5 the command bar); `T16.4 + T16.5 → T16.6 → 
   Done when: tests: display order equals `TrayMenu.Build` order (scattered group, hidden flows, separators, case-insensitive
   folder names); each op changes only order/`tray.folder`; moves into/out of/within groups and a group as a block; rename onto an
   existing group merges; a group with no member disappears; the written order round-trips through YAML and the tray looks the same.
-- [ ] T16.2 Richer row (feat/m16-row-info, D-089). Files: `FlowsPageViewModel.cs` (`FlowItemViewModel`: shortcut summary, step
-  count, last run word + relative time, not-in-tray, desktop, "Used by n flows", accessible name; `Limit` 200), card template in
+- [x] T16.2 Richer row (feat/m16-row-info, D-089). Files: `FlowsPageViewModel.cs` (`FlowItemViewModel`: shortcut summary, step
+  count, last run word + relative time, not-in-tray, desktop, "Used by n flows", accessible name; `Limit` 100), card template in
   `ShellWindow.xaml`, UX §5.1. Done when: view-model tests for each fact incl. "No recent run" and times only recomputed on
   page show / activation / run events (no timer); screenshots of a plain, a running, a failing and a hidden-from-tray flow.
 - [ ] T16.3 Grouped list (feat/m16-groups, after T16.1, T16.2, D-087). Files: `FlowsPageViewModel.cs` (flat rows: group headers +
@@ -454,7 +454,7 @@ order (they touch different files). Can run alongside M13 (no shared files excep
   first step), run list cut the duration off, a stale "Updates arrive with the first release" card.
   Not checked (system-wide settings on the user's PC, or not re-run this pass): 100–150 % scale, 225 % text (editor
   and pop-up), Narrator/Outline, Tab order, drag-into-cycle tip, empty states, animation effects off, tray menu.
-- [ ] T10.5 Pop-up for Narrator — parked as issue #26 (user, 2026-11-03). Deferred past M10, not in the ship brief: it draws everything itself, so screen
+- [~] T10.5 DROPPED (D-091, no Narrator work; issue #26 closed). Was: pop-up for Narrator, parked as issue #26 (user, 2026-11-03). Deferred past M10, not in the ship brief: it draws everything itself, so screen
   readers get only the window title. Raise a UIA notification (or a minimal provider with an invoke for "see what
   happened") without activating (PR #8 review).
 - [x] T10.4 Footprint gate passed (ARCHITECTURE → Footprint, 2026-11-02). The 24 h soak and retiring scd are the
@@ -553,10 +553,10 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   when: VM tests (add/remove/reorder items, own flow not offered, missing flow chip, recorder states incl. engine off
   and no pad, template content); screenshots light/dark of the inspector and the recorder; Narrator names on the
   token list and recorder. Done (PR #63): recorder codes to DESIGN §3.6 until T12.6 lands `record-gamepad`; Layout and Size are drop-downs, not drawn radios.
-- [ ] T12.9 Narrator: UIA notifications from the menu without focus, sharing issue #26's provider (feat/m12-narrator).
+- [~] T12.9 DROPPED (D-091, no Narrator work). Was: Narrator: UIA notifications from the menu without focus, sharing issue #26's provider (feat/m12-narrator).
   Done when: Narrator reads "Couch menu, 4 choices. Connect TV, 1 of 4." on open and the new choice on each move,
   the foreground window unchanged; #26's pop-up announcement may land in the same PR.
-- [ ] T12.10 Acceptance + docs fold-in (DESIGN §4, UX §5.9 M12). Done when: the checklist's M12 lines pass on the dev
+- [ ] T12.10 Acceptance + docs fold-in (DESIGN §4, UX §5.9 M12; no Narrator checks, D-091). Done when: the checklist's M12 lines pass on the dev
   PC (or are listed as the user's), README says how to drive the menu with a pad (D-pad/stick, A, B; Steam-mapped keys work as shortcuts, D-086 — the Steam recipe text belongs to the F13–F24 session) and the known limits (DESIGN §4.6); chord lines of the checklist are superseded,
   DESIGN.md holds only what's still open, GOALS status current.
 

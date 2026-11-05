@@ -65,7 +65,8 @@ internal sealed class EngineHost : IDisposable
     private readonly List<(Guid RunId, string FlowId)> _running = [];
     private string? _lastProblem;
 
-    public EngineHost(EnginePaths paths, Func<INotifier, IEnumerable<IStepProvider>> providers, IDeviceQueries? devices = null)
+    public EngineHost(EnginePaths paths, Func<INotifier, IEnumerable<IStepProvider>> providers, IDeviceQueries? devices = null,
+        IReadOnlyList<IFactProbe>? probes = null)
     {
         _window = new MessageWindow();
         _tray = new TrayIcon(_window, AppInfo.ProductName, BuildMenu);
@@ -97,7 +98,6 @@ internal sealed class EngineHost : IDisposable
         stepProviders.Add(new FlowProvider(calls));
         // menu.show (M12, D-055): one menu at a time; none over a full-screen game (#32); the window answers on the message thread.
         stepProviders.Add(new MenuProvider(new GatedMenuPresenter(new FullScreenGuardPresenter(_menu, FullScreen.OverGame, Log.Info)), calls));
-        var probes = BuiltInProviders.Probes();
         var runner = new FlowRunner(stepProviders, TimeProvider.System, locks, events: OnRunEvent, probes: probes) { Flows = calls };
         _launcher = new FlowLauncher(runner, _history);
         calls.Launcher = _launcher;

@@ -171,7 +171,7 @@ public class CheckTests
     {
         var probes = BuiltInProviders.Probes().Select(p => p.Fact).ToList();
         Assert.Equal(probes.Count, probes.Distinct().Count());
-        foreach (var condition in ProviderCatalog.All.SelectMany(d => d.Conditions).Where(c => !c.Fact.StartsWith("bluetooth.", StringComparison.Ordinal)))
+        foreach (var condition in ProviderCatalog.All.SelectMany(d => d.Conditions))
             Assert.Contains(condition.Fact, probes);
         var providers = BuiltInProviders.Create(TimeProvider.System, new NoNotifier()).Select(p => p.Id).ToList();
         foreach (var id in new[] { "audio.check", "process.check", "service.check", "file.check" })
