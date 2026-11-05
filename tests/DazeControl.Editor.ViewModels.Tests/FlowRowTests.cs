@@ -144,7 +144,7 @@ public sealed class FlowRowTests : IDisposable
         using var page = Page();
         await page.RefreshRunsAsync();
 
-        Assert.Equal(200, Assert.Single(_engine.Requests, r => r.Op == Ops.History).Limit);
+        Assert.Equal(100, Assert.Single(_engine.Requests, r => r.Op == Ops.History).Limit);
     }
 
     [Fact]
@@ -175,5 +175,17 @@ public sealed class FlowRowTests : IDisposable
         using var page = Page();
 
         Assert.Equal("No shortcut · No steps · No recent run", page.Items.Single(i => i.Id == "blank").Caption);
+    }
+
+    [Fact]
+    public void TheNameGainsNeedsFixingWhenAProblemAppears()
+    {
+        using var page = Page();
+        var tv = page.Items[1];
+        Assert.DoesNotContain("needs fixing", tv.Summary, StringComparison.Ordinal);
+
+        _session.Update(c => c with { Flows = [.. c.Flows.Select(f => f.Id == "tv" ? f with { Hotkeys = ["Nope+Q"] } : f)] });
+
+        Assert.Contains("needs fixing", tv.Summary, StringComparison.Ordinal);
     }
 }

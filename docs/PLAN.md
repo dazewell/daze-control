@@ -127,7 +127,7 @@ T16.4 edits the card/rows, T16.5 the command bar); `T16.4 + T16.5 → T16.6 → 
   folder names); each op changes only order/`tray.folder`; moves into/out of/within groups and a group as a block; rename onto an
   existing group merges; a group with no member disappears; the written order round-trips through YAML and the tray looks the same.
 - [x] T16.2 Richer row (feat/m16-row-info, D-089). Files: `FlowsPageViewModel.cs` (`FlowItemViewModel`: shortcut summary, step
-  count, last run word + relative time, not-in-tray, desktop, "Used by n flows", accessible name; `Limit` 200), card template in
+  count, last run word + relative time, not-in-tray, desktop, "Used by n flows", accessible name; `Limit` 100), card template in
   `ShellWindow.xaml`, UX §5.1. Done when: view-model tests for each fact incl. "No recent run" and times only recomputed on
   page show / activation / run events (no timer); screenshots of a plain, a running, a failing and a hidden-from-tray flow.
 - [ ] T16.3 Grouped list (feat/m16-groups, after T16.1, T16.2, D-087). Files: `FlowsPageViewModel.cs` (flat rows: group headers +

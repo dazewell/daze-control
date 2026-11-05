@@ -15,7 +15,7 @@ namespace DazeControl.Editor.ViewModels;
 /// <summary>Flows page (UX §5.1): one card per flow in YAML order; a click opens it, Run runs it (D-070).</summary>
 public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
 {
-    private const int HistoryLimit = 200; // the history file's own cap: the newest run of every flow (D-089)
+    private const int HistoryLimit = 100; // RunHistory.Capacity: the engine keeps (and answers with) 100 runs, not the file's 200 lines (D-089)
 
     private readonly ConfigSession _session;
     private readonly IEngineClient _engine;
@@ -560,6 +560,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
             if (_errors != errors)
             {
                 _errors = errors;
+                OnPropertyChanged(nameof(Summary));
                 OnPropertyChanged(nameof(RunOffReason));
                 OnPropertyChanged(nameof(CanRun));
                 OnPropertyChanged(nameof(RunTip));
