@@ -254,6 +254,17 @@ public sealed partial class InspectorPane : UserControl
     private void OnPolicyLeave(object sender, RoutedEventArgs e) => _viewModel?.PreviewPolicy(null);
 
     /// <summary>"If it fails, run…": a new step by area, or a step already in the flow (built when it opens).</summary>
+    public static Visibility ShowDefault(bool isStep, bool isSet) => isStep && !isSet ? Visibility.Visible : Visibility.Collapsed;
+
+    public static Visibility ShowSet(bool isStep, bool isSet) => isStep && isSet ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Inherited values read dimmer than the ones the step sets (DESIGN A5).</summary>
+    public static double DimStep(bool isStep, bool isSet) => isStep && !isSet ? 0.6 : 1;
+
+    public static double Dim(bool isSet) => isSet ? 1 : 0.6;
+
+    private void OnUseForAllClosed(object sender, RoutedEventArgs e) => UseForAllFlyout.Hide();
+
     private void OnFallbackMenuOpening(object? sender, object e)
     {
         FallbackMenu.Items.Clear();

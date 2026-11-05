@@ -406,11 +406,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             ? "Run " + target.Name
             : descriptor?.Title ?? step.Step;
         Name = step.Name ?? "";
-        PolicyIndex = (int)(step.OnFailure ?? FailurePolicy.Stop);
-        Retries = step.RetryCount ?? 0;
-        RetryDelay = step.RetryDelay?.TotalSeconds ?? 0;
-        Timeout = step.Timeout?.TotalSeconds ?? double.NaN;
-        TimeoutPlaceholder = descriptor is null ? "" : Seconds(descriptor.DefaultTimeout);
+        LoadTiming(step, descriptor);
         OnPropertyChanged(nameof(CanRetryDelay));
 
         if (step.Step != _stepType || Fields.Count == 0 && descriptor?.Params.Count > 0)
@@ -781,25 +777,36 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
 
     partial void OnPolicyIndexChanged(int value)
     {
-        if (value is >= 0 and <= 2)
-            EditNode(n => n with { OnFailure = value == (int)FailurePolicy.Stop ? null : (FailurePolicy)value });
+        if (value is < 0 or > 2)
+            return;
+        // Stop is stored as "not set" unless the type's default says otherwise: then it must stay explicit (DESIGN A3).
+        var policy = (FailurePolicy)value;
+        EditNode(n => n with
+        {
+            OnFailure = policy == FailurePolicy.Stop && (n is not StepNode s || TypeDefault(s.Step)?.OnFailure is null) ? null : policy,
+        });
     }
 
     partial void OnRetriesChanged(double value)
     {
         OnPropertyChanged(nameof(CanRetryDelay));
         var count = double.IsNaN(value) ? 0 : (int)Math.Clamp(Math.Round(value), 0, MaxRetries);
-        EditStep(s => s with
+        EditStep(s =>
         {
-            RetryCount = count == 0 ? null : count,
-            RetryDelay = count == 0 ? null : s.RetryDelay ?? TimeSpan.FromSeconds(1),
+            var inherited = TypeDefault(s.Step);
+            return s with
+            {
+                RetryCount = count == 0 && inherited?.RetryCount is null ? null : count,
+                // A first retry waits 1 s unless the type's default has a delay of its own.
+                RetryDelay = count == 0 ? null : s.RetryDelay ?? (inherited?.RetryDelay is null ? TimeSpan.FromSeconds(1) : null),
+            };
         });
     }
 
     partial void OnRetryDelayChanged(double value)
     {
         var delay = TimeSpan.FromMilliseconds(Math.Round(Math.Max(0, double.IsNaN(value) ? 0 : value) * 1000));
-        EditStep(s => s.RetryCount is > 0 ? s with { RetryDelay = delay } : s);
+        EditStep(s => (s.RetryCount ?? TypeDefault(s.Step)?.RetryCount) is > 0 ? s with { RetryDelay = delay } : s);
     }
 
     partial void OnTimeoutChanged(double value) => EditStep(s => s with
@@ -1142,6 +1149,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         _engine.StateChanged -= OnEngineStateChanged;
         _engine.EventReceived -= OnEngineEvent;
         _desktop.Changed -= OnDesktopChanged;
+        _defaults?.Dispose();
         ClearFields();
     }
 }

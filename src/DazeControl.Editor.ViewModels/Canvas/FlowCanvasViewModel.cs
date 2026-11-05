@@ -499,16 +499,22 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     /// A step or card with an "if it fails" link and "Stop the flow" runs the fallback and goes on (D-024), which is
     /// what "Skip what depends on it" says, so the policy shows that (D-059). Skip and Keep going stay as chosen.
     /// </summary>
-    public static Flow WithFallbackPolicy(Flow flow, string source)
+    public static Flow WithFallbackPolicy(Flow flow, string source, ValueDictionary<StepDefault>? defaults = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
         var top = FlowGraph.TopLevel(flow, source);
         var cardOf = FlowLayout.CardOf(flow);
-        if (flow.FindNode(top) is not { OnFailure: null or FailurePolicy.Stop }
+        // The effective policy decides (D-080): a step that inherits "Stop" gets Skip set on itself.
+        if (flow.FindNode(top) is not { } node || EffectivePolicy(node, defaults) != FailurePolicy.Stop
             || !FlowLayout.Edges(flow, cardOf).Any(e => e.From == top && e.When == EdgeWhen.Failure))
             return flow;
         return flow with { Nodes = [.. flow.Nodes.Select(n => n.Id == top ? n with { OnFailure = FailurePolicy.Skip } : n)] };
     }
+
+    private static FailurePolicy EffectivePolicy(Node node, ValueDictionary<StepDefault>? defaults) =>
+        node.OnFailure
+        ?? (node is StepNode step && defaults?.TryGetValue(step.Step, out var d) == true ? d.OnFailure : null)
+        ?? FailurePolicy.Stop;
 
     /// <summary>One undo step: <paramref name="change"/> plus the fallback policy of <paramref name="source"/>; noted.</summary>
     private void EditFallback(string source, Func<Flow, Flow> change)
@@ -517,7 +523,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         Edit(flow =>
         {
             var changed = change(flow);
-            var next = WithFallbackPolicy(changed, source);
+            var next = WithFallbackPolicy(changed, source, _session.Current.Settings.StepDefaults);
             switched = !ReferenceEquals(next, changed);
             return next;
         });
@@ -991,7 +997,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
                 vm.Update(nodes[vm.Id], _session.Current, problems.Contains(vm.Id), waits);
         }
 
-        var mayFail = flow.Nodes.Where(n => n.OnFailure == FailurePolicy.Ignore).Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
+        var mayFail = flow.Nodes.Where(n => EffectivePolicy(n, _session.Current.Settings.StepDefaults) == FailurePolicy.Ignore).Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
         Edges.Clear();
         foreach (var route in _arrangement.Edges)
             Edges.Add(new CanvasEdgeViewModel(route, mayFail.Contains(route.To), options.Lines));

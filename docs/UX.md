@@ -134,7 +134,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   and removing the fallback doesn't switch back (D-059).
 - Connections: one row per edge at the step ("Runs after Connect", "Show a message runs after this") with a
   ComboBox "When it works" / "Only if it fails" / "Whatever happens".
-- Timing: "Try again" 0–10, "Wait between tries" s, "Give up after" s + "No limit".
+- Timing: "Try again" 0–10, "Wait between tries" s, "Give up after" s + "No limit". Each row (and "If it fails") is *Default* (effective value at 60 % opacity, caption "Default") or *Set* (normal, "Reset" link E777, tip "Use the default (1 s)", clears only that field); typing or picking a different value sets it. Caption "From the default for Set default device steps" when the type has an entry. Button "Use these for all Set default device steps…" → flyout (the values, "Applies to n other steps in m flows that don't set their own.", Apply / Cancel) → InfoBar "Saved as the default for Set default device steps" + Undo. Canvas chips show effective values, tertiary text when all inherited, only if different from the built-in. The "If it fails, run…" Stop→Skip switch (D-059) looks at the effective policy.
 - Test: runs this step alone with on-screen values; "Testing…" + ProgressRing + Cancel; result InfoBar
   ("Worked in 1.2 s" / error + "Show details" expander); the pill ring shows it for 3 s.
 - Flow settings: name, icon (glyph GridView flyout), tray folder (editable ComboBox) + "Line above it",
