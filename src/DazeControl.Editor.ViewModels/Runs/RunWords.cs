@@ -31,7 +31,7 @@ public static class RunWords
         ArgumentNullException.ThrowIfNull(run);
         ArgumentNullException.ThrowIfNull(title);
         if (run.Outcome == FlowOutcome.Succeeded && flow is not null && Outcomes.Fix(flow, run.Nodes) is { } fix)
-            return $"{run.FlowName} worked. {Fixed(fix, title)}";
+            return $"{run.FlowName} worked. {Outcomes.FixSentence(flow, run.Nodes, fix, title)}";
         var failed = run.Nodes.FirstOrDefault(n => n.Outcome is NodeOutcome.Failed or NodeOutcome.FailedIgnored);
         var reason = failed?.Error is { } error ? " " + Sentence(FirstLine(error)) : "";
         return run.Outcome switch
@@ -45,13 +45,6 @@ public static class RunWords
         };
     }
 
-    /// <summary>#48: "Connect Technics didn't work, so Connect Sony ran instead."</summary>
-    public static string Fixed((string Failed, string Fallback) fix, Func<string, string> title)
-    {
-        ArgumentNullException.ThrowIfNull(title);
-        return $"{title(fix.Failed)} didn't work, so {title(fix.Fallback)} ran instead.";
-    }
-
     /// <summary>A pill's text once its step finished: its duration, or what happened.</summary>
     public static NodeRunView View(NodeResult node, bool showDuration = true, int order = 0)
     {
@@ -59,6 +52,7 @@ public static class RunWords
         var took = showDuration && node.Attempts > 0 ? " · " + Seconds(node.Duration) : "";
         return node.Outcome switch
         {
+            NodeOutcome.Succeeded when node.SkippedBecause is { Length: > 0 } why => new(NodeRunState.Succeeded, "Skipped: " + why, order, true),
             NodeOutcome.Succeeded => new(NodeRunState.Succeeded, showDuration ? Seconds(node.Duration) : "", order),
             NodeOutcome.Failed => new(NodeRunState.Failed, "Didn't work" + took, order),
             NodeOutcome.FailedIgnored => new(NodeRunState.FailedMayFail, "Didn't work" + took, order),

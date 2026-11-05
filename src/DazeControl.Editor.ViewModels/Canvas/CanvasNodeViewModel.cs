@@ -41,7 +41,8 @@ public enum NodeRunState
 
 /// <param name="Text">Replaces the summary: "1.2 s", "Skipped", "Didn't work: …".</param>
 /// <param name="Order">Dry run: 1 for the first step to start; 0 = no number.</param>
-public sealed record NodeRunView(NodeRunState State, string Text = "", int Order = 0);
+/// <param name="ConditionSkipped">An "Only if" step that was skipped (D-081): Succeeded, drawn with a dashed ring.</param>
+public sealed record NodeRunView(NodeRunState State, string Text = "", int Order = 0, bool ConditionSkipped = false);
 
 /// <summary>A chip on a pill (UX §5.3): optional Segoe Fluent glyph + short text.</summary>
 public sealed record Badge(string Glyph, string Text, bool Inherited = false)
@@ -137,6 +138,10 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     public bool IsInRun => RunState != NodeRunState.None;
 
+    /// <summary>Succeeded by skipping: dashed ring and a "Skipped: …" caption, nothing red or cautionary (DESIGN B6).</summary>
+    [ObservableProperty]
+    public partial bool RunConditionSkipped { get; private set; }
+
     /// <summary>During a run it replaces the summary (a finished step shows its duration).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShownSummary))]
@@ -152,13 +157,14 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     {
         RunState = run?.State ?? NodeRunState.None;
         RunText = run?.Text ?? "";
+        RunConditionSkipped = run?.ConditionSkipped == true;
         OrderText = run is { Order: > 0 } ? run.Order.ToString(System.Globalization.CultureInfo.CurrentCulture) : "";
         // Screen readers hear the run too: "Connect, Technics. Bluetooth. Step 1. Done in 1.2 s."
         var said = new List<string>();
         if (OrderText.Length > 0)
             said.Add($"Step {OrderText}");
         if (RunState != NodeRunState.None)
-            said.Add(RunWords(RunState, RunText));
+            said.Add(RunConditionSkipped ? RunText : RunWords(RunState, RunText));
         AutomationName = said.Count == 0 ? _name : $"{_name} {string.Join(". ", said)}.";
     }
 
@@ -233,6 +239,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             // Run a flow shows the called flow's own icon (DESIGN §6).
             Glyph = called is not null ? FlowGlyph.Decode(FlowGlyph.CodeOf(called)) : FlowItemViewModel.DecodeGlyph(descriptor?.Glyph ?? "E9CE");
             Count = "";
+            if (step.Only is { } only && only != StepNode.OnlyAlways)
+                badges.Add(new Badge("", "Only if…", step.Only is null));
             if (effective!.RetryCount > 0)
                 badges.Add(new Badge("", $"×{effective.RetryCount}", step.RetryCount is null));
             if (stepDescriptor is not null && effective.Timeout != stepDescriptor.DefaultTimeout)
@@ -252,12 +260,23 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             parts.Add($"Runs together, {Count}");
         if (waitsFor.Length > 0)
             parts.Add($"Waits for {waitsFor}");
+        if (node is StepNode { Only: { } cond } && cond != StepNode.OnlyAlways)
+            parts.Add($"Only if {OnlyLabel(node as StepNode)}");
         if (MayFail)
             parts.Add("May fail");
         if (hasProblem)
             parts.Add("Needs fixing");
         _name = string.Join(". ", parts) + ".";
         AutomationName = _name;
+    }
+
+    /// <summary>The chosen condition in the user's words ("it isn't connected"), else the id.</summary>
+    internal static string OnlyLabel(StepNode? step)
+    {
+        if (step?.Only is not { } id)
+            return "";
+        var label = ProviderCatalog.Find(step.Step)?.Conditions.FirstOrDefault(c => c.Id == id)?.Label ?? id;
+        return label.Length > 0 ? char.ToLowerInvariant(label[0]) + label[1..] : label;
     }
 
     /// <summary>"Technics · Default output": the library items, flows and values the step works with, at most two.</summary>

@@ -96,6 +96,25 @@ public static class Outcomes
         return all.Exists(n => n.Outcome == NodeOutcome.Succeeded) ? FlowOutcome.PartiallySucceeded : FlowOutcome.Failed;
     }
 
+    /// <summary>A check step (D-081): <c>area.check</c>. Unmet it fails, so its words are the probe's, not "didn't work".</summary>
+    public static bool IsCheck(string stepId) => stepId.EndsWith(".check", StringComparison.Ordinal);
+
+    /// <summary>
+    /// #48 for a <see cref="Fix"/>: "Connect Technics didn't work, so Connect Sony ran instead."; for a check the probe's
+    /// own words lead: "Technics isn't connected, so Speakers ran instead."
+    /// </summary>
+    public static string FixSentence(Flow flow, IEnumerable<NodeResult> results, (string Failed, string Fallback) fix, Func<string, string> title)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        ArgumentNullException.ThrowIfNull(results);
+        ArgumentNullException.ThrowIfNull(title);
+        if (flow.FindNode(fix.Failed) is StepNode { } step && IsCheck(step.Step)
+            && results.FirstOrDefault(r => r.NodeId == fix.Failed)?.Error is { } error
+            && error.ReplaceLineEndings("\n").Split('\n')[0].Trim().TrimEnd('.') is { Length: > 0 } why)
+            return $"{why}, so {title(fix.Fallback)} ran instead.";
+        return $"{title(fix.Failed)} didn't work, so {title(fix.Fallback)} ran instead.";
+    }
+
     /// <summary>
     /// A failure its fallback fixed, for "Connect Technics didn't work, so Connect Sony ran instead." (#48): the first
     /// of <see cref="Fixes"/>. Null when nothing failed, nothing handled it, or no fallback started.

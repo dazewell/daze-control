@@ -281,9 +281,17 @@
                 <HyperlinkButton Content="Open this flow" Command="{x:Bind ViewModel.OpenCalledFlowCommand, Mode=OneWay}" Padding="0,4"
                                  Visibility="{x:Bind ViewModel.CanOpenCalledFlow, Mode=OneWay}" />
 
+                <!-- Only if (D-081): the choices come from the step type's conditions; not shown when it has none. -->
+                <StackPanel Visibility="{x:Bind ViewModel.HasOnlyIf, Mode=OneWay}" Spacing="4">
+                    <ComboBox x:Name="OnlyIfBox" Header="Only if" HorizontalAlignment="Stretch" ItemsSource="{x:Bind ViewModel.OnlyIfOptions, Mode=OneWay}"
+                              SelectedIndex="{x:Bind ViewModel.OnlyIfIndex, Mode=TwoWay}" AutomationProperties.Name="Only if"
+                              IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" />
+                    <TextBlock Text="Otherwise this step is skipped and the flow carries on." Style="{StaticResource SettingsCardDescription}" />
+                </StackPanel>
+
                 <!-- If it fails (UX §5.4): hover or focus previews what wouldn't run. -->
-                <TextBlock Text="If it fails" Style="{StaticResource InspectorSection}" />
-                <RadioButtons x:Name="PolicyButtons" Opacity="{x:Bind local:InspectorPane.DimStep(ViewModel.IsStep, ViewModel.PolicyIsSet), Mode=OneWay}" SelectedIndex="{x:Bind ViewModel.PolicyIndex, Mode=TwoWay}" AutomationProperties.Name="If it fails"
+                <TextBlock Text="{x:Bind ViewModel.PolicySectionTitle, Mode=OneWay}" Style="{StaticResource InspectorSection}" />
+                <RadioButtons x:Name="PolicyButtons" Opacity="{x:Bind local:InspectorPane.DimStep(ViewModel.IsStep, ViewModel.PolicyIsSet), Mode=OneWay}" SelectedIndex="{x:Bind ViewModel.PolicyIndex, Mode=TwoWay}" AutomationProperties.Name="{x:Bind ViewModel.PolicySectionTitle, Mode=OneWay}"
                               IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
                     <RadioButton Tag="0" PointerEntered="OnPolicyHover" PointerExited="OnPolicyLeave" GotFocus="OnPolicyHover" LostFocus="OnPolicyLeave"
                                  AutomationProperties.Name="Stop the flow. Nothing after this runs.">
@@ -321,10 +329,10 @@
                 </StackPanel>
                 <!-- A fallback without hunting for an edge's menu: a new step, or one already in the flow, runs only if this fails. -->
                 <DropDownButton x:Name="FallbackButton" Margin="0,8,0,0" IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}"
-                                ToolTipService.ToolTip="Add a step that runs only if this one fails">
+                                ToolTipService.ToolTip="{x:Bind ViewModel.FallbackTip, Mode=OneWay}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE7BA;" FontSize="14" />
-                        <TextBlock Text="If it fails, run…" />
+                        <TextBlock Text="{x:Bind ViewModel.FallbackText, Mode=OneWay}" />
                     </StackPanel>
                     <DropDownButton.Flyout>
                         <MenuFlyout x:Name="FallbackMenu" Placement="Bottom" Opening="OnFallbackMenuOpening" />

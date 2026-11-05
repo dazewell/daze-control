@@ -314,7 +314,7 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
         var fix = outcome == FlowOutcome.Succeeded && _running is not null ? Outcomes.Fix(_running, _results) : null;
         var message = outcome switch
         {
-            FlowOutcome.Succeeded when fix is { } f => $"{name} worked. {RunWords.Fixed(f, Title)}",
+            FlowOutcome.Succeeded when fix is { } f => $"{name} worked. {Outcomes.FixSentence(_running!, _results, f, Title)}",
             FlowOutcome.Succeeded => $"{name} is done.",
             FlowOutcome.PartiallySucceeded when failed is not null => $"Done, with a problem. {Title(failed)} didn't work, so it went on without it.",
             FlowOutcome.PartiallySucceeded => "Done, with a problem. Some steps were skipped.",

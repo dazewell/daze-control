@@ -185,7 +185,7 @@ public sealed class RunPopupModel
             // A failure its fallback fixed is the plan working: "Done", in the normal tone (#48, D-065).
             FlowOutcome.Succeeded when Outcomes.Fix(run.Flow, run.Finished) is { } fix => view with
             {
-                Detail = $"{run.NameOf(fix.Failed)} didn't work, so {run.NameOf(fix.Fallback)} ran instead.",
+                Detail = Outcomes.FixSentence(run.Flow, run.Finished, fix, run.NameOf),
             },
             FlowOutcome.PartiallySucceeded => view with
             {
