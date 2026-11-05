@@ -182,7 +182,10 @@ public static class ConfigMapper
                     continue;
                 }
                 if (document is null)
+                {
+                    Error(path, "Write the defaults as { timeout: 30s, retry: { count: 2 }, onFailure: skip }.");
                     continue;
+                }
                 var timeout = DurationOrNull(document.Timeout, path + ".timeout");
                 if (timeout is { } t && (t <= TimeSpan.Zero || t > ConfigValidator.MaxDuration))
                 {

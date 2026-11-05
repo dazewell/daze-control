@@ -178,6 +178,43 @@ public class StepDefaultsTests
         Assert.Contains(problems, p => p.FlowId == "m" && p.Path.EndsWith(".timeout", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void ADefaultTimeoutShorterThanAWaitIsTheFlowError()
+    {
+        var config = Load("""
+            settings:
+              stepDefaults:
+                wait: { timeout: 1s }
+            flows:
+              f:
+                nodes:
+                  - { id: a, step: wait, with: { duration: 2s } }
+            """);
+        Assert.Contains(ConfigValidator.Validate(config), p => p.FlowId == "f" && p.Path == "flows.f.nodes.a.timeout");
+    }
+
+    [Fact]
+    public void AMenuCloseAfterAtTheBuiltInTimeoutIsTheFlowError()
+    {
+        var config = Load("""
+            flows:
+              m:
+                nodes:
+                  - { id: a, step: menu.show, with: { items: [m2], closeAfter: 10m } }
+              m2:
+                nodes:
+                  - { id: b, step: wait, with: { duration: 1s } }
+            """);
+        Assert.Contains(ConfigValidator.Validate(config), p => p.FlowId == "m" && p.Path.EndsWith(".timeout", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ANullEntryIsReported()
+    {
+        var load = ConfigYaml.Load("settings:\n  stepDefaults:\n    wait:\n");
+        Assert.Equal("settings.stepDefaults.wait", Assert.Single(load.Problems).Path);
+    }
+
     [Theory]
     [InlineData("full.yaml")]
     [InlineData("samples/user-config.yaml")]
