@@ -688,7 +688,7 @@ T12.6: `GamepadSource` polls at 10 Hz while only chords listen (a chord fires on
 - Revisit if: S1 fails both gates (then ask the user), or PlayStation pads become a goal (GameInput or HID).
 
 ## D-057 · 2026-11-03 · Controller trigger: `gamepad:` chords of 2–4 buttons, fired on release, recorded by the engine
-Status: accepted (M12 design)
+Status: superseded by D-086 (chords removed 2026-11-04; built in v0.40.0)
 - Decision: flow key `gamepad: [View+Menu]` (Xbox names A B X Y LB RB LT RT View Menu LS RS Up Down Left Right,
   canonical order); no Guide, no single buttons. A chord fires when its buttons were held together, with no other
   button, and the first one is let go. Hotkey rules apply (enabled valid flows, later clash gets a problem, Pause
@@ -1162,3 +1162,19 @@ Status: accepted (user, 2026-11-04: no numpad on the dev PC, asked for the opera
 - Why not Num Enter: it is VK_RETURN with the extended flag, which `RegisterHotKey` can't see, so it would register
   plain Enter. Left out (a hook is ruled out, D-071).
 
+## D-086 · 2026-11-04 · No controller chords: a pad only drives the open menu, and the pad source runs only while one is open
+Status: accepted (user, 2026-11-04); supersedes D-057 and the chord parts of D-056. Built on feat/remove-gamepad-chords.
+- Decision: removed the `gamepad:` flow key / `Flow.Gamepad`, `GamepadChord` (only the `GamepadButtons` flags stay),
+  `GamepadChordRecognizer`, `GamepadTable`, the editor's "Controller buttons" recorder and trigger text, `record-gamepad`,
+  chord validation and clash checks, the sleep/resume wiring, and the 10 Hz chord poll. Kept: the menu driven by a pad
+  (D-pad/stick move, A run, B close; `MenuModel`'s pad path and released-since-open), XInput at 60 Hz **only while a menu
+  is open** (the first listener starts the reader, closing the menu stops it), `DeviceArrival` while it runs, and
+  `dctl devices gamepads` (a one-shot enumeration, useful for diagnosis). The "Controller menu" template has no trigger.
+- Compatibility: a `gamepad:` key in a file from v0.40.0 loads: one warning on the flow ("chords were removed"), the key
+  is ignored and not written back (D-021, D-023).
+- Why: the user found button chords impractical: Steam Input remaps buttons per pad, the recorder can't see a pad
+  Steam owns, and mapping across pads is too complex. A pad button mapped to a key in Steam works as a shortcut (D-071,
+  the F13–F24 keys) with none of that code.
+- Why not keep chords as an option: untested on real pads (T12.6's live legs never ran), a second backend consumer, and
+  the idle cost (10 Hz poll, arrival and power hooks) for a feature nobody will use. Also removes T12.10's Steam recipe
+  for chords; the README explains the shortcut route instead.

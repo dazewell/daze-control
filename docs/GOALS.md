@@ -22,8 +22,8 @@ lives in [DECISIONS.md](DECISIONS.md).
   "Use only these screens" from the PC's screens, and pickers or examples for every free-text value (PowerShell,
   Android, code…) (D-050, D-051); the Bluetooth list must match Windows' own (D-052). Design first, same standards.
 - A **flow menu** (user, 2026-11-03): a step pops up a menu "in our OSD format" on top of all windows; each button runs
-  another flow, shown with that flow's icon and name; it works with a controller, and a controller button combo can
-  start a flow (so one combo opens the menu, the pad picks). Designed first as its own sub-project
+  another flow, shown with that flow's icon and name; it works with a controller. (A controller button combo that starts a flow was built, then removed 2026-11-04: too
+  complex across pads and Steam Input, D-086; map the button to a key in Steam and use it as a shortcut.) Designed first as its own sub-project
   ([flow-menu/DESIGN.md](flow-menu/DESIGN.md), D-053..D-057). Pads: an Xbox controller and the Steam Controller (through
   Steam). The menu never takes focus; polling a pad only while one is on is acceptable (all 2026-11-03).
 - Priority after v0.23.0 (user, 2026-11-03), before all other planned work (PLAN M13, designed 2026-11-03,
@@ -63,7 +63,7 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
 - [x] Canvas: long simple chains wrap onto rows of 5 like text; forks, joins and parallel branches keep their
   columns (user, 2026-11-03; D-060; 0.23.0).
 - [ ] M13 Editor and flow updates P1–P9 (designed 2026-11-03, D-061..D-070; PLAN → M13), before everything else.
-- [ ] M12 Flow menu + controller trigger (designed 2026-11-03, D-053..D-057; PLAN → M12). Starts with two spikes:
+- [ ] M12 Flow menu, driven by a controller (designed 2026-11-03, D-053..D-057; PLAN → M12). Starts with two spikes:
   controller input at 0 idle CPU (needs your Xbox pad plugged in) and the menu over games without taking focus.
 - [ ] M14 Step defaults and conditions (user, 2026-11-04; designed D-080..D-082; PLAN → M14), before the rest of the plan:
   default Try again / Wait / Give up after / If it fails per step type; "Only if…" on steps (Connect skips when already

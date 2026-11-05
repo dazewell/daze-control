@@ -1,7 +1,9 @@
 # Flow menu (M12) — design
 
-A step that pops up a menu of flows over every window, in the run pop-up's look, and a controller-button trigger
-that starts a flow. Designed 2026-11-03 as its own sub-project (D-053), **not built yet**. Decisions: D-053..D-057.
+A step that pops up a menu of flows over every window, in the run pop-up's look, driven by a controller too.
+Designed 2026-11-03 as its own sub-project (D-053). **Chords were removed 2026-11-04 (D-086):** a controller only
+drives an open menu; wherever below a `gamepad:` chord, `record-gamepad` or "Controller buttons" appears, it is gone.
+Decisions: D-053..D-057, D-086.
 Tasks: [PLAN.md](../PLAN.md) → M12. Microcopy numbers (#28–#44) are in [UX.md](../UX.md) §5.7.
 
 When a task builds a part, it moves the as-built facts into ARCHITECTURE/UX and cuts them here, so this file
@@ -16,7 +18,7 @@ The user's controllers (2026-11-03): an **Xbox controller** (read directly, D-05
 (reaches other apps only through Steam: Steam's desktop layout turns a combo into a keyboard shortcut and the
 D-pad/A/B into arrows/Enter/Esc, which the menu already understands, §4.3). PlayStation pads: not a goal.
 
-In: the `menu.show` step, the `gamepad:` trigger, the menu window, editor support, `dctl devices gamepads`.
+In: the `menu.show` step, the menu window, editor support, `dctl devices gamepads`.
 Out (v1): menus drawn inside one window (submenus are flows, §2.5), per-item labels or icons other than the
 flow's, touch-first layouts, vibration, Guide/Share/PS buttons, keeping the game from seeing presses (§4.6).
 
@@ -28,7 +30,6 @@ flows:
   couch:
     name: Couch
     glyph: E7FC
-    gamepad: [View+Menu]
     whenRunning: ignore
     nodes:
       - id: pick
@@ -65,17 +66,9 @@ flows:
 The step's outcome is the launch (or, with `wait`, the picked flow's outcome), never "which flow": a flow can't
 branch on the pick. Branching is what the menu items are. Recorded as `NodeResult.Summary` ("Picked Couch TV").
 
-### 2.4 The controller trigger (D-057)
-- Flow key `gamepad: [View+Menu, LB+RB+Y]`, beside `hotkeys:`. A chord is 2–4 buttons from A B X Y LB RB LT RT View
-  Menu LS RS Up Down Left Right (Xbox names, `+` between, any order, written in this order). No Guide (Game Bar owns
-  it and XInput doesn't report it), no single buttons (a game would start it by accident, #37).
-- It fires when the buttons were all held together and then the first of them is let go, if no other button was
-  held with them. So `View+Menu` never fires while pressing `View+Menu+A`, and the menu opens with the buttons up.
-- Same rules as hotkeys: only enabled flows without errors; a chord in two flows → the later flow gets a problem
-  (#36); Pause shortcuts pauses them too; trigger text "Controller · View + Menu".
-- Any connected controller can fire it. The editor records a chord through the engine (§3.6).
-- Steam Controller: map a Steam chord to a keyboard shortcut in Steam's desktop layout and give the flow that
-  hotkey. The docs (README) say how; no code.
+### 2.4 The controller trigger — removed (D-086)
+A flow is started by a shortcut, the tray or the CLI; the menu then opens and the pad drives it. A pad button the user
+wants as a trigger is mapped to a key in Steam Input and used as a shortcut (README).
 
 ### 2.5 Menus inside menus; validation (D-054)
 - A submenu is an item whose flow has a menu step. With launch semantics the first menu's run ends right after the
@@ -92,7 +85,7 @@ branch on the pick. Branching is what the menu items are. Recorded as `NodeResul
   - `wait: true` items that reach back to the menu's flow (through `wait: true` menus or `flow.run` steps) → error
     (#39), checked with flow calls on one call graph (D-063);
   - 0 items or more than 12 → error; `closeAfter` outside 5 s..10 min → error;
-  - a `gamepad:` chord that doesn't parse, has < 2 or > 4 buttons or names Guide → error on the flow.
+  - a v0.40.0 file's `gamepad:` key → one warning, ignored, dropped on the next save (D-086).
 - A menu flow with only disabled or broken items still shows (#28) rather than fail silently.
 
 ## 3. Architecture
@@ -100,15 +93,14 @@ branch on the pick. Branching is what the menu items are. Recorded as `NodeResul
 ### 3.1 Parts
 ```
 Core:     Catalog `menu.show` (ParamSpec: items TextList Ordered Suggest=Config(flows); title; layout; size;
-          closeAfter; wait) · Model `GamepadChord` (parse/format, button flags) · Flow.Gamepad · validation (§2.5)
+          closeAfter; wait) · Model `GamepadButtons` flags · validation (§2.5)
 Runtime:  Providers/MenuProvider (IStepProvider) ─► IMenuPresenter (seam) ─► IFlowStarter (EngineController)
           Menus/MenuModel (pure: items, focus, grid moves, repeat, released-since-open, close timer; ManualTime)
-          Triggers/GamepadChordRecognizer (pure: button states → chord fired) · Triggers/GamepadTable (like HotkeyTable)
 Engine:   Shell/FlowMenu (window, drawing) · Shell/AcrylicSurface (shared with RunPopup) · Shell/MenuKeys (temporary
           RegisterHotKey set) · Input/GamepadSource (backend from spike S1, D-056) · Input/DeviceArrival
-Ipc/Cli:  `devices gamepads`, `record-gamepad`, events unchanged; `dctl devices gamepads`
+Ipc/Cli:  `devices gamepads`, events unchanged; `dctl devices gamepads`
 Editor:   inspector (flow token list, layout, size, close after, wait), Test shows the menu, flow settings
-          "Controller buttons" recorder, "Controller menu" template, run trigger texts
+          "Controller menu" template, run trigger texts
 ```
 
 ### 3.2 Step contract and runner
@@ -167,15 +159,12 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
 | Dev PC | present (0.2309.26100, `GameInputSvc` manual, no redist) | present | — | — |
 - Decision shape (D-056): GameInput callbacks if spike S1 passes, else XInput polling **only while an XInput pad is
   connected** (user, 2026-11-03: accepted, ~0.1 % CPU and a little battery while a pad is on; 0 with none):
-  20 Hz while only chords listen, 60 Hz while a menu is open, only the connected slots (an empty slot stalls).
-- Nothing gamepad-related loads unless a runnable flow has a `gamepad:` chord, a menu is open, or a request needs
-  it: `record-gamepad` is a temporary consumer (source started for it, released on answer, timeout or client gone),
-  and `devices gamepads` enumerates once on demand without starting the reader. With chords,
-  `Input/DeviceArrival` registers a device-interface notification on the message window (HID + XUSB interface
-  classes) and starts/stops the source as pads come and go; sleep/resume (`RegisterSuspendResumeNotification`)
-  stops and restarts it. We never send output (rumble, LEDs), so pads still time out and sleep on their own.
-- Readings → `GamepadChordRecognizer` (pure) on the pool → chord events posted to the message thread, like
-  `WM_HOTKEY`; while a menu is open the same readings drive `MenuModel` instead (chords off).
+  60 Hz while a menu is open (nothing otherwise, D-086), only the connected slots (an empty slot stalls).
+- Nothing gamepad-related loads unless a menu is open (D-086): the first menu start loads XInput and the reader thread,
+  closing the menu stops it. `devices gamepads` enumerates once on demand without starting the reader. While the
+  source runs, `Input/DeviceArrival` (HID + XUSB interface classes) wakes the parked reader when a pad is plugged in.
+  We never send output (rumble, LEDs), so pads still time out and sleep on their own.
+- Readings drive `MenuModel` directly (marshalled to the message thread).
 - Stick: left stick past 0.5 moves (back under 0.3 to re-arm); D-pad and stick repeat after 400 ms, then every
   120 ms. A button counts in a menu only after it was seen up since the menu opened.
 - Steam: with Steam Input on for Xbox pads, its desktop layout may also send arrows/Enter/Esc for the same press;
@@ -184,9 +173,6 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
   The menu suits the desktop or a paused game; the README says so.
 
 ### 3.5 YAML, model, validation
-- `Flow.Gamepad: ValueList<GamepadChord>` (DTO strings, D-023: a bad chord is a problem, not a load failure),
-  written like hotkeys; `GamepadChord` keeps a canonical order (A B X Y LB RB LT RT View Menu LS RS Up Down Left
-  Right) so equality and clashes ignore the written order.
 - `menu.show` params are ordinary `with:` values; `items` is a TextList whose values are flow ids
   (`ParamSpec.Suggest = Config(flows)`, `Ordered`). New: `ParamSpec.RefersTo = Flow` so validation checks the
   refs and the editor's flow rename rewrites them (as `LibraryEdits.Rename` does for library keys).
@@ -194,10 +180,6 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
 ### 3.6 IPC and CLI
 - `devices gamepads` → `DeviceInfo` per connected pad (name, slot, "Connected", battery level when known).
   `dctl devices gamepads`.
-- `record-gamepad` (timeout ≤ 15 s, cancel on client gone): starts the source if nothing else holds it (so the first
-  chord of a config can be recorded), pauses gamepad chords, answers the next chord
-  (canonical text) or "no controller" / timed out. The editor's recorder uses it, so what you record is what the
-  engine sees. Additive; `protocol` stays 1.
 - `test-step` for `menu.show` shows the menu and answers the pick (§3.2).
 
 ### 3.7 Editor
@@ -206,15 +188,12 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
   with #40. **Title** (placeholder = flow name). **Layout** List / Grid radio with a tiny drawing each. **Size**
   Normal / Large "For a TV across the room". **Close after** seconds. **Wait for it to finish** toggle (#41).
 - Preview = "Test this step" ("Show the menu"): the real menu on screen, no run (#42).
-- Flow settings: "Controller buttons" row under Shortcuts: chips "View + Menu", "Add buttons" → recorder flyout
-  (#34; no pad #35; engine off #43; clash #36; one button #37).
-- New flow template "Controller menu": a `menu.show` with up to the first four flows, `gamepad: [View+Menu]`,
-  `size: large`. Runs page triggers "Controller · View + Menu", "Menu · Couch".
+- New flow template "Controller menu": a `menu.show` with up to the first four flows, `size: large`, no trigger yet
+  (the user adds a shortcut). Runs page trigger "Menu · Couch".
 
 ### 3.8 Footprint budget
-- No flow with a chord, no menu shown: unchanged (0 ms CPU / 10 min, nothing loaded).
-- Chords listening, no pad on: 0 ms CPU / 10 min, ≤ +1 MB private (measured +0.8, XInput + cfgmgr32 loaded).
-- Pad on, untouched: GameInput path 0 ms; XInput path ≤ 300 ms CPU / 10 min (user-accepted, D-056).
+- No menu shown: unchanged (0 ms CPU / 10 min, nothing loaded, no thread).
+- Menu open with a pad on: XInput at 60 Hz for as long as it is open (user-accepted, D-056).
 - After a menu has shown: within D-036's +4.5 MB (shares the pop-up's D2D/DWrite load), flat over 10 menus.
 - Menu open: ≤ 60 Hz redraws only on change; 0 when nothing moves.
 

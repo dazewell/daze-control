@@ -473,7 +473,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   game (FSO too) out of full screen, X-010. (b), (c) and (e) hold; (d) is partly tested (one monitor). The user
   decided (2026-11-04): **borderless only** (D-055 accepted). QUNS = 3 → #32, logged, nothing shown. M12 goes on:
   T12.1 next, then T12.3 onward.
-- [x] T12.3 Core: `menu.show` descriptor, `GamepadChord`, `Flow.Gamepad`, `ParamSpec.RefersTo = Flow`, validation
+- [x] T12.3 Core: `menu.show` descriptor, ~~`GamepadChord`, `Flow.Gamepad`~~ (chords superseded by D-086), `ParamSpec.RefersTo = Flow`, validation
   (feat/m12-core, #61, DESIGN §2.5, §3.5). Done when: YAML round-trip of DESIGN §2.1's flow; chord parse/format tests
   (order, `+` spacing, Guide/one button/5 buttons refused); validator tests for own flow, unknown and duplicate item,
   `wait` loop, 0/13 items, `closeAfter` range, `timeout` ≤ `closeAfter`, chord clash (later flow); a flow rename
@@ -485,13 +485,13 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   edges don't run; two menus serialize on the presenter gate; a `wait: true` parent picking a submenu flow shows the
   child's menu (gate released before the launch) and takes its outcome; "Back" to a parent that is still running
   follows its `whenRunning`; dry run doesn't show; test-step returns the pick without a run.
-- [x] T12.5 Runtime: pure `MenuModel` + `GamepadChordRecognizer` + `GamepadTable` (feat/m12-runtime, PR #60, DESIGN §2.4,
+- [x] T12.5 Runtime: pure `MenuModel` + ~~`GamepadChordRecognizer` + `GamepadTable`~~ (removed, D-086) (feat/m12-runtime, PR #60, DESIGN §2.4,
   §3.4, §4.3). Done when: tests with `ManualTime`: list/grid moves (no wrap, 2D), repeat 400/120 ms, stick hysteresis,
   released-since-open, 1–9, close timer restarts on input and ends as cancel, last pick focused first, Steam dedupe
   (key within 100 ms of the same pad move dropped); chord fires on first release only for the exact set, never inside
   a longer chord; table diff on reload, Pause, `record-gamepad` pausing chords.
-- [x] T12.6 Engine: `GamepadSource` (S1's backend) + `DeviceArrival` + suspend/resume, loaded only when needed; ops
-  `devices gamepads`, `record-gamepad`; `dctl devices gamepads` (feat/m12-gamepad). Done when: unit tests on the seams
+- [x] T12.6 Engine (chord, `record-gamepad` and suspend/resume parts superseded by D-086): `GamepadSource` (S1's backend) + `DeviceArrival`, loaded only while a menu is open; op
+  `devices gamepads`; `dctl devices gamepads` (feat/m12-gamepad). Done when: unit tests on the seams
   (no chord → never started; last pad gone → stopped; `record-gamepad` with no chord in the config starts the source,
   records the first chord and releases it on answer, timeout and client gone; `devices gamepads` lists a pad with no
   chord configured); on the dev PC a chord on a test flow runs it with another app
@@ -510,7 +510,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   and one log line, no window, no pop-up (D-055, X-010); a unit seam fakes QUNS for the test.
   **Done 2026-11-04 (#65), pad navigation deferred to T12.6:** `IMenuPadFeed` seam, the model's pad path is tested in T12.5; the pad leg of the live `dctl run` check and "Controller" hint row live-look wait for T12.6. Not built: open scale, tile scale, pick flash (polish). Footprint: flat, +6.3 MB after 10 menus, ~1.8 MB over D-036's line, absolute budget holds (ARCHITECTURE → Footprint).
 - [x] T12.8 Editor: `menu.show` inspector (flow token list, title, layout, size, close after, wait), Test shows the
-  menu, "Controller buttons" recorder, "Controller menu" template, trigger texts (feat/m12-editor, DESIGN §3.7). Done
+  menu, ~~"Controller buttons" recorder~~ (removed, D-086), "Controller menu" template, trigger texts (feat/m12-editor, DESIGN §3.7). Done
   when: VM tests (add/remove/reorder items, own flow not offered, missing flow chip, recorder states incl. engine off
   and no pad, template content); screenshots light/dark of the inspector and the recorder; Narrator names on the
   token list and recorder. Done (PR #63): recorder codes to DESIGN §3.6 until T12.6 lands `record-gamepad`; Layout and Size are drop-downs, not drawn radios.
@@ -518,7 +518,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   Done when: Narrator reads "Couch menu, 4 choices. Connect TV, 1 of 4." on open and the new choice on each move,
   the foreground window unchanged; #26's pop-up announcement may land in the same PR.
 - [ ] T12.10 Acceptance + docs fold-in (DESIGN §4, UX §5.9 M12). Done when: the checklist's M12 lines pass on the dev
-  PC (or are listed as the user's), README has the Steam Controller recipe and the known limits (DESIGN §4.6),
+  PC (or are listed as the user's), README says how to drive the menu with a pad (D-pad/stick, A, B; Steam-mapped keys work as shortcuts, D-086 — the Steam recipe text belongs to the F13–F24 session) and the known limits (DESIGN §4.6); chord lines of the checklist are superseded,
   DESIGN.md holds only what's still open, GOALS status current.
 
 ## First-use fixes (user, 2026-11-02; branch feat/first-use-fixes)

@@ -50,6 +50,14 @@ Steps: `audio.*`, `bluetooth.connect`/`disconnect`, `display.*`, `process.run`, 
 `http.request`, `android.*`, `service.start`/`stop`, `wait`, `notify`, `flag.*`. The editor's step palette lists them
 with their settings ([docs/FEATURES.md](docs/FEATURES.md) has the whole model).
 
+### Menu with a controller
+
+A `menu.show` step pops up a menu of flows over every window. A flow with that step is started like any other (shortcut,
+tray, `dctl run`); while the menu is open an Xbox pad (or a Steam Controller's Xbox mode) drives it: D-pad or left stick
+to move, A to run, B to close. Buttons already held when the menu opens are ignored until you let go. Daze Control reads
+the pad only while a menu is open. Starting a flow from a pad button is done with a shortcut: map the button to a key in
+Steam Input and give the flow that key as its shortcut.
+
 ### Command line
 
 ```
