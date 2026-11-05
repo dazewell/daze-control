@@ -75,7 +75,7 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   `Providers/Android`; catalog. Done when: fake tests; `display.check` on the dev PC reports the current layout match without changing
   the screens (read-only); `android.check` only behind an adb already running (no new process on a quiet PC, or noted in
   FEATURES).
-- [ ] T14.10 `only` in step defaults (feat/m14-only-defaults, after T14.7). Files: `StepDefaults`/validator/mapper (`only`), Settings card row,
+- [x] T14.10 `only` in step defaults (feat/m14-only-defaults, after T14.7). Files: `StepDefaults`/validator/mapper (`only`), Settings card row,
   inspector row state (Default/Set). Done when: `bluetooth.connect: { only: disconnected }` skips a connected Connect, a step with
   `only: always` still runs, Reset returns to the default, YAML round-trip.
 

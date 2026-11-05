@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DazeControl.Core.Catalog;
 using DazeControl.Core.Model;
+using DazeControl.Editor.ViewModels.Canvas;
 
 namespace DazeControl.Editor.ViewModels.Inspector;
 
@@ -102,6 +103,13 @@ public sealed partial class InspectorViewModel
                 : "Don't try again",
             StepDefaultRow.Policy(effective.OnFailure),
         ];
+        if (descriptor?.Conditions.Count > 0 && effective.Only is { } only)
+        {
+            if (only != StepNode.OnlyAlways)
+                UseForAllValues = [.. UseForAllValues, "Only if " + CanvasNodeViewModel.OnlyLabel(step.Step, only)];
+            else if (typeDefault?.Only is not null)
+                UseForAllValues = [.. UseForAllValues, "Always"]; // overrides the current default
+        }
         UseForAllApplies = Applies(step);
 
         if (_noticeNode != step.Id)
@@ -118,7 +126,8 @@ public sealed partial class InspectorViewModel
         foreach (var flow in _session.Current.Flows)
         {
             var n = flow.Nodes.OfType<StepNode>().Count(s => s.Step == self.Step && !(flow.Id == FlowId && s.Id == self.Id)
-                && (s.Timeout is null || s.RetryCount is null || s.RetryDelay is null || s.OnFailure is null));
+                && (s.Timeout is null || s.RetryCount is null || s.RetryDelay is null || s.OnFailure is null
+                    || s.Only is null && ProviderCatalog.Find(s.Step)?.Conditions.Count > 0));
             steps += n;
             flows += n > 0 ? 1 : 0;
         }
@@ -158,6 +167,8 @@ public sealed partial class InspectorViewModel
             RetryCount = effective.RetryCount,
             RetryDelay = effective.RetryCount > 0 ? effective.RetryDelay : _previousDefault?.RetryDelay,
             OnFailure = effective.OnFailure,
+            // "Always" with no condition default is the built-in: no key (B8).
+            Only = effective.Only == StepNode.OnlyAlways && _previousDefault?.Only is null ? null : effective.Only,
         });
         _noticeNode = step.Id;
         DefaultsNotice = $"Saved as the default for {ProviderCatalog.Find(step.Step)?.Title ?? step.Step} steps";

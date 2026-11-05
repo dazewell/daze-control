@@ -27,6 +27,9 @@ public sealed record StepDefault
 
     public FailurePolicy? OnFailure { get; init; }
 
+    /// <summary>"Only if" for every step of the type (D-081, B8): a condition id of the type; <c>always</c> is a valid entry.</summary>
+    public string? Only { get; init; }
+
     public bool IsEmpty => this == new StepDefault();
 }
 

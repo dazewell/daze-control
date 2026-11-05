@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using DazeControl.Core.Catalog;
 using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
@@ -23,6 +24,13 @@ public sealed partial class InspectorViewModel
     [ObservableProperty]
     public partial IReadOnlyList<string> OnlyIfOptions { get; private set; } = [];
 
+    /// <summary>The step sets its own "Only if" (else it follows its type's default, T14.10).</summary>
+    [ObservableProperty]
+    public partial bool OnlyIfIsSet { get; private set; }
+
+    [ObservableProperty]
+    public partial string ResetOnlyIfTip { get; private set; } = "";
+
     /// <summary>0 = Always.</summary>
     [ObservableProperty]
     public partial int OnlyIfIndex { get; set; }
@@ -45,8 +53,12 @@ public sealed partial class InspectorViewModel
     {
         _conditions = descriptor?.Conditions ?? [];
         HasOnlyIf = _conditions.Count > 0;
-        OnlyIfOptions = OnlyChoices(_conditions);
-        OnlyIfIndex = OnlyIndex(_conditions, step.Only);
+        var inherited = TypeDefault(step.Step)?.Only;
+        var overrides = inherited is not null && inherited != StepNode.OnlyAlways;
+        OnlyIfOptions = OnlyChoices(_conditions, overrides);
+        OnlyIfIndex = OnlyIndex(_conditions, step.Only ?? inherited);
+        OnlyIfIsSet = step.Only is not null;
+        ResetOnlyIfTip = $"Use the default ({OnlyIfOptions[OnlyIndex(_conditions, inherited)].ToLowerInvariant()})";
         IsCheck = Outcomes.IsCheck(step.Step);
     }
 
@@ -57,6 +69,7 @@ public sealed partial class InspectorViewModel
         IsCheck = false;
         OnlyIfOptions = [];
         OnlyIfIndex = 0;
+        OnlyIfIsSet = false;
     }
 
     partial void OnOnlyIfIndexChanged(int value)
@@ -65,12 +78,21 @@ public sealed partial class InspectorViewModel
             return;
         // "Always" is the same as no key, unless the type's default has an "only" (T14.10) that it must override.
         var only = OnlyAt(_conditions, value);
-        EditStep(s => s with { Only = only });
+        EditStep(s =>
+        {
+            var inherited = TypeDefault(s.Step)?.Only;
+            if (only is null)
+                return s with { Only = inherited is not null && inherited != StepNode.OnlyAlways ? StepNode.OnlyAlways : null };
+            return s with { Only = only == inherited ? null : only }; // the default's own choice is "not set"
+        });
     }
 
+    [RelayCommand]
+    private void ResetOnlyIf() => EditStep(s => s with { Only = null });
+
     /// <summary>"Always (default)" then each condition's label.</summary>
-    public static IReadOnlyList<string> OnlyChoices(IReadOnlyList<ConditionSpec> conditions) =>
-        [AlwaysText, .. conditions.Select(c => c.Label)];
+    public static IReadOnlyList<string> OnlyChoices(IReadOnlyList<ConditionSpec> conditions, bool alwaysOverrides = false) =>
+        [alwaysOverrides ? "Always" : AlwaysText, .. conditions.Select(c => c.Label)];
 
     /// <summary>The choice for a stored <c>only</c>: 0 for absent, <c>always</c> or an id the type doesn't know.</summary>
     public static int OnlyIndex(IReadOnlyList<ConditionSpec> conditions, string? only)

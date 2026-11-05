@@ -69,6 +69,19 @@ public sealed class ConditionRunTests : IDisposable
     }
 
     [Fact]
+    public async Task ATypeDefaultSkipsAndAStepWithAlwaysStillRuns()
+    {
+        var defaults = new ValueDictionary<StepDefault>(new[] { KeyValuePair.Create("notify", new StepDefault { Only = "disconnected" }) });
+        var flow = StepDefaults.Apply(new Flow("f", "F", [Step("inherit", null), Step("always", "always")]), defaults, Catalog);
+
+        var run = await FlowRunnerTests.Bound(Runner().RunAsync(flow, Library.Empty, TestContext.Current.CancellationToken));
+
+        Assert.Equal(["always"], _provider.Attempts.Select(a => a.Step));
+        Assert.Equal("Technics is connected", run.Nodes.First(n => n.NodeId == "inherit").SkippedBecause);
+        Assert.Equal(1, _probe.Reads);
+    }
+
+    [Fact]
     public async Task MetRunsTheStepWithNoNote()
     {
         _probe.Value = false;

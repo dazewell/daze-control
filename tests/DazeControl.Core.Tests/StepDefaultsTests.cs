@@ -239,4 +239,45 @@ public class StepDefaultsTests
         }
         throw new FileNotFoundException(relative);
     }
+
+    [Fact]
+    public void OnlyResolvesOwnThenTypeDefaultAndAlwaysOverridesIt()
+    {
+        var d = new StepDefault { Only = "disconnected" };
+        var connect = new StepNode("a", "bluetooth.connect");
+        var descriptor = ProviderCatalog.Find("bluetooth.connect");
+        Assert.Equal("disconnected", StepSettings.Resolve(connect, descriptor, d).Only);
+        Assert.Equal("always", StepSettings.Resolve(connect with { Only = "always" }, descriptor, d).Only);
+        Assert.Null(StepSettings.Resolve(connect, descriptor, null).Only); // built-in: always, no existing config changes
+        Assert.Null(StepSettings.Resolve(connect, descriptor, new StepDefault { Timeout = TimeSpan.FromSeconds(5) }).Only);
+        var flow = new Flow("f", "F", [connect, connect with { Id = "b", Only = "always" }]);
+        var applied = StepDefaults.Apply(flow, new(new[] { KeyValuePair.Create("bluetooth.connect", d) }));
+        Assert.Equal(["disconnected", "always"], applied.Nodes.Cast<StepNode>().Select(n => n.Only));
+    }
+
+    [Fact]
+    public void OnlyInStepDefaultsRoundTripsAndABadIdIsAProblemAndDropped()
+    {
+        var config = Load("""
+            settings:
+              stepDefaults:
+                bluetooth.connect: { only: disconnected }
+                bluetooth.disconnect: { only: always }
+            """);
+        Assert.Equal("disconnected", config.Settings.StepDefaults["bluetooth.connect"].Only);
+        var again = Load(ConfigYaml.Save(config));
+        Assert.Equal("disconnected", again.Settings.StepDefaults["bluetooth.connect"].Only);
+        Assert.Equal("always", again.Settings.StepDefaults["bluetooth.disconnect"].Only);
+
+        var load = ConfigYaml.Load("""
+            settings:
+              stepDefaults:
+                bluetooth.connect: { only: connected, timeout: 5s }
+                wait: { only: disconnected }
+            """);
+        Assert.Equal(["settings.stepDefaults.bluetooth.connect.only", "settings.stepDefaults.wait.only"], load.Problems.Select(p => p.Path));
+        Assert.All(load.Problems, p => Assert.Null(p.FlowId));
+        Assert.Null(load.Config!.Settings.StepDefaults["bluetooth.connect"].Only);
+        Assert.DoesNotContain("wait", load.Config.Settings.StepDefaults.Keys);
+    }
 }
