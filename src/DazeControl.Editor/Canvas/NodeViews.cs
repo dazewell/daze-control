@@ -198,6 +198,9 @@ internal sealed class PillView : NodeView
                 _glyph.Glyph = "\uE893";
                 break;
         }
+        // Skipped by "Only if": still the Succeeded ring and tick, but dashed, so it doesn't read as work done.
+        if (Node.RunConditionSkipped && state == NodeRunState.Succeeded)
+            _ring.StrokeDashArray = Theme.Dashes(2, 2);
         // Dry run: the start order replaces the glyph of a step that would work.
         if (Node.OrderText.Length > 0 && state is NodeRunState.Succeeded or NodeRunState.None)
         {

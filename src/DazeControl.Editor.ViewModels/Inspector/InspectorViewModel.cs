@@ -407,6 +407,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             : descriptor?.Title ?? step.Step;
         Name = step.Name ?? "";
         LoadTiming(step, descriptor);
+        LoadOnlyIf(step, descriptor);
         OnPropertyChanged(nameof(CanRetryDelay));
 
         if (step.Step != _stepType || Fields.Count == 0 && descriptor?.Params.Count > 0)
@@ -1044,7 +1045,9 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         else if (!answer.Ok)
             ShowResult(false, "Didn't work: " + answer.Error, null);
         else if (answer.Run?.Nodes.FirstOrDefault(n => n.NodeId == nodeId) is { } result)
-            ShowResult(result.Outcome == NodeOutcome.Succeeded, step.Step == ProviderCatalog.MenuShowId ? ExplainMenu(result, result.Summary) : Explain(result), result.Error);
+            ShowResult(result.Outcome == NodeOutcome.Succeeded || Outcomes.IsCheck(step.Step) && result.Outcome == NodeOutcome.Failed,
+                step.Step == ProviderCatalog.MenuShowId ? ExplainMenu(result, result.Summary) : ExplainTest(step.Step, result),
+                Outcomes.IsCheck(step.Step) ? null : result.Error);
     }
 
     [RelayCommand]

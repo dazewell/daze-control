@@ -296,7 +296,15 @@ public sealed partial class RunsView : UserControl
                 RadiusY = 4,
                 Fill = fill,
             };
-            if (bar.IsMayFailFailed)
+            if (bar.IsConditionSkipped)
+            {
+                // Skipped by "Only if" (D-081): success colours, but an outline over a pale fill, so it isn't work done.
+                segment.Fill = Theme.Brush("SystemFillColorSuccessBackgroundBrush");
+                segment.Stroke = Theme.Brush("SystemFillColorSuccessBrush");
+                segment.StrokeThickness = 1.5;
+                segment.StrokeDashArray = Theme.Dashes(3, 2);
+            }
+            else if (bar.IsMayFailFailed)
             {
                 segment.Stroke = Theme.Brush("SystemFillColorCautionBrush");
                 segment.StrokeThickness = 1.5;
@@ -322,7 +330,7 @@ public sealed partial class RunsView : UserControl
                 FontSize = 12,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Margin = new Thickness(4, 0, 0, 0),
-                Foreground = Theme.Brush(outcome is NodeOutcome.Succeeded or NodeOutcome.Failed
+                Foreground = Theme.Brush(outcome is NodeOutcome.Succeeded or NodeOutcome.Failed && !bar.IsConditionSkipped
                     ? Theme.HighContrast ? "SystemColorWindowColorBrush" : "TextOnAccentFillColorPrimaryBrush"
                     : "TextFillColorPrimaryBrush"),
             });

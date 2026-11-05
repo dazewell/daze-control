@@ -10,6 +10,9 @@ public sealed record PaletteItem(string Step, string Title, string Glyph, string
     /// <summary>"Connect, Bluetooth": titles repeat across areas ("Connect", "Disconnect").</summary>
     public string Name => $"{Title}, {Area}";
 
+    /// <summary>A check step (D-081): the palette and search call it "Check", never "Test" (that runs a step).</summary>
+    public bool IsCheck => Core.Runs.Outcomes.IsCheck(Step);
+
     public override string ToString() => Name;
 }
 
@@ -52,7 +55,8 @@ public sealed partial class StepPaletteViewModel : ObservableObject
     private static bool Matches(PaletteItem item, string word) =>
         item.Title.Contains(word, StringComparison.OrdinalIgnoreCase)
         || item.Area.Contains(word, StringComparison.OrdinalIgnoreCase)
-        || item.Step.Contains(word, StringComparison.OrdinalIgnoreCase);
+        || item.Step.Contains(word, StringComparison.OrdinalIgnoreCase)
+        || item.IsCheck && "check".StartsWith(word, StringComparison.OrdinalIgnoreCase);
 
     partial void OnQueryChanged(string value) => Filter();
 

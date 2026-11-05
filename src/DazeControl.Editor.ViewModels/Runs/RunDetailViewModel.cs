@@ -14,6 +14,9 @@ public sealed record TimelineBarView(string NodeId, string Title, NodeOutcome Ou
     /// <summary>A failure its fallback took over (D-065): dashed caution like a may-fail one.</summary>
     public bool IsHandled { get; init; }
 
+    /// <summary>"Only if" wasn't met and the step was skipped (D-081): a hatched success bar.</summary>
+    public bool IsConditionSkipped { get; init; }
+
     /// <summary>A "Run a flow" step that waited: its chevron shows the called flow's lanes (UX §5.5, D-062).</summary>
     public bool IsCall { get; init; }
 
@@ -223,6 +226,7 @@ public sealed partial class RunDetailViewModel : ObservableObject
             top + p.Bar.Lane * LaneHeight + (LaneHeight - BarHeight) / 2, p.W, [.. p.Bar.Notches.Select(n => Math.Clamp(X(n) - p.X, 0, p.W))])
         {
             IsHandled = p.Bar.Handled,
+            IsConditionSkipped = NodeOf(p.Bar.NodeId)?.SkippedBecause is { Length: > 0 },
             IsCall = p.Bar.IsCall,
             IsExpanded = p.Bar.IsCall && _expanded.Contains(p.Bar.NodeId),
             IsNested = p.Bar.IsNested,
@@ -266,7 +270,8 @@ public sealed partial class RunDetailViewModel : ObservableObject
 
     private static List<string> Lines(NodeResult node, string title)
     {
-        var lines = new List<string> { $"{title}: {Describe(node.Outcome)}" };
+        // "Skipped: Technics was already connected" (D-081); a skip is still a Succeeded record.
+        var lines = new List<string> { node.SkippedBecause is { Length: > 0 } why ? $"{title}: skipped. {why}" : $"{title}: {Describe(node.Outcome)}" };
         if (node.Attempts > 0)
             lines.Add(node.Attempts == 1
                 ? $"Started at {RunWords.Seconds(node.Start)}, took {RunWords.Seconds(node.Duration)}."
