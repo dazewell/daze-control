@@ -658,8 +658,14 @@ covers exclusive mode and FSO alike, and then the menu doesn't open: we never kn
   documented overlay band. (S2: hotkeys did reach us; the window itself is what full-screen games can't take.)
 
 ## D-056 · 2026-11-03 · Controller input: GameInput callbacks if they idle at 0, else XInput polling only while a pad is on
-Status: proposed (M12 design; spike S1 decides; user, 2026-11-03: polling while a pad is on is acceptable). S1 so
-far (2026-11-04): GameInput reading callbacks are E_NOTIMPL on PC (X-011), so XInput polling; pad gates pending (PLAN T12.1)
+Status: accepted 2026-11-04 (spike S1): **XInput** (`xinput1_4`), polled only while a pad is on. GameInput is out:
+reading callbacks are E_NOTIMPL on PC (X-011), so it polls too, plus GameInputSvc. Probe numbers (AOT, exe 1.5 MB):
+no XInput pad, 600 s: 0 ms (one run 16 ms, a single tick), 22.7 M cycles, 7 threads, 5.4 MB private; arrival and
+removal rescan the slots and go back to sleep with 0 polls. The Steam Controller (wireless puck) is never an XInput or
+GameInput pad on the desktop, Steam on or off; it reaches us only as keys (D-056's "keys, no code" holds; DESIGN §5 S1
+lists them). Not measured (no Xbox pad on the day): pad on and untouched (≤ 300 ms / 10 min), reads with another app
+in front, sleep/resume. T12.6 measures these on the real `GamepadSource` and revisits this if the budget fails.
+(user, 2026-11-03: polling while a pad is on is acceptable.)
 - Decision: `Engine/Input/GamepadSource` reads Xbox/XInput pads. First choice: the inbox `GameInput.dll` (present on
   the dev PC, 0.2309.26100, no redist) with reading + device callbacks and background input. Fallback: `xinput1_4`
   polled at 20 Hz while only chords listen and 60 Hz while a menu is open, on connected slots only, and only while a

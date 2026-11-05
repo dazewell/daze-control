@@ -441,6 +441,8 @@ Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 i
 
 | 2026-11-02 | 4328146 (M10 gate, Release AOT, exe 11.6 MB with Velopack) | no config, not installed (no update checks), 5 threads | 5.4 | 21.7 | 0 (600 s) |
 
+| 2026-11-04 | T12.1 probe (`spikes/GamepadProbe xi`, AOT exe 1.5 MB, not the engine) | XInput reader + device-interface and suspend/resume notifications, no XInput pad (Steam Controller puck present), 7 threads | 5.4 | 15.8 | 0 (600 s; 22.7 M cycles); an earlier run 16 (one tick) |
+
 M5: absolute budget holds; the pop-up's first showing costs ~+2.5 MB private once (flat from 3 to 10 runs); the user
 accepted it and the post-run line now allows it (D-036).
 

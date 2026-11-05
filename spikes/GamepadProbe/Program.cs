@@ -13,7 +13,7 @@ namespace GamepadProbe;
 
 internal static unsafe partial class Program
 {
-    static bool quiet, keys;
+    static bool quiet, keys, raw;
     static float threshold = 0.1f;
     static uint focusPolicy;
     static uint mainThread;
@@ -32,6 +32,7 @@ internal static unsafe partial class Program
             {
                 case "--seconds": seconds = int.Parse(args[++i]); break;
                 case "--keys": keys = true; break;
+                case "--raw": raw = true; break;
                 case "--quiet": quiet = true; break;
                 case "--threshold": threshold = float.Parse(args[++i], System.Globalization.CultureInfo.InvariantCulture); break;
                 case "--focus": focusPolicy = uint.Parse(args[++i]); break;
@@ -43,6 +44,7 @@ internal static unsafe partial class Program
         Power.Start();
         Arrival.Start();
         if (keys) Hooks.Start();
+        if (raw) Raw.Start();
         bool ok = mode switch { "gi" => Gi.Start(), "xi" => Xi.Start(), _ => false };
         if (!ok) { Log($"mode {mode} failed to start"); return 1; }
 
@@ -52,6 +54,7 @@ internal static unsafe partial class Program
         Log($"started {mode}; CPU window opens (threads {p.Threads.Count}, private {p.PrivateMemorySize64 / 1048576.0:F1} MB)");
         p.Refresh();
         TimeSpan cpu0 = p.TotalProcessorTime;
+        QueryProcessCycleTime(GetCurrentProcess(), out ulong cyc0);
         long t0 = clock.ElapsedMilliseconds;
 
         if (seconds > 0)
@@ -61,10 +64,11 @@ internal static unsafe partial class Program
         while (GetMessageW(&msg, 0, 0, 0) > 0) { _ = TranslateMessage(&msg); DispatchMessageW(&msg); }
 
         TimeSpan cpu1 = Process.GetCurrentProcess().TotalProcessorTime;
+        QueryProcessCycleTime(GetCurrentProcess(), out ulong cyc1);
         p.Refresh();
         double cpuMs = (cpu1 - cpu0).TotalMilliseconds;
         double windowS = (clock.ElapsedMilliseconds - t0) / 1000.0;
-        Console.WriteLine($"SUMMARY mode={mode} window={windowS:F0}s cpu={cpuMs:F0}ms threads={p.Threads.Count} " +
+        Console.WriteLine($"SUMMARY mode={mode} window={windowS:F0}s cpu={cpuMs:F0}ms cycles={(cyc1 - cyc0) / 1e6:F2}M threads={p.Threads.Count} " +
             $"private={p.PrivateMemorySize64 / 1048576.0:F1}MB ws={p.WorkingSet64 / 1048576.0:F1}MB readings={readings} " +
             $"buttonChanges={buttonChanges} polls={polls} arrivals={arrivals} removals={removals}");
         if (mode == "gi") Gi.Stop(); else Xi.Stop();
@@ -116,6 +120,8 @@ internal static unsafe partial class Program
     [LibraryImport("user32.dll")] private static partial nint DispatchMessageW(MSG* m);
     [LibraryImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] internal static partial bool PostThreadMessageW(uint t, uint m, nint w, nint l);
     [LibraryImport("kernel32.dll")] private static partial uint GetCurrentThreadId();
+    [LibraryImport("kernel32.dll")] private static partial nint GetCurrentProcess();
+    [LibraryImport("kernel32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool QueryProcessCycleTime(nint p, out ulong cycles);
     [LibraryImport("user32.dll")] private static partial nint GetForegroundWindow();
     [LibraryImport("user32.dll")] private static partial uint GetWindowThreadProcessId(nint h, out uint pid);
 }
@@ -158,7 +164,7 @@ internal static unsafe partial class Gi
         hr = ((delegate* unmanaged[Stdcall]<void*, void*, uint, float, void*, delegate* unmanaged[Stdcall]<ulong, void*, void*, byte, void>, ulong*, int>)Vt(8))(
             gi, null, KindGamepad, Program.Threshold, null, &OnReading, &t);
         Program.Log($"RegisterReadingCallback(threshold {Program.Threshold}) hr=0x{hr:X8}");
-        if (hr < 0) return false;
+        if (hr < 0) { Program.Log("no reading callbacks (X-011): device callbacks only"); return true; }
         readToken = t;
         return true;
     }
@@ -388,4 +394,88 @@ internal static unsafe partial class Hooks
     [LibraryImport("user32.dll")] private static partial nint SetWindowsHookExW(int id, delegate* unmanaged[Stdcall]<int, nint, nint, nint> fn, nint mod, uint thread);
     [LibraryImport("kernel32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial nint GetModuleHandleW(string? name);
     [LibraryImport("user32.dll")] private static partial nint CallNextHookEx(nint h, int c, nint w, nint l);
+}
+
+
+// ---------------- Raw Input: which device sent each key/click (gate g) ----------------
+internal static unsafe partial class Raw
+{
+    static readonly Dictionary<nint, string> names = [];
+    static long lastMove;
+
+    public static void Start()
+    {
+        fixed (char* cls = "GpProbeRaw")
+        {
+            WNDCLASSW wc = default;
+            wc.lpfnWndProc = &WndProc;
+            wc.lpszClassName = cls;
+            wc.hInstance = GetModuleHandleW(null);
+            RegisterClassW(&wc);
+            nint hwnd = CreateWindowExW(0, cls, cls, 0, 0, 0, 0, 0, -3 /* HWND_MESSAGE */, 0, wc.hInstance, null);
+            var devs = stackalloc RAWINPUTDEVICE[4];
+            ushort[] usages = [6, 2, 5, 4]; // keyboard, mouse, gamepad, joystick on page 1
+            for (int i = 0; i < 4; i++) { devs[i].page = 1; devs[i].usage = usages[i]; devs[i].flags = 0x100 /* RIDEV_INPUTSINK */; devs[i].target = hwnd; }
+            bool ok = RegisterRawInputDevices(devs, 4, (uint)sizeof(RAWINPUTDEVICE));
+            Program.Log($"raw input hwnd={hwnd != 0} registered={ok}");
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    static nint WndProc(nint h, uint msg, nint w, nint l)
+    {
+        if (msg == 0x00FF) // WM_INPUT
+        {
+            uint size = 0;
+            _ = GetRawInputData(l, 0x10000003, null, &size, 24);
+            byte* buf = stackalloc byte[(int)Math.Min(size, 1024u)];
+            if (size <= 1024 && GetRawInputData(l, 0x10000003, buf, &size, 24) == size)
+            {
+                uint type = *(uint*)buf;
+                nint dev = *(nint*)(buf + 8);
+                byte* d = buf + 24;
+                string who = Name(dev);
+                if (type == 1) // keyboard: MakeCode, Flags, Reserved, VKey, Message
+                {
+                    ushort vk = *(ushort*)(d + 6), flags = *(ushort*)(d + 2);
+                    Program.Log($"RAW key vk=0x{vk:X2} {((flags & 1) != 0 ? "up" : "down")} from {who}");
+                }
+                else if (type == 0) // mouse: usFlags(2) pad(2) usButtonFlags(2) usButtonData(2) ...
+                {
+                    ushort bf = *(ushort*)(d + 4);
+                    long now = Environment.TickCount64;
+                    if (bf != 0) Program.Log($"RAW mouse buttons=0x{bf:X} from {who}");
+                    else if (now - lastMove > 1000) { lastMove = now; Program.Log($"RAW mouse move from {who}"); }
+                }
+                else Program.Log($"RAW hid {*(uint*)(d + 0)}B x{*(uint*)(d + 4)} from {who}");
+            }
+        }
+        return DefWindowProcW(h, msg, w, l);
+    }
+
+    static string Name(nint dev)
+    {
+        if (dev == 0) return "(no device: injected)";
+        if (names.TryGetValue(dev, out var n)) return n;
+        uint len = 0;
+        _ = GetRawInputDeviceInfoW(dev, 0x20000007, null, &len);
+        char* s = stackalloc char[(int)len + 1];
+        _ = GetRawInputDeviceInfoW(dev, 0x20000007, s, &len);
+        n = new string(s);
+        int i = n.IndexOf("VID_", StringComparison.OrdinalIgnoreCase);
+        n = i >= 0 ? n.Substring(i, Math.Min(n.Length - i, 26)) : n;
+        names[dev] = n;
+        return n;
+    }
+
+    [StructLayout(LayoutKind.Sequential)] struct RAWINPUTDEVICE { public ushort page, usage; public uint flags; public nint target; }
+    [StructLayout(LayoutKind.Sequential)]
+    struct WNDCLASSW { public uint style; public delegate* unmanaged[Stdcall]<nint, uint, nint, nint, nint> lpfnWndProc; public int cbClsExtra, cbWndExtra; public nint hInstance, hIcon, hCursor, hbrBackground; public char* lpszMenuName, lpszClassName; }
+    [LibraryImport("user32.dll")] private static partial ushort RegisterClassW(WNDCLASSW* wc);
+    [LibraryImport("user32.dll")] private static partial nint CreateWindowExW(uint ex, char* cls, char* name, uint style, int x, int y, int w, int h, nint parent, nint menu, nint inst, void* param);
+    [LibraryImport("user32.dll")] private static partial nint DefWindowProcW(nint h, uint m, nint w, nint l);
+    [LibraryImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool RegisterRawInputDevices(RAWINPUTDEVICE* d, uint n, uint size);
+    [LibraryImport("user32.dll")] private static partial uint GetRawInputData(nint h, uint cmd, void* data, uint* size, uint header);
+    [LibraryImport("user32.dll")] private static partial uint GetRawInputDeviceInfoW(nint dev, uint cmd, void* data, uint* size);
+    [LibraryImport("kernel32.dll", StringMarshalling = StringMarshalling.Utf16)] private static partial nint GetModuleHandleW(string? name);
 }
