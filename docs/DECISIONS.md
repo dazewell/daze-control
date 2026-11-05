@@ -1180,7 +1180,7 @@ Status: accepted (user, 2026-11-04); supersedes D-057 and the chord parts of D-0
   for chords; the README explains the shortcut route instead.
 
 ## D-087 · 2026-11-04 · Flow groups in the list are the tray folders: one concept, no new config key
-Status: proposed (design docs/flow-list/DESIGN.md; user to approve open choices 1–3)
+Status: accepted (user, 2026-11-04)
 - Decision: a group *is* `tray.folder`. The list shows groups as expandable headers; creating, renaming, ungrouping and
   moving write `tray.folder` on the members. No `groups:` key, no schema bump, no migration. A group exists while it has a
   member (no persisted empty groups). Flow settings' "Tray folder" is renamed "Group" ("Also the folder in the tray menu").
@@ -1192,7 +1192,7 @@ Status: proposed (design docs/flow-list/DESIGN.md; user to approve open choices 
 - Revisit if: users want list groups that differ from tray folders, or nested groups (the tray menu would need nesting too).
 
 ## D-088 · 2026-11-04 · List order is the tray order; a reorder writes the displayed order; sort and filter are view-only
-Status: proposed (design docs/flow-list/DESIGN.md; open choice 4)
+Status: accepted (user, 2026-11-04)
 - Decision: the list shows what `TrayMenu.Build` shows (groups at their first member's place, members in file order). Drag,
   Alt+↑/↓/← and "Move to" call pure `FlowListModel` operations and write the whole displayed order to `flows:` (autosaved,
   Undo stack of 20 cleared as D-076). Sort (Name, Last run), search and filters only change the view and turn dragging off;
@@ -1205,7 +1205,7 @@ Status: proposed (design docs/flow-list/DESIGN.md; open choice 4)
 - Revisit if: the drag can't be made reliable on `ItemsRepeater` (then a prototype result goes to DEADENDS first).
 
 ## D-089 · 2026-11-04 · Row facts come from the config and the history op; relative times refresh on events, not on a timer
-Status: proposed (design docs/flow-list/DESIGN.md Part D; open choice 7)
+Status: accepted (user, 2026-11-04)
 - Decision: a row shows shortcut (first, "+n"), step count, last run (result + relative time), and icons for not-in-tray and
   desktop shortcut; "Used by n flows" and all shortcuts are tooltips. Last run uses the existing `history` op with `Limit`
   100 (newest per flow); a flow with no record says "No recent run". Times are recomputed when the page shows, the window
@@ -1217,7 +1217,7 @@ Status: proposed (design docs/flow-list/DESIGN.md Part D; open choice 7)
 - Revisit if: a user needs run counts or a longer history (then a persisted per-flow summary, engine-side).
 
 ## D-090 · 2026-11-04 · List selection is additive: a plain click still opens; Ctrl/Shift+click and a Select toggle select
-Status: proposed (design docs/flow-list/DESIGN.md Part F; open choices 5–6)
+Status: accepted (user, 2026-11-04)
 - Decision: Ctrl+click toggles, Shift+click selects a range, Ctrl+A all visible, Ctrl+Space toggles the focused card, Esc
   clears; a Select command-bar toggle shows checkboxes. A selection drags together and takes Group…, Move to, Turn on/off,
   Delete (D-076 for many) and Duplicate; Run stays single. Duplicate clears shortcuts (D-072 clash) and lands after the original.
