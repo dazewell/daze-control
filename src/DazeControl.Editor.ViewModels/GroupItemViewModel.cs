@@ -18,6 +18,9 @@ public sealed partial class GroupItemViewModel : ObservableObject
         Name = name;
     }
 
+    /// <summary>The id a drop "before this group" names (a group stands for its first member).</summary>
+    public string? FirstMemberId => _members.Count > 0 ? _members[0].Id : null;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ToggleName), nameof(Summary))]
     public partial string Name { get; private set; }

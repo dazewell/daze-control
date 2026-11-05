@@ -107,7 +107,18 @@
                             <StackPanel x:Name="FlowsPage" Grid.Row="1" Spacing="4">
                                 <Grid Margin="0,0,0,12">
                                     <TextBlock Text="Flows" Style="{StaticResource TitleTextBlockStyle}" />
-                                    <SplitButton HorizontalAlignment="Right" Background="{ThemeResource AccentFillColorDefaultBrush}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                    <!-- Undo of the last list change (move, group, ungroup, rename, delete…), 20 deep; Ctrl+Z (DESIGN B4). -->
+                                    <Button Command="{x:Bind ViewModel.Flows.UndoCommand}" AutomationProperties.Name="Undo" ToolTipService.ToolTip="Undo (Ctrl+Z)">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE7A7;" FontSize="14" />
+                                            <TextBlock Text="Undo" />
+                                        </StackPanel>
+                                        <Button.KeyboardAccelerators>
+                                            <KeyboardAccelerator Key="Z" Modifiers="Control" />
+                                        </Button.KeyboardAccelerators>
+                                    </Button>
+                                    <SplitButton Background="{ThemeResource AccentFillColorDefaultBrush}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                                             IsEnabled="{x:Bind ViewModel.Flows.CanEdit, Mode=OneWay}" AutomationProperties.Name="New flow"
                                             Command="{x:Bind ViewModel.Flows.NewFlowCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -124,6 +135,7 @@
                                             </MenuFlyout>
                                         </SplitButton.Flyout>
                                     </SplitButton>
+                                    </StackPanel>
                                 </Grid>
                                 <StackPanel Visibility="{x:Bind ViewModel.Flows.IsEmpty, Mode=OneWay}" Spacing="8" Margin="0,48,0,0"
                                             HorizontalAlignment="Center">
@@ -144,7 +156,8 @@
                                     </InfoBar.ActionButton>
                                 </InfoBar>
                                 <!-- Local: every card is a Tab stop (a repeater is one stop by default). -->
-                                <ItemsRepeater ItemsSource="{x:Bind ViewModel.Flows.Rows}" TabFocusNavigation="Local">
+                                <Grid x:Name="FlowDropHost" AllowDrop="True" Background="Transparent" DragOver="OnFlowListDragOver" DragLeave="OnFlowListDragLeave" Drop="OnFlowListDrop">
+                                <ItemsRepeater x:Name="FlowRepeater" ItemsSource="{x:Bind ViewModel.Flows.Rows}" TabFocusNavigation="Local">
                                     <ItemsRepeater.Layout>
                                         <StackLayout Spacing="4" />
                                     </ItemsRepeater.Layout>
@@ -154,6 +167,7 @@
                                             <DataTemplate x:DataType="vm:GroupItemViewModel">
                                                 <!-- Group header (D-087): a tray folder. The chevron and a click on the row expand or collapse it. -->
                                                 <Grid Style="{StaticResource SettingsCard}" Margin="0,8,0,0" Tag="{x:Bind Name, Mode=OneWay}" Tapped="OnGroupHeaderTapped"
+                                                      CanDrag="{x:Bind CanEdit, Mode=OneWay}" DragStarting="OnGroupDragStarting" DropCompleted="OnDragCompleted"
                                                       AutomationProperties.Name="{x:Bind Summary, Mode=OneWay}">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
@@ -200,7 +214,8 @@
                                           <Border Margin="{x:Bind local:RowFormat.Indent(InGroup), Mode=OneWay}" Padding="{x:Bind local:RowFormat.RailPadding(InGroup), Mode=OneWay}"
                                                   BorderThickness="{x:Bind local:RowFormat.Rail(InGroup), Mode=OneWay}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
                                             <!-- A click anywhere but the switch and Run opens the flow; so do Enter and Space on the card (D-070). -->
-                                            <local:FlowCard Tag="{x:Bind Id}" Invoked="OnFlowCardInvoked" DeleteRequested="OnFlowCardDeleteRequested" CornerRadius="{ThemeResource OverlayCornerRadius}"
+                                            <local:FlowCard Tag="{x:Bind Id}" CanDrag="{x:Bind CanEdit, Mode=OneWay}" DragStarting="OnFlowDragStarting" DropCompleted="OnDragCompleted"
+                                                            MoveRequested="OnFlowCardMoveRequested" TakeOutRequested="OnFlowCardTakeOutRequested" Invoked="OnFlowCardInvoked" DeleteRequested="OnFlowCardDeleteRequested" CornerRadius="{ThemeResource OverlayCornerRadius}"
                                                                 AutomationProperties.Name="{x:Bind Summary, Mode=OneWay}">
                                                     <local:FlowCard.ContextFlyout>
                                                         <MenuFlyout Opening="OnFlowMenuOpening">
@@ -215,6 +230,16 @@
                                                                 </MenuFlyoutItem.Icon>
                                                             </MenuFlyoutItem>
                                                             <MenuFlyoutSeparator />
+                                                            <MenuFlyoutItem Text="Move up" Tag="{x:Bind Id}" Click="OnFlowMoveUpClick" IsEnabled="{x:Bind CanEdit, Mode=OneWay}">
+                                                                <MenuFlyoutItem.Icon>
+                                                                    <FontIcon Glyph="&#xE74A;" />
+                                                                </MenuFlyoutItem.Icon>
+                                                            </MenuFlyoutItem>
+                                                            <MenuFlyoutItem Text="Move down" Tag="{x:Bind Id}" Click="OnFlowMoveDownClick" IsEnabled="{x:Bind CanEdit, Mode=OneWay}">
+                                                                <MenuFlyoutItem.Icon>
+                                                                    <FontIcon Glyph="&#xE74B;" />
+                                                                </MenuFlyoutItem.Icon>
+                                                            </MenuFlyoutItem>
                                                             <!-- "Move to ›" is filled when the menu opens (the groups change). -->
                                                             <MenuFlyoutSubItem Text="Move to" IsEnabled="{x:Bind CanEdit, Mode=OneWay}">
                                                                 <MenuFlyoutSubItem.Icon>
@@ -258,6 +283,7 @@
                                                     </StackPanel>
                                                     <!-- Small status icons (DESIGN Part D): their meaning is in the tooltips and the card's name. -->
                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                        <FontIcon Glyph="&#xE76F;" FontSize="14" Opacity="0.5" ToolTipService.ToolTip="{x:Bind DragTip, Mode=OneWay}" />
                                                         <FontIcon Glyph="&#xE7B3;" FontSize="14" Visibility="{x:Bind NotInTray, Mode=OneWay}"
                                                                   ToolTipService.ToolTip="Not in the tray menu" />
                                                         <FontIcon Glyph="&#xE8A7;" FontSize="14" Visibility="{x:Bind HasDesktopShortcut, Mode=OneWay}"
@@ -288,6 +314,12 @@
                                       </local:FlowRowTemplateSelector>
                                     </ItemsRepeater.ItemTemplate>
                                 </ItemsRepeater>
+                                <!-- Drop cues (DESIGN B2): a 2-px insertion line, or an outline round the header that takes the drop. -->
+                                <Border x:Name="DropLine" Height="2" VerticalAlignment="Top" HorizontalAlignment="Stretch" Visibility="Collapsed" IsHitTestVisible="False"
+                                        Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="1" />
+                                <Border x:Name="DropBox" VerticalAlignment="Top" HorizontalAlignment="Stretch" Visibility="Collapsed" IsHitTestVisible="False"
+                                        BorderThickness="2" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="{ThemeResource OverlayCornerRadius}" />
+                                </Grid>
                             </StackPanel>
 
                             <!-- Library (UX §5.1) -->

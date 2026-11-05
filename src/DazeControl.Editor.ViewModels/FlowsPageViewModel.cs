@@ -121,7 +121,70 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     private void Apply(Func<Configuration, Configuration> change)
     {
         if (_session.CanEdit)
+            Commit(change);
+    }
+
+    private const int UndoDepth = 20;
+    private readonly List<Configuration> _undo = [];
+    private bool _committing;
+
+    /// <summary>Anything to undo on the list (DESIGN B4)?</summary>
+    public bool CanUndo => _undo.Count > 0;
+
+    /// <summary>
+    /// Every change this page makes goes through here: the previous version is pushed on the Undo stack (20), unless the
+    /// change leaves the order, groups and flows as they were.
+    /// </summary>
+    private void Commit(Func<Configuration, Configuration> change)
+    {
+        var before = _session.Current;
+        _committing = true;
+        try
+        {
             _session.Update(change);
+        }
+        finally
+        {
+            _committing = false;
+        }
+        if (ReferenceEquals(before, _session.Current))
+            return;
+        _undo.Add(before);
+        if (_undo.Count > UndoDepth)
+            _undo.RemoveAt(0);
+        OnPropertyChanged(nameof(CanUndo));
+        UndoCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>Forgets the Undo stack: opening a flow, leaving the page, closing, or a change that arrived from outside.</summary>
+    public void ClearUndo()
+    {
+        if (_undo.Count == 0)
+            return;
+        _undo.Clear();
+        OnPropertyChanged(nameof(CanUndo));
+        UndoCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>Undo / Ctrl+Z: the list as it was before the last change.</summary>
+    [RelayCommand(CanExecute = nameof(CanUndo))]
+    private void Undo()
+    {
+        if (_undo.Count == 0 || !_session.CanEdit)
+            return;
+        var previous = _undo[^1];
+        _undo.RemoveAt(_undo.Count - 1);
+        _committing = true; // not pushed again, not "from outside"
+        try
+        {
+            _session.Update(_ => previous);
+        }
+        finally
+        {
+            _committing = false;
+        }
+        OnPropertyChanged(nameof(CanUndo));
+        UndoCommand.NotifyCanExecuteChanged();
     }
 
     public void RenameGroup(string name, string newName)
@@ -168,6 +231,65 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             SaveCollapsed();
         Apply(c => FlowListModel.SetGroup(c, [flowId], group));
     }
+
+    /// <summary>The visible rows for <see cref="DropMath"/>, in list order.</summary>
+    public IReadOnlyList<DropRow> DropRows => [.. Rows.Select(r => r switch
+    {
+        GroupItemViewModel g => new DropRow(true, g.Name, null, g.FirstMemberId),
+        FlowItemViewModel f => new DropRow(false, f.Id, f.Group),
+        _ => default,
+    })];
+
+    /// <summary>A flow dropped (DESIGN B2): into <paramref name="group"/> (null = top level) before <paramref name="beforeId"/>.</summary>
+    public void DropFlow(string flowId, string? group, string? beforeId)
+    {
+        if (beforeId == flowId)
+            return; // dropped on itself
+        if (group is not null && _collapsed.Remove(group)) // dropped in: it shows
+            SaveCollapsed();
+        ApplyOrder(c => FlowListModel.Move(c, [flowId], group, beforeId));
+    }
+
+    /// <summary>A group dropped as a block before the top-level item holding <paramref name="beforeId"/> (null = at the end).</summary>
+    public void DropGroup(string name, string? beforeId) => ApplyOrder(c => FlowListModel.MoveGroup(c, name, beforeId));
+
+    /// <summary>A reorder that lands where it started (a drop on itself) changes nothing and is no Undo step.</summary>
+    private void ApplyOrder(Func<Configuration, Configuration> change)
+    {
+        if (!_session.CanEdit)
+            return;
+        var next = change(_session.Current);
+        if (Shape(next) != Shape(_session.Current))
+            Commit(_ => next);
+    }
+
+    private static string Shape(Configuration c) => string.Join(';', c.Flows.Select(f => $"{f.Id}|{f.Tray.Folder}"));
+
+    /// <summary>Alt+Up / Alt+Down and the menu's Move up / down: one place within the flow's container (its group, or the top level).</summary>
+    public void MoveFlow(string flowId, int delta)
+    {
+        var group = Items.FirstOrDefault(i => i.Id == flowId)?.Group;
+        if (group is not null)
+        {
+            var members = FlowListModel.Rows(_session.Current).OfType<GroupRow>()
+                .FirstOrDefault(g => StringComparer.CurrentCultureIgnoreCase.Equals(g.Name, group))?.FlowIds ?? [];
+            var at = members.ToList().IndexOf(flowId);
+            var to = at + delta;
+            if (at < 0 || to < 0 || to >= members.Count)
+                return;
+            DropFlow(flowId, group, delta < 0 ? members[to] : to + 1 < members.Count ? members[to + 1] : null);
+            return;
+        }
+        var units = TopLevelUnits(_session.Current);
+        var unit = units.FindIndex(u => u.Group is null && u.FirstId == flowId);
+        var target = unit + delta;
+        if (unit < 0 || target < 0 || target >= units.Count)
+            return;
+        DropFlow(flowId, null, delta < 0 ? units[target].FirstId : target + 1 < units.Count ? units[target + 1].FirstId : null);
+    }
+
+    /// <summary>Alt+Left: a member leaves its group, to just after it.</summary>
+    public void TakeOut(string flowId) => MoveFlowToGroup(flowId, null);
 
     /// <summary>The top-level items in order: a flow, or a group (named, with its first member's id).</summary>
     private static List<(string FirstId, string? Group)> TopLevelUnits(Configuration config)
@@ -286,7 +408,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     {
         _ = EndUndoAsync();
         var ids = _session.Current.Flows.Select(f => f.Id).ToHashSet(StringComparer.Ordinal);
-        _session.Update(c => c with { Flows = [.. c.Flows, new Flow(FlowIds.Unique("new-flow", ids), "New flow", [])] });
+        Commit(c => c with { Flows = [.. c.Flows, new Flow(FlowIds.Unique("new-flow", ids), "New flow", [])] });
     }
 
     /// <summary>"Controller menu" (DESIGN §3.7): a large menu of the first four flows,. It has no trigger yet: give it a shortcut (D-086).</summary>
@@ -310,7 +432,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         _ = EndUndoAsync();
         var ids = _session.Current.Flows.Select(f => f.Id).ToHashSet(StringComparer.Ordinal);
         var flow = ControllerMenu(_session.Current, FlowIds.Unique("controller-menu", ids));
-        _session.Update(c => c with { Flows = [.. c.Flows, flow] });
+        Commit(c => c with { Flows = [.. c.Flows, flow] });
     }
 
     /// <summary>The flow Undo would put back, and where it was (D-076).</summary>
@@ -345,7 +467,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             return;
         _ = EndUndoAsync();
         var flow = _session.Current.Flows[index];
-        _session.Update(c => c with { Flows = [.. c.Flows.Where(f => f.Id != flowId)] });
+        Commit(c => c with { Flows = [.. c.Flows.Where(f => f.Id != flowId)] });
         _deleted = (flow, index);
         DeletedText = $"{flow.Name} was deleted.";
     }
@@ -360,7 +482,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         DeletedText = null;
         if (_session.Current.Flows.Any(f => f.Id == deleted.Flow.Id))
             return; // the file got a flow with that id meanwhile
-        _session.Update(c =>
+        Commit(c =>
         {
             var flows = c.Flows.ToList();
             flows.Insert(Math.Min(deleted.Index, flows.Count), deleted.Flow);
@@ -374,6 +496,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     /// </summary>
     public Task EndUndoAsync()
     {
+        ClearUndo();
         if (_deleted is not { } deleted)
             return Task.CompletedTask;
         _deleted = null;
@@ -399,7 +522,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     }
 
     internal void SetEnabled(string flowId, bool enabled) =>
-        _session.Update(c => c with
+        Commit(c => c with
         {
             Flows = [.. c.Flows.Select(f => f.Id == flowId && f.Enabled != enabled ? f with { Enabled = enabled } : f)],
         });
@@ -441,6 +564,8 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
 
     private void OnSessionChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(ConfigSession.Current) && !_committing)
+            ClearUndo(); // a hot reload or a flow saved elsewhere: the stack would restore stale text
         if (e.PropertyName is nameof(ConfigSession.Current) or nameof(ConfigSession.Problems))
             Sync();
         if (e.PropertyName == nameof(ConfigSession.CanEdit))
@@ -691,7 +816,11 @@ public sealed partial class FlowItemViewModel : ObservableObject
 
     /// <summary>False while the file is read-only for the editor.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DragTip))]
     public partial bool CanEdit { get; private set; }
+
+    /// <summary>The grip's tooltip: what dragging does, or why it is off.</summary>
+    public string DragTip => CanEdit ? "Drag to reorder" : "This file is read-only, so the list can't be rearranged.";
 
     internal void Update(Flow flow, RunRecord? lastRun, int errors, bool canEdit, int callers, DateTimeOffset now)
     {
