@@ -442,9 +442,10 @@ Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 i
 | 2026-11-01 | same | after 3 runs of a 3-step flow with `popup: false` | 5.9 (+0.7) | 21.8 | 0 (60 s) |
 | 2026-11-01 | same | after 10 runs with the pop-up (software D2D, d2d1/DWrite unloaded on hide, D-034) | 8.8 (+3.5) | 24.9 | 0 (60 s) |
 
-| 2026-11-04 | 880a4b4 (T12.6 gamepad source, Release AOT, exe 12.8 MB) | no flow with a chord, no menu shown, 5 threads | 6.1 | 22.8 | 16 (600 s; one tick, as the probe's no-pad run) |
-| 2026-11-04 | 880a4b4 (same) | a flow with `gamepad: [View+Menu]`, no pad on (no Xbox pad awake): source thread parked on its event, XInput + cfgmgr32 loaded, 7 threads; +0.8 MB over the row above (DESIGN's ≤ +0.5 MB was optimistic) | 6.9 | 25.2 | 0 (600 s) |
-| 2026-11-04 | 880a4b4 (same) | pad on: not measured live (no pad powered during the session); expected ~205 ms / 10 min awake at 10 Hz (S1: ~50 µs per poll) | | | |
+| 2026-11-04 | 880a4b4 (T12.6 gamepad source, Release AOT, exe 12.8 MB) | no flow with a chord, no menu shown, 5 threads (chord rows superseded by D-086) | 6.1 | 22.8 | 16 (600 s; one tick, as the probe's no-pad run) |
+| 2026-11-04 | D-086 (chords removed, Release AOT, 4K at 175 %) | idle, scratch config incl. an old `gamepad:` key, no menu: same baseline as before the pad work, 6 threads | 6.3 | 22.7 | 0 (60 s) |
+| 2026-11-04 | same | menu open 25 s, no pad awake (XInput lists none): reader thread parked, 15 threads | 19.5 | 41.9 | 0 (20 s) |
+| 2026-11-04 | same | 30 s after the menu closed (log: `gamepad: reading stopped`): no pad thread | 9.0 | 27.8 | 0 (25 s) |
 
 | 2026-11-02 | 4328146 (M10 gate, Release AOT, exe 11.6 MB with Velopack) | no config, not installed (no update checks), 5 threads | 5.4 | 21.7 | 0 (600 s) |
 
