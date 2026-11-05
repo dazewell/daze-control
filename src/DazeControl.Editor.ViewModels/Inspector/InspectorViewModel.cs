@@ -371,6 +371,10 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             Mode = mode;
             OnPropertyChanged(nameof(CanTest));
             ManyText = string.Create(CultureInfo.InvariantCulture, $"{selected.Count} selected");
+            if (mode == InspectorMode.Many)
+                LoadMany(selected);
+            else
+                _bulk = null;
             if (node is not StepNode { Step: ProviderCatalog.RunFlowId })
                 CalledFlowId = null;
             if (node is not StepNode)
@@ -1109,7 +1113,10 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     private void OnCanvasChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(FlowCanvasViewModel.SelectedIds))
+        {
+            ManyProblem = ""; // a refusal belongs to the selection it was for
             Load();
+        }
         else if (e.PropertyName == nameof(FlowCanvasViewModel.CanEdit))
             OnPropertyChanged(nameof(CanEdit));
     }

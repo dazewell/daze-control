@@ -102,15 +102,14 @@ No version bumps (D-079). Opus medium.
   `UpdateDraft`). Done when: view-model tests: one type vs several types vs steps+cards give the Part D2 field sets; Mixed when
   values differ or are partly inherited; Set writes every step, Reset clears every step; one Undo restores all; per-step
   validation problems appear and nothing is half-applied.
-- [ ] T15.2 Many-mode inspector: policy, Timing, Only if (feat/m15-bulk-inspector, after T15.1). Files: `InspectorViewModel*.cs`, the Many
+- [x] T15.2 Many-mode inspector: policy, Timing, Only if (feat/m15-bulk-inspector, after T15.1). Files: `InspectorViewModel*.cs`, the Many
   section of the inspector XAML, header text, context menu "Select all <type> steps" in `FlowCanvasViewModel`/`FlowCanvas.xaml.cs`,
   UX §5.4/§5.7. Done when: tests for the Mixed placeholders and captions, "Reset all", text applies on commit as one Undo;
-  screenshots of a one-type selection (mixed and uniform) and a two-type selection; Narrator names read "…, mixed" /
-  "…, default"; keyboard reaches every row.
+  Narrator names read "…, mixed" / "…, default"; keyboard reaches every row. (Screenshots moved to T15.3.)
 - [ ] T15.3 Many-mode params (feat/m15-bulk-params, after T15.2). Files: `ParamFieldViewModel.cs`, `InspectorViewModel.cs` param
   builder. Done when: tests: params of a one-type selection edit all (a device pick for all, a text for all, a bool), `device`
   fields with different library kinds across types are not shown, a required param can't be cleared, an optional one clears
-  for all; one Undo each.
+  for all; one Undo each; screenshots of a one-type selection (mixed and uniform) and a two-type selection (moved from T15.2).
 
 ## M16 Flow list: reorder, groups, richer rows (user, 2026-11-04) — after the user approves docs/flow-list/DESIGN.md
 Designed 2026-11-04: docs/flow-list/DESIGN.md, D-087..D-090 (accepted by the user, 2026-11-04, all open choices as recommended). Groups are the tray folders: no config.yaml change. One PR per task, no

@@ -452,10 +452,124 @@
             </StackPanel>
 
             <!-- ===== Several selected ===== -->
-            <StackPanel Visibility="{x:Bind ViewModel.IsMany, Mode=OneWay, FallbackValue=Collapsed}" Spacing="4" Margin="0,8,0,0">
-                <TextBlock Text="{x:Bind ViewModel.ManyText, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                <TextBlock Text="Select one step to change its settings." Style="{StaticResource SettingsCardDescription}" />
+            <ContentControl IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" IsTabStop="False" HorizontalContentAlignment="Stretch">
+            <StackPanel Visibility="{x:Bind ViewModel.IsMany, Mode=OneWay, FallbackValue=Collapsed}" Spacing="8" Margin="0,8,0,0">
+                <TextBlock Text="{x:Bind ViewModel.ManyHeader, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" AutomationProperties.HeadingLevel="Level2" />
+                <InfoBar IsOpen="{x:Bind ViewModel.HasManyProblem, Mode=OneWay}" Severity="Warning" IsClosable="False" Message="{x:Bind ViewModel.ManyProblem, Mode=OneWay}" />
+
+                <!-- Only if: one step type with conditions (DESIGN D2). -->
+                <StackPanel Visibility="{x:Bind ViewModel.ManyHasOnlyIf, Mode=OneWay}" Spacing="4" Opacity="{x:Bind local:InspectorPane.DimRow(ViewModel.ManyOnlyView), Mode=OneWay}">
+                    <ComboBox Header="Only if" HorizontalAlignment="Stretch" ItemsSource="{x:Bind ViewModel.ManyOnlyOptions, Mode=OneWay}"
+                              SelectedIndex="{x:Bind ViewModel.ManyOnlyIndex, Mode=TwoWay}" PlaceholderText="Mixed"
+                              AutomationProperties.Name="{x:Bind ViewModel.ManyOnlyView.Name, Mode=OneWay}" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                        <TextBlock Text="{x:Bind ViewModel.ManyOnlyView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
+                               Visibility="{x:Bind ViewModel.ManyOnlyView.ShowCaption, Mode=OneWay}" />
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyOnlyCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyOnlyView.ResetTip, Mode=OneWay}"
+                                     Visibility="{x:Bind ViewModel.ManyOnlyView.ShowReset, Mode=OneWay}"
+                                     AutomationProperties.Name="{x:Bind ViewModel.ManyOnlyView.ResetTip, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE777;" FontSize="12" />
+                            <TextBlock Text="Reset" Style="{StaticResource SettingsCardDescription}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        </StackPanel>
+                    </HyperlinkButton>
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock Text="{x:Bind ViewModel.ManyPolicyTitle, Mode=OneWay}" Style="{StaticResource InspectorSection}" />
+                <RadioButtons SelectedIndex="{x:Bind ViewModel.ManyPolicyIndex, Mode=TwoWay}" Opacity="{x:Bind local:InspectorPane.DimRow(ViewModel.ManyPolicyView), Mode=OneWay}"
+                              AutomationProperties.Name="{x:Bind ViewModel.ManyPolicyView.Name, Mode=OneWay}">
+                    <RadioButton AutomationProperties.Name="Stop the flow. Nothing after this runs.">
+                        <StackPanel>
+                            <TextBlock Text="Stop the flow" />
+                            <TextBlock Text="Nothing after this runs." Style="{StaticResource SettingsCardDescription}" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton AutomationProperties.Name="Skip what depends on it. Steps that wait for this one are skipped. Others carry on.">
+                        <StackPanel>
+                            <TextBlock Text="Skip what depends on it" />
+                            <TextBlock Text="Steps that wait for this one are skipped. Others carry on." Style="{StaticResource SettingsCardDescription}" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton AutomationProperties.Name="Keep going. This step may fail, and the flow carries on.">
+                        <StackPanel>
+                            <TextBlock Text="Keep going" />
+                            <TextBlock Text="This step may fail, and the flow carries on." Style="{StaticResource SettingsCardDescription}" />
+                        </StackPanel>
+                    </RadioButton>
+                </RadioButtons>
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                        <TextBlock Text="{x:Bind ViewModel.ManyPolicyView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
+                               Visibility="{x:Bind ViewModel.ManyPolicyView.ShowCaption, Mode=OneWay}" />
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyPolicyCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyPolicyView.ResetTip, Mode=OneWay}"
+                                     Visibility="{x:Bind ViewModel.ManyPolicyView.ShowReset, Mode=OneWay}"
+                                     AutomationProperties.Name="{x:Bind ViewModel.ManyPolicyView.ResetTip, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE777;" FontSize="12" />
+                            <TextBlock Text="Reset" Style="{StaticResource SettingsCardDescription}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        </StackPanel>
+                    </HyperlinkButton>
+                    </StackPanel>
+
+                <StackPanel Visibility="{x:Bind ViewModel.ManyHasTiming, Mode=OneWay}" Spacing="8">
+                    <TextBlock Text="Timing" Style="{StaticResource InspectorSection}" />
+                    <NumberBox Header="Try again" Value="{x:Bind ViewModel.ManyRetries, Mode=TwoWay}" Minimum="0" Maximum="10"
+                               PlaceholderText="Mixed" SpinButtonPlacementMode="Inline" ValidationMode="InvalidInputOverwritten" MinWidth="200"
+                               Opacity="{x:Bind local:InspectorPane.DimRow(ViewModel.ManyRetriesView), Mode=OneWay}"
+                               AutomationProperties.Name="{x:Bind ViewModel.ManyRetriesView.Name, Mode=OneWay}" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                        <TextBlock Text="{x:Bind ViewModel.ManyRetriesView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
+                               Visibility="{x:Bind ViewModel.ManyRetriesView.ShowCaption, Mode=OneWay}" />
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyRetriesCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyRetriesView.ResetTip, Mode=OneWay}"
+                                     Visibility="{x:Bind ViewModel.ManyRetriesView.ShowReset, Mode=OneWay}"
+                                     AutomationProperties.Name="{x:Bind ViewModel.ManyRetriesView.ResetTip, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE777;" FontSize="12" />
+                            <TextBlock Text="Reset" Style="{StaticResource SettingsCardDescription}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        </StackPanel>
+                    </HyperlinkButton>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <NumberBox Header="Wait between tries" Value="{x:Bind ViewModel.ManyRetryDelay, Mode=TwoWay}" Minimum="0" Maximum="86400"
+                               PlaceholderText="Mixed" SpinButtonPlacementMode="Inline" ValidationMode="InvalidInputOverwritten" MinWidth="200"
+                               Opacity="{x:Bind local:InspectorPane.DimRow(ViewModel.ManyRetryDelayView), Mode=OneWay}"
+                               AutomationProperties.Name="{x:Bind ViewModel.ManyRetryDelayView.Name, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.ManyCanRetryDelay, Mode=OneWay}" />
+                        <TextBlock Text="s" VerticalAlignment="Bottom" Margin="0,0,0,8" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                        <TextBlock Text="{x:Bind ViewModel.ManyRetryDelayView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
+                               Visibility="{x:Bind ViewModel.ManyRetryDelayView.ShowCaption, Mode=OneWay}" />
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyRetryDelayCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyRetryDelayView.ResetTip, Mode=OneWay}"
+                                     Visibility="{x:Bind ViewModel.ManyRetryDelayView.ShowReset, Mode=OneWay}"
+                                     AutomationProperties.Name="{x:Bind ViewModel.ManyRetryDelayView.ResetTip, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE777;" FontSize="12" />
+                            <TextBlock Text="Reset" Style="{StaticResource SettingsCardDescription}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        </StackPanel>
+                    </HyperlinkButton>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <NumberBox Header="Give up after" Value="{x:Bind ViewModel.ManyTimeout, Mode=TwoWay}" Minimum="0" Maximum="86400"
+                               PlaceholderText="Mixed" SpinButtonPlacementMode="Inline" ValidationMode="InvalidInputOverwritten" MinWidth="200"
+                               Opacity="{x:Bind local:InspectorPane.DimRow(ViewModel.ManyTimeoutView), Mode=OneWay}"
+                               AutomationProperties.Name="{x:Bind ViewModel.ManyTimeoutView.Name, Mode=OneWay}" />
+                        <TextBlock Text="s" VerticalAlignment="Bottom" Margin="0,0,0,8" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                        <TextBlock Text="{x:Bind ViewModel.ManyTimeoutView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
+                               Visibility="{x:Bind ViewModel.ManyTimeoutView.ShowCaption, Mode=OneWay}" />
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyTimeoutCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyTimeoutView.ResetTip, Mode=OneWay}"
+                                     Visibility="{x:Bind ViewModel.ManyTimeoutView.ShowReset, Mode=OneWay}"
+                                     AutomationProperties.Name="{x:Bind ViewModel.ManyTimeoutView.ResetTip, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE777;" FontSize="12" />
+                            <TextBlock Text="Reset" Style="{StaticResource SettingsCardDescription}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        </StackPanel>
+                    </HyperlinkButton>
+                    </StackPanel>
+                </StackPanel>
             </StackPanel>
+            </ContentControl>
 
             <!-- ===== Nothing selected: the flow's settings (UX §5.4) ===== -->
             <ContentControl IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" IsTabStop="False" HorizontalContentAlignment="Stretch">

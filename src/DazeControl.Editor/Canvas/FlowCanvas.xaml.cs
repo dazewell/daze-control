@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
+using DazeControl.Core.Catalog;
 using DazeControl.Core.Layout;
 using DazeControl.Core.Model;
 using DazeControl.Editor.ViewModels.Canvas;
@@ -1035,6 +1036,8 @@ public sealed partial class FlowCanvas : UserControl
             menu.Items.Add(Item("Move up", "", () => vm.MoveInColumn(anchor.Id, -1), "Alt+Up", editable));
             menu.Items.Add(Item("Move down", "", () => vm.MoveInColumn(anchor.Id, 1), "Alt+Down", editable));
         }
+        if (vm.SelectedStepType is { } stepType)
+            menu.Items.Add(Item($"Select all {ProviderCatalog.Find(stepType)?.Title ?? stepType} steps", "", () => vm.SelectAllOfType(stepType)));
         menu.Items.Add(Item("Delete", "", vm.DeleteSelection, "Del", editable));
         return menu;
     }
