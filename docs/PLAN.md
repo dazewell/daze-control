@@ -97,7 +97,7 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
 Designed 2026-11-04: docs/step-settings/DESIGN.md Part D, D-084. Selection (click, Ctrl+click, marquee, Ctrl+A) already exists;
 `InspectorMode.Many` shows only "n selected". Order T15.1 → T15.2 → T15.3 (all in `Editor.ViewModels/Inspector`: serial).
 No version bumps (D-079). Opus medium.
-- [ ] T15.1 Bulk-edit model (feat/m15-bulk-core, after T14.4, T14.7, T14.10). Files: new `Editor.ViewModels/Inspector/BulkEdit.cs`
+- [x] T15.1 Bulk-edit model (feat/m15-bulk-core, after T14.4, T14.7, T14.10). Files: new `Editor.ViewModels/Inspector/BulkEdit.cs`
   (shared fields of a selection, per-field state All default / All set / Mixed, apply Set / Reset to many steps through one
   `UpdateDraft`). Done when: view-model tests: one type vs several types vs steps+cards give the Part D2 field sets; Mixed when
   values differ or are partly inherited; Set writes every step, Reset clears every step; one Undo restores all; per-step
