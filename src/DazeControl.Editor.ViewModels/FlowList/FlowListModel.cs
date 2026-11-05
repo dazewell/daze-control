@@ -268,8 +268,8 @@ public static class FlowListModel
                     order.Add((index, slot));
                 }
                 slot.Members.Add(flow);
-                if (flow.Enabled && flow.Tray.Show)
-                    visibleAt.TryAdd(slot, index);
+                if (flow.Enabled && flow.Tray.Show && visibleAt.TryAdd(slot, index))
+                    slot.Name = folder; // the tray spells a folder like its first visible member
             }
             else
             {
@@ -358,6 +358,7 @@ public static class FlowListModel
             flows.AddRange(slot.Members.Select(m =>
                 m.Tray.Folder == slot.Name ? m : m with { Tray = m.Tray with { Folder = slot.Name } }));
         }
-        return config with { Flows = new ValueList<Flow>(flows) };
+        var written = new ValueList<Flow>(flows);
+        return written == config.Flows ? config : config with { Flows = written };
     }
 }

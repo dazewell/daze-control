@@ -289,4 +289,15 @@ public sealed class FlowListModelTests
         Assert.Same(config, FlowListModel.MoveGroup(config, "none", null));
         Assert.Same(config, FlowListModel.Ungroup(config, "none"));
     }
+
+    [Fact]
+    public void AGroupIsSpelledLikeItsFirstVisibleMemberAndNoOpsReturnTheSameConfig()
+    {
+        var config = Make("h-:tv", "d:TV");
+        Assert.Equal("[TV] h d", List(config));
+        Assert.Equal(["> TV", " d"], Tray(config));
+        var plain = Make("a", "b", "c");
+        Assert.Same(plain, FlowListModel.Move(plain, ["b"], null, "b"));
+        Assert.Same(plain, FlowListModel.MakeOrder(plain, FlowSort.Yours));
+    }
 }
