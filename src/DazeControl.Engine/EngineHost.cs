@@ -277,8 +277,12 @@ internal sealed class EngineHost : IDisposable
             if (_popupModel.Apply(e, null, settings))
             {
                 // A quiet finish (a menu closed with nothing picked) leaves no view: take down what the run showed.
+                // Any window of ours knocks a DXGI full-screen game out of full screen (X-010): history keeps the run.
                 if (_popupModel.Current is { } view)
-                    _popup.Show(view, settings.Position);
+                {
+                    if (!FullScreen.OverGame())
+                        _popup.Show(view, settings.Position);
+                }
                 else
                     _popup.Hide();
             }
@@ -312,6 +316,8 @@ internal sealed class EngineHost : IDisposable
     {
         try
         {
+            if (FullScreen.OverGame())
+                return;
             var settings = _config.Current.Settings.Popup;
             _popup.Show(_popupModel.Refused(refusal.FlowId, refusal.Title, refusal.Message, settings), settings.Position);
         }

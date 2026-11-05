@@ -464,9 +464,9 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   like a hot-plug restore. Not fixed: a settle wait (WM_DISPLAYCHANGE, timeout) before `DisplayCheck` is the first
   thing to try, then a second check.
 - Run pop-up over a full-screen game: spike S2 (X-010) showed that any window of ours over a DXGI full-screen game
-  (FSO included) knocks the game out of full screen. The menu checks `SHQueryUserNotificationState` (T12.7), but
-  `RunPopup` still shows without checking, so a shortcut run during such a game probably does the same. Untested with
-  `RunPopup` itself. The likely fix is to skip the pop-up while QUNS = 3; history still records the run.
+  (FSO included) knocks the game out of full screen. T12.7: the menu asks `SHQueryUserNotificationState` first and
+  `EngineHost` skips the run pop-up and refusal pop-up while QUNS = 3 (history still records the run). Untested live
+  against a real full-screen game.
 - Designed, not built: controller input (M12, T12.6) — [flow-menu/DESIGN.md](flow-menu/DESIGN.md)
   §3.4 (D-056). Each M12 task moves its part into the sections above.
 - Built in M13 (PLAN → M13): the Layout menu's `LayoutOptions` (D-067, T13.6) and the editor for flow calls and inputs (T13.10). Each task rewrites the

@@ -130,6 +130,8 @@ internal sealed unsafe class FlowMenu : AcrylicSurface, IMenuPresenter
             result.TrySetException(new StepFailedException("The menu couldn't open. Try again."));
             if (Visible)
                 HideWindow(FadeOut);
+            else
+                ReleaseGraphics(); // factories and layouts made before the window showed
         }
     }
 
@@ -523,7 +525,8 @@ internal sealed unsafe class FlowMenu : AcrylicSurface, IMenuPresenter
 
     protected override void OnHidden()
     {
-        // A hide with a menu still open (a theme crash) must free the keys too.
+        // A hide with a menu still open (a drawing failure) frees the keys and answers the waiting step.
+        _result?.TrySetException(new StepFailedException("The menu closed unexpectedly. Try again."));
         Teardown();
         _request = null;
     }

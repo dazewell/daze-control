@@ -21,6 +21,7 @@ public sealed class FullScreenGuardPresenter(IMenuPresenter inner, Func<bool> ov
     public Task<MenuOutcome> ShowAsync(MenuRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested(); // a stop that raced the probe keeps its own outcome
         if (overFullScreenGame())
         {
             log($"menu: \"{request.Title}\" not shown, a full-screen game has the screen (D-055)");

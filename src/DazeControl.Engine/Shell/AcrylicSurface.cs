@@ -206,6 +206,8 @@ internal abstract unsafe class AcrylicSurface : IDisposable
     {
         PInvoke.SetWindowPos(_hwnd, HWND.HWND_TOPMOST, x, y, width, height, SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
         var size = (width, height);
+        if (_target is not null)
+            ((ID2D1RenderTarget*)_target)->SetDpi(Dpi, Dpi); // the monitor may have changed with the size unchanged
         if (size == _size)
             return;
         _size = size;
@@ -213,7 +215,6 @@ internal abstract unsafe class AcrylicSurface : IDisposable
         {
             var pixels = new D2D_SIZE_U { width = (uint)width, height = (uint)height };
             _target->Resize(&pixels);
-            ((ID2D1RenderTarget*)_target)->SetDpi(Dpi, Dpi); // display scaling may have changed
         }
     }
 
