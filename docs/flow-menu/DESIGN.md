@@ -279,7 +279,13 @@ app registered as global shortcuts don't reach the menu; Narrator hears announce
   else XInput. Record which and the numbers in D-056 and ARCHITECTURE → Footprint.
   **Result 2026-11-04 (probe `spikes/GamepadProbe`, Steam Controller on its wireless puck; no Xbox pad that day):**
   XInput (D-056 accepted). (a) holds; GameInput fails, since its reading callbacks are E_NOTIMPL (X-011); (b) 0 ms;
-  (e) arrival and removal hold, sleep/resume not run; (f) holds. (c) and (d) wait for an Xbox pad, which T12.6 measures.
+  (e) arrival and removal hold (incl. the Xbox pad dropping and coming back by itself), sleep/resume not run; (f) holds.
+  Xbox pad = Flydigi Vader 4 Pro on its wireless adapter (an Xbox 360 XInput pad): (c) 234 ms over 600 s untouched, but
+  it slept after about 4 min; always on, 20 Hz would be about 410 ms, so T12.6 may need 10 Hz for chords only (D-056);
+  (d) every button read with Steam's window in front, Steam on and off; Raw Input showed the pad sending about 500
+  reports/s nonstop (D-056's "why not HID" confirmed). (g) Xbox pad: Steam injects nothing for single buttons, but
+  **View+Menu becomes Alt+Tab** (Steam on: injected Alt, VK_GAMEPAD_VIEW/MENU, Tab; the task switcher opens). Steam
+  off: View+Menu gives one injected VK 0x07, nothing else. See §6 for the default chord.
   (g) The Steam Controller never shows up as an XInput or GameInput pad. With Steam on, Steam injects keys
   (`LLKHF_INJECTED`, no device): A Enter, B Esc, X Space, Y nothing, D-pad arrows, View+Menu Tab+Esc, right pad
   injected mouse moves. With Steam off, the puck's own HID keyboard/mouse (VID_28DE PID_1304) sends the same keys
@@ -326,3 +332,6 @@ app registered as global shortcuts don't reach the menu; Narrator hears announce
   only). Show it if cheap; not a goal.
 - Reopening the parent menu on B in a submenu (needs the "opened from" chain in the trigger). v1: B closes.
 - A per-flow "show in menus as" label. v1: the flow's name.
+- The default chord (T12.8 template, examples): with Steam running, Steam's desktop layout turns `View+Menu` into
+  Alt+Tab on the Xbox pad (S1), so the chord fires and the task switcher opens with it. Pick a default Steam doesn't
+  bind, or tell users to unbind it in Steam; ask the user.

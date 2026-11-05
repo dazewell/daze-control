@@ -405,9 +405,9 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   records the first chord and releases it on answer, timeout and client gone; `devices gamepads` lists a pad with no
   chord configured); on the dev PC a chord on a test flow runs it with another app
   in front and history says "Controller · View + Menu"; `dctl devices gamepads` lists the pad; footprint per DESIGN
-  §3.8 measured (no chord; chord + no pad; pad on) and recorded; S1's open gates with an Xbox pad (pad on and
-  untouched ≤ 300 ms over 10 min, reads with a full-screen app in front, sleep/resume only with the user's OK; else
-  revisit D-056).
+  §3.8 measured (no chord; chord + no pad; pad on) and recorded; S1's leftovers: pad on and untouched with the pad
+  kept awake ≤ 300 ms over 10 min (S1: ~410 ms at 20 Hz, so 10 Hz while only chords listen, D-056), reads under a
+  full-screen game, sleep/resume only with the user's OK.
 - [x] T12.7 Engine: `AcrylicSurface` cut from `RunPopup`, `FlowMenu` (list, grid, large, focus visual, hint row,
   close countdown, empty state), `MenuKeys`, mouse hook, placement, full-screen check, animation and high contrast
   (feat/m12-menu-window, DESIGN §3.3, §4). Done when: RunPopup unchanged (screenshots before/after); screenshots of
