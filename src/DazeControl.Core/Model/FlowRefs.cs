@@ -33,15 +33,30 @@ public static class FlowRefs
         ProviderCatalog.Find(step.Step)?.Params.Where(p => p.RefersTo == ConfigRef.Flow).Select(p => p.Name) ?? [];
 
     private static bool Names(StepNode step, string flowId) =>
-        FlowParams(step).Any(p => step.With.TryGetValue(p, out var value) && value is ScalarParam { Text: var text } && text.Trim() == flowId); // as ConfigValidator.CalledFlow
+        FlowParams(step).Any(p => step.With.TryGetValue(p, out var value) && Mentions(value, flowId)); // as ConfigValidator.CalledFlow
+
+    /// <summary>A flow id written as a scalar, or as an item of a list (<c>menu.show</c>'s <c>items</c>).</summary>
+    private static bool Mentions(ParamValue value, string flowId) => value switch
+    {
+        ScalarParam { Text: var text } => text.Trim() == flowId,
+        ListParam list => list.Items.Any(i => Mentions(i, flowId)),
+        _ => false,
+    };
+
+    private static ParamValue Replaced(ParamValue value, string oldId, string newId) => value switch
+    {
+        ScalarParam { Text: var text } when text.Trim() == oldId => newId,
+        ListParam list => new ListParam([.. list.Items.Select(i => Replaced(i, oldId, newId))]),
+        _ => value,
+    };
 
     private static StepNode Renamed(StepNode step, string oldId, string newId)
     {
         var refs = FlowParams(step).ToHashSet(StringComparer.Ordinal);
         return step with
         {
-            With = new(step.With.Select(e => refs.Contains(e.Key) && e.Value is ScalarParam { Text: var text } && text.Trim() == oldId
-                ? KeyValuePair.Create(e.Key, (ParamValue)newId)
+            With = new(step.With.Select(e => refs.Contains(e.Key)
+                ? KeyValuePair.Create(e.Key, Replaced(e.Value, oldId, newId))
                 : e)),
         };
     }

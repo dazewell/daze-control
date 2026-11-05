@@ -94,6 +94,8 @@ public sealed class FlowDocument
 
     public List<string>? Hotkeys { get; set; }
 
+    public List<string>? Gamepad { get; set; }
+
     public string? WhenRunning { get; set; }
 
     public string? Popup { get; set; }
