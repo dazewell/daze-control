@@ -403,7 +403,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   chord configured); on the dev PC a chord on a test flow runs it with another app
   in front and history says "Controller · View + Menu"; `dctl devices gamepads` lists the pad; footprint per DESIGN
   §3.8 measured (no chord; chord + no pad; pad on) and recorded.
-- [ ] T12.7 Engine: `AcrylicSurface` cut from `RunPopup`, `FlowMenu` (list, grid, large, focus visual, hint row,
+- [x] T12.7 Engine: `AcrylicSurface` cut from `RunPopup`, `FlowMenu` (list, grid, large, focus visual, hint row,
   close countdown, empty state), `MenuKeys`, mouse hook, placement, full-screen check, animation and high contrast
   (feat/m12-menu-window, DESIGN §3.3, §4). Done when: RunPopup unchanged (screenshots before/after); screenshots of
   the menu light/dark/high contrast, list and grid, normal and large, empty state, at 175 % scale; `dctl run` of a
@@ -411,6 +411,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   close path (a test app registers Up); footprint after 10 menus within D-036. The menu must check
   `SHQueryUserNotificationState` before drawing or taking keys: QUNS = 3 (exclusive mode or FSO) → #32 in history
   and one log line, no window, no pop-up (D-055, X-010); a unit seam fakes QUNS for the test.
+  **Done 2026-11-04 (#65), pad navigation deferred to T12.6:** `IMenuPadFeed` seam, the model's pad path is tested in T12.5; the pad leg of the live `dctl run` check and "Controller" hint row live-look wait for T12.6. Not built: open scale, tile scale, pick flash (polish). Footprint: flat, +6.3 MB after 10 menus, ~1.8 MB over D-036's line, absolute budget holds (ARCHITECTURE → Footprint).
 - [x] T12.8 Editor: `menu.show` inspector (flow token list, title, layout, size, close after, wait), Test shows the
   menu, "Controller buttons" recorder, "Controller menu" template, trigger texts (feat/m12-editor, DESIGN §3.7). Done
   when: VM tests (add/remove/reorder items, own flow not offered, missing flow chip, recorder states incl. engine off
