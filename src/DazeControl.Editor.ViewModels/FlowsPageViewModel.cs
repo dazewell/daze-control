@@ -8,6 +8,7 @@ using DazeControl.Core.Runs;
 using DazeControl.Core.Validation;
 using DazeControl.Editor.ViewModels.Config;
 using DazeControl.Editor.ViewModels.Engine;
+using DazeControl.Editor.ViewModels.FlowList;
 using DazeControl.Ipc;
 
 namespace DazeControl.Editor.ViewModels;
@@ -26,9 +27,12 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     /// <summary>Live runs by id → flow, from the engine's events (UI thread).</summary>
     private readonly Dictionary<Guid, string> _liveRuns = [];
 
-    public FlowsPageViewModel(ConfigSession session, IEngineClient engine, Action<Action> post, DesktopShortcutStore? desktop = null, TimeProvider? time = null)
+    public FlowsPageViewModel(ConfigSession session, IEngineClient engine, Action<Action> post, DesktopShortcutStore? desktop = null, TimeProvider? time = null, EditorSettingsStore? settings = null)
     {
         _time = time ?? TimeProvider.System;
+        _settings = settings;
+        foreach (var name in settings?.Settings.FlowList.CollapsedGroups ?? [])
+            _collapsed.Add(name);
         _session = session;
         _engine = engine;
         _post = post;
@@ -78,7 +82,147 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             item.UpdateDesktop(_desktop.Of(item.Id) is not null, _desktop.EngineRunning);
     });
 
+    /// <summary>Every flow in file order, one view model each (the list shows them through <see cref="Rows"/>).</summary>
     public ObservableCollection<FlowItemViewModel> Items { get; } = [];
+
+    /// <summary>
+    /// The list as shown (D-087): group headers (<see cref="GroupItemViewModel"/>) and flows (<see cref="FlowItemViewModel"/>)
+    /// in tray order; the members of a collapsed group are left out.
+    /// </summary>
+    public ObservableCollection<object> Rows { get; } = [];
+
+    private readonly EditorSettingsStore? _settings;
+    private readonly HashSet<string> _collapsed = new(StringComparer.CurrentCultureIgnoreCase);
+    private readonly Dictionary<string, GroupItemViewModel> _groups = new(StringComparer.CurrentCultureIgnoreCase);
+
+    /// <summary>The groups in list order, for the "Move to" menu.</summary>
+    public IReadOnlyList<string> GroupNames => [.. FlowListModel.Rows(_session.Current).OfType<GroupRow>().Select(g => g.Name)];
+
+    /// <summary>Expands or collapses a group; remembered per PC (D-068).</summary>
+    public void ToggleGroup(string name)
+    {
+        if (!_collapsed.Remove(name))
+            _collapsed.Add(name);
+        SaveCollapsed();
+        SyncRows();
+    }
+
+    private void SaveCollapsed() => _settings?.Update(s => s.FlowList.CollapsedGroups = [.. _collapsed.Order(StringComparer.CurrentCultureIgnoreCase)]);
+
+    private void ForgetCollapsed(string name, string? becomes = null)
+    {
+        if (!_collapsed.Remove(name))
+            return;
+        if (becomes is not null)
+            _collapsed.Add(becomes);
+        SaveCollapsed();
+    }
+
+    private void Apply(Func<Configuration, Configuration> change)
+    {
+        if (_session.CanEdit)
+            _session.Update(change);
+    }
+
+    public void RenameGroup(string name, string newName)
+    {
+        if (!FlowListModel.IsValidGroupName(newName))
+            return;
+        ForgetCollapsed(name, newName.Trim());
+        Apply(c => FlowListModel.RenameGroup(c, name, newName));
+    }
+
+    public void Ungroup(string name)
+    {
+        ForgetCollapsed(name);
+        Apply(c => FlowListModel.Ungroup(c, name));
+    }
+
+    /// <summary>The group menu's Turn all on / off.</summary>
+    public void SetGroupEnabled(string name, bool enabled) => Apply(c => c with
+    {
+        Flows = [.. c.Flows.Select(f => StringComparer.CurrentCultureIgnoreCase.Equals(f.Tray.Folder, name) && f.Enabled != enabled ? f with { Enabled = enabled } : f)],
+    });
+
+    /// <summary>The group menu's Move up / down: one place among the top-level items.</summary>
+    public void MoveGroup(string name, int delta)
+    {
+        var units = TopLevelUnits(_session.Current);
+        var at = units.FindIndex(u => u.Group is not null && StringComparer.CurrentCultureIgnoreCase.Equals(u.Group, name));
+        var to = at + delta;
+        if (at < 0 || to < 0 || to >= units.Count)
+            return;
+        var before = delta < 0 ? units[to].FirstId : to + 1 < units.Count ? units[to + 1].FirstId : null;
+        Apply(c => FlowListModel.MoveGroup(c, name, before));
+    }
+
+    /// <summary>"Move to ›": into a group (created when new), or out of its group when <paramref name="group"/> is null.</summary>
+    public void MoveFlowToGroup(string flowId, string? group)
+    {
+        if (group is not null && !FlowListModel.IsValidGroupName(group))
+            return;
+        if (group is not null && _collapsed.Remove(group)) // a flow moved in shows
+            SaveCollapsed();
+        Apply(c => FlowListModel.SetGroup(c, [flowId], group));
+    }
+
+    /// <summary>The top-level items in order: a flow, or a group (named, with its first member's id).</summary>
+    private static List<(string FirstId, string? Group)> TopLevelUnits(Configuration config)
+    {
+        var units = new List<(string, string?)>();
+        foreach (var row in FlowListModel.Rows(config))
+        {
+            if (row is GroupRow { FlowIds: [var first, ..] } g)
+                units.Add((first, g.Name));
+            else if (row is FlowRow { Group: null } f)
+                units.Add((f.FlowId, null));
+        }
+        return units;
+    }
+
+    private void SyncRows()
+    {
+        var byId = Items.ToDictionary(i => i.Id, StringComparer.Ordinal);
+        var units = TopLevelUnits(_session.Current);
+        var desired = new List<object>();
+        var live = new HashSet<string>(StringComparer.CurrentCultureIgnoreCase);
+        foreach (var row in FlowListModel.Rows(_session.Current))
+        {
+            if (row is GroupRow g)
+            {
+                if (!_groups.TryGetValue(g.Name, out var header))
+                    _groups[g.Name] = header = new GroupItemViewModel(this, g.Name);
+                var at = units.FindIndex(u => u.Group is not null && StringComparer.CurrentCultureIgnoreCase.Equals(u.Group, g.Name));
+                header.Update(g.Name, [.. g.FlowIds.Select(id => byId[id])], !_collapsed.Contains(g.Name), _session.CanEdit, at > 0, at >= 0 && at < units.Count - 1);
+                live.Add(g.Name);
+                desired.Add(header);
+            }
+            else if (row is FlowRow f && (f.Group is null || !_collapsed.Contains(f.Group)))
+            {
+                desired.Add(byId[f.FlowId]);
+            }
+        }
+        foreach (var gone in _groups.Keys.Where(k => !live.Contains(k)).ToList())
+            _groups.Remove(gone);
+
+        // In place, so the focused card and a switch being clicked keep their elements.
+        var keep = desired.ToHashSet();
+        for (var i = Rows.Count - 1; i >= 0; i--)
+        {
+            if (!keep.Contains(Rows[i]))
+                Rows.RemoveAt(i);
+        }
+        for (var i = 0; i < desired.Count; i++)
+        {
+            if (i < Rows.Count && ReferenceEquals(Rows[i], desired[i]))
+                continue;
+            var from = Rows.IndexOf(desired[i]);
+            if (from >= 0)
+                Rows.Move(from, i);
+            else
+                Rows.Insert(i, desired[i]);
+        }
+    }
 
     /// <summary>Why the last Run from a card was refused; null when it wasn't.</summary>
     [ObservableProperty]
@@ -289,6 +433,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             existing.UpdateRun(_engine.IsRunning, _liveRuns.ContainsValue(flow.Id));
         }
         IsEmpty = Items.Count == 0;
+        SyncRows();
     }
 
     private void OnSessionChanged(object? sender, PropertyChangedEventArgs e)
@@ -330,6 +475,8 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         var running = engineRunning ?? _engine.IsRunning;
         foreach (var item in Items)
             item.UpdateRun(running, _liveRuns.ContainsValue(item.Id));
+        foreach (var group in _groups.Values)
+            group.Refresh();
     }
 
     private void OnEngineStateChanged()
@@ -372,6 +519,13 @@ public sealed partial class FlowItemViewModel : ObservableObject
     }
 
     public string Id { get; }
+
+    /// <summary>The flow stands under a group header (indented, D-087).</summary>
+    [ObservableProperty]
+    public partial bool InGroup { get; private set; }
+
+    /// <summary>The group the flow belongs to (its tray folder); null at the top level.</summary>
+    public string? Group => _folder is { Length: > 0 } ? _folder : null;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(OpenName), nameof(RunName))]
@@ -547,6 +701,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
             _hotkeys = [.. flow.Hotkeys];
             _steps = flow.Nodes.OfType<StepNode>().Count();
             _folder = flow.Tray.Folder;
+            InGroup = _folder is { Length: > 0 };
             _lastRun = lastRun;
             Shortcut = FlowRowFacts.Shortcut(_hotkeys);
             ShortcutTip = FlowRowFacts.ShortcutTip(_hotkeys);

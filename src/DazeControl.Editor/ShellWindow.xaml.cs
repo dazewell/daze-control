@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using DazeControl.Editor.ViewModels;
 using DazeControl.Editor.ViewModels.Canvas;
 using DazeControl.Editor.ViewModels.Config;
+using DazeControl.Editor.ViewModels.FlowList;
 using DazeControl.Editor.ViewModels.Runs;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
@@ -368,6 +369,117 @@ public sealed partial class ShellWindow : Window
     {
         if (sender is FrameworkElement { Tag: string id })
             ViewModel.Flows.Delete(id);
+    }
+
+    /// <summary>A click on a group header's row (not its buttons) expands or collapses it.</summary>
+    private void OnGroupHeaderTapped(object sender, TappedRoutedEventArgs e)
+    {
+        for (var element = e.OriginalSource as DependencyObject; element is not null && !ReferenceEquals(element, sender); element = VisualTreeHelper.GetParent(element))
+        {
+            if (element is ButtonBase)
+                return;
+        }
+        if (sender is FrameworkElement { Tag: string name })
+        {
+            e.Handled = true;
+            ViewModel.Flows.ToggleGroup(name);
+        }
+    }
+
+    private void OnGroupUngroupClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string name })
+            ViewModel.Flows.Ungroup(name);
+    }
+
+    private void OnGroupAllOnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string name })
+            ViewModel.Flows.SetGroupEnabled(name, true);
+    }
+
+    private void OnGroupAllOffClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string name })
+            ViewModel.Flows.SetGroupEnabled(name, false);
+    }
+
+    private void OnGroupUpClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string name })
+            ViewModel.Flows.MoveGroup(name, -1);
+    }
+
+    private void OnGroupDownClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string name })
+            ViewModel.Flows.MoveGroup(name, 1);
+    }
+
+    private async void OnGroupRenameClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string name })
+            return;
+        if (await AskGroupNameAsync("Rename group", name, "Rename") is { } newName)
+            ViewModel.Flows.RenameGroup(name, newName);
+    }
+
+    /// <summary>The card menu's "Move to ›": No group, each group, New group… (D-087). Filled on opening, as the groups change.</summary>
+    private void OnFlowMenuOpening(object? sender, object e)
+    {
+        if (sender is not MenuFlyout { Target: FrameworkElement { Tag: string id } } flyout
+            || flyout.Items.OfType<MenuFlyoutSubItem>().FirstOrDefault() is not { } sub)
+            return;
+        var current = ViewModel.Flows.Items.FirstOrDefault(i => i.Id == id)?.Group;
+        sub.Items.Clear();
+        sub.Items.Add(MoveToItem("No group", id, null, current is null));
+        foreach (var group in ViewModel.Flows.GroupNames)
+            sub.Items.Add(MoveToItem(group, id, group, StringComparer.CurrentCultureIgnoreCase.Equals(group, current)));
+        sub.Items.Add(new MenuFlyoutSeparator());
+        var create = new MenuFlyoutItem { Text = "New group…" };
+        create.Click += async (_, _) =>
+        {
+            if (await AskGroupNameAsync("New group", "", "Create") is { } name)
+                ViewModel.Flows.MoveFlowToGroup(id, name);
+        };
+        sub.Items.Add(create);
+    }
+
+    private ToggleMenuFlyoutItem MoveToItem(string text, string flowId, string? group, bool isCurrent)
+    {
+        var item = new ToggleMenuFlyoutItem { Text = text, IsChecked = isCurrent };
+        item.Click += (_, _) => ViewModel.Flows.MoveFlowToGroup(flowId, group);
+        return item;
+    }
+
+    /// <summary>Asks for a group name (not empty, 60 characters at most); null when cancelled.</summary>
+    private async Task<string?> AskGroupNameAsync(string title, string initial, string button)
+    {
+        if (_asking)
+            return null;
+        _asking = true;
+        try
+        {
+            var box = new TextBox { Text = initial, PlaceholderText = "Group name", MaxLength = FlowListModel.MaxGroupNameLength };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, "Group name");
+            box.SelectAll();
+            var dialog = new ContentDialog
+            {
+                XamlRoot = Content.XamlRoot,
+                Title = title,
+                Content = box,
+                PrimaryButtonText = button,
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Primary,
+                IsPrimaryButtonEnabled = FlowListModel.IsValidGroupName(initial),
+            };
+            box.TextChanged += (_, _) => dialog.IsPrimaryButtonEnabled = FlowListModel.IsValidGroupName(box.Text);
+            return await dialog.ShowAsync() == ContentDialogResult.Primary ? box.Text.Trim() : null;
+        }
+        finally
+        {
+            _asking = false;
+        }
     }
 
     /// <summary>A click on Run, on or off, never opens the flow.</summary>

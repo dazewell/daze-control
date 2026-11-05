@@ -31,7 +31,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         _engine = engine;
         _post = post;
         Desktop = new Engine.DesktopShortcutStore(engine, session.Path);
-        Flows = new FlowsPageViewModel(session, engine, post, Desktop);
+        Flows = new FlowsPageViewModel(session, engine, post, Desktop, settings: editorSettings);
         Settings = new SettingsPageViewModel(session, engine, post, logsFolder);
         Updates = new UpdatesViewModel(updates, post);
         Library = new LibraryPage.LibraryPageViewModel(session, engine, post);
