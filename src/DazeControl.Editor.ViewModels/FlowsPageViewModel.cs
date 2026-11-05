@@ -579,6 +579,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         if (_selected.Count == 0)
             return;
         _selected.Clear();
+        _anchor = null;
         RefreshSelection();
     }
 

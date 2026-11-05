@@ -252,7 +252,7 @@
                                                     </Button>
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="4,0,12,0" Spacing="8">
                                                         <CheckBox IsChecked="{x:Bind IsSelected, Mode=OneWay}" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupCheckClick" MinWidth="0" Padding="0"
-                                                                  Visibility="{x:Bind ShowCheck, Mode=OneWay}" IsTabStop="False" AutomationProperties.Name="Select all in this group" />
+                                                                  Visibility="{x:Bind ShowCheck, Mode=OneWay}" AutomationProperties.Name="Select all in this group" />
                                                         <FontIcon Glyph="&#xE8B7;" Style="{StaticResource SettingsCardIcon}" />
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="2" VerticalAlignment="Center">
