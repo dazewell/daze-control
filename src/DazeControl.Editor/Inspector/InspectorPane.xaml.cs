@@ -259,6 +259,8 @@ public sealed partial class InspectorPane : UserControl
     public static Visibility ShowSet(bool isStep, bool isSet) => isStep && isSet ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Inherited values read dimmer than the ones the step sets (DESIGN A5).</summary>
+    public static double DimStep(bool isStep, bool isSet) => isStep && !isSet ? 0.6 : 1;
+
     public static double Dim(bool isSet) => isSet ? 1 : 0.6;
 
     private void OnUseForAllClosed(object sender, RoutedEventArgs e) => UseForAllFlyout.Hide();

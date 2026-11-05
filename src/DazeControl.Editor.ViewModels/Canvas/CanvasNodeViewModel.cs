@@ -235,13 +235,14 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             Count = "";
             if (effective!.RetryCount > 0)
                 badges.Add(new Badge("", $"×{effective.RetryCount}", step.RetryCount is null));
-            if (step.Timeout is not null || stepDescriptor is not null && effective.Timeout != stepDescriptor.DefaultTimeout)
+            if (stepDescriptor is not null && effective.Timeout != stepDescriptor.DefaultTimeout)
                 badges.Add(new Badge("", Duration.Format(effective.Timeout) ?? "", step.Timeout is null));
         }
+        var allInherited = badges.Count > 0 && badges.All(b => b.Inherited);
         if (badges.Count > MaxBadges)
             badges = [.. badges.Take(MaxBadges), new Badge("", $"+{badges.Count - MaxBadges}")];
         Badges = badges;
-        BadgesInherited = badges.Count > 0 && badges.All(b => b.Inherited);
+        BadgesInherited = allInherited;
         BadgeText = string.Join("   ", badges.Select(b => b.Glyph.Length > 0 ? $"{b.Glyph} {b.Text}" : b.Text));
 
         var parts = new List<string> { Summary.Length == 0 ? Title : $"{Title}, {Summary}" };

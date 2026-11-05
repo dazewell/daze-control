@@ -997,7 +997,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
                 vm.Update(nodes[vm.Id], _session.Current, problems.Contains(vm.Id), waits);
         }
 
-        var mayFail = flow.Nodes.Where(n => n.OnFailure == FailurePolicy.Ignore).Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
+        var mayFail = flow.Nodes.Where(n => EffectivePolicy(n, _session.Current.Settings.StepDefaults) == FailurePolicy.Ignore).Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
         Edges.Clear();
         foreach (var route in _arrangement.Edges)
             Edges.Add(new CanvasEdgeViewModel(route, mayFail.Contains(route.To), options.Lines));

@@ -283,7 +283,7 @@
 
                 <!-- If it fails (UX §5.4): hover or focus previews what wouldn't run. -->
                 <TextBlock Text="If it fails" Style="{StaticResource InspectorSection}" />
-                <RadioButtons x:Name="PolicyButtons" SelectedIndex="{x:Bind ViewModel.PolicyIndex, Mode=TwoWay}" AutomationProperties.Name="If it fails"
+                <RadioButtons x:Name="PolicyButtons" Opacity="{x:Bind local:InspectorPane.DimStep(ViewModel.IsStep, ViewModel.PolicyIsSet), Mode=OneWay}" SelectedIndex="{x:Bind ViewModel.PolicyIndex, Mode=TwoWay}" AutomationProperties.Name="If it fails"
                               IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
                     <RadioButton Tag="0" PointerEntered="OnPolicyHover" PointerExited="OnPolicyLeave" GotFocus="OnPolicyHover" LostFocus="OnPolicyLeave"
                                  AutomationProperties.Name="Stop the flow. Nothing after this runs.">

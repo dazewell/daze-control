@@ -146,7 +146,7 @@ public sealed partial class InspectorViewModel
     [RelayCommand]
     private void ApplyUseForAll()
     {
-        if (Node is not StepNode step || !CanEdit)
+        if (Node is not StepNode step || !CanEdit || ProviderCatalog.Find(step.Step) is null)
             return;
         _defaults ??= new StepDefaultsEditor(_session);
         var effective = StepSettings.Resolve(step, ProviderCatalog.Find(step.Step), TypeDefault(step.Step));
