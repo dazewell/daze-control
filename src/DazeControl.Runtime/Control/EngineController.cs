@@ -440,7 +440,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
 
     /// <summary>A dry step that fails (missing device) must not wait out its retry delays: a preview answers at once.</summary>
     private static Flow WithoutRetries(Flow flow) =>
-        flow with { Nodes = [.. flow.Nodes.Select(n => n is StepNode { Retry: not null } step ? step with { Retry = null } : n)] };
+        flow with { Nodes = [.. flow.Nodes.Select(n => n is StepNode { RetryCount: not null } step ? step with { RetryCount = null, RetryDelay = null } : n)] };
 
     private static RunRecord Record(RunResult result, string flowId, string name, string trigger) =>
         new(result.RunId, flowId, name, trigger, result.Started, result.Duration, result.Outcome, [.. result.Nodes]);

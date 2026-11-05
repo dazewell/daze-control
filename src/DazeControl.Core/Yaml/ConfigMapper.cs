@@ -1,4 +1,5 @@
 using System.Globalization;
+using DazeControl.Core.Catalog;
 using DazeControl.Core.Model;
 using DazeControl.Core.Validation;
 
@@ -23,11 +24,17 @@ public static class ConfigMapper
         Version = Configuration.CurrentVersion.ToString(CultureInfo.InvariantCulture),
         Settings = config.Settings == new Settings() ? null : new SettingsDocument
         {
-            Popup = new PopupDocument
+            Popup = config.Settings.Popup == new PopupSettings() ? null : new PopupDocument
             {
                 Position = EnumText(config.Settings.Popup.Position),
                 Seconds = config.Settings.Popup.Seconds.ToString(CultureInfo.InvariantCulture),
             },
+            StepDefaults = NullIfEmpty(config.Settings.StepDefaults.ToDictionary(d => d.Key, d => new StepDefaultDocument
+            {
+                Timeout = Duration.Format(d.Value.Timeout),
+                Retry = RetryToDocument(d.Value.RetryCount, d.Value.RetryDelay),
+                OnFailure = d.Value.OnFailure is { } policy ? EnumText(policy) : null,
+            })),
         },
         Library = config.Library == Library.Empty ? null : new LibraryDocument
         {
@@ -92,7 +99,7 @@ public static class ConfigMapper
                 Id = e.From,
                 When = e.When == EdgeWhen.Success ? null : EnumText(e.When),
             })],
-            OnFailure = node.OnFailure == FailurePolicy.Stop ? null : EnumText(node.OnFailure),
+            OnFailure = node.OnFailure is { } policy ? EnumText(policy) : null, // an explicit stop is kept (D-080)
         };
         switch (node)
         {
@@ -100,11 +107,7 @@ public static class ConfigMapper
                 document.Step = step.Step;
                 document.With = step.With.Count == 0 ? null : step.With.ToDictionary(p => p.Key, p => new ParamDocument(p.Value));
                 document.Timeout = Duration.Format(step.Timeout);
-                document.Retry = step.Retry is { } retry ? new RetryDocument
-                {
-                    Count = retry.Count.ToString(CultureInfo.InvariantCulture),
-                    Delay = retry.Delay == TimeSpan.Zero ? null : Duration.Format(retry.Delay),
-                } : null;
+                document.Retry = RetryToDocument(step.RetryCount, step.RetryDelay);
                 break;
             case GroupNode group:
                 document.Group = [.. group.Members];
@@ -112,6 +115,13 @@ public static class ConfigMapper
         }
         return document;
     }
+
+    private static RetryDocument? RetryToDocument(int? count, TimeSpan? delay) =>
+        count is null && delay is null ? null : new RetryDocument
+        {
+            Count = count?.ToString(CultureInfo.InvariantCulture),
+            Delay = Duration.Format(delay),
+        };
 
     private static Dictionary<string, T>? NullIfEmpty<T>(Dictionary<string, T> map) => map.Count == 0 ? null : map;
 
@@ -140,19 +150,69 @@ public static class ConfigMapper
 
         private Settings ReadSettings(SettingsDocument? document)
         {
-            var defaults = new PopupSettings();
-            if (document?.Popup is not { } popup)
+            if (document is null)
                 return new Settings();
+            return new Settings { Popup = ReadPopup(document.Popup), StepDefaults = ReadStepDefaults(document.StepDefaults) };
+        }
+
+        private PopupSettings ReadPopup(PopupDocument? popup)
+        {
+            var defaults = new PopupSettings();
+            if (popup is null)
+                return defaults;
             var seconds = Int(popup.Seconds, "settings.popup.seconds") ?? defaults.Seconds;
             if (seconds is < 1 or > 60)
             {
                 Error("settings.popup.seconds", "Use 1 to 60 seconds.");
                 seconds = defaults.Seconds;
             }
-            return new Settings
+            return new PopupSettings(Enum(popup.Position, "settings.popup.position", defaults.Position), seconds);
+        }
+
+        /// <summary>A4: a bad entry or field is a Problem and is dropped; a flow is never disabled by it.</summary>
+        private ValueDictionary<StepDefault> ReadStepDefaults(Dictionary<string, StepDefaultDocument>? documents)
+        {
+            var entries = new List<KeyValuePair<string, StepDefault>>();
+            foreach (var (id, document) in documents ?? [])
             {
-                Popup = new PopupSettings(Enum(popup.Position, "settings.popup.position", defaults.Position), seconds),
-            };
+                var path = "settings.stepDefaults." + id;
+                if (ProviderCatalog.Find(id) is null)
+                {
+                    Error(path, $"\"{id}\" isn't a step type.");
+                    continue;
+                }
+                if (document is null)
+                    continue;
+                var timeout = DurationOrNull(document.Timeout, path + ".timeout");
+                if (timeout is { } t && (t <= TimeSpan.Zero || t > ConfigValidator.MaxDuration))
+                {
+                    Error(path + ".timeout", "Give up after more than 0 s and at most 24h.");
+                    timeout = null;
+                }
+                int? count = null;
+                TimeSpan? delay = null;
+                if (document.Retry is { } retry)
+                {
+                    count = Int(retry.Count, path + ".retry.count");
+                    if (count is < 0 or > ConfigValidator.MaxRetries)
+                    {
+                        Error(path + ".retry.count", $"Try again 0 to {ConfigValidator.MaxRetries} times.");
+                        count = null;
+                    }
+                    delay = DurationOrNull(retry.Delay, path + ".retry.delay");
+                    if (delay is { } d && (d < TimeSpan.Zero || d > ConfigValidator.MaxDuration))
+                    {
+                        Error(path + ".retry.delay", "Wait 0 s to 24h between tries.");
+                        delay = null;
+                    }
+                }
+                FailurePolicy? onFailure = TryEnum(document.OnFailure, path + ".onFailure", FailurePolicy.Stop, out var policy) && document.OnFailure is not null
+                    ? policy : null;
+                var entry = new StepDefault { Timeout = timeout, RetryCount = count, RetryDelay = delay, OnFailure = onFailure };
+                if (!entry.IsEmpty)
+                    entries.Add(KeyValuePair.Create(id, entry));
+            }
+            return new(entries);
         }
 
         private Library ReadLibrary(LibraryDocument? document)
@@ -302,7 +362,8 @@ public static class ConfigMapper
                 else
                     after.Add(new Edge(item.Id, Enum(item.When, path + ".after", EdgeWhen.Success)));
             }
-            var onFailure = Enum(document.OnFailure, path + ".onFailure", FailurePolicy.Stop);
+            FailurePolicy? onFailure = TryEnum(document.OnFailure, path + ".onFailure", FailurePolicy.Stop, out var policy) && document.OnFailure is not null
+                ? policy : null;
 
             if (document.Step is not null && document.Group is not null)
             {
@@ -327,22 +388,9 @@ public static class ConfigMapper
                 OnFailure = onFailure,
                 With = new((document.With ?? []).Select(p => KeyValuePair.Create(p.Key, p.Value.ToValue()))),
                 Timeout = DurationOrNull(document.Timeout, path + ".timeout"),
-                Retry = ReadRetry(document.Retry, path + ".retry"),
+                RetryCount = Int(document.Retry?.Count, path + ".retry.count"),
+                RetryDelay = DurationOrNull(document.Retry?.Delay, path + ".retry.delay"),
             };
-        }
-
-        private RetryPolicy? ReadRetry(RetryDocument? document, string path)
-        {
-            if (document is null)
-                return null;
-            var count = Int(document.Count, path + ".count");
-            if (count is null)
-            {
-                if (document.Count is null)
-                    Error(path + ".count", "Say how many more tries (count: 3).");
-                return null;
-            }
-            return new RetryPolicy(count.Value, DurationOrNull(document.Delay, path + ".delay") ?? TimeSpan.Zero);
         }
 
         private T Enum<T>(string? text, string path, T fallback) where T : struct, Enum =>

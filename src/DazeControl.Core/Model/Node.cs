@@ -23,9 +23,6 @@ public enum FailurePolicy
 /// <summary>An incoming edge, stored on its target node as <c>after:</c> (ARCHITECTURE → Config).</summary>
 public sealed record Edge(string From, EdgeWhen When = EdgeWhen.Success);
 
-/// <summary><paramref name="Count"/> extra attempts after the first, <paramref name="Delay"/> apart.</summary>
-public sealed record RetryPolicy(int Count, TimeSpan Delay);
-
 /// <summary>A step or a card. Ids are unique within a flow.</summary>
 public abstract record Node(string Id)
 {
@@ -34,7 +31,8 @@ public abstract record Node(string Id)
 
     public ValueList<Edge> After { get; init; } = [];
 
-    public FailurePolicy OnFailure { get; init; } = FailurePolicy.Stop;
+    /// <summary>Null = inherit: the step type's default (D-080), else <see cref="FailurePolicy.Stop"/>.</summary>
+    public FailurePolicy? OnFailure { get; init; }
 }
 
 /// <summary>One provider operation (<paramref name="Step"/> = descriptor id, e.g. "bluetooth.connect").</summary>
@@ -42,10 +40,14 @@ public sealed record StepNode(string Id, string Step) : Node(Id)
 {
     public ValueDictionary<ParamValue> With { get; init; }
 
-    /// <summary>Null = the provider's default timeout.</summary>
+    /// <summary>Null = inherit: the step type's default (D-080), else the provider's default timeout.</summary>
     public TimeSpan? Timeout { get; init; }
 
-    public RetryPolicy? Retry { get; init; }
+    /// <summary>Extra attempts after the first; null = inherit, else 0.</summary>
+    public int? RetryCount { get; init; }
+
+    /// <summary>Wait between attempts; null = inherit, else <see cref="StepSettings.DefaultRetryDelay"/>.</summary>
+    public TimeSpan? RetryDelay { get; init; }
 }
 
 /// <summary>

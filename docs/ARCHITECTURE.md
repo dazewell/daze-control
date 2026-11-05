@@ -110,6 +110,7 @@ Edges are `after: [id | {id, when}]` on the target node; a card is
 `{ id: g1, group: [hp, buds], after: [...] }` and its members carry no `after`. Node keys: `id`, `step` |
 `group`, `name`, `with`, `after`, `onFailure` (stop/skip/ignore), `timeout`, `retry: { count, delay }`;
 cards take no `with`/`timeout`/`retry`. A failed node with an outgoing `when: failure` edge has
+`settings.stepDefaults` (D-080) holds per-step-type `timeout`, `retry`, `onFailure`; a node field left null inherits it (own > type > built-in, per field, `StepSettings.Resolve`; `StepDefaults.Apply` fills a flow). An explicit `onFailure: stop` is kept on save.
 handled its failure: its `onFailure` policy is not applied, the fallback runs, its `success` dependents are
 skipped, and if nothing else went wrong the flow ends Succeeded (D-024, D-065). `Model/FlowShape`: `Fallbacks`
 (units with an incoming failure edge, or a success edge from a fallback; members follow their card),

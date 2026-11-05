@@ -399,7 +399,7 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         return notes;
     }
 
-    private FailurePolicy Policy(string id) => _canvas.Flow!.FindNode(id)!.OnFailure;
+    private FailurePolicy Policy(string id) => _canvas.Flow!.FindNode(id)!.OnFailure ?? FailurePolicy.Stop;
 
     private GroupNode Card(string memberId) =>
         Assert.IsType<GroupNode>(_canvas.Flow!.FindNode(Node(memberId).CardId ?? throw new InvalidOperationException(memberId)));

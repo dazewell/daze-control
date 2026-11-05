@@ -226,14 +226,14 @@ public sealed class FlowRunner
             return new(StepResult.Failed, 1, $"This version can't run \"{node.Step}\" steps.", TimeSpan.Zero, offset, retries);
 
         var timeout = node.Timeout ?? descriptor.DefaultTimeout;
-        var attempts = 1 + Math.Max(0, node.Retry?.Count ?? 0);
+        var attempts = 1 + Math.Max(0, node.RetryCount ?? 0);
         string? error = null;
         for (var attempt = 1; attempt <= attempts; attempt++)
         {
             try
             {
                 if (attempt > 1)
-                    await Task.Delay(node.Retry!.Delay, _time, flowToken).ConfigureAwait(false);
+                    await Task.Delay(node.RetryDelay ?? StepSettings.DefaultRetryDelay, _time, flowToken).ConfigureAwait(false);
                 flowToken.ThrowIfCancellationRequested(); // a cancelled run starts no further side effects
             }
             catch (OperationCanceledException)

@@ -157,7 +157,7 @@ public sealed class Scheduler
         if (outcome == NodeOutcome.Cancelled || IsStopped || IsCancelled)
             return;
         var handled = _outgoing[unit.Id].Any(e => e.Target.After[e.Index].When == EdgeWhen.Failure);
-        if (outcome == NodeOutcome.Failed && !handled && unit.OnFailure == FailurePolicy.Stop)
+        if (outcome == NodeOutcome.Failed && !handled && unit.OnFailure is null or FailurePolicy.Stop)
         {
             IsStopped = true;
             CancelPending();

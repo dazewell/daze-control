@@ -73,7 +73,8 @@ public class ConfigYamlTests
         var hp = Assert.IsType<StepNode>(tv.FindNode("hp"));
         Assert.Equal("Headphones", hp.Name);
         Assert.Equal(FailurePolicy.Skip, hp.OnFailure);
-        Assert.Equal(new RetryPolicy(2, TimeSpan.FromMilliseconds(1500)), hp.Retry);
+        Assert.Equal(2, hp.RetryCount);
+        Assert.Equal(TimeSpan.FromMilliseconds(1500), hp.RetryDelay);
         Assert.Equal([new Edge("hp", EdgeWhen.Failure)], tv.FindNode("buds")!.After);
         var card = Assert.IsType<GroupNode>(tv.FindNode("card"));
         Assert.Equal(["lights", "tv"], card.Members);
@@ -148,7 +149,6 @@ public class ConfigYamlTests
     [InlineData("onFailure: 1", "flows.f.nodes.a.onFailure")]
     [InlineData("after: [{ id: b, when: sometimes }]", "flows.f.nodes.a.after")]
     [InlineData("retry: { count: x }", "flows.f.nodes.a.retry.count")]
-    [InlineData("retry: { delay: 1s }", "flows.f.nodes.a.retry.count")]
     [InlineData("group: [b, c]", "flows.f.nodes.a")]
     public void BadNodeFieldsBecomeProblemsOnTheirFlow(string field, string path)
     {

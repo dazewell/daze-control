@@ -30,7 +30,7 @@ moves its as-built facts from DESIGN into ARCHITECTURE/UX/FEATURES and cuts them
 `Providers/BuiltInProviders.cs`: take both sides on conflict); `T14.4 + T14.5 → T14.7` (editor); `T14.7 → T14.10`.
 Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
 
-- [ ] T14.1 Defaults model: Core (feat/m14-defaults-core, D-080). Files: `Core/Model/Node.cs` (`OnFailure?`, retry as two nullable
+- [x] T14.1 Defaults model: Core (feat/m14-defaults-core, D-080). Files: `Core/Model/Node.cs` (`OnFailure?`, retry as two nullable
   fields), `Model/Configuration.cs` (`Settings.StepDefaults`), `Yaml/ConfigDocument` + `ConfigMapper` (read/save,
   explicit `stop` kept, null omitted), `Validation/ConfigValidator` (A4 table), new `Model/StepSettings.Resolve` and
   `StepDefaults.Apply`. Done when: Core tests cover the precedence table per field (own > type > built-in; count set,

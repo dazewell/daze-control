@@ -504,7 +504,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(flow);
         var top = FlowGraph.TopLevel(flow, source);
         var cardOf = FlowLayout.CardOf(flow);
-        if (flow.FindNode(top) is not { OnFailure: FailurePolicy.Stop }
+        if (flow.FindNode(top) is not { OnFailure: null or FailurePolicy.Stop }
             || !FlowLayout.Edges(flow, cardOf).Any(e => e.From == top && e.When == EdgeWhen.Failure))
             return flow;
         return flow with { Nodes = [.. flow.Nodes.Select(n => n.Id == top ? n with { OnFailure = FailurePolicy.Skip } : n)] };
