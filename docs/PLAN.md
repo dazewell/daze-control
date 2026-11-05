@@ -454,7 +454,7 @@ order (they touch different files). Can run alongside M13 (no shared files excep
   first step), run list cut the duration off, a stale "Updates arrive with the first release" card.
   Not checked (system-wide settings on the user's PC, or not re-run this pass): 100–150 % scale, 225 % text (editor
   and pop-up), Narrator/Outline, Tab order, drag-into-cycle tip, empty states, animation effects off, tray menu.
-- [ ] T10.5 Pop-up for Narrator — parked as issue #26 (user, 2026-11-03). Deferred past M10, not in the ship brief: it draws everything itself, so screen
+- [~] T10.5 DROPPED (D-091, no Narrator work; issue #26 closed). Was: pop-up for Narrator, parked as issue #26 (user, 2026-11-03). Deferred past M10, not in the ship brief: it draws everything itself, so screen
   readers get only the window title. Raise a UIA notification (or a minimal provider with an invoke for "see what
   happened") without activating (PR #8 review).
 - [x] T10.4 Footprint gate passed (ARCHITECTURE → Footprint, 2026-11-02). The 24 h soak and retiring scd are the
@@ -553,10 +553,10 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   when: VM tests (add/remove/reorder items, own flow not offered, missing flow chip, recorder states incl. engine off
   and no pad, template content); screenshots light/dark of the inspector and the recorder; Narrator names on the
   token list and recorder. Done (PR #63): recorder codes to DESIGN §3.6 until T12.6 lands `record-gamepad`; Layout and Size are drop-downs, not drawn radios.
-- [ ] T12.9 Narrator: UIA notifications from the menu without focus, sharing issue #26's provider (feat/m12-narrator).
+- [~] T12.9 DROPPED (D-091, no Narrator work). Was: Narrator: UIA notifications from the menu without focus, sharing issue #26's provider (feat/m12-narrator).
   Done when: Narrator reads "Couch menu, 4 choices. Connect TV, 1 of 4." on open and the new choice on each move,
   the foreground window unchanged; #26's pop-up announcement may land in the same PR.
-- [ ] T12.10 Acceptance + docs fold-in (DESIGN §4, UX §5.9 M12). Done when: the checklist's M12 lines pass on the dev
+- [ ] T12.10 Acceptance + docs fold-in (DESIGN §4, UX §5.9 M12; no Narrator checks, D-091). Done when: the checklist's M12 lines pass on the dev
   PC (or are listed as the user's), README says how to drive the menu with a pad (D-pad/stick, A, B; Steam-mapped keys work as shortcuts, D-086 — the Steam recipe text belongs to the F13–F24 session) and the known limits (DESIGN §4.6); chord lines of the checklist are superseded,
   DESIGN.md holds only what's still open, GOALS status current.
 
