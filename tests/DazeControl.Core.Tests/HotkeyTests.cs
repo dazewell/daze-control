@@ -128,10 +128,24 @@ public class HotkeyTests
     }
 
     [Theory]
+    [InlineData("F13", "F13")]
+    [InlineData("f24", "F24")]
+    public void BareFunctionKeys13To24RoundTrip(string text, string canonical)
+    {
+        Assert.True(Hotkey.TryParse(text, out var hotkey));
+        Assert.Equal(HotkeyModifiers.None, hotkey.Modifiers);
+        Assert.Equal(canonical, hotkey.ToString());
+        Assert.False(Hotkey.TryParse("F12", out _));
+    }
+
+    [Theory]
     [InlineData(HotkeyModifiers.Win, 0xDCu, HotkeyRejection.None)]                          // Win+\
     [InlineData(HotkeyModifiers.None, 0x65u, HotkeyRejection.None)]                         // Num5 alone
     [InlineData(HotkeyModifiers.Ctrl, 0x61u, HotkeyRejection.None)]                         // Ctrl+Num1
     [InlineData(HotkeyModifiers.None, 0x41u, HotkeyRejection.NeedsModifier)]                // A
+    [InlineData(HotkeyModifiers.None, 0x7Cu, HotkeyRejection.None)]                         // F13 alone
+    [InlineData(HotkeyModifiers.None, 0x87u, HotkeyRejection.None)]                         // F24 alone
+    [InlineData(HotkeyModifiers.None, 0x7Bu, HotkeyRejection.NeedsModifier)]                // F12 alone
     [InlineData(HotkeyModifiers.Shift, 0xDBu, HotkeyRejection.NeedsModifier)]               // Shift+[
     [InlineData(HotkeyModifiers.Win, 0x20u, HotkeyRejection.NotAKey)]                       // Space
     [InlineData(HotkeyModifiers.None, 0x20u, HotkeyRejection.NotAKey)]

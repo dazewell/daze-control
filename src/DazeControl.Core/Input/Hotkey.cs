@@ -38,7 +38,7 @@ public enum HotkeyRejection
 /// A global shortcut as written in config.yaml and shown in the editor (ported from OSD D-020..D-022): "Win+Alt+A".
 /// <paramref name="Key"/> is a virtual-key code: A–Z, 0–9, F1–F24, the punctuation keys under their US names
 /// (<c>[ ] \ ; ' , . / ` - =</c>) or the number pad's keys Num0–Num9 and Num* Num+ Num- Num. Num/ (D-071, D-085). Win, Ctrl or Alt is required, so a
-/// hotkey never swallows plain typing, except for the number pad keys, which may stand alone; Shift never goes with a Num key.
+/// hotkey never swallows plain typing, except for the number pad keys and F13–F24, which may stand alone; Shift never goes with a Num key.
 /// </summary>
 public sealed record Hotkey(HotkeyModifiers Modifiers, uint Key)
 {
@@ -131,7 +131,7 @@ public sealed record Hotkey(HotkeyModifiers Modifiers, uint Key)
             || Array.Exists(Punctuation, p => p.Key == key);
         if (!usable)
             return HotkeyRejection.NotAKey;
-        return (modifiers & (HotkeyModifiers.Win | HotkeyModifiers.Ctrl | HotkeyModifiers.Alt)) != 0
+        return key is >= 0x7C and <= 0x87 || (modifiers & (HotkeyModifiers.Win | HotkeyModifiers.Ctrl | HotkeyModifiers.Alt)) != 0 // F13–F24 may stand alone (D-071)
             ? HotkeyRejection.None
             : HotkeyRejection.NeedsModifier;
     }

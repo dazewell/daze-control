@@ -927,6 +927,10 @@ Status: accepted (design M13b, user 2026-11-03); built T13b.1
   with the layout while the key doesn't. Why not bare punctuation or letters too: they'd take normal typing.
 - Revisit if: someone on a non-US layout finds the names confusing (then show `MapVirtualKey`'s character in the
   editor and keep the US name in YAML), or the user wants number-pad keys with Num Lock off.
+- 2026-11-04 amendment: `F13`–`F24` may stand alone too (no Win/Ctrl/Alt), like `Num0`–`Num9`. Why: the user maps Steam
+  Controller buttons (Steam Input) to keyboard outputs, a pad Steam hides from the buttons recorder; their `Num1`
+  never fired because this PC runs with Num Lock off (End arrives). F13–F24 don't depend on Num Lock, nobody types
+  them, and Steam and other tools can send them. Still no hook. Revisit if a bare F13–F24 clashes with an app.
 
 ## D-072 · 2026-11-03 · Recording pauses the engine's shortcuts; failed shortcuts are retried on user actions
 Status: accepted (design M13b, item 5 of the user's 2026-11-03 request); built T13b.3 (failures stay known while recording or paused)

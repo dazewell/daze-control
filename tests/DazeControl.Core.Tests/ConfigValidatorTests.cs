@@ -176,6 +176,7 @@ public class ConfigValidatorTests
 
     [Theory]
     [InlineData("[Z]", "isn't a shortcut")]
+    [InlineData("[F12]", "isn't a shortcut")]
     [InlineData("[Alt+Z, alt+z]", "listed twice")]
     public void BadHotkeys(string hotkeys, string message)
     {
@@ -183,6 +184,10 @@ public class ConfigValidatorTests
 
         Assert.Contains(message, problem.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void BareF13ToF24AreValidShortcuts() =>
+        Assert.Empty(Validate($"flows: {{ f: {{ hotkeys: [F13, f24], nodes: [{StepA}] }} }}"));
 
     [Fact]
     public void HotkeyTakenByAnotherFlowFailsTheLaterOne()

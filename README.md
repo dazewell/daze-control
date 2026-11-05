@@ -65,6 +65,14 @@ Exit codes: 0 ok, 1 failed, 2 usage, 3 Daze Control isn't running.
 
 Logs: `%LOCALAPPDATA%\DazeControl\logs` (7 days). Run history: `%LOCALAPPDATA%\DazeControl\history.jsonl`.
 
+### Steam Controller / Steam Input
+
+Steam Input can map a pad button to a keyboard key, and then Windows sees a key, not a gamepad: the controller-buttons
+recorder can't see that button, so record it as a **shortcut** instead. Map the button to `F13`–`F24` (they work
+alone, nothing else uses them) or to a chord like `Ctrl+Alt+<key>`. Avoid number pad keys unless Num Lock is on: with it
+off the pad sends End, Down… and nothing fires. Only a pad Steam leaves as a gamepad (Xbox style) shows up in the
+controller-buttons recorder; there, unbind Steam's `View+Menu` → Alt+Tab desktop mapping.
+
 ## Build from source
 
 .NET 10 SDK and, for the Native AOT engine and `dctl`, the MSVC C++ build tools ("Desktop development with C++").
