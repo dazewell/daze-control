@@ -47,7 +47,7 @@ public sealed class MenuProvider(IMenuPresenter presenter, IFlowStarter flows) :
             return;
         }
         context.SetSummary($"Picked {item.Name}");
-        if (Text(context.Node, "wait") is "true")
+        if (bool.TryParse(Text(context.Node, "wait"), out var wait) && wait)
         {
             if (context.RunNested is not { } nested)
                 throw new StepFailedException("This menu can't wait for a flow here.");

@@ -63,7 +63,7 @@ public sealed class RunPopupModel
         {
             flow = started.Flow ?? flow;
             // A menu is its own window, so a flow that only shows a menu has no pop-up (M12, DESIGN §3.2).
-            if (flow is null || !flow.Popup || flow.Nodes.All(n => n is StepNode { Step: ProviderCatalog.MenuShowId }))
+            if (flow is null || !flow.Popup || flow.Nodes.Count > 0 && flow.Nodes.All(n => n is StepNode { Step: ProviderCatalog.MenuShowId }))
                 return false;
             _runs[started.RunId] = new RunTrack(flow, started.At);
             if (flow.Nodes.Any(n => n is StepNode { Step: ProviderCatalog.MenuShowId }))
@@ -89,7 +89,14 @@ public sealed class RunPopupModel
             case RunFinished finished:
                 _runs.Remove(e.RunId);
                 if (finished.Quiet)
-                    return false; // ended on purpose (a menu closed with nothing picked): nothing to say
+                {
+                    // Ended on purpose (a menu closed with nothing picked): nothing to say. A pop-up this run
+                    // already showed goes; the shell hides its window when Current is null (T12.7).
+                    var own = Current?.RunId == e.RunId;
+                    if (own)
+                        Current = null;
+                    return own;
+                }
                 Current = Finish(e.RunId, e.FlowId, run, finished.Outcome, finished.At - run.Started, settings);
                 return true;
         }

@@ -337,6 +337,18 @@ public sealed class MenuProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task WaitIsReadAsValidationReadsIt()
+    {
+        Define(FlowYaml("couch", "Couch", Menu("pick", "tv", with: ", wait: True")) + FlowYaml("tv", "TV", Notify("a")));
+        _presenter.Script = _ => Pick("tv");
+
+        var result = await Run("couch");
+
+        Assert.Equal("tv", NodeOf(result, "pick").Called?.FlowId);
+        Assert.Empty(_starter.Started);
+    }
+
+    [Fact]
     public async Task ATestStepShowsTheRealMenuAndReturnsThePickWithoutRunningIt()
     {
         DefineCouch();
@@ -394,6 +406,14 @@ public sealed class MenuProviderTests : IDisposable
         Assert.False(model.Apply(new NodeFinished(other, "couch", t0, new NodeResult("pick", NodeOutcome.Cancelled)), null, Settings));
         Assert.False(model.Apply(new RunFinished(other, "couch", t0, FlowOutcome.Cancelled) { Quiet = true }, null, Settings));
         Assert.Null(model.Current);
+
+        var late = Guid.NewGuid(); // a pop-up already on screen when the menu ends the run quietly
+        model.Apply(new RunStarted(late, "couch", t0, 2) { Flow = mixed }, null, Settings);
+        Assert.True(model.Apply(new NodeStarted(late, "couch", t0, "after", 1), null, Settings));
+        Assert.True(model.Apply(new RunFinished(late, "couch", t0, FlowOutcome.Cancelled) { Quiet = true }, null, Settings));
+        Assert.Null(model.Current);
+        Assert.True(model.Apply(new RunStarted(Guid.NewGuid(), "empty", t0, 0) { Flow = new Flow("empty", "Empty", []) }, null, Settings)); // not menu-only: it keeps its pop-up
+        model.Apply(new RunFinished(Guid.NewGuid(), "x", t0, FlowOutcome.Succeeded), null, Settings);
 
         var shown = Guid.NewGuid();
         Assert.False(model.Apply(new RunStarted(shown, "couch", t0, 2) { Flow = mixed }, null, Settings));
