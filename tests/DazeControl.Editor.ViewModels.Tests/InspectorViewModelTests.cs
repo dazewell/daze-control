@@ -416,6 +416,9 @@ public sealed class InspectorViewModelTests : IDisposable
     [InlineData("ctrl + alt + num5", "Ctrl+Alt+Num5")]
     [InlineData("Win+Numpad3", "Win+Num3")]
     [InlineData("Alt+T", "Alt+T")]
+    [InlineData("Numpad/", "Num/")]
+    [InlineData("Ctrl+NumPlus", "Ctrl+Num+")]
+    [InlineData("Win+Num++", "Win+Num+")]
     public void ATypedShortcutIsParsedAndFormatted(string typed, string expected)
     {
         Assert.True(ShortcutTexts.TryParseTyped(typed, out var hotkey, out var error));
@@ -425,6 +428,7 @@ public sealed class InspectorViewModelTests : IDisposable
 
     [Theory]
     [InlineData("T", "Add Win, Ctrl or Alt, so the shortcut doesn't get in the way of your typing.")]
+    [InlineData("Shift+Num*", "Shift doesn't work with number pad keys. Use Win, Ctrl or Alt instead.")]
     [InlineData("Shift+Numpad1", "Shift doesn't work with number pad keys. Use Win, Ctrl or Alt instead.")]
     [InlineData("Ctrl+Banana", "I couldn't read that. Write it like Ctrl+Alt+A or Numpad1: Win, Ctrl, Alt or Shift first, joined with +, then one key.")]
     [InlineData("", "I couldn't read that. Write it like Ctrl+Alt+A or Numpad1: Win, Ctrl, Alt or Shift first, joined with +, then one key.")]

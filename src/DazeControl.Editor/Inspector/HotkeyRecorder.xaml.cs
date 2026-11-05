@@ -90,7 +90,7 @@ public sealed partial class HotkeyRecorder : UserControl
         if (e.Key == VirtualKey.Tab)
             return; // keep keyboard navigation out of the box
         e.Handled = true;
-        if (e.Key is VirtualKey.Back or VirtualKey.Delete)
+        if (e.Key == VirtualKey.Back || e.Key == VirtualKey.Delete && !IsNumberPadNavigation(e)) // pad Delete = Num. with Num Lock off
         {
             Recorded?.Invoke(this, "");
             ShowRecorded();
@@ -140,7 +140,7 @@ public sealed partial class HotkeyRecorder : UserControl
     // extended (D-073).
     private static bool IsNumberPadNavigation(KeyRoutedEventArgs e) => !e.KeyStatus.IsExtendedKey && e.Key is VirtualKey.Insert
         or VirtualKey.End or VirtualKey.Down or VirtualKey.PageDown or VirtualKey.Left or VirtualKey.Clear
-        or VirtualKey.Right or VirtualKey.Home or VirtualKey.Up or VirtualKey.PageUp;
+        or VirtualKey.Delete or VirtualKey.Right or VirtualKey.Home or VirtualKey.Up or VirtualKey.PageUp;
 
     private void OnGotFocus(object sender, RoutedEventArgs e)
     {
