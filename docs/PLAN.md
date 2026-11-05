@@ -37,7 +37,7 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   delay inherited), YAML round-trip of A2's sample, bad entries → Problems with the bad part dropped, and `full.yaml`
   + `samples/user-config.yaml` load and save byte-identical; all existing tests pass unchanged except the ones that
   assert `OnFailure`/`Retry` shapes.
-- [ ] T14.2 Defaults reach runs (feat/m14-defaults-runtime, after T14.1). Files: `Runtime/FlowRunner.cs` (apply defaults first in
+- [x] T14.2 Defaults reach runs (feat/m14-defaults-runtime, after T14.1). Files: `Runtime/FlowRunner.cs` (apply defaults first in
   `RunCoreAsync`, captured with the library at trigger), `Engine` run/test-step/dry-run entry, `Ipc` (config text already carries
   settings; check). Done when: Runtime tests: a type default timeout of 1 s fails a hanging step at 1 s, an explicit step timeout
   wins, a retry default retries, a default `skip` skips dependents; a default edited mid-run changes only the next run (D-021);

@@ -94,7 +94,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             return Task.FromResult<RunResult?>(null);
         }
         log($"run: {flowId} triggered by {trigger}");
-        var run = launcher.TriggerAsync(flow, state.Library, trigger);
+        var run = launcher.TriggerAsync(StepDefaults.Apply(flow, state.Defaults), state.Library, trigger);
         _ = run.ContinueWith(t =>
         {
             if (t.IsFaulted)
@@ -253,6 +253,8 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         var testId = TestPrefix + flow.Id;
         // Inputs come along, so a step using $name validates and runs with the defaults (D-064).
         var test = new Flow(testId, flow.Name, [step with { After = [], OnFailure = FailurePolicy.Stop }]) { Inputs = flow.Inputs };
+        // The on-screen defaults apply to a test like to a run (D-080).
+        var filled = StepDefaults.Apply(test, load.Config.Settings.StepDefaults);
         // Mapping replaces a bad value (timeout: nonsense) with the default: that must refuse the test, not run it.
         // Edges and the policy are dropped for the test, so their problems don't count.
         var mapped = $"flows.{flow.Id}.nodes.{step.Id}";
@@ -271,7 +273,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         try
         {
             log($"test: {flow.Id}/{step.Id} ({step.Step})");
-            var result = await stepRunner.RunAsync(test, load.Config.Library, cancel.Token).ConfigureAwait(false);
+            var result = await stepRunner.RunAsync(filled, load.Config.Library, cancel.Token).ConfigureAwait(false);
             return new PipeMessage { Id = id, Ok = true, Run = Record(result, testId, flow.Name, "Test") };
         }
         finally
@@ -317,7 +319,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
 
         if (request.DryRun)
         {
-            var dry = await dryRunner.RunAsync(WithoutRetries(flow), state.Library, cancellationToken).ConfigureAwait(false);
+            var dry = await dryRunner.RunAsync(WithoutRetries(StepDefaults.Apply(flow, state.Defaults)), state.Library, cancellationToken).ConfigureAwait(false);
             return new PipeMessage { Id = id, Ok = true, Run = Record(dry, flow.Id, flow.Name, trigger + " (dry run)") };
         }
 
@@ -360,7 +362,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             .FirstOrDefault(p => !IsStepValue(p.Path));
         if (blocking is not null)
             return PipeMessage.Fail(request.Id, $"Fix this first: {blocking.Message}");
-        var dry = await dryRunner.RunAsync(WithoutRetries(flow), load.Config.Library, cancellationToken).ConfigureAwait(false);
+        var dry = await dryRunner.RunAsync(WithoutRetries(StepDefaults.Apply(flow, load.Config.Settings.StepDefaults)), load.Config.Library, cancellationToken).ConfigureAwait(false);
         return new PipeMessage { Id = request.Id, Ok = true, Run = Record(dry, flow.Id, flow.Name, trigger + " (dry run)") };
     }
 
