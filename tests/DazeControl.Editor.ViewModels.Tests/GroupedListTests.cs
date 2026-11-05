@@ -188,6 +188,20 @@ public sealed class GroupedListTests : IDisposable
     }
 
     [Fact]
+    public void MovingToTheCurrentGroupChangesNothing()
+    {
+        using var page = Page();
+        page.ToggleGroup("Audio");
+        var before = _session.Current;
+
+        page.MoveFlowToGroup("b", "audio");
+        page.MoveFlowToGroup("a", null);
+
+        Assert.Same(before, _session.Current);
+        Assert.False(Header(page).IsExpanded);
+    }
+
+    [Fact]
     public void MovingAFlowIntoACollapsedGroupExpandsIt()
     {
         using var page = Page();

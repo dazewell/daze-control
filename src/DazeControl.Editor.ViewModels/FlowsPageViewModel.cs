@@ -161,6 +161,9 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     {
         if (group is not null && !FlowListModel.IsValidGroupName(group))
             return;
+        var current = Items.FirstOrDefault(i => i.Id == flowId)?.Group;
+        if (group is null ? current is null : current is not null && StringComparer.CurrentCultureIgnoreCase.Equals(group.Trim(), current))
+            return; // already there: no reorder, no expanding
         if (group is not null && _collapsed.Remove(group)) // a flow moved in shows
             SaveCollapsed();
         Apply(c => FlowListModel.SetGroup(c, [flowId], group));
