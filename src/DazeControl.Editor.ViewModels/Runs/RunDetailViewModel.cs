@@ -230,7 +230,9 @@ public sealed partial class RunDetailViewModel : ObservableObject
             IsCall = p.Bar.IsCall,
             IsExpanded = p.Bar.IsCall && _expanded.Contains(p.Bar.NodeId),
             IsNested = p.Bar.IsNested,
-            AutomationName = $"{p.Bar.Title}, {Describe(p.Bar.Outcome)}, {RunWords.Seconds(p.Bar.End - p.Bar.Start)}"
+            AutomationName = (NodeOf(p.Bar.NodeId)?.SkippedBecause is { Length: > 0 } skip
+                ? $"{p.Bar.Title}, skipped: {skip}"
+                : $"{p.Bar.Title}, {Describe(p.Bar.Outcome)}, {RunWords.Seconds(p.Bar.End - p.Bar.Start)}")
                 + (p.Bar.IsCall ? _expanded.Contains(p.Bar.NodeId) ? ", its steps shown" : ", has steps of its own" : ""),
         }).ToList();
         // A bracket hugs its members' bars as fitted above, not their raw times, so it never cuts one off.
@@ -271,7 +273,7 @@ public sealed partial class RunDetailViewModel : ObservableObject
     private static List<string> Lines(NodeResult node, string title)
     {
         // "Skipped: Technics was already connected" (D-081); a skip is still a Succeeded record.
-        var lines = new List<string> { node.SkippedBecause is { Length: > 0 } why ? $"{title}: skipped. {why}" : $"{title}: {Describe(node.Outcome)}" };
+        var lines = new List<string> { node.SkippedBecause is { Length: > 0 } why ? $"Skipped: {why}" : $"{title}: {Describe(node.Outcome)}" };
         if (node.Attempts > 0)
             lines.Add(node.Attempts == 1
                 ? $"Started at {RunWords.Seconds(node.Start)}, took {RunWords.Seconds(node.Duration)}."

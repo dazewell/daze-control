@@ -50,6 +50,15 @@ public sealed partial class InspectorViewModel
         IsCheck = Outcomes.IsCheck(step.Step);
     }
 
+    private void ClearOnlyIf()
+    {
+        _conditions = [];
+        HasOnlyIf = false;
+        IsCheck = false;
+        OnlyIfOptions = [];
+        OnlyIfIndex = 0;
+    }
+
     partial void OnOnlyIfIndexChanged(int value)
     {
         if (_loading || Node is not StepNode || value < 0 || value > _conditions.Count)

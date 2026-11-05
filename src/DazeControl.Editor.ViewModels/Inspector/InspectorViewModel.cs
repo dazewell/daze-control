@@ -373,6 +373,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             ManyText = string.Create(CultureInfo.InvariantCulture, $"{selected.Count} selected");
             if (node is not StepNode { Step: ProviderCatalog.RunFlowId })
                 CalledFlowId = null;
+            if (node is not StepNode)
+                ClearOnlyIf();
             switch (node)
             {
                 case StepNode step:
