@@ -8,6 +8,7 @@ using DazeControl.Ipc;
 using DazeControl.Runtime;
 using DazeControl.Runtime.Control;
 using DazeControl.Runtime.Lifecycle;
+using DazeControl.Runtime.Menus;
 using DazeControl.Runtime.Popup;
 using DazeControl.Providers.Basic;
 using DazeControl.Runtime.Providers;
@@ -45,6 +46,7 @@ internal sealed class EngineHost : IDisposable
     private readonly TrayIcon _tray;
     private readonly GlobalHotkey _hotkeys;
     private readonly RunPopup _popup = new();
+    private readonly FlowMenu _menu;
     private readonly RunPopupModel _popupModel = new();
     private readonly HotkeyTable _hotkeyTable;
     private readonly ConfigHost _config;
@@ -72,6 +74,7 @@ internal sealed class EngineHost : IDisposable
             return true;
         };
         _hotkeys = new GlobalHotkey(_window);
+        _menu = new FlowMenu(_window, null, TimeProvider.System); // T12.6 hands it the controller feed
         _hotkeyTable = new HotkeyTable(_hotkeys);
         _hotkeys.Pressed += OnHotkey;
         _hotkeyTable.FailuresChanged += OnShortcutFailuresChanged;
@@ -87,6 +90,8 @@ internal sealed class EngineHost : IDisposable
         // flow.run (D-062): nested runs resolve flows in the current config; start mode goes through the launcher.
         var calls = new FlowCalls(() => _config!.Current);
         stepProviders.Add(new FlowProvider(calls));
+        // menu.show (M12, D-055): one menu at a time; none over a full-screen game (#32); the window answers on the message thread.
+        stepProviders.Add(new MenuProvider(new GatedMenuPresenter(new FullScreenGuardPresenter(_menu, FullScreen.OverGame, Log.Info)), calls));
         var runner = new FlowRunner(stepProviders, TimeProvider.System, locks, events: OnRunEvent) { Flows = calls };
         _launcher = new FlowLauncher(runner, _history);
         calls.Launcher = _launcher;
@@ -269,8 +274,18 @@ internal sealed class EngineHost : IDisposable
         {
             // The run's own snapshot: a reload since it was queued must not rename or silence its pop-up.
             var settings = _config.Current.Settings.Popup;
-            if (_popupModel.Apply(e, null, settings) && _popupModel.Current is { } view)
-                _popup.Show(view, settings.Position);
+            if (_popupModel.Apply(e, null, settings))
+            {
+                // A quiet finish (a menu closed with nothing picked) leaves no view: take down what the run showed.
+                // Any window of ours knocks a DXGI full-screen game out of full screen (X-010): history keeps the run.
+                if (_popupModel.Current is { } view)
+                {
+                    if (!FullScreen.OverGame())
+                        _popup.Show(view, settings.Position);
+                }
+                else
+                    _popup.Hide();
+            }
         }
         catch (Exception failure)
         {
@@ -301,6 +316,8 @@ internal sealed class EngineHost : IDisposable
     {
         try
         {
+            if (FullScreen.OverGame())
+                return;
             var settings = _config.Current.Settings.Popup;
             _popup.Show(_popupModel.Refused(refusal.FlowId, refusal.Title, refusal.Message, settings), settings.Position);
         }
@@ -364,6 +381,7 @@ internal sealed class EngineHost : IDisposable
     public void Dispose()
     {
         _hotkeys.Dispose();
+        _menu.Dispose();
         _popup.Dispose();
         _tray.Dispose();
         _window.Dispose();

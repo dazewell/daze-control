@@ -133,7 +133,7 @@ Editor:   inspector (flow token list, layout, size, close after, wait), Test sho
 - Run pop-up: never shows for a `menu.show` node; a quiet stop shows nothing; the picked flow shows its own.
 - Editor live view: the menu node shows Running with "Waiting for a pick".
 
-### 3.3 Menu window (D-055)
+### 3.3 Menu window (D-055) — built in T12.7, now in ARCHITECTURE (Menu window)
 - `AcrylicSurface` is cut out of `RunPopup` (D-034): `WS_POPUP` + `WS_EX_NOACTIVATE | TOOLWINDOW | TOPMOST`,
   transient-window backdrop, software D2D HWND target, DirectWrite, DPI per monitor v2, fades, d2d1/DWrite loaded
   only while shown. `RunPopup` and `FlowMenu` both use it; RunPopup's tests and screenshots must not change.

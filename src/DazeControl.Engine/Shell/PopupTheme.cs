@@ -22,6 +22,12 @@ internal sealed record PopupTheme(bool Light, D2D1_COLOR_F Text, D2D1_COLOR_F Se
 
     public bool HighContrast { get; init; }
 
+    /// <summary>Text and glyph on an accent fill (TextOnAccentFillColorPrimary); in a contrast theme HighlightText.</summary>
+    public D2D1_COLOR_F OnAccent { get; init; }
+
+    /// <summary>The focused choice's fill in a contrast theme (the Highlight system colour); unused otherwise.</summary>
+    public D2D1_COLOR_F Highlight { get; init; }
+
     private const string Personalize = @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
 
     public static PopupTheme Read()
@@ -35,6 +41,8 @@ internal sealed record PopupTheme(bool Light, D2D1_COLOR_F Text, D2D1_COLOR_F Se
             {
                 Background = SystemColour(SYS_COLOR_INDEX.COLOR_WINDOW),
                 HighContrast = true,
+                OnAccent = SystemColour(SYS_COLOR_INDEX.COLOR_HIGHLIGHTTEXT),
+                Highlight = SystemColour(SYS_COLOR_INDEX.COLOR_HIGHLIGHT),
             };
         }
         // The pop-up is shell chrome like the volume flyout: it follows the Windows mode, not the app mode.
@@ -42,9 +50,9 @@ internal sealed record PopupTheme(bool Light, D2D1_COLOR_F Text, D2D1_COLOR_F Se
         var accent = ReadAccent(light);
         return light
             ? new(true, Argb(0xE4000000), Argb(0x9E000000), Argb(0x29000000), accent, Argb(0xFF0F7B0F),
-                Argb(0xFF9D5D00), Argb(0xFFC42B1C), ReadTextScale(), ReadAnimations())
+                Argb(0xFF9D5D00), Argb(0xFFC42B1C), ReadTextScale(), ReadAnimations()) { OnAccent = Argb(0xFFFFFFFF) }
             : new(false, Argb(0xFFFFFFFF), Argb(0xC5FFFFFF), Argb(0x37FFFFFF), accent, Argb(0xFF6CCB5F),
-                Argb(0xFFFCE100), Argb(0xFFFF99A4), ReadTextScale(), ReadAnimations());
+                Argb(0xFFFCE100), Argb(0xFFFF99A4), ReadTextScale(), ReadAnimations()) { OnAccent = Argb(0xFF000000) };
     }
 
     /// <summary>AccentFillColorDefault: SystemAccentColorDark1 in light mode, Light2 in dark (AccentPalette entries 4 / 1).</summary>
