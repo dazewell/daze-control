@@ -36,8 +36,25 @@ internal sealed partial class FlowCard : ContentControl
     /// <summary>Alt+Left: out of its group.</summary>
     public event EventHandler? TakeOutRequested;
 
+    /// <summary>Ctrl+Space, Ctrl+A or Esc on the focused card (D-090); the handler sets Handled when it used the key.</summary>
+    public event EventHandler<SelectKeyEventArgs>? SelectKey;
+
     protected override void OnKeyDown(KeyRoutedEventArgs e)
     {
+        if (ReferenceEquals(e.OriginalSource, this) && SelectKey is not null && e.Key is VirtualKey.Space or VirtualKey.A or VirtualKey.Escape)
+        {
+            var ctrl = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            if (e.Key == VirtualKey.Escape || ctrl)
+            {
+                var args = new SelectKeyEventArgs(e.Key);
+                SelectKey.Invoke(this, args);
+                if (args.Handled)
+                {
+                    e.Handled = true;
+                    return;
+                }
+            }
+        }
         if (ReferenceEquals(e.OriginalSource, this) && e.Key is VirtualKey.Up or VirtualKey.Down or VirtualKey.Left
             && InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
         {
@@ -65,6 +82,13 @@ internal sealed partial class FlowCard : ContentControl
     }
 
     protected override AutomationPeer OnCreateAutomationPeer() => new FlowCardPeer(this);
+}
+
+internal sealed class SelectKeyEventArgs(VirtualKey key) : EventArgs
+{
+    public VirtualKey Key { get; } = key;
+
+    public bool Handled { get; set; }
 }
 
 internal sealed partial class FlowCardPeer(FlowCard owner) : FrameworkElementAutomationPeer(owner), IInvokeProvider

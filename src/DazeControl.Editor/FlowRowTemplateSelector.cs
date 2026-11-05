@@ -21,6 +21,10 @@ internal static class RowFormat
 {
     public const double IndentDips = 24;
 
+    /// <summary>A selected card or header (D-090) gets an accent outline; others keep the card stroke.</summary>
+    public static Microsoft.UI.Xaml.Media.Brush SelectBorder(bool selected) =>
+        (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources[selected ? "AccentFillColorDefaultBrush" : "CardStrokeColorDefaultBrush"];
+
     // 12 DIP in, then a 1-DIP rail and 11 DIP of padding: the card sits 24 in from the list edge.
     public static Thickness Indent(bool inGroup) => inGroup ? new Thickness(12, 0, 0, 0) : new Thickness(0);
 
