@@ -47,11 +47,11 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   new `StepDefaultsEditor` service (add/edit/remove entry, "Used by n steps in m flows" counts) in `Editor.ViewModels`, UX §5.7
   strings. Done when: view-model tests for add/edit/remove/counts, autosave writes `stepDefaults` and nothing else, a screenshot
   of the card (empty and with two rows), keyboard and Narrator names checked.
-- [ ] T14.4 Inspector: Default/Set rows, Reset, "Use these for all … steps…" (feat/m14-defaults-inspector, after T14.3: uses its service). Files:
+- [x] T14.4 Inspector: Default/Set rows, Reset, "Use these for all … steps…" (feat/m14-defaults-inspector, after T14.3: uses its service). Files:
   `Editor.ViewModels/Inspector*`, the Timing and "If it fails" XAML, canvas chips (effective values, dimmer when inherited),
   the fallback menu's Stop→Skip switch (uses effective policy). Done when: view-model tests: Reset clears one field; a changed
   default moves inherited steps and not set ones; "Use for all" shows n steps and has Undo; D-059 switch sets Skip when the
-  inherited policy is Stop; screenshots of a step with inherited and set rows.
+  inherited policy is Stop; screenshots of a step with inherited and set rows. (PR: feat/m14-defaults-inspector.)
 - [ ] T14.5 Conditions core + runtime (feat/m14-conditions-core, after T14.2: same Core/Runtime files). Files: `ProviderDescriptor.Conditions`,
   `IFactProbe` (`Runtime/Providers`), `StepNode.Only` + YAML + validator (B7), `FlowRunner` (probe after the lock, once, inside the
   timeout; cannot tell → run; skip = Succeeded + note), `NodeResult` note through events, IPC and run history, dry-run assumption,
