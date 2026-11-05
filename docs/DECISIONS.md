@@ -1138,3 +1138,15 @@ Status: accepted (design; user asked 2026-11-04). Design: docs/step-settings/DES
   dragged step and as the fallback. Why not re-linking the dragged step's dependents to its old predecessors (as Delete
   does): `RunAfter` and the right-third drop don't, and silent extra edits surprised the user before (D-058).
 - Revisit if: users expect the dragged step's dependents to follow it.
+## D-084 · 2026-11-04 · Several selected steps edit their shared settings together, as one Undo step
+Status: accepted (design; user asked 2026-11-04). Design: docs/step-settings/DESIGN.md Part D.
+- Decision: in `InspectorMode.Many` the inspector shows the settings every selected item has: "If it fails" always; Timing,
+  "Only if" and params for steps of one type; params across types only when name, kind and library kind match. A field whose
+  values differ (or are partly inherited) shows **Mixed**; setting writes **Set on all**, Reset removes the field from all;
+  text applies on commit; one `UpdateDraft` = one Undo; validation runs per step and the change lands on all or none.
+- Why: the M14 rows already say Default vs Set per field, so "Mixed" is the only new state; one type keeps the form the
+  user already knows, and the common subset across types is small and safe.
+- Why not the union of settings across types: a value would silently apply to a step that doesn't have the field.
+  Why not "first selected wins" instead of Mixed: hides the difference and overwrites it on any touch. Why not per-key
+  apply for text: dozens of Undo entries for one word.
+- Revisit if: users want to copy a step's settings onto others (a paste-style command).
