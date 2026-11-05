@@ -1045,3 +1045,20 @@ Status: accepted (user, 2026-11-03, L1). Extends D-046.
   another device: the callee may run with any device; only the default is known here.
 - Revisit if: users want a "Try it" that switches the TV's input from the Library (it changes the TV, so it would
   need the same care as Test this step).
+
+## D-079 · 2026-11-04 · Cheaper agent workflow: the tag is the version, merge commits, auto-merge, resume state in the PR
+Status: accepted (user, 2026-11-04). Supersedes the per-PR version bump (repo-workflow §4) and the squash merges of
+§6; amends D-018 (the Resume block).
+- Decision: PRs don't touch `<Version>`; the release cutter picks the next number from the PR titles since the last tag
+  (any `feat` → minor, else patch) and release.yml builds the tag's number (`pack.ps1 -Version`). PRs merge with
+  merge commits, armed with `gh pr merge --auto --merge` once review is settled; a ruleset makes `build` required on
+  main, so GitHub merges when CI is green and the session doesn't wait. A task's live Resume state is a "## Resume"
+  section in its PR description (`gh pr edit --body-file`), not the PLAN.md Resume block, which only the coordinator
+  rewrites. Copilot reviews code PRs once; a second only after Critical findings; small fix PRs whose tests cover the
+  change skip it. Tiny related fixes share a session. Agents batch lookups.
+- Why: measured on 26 sessions (2026-11-01..04, ~2,100 model calls): ~30 % of usage was after the PR opened (CI waits,
+  wake-ups, merging main back in for the version line and the Resume block), ~29 % was the fixed ~72k-token prompt
+  re-read on every call, and 698 calls were single shell reads. Each call re-reads the whole context.
+- Why not keep `<Version>` per PR: every parallel PR conflicted on that one line. Why not squash: it rewrote history
+  so stacked and merged-in branches conflicted again (the old §6 "Stacked PRs" recipe).
+- Revisit if: auto-merge lands something a later review would have stopped, or releases need a version before tagging.

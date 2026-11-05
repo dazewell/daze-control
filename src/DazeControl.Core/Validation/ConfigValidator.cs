@@ -39,13 +39,19 @@ public static partial class ConfigValidator
         var checkers = config.Flows.Select(f => new FlowChecker(f, config.Library, badLibraryItems, catalog, problems)).ToList();
         foreach (var checker in checkers)
             checker.Check();
+        CheckMenus(config.Flows, problems);
         CheckCalls(config.Flows, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, problems);
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
         var hotkeyOwners = new Dictionary<Hotkey, string>();
         var rejected = FlowsWithErrors(problems.Concat(earlier ?? []));
+        var chordOwners = new Dictionary<GamepadChord, string>();
         foreach (var checker in checkers)
             checker.ClaimHotkeys(hotkeyOwners, rejected);
+        // Chords after hotkeys, so a flow that lost a hotkey clash claims none.
+        rejected = FlowsWithErrors(problems.Concat(earlier ?? []));
+        foreach (var checker in checkers)
+            checker.ClaimChords(chordOwners, rejected);
         return new(problems);
     }
 
@@ -68,7 +74,7 @@ public static partial class ConfigValidator
                 .Select(s => (Flow: f, Step: s, Target: CalledFlow(s))))
             .Where(c => c.Target is { Length: > 0 })
             .ToList();
-        var graph = CallGraph(byId, calls.Select(c => (c.Flow.Id, c.Target!)));
+        var graph = CallGraph(byId, CallEdges(flows));
         // Errors first, so a flow this pass rejects (a loop) also gets callers' "needs fixing" warnings.
         var warnings = new List<(Flow Flow, string Path, Flow Called)>();
         foreach (var (flow, step, target) in calls)
@@ -82,6 +88,18 @@ public static partial class ConfigValidator
                 problems.Add(new(Severity.Error, path, LoopText(byId, flow, back), flow.Id));
             else
                 warnings.Add((flow, path, called));
+        }
+        // #39: a menu that waits for a flow which reaches back to the menu's own flow.
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.Nodes.OfType<StepNode>().Where(IsWaitingMenu))
+            {
+                foreach (var item in MenuItems(step).Distinct().Where(i => i != flow.Id && byId.ContainsKey(i)))
+                {
+                    if (PathBetween(graph, item, flow.Id) is { } back)
+                        problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.with.items", LoopText(byId, flow, back), flow.Id));
+                }
+            }
         }
         var broken = FlowsWithErrors(problems);
         foreach (var (flow, path, called) in warnings)
@@ -120,10 +138,66 @@ public static partial class ConfigValidator
             byId.TryAdd(flow.Id, flow);
         if (!byId.TryGetValue(callerId, out var caller) || !byId.ContainsKey(targetId))
             return null;
-        var graph = CallGraph(byId, flows.SelectMany(f => f.Nodes.OfType<StepNode>()
-            .Where(s => s.Step == ProviderCatalog.RunFlowId && CalledFlow(s) is { Length: > 0 })
-            .Select(s => (f.Id, CalledFlow(s)!))));
+        var graph = CallGraph(byId, CallEdges(flows));
         return PathBetween(graph, targetId, callerId) is { } back ? LoopText(byId, caller, back) : null;
+    }
+
+    /// <summary>"F runs G": every <c>flow.run</c> step and the items of every <c>menu.show</c> that waits (D-063).</summary>
+    private static IEnumerable<(string From, string To)> CallEdges(IReadOnlyList<Flow> flows) =>
+        flows.SelectMany(f => f.Nodes.OfType<StepNode>().SelectMany(s =>
+            s.Step == ProviderCatalog.RunFlowId && CalledFlow(s) is { Length: > 0 } target ? [(f.Id, target)]
+            : IsWaitingMenu(s) ? MenuItems(s).Select(i => (f.Id, i))
+            : []));
+
+    private static bool IsWaitingMenu(StepNode step) =>
+        step.Step == ProviderCatalog.MenuShowId && step.With.TryGetValue("wait", out var wait)
+        && wait is ScalarParam { Text: var text } && bool.TryParse(text, out var on) && on;
+
+    /// <summary>The flow ids a <c>menu.show</c> lists, in order; empty when <c>items</c> isn't a list of plain values (the param check's error).</summary>
+    public static IReadOnlyList<string> MenuItems(StepNode step) =>
+        step.With.TryGetValue("items", out var value) && value is ListParam list && list.Items.All(i => i is ScalarParam)
+            ? [.. list.Items.Cast<ScalarParam>().Select(i => i.Text.Trim())]
+            : [];
+
+    /// <summary>Menu rules that need the other flows (DESIGN §2.5): own flow #38, unknown #40 and duplicate items, counts, times.</summary>
+    private static void CheckMenus(IReadOnlyList<Flow> flows, List<Problem> problems)
+    {
+        var ids = flows.Select(f => f.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.MenuShowId))
+            {
+                var path = $"flows.{flow.Id}.nodes.{step.Id}.with";
+                if (step.With.TryGetValue("items", out var value) && value is ListParam { Items: var all } && all.All(i => i is ScalarParam))
+                {
+                    var items = MenuItems(step);
+                    if (items.Count is 0 or > ProviderCatalog.MaxMenuItems)
+                        problems.Add(new(Severity.Error, path + ".items", $"A menu lists 1 to {ProviderCatalog.MaxMenuItems} flows.", flow.Id));
+                    var seen = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var item in items)
+                    {
+                        if (item.Length == 0)
+                            problems.Add(new(Severity.Warning, path + ".items", "An empty entry is skipped; pick a flow or remove it.", flow.Id));
+                        else if (item == flow.Id)
+                            problems.Add(new(Severity.Error, path + ".items", "A menu can't list its own flow.", flow.Id));
+                        else if (!ids.Contains(item))
+                            problems.Add(new(Severity.Warning, path + ".items", $"{item} isn't there anymore, so the menu leaves it out.", flow.Id));
+                        else if (!seen.Add(item))
+                            problems.Add(new(Severity.Warning, path + ".items", $"{item} is listed twice; the menu shows it once.", flow.Id));
+                    }
+                }
+                var closeAfter = TimeSpan.FromSeconds(30);
+                if (step.With.TryGetValue("closeAfter", out var close) && close is ScalarParam { Text: var text } && Duration.TryParse(text, out var parsed))
+                {
+                    closeAfter = parsed;
+                    if (parsed < ProviderCatalog.MinCloseAfter || parsed > ProviderCatalog.MaxCloseAfter)
+                        problems.Add(new(Severity.Error, path + ".closeAfter", "Close after 5s to 10m.", flow.Id));
+                }
+                if (step.Timeout is { } timeout && timeout <= closeAfter)
+                    problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.timeout",
+                        "The step's time limit must be longer than \"close after\", or it ends the menu first.", flow.Id));
+            }
+        }
     }
 
     /// <summary>The flow a <c>flow.run</c> step names, or null when it names none (that is the param check's error).</summary>
@@ -259,6 +333,38 @@ public static partial class ConfigValidator
             {
                 if (!Hotkey.TryParse(text, out _))
                     Error(_path + ".hotkeys", $"\"{text}\" isn't a shortcut: use Win, Ctrl or Alt plus a letter, number, F1–F24 or a key like [, or a number pad key like Num1.");
+            }
+            foreach (var text in flow.Gamepad)
+            {
+                if (GamepadChord.Explain(text) is { } why)
+                    Error(_path + ".gamepad", $"\"{text}\": {why}");
+            }
+        }
+
+        /// <summary>As <see cref="ClaimHotkeys"/>, for controller chords (#36).</summary>
+        public void ClaimChords(Dictionary<GamepadChord, string> owners, IReadOnlySet<string> rejected)
+        {
+            if (!flow.Enabled || rejected.Contains(flow.Id))
+                return;
+            var mine = new HashSet<GamepadChord>();
+            var failed = false;
+            foreach (var text in flow.Gamepad)
+            {
+                if (!GamepadChord.TryParse(text, out var chord))
+                    continue;
+                var message = !mine.Add(chord) ? $"{chord.Display} is listed twice."
+                    : owners.TryGetValue(chord, out var owner) ? $"{chord.Display} already runs flow \"{owner}\"."
+                    : null;
+                if (message is not null)
+                {
+                    Error(_path + ".gamepad", message);
+                    failed = true;
+                }
+            }
+            if (!failed)
+            {
+                foreach (var chord in mine)
+                    owners[chord] = flow.Id;
             }
         }
 

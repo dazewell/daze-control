@@ -182,7 +182,7 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
             }
         }
         if (result is not null)
-            RaiseCompleted(new RunFinished(result.RunId, flow.Id, result.Started + result.Duration, result.Outcome));
+            RaiseCompleted(new RunFinished(result.RunId, flow.Id, result.Started + result.Duration, result.Outcome) { Quiet = result.Quiet });
         published?.SetResult();
         if (failure is not null)
         {

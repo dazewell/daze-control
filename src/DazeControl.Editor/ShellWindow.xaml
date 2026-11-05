@@ -107,14 +107,23 @@
                             <StackPanel x:Name="FlowsPage" Grid.Row="1" Spacing="4">
                                 <Grid Margin="0,0,0,12">
                                     <TextBlock Text="Flows" Style="{StaticResource TitleTextBlockStyle}" />
-                                    <Button HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}"
+                                    <SplitButton HorizontalAlignment="Right" Background="{ThemeResource AccentFillColorDefaultBrush}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                                             IsEnabled="{x:Bind ViewModel.Flows.CanEdit, Mode=OneWay}" AutomationProperties.Name="New flow"
                                             Command="{x:Bind ViewModel.Flows.NewFlowCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <FontIcon Glyph="&#xE710;" FontSize="14" />
                                             <TextBlock Text="New flow" />
                                         </StackPanel>
-                                    </Button>
+                                        <SplitButton.Flyout>
+                                            <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                                <MenuFlyoutItem Text="Controller menu" Command="{x:Bind ViewModel.Flows.NewControllerMenuCommand}">
+                                                    <MenuFlyoutItem.Icon>
+                                                        <FontIcon Glyph="&#xE7FC;" />
+                                                    </MenuFlyoutItem.Icon>
+                                                </MenuFlyoutItem>
+                                            </MenuFlyout>
+                                        </SplitButton.Flyout>
+                                    </SplitButton>
                                 </Grid>
                                 <StackPanel Visibility="{x:Bind ViewModel.Flows.IsEmpty, Mode=OneWay}" Spacing="8" Margin="0,48,0,0"
                                             HorizontalAlignment="Center">

@@ -70,7 +70,7 @@ public class ProviderCatalogTests
     }
 
     /// <summary>Free text the user is fine typing (reviewed 2026-11-02, D-050): a message, a program's own arguments.</summary>
-    private static readonly HashSet<string> TypedFreely = ["notify.text", "process.run.args", "process.run.exitCodes"];
+    private static readonly HashSet<string> TypedFreely = ["notify.text", "menu.show.title","process.run.args", "process.run.exitCodes"];
 
     [Fact]
     public void EveryFreeTextParamSaysWhereItsValuesComeFrom()

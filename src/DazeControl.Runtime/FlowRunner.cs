@@ -19,6 +19,9 @@ public sealed record RunResult(FlowOutcome Outcome, ValueList<NodeResult> Nodes)
     public DateTimeOffset Started { get; init; }
 
     public TimeSpan Duration { get; init; }
+
+    /// <summary>A step ended the run on purpose (<see cref="StepEndsFlowException"/>): the pop-up shows nothing.</summary>
+    public bool Quiet { get; init; }
 }
 
 /// <summary>
@@ -111,6 +114,7 @@ public sealed class FlowRunner
         var running = new Dictionary<Task<StepRun>, string>();
         var results = new Dictionary<string, StepRun>();
         var order = new Dictionary<string, int>();
+        var quiet = false;
 
         void Launch(IEnumerable<string> ids)
         {
@@ -124,7 +128,7 @@ public sealed class FlowRunner
 
         NodeResult ResultOf(string id) => results.TryGetValue(id, out var r)
             ? new NodeResult(id, scheduler.Outcomes[id], r.Attempts, r.Error, r.Duration, r.Start, order[id],
-                r.Retries.Count > 0 ? [.. r.Retries] : null) { Called = r.Called }
+                r.Retries.Count > 0 ? [.. r.Retries] : null) { Called = r.Called, Summary = r.Summary }
             : new NodeResult(id, scheduler.Outcomes[id], Attempts: 0);
 
         void ReportFinished()
@@ -146,8 +150,12 @@ public sealed class FlowRunner
             if (run.Result == StepResult.Succeeded && run.Called?.Outcome == FlowOutcome.PartiallySucceeded)
                 scheduler.MarkPartialCall();
             Launch(scheduler.Complete(id, run.Result));
-            if (run.Quiet && !scheduler.IsCancelled)
-                scheduler.Cancel(); // the called flow ended quietly (a menu, nothing picked): so does this run
+            if (run.Quiet)
+            {
+                quiet = true; // a step ended the run on purpose, or the flow it called did (a menu, nothing picked)
+                if (!scheduler.IsCancelled)
+                    scheduler.Cancel();
+            }
             ReportFinished();
             if (scheduler.IsStopped || scheduler.IsCancelled)
                 await stepsCancel.CancelAsync().ConfigureAwait(false);
@@ -161,8 +169,9 @@ public sealed class FlowRunner
             RunId = runId,
             Started = started,
             Duration = _time.GetElapsedTime(startedTicks),
+            Quiet = quiet,
         };
-        Raise(new RunFinished(runId, flow.Id, _time.GetUtcNow(), result.Outcome) { ParentRunId = parentRunId, ParentNodeId = parentNodeId });
+        Raise(new RunFinished(runId, flow.Id, _time.GetUtcNow(), result.Outcome) { ParentRunId = parentRunId, ParentNodeId = parentNodeId, Quiet = quiet });
         return result;
     }
 
@@ -182,9 +191,13 @@ public sealed class FlowRunner
     /// <param name="Start">From the run's start.</param>
     /// <param name="Retries">Start of each try after the first, from the run's start.</param>
     /// <param name="Called">A call that waited: its last try's nested run.</param>
-    /// <param name="Quiet">The called flow ended quietly: this run ends quietly too.</param>
+    /// <param name="Summary">What the step said about itself (<see cref="StepContext.SetSummary"/>), last try's.</param>
+    /// <param name="Quiet">The step ended the run on purpose, or the called flow ended quietly: this run ends quietly too.</param>
     private readonly record struct StepRun(StepResult Result, int Attempts, string? Error, TimeSpan Duration, TimeSpan Start,
-        List<TimeSpan> Retries, CalledRun? Called = null, bool Quiet = false);
+        List<TimeSpan> Retries, CalledRun? Called = null, bool Quiet = false, string? Summary = null);
+
+    /// <summary>One try of an ordinary step: null <paramref name="Error"/> = it worked; <paramref name="EndsFlow"/> = see <see cref="StepEndsFlowException"/>.</summary>
+    private readonly record struct AttemptResult(string? Error, bool EndsFlow = false);
 
     /// <param name="Chain">Flow ids from the top run down to this run's flow.</param>
     private sealed record RunScope(Guid RunId, string[] Chain, Guid? ParentRunId, string? ParentNodeId);
@@ -203,8 +216,9 @@ public sealed class FlowRunner
         List<TimeSpan> retries = [];
         CalledRun? called = null;
         var quiet = false;
+        string? summary = null;
         StepRun Done(StepResult result, int attempts, string? error) =>
-            new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet);
+            new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet, summary);
         var descriptor = _catalog.FirstOrDefault(d => d.Id == node.Step);
         var waits = Flows is not null && node.Step == ProviderCatalog.RunFlowId && !IsOff(node, "wait");
         IStepProvider? provider = null;
@@ -236,15 +250,28 @@ public sealed class FlowRunner
                 { ParentRunId = scope.ParentRunId, ParentNodeId = scope.ParentNodeId });
             if (waits)
             {
-                var call = await CallAsync(scope, flow, node, timeout, flowToken).ConfigureAwait(false);
+                var call = await CallAsync(scope, flow, node, ConfigValidator.CalledFlow(node) ?? "", FlowInputs.Given(node), timeout, flowToken)
+                    .ConfigureAwait(false);
                 (error, called, quiet) = (call.Error, call.Called ?? called, call.Quiet);
                 if (quiet)
                     return Done(StepResult.Cancelled, attempt, null);
             }
             else
             {
-                error = await AttemptAsync(provider!, new StepContext(flow, node, descriptor, library, attempt) { Chain = scope.Chain },
-                    timeout, flowToken).ConfigureAwait(false);
+                var context = new StepContext(flow, node, descriptor, library, attempt)
+                {
+                    Chain = scope.Chain,
+                    RunNested = Flows is null ? null : (target, token) => NestedAsync(scope, flow, node, target, c => called = c, token),
+                };
+                var attemptResult = await AttemptAsync(provider!, context, timeout, flowToken).ConfigureAwait(false);
+                error = attemptResult.Error;
+                summary = context.Summary;
+                called = context.Called ?? called;
+                if (attemptResult.EndsFlow)
+                {
+                    quiet = true;
+                    return Done(StepResult.Cancelled, attempt, error);
+                }
             }
             if (error is null)
                 return Done(StepResult.Succeeded, attempt, null);
@@ -262,15 +289,15 @@ public sealed class FlowRunner
     /// One try of a <c>flow.run</c> that waits (DESIGN §2.2): runs the called flow nested and maps its outcome. The
     /// nested run honours the token itself, so it is awaited to the end (its steps are bounded by their own timeouts).
     /// </summary>
-    private async Task<CallTry> CallAsync(RunScope scope, Flow caller, StepNode node, TimeSpan timeout, CancellationToken flowToken)
+    private async Task<CallTry> CallAsync(RunScope scope, Flow caller, StepNode node, string target,
+        IReadOnlyDictionary<string, string> inputs, TimeSpan timeout, CancellationToken flowToken)
     {
-        var target = ConfigValidator.CalledFlow(node) ?? "";
         var resolved = Flows!.Resolve(target);
         if (FlowCalls.Guard(scope.Chain, target, resolved.Name) is { } loop)
             return new(loop, null, false);
         if (resolved.Flow is not { } flow)
             return new(resolved.Refusal, null, false);
-        var inputs = FlowInputs.Given(node); // the caller's own $names are already resolved (RunCoreAsync)
+        // The caller's own $names are already resolved (RunCoreAsync).
         if (FlowInputs.Check(flow, resolved.Library, inputs, caller.Name) is { } missing)
             return new(missing, null, false);
         CancellationTokenSource timeoutCancel;
@@ -307,6 +334,19 @@ public sealed class FlowRunner
         };
     }
 
+    /// <summary>
+    /// A step that runs a flow nested (a menu with <c>wait</c>): same rules as a waiting <c>flow.run</c>, but the
+    /// step's own token already carries its timeout, so the call adds none.
+    /// </summary>
+    private async Task<NestedAnswer> NestedAsync(RunScope scope, Flow caller, StepNode node, string target, Action<CalledRun> record,
+        CancellationToken token)
+    {
+        var call = await CallAsync(scope, caller, node, target, NoInputs, Timeout.InfiniteTimeSpan, token).ConfigureAwait(false);
+        if (call.Called is { } called)
+            record(called);
+        return new(call.Error, call.Quiet);
+    }
+
     /// <summary>The called flow's first failure in its own words (#56).</summary>
     private static string FirstFailure(Flow flow, IEnumerable<NodeResult> nodes)
     {
@@ -321,8 +361,8 @@ public sealed class FlowRunner
         return $"{name} didn't work.";
     }
 
-    /// <returns>Null on success, else why it failed.</returns>
-    private async Task<string?> AttemptAsync(IStepProvider provider, StepContext context, TimeSpan timeout, CancellationToken flowToken)
+    /// <returns>No error on success, else why it failed.</returns>
+    private async Task<AttemptResult> AttemptAsync(IStepProvider provider, StepContext context, TimeSpan timeout, CancellationToken flowToken)
     {
         CancellationTokenSource timeoutCancel;
         try
@@ -331,7 +371,7 @@ public sealed class FlowRunner
         }
         catch (ArgumentOutOfRangeException)
         {
-            return $"A timeout of {Duration.Format(timeout)} is longer than this version supports.";
+            return new($"A timeout of {Duration.Format(timeout)} is longer than this version supports.");
         }
         using var ownedTimeout = timeoutCancel;
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(flowToken, timeoutCancel.Token);
@@ -344,29 +384,33 @@ public sealed class FlowRunner
         }
         catch (OperationCanceledException)
         {
-            return flowToken.IsCancellationRequested ? "Cancelled." : $"Waited {Duration.Format(timeout)} for another step using the same device.";
+            return new(flowToken.IsCancellationRequested ? "Cancelled." : $"Waited {Duration.Format(timeout)} for another step using the same device.");
         }
         using var release = held;
         if (linked.IsCancellationRequested) // AcquireAsync with no resources doesn't check
-            return flowToken.IsCancellationRequested ? "Cancelled." : $"Didn't finish within {Duration.Format(timeout)}.";
+            return new(flowToken.IsCancellationRequested ? "Cancelled." : $"Didn't finish within {Duration.Format(timeout)}.");
         // On the pool, so a provider that blocks before returning its task is still bounded by WaitAsync.
         var execution = Task.Run(() => provider.ExecuteAsync(context, linked.Token), CancellationToken.None);
         try
         {
             // WaitAsync ends the attempt on time even if the provider ignores its token.
             await execution.WaitAsync(linked.Token).ConfigureAwait(false);
-            return null;
+            return new(null);
         }
         catch (OperationCanceledException) when (linked.IsCancellationRequested)
         {
             Observe(execution);
-            return flowToken.IsCancellationRequested ? "Cancelled." : $"Didn't finish within {Duration.Format(timeout)}.";
+            return new(flowToken.IsCancellationRequested ? "Cancelled." : $"Didn't finish within {Duration.Format(timeout)}.");
+        }
+        catch (StepEndsFlowException e)
+        {
+            return new(e.Message, EndsFlow: true);
         }
 #pragma warning disable CA1031
         catch (Exception e)
 #pragma warning restore CA1031
         {
-            return e.Message;
+            return new(e.Message);
         }
     }
 

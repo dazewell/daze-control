@@ -64,7 +64,11 @@ Setup panics, X-002), then start `<scratch>\install\current\DazeControl.exe <scr
 (or `<install>\Update.exe apply --silent --norestart` to test the clean exit). Remove with
 `<install>\Update.exe uninstall --silent`. Velopack's own log: `%LOCALAPPDATA%\velopack\velopack_DazeControlApp.log`.
 Never `Start-Process -Wait` on Setup in PowerShell 7: it also waits for the engine Setup starts. Never push a `v` tag
-(that publishes a release; the user decides). When the user has you cut one, once release.yml is green set its notes
+(that publishes a release; the user decides). When the user has you cut one: the tag is the version (D-079): list
+the merged PR titles since the last tag (a merge commit's subject is "Merge pull request #n", its body the PR title):
+`git log --first-parent --format="%s%n%b" <last tag>..origin/main | Select-String '^(feat|fix|docs|chore|ci|refactor|test)[(:]'`
+(a `gh pr list --search merged:>` date query also catches the PR whose merge the last tag sits on),
+and take the last tag + minor if any title is a `feat`, else + patch; tag `origin/main` and push the tag (release.yml builds that number). Once release.yml is green set its notes
 (user, 2026-11-04, from v0.39 on, never retroactively): `gh release edit v<Version> --notes-file <file>` with a short
 bullet list of the features and fixes merged since the previous tag, in user terms (what changes in use, no code
 details), one line each.
@@ -121,4 +125,5 @@ Grow this table when you hit something non-obvious (and record a dead end if a f
 | `MSB3027` / file is locked by `DazeControl` | Running engine; `pwsh scripts/stop.ps1`. |
 | Need a CsWin32 COM/P/Invoke signature (D2D, DWrite, DWM) | Generated code isn't on disk: `dotnet build src/DazeControl.Engine --no-dependencies --no-incremental -p:EmitCompilerGeneratedFiles=true -p:CompilerGeneratedFilesOutputPath=<scratch dir>`, then grep the `.g.cs` (2026-11-01). |
 | Editor starts, no window ever shows, `OnLaunched` never runs (process idles, no top-level windows) | Stale `src/DazeControl.Editor/obj` after XAML/Main changes (seen 2026-11-01 adding `DISABLE_XAML_GENERATED_MAIN`): delete the editor's `obj` and `bin`, rebuild. Check this before bisecting code. |
+| Editor exits at once, WER shows `Microsoft.UI.Xaml.dll` 0xc000027b | A `StaticResource` that does not exist (seen 2026-11-04: `AccentSplitButtonStyle`) fails at load, not at build. Check new XAML resource names first. |
 | The user reports a released feature missing | Check which version is installed: `%LOCALAPPDATA%\DazeControlApp\current\sq.version`. `dctl update` only downloads; it installs when the engine restarts. On 2026-11-03 the dev PC still ran 0.22.0 while 0.29.0 was out. |

@@ -9,7 +9,7 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
-    <!-- The one version source: feat PR -> minor, fix PR -> patch (repo-workflow). -->
+    <!-- Local builds only: releases take their version from the v-tag (D-079); PRs don't change this. -->
     <Version>0.39.0</Version>
     <Product>Daze Control</Product>
     <Company>dazewell</Company>

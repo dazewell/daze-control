@@ -8,7 +8,7 @@ namespace DazeControl.Core.Catalog;
 public static class ProviderCatalog
 {
     private const string Audio = "E767", Bluetooth = "E702", Display = "E7F4", Process = "E756", Script = "E943",
-        Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", RunFlow = "E768";
+        Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", RunFlow = "E768", MenuGlyph = "E700";
 
     private static readonly TimeSpan Short = TimeSpan.FromSeconds(10);
 
@@ -151,7 +151,39 @@ public static class ProviderCatalog
                 Examples = [new("Another device", "output: sony")],
             },
         ]),
+        // No resources yet: T12.4 decides how menus serialize (the presenter's gate, DESIGN §3.2).
+        new(MenuShowId, "Show a menu", MenuGlyph, TimeSpan.FromMinutes(10),
+        [
+            new("items", ParamKind.TextList, "Flows")
+            {
+                Required = true, Ordered = true, Suggest = ParamSuggest.Config(ParamSuggest.Flows), RefersTo = ConfigRef.Flow,
+                Help = "1 to 12 flows, in menu order. Keys 1 to 9 pick the first nine.",
+            },
+            new("title", ParamKind.Text, "Title") { Help = "Empty = this flow's name." },
+            new("layout", ParamKind.Choice, "Layout") { Choices = ["list", "grid"], Default = "list" },
+            new("size", ParamKind.Choice, "Size")
+            {
+                Choices = ["normal", "large"], Default = "normal", Help = "Large is for a TV across the room.",
+            },
+            new("closeAfter", ParamKind.Duration, "Close after")
+            {
+                Default = "30s", Help = "5 s to 10 min with no input; any input starts the count again.",
+            },
+            new("wait", ParamKind.Boolean, "Wait for it to finish")
+            {
+                Default = "false",
+                Help = "On: this step waits for the picked flow and takes its result. Off: the picked flow starts on its own.",
+            },
+        ]),
     ];
+
+    /// <summary>The <c>menu.show</c> step type (M12, D-054).</summary>
+    public const string MenuShowId = "menu.show";
+
+    /// <summary><c>menu.show</c>'s item count and <c>closeAfter</c> range (DESIGN §2.1).</summary>
+    public const int MaxMenuItems = 12;
+
+    public static readonly TimeSpan MinCloseAfter = TimeSpan.FromSeconds(5), MaxCloseAfter = TimeSpan.FromMinutes(10);
 
     /// <summary>The <c>flow.run</c> step type (D-061, D-062).</summary>
     public const string RunFlowId = "flow.run";

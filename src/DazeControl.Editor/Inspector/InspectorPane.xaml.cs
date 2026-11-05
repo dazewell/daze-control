@@ -112,6 +112,51 @@ public sealed partial class InspectorPane : UserControl
             _ = _viewModel.UseScreensOnNowAsync(field);
     }
 
+    private void OnRemoveFlow(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is FlowTokenViewModel { Owner: { } field } token)
+            field.RemoveFlow(token);
+    }
+
+    private void OnFlowKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        var alt = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu)
+            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+        if (!alt || e.Key is not (VirtualKey.Up or VirtualKey.Down) || (sender as FrameworkElement)?.Tag is not FlowTokenViewModel { Owner: { } field } token)
+            return;
+        var list = Ancestor<ItemsControl>((DependencyObject)sender);
+        var by = e.Key == VirtualKey.Up ? -1 : 1;
+        field.MoveFlow(token, by);
+        e.Handled = true;
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            list?.UpdateLayout();
+            if (list?.ContainerFromIndex(token.Index + by) is DependencyObject row && Descendant<Button>(row) is { } remove)
+                remove.Focus(FocusState.Keyboard);
+        });
+    }
+
+    private void OnFlowChosen(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox { SelectedItem: FlowChoice choice, DataContext: ParamFieldViewModel field } box)
+        {
+            field.AddFlow(choice.Id);
+            box.SelectedItem = null;
+        }
+    }
+
+    private void OnRemoveChord(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is ControllerButtonsViewModel chip)
+            _viewModel?.RemoveChordCommand.Execute(chip);
+    }
+
+    private void OnRecorderOpened(object sender, object e) => _ = _viewModel?.Recorder.StartAsync();
+
+    private void OnRecorderClosed(object sender, object e) => _viewModel?.Recorder.Cancel();
+
+    private void OnRecorderRetry(object sender, RoutedEventArgs e) => _ = _viewModel?.Recorder.StartAsync();
+
     private void OnRemoveToken(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is KeyTokenViewModel { Owner: { } field } token)
