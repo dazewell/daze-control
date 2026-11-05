@@ -40,79 +40,13 @@
         </DataTemplate>
 
         <!-- Suggestion rows: value + caption (UX §5.4, D-050). -->
-        <DataTemplate x:Key="SuggestionTemplate" x:DataType="vmi:SuggestionItem">
-            <StackPanel AutomationProperties.Name="{x:Bind AutomationName}">
-                <TextBlock Text="{x:Bind Value}" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{x:Bind Caption}" Visibility="{x:Bind HasCaption}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
-            </StackPanel>
-        </DataTemplate>
-    </UserControl.Resources>
-
-    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
-        <StackPanel Padding="16,8,16,24" Spacing="8">
-
-            <!-- ===== A step or a card ===== -->
-            <StackPanel Visibility="{x:Bind ViewModel.IsNode, Mode=OneWay, FallbackValue=Collapsed}" Spacing="8">
-                <Grid ColumnSpacing="12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <FontIcon Glyph="{x:Bind ViewModel.Glyph, Mode=OneWay}" FontSize="20" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.Kind, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
-                               VerticalAlignment="Center" />
-                </Grid>
-                <TextBox x:Name="NameBox" Text="{x:Bind ViewModel.Name, Mode=TwoWay}" PlaceholderText="{x:Bind ViewModel.NamePlaceholder, Mode=OneWay}"
-                         FontWeight="SemiBold" AutomationProperties.Name="Name" IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}"
-                         KeyDown="OnCommitOnEnter" />
-
-                <!-- Test this step -->
-                <StackPanel Visibility="{x:Bind ViewModel.IsStep, Mode=OneWay}" Spacing="8">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Command="{x:Bind ViewModel.TestCommand, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.CanTest, Mode=OneWay}"
-                                Visibility="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
-                                ToolTipService.ToolTip="{x:Bind ViewModel.TestTip, Mode=OneWay}">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon Glyph="&#xE768;" FontSize="14" />
-                                <TextBlock Text="{x:Bind ViewModel.TestLabel, Mode=OneWay}" />
-                            </StackPanel>
-                        </Button>
-                        <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.IsTesting, Mode=OneWay}">
-                            <ProgressRing IsActive="{x:Bind ViewModel.IsTesting, Mode=OneWay}" Width="20" Height="20" />
-                            <TextBlock Text="Testing…" VerticalAlignment="Center" />
-                            <Button Content="Cancel" Command="{x:Bind ViewModel.CancelTestCommand, Mode=OneWay}" />
-                        </StackPanel>
-                    </StackPanel>
-                    <TextBlock Text="Start the engine to test steps." Style="{StaticResource SettingsCardDescription}"
-                               Visibility="{x:Bind local:InspectorPane.Not(ViewModel.EngineRunning), Mode=OneWay}" />
-                    <InfoBar Severity="Success" IsOpen="True" IsClosable="False" Message="{x:Bind ViewModel.TestResult, Mode=OneWay}"
-                             Visibility="{x:Bind ViewModel.ShowTestSuccess, Mode=OneWay}" />
-                    <InfoBar Severity="Error" IsOpen="True" IsClosable="False" Message="{x:Bind ViewModel.TestResult, Mode=OneWay}"
-                             Visibility="{x:Bind ViewModel.ShowTestFailure, Mode=OneWay}">
-                        <Expander Header="Show details" Visibility="{x:Bind ViewModel.HasTestDetails, Mode=OneWay}"
-                                  HorizontalAlignment="Stretch" Margin="0,0,0,8">
-                            <TextBlock Text="{x:Bind ViewModel.TestDetails, Mode=OneWay}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
-                                       FontFamily="Cascadia Mono, Consolas" FontSize="12" />
-                        </Expander>
-                    </InfoBar>
-                </StackPanel>
-
-                <!-- Settings -->
-                <TextBlock Text="Settings" Style="{StaticResource InspectorSection}" Visibility="{x:Bind ViewModel.HasFields, Mode=OneWay}" />
-                <ItemsControl ItemsSource="{x:Bind ViewModel.Fields, Mode=OneWay}" IsTabStop="False" IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Spacing="12" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vmi:ParamFieldViewModel">
+                        <DataTemplate x:Key="ParamFieldTemplate" x:DataType="vmi:ParamFieldViewModel">
                             <StackPanel>
                                 <TextBlock Text="{x:Bind Title}" Style="{StaticResource FieldTitle}" />
-                                <TextBox Visibility="{x:Bind IsText}" Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder}"
+                                <TextBox Visibility="{x:Bind IsText}" Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder, Mode=OneWay}"
                                          AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" KeyDown="OnCommitOnEnter" />
                                 <ComboBox Visibility="{x:Bind IsSuggestText}" IsEditable="True" ItemsSource="{x:Bind Suggestions}"
-                                          Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder}"
+                                          Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder, Mode=OneWay}"
                                           ItemTemplate="{StaticResource SuggestionTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
                                           DropDownOpened="OnSuggestionsOpened" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
                                 <TextBlock Text="{x:Bind SuggestionHint, Mode=OneWay}" Visibility="{x:Bind HasSuggestionHint, Mode=OneWay}"
@@ -215,7 +149,7 @@
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
                                 </StackPanel>
-                                <TextBox Visibility="{x:Bind IsMultiline}" Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder}"
+                                <TextBox Visibility="{x:Bind IsMultiline}" Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder, Mode=OneWay}"
                                          AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="64" MaxHeight="176"
                                          ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"
                                          FontFamily="{x:Bind local:InspectorPane.Font(IsCode)}"
@@ -225,22 +159,23 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBox Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder}"
+                                    <TextBox Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder, Mode=OneWay}"
                                              AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" KeyDown="OnCommitOnEnter" />
                                     <Button Grid.Column="1" Content="Browse" Tag="{x:Bind}" Click="OnBrowse"
                                             AutomationProperties.Name="{x:Bind local:InspectorPane.BrowseName(Title)}" />
                                 </Grid>
                                 <StackPanel Visibility="{x:Bind IsNumber}" Orientation="Horizontal" Spacing="8">
                                     <NumberBox Value="{x:Bind Number, Mode=TwoWay}" Minimum="{x:Bind Minimum}" Maximum="{x:Bind Maximum}"
-                                               PlaceholderText="{x:Bind Placeholder}" SpinButtonPlacementMode="Inline" MinWidth="140"
+                                               PlaceholderText="{x:Bind Placeholder, Mode=OneWay}" SpinButtonPlacementMode="Inline" MinWidth="140"
                                                ValidationMode="InvalidInputOverwritten" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
                                     <TextBlock Text="{x:Bind Unit}" VerticalAlignment="Center" />
                                 </StackPanel>
                                 <ToggleSwitch Visibility="{x:Bind IsBoolean}" IsOn="{x:Bind IsOn, Mode=TwoWay}" MinWidth="0"
-                                              AutomationProperties.Name="{x:Bind Title}" />
+                                              AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
+                                <TextBlock Text="Mixed" Visibility="{x:Bind HasMixedCaption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
                                 <ComboBox Visibility="{x:Bind IsChoice}" ItemsSource="{x:Bind Choices}" SelectedItem="{x:Bind Choice, Mode=TwoWay}"
-                                          HorizontalAlignment="Stretch" AutomationProperties.Name="{x:Bind Title}" />
-                                <ComboBox Visibility="{x:Bind IsDevice}" ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}"
+                                          HorizontalAlignment="Stretch" PlaceholderText="{x:Bind MixedText, Mode=OneWay}" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
+                                <ComboBox Visibility="{x:Bind IsDevice}" PlaceholderText="{x:Bind MixedText, Mode=OneWay}" ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}"
                                           ItemTemplate="{StaticResource DeviceTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
                                           DropDownOpened="OnDevicesOpened" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
                                 <!-- Run a flow › Inputs (UX §5.4): a device picker per input of the flow it runs. -->
@@ -275,6 +210,73 @@
                                 <TextBlock Text="{x:Bind Help}" Visibility="{x:Bind HasHelp}" Style="{StaticResource SettingsCardDescription}" Margin="0,4,0,0" />
                             </StackPanel>
                         </DataTemplate>
+        <DataTemplate x:Key="SuggestionTemplate" x:DataType="vmi:SuggestionItem">
+            <StackPanel AutomationProperties.Name="{x:Bind AutomationName}">
+                <TextBlock Text="{x:Bind Value}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{x:Bind Caption}" Visibility="{x:Bind HasCaption}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
+        <StackPanel Padding="16,8,16,24" Spacing="8">
+
+            <!-- ===== A step or a card ===== -->
+            <StackPanel Visibility="{x:Bind ViewModel.IsNode, Mode=OneWay, FallbackValue=Collapsed}" Spacing="8">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="{x:Bind ViewModel.Glyph, Mode=OneWay}" FontSize="20" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.Kind, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
+                               VerticalAlignment="Center" />
+                </Grid>
+                <TextBox x:Name="NameBox" Text="{x:Bind ViewModel.Name, Mode=TwoWay}" PlaceholderText="{x:Bind ViewModel.NamePlaceholder, Mode=OneWay}"
+                         FontWeight="SemiBold" AutomationProperties.Name="Name" IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}"
+                         KeyDown="OnCommitOnEnter" />
+
+                <!-- Test this step -->
+                <StackPanel Visibility="{x:Bind ViewModel.IsStep, Mode=OneWay}" Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Command="{x:Bind ViewModel.TestCommand, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.CanTest, Mode=OneWay}"
+                                Visibility="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
+                                ToolTipService.ToolTip="{x:Bind ViewModel.TestTip, Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE768;" FontSize="14" />
+                                <TextBlock Text="{x:Bind ViewModel.TestLabel, Mode=OneWay}" />
+                            </StackPanel>
+                        </Button>
+                        <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.IsTesting, Mode=OneWay}">
+                            <ProgressRing IsActive="{x:Bind ViewModel.IsTesting, Mode=OneWay}" Width="20" Height="20" />
+                            <TextBlock Text="Testing…" VerticalAlignment="Center" />
+                            <Button Content="Cancel" Command="{x:Bind ViewModel.CancelTestCommand, Mode=OneWay}" />
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock Text="Start the engine to test steps." Style="{StaticResource SettingsCardDescription}"
+                               Visibility="{x:Bind local:InspectorPane.Not(ViewModel.EngineRunning), Mode=OneWay}" />
+                    <InfoBar Severity="Success" IsOpen="True" IsClosable="False" Message="{x:Bind ViewModel.TestResult, Mode=OneWay}"
+                             Visibility="{x:Bind ViewModel.ShowTestSuccess, Mode=OneWay}" />
+                    <InfoBar Severity="Error" IsOpen="True" IsClosable="False" Message="{x:Bind ViewModel.TestResult, Mode=OneWay}"
+                             Visibility="{x:Bind ViewModel.ShowTestFailure, Mode=OneWay}">
+                        <Expander Header="Show details" Visibility="{x:Bind ViewModel.HasTestDetails, Mode=OneWay}"
+                                  HorizontalAlignment="Stretch" Margin="0,0,0,8">
+                            <TextBlock Text="{x:Bind ViewModel.TestDetails, Mode=OneWay}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                       FontFamily="Cascadia Mono, Consolas" FontSize="12" />
+                        </Expander>
+                    </InfoBar>
+                </StackPanel>
+
+                <!-- Settings -->
+                <TextBlock Text="Settings" Style="{StaticResource InspectorSection}" Visibility="{x:Bind ViewModel.HasFields, Mode=OneWay}" />
+                <ItemsControl ItemsSource="{x:Bind ViewModel.Fields, Mode=OneWay}" IsTabStop="False" IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="12" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <StaticResource ResourceKey="ParamFieldTemplate" />
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
@@ -456,6 +458,17 @@
             <StackPanel Visibility="{x:Bind ViewModel.IsMany, Mode=OneWay, FallbackValue=Collapsed}" Spacing="8" Margin="0,8,0,0">
                 <TextBlock Text="{x:Bind ViewModel.ManyHeader, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" AutomationProperties.HeadingLevel="Level2" />
                 <InfoBar IsOpen="{x:Bind ViewModel.HasManyProblem, Mode=OneWay}" Severity="Warning" IsClosable="False" Message="{x:Bind ViewModel.ManyProblem, Mode=OneWay}" />
+
+                <!-- Params every selected step has (T15.3): the same controls as for one step; differing values read "Mixed". -->
+                <TextBlock Text="Settings" Style="{StaticResource InspectorSection}" Visibility="{x:Bind ViewModel.ManyHasFields, Mode=OneWay}" />
+                <ItemsControl ItemsSource="{x:Bind ViewModel.ManyFields, Mode=OneWay}" IsTabStop="False" ItemTemplate="{StaticResource ParamFieldTemplate}"
+                              Visibility="{x:Bind ViewModel.ManyHasFields, Mode=OneWay}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="12" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
 
                 <!-- Only if: one step type with conditions (DESIGN D2). -->
                 <StackPanel Visibility="{x:Bind ViewModel.ManyHasOnlyIf, Mode=OneWay}" Spacing="4" Opacity="{x:Bind local:InspectorPane.DimRow(ViewModel.ManyOnlyView), Mode=OneWay}">

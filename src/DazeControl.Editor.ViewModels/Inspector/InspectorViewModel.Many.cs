@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -89,6 +90,7 @@ public sealed partial class InspectorViewModel
         if (nodes.Count < 2)
         {
             _bulk = null;
+            ClearManyFields();
             return;
         }
         var bulk = _bulk = new BulkEdit(nodes, TypeDefault);
@@ -115,6 +117,8 @@ public sealed partial class InspectorViewModel
         ManyTimeout = timeout is { State: not BulkState.Mixed, Value: TimeSpan t } ? t.TotalSeconds : double.NaN;
         ManyTimeoutView = View(timeout, "Give up after", v => Seconds((TimeSpan)v!), n, what);
 
+        LoadManyFields(bulk);
+
         var only = bulk.Row(BulkField.Only);
         ManyHasOnlyIf = only is not null;
         if (only is not null)
@@ -131,6 +135,67 @@ public sealed partial class InspectorViewModel
             ManyOnlyIndex = -1;
             ManyOnlyView = BulkRowView.None;
         }
+    }
+
+    /// <summary>The params the selected steps share (T15.3), the same controls as for one step.</summary>
+    public ObservableCollection<ParamFieldViewModel> ManyFields { get; } = [];
+
+    [ObservableProperty]
+    public partial bool ManyHasFields { get; private set; }
+
+    private List<ParamSpec> _manySpecs = [];
+
+    private void LoadManyFields(BulkEdit bulk)
+    {
+        var specs = bulk.Params.Select(p => p.Spec).ToList();
+        if (!specs.SequenceEqual(_manySpecs))
+        {
+            ClearManyFields();
+            _manySpecs = specs;
+            foreach (var spec in specs)
+            {
+                var field = new ParamFieldViewModel(spec, WriteParam, _fileExists);
+                field.DevicePicked += OnDevicePicked;
+                ManyFields.Add(field);
+            }
+            foreach (var kind in ManyFields.Where(f => f.IsDevice).Select(f => f.Spec.Library).OfType<LibraryKind>().Distinct())
+                _ = RefreshDevicesAsync(kind);
+        }
+        ManyHasFields = ManyFields.Count > 0;
+        foreach (var field in ManyFields)
+            ShowMany(field, bulk.Param(field.Name)!);
+    }
+
+    private void ShowMany(ParamFieldViewModel field, BulkParam row)
+    {
+        var current = row.State == BulkState.Set ? (row.Value as ScalarParam)?.Text : null;
+        var mixed = row.State == BulkState.Mixed;
+        if (field.IsDevice && field.Spec.Library is { } kind)
+            field.SetDevices(Options(field, kind, current), current);
+        field.Load(row.State == BulkState.Set ? row.Value : null, null, mixed);
+    }
+
+    private void ClearManyFields()
+    {
+        foreach (var field in ManyFields)
+            field.DevicePicked -= OnDevicePicked;
+        ManyFields.Clear();
+        _manySpecs = [];
+        ManyHasFields = false;
+    }
+
+    /// <summary>A param change in Many mode: written to every selected step as one Undo, or refused with nothing applied.</summary>
+    private void WriteManyParam(ParamFieldViewModel field, ParamValue? value)
+    {
+        if (_loading || _bulk is not { } bulk || !CanEdit || bulk.Param(field.Name) is not { } row)
+            return;
+        // An editable box pushing its empty text back on focus must not wipe values that differ.
+        if (row.State == BulkState.Mixed ? value is null : Equals(row.Value, value))
+            return;
+        var result = BulkEdit.Apply(_session, _canvas, bulk.SetParam(field.Name, value));
+        ManyProblem = result.Problems.Count > 0 ? result.Problems[0].Message : "";
+        if (!result.Applied)
+            Load(); // put the controls back to what the steps still say
     }
 
     private static string ManyHeaderText(BulkEdit bulk)

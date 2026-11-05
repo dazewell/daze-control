@@ -30,6 +30,11 @@ public enum BulkState
 /// </summary>
 public sealed record BulkRow(BulkField Field, BulkState State, object? Value, bool AnySet);
 
+/// <summary>
+/// One shared param (T15.3): <paramref name="Value"/> is the common own value for Set, null for Default and Mixed.
+/// </summary>
+public sealed record BulkParam(ParamSpec Spec, BulkState State, ParamValue? Value, bool AnySet);
+
 /// <summary>The outcome of <see cref="BulkEdit.Apply"/>: applied, or the problems the change would cause and nothing changed.</summary>
 public sealed record BulkResult(bool Applied, IReadOnlyList<Problem> Problems);
 
@@ -52,6 +57,7 @@ public sealed class BulkEdit
         StepType = types.Count == 1 && _nodes.Count == _steps.Count ? types[0] : null;
         Descriptor = StepType is null ? null : ProviderCatalog.Find(StepType);
         Rows = BuildRows();
+        Params = BuildParams();
     }
 
     public IReadOnlyList<Node> Nodes => _nodes;
@@ -73,6 +79,11 @@ public sealed class BulkEdit
 
     public IReadOnlyList<BulkRow> Rows { get; }
 
+    /// <summary>The params every selected step has (name, kind and library kind identical); empty with cards in the selection.</summary>
+    public IReadOnlyList<BulkParam> Params { get; }
+
+    public BulkParam? Param(string name) => Params.FirstOrDefault(p => p.Spec.Name == name);
+
     public BulkRow? Row(BulkField field) => Rows.FirstOrDefault(r => r.Field == field);
 
     private List<BulkRow> BuildRows()
@@ -89,6 +100,49 @@ public sealed class BulkEdit
         if (OnlyChoices.Count > 0)
             rows.Add(Build(BulkField.Only, _steps, s => s.Only, s => Eff(s).Only ?? StepNode.OnlyAlways));
         return rows;
+    }
+
+    /// <summary>Lists, maps and flow pickers (they carry per-step inputs) stay single-step.</summary>
+    private static bool Bulkable(ParamSpec p) =>
+        p.Kind is not (ParamKind.TextList or ParamKind.TextMap) && p.RefersTo is null;
+
+    private List<BulkParam> BuildParams()
+    {
+        var result = new List<BulkParam>();
+        if (!HasTiming)
+            return result;
+        var descriptors = _steps.Select(s => s.Step).Distinct(StringComparer.Ordinal).Select(ProviderCatalog.Find).ToList();
+        if (descriptors.Count == 0 || descriptors.Any(d => d is null))
+            return result;
+        foreach (var spec in descriptors[0]!.Params.Where(Bulkable))
+        {
+            if (descriptors.Skip(1).Any(d => !d!.Params.Any(o => o.Name == spec.Name && o.Kind == spec.Kind && o.Library == spec.Library)))
+                continue;
+            var owns = _steps.Select(s => s.With.TryGetValue(spec.Name, out var v) ? v : null).ToList();
+            var anySet = owns.Any(o => o is not null);
+            var same = owns.All(o => Equals(o, owns[0]));
+            result.Add(new BulkParam(spec, !same ? BulkState.Mixed : anySet ? BulkState.Set : BulkState.Default, same ? owns[0] : null, anySet));
+        }
+        return result;
+    }
+
+    /// <summary>Write <paramref name="value"/> to param <paramref name="name"/> of every selected step; null removes it.</summary>
+    public Func<Flow, Flow> SetParam(string name, ParamValue? value)
+    {
+        if (Param(name) is null)
+            return f => f;
+        var ids = _steps.Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
+        return flow => flow with
+        {
+            Nodes = [.. flow.Nodes.Select(n => n is StepNode s && ids.Contains(s.Id)
+                ? s with
+                {
+                    With = value is null
+                        ? new(s.With.Where(e => e.Key != name))
+                        : new([.. s.With.Where(e => e.Key != name), new KeyValuePair<string, ParamValue>(name, value)]),
+                }
+                : n)],
+        };
     }
 
     private StepSettings Eff(StepNode s) => StepSettings.Resolve(s, ProviderCatalog.Find(s.Step), _typeDefault(s.Step));
