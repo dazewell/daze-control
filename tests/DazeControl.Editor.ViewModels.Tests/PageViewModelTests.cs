@@ -276,6 +276,93 @@ public sealed class PageViewModelTests : IDisposable
     }
 
     [Fact]
+    public void StepDefaultsAddEditAndRemoveAnEntry()
+    {
+        using var page = new SettingsPageViewModel(_session, _engine, a => a(), "logs");
+        var defaults = page.StepDefaults;
+        Assert.True(defaults.IsEmpty);
+        Assert.Contains(defaults.Addable, i => i.Step == "wait");
+
+        defaults.Add("wait");
+        var row = Assert.Single(defaults.Rows);
+        Assert.Equal("wait", row.StepId);
+        Assert.DoesNotContain(defaults.Addable, i => i.Step == "wait");
+        Assert.NotNull(_session.Current.Settings.StepDefaults["wait"].Timeout);
+
+        row.TimeoutSeconds = 2;
+        row.RetryCount = 2;
+        row.PolicyIndex = (int)FailurePolicy.Skip;
+        var entry = _session.Current.Settings.StepDefaults["wait"];
+        Assert.Equal(new StepDefault { Timeout = TimeSpan.FromSeconds(2), RetryCount = 2, OnFailure = FailurePolicy.Skip }, entry);
+        Assert.Equal("Give up after 2 s · Try again 2 times · Skip what depends on it", row.Summary);
+
+        row.ResetTimeout();
+        row.ResetRetryCount();
+        Assert.Equal(new StepDefault { OnFailure = FailurePolicy.Skip }, _session.Current.Settings.StepDefaults["wait"]);
+
+        row.ResetPolicy(); // nothing left: the entry goes
+        Assert.Empty(_session.Current.Settings.StepDefaults);
+        Assert.True(defaults.IsEmpty);
+
+        defaults.Add("wait");
+        defaults.Remove("wait");
+        Assert.True(defaults.IsEmpty);
+    }
+
+    [Fact]
+    public void StepDefaultsCountTheStepsAndFlowsThatUseAType()
+    {
+        using var page = new SettingsPageViewModel(_session, _engine, a => a(), "logs");
+
+        Assert.Equal((2, 2), page.StepDefaults.Usage("wait"));
+        Assert.Equal((0, 0), page.StepDefaults.Usage("audio.setDefault"));
+        page.StepDefaults.Add("wait");
+        Assert.Equal("Used by 2 steps in 2 flows", page.StepDefaults.Rows[0].UsedBy);
+        page.StepDefaults.Add("audio.setDefault");
+        Assert.Equal("Not used yet", page.StepDefaults.Rows.Single(r => r.StepId == "audio.setDefault").UsedBy);
+    }
+
+    [Fact]
+    public void StepDefaultsAutosaveWritesOnlyTheirKey()
+    {
+        using var page = new SettingsPageViewModel(_session, _engine, a => a(), "logs");
+        page.StepDefaults.Add("wait"); // the first save normalises the file's layout: take the baseline after it
+        page.StepDefaults.Remove("wait");
+        _session.Flush();
+        var before = File.ReadAllText(ConfigPath);
+        Assert.DoesNotContain("stepDefaults", before, StringComparison.Ordinal);
+
+        page.StepDefaults.Add("wait");
+        page.StepDefaults.Rows[0].RetryCount = 3;
+        _session.Flush();
+
+        var after = File.ReadAllText(ConfigPath);
+        Assert.Contains("stepDefaults:", after, StringComparison.Ordinal);
+        Assert.Contains("wait:", after, StringComparison.Ordinal);
+        page.StepDefaults.Remove("wait");
+        _session.Flush();
+        Assert.Equal(before, File.ReadAllText(ConfigPath));
+    }
+
+    [Fact]
+    public void StepDefaultsKeepValuesInRangeAndFollowOutsideChanges()
+    {
+        using var page = new SettingsPageViewModel(_session, _engine, a => a(), "logs");
+        page.StepDefaults.Add("wait");
+        var row = page.StepDefaults.Rows[0];
+
+        row.RetryCount = 99;
+        row.TimeoutSeconds = 0;
+        Assert.Equal(StepDefaultsEditor.MaxRetryCount, _session.Current.Settings.StepDefaults["wait"].RetryCount);
+        Assert.Equal(TimeSpan.FromSeconds(0.1), _session.Current.Settings.StepDefaults["wait"].Timeout);
+
+        _session.Update(c => c with { Settings = c.Settings with { StepDefaults = new([new("wait", new StepDefault { OnFailure = FailurePolicy.Ignore })]) } });
+        Assert.Same(row, page.StepDefaults.Rows[0]); // the open flyout keeps its row
+        Assert.Equal((int)FailurePolicy.Ignore, row.PolicyIndex);
+        Assert.True(double.IsNaN(row.TimeoutSeconds));
+    }
+
+    [Fact]
     public async Task StartWithWindowsNeedsTheEngine()
     {
         using var page = new SettingsPageViewModel(_session, _engine, a => a(), "logs");

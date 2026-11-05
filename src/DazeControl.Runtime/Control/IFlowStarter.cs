@@ -60,7 +60,7 @@ public sealed class FlowCalls(Func<ConfigSnapshot> snapshot) : IFlowStarter
                 new(null, Library.Empty, name, $"{name} is turned off, so it didn't run. Turn it on in Flows.", CalledWhy.TurnedOff),
             null => new(null, Library.Empty, name, $"{name} didn't start. It needs fixing.", CalledWhy.NeedsFixing),
             { Enabled: false } => new(null, Library.Empty, name, $"{name} is turned off, so it didn't run. Turn it on in Flows.", CalledWhy.TurnedOff),
-            var flow => new(flow, state.Library, name, null),
+            var flow => new(StepDefaults.Apply(flow, state.Defaults), state.Library, name, null),
         };
     }
 

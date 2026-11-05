@@ -14,6 +14,12 @@ public sealed record FlowState(string FlowId, Flow? Running, ValueList<Problem> 
     /// <summary>The library <see cref="Running"/> was validated with: hand it to the run, not the snapshot's.</summary>
     public Library Library { get; init; } = Library.Empty;
 
+    /// <summary>The step defaults <see cref="Running"/> was validated with, captured like <see cref="Library"/> (D-080, D-021).</summary>
+    public ValueDictionary<StepDefault> Defaults { get; init; }
+
+    /// <summary><see cref="Running"/> with its inherited step settings filled in: what a run is handed (D-080).</summary>
+    public Flow? Prepared => Running is null ? null : StepDefaults.Apply(Running, Defaults);
+
     /// <summary>The last valid version as written, so a hotkey it yielded comes back once it's free again.</summary>
     public Flow? LastValid { get; init; }
 
@@ -154,7 +160,7 @@ public sealed class ConfigHost : IDisposable
         {
             if (!rejected.Contains(flow.Id))
             {
-                flows.Add(new FlowState(flow.Id, flow, []) { Library = config.Library, LastValid = flow });
+                flows.Add(new FlowState(flow.Id, flow, []) { Library = config.Library, Defaults = config.Settings.StepDefaults, LastValid = flow });
                 continue;
             }
             var old = previous.Flows.FirstOrDefault(f => f.FlowId == flow.Id);
@@ -174,7 +180,7 @@ public sealed class ConfigHost : IDisposable
                         $"The last valid version of this flow lost {string.Join(", ", valid.Hotkeys.Except(keep))} to another flow.", flow.Id));
                 }
             }
-            flows.Add(new FlowState(flow.Id, running, []) { Library = old.Library, LastValid = valid });
+            flows.Add(new FlowState(flow.Id, running, []) { Library = old.Library, Defaults = old.Defaults, LastValid = valid });
         }
         return new ConfigSnapshot(config.Settings, config.Library,
             new(flows.Select((f, i) => f with { Written = config.Flows[i], Problems = new(problems.Where(p => p.FlowId == f.FlowId)) })),

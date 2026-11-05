@@ -217,6 +217,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   (#59) and the bar moves within that step; the called flow shows no pop-up of its own.
 
 ## 5.7 Microcopy (the OSD's D-026 voice: plain, friendly, sentence case)
+Step defaults card (Settings, D-080): "Step defaults" · "How long and how often steps try" / "A step that sets its own value keeps it." · empty "Set how long and how often steps try, once for every step of a type." · "Add a step type…" · row "Give up after 30 s · Try again 2 times · Wait 0.5 s between tries · Skip what depends on it" + "Used by 5 steps in 2 flows" / "Not used yet" · flyout "Give up after (seconds)", "Try again (times)", "Wait between tries (seconds)", "If it fails", each with Reset.
 1 "This flow is empty" / "Add a step to start. Drag one from the left, or double-click anywhere." · 2 "No flows
 yet" / "A flow does a few things for you with one shortcut, like connecting your headphones and switching to
 them." · 3 "That would make a loop. A step can't wait for something that waits for it." · 4 "Steps in a card
