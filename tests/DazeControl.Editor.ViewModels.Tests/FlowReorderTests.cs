@@ -192,5 +192,42 @@ public sealed class FlowReorderTests : IDisposable
     {
         using var page = Page();
         Assert.Equal("Drag to reorder", page.Items[0].DragTip);
+        File.WriteAllText(_session.Path, "version: 1\nflows: [\n");
+        _session.Load();
+        Assert.False(_session.CanEdit);
+        Assert.Equal("This file is read-only, so the list can't be rearranged.", page.Items[0].DragTip);
+        Assert.False(page.CanUndo);
+    }
+
+    [Fact]
+    public void ReorderAndUndoKeepAnOpenFlowsDraftADraft()
+    {
+        using var page = Page();
+        _session.UpdateDraft("c", f => f with { Name = "Draft C" });
+        Assert.True(_session.HasDraft("c"));
+        page.MoveFlow("c", -1);
+        Assert.Equal("Draft C", _session.Current.Flows.Single(f => f.Id == "c").Name);
+        Assert.Equal("C", _session.SavedFlow("c")!.Name); // the reorder did not save it
+        page.UndoCommand.Execute(null);
+        Assert.Equal("Draft C", _session.Current.Flows.Single(f => f.Id == "c").Name);
+        Assert.Equal("C", _session.SavedFlow("c")!.Name);
+        Assert.True(_session.HasDraft("c"));
+    }
+
+    [Fact]
+    public void TheDeleteBarsUndoAndCtrlZAreOneStep()
+    {
+        using var page = Page();
+        page.Delete("e");
+        Assert.True(page.CanUndoDelete);
+        page.UndoDeleteCommand.Execute(null);
+        Assert.Contains(page.Items, i => i.Id == "e");
+        Assert.False(page.CanUndoDelete);
+        Assert.False(page.CanUndo); // not a second step that would delete it again
+
+        page.Delete("e");
+        page.UndoCommand.Execute(null); // Ctrl+Z gives it back too, and the bar goes
+        Assert.Contains(page.Items, i => i.Id == "e");
+        Assert.False(page.CanUndoDelete);
     }
 }

@@ -126,6 +126,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
 
     private const int UndoDepth = 20;
     private readonly List<Configuration> _undo = [];
+    private int _deleteMark = -1;
     private bool _committing;
 
     /// <summary>Anything to undo on the list (DESIGN B4)?</summary>
@@ -159,12 +160,24 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     /// <summary>Forgets the Undo stack: opening a flow, leaving the page, closing, or a change that arrived from outside.</summary>
     public void ClearUndo()
     {
+        _deleteMark = -1;
         if (_undo.Count == 0)
             return;
         _undo.Clear();
         OnPropertyChanged(nameof(CanUndo));
         UndoCommand.NotifyCanExecuteChanged();
     }
+
+    /// <summary>
+    /// Puts back the list as <paramref name="previous"/> had it (order, groups, On/Off, flows that were deleted or added) but
+    /// keeps every other part of the flows that are still there, so an open flow's unsaved draft stays a draft.
+    /// </summary>
+    private static Configuration Restore(Configuration current, Configuration previous) => current with
+    {
+        Flows = [.. previous.Flows.Select(p => current.Flows.FirstOrDefault(f => f.Id == p.Id) is { } now
+            ? now with { Enabled = p.Enabled, Tray = now.Tray with { Folder = p.Tray.Folder } }
+            : p)],
+    };
 
     /// <summary>Undo / Ctrl+Z: the list as it was before the last change.</summary>
     [RelayCommand(CanExecute = nameof(CanUndo))]
@@ -173,11 +186,16 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         if (_undo.Count == 0 || !_session.CanEdit)
             return;
         var previous = _undo[^1];
+        if (_deleted is not null && _undo.Count == _deleteMark)
+        {
+            _deleted = null; // this step is the delete's own undo
+            DeletedText = null;
+        }
         _undo.RemoveAt(_undo.Count - 1);
         _committing = true; // not pushed again, not "from outside"
         try
         {
-            _session.Update(_ => previous);
+            _session.Update(c => Restore(c, previous));
         }
         finally
         {
@@ -260,7 +278,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             return;
         var next = change(_session.Current);
         if (Shape(next) != Shape(_session.Current))
-            Commit(_ => next);
+            Commit(change); // the pure change, so the session applies it to the saved version and to the drafts alike
     }
 
     private static string Shape(Configuration c) => string.Join(';', c.Flows.Select(f => $"{f.Id}|{f.Tray.Folder}"));
@@ -469,6 +487,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         var flow = _session.Current.Flows[index];
         Commit(c => c with { Flows = [.. c.Flows.Where(f => f.Id != flowId)] });
         _deleted = (flow, index);
+        _deleteMark = _undo.Count; // the stack's top is this delete: the bar's Undo and Ctrl+Z are one step
         DeletedText = $"{flow.Name} was deleted.";
     }
 
@@ -478,6 +497,11 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     {
         if (_deleted is not { } deleted)
             return;
+        if (_undo.Count == _deleteMark)
+        {
+            Undo(); // clears the bar
+            return;
+        }
         _deleted = null;
         DeletedText = null;
         if (_session.Current.Flows.Any(f => f.Id == deleted.Flow.Id))
@@ -570,6 +594,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             Sync();
         if (e.PropertyName == nameof(ConfigSession.CanEdit))
         {
+            ClearUndo(); // the file became unreadable or readable again: the snapshots may be stale
             OnPropertyChanged(nameof(CanEdit));
             Sync();
         }
