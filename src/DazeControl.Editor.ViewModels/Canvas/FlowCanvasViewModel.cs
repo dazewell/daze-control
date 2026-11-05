@@ -629,6 +629,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(target);
         if (p.X > target.X + target.Width * 2 / 3)
             return DropZone.RunAfter;
+        if (p.X < target.X + target.Width / 3)
+            return DropZone.RunBefore;
         // A card's body is all "run together"; a pill keeps thin top/bottom bands for reordering.
         var band = target.Kind == CanvasNodeKind.Card ? 0 : target.Height / 4;
         return p.Y >= target.Y + band && p.Y <= target.Y + target.Height - band ? DropZone.RunTogether : DropZone.None;
@@ -639,9 +641,12 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     {
         if (Flow is not { } flow || zone == DropZone.None)
             return ConnectRefusal.None;
-        var (next, refusal, droppedFallback) = zone == DropZone.RunAfter
-            ? new GroupResult(FlowEdits.RunAfter(flow, dragged, target).Flow, FlowEdits.RunAfter(flow, dragged, target).Refusal)
-            : FlowEdits.RunTogether(flow, dragged, target);
+        var (next, refusal, droppedFallback) = zone switch
+        {
+            DropZone.RunAfter => FlowEdits.RunAfter(flow, dragged, target),
+            DropZone.RunBefore => FlowEdits.RunBefore(flow, dragged, target),
+            _ => FlowEdits.RunTogether(flow, dragged, target),
+        };
         if (refusal == ConnectRefusal.None && next != flow)
         {
             Edit(_ => next);
@@ -650,6 +655,19 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         }
         return refusal;
     }
+
+    /// <summary>Steps and cards <paramref name="step"/> could run before: the keyboard route of the left-third drop (D-083).</summary>
+    public IReadOnlyList<CanvasNodeViewModel> RunBeforeCandidates(string step)
+    {
+        if (Flow is not { } flow || !CanEdit || flow.FindNode(step) is null)
+            return [];
+        return [.. Nodes.Where(n => n.Kind != CanvasNodeKind.Member && n.Id != step
+                && FlowEdits.RunBefore(flow, step, n.Id) is { Refusal: ConnectRefusal.None } r && r.Flow != flow)
+            .OrderBy(n => n.Column).ThenBy(n => n.Row)];
+    }
+
+    /// <summary>"Run before…": the same edit as dropping on <paramref name="target"/>'s left third.</summary>
+    public ConnectRefusal RunBefore(string step, string target) => Drop(step, target, DropZone.RunBefore);
 
     /// <summary>A member dropped outside its card leaves it.</summary>
     public ConnectRefusal TakeOutOfCard(string member)

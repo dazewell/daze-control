@@ -945,15 +945,16 @@ public sealed partial class FlowCanvas : UserControl
         }
         var height = _views.TryGetValue(target.Id, out var view) && view.ActualHeight > 0 ? view.ActualHeight : target.Height;
         var x = zone == DropZone.RunAfter ? target.X + target.Width * 2 / 3 : target.X;
+        var third = zone is DropZone.RunAfter or DropZone.RunBefore;
         DropTarget.Stroke = Theme.Selection;
         DropTarget.StrokeDashArray = Theme.Dashes(2, 2);
         DropTarget.RadiusX = DropTarget.RadiusY = target.Kind == CanvasNodeKind.Card ? 14 : 30;
-        DropTarget.Width = (zone == DropZone.RunAfter ? target.Width / 3 : target.Width) + 4;
+        DropTarget.Width = (third ? target.Width / 3 : target.Width) + 4;
         DropTarget.Height = height + 4;
         XamlCanvas.SetLeft(DropTarget, x - 2);
         XamlCanvas.SetTop(DropTarget, target.Y - 2);
         DropTarget.Visibility = Visibility.Visible;
-        DropLabelText.Text = zone == DropZone.RunAfter ? "Run after" : "Drop to run together";
+        DropLabelText.Text = zone switch { DropZone.RunAfter => "Run after", DropZone.RunBefore => "Run before", _ => "Drop to run together" };
         XamlCanvas.SetLeft(DropLabel, x);
         XamlCanvas.SetTop(DropLabel, target.Y - 28);
         DropLabel.Visibility = Visibility.Visible;
@@ -1026,6 +1027,11 @@ public sealed partial class FlowCanvas : UserControl
             menu.Items.Add(Item("Ungroup", "", () => ShowRefusalAt(vm.UngroupSelection(), anchor), "Ctrl+Shift+G", editable));
         if (selected.Count == 1 && anchor is not null && anchor.Kind != CanvasNodeKind.Card)
         {
+            var before = new MenuFlyoutSubItem { Text = "Run before…", Icon = new FontIcon { Glyph = "" }, IsEnabled = editable };
+            foreach (var candidate in vm.RunBeforeCandidates(anchor.Id))
+                before.Items.Add(Item(candidate.Title, "", () => ShowRefusalAt(vm.RunBefore(anchor.Id, candidate.Id), anchor)));
+            before.IsEnabled = editable && before.Items.Count > 0;
+            menu.Items.Add(before);
             menu.Items.Add(Item("Move up", "", () => vm.MoveInColumn(anchor.Id, -1), "Alt+Up", editable));
             menu.Items.Add(Item("Move down", "", () => vm.MoveInColumn(anchor.Id, 1), "Alt+Down", editable));
         }

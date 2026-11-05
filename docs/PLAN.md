@@ -79,7 +79,7 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   inspector row state (Default/Set). Done when: `bluetooth.connect: { only: disconnected }` skips a connected Connect, a step with
   `only: always` still runs, Reset returns to the default, YAML round-trip.
 
-- [ ] T14.11 Drop on the left third: "Run before" (feat/m14-run-before, D-083, DESIGN Part C; independent of T14.1–T14.10). Files:
+- [x] T14.11 Drop on the left third: "Run before" (feat/m14-run-before, D-083, DESIGN Part C; independent of T14.1–T14.10). Files:
   `Core/Layout/FlowEdits.cs` (`RunBefore`), `Editor.ViewModels/Canvas/FlowCanvasViewModel.cs` (`DropZone.RunBefore`, `ZoneAt`, `Drop`),
   `Editor/Canvas/FlowCanvas.xaml.cs` (hint), step context menu + Outline "Run before…", UX §5.2/§5.7. **Shares
   `FlowCanvasViewModel.cs` / `FlowCanvas.xaml.cs` with T14.4 and T14.7 (chips, rings): take both sides on conflict.** Done when:

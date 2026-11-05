@@ -65,10 +65,11 @@ public sealed partial class CanvasEdgeViewModel : ObservableObject
     public partial bool IsLit { get; internal set; }
 }
 
-/// <summary>Where a dragged pill lands over another (UX §5.2): body = "Run together", right third = "Run after".</summary>
+/// <summary>Where a dragged pill lands over another (UX §5.2): body = "Run together", left third = "Run before", right third = "Run after".</summary>
 public enum DropZone
 {
     None,
     RunTogether,
     RunAfter,
+    RunBefore,
 }
