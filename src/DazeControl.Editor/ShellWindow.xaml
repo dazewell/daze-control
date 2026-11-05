@@ -118,9 +118,61 @@
                                             <KeyboardAccelerator Key="Z" Modifiers="Control" />
                                         </Button.KeyboardAccelerators>
                                     </Button>
-                                    <SplitButton Background="{ThemeResource AccentFillColorDefaultBrush}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                    <SplitButton
                                             IsEnabled="{x:Bind ViewModel.Flows.CanEdit, Mode=OneWay}" AutomationProperties.Name="New flow"
                                             Command="{x:Bind ViewModel.Flows.NewFlowCommand}">
+                                        <!-- Accent in every state, arrow and divider included (#98). No local Background/Foreground: they beat the template's state brushes, so the button lost its colour on press. -->
+                                        <SplitButton.Resources>
+                                            <ResourceDictionary>
+                                                <ResourceDictionary.ThemeDictionaries>
+                                                    <ResourceDictionary x:Key="Default">
+                                                        <StaticResource x:Key="SplitButtonBackground" ResourceKey="AccentFillColorDefaultBrush" />
+                                                        <StaticResource x:Key="SplitButtonBackgroundPointerOver" ResourceKey="AccentFillColorSecondaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonBackgroundPressed" ResourceKey="AccentFillColorTertiaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonBackgroundDisabled" ResourceKey="AccentFillColorDisabledBrush" />
+                                                        <StaticResource x:Key="SplitButtonForeground" ResourceKey="TextOnAccentFillColorPrimaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonForegroundPointerOver" ResourceKey="TextOnAccentFillColorPrimaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonForegroundPressed" ResourceKey="TextOnAccentFillColorSecondaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonForegroundDisabled" ResourceKey="TextOnAccentFillColorDisabledBrush" />
+                                                        <StaticResource x:Key="SplitButtonForegroundSecondary" ResourceKey="TextOnAccentFillColorPrimaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonForegroundSecondaryPressed" ResourceKey="TextOnAccentFillColorSecondaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonBorderBrush" ResourceKey="AccentControlElevationBorderBrush" />
+                                                        <StaticResource x:Key="SplitButtonBorderBrushPointerOver" ResourceKey="AccentControlElevationBorderBrush" />
+                                                        <StaticResource x:Key="SplitButtonBorderBrushPressed" ResourceKey="ControlFillColorTransparentBrush" />
+                                                        <StaticResource x:Key="SplitButtonBorderBrushDisabled" ResourceKey="ControlFillColorTransparentBrush" />
+                                                        <StaticResource x:Key="SplitButtonBorderBrushDivider" ResourceKey="TextOnAccentFillColorSecondaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonBorderBrushCheckedDivider" ResourceKey="TextOnAccentFillColorSecondaryBrush" />
+                                                    </ResourceDictionary>
+                                                    <ResourceDictionary x:Key="HighContrast">
+                                                        <SolidColorBrush x:Key="SplitButtonBackground" Color="{ThemeResource SystemColorHighlightColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBackgroundPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBackgroundPressed" Color="{ThemeResource SystemColorHighlightColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBackgroundDisabled" Color="{ThemeResource SystemColorButtonFaceColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBackgroundChecked" Color="{ThemeResource SystemColorHighlightColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBackgroundCheckedPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBackgroundCheckedPressed" Color="{ThemeResource SystemColorHighlightColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForeground" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundDisabled" Color="{ThemeResource SystemColorGrayTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundChecked" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundCheckedPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundCheckedPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundSecondary" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundSecondaryPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushDisabled" Color="{ThemeResource SystemColorGrayTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushChecked" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushCheckedPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushCheckedPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushDivider" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushCheckedDivider" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                    </ResourceDictionary>
+                                                </ResourceDictionary.ThemeDictionaries>
+                                            </ResourceDictionary>
+                                        </SplitButton.Resources>
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <FontIcon Glyph="&#xE710;" FontSize="14" />
                                             <TextBlock Text="New flow" />
