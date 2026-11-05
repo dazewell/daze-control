@@ -62,7 +62,7 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   picker's device state), `bluetooth.check`, `Conditions` on connect/disconnect, catalog entries. Done when: provider tests with the
   fake query; on the dev PC (read-only) `dctl run` of a one-step check flow reports connected / not connected for the Technics
   library entry in < 1 s. A live Connect/Disconnect is not run without asking the user.
-- [ ] T14.7 Editor for conditions and checks (feat/m14-conditions-editor, after T14.4 and T14.5). Files: inspector "Only if" row, palette entries,
+- [x] T14.7 Editor for conditions and checks (feat/m14-conditions-editor, PR open; after T14.4 and T14.5). Files: inspector "Only if" row, palette entries,
   "If it isn't" label, canvas chip and condition-skipped dashed ring + caption, Runs bar and log line, pop-up variant of #48 for checks,
   "Test this step" Yes/No answer, UX §5.7 strings. Done when: view-model tests (row choices come from `Conditions`, "Always" stores
   or removes the key per B6, relabel for check steps), screenshots of an `only` chip, a skipped step after a run, and a check with a
