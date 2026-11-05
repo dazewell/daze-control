@@ -314,6 +314,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         "notify" => "Message",
         "flag" => "Flags",
         "flow" => "Flows",
+        "menu" => "Menu",
         _ => area,
     };
 }
