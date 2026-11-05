@@ -22,6 +22,7 @@ using Windows.Graphics;
 using VirtualKey = Windows.System.VirtualKey;
 using CoreVirtualKeyStates = Windows.UI.Core.CoreVirtualKeyStates;
 using DazeControl.Editor.Canvas;
+using Rect = Windows.Foundation.Rect;
 
 namespace DazeControl.Editor;
 
@@ -518,6 +519,174 @@ public sealed partial class ShellWindow : Window
         if (sender is Grid card)
             card.ClearValue(Panel.BackgroundProperty); // back to the SettingsCard style's fill
     }
+
+    // ---- Reordering the Flows list (T16.4, DESIGN B2/B3) ----
+
+    private (string Key, bool IsGroup)? _drag;
+    private DropTarget? _dropTarget;
+
+    private void OnFlowDragStarting(UIElement sender, DragStartingEventArgs e) => StartDrag(sender, e, isGroup: false);
+
+    private void OnGroupDragStarting(UIElement sender, DragStartingEventArgs e) => StartDrag(sender, e, isGroup: true);
+
+    private void StartDrag(UIElement sender, DragStartingEventArgs e, bool isGroup)
+    {
+        if (sender is not FrameworkElement { Tag: string key })
+        {
+            e.Cancel = true;
+            return;
+        }
+        _drag = (key, isGroup);
+        e.Data.RequestedOperation = DataPackageOperation.Move;
+        e.Data.SetText(key);
+        sender.Opacity = 0.5;
+    }
+
+    private void OnDragCompleted(UIElement sender, DropCompletedEventArgs args)
+    {
+        sender.Opacity = 1;
+        _drag = null;
+        HideDropCues();
+    }
+
+    private void OnFlowListDragOver(object sender, DragEventArgs e)
+    {
+        if (_drag is not { } drag)
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+            return;
+        }
+        e.AcceptedOperation = DataPackageOperation.Move;
+        e.DragUIOverride.IsGlyphVisible = false;
+        _dropTarget = Locate(e.GetPosition(FlowRepeater), drag.IsGroup);
+        ShowDropCues(_dropTarget);
+        // Edges scroll the page: a drag in the middle of the window is not near one.
+        var y = e.GetPosition(PagesScroller).Y;
+        if (y < 48)
+            PagesScroller.ChangeView(null, Math.Max(0, PagesScroller.VerticalOffset - 24), null, disableAnimation: true);
+        else if (y > PagesScroller.ActualHeight - 48)
+            PagesScroller.ChangeView(null, PagesScroller.VerticalOffset + 24, null, disableAnimation: true);
+    }
+
+    private void OnFlowListDragLeave(object sender, DragEventArgs e)
+    {
+        _dropTarget = null;
+        HideDropCues();
+    }
+
+    private void OnFlowListDrop(object sender, DragEventArgs e)
+    {
+        var target = _dropTarget;
+        var drag = _drag;
+        HideDropCues();
+        _dropTarget = null;
+        if (target is null || drag is not { } d)
+            return;
+        e.Handled = true;
+        if (d.IsGroup)
+            ViewModel.Flows.DropGroup(d.Key, target.BeforeId);
+        else
+            ViewModel.Flows.DropFlow(d.Key, target.Group, target.BeforeId);
+    }
+
+    private Rect RowBounds(int index)
+    {
+        var element = FlowRepeater.TryGetElement(index) as FrameworkElement;
+        return element is null ? Rect.Empty : element.TransformToVisual(FlowRepeater).TransformBounds(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+    }
+
+    private DropTarget? Locate(Windows.Foundation.Point point, bool draggingGroup)
+    {
+        var rows = ViewModel.Flows.DropRows;
+        if (rows.Count == 0)
+            return null;
+        var over = rows.Count - 1;
+        var fraction = 1.0;
+        for (var i = 0; i < rows.Count; i++)
+        {
+            var bounds = RowBounds(i);
+            if (bounds.IsEmpty || point.Y > bounds.Bottom + 2)
+                continue;
+            over = i;
+            fraction = bounds.Height > 0 ? Math.Clamp((point.Y - bounds.Top) / bounds.Height, 0, 1) : 0;
+            break;
+        }
+        return DropMath.Resolve(rows, over, fraction, point.X >= RowFormat.IndentDips, draggingGroup);
+    }
+
+    private void ShowDropCues(DropTarget? target)
+    {
+        HideDropCues();
+        if (target is null)
+            return;
+        if (target.HighlightGroup is { } group)
+        {
+            var at = ViewModel.Flows.DropRows.ToList().FindIndex(r => r.IsHeader && r.Key == group);
+            var bounds = at < 0 ? Rect.Empty : RowBounds(at);
+            if (bounds.IsEmpty)
+                return;
+            DropBox.Margin = new Thickness(0, bounds.Top, 0, 0);
+            DropBox.Height = bounds.Height;
+            DropBox.Visibility = Visibility.Visible;
+            return;
+        }
+        var count = ViewModel.Flows.DropRows.Count;
+        var line = target.LineIndex < count ? RowBounds(target.LineIndex) : RowBounds(count - 1);
+        if (line.IsEmpty)
+            return;
+        var top = target.LineIndex < count ? line.Top - 3 : line.Bottom + 1;
+        DropLine.Margin = new Thickness(target.Indented ? RowFormat.IndentDips : 0, top, 0, 0);
+        DropLine.Visibility = Visibility.Visible;
+    }
+
+    private void HideDropCues()
+    {
+        DropLine.Visibility = Visibility.Collapsed;
+        DropBox.Visibility = Visibility.Collapsed;
+    }
+
+    private void OnFlowCardMoveRequested(object? sender, int delta)
+    {
+        if (sender is FrameworkElement { Tag: string id })
+        {
+            ViewModel.Flows.MoveFlow(id, delta);
+            RefocusCard(id);
+        }
+    }
+
+    private void OnFlowCardTakeOutRequested(object? sender, EventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string id })
+        {
+            ViewModel.Flows.TakeOut(id);
+            RefocusCard(id);
+        }
+    }
+
+    private void OnFlowMoveUpClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string id })
+            ViewModel.Flows.MoveFlow(id, -1);
+    }
+
+    private void OnFlowMoveDownClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string id })
+            ViewModel.Flows.MoveFlow(id, 1);
+    }
+
+    /// <summary>A moved row may be re-created: focus stays on the flow (DESIGN B3).</summary>
+    private void RefocusCard(string id) => DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+    {
+        for (var i = 0; i < ViewModel.Flows.Rows.Count; i++)
+        {
+            if (FlowRepeater.TryGetElement(i) is Border { Child: FlowCard card } && card.Tag as string == id)
+            {
+                card.Focus(FocusState.Keyboard);
+                return;
+            }
+        }
+    });
 
     private void OnShellChanged(object? sender, PropertyChangedEventArgs e)
     {

@@ -19,6 +19,8 @@ internal sealed partial class FlowRowTemplateSelector : DataTemplateSelector
 /// <summary>x:Bind helpers for the member rows of a group.</summary>
 internal static class RowFormat
 {
+    public const double IndentDips = 24;
+
     // 12 DIP in, then a 1-DIP rail and 11 DIP of padding: the card sits 24 in from the list edge.
     public static Thickness Indent(bool inGroup) => inGroup ? new Thickness(12, 0, 0, 0) : new Thickness(0);
 
