@@ -24,12 +24,15 @@ public sealed partial class SettingsPageViewModel : ObservableObject, IDisposabl
         _engine = engine;
         _post = post;
         LogsFolder = logsFolder;
+        StepDefaults = new StepDefaultsEditor(session);
         _session.PropertyChanged += OnSessionChanged;
         _engine.StateChanged += OnEngineStateChanged;
         SyncFromConfig();
     }
 
     public string LogsFolder { get; }
+
+    public StepDefaultsEditor StepDefaults { get; }
 
     public string ConfigPath => _session.Path;
 
@@ -135,5 +138,6 @@ public sealed partial class SettingsPageViewModel : ObservableObject, IDisposabl
     {
         _session.PropertyChanged -= OnSessionChanged;
         _engine.StateChanged -= OnEngineStateChanged;
+        StepDefaults.Dispose();
     }
 }
