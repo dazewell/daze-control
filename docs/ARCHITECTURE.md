@@ -448,7 +448,7 @@ Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 i
 
 M12/T12.7: flat over menus (14.1 after the first, 12.7 after ten, back to 12.6 at +80 s), 0 ms CPU idle, d2d1/DWrite unloaded.
 Absolute budget holds (12.6 ≤ 15 MB, 27.5 ≤ 35 MB) but the +6.3 MB is ~1.8 MB over D-036's +4.5 line: the menu's software
-surface is ~700×700 px at 175 % (≈2 MB) against the pop-up's ~600×180. The user decides whether to widen the line.
+surface is ~700×700 px at 175 % (≈2 MB) against the pop-up's ~600×180. Accepted by the user: the line is +6.5 MB with the menu (D-036 amended).
 
 M5: absolute budget holds; the pop-up's first showing costs ~+2.5 MB private once (flat from 3 to 10 runs); the user
 accepted it and the post-run line now allows it (D-036).
