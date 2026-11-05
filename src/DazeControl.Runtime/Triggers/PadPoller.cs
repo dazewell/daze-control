@@ -58,7 +58,11 @@ public sealed class PadPoller(IXInput api)
     public bool Scan()
     {
         for (var slot = 0; slot < Slots; slot++)
+        {
             _connected[slot] = api.TryGetState(slot, out _);
+            if (!_connected[slot])
+                _lt[slot] = _rt[slot] = false; // a slot that comes back must not inherit a held trigger
+        }
         return AnyConnected;
     }
 

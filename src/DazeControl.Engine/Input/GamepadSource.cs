@@ -59,7 +59,7 @@ internal sealed unsafe partial class XInputApi : IXInput
 }
 
 /// <summary>
-/// Reads the pads on its own thread, only between <see cref="Start"/> and <see cref="Stop"/> (D-056): 20 Hz, or 60 Hz
+/// Reads the pads on its own thread, only between <see cref="Start"/> and <see cref="Stop"/> (D-056): 10 Hz, or 60 Hz
 /// while a menu is open, only the connected slots; with no pad on the thread waits on an event that a device arrival
 /// (or resume) sets, so it costs nothing. Everything is created on the first <see cref="Start"/>.
 /// </summary>

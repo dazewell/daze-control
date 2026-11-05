@@ -48,6 +48,7 @@ public sealed class GamepadService(IPadBackend backend, TimeProvider time) : IGa
 
     private readonly object _lock = new();
     private readonly List<Listener> _listeners = [];
+    private volatile Listener[] _snapshot = []; // readings never take the lock, so Halt (which joins the reader) can't wait on it
     private bool _suspended;
     private bool _started;
     private int _recordings;
@@ -169,16 +170,14 @@ public sealed class GamepadService(IPadBackend backend, TimeProvider time) : IGa
 
     private void OnReading(PadReading reading)
     {
-        Listener[] now;
-        lock (_lock)
-            now = [.. _listeners];
-        foreach (var listener in now)
+        foreach (var listener in _snapshot)
             listener.OnReading(reading);
     }
 
     /// <summary>Under the lock: starts or stops the backend to match the listeners.</summary>
     private void Update()
     {
+        _snapshot = [.. _listeners];
         var want = _listeners.Count > 0 && !_suspended;
         if (want)
         {

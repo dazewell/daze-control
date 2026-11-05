@@ -54,6 +54,7 @@ internal sealed class EngineHost : IDisposable
     private readonly HotkeyTable _hotkeyTable;
     private readonly GamepadService _gamepads = new(new GamepadSource(), TimeProvider.System);
     private readonly GamepadTable _gamepadTable = new();
+    private bool _padQuiet; // message thread: a menu had the pad and buttons may still be down
     private IDisposable? _chordListener; // message thread: held while some chord listens
     private readonly ConfigHost _config;
     private readonly RunHistory _history;
@@ -264,9 +265,18 @@ internal sealed class EngineHost : IDisposable
     /// <summary>On the message thread, like WM_HOTKEY: a chord that was held and let go runs its flow.</summary>
     private void OnPadButtons(GamepadButtons held)
     {
-        var fired = _gamepadTable.Feed(held);
-        if (fired is not var (flowId, chord) || _menu.IsOpen)
-            return; // an open menu has the pad (chords off)
+        if (_menu.IsOpen)
+            _padQuiet = true; // the menu has the pad: chords are off
+        if (_padQuiet)
+        {
+            // Back on only once every button is up, so a press that outlived the menu can't fire when let go.
+            _gamepadTable.Reset();
+            if (held == GamepadButtons.None && !_menu.IsOpen)
+                _padQuiet = false;
+            return;
+        }
+        if (_gamepadTable.Feed(held) is not var (flowId, chord))
+            return;
         _controller.TriggerAsync(flowId, $"Controller · {chord.Display}");
     }
 

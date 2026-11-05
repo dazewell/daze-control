@@ -318,6 +318,27 @@ public sealed class GamepadServiceTests : IDisposable
     }
 
     [Fact]
+    public void ASlotThatReconnectsDoesNotInheritAHeldTrigger()
+    {
+        var api = new FakeXInput();
+        api.Pads[0] = new XInputState(0, 200, 0, 0, 0);
+        var poller = new PadPoller(api);
+        PadReading last = default;
+        poller.Reading += r => last = r;
+        poller.Scan();
+        poller.Step(false);
+        Assert.Equal(GamepadButtons.LT, last.Buttons);
+
+        api.Pads.Clear();
+        poller.Scan(); // seen gone by a rescan (resume), not by a poll
+        api.Pads[0] = new XInputState(0, 80, 0, 0, 0); // back, trigger between off and on
+        poller.Scan();
+        poller.Step(false);
+
+        Assert.Equal(GamepadButtons.None, last.Buttons);
+    }
+
+    [Fact]
     public void ThePollerMergesPadsAndTakesTheStrongestStick()
     {
         var api = new FakeXInput();
