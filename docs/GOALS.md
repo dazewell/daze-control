@@ -65,6 +65,9 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
 - [ ] M13 Editor and flow updates P1–P9 (designed 2026-11-03, D-061..D-070; PLAN → M13), before everything else.
 - [ ] M12 Flow menu + controller trigger (designed 2026-11-03, D-053..D-057; PLAN → M12). Starts with two spikes:
   controller input at 0 idle CPU (needs your Xbox pad plugged in) and the menu over games without taking focus.
+- [ ] M14 Step defaults and conditions (user, 2026-11-04; designed D-080..D-082; PLAN → M14), before the rest of the plan:
+  default Try again / Wait / Give up after / If it fails per step type; "Only if…" on steps (Connect skips when already
+  connected, "always" forces it) and Check steps (is it connected? …). Small scope: no general if/else.
 
 ## Ready for you (2026-11-03)
 
