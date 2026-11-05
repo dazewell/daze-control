@@ -43,7 +43,7 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   wins, a retry default retries, a default `skip` skips dependents; a default edited mid-run changes only the next run (D-021);
   `dctl run` against a config with `stepDefaults` (fake or `wait`/`notify` steps) shows the effect; dry run and "Test this step"
   use the on-screen defaults. Idle gate unchanged.
-- [ ] T14.3 Settings › Step defaults card (feat/m14-defaults-settings, after T14.1). Files: Settings page + `SettingsViewModel`,
+- [x] T14.3 Settings › Step defaults card (feat/m14-defaults-settings, after T14.1). Files: Settings page + `SettingsViewModel`,
   new `StepDefaultsEditor` service (add/edit/remove entry, "Used by n steps in m flows" counts) in `Editor.ViewModels`, UX §5.7
   strings. Done when: view-model tests for add/edit/remove/counts, autosave writes `stepDefaults` and nothing else, a screenshot
   of the card (empty and with two rows), keyboard and Narrator names checked.

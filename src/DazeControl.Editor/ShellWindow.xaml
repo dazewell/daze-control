@@ -291,6 +291,124 @@
                                                Value="{x:Bind ViewModel.Settings.PopupSeconds, Mode=TwoWay}" />
                                 </Grid>
 
+                                <TextBlock Text="Step defaults" Style="{StaticResource SettingsSection}" />
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE713;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="How long and how often steps try" />
+                                        <TextBlock Style="{StaticResource SettingsCardDescription}"
+                                                   Text="A step that sets its own value keeps it." />
+                                    </StackPanel>
+                                    <DropDownButton Grid.Column="2" Content="Add a step type…"
+                                                    AutomationProperties.Name="Add defaults for a step type"
+                                                    IsEnabled="{x:Bind ViewModel.Settings.CanEdit, Mode=OneWay}">
+                                        <DropDownButton.Flyout>
+                                            <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="OnAddDefaultOpening" />
+                                        </DropDownButton.Flyout>
+                                    </DropDownButton>
+                                </Grid>
+                                <TextBlock x:Name="StepDefaultsEmpty" Style="{StaticResource SettingsCardDescription}" Margin="16,4,0,4"
+                                           Text="Set how long and how often steps try, once for every step of a type." />
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Settings.StepDefaults.Rows}" TabFocusNavigation="Local">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="4" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:StepDefaultRow">
+                                            <Grid Style="{StaticResource SettingsCard}" AutomationProperties.Name="{x:Bind Title}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <FontIcon Glyph="{x:Bind Glyph}" Style="{StaticResource SettingsCardIcon}" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind Title}" />
+                                                    <TextBlock Text="{x:Bind Summary, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
+                                                    <TextBlock Text="{x:Bind UsedBy, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Content="Edit" VerticalAlignment="Center"
+                                                        AutomationProperties.Name="{x:Bind EditName}"
+                                                        IsEnabled="{x:Bind CanEdit, Mode=OneWay}">
+                                                    <Button.Flyout>
+                                                        <Flyout Placement="BottomEdgeAlignedRight">
+                                                            <StackPanel Width="340" Spacing="12">
+                                                                <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                                <Grid ColumnSpacing="8">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <NumberBox Header="Give up after (seconds)" PlaceholderText="Built-in" Minimum="0.1" Maximum="86400"
+                                                                               SpinButtonPlacementMode="Inline" SmallChange="1" LargeChange="10"
+                                                                               AutomationProperties.Name="Give up after, seconds"
+                                                                               Value="{x:Bind TimeoutSeconds, Mode=TwoWay}" />
+                                                                    <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Reset" Tag="{x:Bind}" Click="OnResetTimeout"
+                                                                            AutomationProperties.Name="Reset give up after to the built-in value" />
+                                                                </Grid>
+                                                                <Grid ColumnSpacing="8">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <NumberBox Header="Try again (times)" PlaceholderText="0" Minimum="0" Maximum="10"
+                                                                               SpinButtonPlacementMode="Inline"
+                                                                               AutomationProperties.Name="Try again, times"
+                                                                               Value="{x:Bind RetryCount, Mode=TwoWay}" />
+                                                                    <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Reset" Tag="{x:Bind}" Click="OnResetRetryCount"
+                                                                            AutomationProperties.Name="Reset try again to the built-in value" />
+                                                                </Grid>
+                                                                <Grid ColumnSpacing="8">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <NumberBox Header="Wait between tries (seconds)" PlaceholderText="Built-in" Minimum="0" Maximum="3600"
+                                                                               SpinButtonPlacementMode="Inline" SmallChange="1"
+                                                                               AutomationProperties.Name="Wait between tries, seconds"
+                                                                               Value="{x:Bind RetryDelaySeconds, Mode=TwoWay}" />
+                                                                    <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Reset" Tag="{x:Bind}" Click="OnResetRetryDelay"
+                                                                            AutomationProperties.Name="Reset wait between tries to the built-in value" />
+                                                                </Grid>
+                                                                <Grid ColumnSpacing="8">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <ComboBox Header="If it fails" HorizontalAlignment="Stretch" PlaceholderText="Stop the flow"
+                                                                              AutomationProperties.Name="If it fails"
+                                                                              SelectedIndex="{x:Bind PolicyIndex, Mode=TwoWay}">
+                                                                        <!-- FailurePolicy's order -->
+                                                                        <x:String>Stop the flow</x:String>
+                                                                        <x:String>Skip what depends on it</x:String>
+                                                                        <x:String>Keep going</x:String>
+                                                                    </ComboBox>
+                                                                    <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Reset" Tag="{x:Bind}" Click="OnResetPolicy"
+                                                                            AutomationProperties.Name="Reset if it fails to the built-in value" />
+                                                                </Grid>
+                                                            </StackPanel>
+                                                        </Flyout>
+                                                    </Button.Flyout>
+                                                </Button>
+                                                <Button Grid.Column="3" VerticalAlignment="Center" Tag="{x:Bind}" Click="OnRemoveDefault"
+                                                        AutomationProperties.Name="{x:Bind RemoveName}"
+                                                        ToolTipService.ToolTip="Remove these defaults"
+                                                        IsEnabled="{x:Bind CanEdit, Mode=OneWay}">
+                                                    <FontIcon Glyph="&#xE74D;" FontSize="14" />
+                                                </Button>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
                                 <TextBlock Text="Updates" Style="{StaticResource SettingsSection}" />
                                 <Grid Style="{StaticResource SettingsCard}">
                                     <Grid.ColumnDefinitions>
