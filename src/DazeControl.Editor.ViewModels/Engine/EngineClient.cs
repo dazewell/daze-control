@@ -47,7 +47,7 @@ public sealed class EngineClient : IEngineClient, IAsyncDisposable
     public async Task<PipeMessage?> SendAsync(PipeRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (request.Op == Ops.TestStep)
+        if (request.Op is Ops.TestStep or Inspector.EngineGamepadRecorder.Op)
             return await SendAloneAsync(request, cancellationToken).ConfigureAwait(false);
         await _requestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -73,7 +73,7 @@ public sealed class EngineClient : IEngineClient, IAsyncDisposable
     }
 
     /// <summary>
-    /// A step test can take a minute: it gets a connection of its own so other requests don't queue behind it.
+    /// A step test (or a controller recording, up to 15 s) can take a minute: it gets a connection of its own so other requests don't queue behind it.
     /// Cancelling closes that connection, which the engine takes as "stop the test".
     /// </summary>
     private async Task<PipeMessage?> SendAloneAsync(PipeRequest request, CancellationToken cancellationToken)

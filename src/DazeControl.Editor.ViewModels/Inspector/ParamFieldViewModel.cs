@@ -3,6 +3,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DazeControl.Core.Catalog;
 using DazeControl.Core.Model;
+using DazeControl.Core.Validation;
 
 namespace DazeControl.Editor.ViewModels.Inspector;
 
@@ -50,13 +51,16 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     public bool IsSuggestText => Kind is ParamKind.Text && Spec.Suggest is not null && !IsFlowRef;
 
     /// <summary>Another flow (<c>flow.run</c>): a picker of names that stores the id, like a device picker.</summary>
-    public bool IsFlowRef => Spec.RefersTo == ConfigRef.Flow;
+    public bool IsFlowRef => Kind is ParamKind.Text && Spec.RefersTo == ConfigRef.Flow;
 
     /// <summary>An unordered list picked from the PC (screens): a checklist (D-051).</summary>
     public bool IsChecklist => Kind is ParamKind.TextList && Spec.Suggest is not null && !Spec.Ordered;
 
+    /// <summary>An ordered list of flows (<c>menu.show</c>): glyph + name tokens and an "Add a flow" box (DESIGN §3.7).</summary>
+    public bool IsFlowList => Kind is ParamKind.TextList && Spec.Ordered && Spec.RefersTo == ConfigRef.Flow;
+
     /// <summary>An ordered list picked from a table (Android keys): tokens in send order plus an add box.</summary>
-    public bool IsTokenList => Kind is ParamKind.TextList && Spec.Suggest is not null && Spec.Ordered;
+    public bool IsTokenList => Kind is ParamKind.TextList && Spec.Suggest is not null && Spec.Ordered && !IsFlowList;
 
     public bool IsMultiline => !IsCallInputs && (Kind is ParamKind.MultilineText or ParamKind.TextMap || Kind is ParamKind.TextList && Spec.Suggest is null);
 
@@ -118,6 +122,55 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     public ObservableCollection<ScreenCheckViewModel> Screens { get; } = [];
 
     public ObservableCollection<KeyTokenViewModel> Tokens { get; } = [];
+
+    public ObservableCollection<FlowTokenViewModel> FlowTokens { get; } = [];
+
+    /// <summary>The "Add a flow" box's rows: the other flows not in the menu yet.</summary>
+    public ObservableCollection<FlowChoice> FlowChoices { get; } = [];
+
+    public bool CanAddFlow => _items.Count < ProviderCatalog.MaxMenuItems;
+
+    private (Configuration Config, IReadOnlyList<Problem> Problems, string SelfId)? _flowContext;
+
+    /// <summary>The open config, so the tokens can show names, glyphs and captions.</summary>
+    internal void SetFlowContext(Configuration config, IReadOnlyList<Problem> problems, string selfId)
+    {
+        _flowContext = (config, problems, selfId);
+        RebuildFlowTokens();
+    }
+
+    private void RebuildFlowTokens()
+    {
+        if (!IsFlowList || _flowContext is not var (config, problems, selfId))
+            return;
+        var rows = Inspector.FlowTokens.Rows(config, problems, selfId, _items).Select(r => r with { Owner = this }).ToList();
+        if (!FlowTokens.SequenceEqual(rows))
+        {
+            FlowTokens.Clear();
+            foreach (var row in rows)
+                FlowTokens.Add(row);
+        }
+        var choices = Inspector.FlowTokens.Choices(config, problems, selfId, _items);
+        if (!FlowChoices.SequenceEqual(choices))
+        {
+            FlowChoices.Clear();
+            foreach (var choice in choices)
+                FlowChoices.Add(choice);
+        }
+        OnPropertyChanged(nameof(CanAddFlow));
+    }
+
+    /// <summary>Adds a flow (by id) at the end of the menu; ignored when it is listed or the menu is full.</summary>
+    public void AddFlow(string id)
+    {
+        id = id.Trim();
+        if (id.Length > 0 && CanAddFlow && !_items.Contains(id))
+            WriteItems([.. _items, id]);
+    }
+
+    public void RemoveFlow(FlowTokenViewModel token) => RemoveAt(token.Index);
+
+    public void MoveFlow(FlowTokenViewModel token, int by) => MoveAt(token.Index, by);
 
     /// <summary>The list as the step has it (checklist and tokens).</summary>
     private List<string> _items = [];
@@ -218,6 +271,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                     Text = string.Join(Environment.NewLine, _items);
                     RebuildScreens();
                     RebuildTokens();
+                    RebuildFlowTokens();
                     break;
                 case ParamKind.TextMap:
                     Text = value is MapParam map ? string.Join(Environment.NewLine, map.Entries.Select(e => $"{e.Key}: {e.Value}")) : "";
@@ -304,20 +358,24 @@ public sealed partial class ParamFieldViewModel : ObservableObject
             WriteItems([.. _items, key]);
     }
 
-    public void RemoveToken(KeyTokenViewModel token)
+    public void RemoveToken(KeyTokenViewModel token) => RemoveAt(token.Index);
+
+    private void RemoveAt(int index)
     {
-        if (token.Index < _items.Count)
-            WriteItems([.. _items.Where((_, i) => i != token.Index)]);
+        if (index >= 0 && index < _items.Count)
+            WriteItems([.. _items.Where((_, i) => i != index)]);
     }
 
     /// <summary>Alt+Up/Down: moves a key one place in the send order.</summary>
-    public void MoveToken(KeyTokenViewModel token, int by)
+    public void MoveToken(KeyTokenViewModel token, int by) => MoveAt(token.Index, by);
+
+    private void MoveAt(int index, int by)
     {
-        var to = token.Index + by;
-        if (token.Index >= _items.Count || to < 0 || to >= _items.Count)
+        var to = index + by;
+        if (index < 0 || index >= _items.Count || to < 0 || to >= _items.Count)
             return;
         var items = _items.ToList();
-        (items[token.Index], items[to]) = (items[to], items[token.Index]);
+        (items[index], items[to]) = (items[to], items[index]);
         WriteItems(items);
     }
 
@@ -325,6 +383,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     {
         _items = items;
         RebuildTokens();
+        RebuildFlowTokens();
         if (!IsChecklist)
             RebuildScreens();
         _write(this, items.Count > 0 ? new ListParam([.. items.Select(i => (ParamValue)i)]) : null);

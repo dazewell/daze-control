@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DazeControl.Core.Catalog;
 using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
 using DazeControl.Core.Validation;
@@ -126,6 +127,33 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         _ = EndUndoAsync();
         var ids = _session.Current.Flows.Select(f => f.Id).ToHashSet(StringComparer.Ordinal);
         _session.Update(c => c with { Flows = [.. c.Flows, new Flow(FlowIds.Unique("new-flow", ids), "New flow", [])] });
+    }
+
+    /// <summary>"Controller menu" (DESIGN §3.7): a large menu of the first four flows, opened with View + Menu.</summary>
+    public const string ControllerMenuName = "Controller menu";
+
+    /// <summary>Builds the "Controller menu" flow for <paramref name="config"/>: items are the first four flows that exist.</summary>
+    public static Flow ControllerMenu(Configuration config, string id)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        var entries = new List<KeyValuePair<string, ParamValue>>();
+        var items = config.Flows.Take(4).Select(f => (ParamValue)f.Id).ToArray();
+        if (items.Length > 0)
+            entries.Add(new("items", new ListParam([.. items])));
+        entries.Add(new("size", (ParamValue)"large"));
+        return new Flow(id, ControllerMenuName, [new StepNode("menu", ProviderCatalog.MenuShowId) { With = new(entries) }])
+        {
+            Gamepad = ["View+Menu"],
+        };
+    }
+
+    [RelayCommand]
+    private void NewControllerMenu()
+    {
+        _ = EndUndoAsync();
+        var ids = _session.Current.Flows.Select(f => f.Id).ToHashSet(StringComparer.Ordinal);
+        var flow = ControllerMenu(_session.Current, FlowIds.Unique("controller-menu", ids));
+        _session.Update(c => c with { Flows = [.. c.Flows, flow] });
     }
 
     /// <summary>The flow Undo would put back, and where it was (D-076).</summary>

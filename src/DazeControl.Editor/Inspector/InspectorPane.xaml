@@ -71,10 +71,10 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button Command="{x:Bind ViewModel.TestCommand, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.CanTest, Mode=OneWay}"
                                 Visibility="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
-                                ToolTipService.ToolTip="Runs just this step now, with the values shown here">
+                                ToolTipService.ToolTip="{x:Bind ViewModel.TestTip, Mode=OneWay}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="&#xE768;" FontSize="14" />
-                                <TextBlock Text="Test this step" />
+                                <TextBlock Text="{x:Bind ViewModel.TestLabel, Mode=OneWay}" />
                             </StackPanel>
                         </Button>
                         <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.IsTesting, Mode=OneWay}">
@@ -164,6 +164,56 @@
                                     </ItemsControl>
                                     <AutoSuggestBox PlaceholderText="Add a key" Tag="{x:Bind}" TextChanged="OnKeyTextChanged"
                                                     QuerySubmitted="OnKeySubmitted" GotFocus="OnKeyBoxFocused" AutomationProperties.Name="Add a key" />
+                                </StackPanel>
+                                <!-- menu.show: the flows of the menu in menu order (DESIGN 3.7); Alt+Up/Down on a remove button moves it. -->
+                                <StackPanel Visibility="{x:Bind IsFlowList}" Spacing="4">
+                                    <ItemsControl ItemsSource="{x:Bind FlowTokens, Mode=OneWay}" AutomationProperties.Name="{x:Bind Title}" IsTabStop="False">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Spacing="4" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vmi:FlowTokenViewModel">
+                                                <StackPanel>
+                                                    <Grid ColumnSpacing="8" Padding="10,2,2,2" CornerRadius="{StaticResource ControlCornerRadius}"
+                                                          Background="{ThemeResource ControlFillColorSecondaryBrush}" AutomationProperties.Name="{x:Bind AutomationName}">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="1" Text="{x:Bind Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Grid.Column="2" Text="{x:Bind Caption}" VerticalAlignment="Center"
+                                                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                        <Button Grid.Column="3" Tag="{x:Bind}" Click="OnRemoveFlow" KeyDown="OnFlowKeyDown" Padding="6"
+                                                                Background="Transparent" BorderThickness="0" AutomationProperties.Name="{x:Bind RemoveName}"
+                                                                ToolTipService.ToolTip="Remove (Alt+Up or Alt+Down moves it)">
+                                                            <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                                        </Button>
+                                                    </Grid>
+                                                    <TextBlock Text="{x:Bind Problem}" Visibility="{x:Bind HasProblem}" TextWrapping="Wrap"
+                                                               Style="{StaticResource FieldError}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <ComboBox ItemsSource="{x:Bind FlowChoices, Mode=OneWay}" PlaceholderText="Add a flow" HorizontalAlignment="Stretch"
+                                              IsEnabled="{x:Bind CanAddFlow, Mode=OneWay}" SelectionChanged="OnFlowChosen" AutomationProperties.Name="Add a flow">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="vmi:FlowChoice">
+                                                <StackPanel Orientation="Horizontal" Spacing="8" AutomationProperties.Name="{x:Bind Name}">
+                                                    <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" />
+                                                    <TextBlock Text="{x:Bind Name}" />
+                                                    <TextBlock Text="{x:Bind Caption}" Style="{StaticResource CaptionTextBlockStyle}"
+                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
                                 </StackPanel>
                                 <TextBox Visibility="{x:Bind IsMultiline}" Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder}"
                                          AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="64" MaxHeight="176"
@@ -371,6 +421,52 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
                 <HyperlinkButton Content="Add shortcut" Command="{x:Bind ViewModel.AddShortcutCommand, Mode=OneWay}" Padding="0,4" />
+
+                <!-- DESIGN 2.4, 3.7: controller chords; the recorder asks the engine, so what is recorded is what it sees. -->
+                <TextBlock Text="Controller buttons" Style="{StaticResource InspectorSection}" />
+                <ItemsControl ItemsSource="{x:Bind ViewModel.ControllerButtons, Mode=OneWay}" IsTabStop="False">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="4" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vmi:ControllerButtonsViewModel">
+                            <StackPanel>
+                                <Grid ColumnSpacing="8" Padding="10,2,2,2" CornerRadius="{StaticResource ControlCornerRadius}"
+                                      Background="{ThemeResource ControlFillColorSecondaryBrush}" AutomationProperties.Name="{x:Bind AutomationName}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{x:Bind Text}" VerticalAlignment="Center" />
+                                    <Button Grid.Column="1" Tag="{x:Bind}" Click="OnRemoveChord" Padding="6" Background="Transparent" BorderThickness="0"
+                                            AutomationProperties.Name="{x:Bind RemoveName}">
+                                        <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                    </Button>
+                                </Grid>
+                                <TextBlock Text="{x:Bind Problem}" Visibility="{x:Bind HasProblem}" TextWrapping="Wrap" Style="{StaticResource FieldError}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Content="Add buttons" Padding="0,4" Background="Transparent" BorderThickness="0"
+                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.Name="Add controller buttons">
+                    <Button.Flyout>
+                        <Flyout Opened="OnRecorderOpened" Closed="OnRecorderClosed">
+                            <StackPanel Spacing="8" MaxWidth="280">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <ProgressRing IsActive="{x:Bind ViewModel.Recorder.IsListening, Mode=OneWay}" Width="20" Height="20"
+                                                  Visibility="{x:Bind ViewModel.Recorder.IsListening, Mode=OneWay}" />
+                                    <TextBlock Text="{x:Bind ViewModel.Recorder.Message, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="240"
+                                               AutomationProperties.Name="{x:Bind ViewModel.Recorder.Message, Mode=OneWay}"
+                                               AutomationProperties.LiveSetting="Polite" />
+                                </StackPanel>
+                                <Button Content="Try again" Click="OnRecorderRetry" Visibility="{x:Bind ViewModel.Recorder.IsProblem, Mode=OneWay}" />
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
 
                 <!-- D-049, UX §5.4: "Shortcut" alone is a hotkey; the .lnk is always the desktop shortcut. -->
                 <TextBlock Text="Desktop shortcut" Style="{StaticResource InspectorSection}" />
