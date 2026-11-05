@@ -62,9 +62,12 @@ public sealed class RunPopupModel
         if (e is RunStarted started)
         {
             flow = started.Flow ?? flow;
-            if (flow is null || !flow.Popup)
+            // A menu is its own window, so a flow that only shows a menu has no pop-up (M12, DESIGN §3.2).
+            if (flow is null || !flow.Popup || flow.Nodes.All(n => n is StepNode { Step: ProviderCatalog.MenuShowId }))
                 return false;
             _runs[started.RunId] = new RunTrack(flow, started.At);
+            if (flow.Nodes.Any(n => n is StepNode { Step: ProviderCatalog.MenuShowId }))
+                return false; // the pop-up comes with the first step that isn't the menu
         }
         if (!_runs.TryGetValue(e.RunId, out var run))
             return false;
@@ -72,15 +75,21 @@ public sealed class RunPopupModel
         {
             case NodeStarted node:
                 run.Count(node.NodeId);
+                if (run.IsMenu(node.NodeId))
+                    return false;
                 run.Running.Remove(node.NodeId);
                 run.Running.Add(node.NodeId);
                 break;
             case NodeFinished node:
                 run.Running.Remove(node.Result.NodeId);
                 run.Finished.Add(node.Result);
+                if (run.IsMenu(node.Result.NodeId))
+                    return false;
                 break;
             case RunFinished finished:
                 _runs.Remove(e.RunId);
+                if (finished.Quiet)
+                    return false; // ended on purpose (a menu closed with nothing picked): nothing to say
                 Current = Finish(e.RunId, e.FlowId, run, finished.Outcome, finished.At - run.Started, settings);
                 return true;
         }
@@ -110,7 +119,8 @@ public sealed class RunPopupModel
         {
             case NodeStarted node:
                 nested.Track.Count(node.NodeId);
-                top.NestedDetail[call] = $"{nested.Track.Flow.Name} · {nested.Track.NameOf(node.NodeId)}…";
+                if (!nested.Track.IsMenu(node.NodeId)) // the menu has its own window
+                    top.NestedDetail[call] = $"{nested.Track.Flow.Name} · {nested.Track.NameOf(node.NodeId)}…";
                 break;
             case NodeFinished node:
                 nested.Track.Finished.Add(node.Result);
@@ -264,6 +274,8 @@ public sealed class RunPopupModel
 
         /// <summary>Row 3 while the step runs: its name, or the nested run's current step for a call.</summary>
         public string Current(string nodeId) => NestedDetail.TryGetValue(nodeId, out var nested) ? nested : NameOf(nodeId) + "…";
+
+        public bool IsMenu(string nodeId) => Flow.FindNode(nodeId) is StepNode { Step: ProviderCatalog.MenuShowId };
 
         public int Total => Math.Max(_counted.Count, 1);
 

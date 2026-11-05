@@ -44,6 +44,9 @@ public sealed record NodeResult(string NodeId, NodeOutcome Outcome, int Attempts
     /// Null for every other step, and in runs recorded before 0.28.</summary>
     public CalledRun? Called { get; init; }
 
+    /// <summary>What the step says about itself ("Picked Couch TV", M12): shown beside its result. Null = nothing to add.</summary>
+    public string? Summary { get; init; }
+
     /// <summary>Succeeded, but the flow it ran ended with a problem: a problem for the caller (DESIGN §2.2).</summary>
     public bool IsPartialCall => Outcome == NodeOutcome.Succeeded && Called?.Outcome == FlowOutcome.PartiallySucceeded;
 }

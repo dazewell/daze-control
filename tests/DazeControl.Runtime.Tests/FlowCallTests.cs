@@ -429,6 +429,8 @@ public sealed class FlowCallTests : IDisposable
                 : new(null, Library.Empty, flow.Name, $"{flow.Name} is turned off, so it didn't run. Turn it on in Flows.");
         }
 
+        public bool IsRunning(string flowId) => Busy.Contains(flowId);
+
         public StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain, IReadOnlyDictionary<string, string> inputs, string callerName)
         {
             var called = Resolve(flowId);
