@@ -41,7 +41,7 @@ internal static class AudioSteps
         if (context.Text("device") is not { Length: > 0 } key)
             return null;
         return context.Library.Audio.FirstOrDefault(d => d.Key == key)
-            ?? throw new StepFailedException($"No audio device called \"{key}\" in the library.");
+            ?? throw new StepFailedException(Library.Missing(LibraryKind.Audio, key));
     }
 
     public static AudioRoles Roles(StepContext context) => context.Text("roles") switch

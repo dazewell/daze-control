@@ -48,6 +48,8 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
   one device picker per input; the Runs page expands a call into the called flow's steps · M12: `menu.show` — a
   no-focus menu of flows over every window (list or grid, normal or large), keyboard/mouse, and an Xbox pad while it is open; picking launches the flow, or with "wait" runs it nested (D-054, D-055, D-061, D-086). Not over exclusive full-screen games (#32).
 
+**Wait until:** a check step with "Try again" and "Wait between tries" waits for a fact (a program running, a file, a connection) before the next step; no separate step (D-081). The PowerShell step's examples also cover sleep, power plan and dark mode.
+
 **M14 (designed, D-080..D-082):** per-step-type defaults for Try again / Wait between tries / Give up after / If it fails
 (`settings.stepDefaults`, set in Settings or "Use these for all <type> steps"); per-step **Only if…** (skips a step that has
 nothing to do, e.g. Connect when already connected; the flow carries on) and **Check** steps (Bluetooth, audio, program,
