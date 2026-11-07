@@ -297,10 +297,10 @@ goes through `LeaveFlowAsync` (the D-047 prompt) then `CloseFlow`; nav Flows whi
 selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). All logic is in `Editor.ViewModels`:
 - `Config/ConfigStore` — config.yaml I/O: atomic write (temp + `File.Move` overwrite), one backup per editor
   session in `%APPDATA%\DazeControl\backups` (newest 10), and the text last read/written to tell outside changes.
-- `Config/EditorSettingsStore` — this PC's view state in `%LOCALAPPDATA%\DazeControl\editor.json` (D-068; with The window's place (restored rectangle, maximized, DPI) is `editor.json` › `window`, written on close (D-098).
+- `Config/EditorSettingsStore` — this PC's view state in `%LOCALAPPDATA%\DazeControl\editor.json` (D-068; with
   `--config`, `editor.json` next to that file): STJ source-generated, read once (missing → defaults; unreadable or
   bad → defaults and a line in `logs\editor.log`), `Update(s => …)` writes it atomically 300 ms after the last change
-  (`TimeProvider`) and on close; unknown keys are kept. Holds `NavPaneOpen` (`ShellViewModel.IsNavPaneOpen`, two-way
+  (`TimeProvider`) and on close; unknown keys are kept. The window's place (restored rectangle, maximized, DPI) is `window`, written on close (D-098). Holds `NavPaneOpen` (`ShellViewModel.IsNavPaneOpen`, two-way
   with `NavigationView.IsPaneOpen`) and `Flows` by flow id: `FlowViewSettings` = the Layout menu's choices
   (`WrapAfter`, `Spacing`, `Align`, `Lines`; null = default, an all-default flow is removed), `ToOptions()` →
   `LayoutOptions`. `RenameFlow` on a saved rename (D-075), called by the open canvas and by the shell.

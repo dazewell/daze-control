@@ -64,7 +64,7 @@ public static class WindowPlacementLogic
             return new WindowTarget(Default(current), maximized);
 
         var savedDpi = saved.Dpi is > 0 ? saved.Dpi.Value : 96;
-        if (width <= 0 || height <= 0
+        if (width is <= 0 or > 100_000 || height is <= 0 or > 100_000
             || width * 96L / savedDpi < MinWidthDip || height * 96L / savedDpi < MinHeightDip)
             return new WindowTarget(Default(current), maximized);
 

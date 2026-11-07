@@ -10,7 +10,8 @@ namespace DazeControl.Editor;
 /// <summary>Reads and applies the editor window's placement (D-098). Win32 pieces only; the rules live in <see cref="WindowPlacementLogic"/>.</summary>
 internal static partial class WindowPlacementInterop
 {
-    private const int ShowMaximize = 3;
+    private const uint ShowMaximize = 3;
+    private const uint RestoreToMaximized = 2; // WPF_RESTORETOMAXIMIZED
     private const int MdtEffectiveDpi = 0;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -58,7 +59,7 @@ internal static partial class WindowPlacementInterop
                 Top = n.Top + dy,
                 Width = n.Right - n.Left,
                 Height = n.Bottom - n.Top,
-                Maximized = placement.ShowCmd == ShowMaximize,
+                Maximized = placement.ShowCmd == ShowMaximize || (placement.Flags & RestoreToMaximized) != 0, // a minimized window keeps the flag
                 Dpi = dpi > 0 ? dpi : null,
             };
         }
