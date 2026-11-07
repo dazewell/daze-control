@@ -195,7 +195,7 @@
                                 <ToggleSwitch Visibility="{x:Bind IsBoolean}" IsOn="{x:Bind IsOn, Mode=TwoWay}" MinWidth="0"
                                               AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
                                 <TextBlock Text="Mixed" Visibility="{x:Bind HasMixedCaption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
-                                <ComboBox Visibility="{x:Bind IsChoice}" ItemsSource="{x:Bind Choices}" SelectedItem="{x:Bind Choice, Mode=TwoWay}" Loaded="OnPickerLoaded" SelectionChanged="OnPickerSelectionChanged"
+                                <ComboBox Visibility="{x:Bind IsChoice}" ItemsSource="{x:Bind ChoiceOptions}" DisplayMemberPath="Caption" SelectedItem="{x:Bind ChoiceOption, Mode=TwoWay}" Loaded="OnPickerLoaded" SelectionChanged="OnPickerSelectionChanged"
                                           HorizontalAlignment="Stretch" PlaceholderText="{x:Bind MixedText, Mode=OneWay}" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
                                 <ComboBox Visibility="{x:Bind IsDevice}" PlaceholderText="{x:Bind MixedText, Mode=OneWay}" ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}"
                                           Loaded="OnPickerLoaded" SelectionChanged="OnPickerSelectionChanged"

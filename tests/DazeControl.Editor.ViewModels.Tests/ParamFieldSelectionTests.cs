@@ -74,3 +74,61 @@ public sealed class ParamFieldSelectionTests
         Assert.Empty(writes);
     }
 }
+
+public sealed class ChoiceCaptionTests
+{
+    private static IEnumerable<(ProviderDescriptor Provider, ParamSpec Spec)> ChoiceParams() =>
+        ProviderCatalog.All.SelectMany(p => p.Params.Where(s => s.Kind == ParamKind.Choice).Select(s => (p, s)));
+
+    [Fact]
+    public void EveryChoiceWalksBetweenCaptionAndValue()
+    {
+        Assert.NotEmpty(ChoiceParams());
+        foreach (var (provider, spec) in ChoiceParams())
+        {
+            var written = new List<ParamValue?>();
+            var field = new ParamFieldViewModel(spec, (_, v) => written.Add(v), _ => true);
+            field.Load(null, null);
+            Assert.Equal(spec.Choices.Count, field.ChoiceOptions.Count);
+            foreach (var value in spec.Choices)
+            {
+                var option = field.ChoiceOptions.Single(o => o.Value == value);
+                Assert.Equal(spec.CaptionOf(value), option.Caption);
+                Assert.False(string.IsNullOrWhiteSpace(option.Caption), provider.Id + "." + spec.Name);
+                var before = written.Count;
+                field.ChoiceOption = option;
+                Assert.Equal(value, field.Choice);
+                Assert.Same(option, field.ChoiceOption);
+                // What is written is the value, never the caption (the default is left out).
+                if (written.Count > before)
+                    Assert.Equal(value == spec.Default ? null : value, (written[^1] as ScalarParam)?.Text);
+            }
+            // Loading a stored value selects its row at once.
+            field.Load(new ScalarParam(spec.Choices[^1]), null);
+            Assert.Equal(spec.Choices[^1], field.ChoiceOption?.Value);
+        }
+    }
+
+    [Fact]
+    public void MixedChoiceHasNoSelectionAndAMissingCaptionFallsBackToTheValue()
+    {
+        var spec = ProviderCatalog.Find("process.check")!.Params.Single(p => p.Name == "is");
+        var field = new ParamFieldViewModel(spec, (_, _) => { }, _ => true);
+        field.Load(null, null, mixed: true);
+        Assert.Null(field.ChoiceOption);
+        Assert.Equal("Mixed", field.Placeholder);
+
+        var bare = new ParamSpec("x", ParamKind.Choice, "X") { Choices = ["a", "b"], Captions = ["Alpha"] };
+        Assert.Equal("Alpha", bare.CaptionOf("a"));
+        Assert.Equal("b", bare.CaptionOf("b"));
+        Assert.Equal("zzz", bare.CaptionOf("zzz"));
+    }
+
+    [Fact]
+    public void CardPillShowsTheCaption()
+    {
+        var d = ProviderCatalog.Find("process.check")!;
+        var step = new StepNode("s", "process.check") { With = new([new("program", (ParamValue)"spotify"), new("is", (ParamValue)"notRunning")]) };
+        Assert.Equal("spotify · Not running", DazeControl.Editor.ViewModels.Canvas.CanvasNodeViewModel.Summarize(step, d, new Configuration()));
+    }
+}

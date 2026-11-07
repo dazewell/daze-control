@@ -94,6 +94,18 @@ public sealed record ParamSpec(string Name, ParamKind Kind, string Title)
     /// <summary>For <see cref="ParamKind.Choice"/>, written as in YAML.</summary>
     public ValueList<string> Choices { get; init; } = [];
 
+    /// <summary>
+    /// Plain words for <see cref="Choices"/>, same order (D-102). Display only: YAML keeps the value. Empty = show the value.
+    /// </summary>
+    public ValueList<string> Captions { get; init; } = [];
+
+    /// <summary>The words for a choice; the value itself when it has no caption.</summary>
+    public string CaptionOf(string value)
+    {
+        var i = Choices.ToList().IndexOf(value);
+        return i >= 0 && i < Captions.Count && Captions[i].Length > 0 ? Captions[i] : value;
+    }
+
     /// <summary>For <see cref="ParamKind.LibraryRef"/>.</summary>
     public LibraryKind? Library { get; init; }
 

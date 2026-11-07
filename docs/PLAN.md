@@ -133,7 +133,7 @@ Start only when the user has answered REVIEW §6; tasks marked (ask) wait for th
   titles, UX/FEATURES strings. Done when: every title follows D-102, quick-add and breadcrumbs read well, saved YAML unchanged (a round-trip test).
 - [ ] T18.2 Palette groups and order (feat/m18-groups, after T18.1; choice 3). Files: `ProviderDescriptor` (display group) or a table in `CanvasNodeViewModel.Area`,
   `StepPaletteViewModel`, `ShellWindow` Step defaults list, catalog order. Done when: nine groups in the order of REVIEW §2 F5, Check last in each, nothing saved changes.
-- [ ] T18.3 Choice captions (feat/m18-choice-captions, choice 5). Files: `ParamSpec` (captions), `ParamFieldViewModel`, card pill `Summarize`, bulk edit. Done when:
+- [x] T18.3 Choice captions (feat/m18-choice-captions, choice 5). Files: `ParamSpec` (captions), `ParamFieldViewModel`, card pill `Summarize`, bulk edit. Done when:
   the dropdown and pill show words, YAML keeps `notDefault` etc., bulk mixed state still works.
 - [ ] T18.4 One wording for "no such Library item" and check texts (fix/m18-messages, choice 10). Files: `Providers/*` messages, `EngineController` dry run, tests.
 - [ ] T18.5 Docs: the "Wait until" recipe (Check + Try again + Wait between tries) and more PowerShell examples (choice 7). Files: UX/FEATURES, `ProviderCatalog` examples, check steps' help.
