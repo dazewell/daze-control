@@ -61,6 +61,16 @@ public sealed class FlowRowTests : IDisposable
     }
 
     [Fact]
+    public void StatusDotFollowsTheLastRunAndRunning()
+    {
+        Assert.Equal(FlowRowState.None, FlowRowFacts.State(null, false));
+        Assert.Equal(FlowRowState.Done, FlowRowFacts.State(Run("a", TimeSpan.FromMinutes(5)), false));
+        Assert.Equal(FlowRowState.Failed, FlowRowFacts.State(Run("a", TimeSpan.FromMinutes(5), FlowOutcome.Failed), false));
+        Assert.Equal(FlowRowState.Warning, FlowRowFacts.State(Run("a", TimeSpan.FromMinutes(5), FlowOutcome.PartiallySucceeded), false));
+        Assert.Equal(FlowRowState.Running, FlowRowFacts.State(Run("a", TimeSpan.FromMinutes(5), FlowOutcome.Failed), true));
+    }
+
+    [Fact]
     public void StepsAndUsedByAreWorded()
     {
         Assert.Equal("No steps", FlowRowFacts.Steps(0));

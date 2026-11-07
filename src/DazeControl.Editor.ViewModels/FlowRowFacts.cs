@@ -18,6 +18,18 @@ public static class FlowRowFacts
     public static string ShortcutTip(IReadOnlyList<string> hotkeys) =>
         hotkeys.Count == 0 ? "No shortcut" : string.Join(", ", hotkeys);
 
+    /// <summary>The row's status dot: none without a record, a problem for failed or partly done runs, calm otherwise.</summary>
+    public static FlowRowState State(RunRecord? run, bool running) =>
+        running ? FlowRowState.Running
+        : run is null ? FlowRowState.None
+        : run.Outcome switch
+        {
+            FlowOutcome.Succeeded => FlowRowState.Done,
+            FlowOutcome.PartiallySucceeded => FlowRowState.Warning,
+            FlowOutcome.Failed => FlowRowState.Failed,
+            _ => FlowRowState.None,
+        };
+
     public static string Steps(int count) => count switch { 0 => "No steps", 1 => "1 step", _ => $"{count} steps" };
 
     /// <summary>"Used by 2 flows" (the Library's wording); empty when no flow calls this one.</summary>
@@ -54,4 +66,14 @@ public static class FlowRowFacts
     }
 
     private static string Plural(int n, string unit) => $"{n} {unit}{(n == 1 ? "" : "s")} ago";
+}
+
+/// <summary>What the last run of a flow looks like in the list (colour of the status dot).</summary>
+public enum FlowRowState
+{
+    None,
+    Running,
+    Done,
+    Warning,
+    Failed,
 }

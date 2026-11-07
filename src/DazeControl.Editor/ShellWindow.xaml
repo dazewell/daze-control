@@ -401,49 +401,79 @@
                                                                             Visibility="{x:Bind HasDeleteOffReason, Mode=OneWay}" />
                                                         </MenuFlyout>
                                                     </local:FlowCard.ContextFlyout>
-                                                <Grid Style="{StaticResource SettingsCard}" Tag="{x:Bind Id}" Tapped="OnFlowCardTapped"
+                                                <!-- Layout (spacing scale 4/8/12/16): grip | icon tile | name + status | problems | tray/desktop/used-by slots | On | Run.
+                                                     The slots, the switch and Run have fixed widths, so every row lines up; the grip and the
+                                                     slot icons are always laid out and only fade (opacity), so nothing moves on hover. -->
+                                                <Grid Style="{StaticResource SettingsCard}" Tag="{x:Bind Id}" Tapped="OnFlowCardTapped" ColumnSpacing="12" Padding="8,12,16,12"
                                                       BorderBrush="{x:Bind local:RowFormat.SelectBorder(IsSelected), Mode=OneWay}"
-                                                      PointerEntered="OnFlowCardPointerEntered" PointerExited="OnFlowCardPointerExited">
+                                                      Loaded="OnFlowRowLoaded" PointerEntered="OnFlowCardPointerEntered" PointerExited="OnFlowCardPointerExited">
                                                     <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="16" />
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="96" />
+                                                        <ColumnDefinition Width="80" />
                                                     </Grid.ColumnDefinitions>
-                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <!-- Drag grip: shows on hover for rows that can be dragged; its tooltip says why not otherwise. -->
+                                                    <FontIcon x:Name="Grip" Glyph="&#xE784;" FontSize="12" Opacity="{x:Bind local:RowFormat.Grip(IsHovered, CanReorder), Mode=OneWay}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AccessibilityView="Raw"
+                                                              ToolTipService.ToolTip="{x:Bind DragTip, Mode=OneWay}">
+                                                    </FontIcon>
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                                                         <CheckBox IsChecked="{x:Bind IsSelected, Mode=OneWay}" Tag="{x:Bind Id}" Click="OnFlowCheckClick" MinWidth="0" Padding="0"
                                                                   Visibility="{x:Bind ShowCheck, Mode=OneWay}" IsTabStop="False" AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" />
-                                                        <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}" Style="{StaticResource SettingsCardIcon}" />
+                                                        <Border Width="40" Height="40" CornerRadius="8" Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
+                                                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
+                                                            <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}" Style="{StaticResource SettingsCardIcon}" FontSize="18"
+                                                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Opacity="{x:Bind local:RowFormat.Dim(IsEnabled), Mode=OneWay}" />
+                                                        </Border>
                                                     </StackPanel>
-                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                        <TextBlock Text="{x:Bind Name, Mode=OneWay}" />
-                                                        <TextBlock Text="{x:Bind Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
-                                                                   ToolTipService.ToolTip="{x:Bind ShortcutTip, Mode=OneWay}" />
-                                                    </StackPanel>
-                                                    <!-- Small status icons (DESIGN Part D): their meaning is in the tooltips and the card's name. -->
-                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,8,0">
-                                                        <FontIcon Glyph="&#xE76F;" FontSize="14" Opacity="0.5" ToolTipService.ToolTip="{x:Bind DragTip, Mode=OneWay}" />
-                                                        <FontIcon Glyph="&#xE7B3;" FontSize="14" Visibility="{x:Bind NotInTray, Mode=OneWay}"
-                                                                  ToolTipService.ToolTip="Not in the tray menu" />
-                                                        <FontIcon Glyph="&#xE8A7;" FontSize="14" Visibility="{x:Bind HasDesktopShortcut, Mode=OneWay}"
-                                                                  ToolTipService.ToolTip="On your desktop" />
-                                                        <FontIcon Glyph="&#xE71B;" FontSize="14" Visibility="{x:Bind HasUsedBy, Mode=OneWay}"
-                                                                  ToolTipService.ToolTip="{x:Bind UsedBy, Mode=OneWay}" />
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                                                        <TextBlock Text="{x:Bind Name, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                                                   Opacity="{x:Bind local:RowFormat.Dim(IsEnabled), Mode=OneWay}" />
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <TextBlock Text="{x:Bind CaptionLead, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextWrapping="NoWrap"
+                                                                       ToolTipService.ToolTip="{x:Bind ShortcutTip, Mode=OneWay}" />
+                                                            <!-- Status dot: one ellipse per state, faded in or out, so the colours follow the theme and high contrast. -->
+                                                            <Grid Width="8" Height="8" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw">
+                                                                <Ellipse Fill="{ThemeResource SystemFillColorSuccessBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 2), Mode=OneWay}" />
+                                                                <Ellipse Fill="{ThemeResource SystemFillColorCautionBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 3), Mode=OneWay}" />
+                                                                <Ellipse Fill="{ThemeResource SystemFillColorCriticalBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 4), Mode=OneWay}" />
+                                                                <Ellipse Fill="{ThemeResource AccentFillColorDefaultBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 1), Mode=OneWay}" />
+                                                            </Grid>
+                                                            <TextBlock Text="{x:Bind CaptionRun, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                                                        </StackPanel>
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
                                                                 Visibility="{x:Bind HasProblems, Mode=OneWay}">
                                                         <FontIcon Glyph="&#xEA39;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
                                                         <TextBlock Text="{x:Bind Problems, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" />
                                                     </StackPanel>
-                                                    <ToggleSwitch Grid.Column="4" IsOn="{x:Bind IsEnabled, Mode=TwoWay}" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" MinWidth="0"
+                                                    <!-- Three fixed 28-DIP slots (DESIGN Part D): not in the tray menu, on the desktop, used by other flows.
+                                                         An empty slot stays empty, so the same column always means the same thing. -->
+                                                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw">
+                                                        <Grid Width="28" Height="28" IsHitTestVisible="{x:Bind NotInTray, Mode=OneWay}" ToolTipService.ToolTip="Not in the tray menu">
+                                                            <FontIcon Glyph="&#xE7B3;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                      Opacity="{x:Bind local:RowFormat.Show(NotInTray), Mode=OneWay}" />
+                                                        </Grid>
+                                                        <Grid Width="28" Height="28" IsHitTestVisible="{x:Bind HasDesktopShortcut, Mode=OneWay}" ToolTipService.ToolTip="On your desktop">
+                                                            <FontIcon Glyph="&#xE8A7;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                      Opacity="{x:Bind local:RowFormat.Show(HasDesktopShortcut), Mode=OneWay}" />
+                                                        </Grid>
+                                                        <Grid Width="28" Height="28" IsHitTestVisible="{x:Bind HasUsedBy, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind UsedBy, Mode=OneWay}">
+                                                            <FontIcon Glyph="&#xE71B;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                      Opacity="{x:Bind local:RowFormat.Show(HasUsedBy), Mode=OneWay}" />
+                                                        </Grid>
+                                                    </StackPanel>
+                                                    <ToggleSwitch Grid.Column="5" IsOn="{x:Bind IsEnabled, Mode=TwoWay}" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" MinWidth="0" HorizontalAlignment="Left"
                                                                   OnContent="On" OffContent="Off" AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" />
                                                     <!-- The host carries the tooltip, so the reason shows while Run is off (#62), and keeps a
                                                          click on the off button from opening the flow. -->
-                                                    <Border Grid.Column="5" Background="Transparent" VerticalAlignment="Center" Tapped="OnRunHostTapped"
+                                                    <Border Grid.Column="6" Background="Transparent" VerticalAlignment="Center" Tapped="OnRunHostTapped"
                                                             ToolTipService.ToolTip="{x:Bind RunTip, Mode=OneWay}">
-                                                        <Button Command="{x:Bind RunCommand}" Content="{x:Bind RunText, Mode=OneWay}" MinWidth="72"
+                                                        <Button Command="{x:Bind RunCommand}" Content="{x:Bind RunText, Mode=OneWay}" HorizontalAlignment="Stretch"
                                                                 AutomationProperties.Name="{x:Bind RunName, Mode=OneWay}"
                                                                 AutomationProperties.HelpText="{x:Bind RunTip, Mode=OneWay}" />
                                                     </Border>
