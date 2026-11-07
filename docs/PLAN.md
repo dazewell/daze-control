@@ -123,6 +123,22 @@ One PR (design + build). Editor edits stay in the inspector/param picker (other 
 
 ---
 
+
+## M19 Backup and restore (user, 2026-11-06; design docs/backup-restore/DESIGN.md, D-103, accepted 2026-11-06)
+One PR per task; usage is scarce (D-079). Choices answered by the user (all as recommended, DESIGN §12).
+
+- [ ] T19.1 `Core/Backup`: manifest, create/open/verify (SHA-256, zip-slip guard, format check), `IBackupFiles`, retention pruning. Files: `Core/Backup`, `Core.Tests`.
+  Done when: round trip, tamper, traversal, newer-format and old-version fixture tests; the engine AOT publish size is unchanged (±50 KB), no AOT warnings.
+- [ ] T19.2 Preview and restore engine: compare with the current config, Replace and Add-missing, needs-attention list (machine-specific values, credential names), safety copy, atomic write, Undo. Depends on T19.1.
+  Done when: tests per DESIGN §11 (merge matrix, unreadable config, secret-looking header warning); never touches `%APPDATA%` in tests.
+- [ ] T19.3 `dctl backup` / `dctl restore` (`--merge|--replace`, `--yes`, `--dry-run`, `--editor`, `--config`). Depends on T19.2; parallel with T19.4.
+  Done when: CLI tests incl. exit codes and non-interactive refusal; usage text and ARCHITECTURE CLI list updated.
+- [ ] T19.4 Editor: Settings › "Backup and restore" card (Backup now, Restore from file, drag-drop, recent list with Restore/Delete, Undo restore, auto on/off and count), restore dialog. Depends on T19.2; parallel with T19.3 (different files; keep to the Settings page to avoid `ShellWindow.xaml` conflicts).
+  Done when: VM tests (preview model, draft-open refusal, undo), screenshots light/dark/high contrast/225 % text.
+- [ ] T19.5 Automatic backups: before-update in `dctl update`, after-save (24 h gate from file names) in the editor, no timers. Depends on T19.1; parallel with T19.2–T19.4 except the Settings toggle (needs T19.4).
+  Done when: tests with `TimeProvider`; `measure.ps1` unchanged (idle 0 ms CPU, +2 MB gate).
+- [ ] T19.6 Gate: move as-built facts to ARCHITECTURE/FEATURES/UX, cut DESIGN (D-053), UX acceptance rows, release-notes line. Depends on T19.1–T19.5.
+
 ## M18 Steps: one vocabulary and the missing actions (user, 2026-11-06; proposal docs/steps-review/REVIEW.md, D-102) — after the user approves REVIEW.md
 
 Start only when the user has answered REVIEW §6; tasks marked (ask) wait for their own answer. Strings never say node, DAG or OSD.
