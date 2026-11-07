@@ -36,7 +36,8 @@ internal static class RestoreCompare
 
     private static string Describe(Flow current, Flow backup)
     {
-        var have = current.Nodes.ToDictionary(n => n.Id);
+        var have = new Dictionary<string, Node>();
+        foreach (var n in current.Nodes) have.TryAdd(n.Id, n); // a duplicate id is the validator's problem, not a crash here
         var added = backup.Nodes.Count(n => !have.ContainsKey(n.Id));
         var removed = current.Nodes.Count(n => backup.FindNode(n.Id) is null);
         var edited = backup.Nodes.Count(n => have.TryGetValue(n.Id, out var c) && c != n);
@@ -105,7 +106,7 @@ internal static class RestoreCompare
             foreach (var name in steps.Select(s => Scalar(s, "credential")).Where(n => n is { Length: > 0 }).Distinct()
                          .Where(n => !savedCredentials.Contains(n!, StringComparer.OrdinalIgnoreCase)))
                 list.Add($"Re-save the credential \"{name}\" in Library › Credentials.");
-        var missing = steps.SelectMany(PathParams).Where(IsFixed).Select(Expand).Distinct().Count(p => !pathExists(p));
+        var missing = steps.SelectMany(PathParams).Where(IsFixed).Select(Expand).Distinct(StringComparer.OrdinalIgnoreCase).Count(p => !pathExists(p));
         if (missing > 0)
             list.Add($"{missing.ToString(CultureInfo.InvariantCulture)} fixed path{(missing == 1 ? "" : "s")} in steps don't exist on this PC. Those steps fail unless the file is at the same place.");
         return list;

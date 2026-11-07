@@ -138,7 +138,7 @@ Restore (T19.2, `BackupService.Restore.cs`, `RestoreCompare`): `Preview(archive,
 returns `RestorePreview` (flow and library `ItemChange`s New/Changed/Same/OnlyHere, `CanReplace`/`CanAddMissing`, `NeedsAttention`, secret `Warnings`); an unreadable backup config
 sets `Unreadable` and disables both. `Restore(archive, RestoreMode.Replace|AddMissing, target, includeEditorLayout)` makes a `before-restore` safety backup into
 `target.SafetyFolder` (skipped if there is no config; failure stops the restore), then one `IBackupFiles.ReplaceAtomic` of config.yaml (Replace = the backup's bytes; AddMissing =
-current + new items, re-serialised, validated to load, current wins on a clash and is listed in `KeptCurrent`), then editor.json without its `window`. `Undo(outcome, target)`
+current + new items, re-serialised (comments and keys this build doesn't map are lost, said in `Notes`; refused when the current config has any load error), validated to load, current wins on a clash and is listed in `KeptCurrent`), then editor.json without its `window`. `Undo(outcome, target)`
 puts the safety copy back without a new one. Needs-attention covers failing flows, Bluetooth/screen layouts when the backup's machine differs, missing credential names
 (caller passes the engine's list), adb and fixed step paths that don't exist (checked once). Errors are `RestoreException` (Kind + the DESIGN §10 sentence). The caller (editor/`dctl`)
 refuses while a flow draft is open and keeps the outcome for Undo. T19.5: retention pruning is name-based, so give `before-restore` copies their own count or age rule (24 h).

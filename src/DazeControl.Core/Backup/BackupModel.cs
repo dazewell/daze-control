@@ -74,7 +74,13 @@ public sealed class PhysicalBackupFiles : IBackupFiles
         finally { if (File.Exists(tmp)) File.Delete(tmp); }
     }
 
-    public byte[]? TryReadAll(string path) => File.Exists(path) ? File.ReadAllBytes(path) : null;
+    // Only "not there" is null; an unreadable file must not look like a missing one (a restore would skip the safety copy).
+    public byte[]? TryReadAll(string path)
+    {
+        try { return File.ReadAllBytes(path); }
+        catch (FileNotFoundException) { return null; }
+        catch (DirectoryNotFoundException) { return null; }
+    }
 
     public void ReplaceAtomic(string path, byte[] data)
     {

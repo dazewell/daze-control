@@ -32,7 +32,11 @@ public sealed record RestorePreview(
 
 /// <summary>What a restore did. <paramref name="SafetyPath"/> is null when there was no config to save; pass the outcome to <see cref="BackupService.Undo"/>.</summary>
 public sealed record RestoreOutcome(
-    RestoreMode Mode, string? SafetyPath, bool EditorLayoutRestored, IReadOnlyList<string> KeptCurrent, IReadOnlyList<string> Notes);
+    RestoreMode Mode, string? SafetyPath, bool EditorLayoutRestored, IReadOnlyList<string> KeptCurrent, IReadOnlyList<string> Notes)
+{
+    /// <summary>editor.json as it was before the restore (kept in memory for Undo; null = there was none).</summary>
+    public byte[]? PreviousEditorJson { get; init; }
+}
 
 public enum RestoreFailure { Unreadable, CurrentUnreadable, SafetyCopyFailed, WriteFailed }
 

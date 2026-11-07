@@ -39,6 +39,7 @@ public sealed partial class BackupService
             throw new RestoreException(RestoreFailure.Unreadable, "config.yaml in this backup can't be read, so nothing was restored.");
         var text = archive.Config;
         List<string> kept = [];
+        var lossy = false;
         if (mode == RestoreMode.AddMissing)
         {
             var mine = LoadCurrent(target) ?? throw new RestoreException(RestoreFailure.CurrentUnreadable,
@@ -49,10 +50,13 @@ public sealed partial class BackupService
                 throw new RestoreException(RestoreFailure.Unreadable, "The merged config wouldn't load, so nothing was restored.");
             text = Utf8.GetBytes(mergedText);
             kept = keptCurrent;
+            lossy = true;
         }
 
         var safety = SafetyCopy(target);
         var notes = new List<string>();
+        if (lossy) notes.Add("Add what's missing rewrites config.yaml: comments and settings this version doesn't know are not kept. Undo restores the old file.");
+        var previousEditor = target.EditorJsonPath is { } ep ? files.TryReadAll(ep) : null;
         try { files.ReplaceAtomic(target.ConfigPath, text); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -72,30 +76,30 @@ public sealed partial class BackupService
             }
             else notes.Add("The editor layout in this backup can't be read, so it was skipped.");
         }
-        return new RestoreOutcome(mode, safety, editor, kept, notes);
+        return new RestoreOutcome(mode, safety, editor, kept, notes) { PreviousEditorJson = previousEditor };
     }
 
     /// <summary>Puts back what <see cref="Restore"/> replaced, from its safety copy, without a new safety copy.</summary>
     public void Undo(RestoreOutcome outcome, RestoreTarget target)
     {
         if (outcome.SafetyPath is null)
-        {
             files.Delete(target.ConfigPath); // there was no config before the restore
-            if (outcome.EditorLayoutRestored && target.EditorJsonPath is { } e) files.Delete(e);
-            return;
-        }
-        var safety = Open(outcome.SafetyPath);
-        files.ReplaceAtomic(target.ConfigPath, safety.Config);
+        else
+            files.ReplaceAtomic(target.ConfigPath, Open(outcome.SafetyPath).Config);
         if (outcome.EditorLayoutRestored && target.EditorJsonPath is { } path)
         {
-            if (safety.EditorJson is { } json) files.ReplaceAtomic(path, json);
+            if (outcome.PreviousEditorJson is { } json) files.ReplaceAtomic(path, json);
             else files.Delete(path);
         }
     }
 
-    // null = unreadable (a missing file is an empty config).
+    // null = unreadable or damaged (a missing file is an empty config).
     private Model.Configuration? LoadCurrent(RestoreTarget target) =>
-        files.TryReadAll(target.ConfigPath) is not { } bytes ? Model.Configuration.Empty : ConfigYaml.Load(Utf8.GetString(bytes)).Config;
+        files.TryReadAll(target.ConfigPath) is not { } bytes ? Model.Configuration.Empty : Whole(ConfigYaml.Load(Utf8.GetString(bytes)));
+
+    // A config the loader had to drop things from can't be merged into: the merge would write the damaged model back.
+    private static Model.Configuration? Whole(ConfigLoad load) =>
+        load.Problems.Any(p => p.Severity == Severity.Error) ? null : load.Config;
 
     private string? SafetyCopy(RestoreTarget target)
     {

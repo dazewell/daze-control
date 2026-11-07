@@ -238,6 +238,43 @@ public class RestoreTests
     }
 
     [Fact]
+    public void DamagedCurrentConfigRefusesAddMissing()
+    {
+        var f = WithCurrent("""
+            library: { bluetooth: { x: { name: X } } }
+            flows:
+              keep: { nodes: [{ id: a, step: notify, with: { text: x } }] }
+            """);
+        var svc = Svc(f);
+        var archive = Make(f, Backup);
+
+        Assert.False(svc.Preview(archive, Target).CanAddMissing);
+        Assert.Equal(RestoreFailure.CurrentUnreadable, Assert.Throws<RestoreException>(() => svc.Restore(archive, RestoreMode.AddMissing, Target)).Kind);
+    }
+
+    [Fact]
+    public void UndoRestoresAnEditorFileThatHadNoConfigBesideIt()
+    {
+        var f = new BackupTests.MemFiles();
+        f.Files[Target.EditorJsonPath!] = B("{\"nav\":\"old\"}");
+        var svc = Svc(f);
+        var archive = Make(f, Backup, B("{\"nav\":\"new\"}"));
+
+        var outcome = svc.Restore(archive, RestoreMode.Replace, Target, includeEditorLayout: true);
+        svc.Undo(outcome, Target);
+
+        Assert.Equal(B("{\"nav\":\"old\"}"), f.Files[Target.EditorJsonPath!]);
+    }
+
+    [Fact]
+    public void AddMissingSaysItRewritesTheFile()
+    {
+        var f = WithCurrent();
+        var outcome = Svc(f).Restore(Make(f, Backup), RestoreMode.AddMissing, Target);
+        Assert.Contains(outcome.Notes, n => n.Contains("rewrites config.yaml", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void EditorLayoutIsLeftAloneUnlessAsked()
     {
         var f = WithCurrent();
