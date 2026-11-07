@@ -568,7 +568,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     {
         var state = device.State is { Length: > 0 } s ? char.ToUpperInvariant(s[0]) + s[1..] : null;
         string?[] parts = [device.Detail == (device.Value ?? device.Name) ? null : device.Detail, state];
-        return string.Join(" · ", parts.OfType<string>().Where(p => p.Length > 0));
+        return Captions.Join(parts);
     }
 
     /// <summary>UX microcopy #69: the flow picker with no other flow.</summary>

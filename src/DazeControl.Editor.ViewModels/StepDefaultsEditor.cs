@@ -256,7 +256,7 @@ public sealed partial class StepDefaultRow : ObservableObject
             parts.Add(Policy(p));
         if (value.Only is { } only && stepId is not null)
             parts.Add(only == StepNode.OnlyAlways ? "Always" : "Only if " + CanvasNodeViewModel.OnlyLabel(stepId, only));
-        return string.Join(" · ", parts);
+        return Captions.Join(parts);
     }
 
     internal static string Used((int Steps, int Flows) usage) => usage.Steps == 0
