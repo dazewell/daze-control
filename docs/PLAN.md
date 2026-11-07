@@ -135,8 +135,8 @@ Start only when the user has answered REVIEW §6; tasks marked (ask) wait for th
   `StepPaletteViewModel`, `ShellWindow` Step defaults list, catalog order. Done when: nine groups in the order of REVIEW §2 F5, Check last in each, nothing saved changes.
 - [ ] T18.3 Choice captions (feat/m18-choice-captions, choice 5). Files: `ParamSpec` (captions), `ParamFieldViewModel`, card pill `Summarize`, bulk edit. Done when:
   the dropdown and pill show words, YAML keeps `notDefault` etc., bulk mixed state still works.
-- [ ] T18.4 One wording for "no such Library item" and check texts (fix/m18-messages, choice 10). Files: `Providers/*` messages, `EngineController` dry run, tests.
-- [ ] T18.5 Docs: the "Wait until" recipe (Check + Try again + Wait between tries) and more PowerShell examples (choice 7). Files: UX/FEATURES, `ProviderCatalog` examples, check steps' help.
+- [x] T18.4 (fix/m18-messages-docs) One wording for "no such Library item" and check texts (fix/m18-messages, choice 10). Files: `Providers/*` messages, `EngineController` dry run, tests.
+- [x] T18.5 (fix/m18-messages-docs) Docs: the "Wait until" recipe (Check + Try again + Wait between tries) and more PowerShell examples (choice 7). Files: UX/FEATURES, `ProviderCatalog` examples, check steps' help.
 - [ ] T18.6 `process.close` Close program (feat/m18-process-close, after T18.1). Files: `Providers/Process`, catalog. Done when: fake-process tests (graceful, force after time,
   not running = success, elevated = clear sentence); live: closes Notepad.
 - [ ] T18.7 Android Stop app; Disconnect and Wake only if the user said yes (feat/m18-android, after T18.1). Files: `Providers/Android`, catalog. Done when: fake-adb tests, same lock and timeout.

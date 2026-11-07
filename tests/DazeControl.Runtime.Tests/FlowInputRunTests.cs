@@ -144,7 +144,7 @@ public sealed class FlowInputRunTests : IDisposable
 
         Assert.Equal(FlowOutcome.Failed, result.Outcome);
         var sony = NodeOf(result.Nodes, "sony");
-        Assert.Equal("Output (from Headphones: sony) isn't in your Library anymore.", sony.Error);
+        Assert.Equal("Headphones passes Output \"sony\", but there's no audio device called that in your Library.", sony.Error);
         Assert.Null(sony.Called);
     }
 

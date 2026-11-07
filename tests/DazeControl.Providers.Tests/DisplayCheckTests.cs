@@ -89,35 +89,35 @@ public class DisplayCheckTests
 
     [Fact]
     public void AScreenLeftOffIsNamed() =>
-        Assert.Equal("Windows set up the screens differently: DELL S2722QC is still off.",
+        Assert.Equal("Windows set up the screens differently: DELL S2722QC is still off",
             DisplayCheck.Differences([WantLaptop, WantDell], [Laptop()]));
 
     [Fact]
     public void UseOnlyTheDellFromExtendThatLeftTheLaptopDuplicatedFails()
     {
         // X-009: two paths, one source, and the step said Succeeded.
-        Assert.Equal("Windows set up the screens differently: ATNA40HQ05-0 is still on.",
+        Assert.Equal("Windows set up the screens differently: ATNA40HQ05-0 is still on",
             DisplayCheck.Differences([WantDell with { Group = 0 }], [Laptop(0, 0), DellNow(0)]));
     }
 
     [Fact]
     public void TwoScreensOnOnePictureFailUnlessAsked()
     {
-        Assert.Equal("Windows set up the screens differently: ATNA40HQ05-0 and DELL S2722QC show the same picture.",
+        Assert.Equal("Windows set up the screens differently: ATNA40HQ05-0 and DELL S2722QC show the same picture",
             DisplayCheck.Differences([WantLaptop, WantDell], [Laptop(0, 0), DellNow(0)]));
         Assert.Null(DisplayCheck.Differences([WantLaptop with { Group = 1 }, WantDell], [Laptop(0, 0), DellNow(0)]));
     }
 
     [Fact]
     public void ASavedDuplicateThatCameUpApartFails() =>
-        Assert.Equal("Windows set up the screens differently: ATNA40HQ05-0 and DELL S2722QC don't show the same picture.",
+        Assert.Equal("Windows set up the screens differently: ATNA40HQ05-0 and DELL S2722QC don't show the same picture",
             DisplayCheck.Differences([WantLaptop with { Group = 1, Place = null }, WantDell with { Place = null }], [Laptop(0), DellNow(1)], "Mirror"));
 
     [Fact]
     public void AMadeUpArrangementFailsALayout()
     {
         // X-009: laptop primary, DELL to its right.
-        Assert.Equal("Windows set up the screens differently: ATNA40HQ05-0 isn't where Dual puts it.",
+        Assert.Equal("Windows set up the screens differently: ATNA40HQ05-0 isn't where Dual puts it",
             DisplayCheck.Differences([WantLaptop, WantDell], [Laptop(0, 0), DellNow(1, 2880)], "Dual"));
     }
 

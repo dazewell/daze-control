@@ -74,6 +74,19 @@ public sealed record Library
 
     public ValueList<AndroidDevice> Android { get; init; } = [];
 
+    /// <summary>What a Library item of this kind is called in messages ("audio device").</summary>
+    public static string KindName(LibraryKind kind) => kind switch
+    {
+        LibraryKind.Audio => "audio device",
+        LibraryKind.Bluetooth => "Bluetooth device",
+        LibraryKind.Display => "screen layout",
+        LibraryKind.Android => "Android device",
+        _ => kind.ToString(),
+    };
+
+    /// <summary>The one sentence for a missing Library item (T18.4).</summary>
+    public static string Missing(LibraryKind kind, string key) => $"There's no {KindName(kind)} called \"{key}\" in your Library.";
+
     public bool Contains(LibraryKind kind, string key) => kind switch
     {
         LibraryKind.Audio => Audio.Any(d => d.Key == key),

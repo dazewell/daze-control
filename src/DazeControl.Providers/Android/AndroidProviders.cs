@@ -135,7 +135,7 @@ internal static class AndroidSteps
     {
         var key = context.RequiredText("device");
         return context.Library.Android.FirstOrDefault(d => d.Key == key)
-            ?? throw new StepFailedException($"There's no Android device called \"{key}\" in the library.");
+            ?? throw new StepFailedException(Library.Missing(LibraryKind.Android, key));
     }
 }
 
