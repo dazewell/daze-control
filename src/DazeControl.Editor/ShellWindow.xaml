@@ -745,7 +745,8 @@
                                         <TextBlock Text="Configuration" />
                                         <TextBlock Text="{x:Bind ViewModel.Settings.ConfigPath}" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
                                     </StackPanel>
-                                    <Button Grid.Column="2" Content="Open folder" Click="OnOpenConfigFolder" />
+                                    <Button Grid.Column="2" Content="Open file" Click="OnOpenConfigFile"
+                                            ToolTipService.ToolTip="Open the configuration file in its default app" />
                                 </Grid>
                                 <Grid Style="{StaticResource SettingsCard}">
                                     <Grid.ColumnDefinitions>
@@ -764,12 +765,14 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <FontIcon Glyph="&#xE8B7;" Style="{StaticResource SettingsCardIcon}" />
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                         <TextBlock Text="App folder" />
                                         <TextBlock x:Name="AppFolderText" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
                                     </StackPanel>
+                                    <Button Grid.Column="2" Content="Open folder" Click="OnOpenAppFolder" />
                                 </Grid>
                             </StackPanel>
                         </Grid>
