@@ -182,6 +182,8 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   Layout List / Grid, Size Normal / Large "For a TV across the room", Close after (s), "Wait for it to finish" (#41).
   "Test this step" shows the real menu and runs nothing (#42). (Controller-button chords and their recorder were removed, D-086.)
 
+**Motion (D-097).** Changes in the configuration pages animate instead of jumping: new rows fade in (120 ms) and their neighbours slide (167 ms); selecting another step fades the pane from 0.4 to full. Only opacity and position move, never size of text, and the control being used never moves under the pointer. Put `motion:Motion.Animate="True"` on a panel (or `AnimateItems` on an ItemsControl) in a new page. With Windows "Animation effects" off nothing animates.
+
 ## 5.5 Runs
 - Live: canvas overlays states; CommandBar "Running · 2 of 4" + Stop; finished pill summary becomes its
   duration; editing locked with an InfoBar. Dry run numbers nodes in start order, missing refs show failed,

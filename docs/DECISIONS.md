@@ -1287,3 +1287,6 @@ Status: accepted (user, 2026-11-06: stop running `adb connect` from a PowerShell
   only need the link up. No pairing (`adb pair` needs a one-time code; codes never go in YAML or logs, D-014).
 - Why not a disconnect step: not asked; add it the same way if wanted. No "Only if" check: T14.9 is parked.
 
+## D-097 · 2026-11-06 · Editor motion: shared tokens, built-in transitions, nothing continuous
+The configuration pages (inspector, Settings, Many mode) no longer snap. `Motion.Animate` (attached property on a panel, in `Motion.cs`) gives a panel `RepositionThemeTransition` on its children (neighbours slide) plus an implicit fade-in when a child turns visible; `Motion.AnimateItems` gives an ItemsControl add/delete + reposition transitions; selecting another step fades the pane (`Motion.Swap`, opacity only). Tokens in `MotionTokens` (fade 120 ms, reposition 167 ms, swap starts at 0.4 opacity). Rejected: per-step patches (every step type would need them); hide animations (delay Visibility, break focus/click); scale or offset on the pane (moves inputs under the pointer, blurs text). The Windows "Animation effects" setting (`UISettings.AnimationsEnabled`) is read when a panel loads (no listener); off or unreadable = no animation at all. All animations are one-shot composition animations: nothing runs while idle.
+
