@@ -596,3 +596,4 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   Done (D-078; feat/l1-android-inputs, 0.39.0): `AndroidInputEdits` (Core), the card's Inputs panel, the inspector
   link (`ShellViewModel.LibraryRequested`). Live-checked on a scratch config: add, moves, rename (the step followed),
   save; the link's nav-pane hop is covered by a view-model test only (selecting a step needs the foreground).
+- [x] W1 The editor window remembers its place (user, 2026-11-06; D-098, feat/editor-window-geometry): `WindowPlacementLogic` (Editor.ViewModels, tested) + `WindowPlacementInterop`, saved in `editor.json` on close. Live-checked on a scratch config (move, resize, maximize, minimize, off-screen, corrupt file).

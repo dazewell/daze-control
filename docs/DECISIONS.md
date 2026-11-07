@@ -1290,3 +1290,16 @@ Status: accepted (user, 2026-11-06: stop running `adb connect` from a PowerShell
 ## D-097 · 2026-11-06 · Editor motion: shared tokens, built-in transitions, nothing continuous
 The configuration pages (inspector, Settings, Many mode) no longer snap. `Motion.Animate` (attached property on a panel, in `Motion.cs`) gives a panel `RepositionThemeTransition` on its children (neighbours slide) plus an implicit fade-in when a child turns visible; `Motion.AnimateItems` gives an ItemsControl add/delete + reposition transitions; selecting another step fades the pane (`Motion.Swap`, opacity only). Tokens in `MotionTokens` (fade 120 ms, swap starts at 0.4 opacity; slides use WinUI's own reposition timing). Rejected: per-step patches (every step type would need them); hide animations (delay Visibility, break focus/click); scale or offset on the pane (moves inputs under the pointer, blurs text). The Windows "Animation effects" setting (`UISettings.AnimationsEnabled`) is read when a panel loads or a swap starts (no listener); off or unreadable = no animation at all. All animations are one-shot composition animations: nothing runs while idle.
 
+## D-098 · 2026-11-06 · The editor window remembers its place: `editor.json` › `window`, saved on close
+Status: accepted (user, 2026-11-06: big flows meant resizing every launch)
+- Decision: on close (`AppWindow.Closing`, before any "unsaved" prompt) the editor stores the restored rectangle
+  (`GetWindowPlacement`, workspace → screen pixels), the maximized flag and the window's DPI under `window` in D-068's
+  `editor.json`; the store's existing write on exit persists it. No timer, nothing on resize. At start
+  `WindowPlacementLogic.Resolve` (pure, tested) picks the rectangle: the one monitor it overlaps most by ≥ 120×48 px,
+  size rescaled if that monitor's DPI differs from the saved one (size stays the same in DIP), clamped into its work
+  area. Off every monitor, smaller than 640×420 DIP, or unreadable → the 1100×720 DIP default centred on the current
+  monitor (the maximized flag still applies). The window is moved/sized before the first `Activate`, then maximized.
+- Why: editor closed = not running (idle = zero), so the geometry must outlive the process. Reusing `editor.json`
+  keeps one per-PC view-state file; config.yaml holds flows the user may share, and writing it makes the engine reload.
+- Why not `SetWindowPlacement` on start: it can't clamp to a changed monitor layout or rescale for DPI.
+- Other windows: the editor is one window; dialogs are `ContentDialog`s sized by content, nothing to remember.

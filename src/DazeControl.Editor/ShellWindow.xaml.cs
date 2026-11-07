@@ -30,9 +30,6 @@ namespace DazeControl.Editor;
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "Disposed when the window closes, which ends the app.")]
 public sealed partial class ShellWindow : Window
 {
-    private const int WidthDip = 1100;
-    private const int HeightDip = 720;
-
     private readonly FileSystemWatcher? _watcher;
     private readonly DispatcherQueueTimer _watchDelay;
     private bool _closeAnyway;
@@ -71,8 +68,7 @@ public sealed partial class ShellWindow : Window
         ViewModel.Library.FlowRequested += OnLibraryFlowRequested; // after the view model's own handler, which opens it
         ViewModel.CalledFlowRequested += OnCalledFlowRequested;
         ViewModel.LibraryRequested += OnLibraryRequested;
-        var scale = GetDpiForWindow(hwnd) / 96.0;
-        AppWindow.Resize(new SizeInt32((int)(WidthDip * scale), (int)(HeightDip * scale)));
+        WindowPlacementInterop.Apply(this, ViewModel.EditorSettings?.Settings.Window); // D-098
 
         ViewModel.Session.PropertyChanged += OnSessionChanged;
         ViewModel.PropertyChanged += OnShellChanged;
@@ -147,6 +143,7 @@ public sealed partial class ShellWindow : Window
     /// </summary>
     private async void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
+        SaveWindowPlacement(); // the store writes it when the app ends (D-098)
         if (_closeAnyway)
             return;
         if (ViewModel.Flows.CanUndoDelete)
@@ -166,6 +163,12 @@ public sealed partial class ShellWindow : Window
             _closeAnyway = true;
             Close();
         }
+    }
+
+    private void SaveWindowPlacement()
+    {
+        if (ViewModel.EditorSettings is { } store && WindowPlacementInterop.Capture(this) is { } placement)
+            store.Update(s => s.Window = placement);
     }
 
     /// <summary>True when nothing is unsaved, or the user chose to lose it. False while the question is already up.</summary>
