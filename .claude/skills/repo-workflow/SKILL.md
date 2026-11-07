@@ -52,7 +52,7 @@ Never commit `bin/`, `obj/`, `artifacts/`, local settings, or anything with secr
 
 Version: **PRs never touch `<Version>`** (D-079). The release tag is the version: the cutter picks the next number
 from the PR titles since the last tag (any `feat` → minor, else patch); `<Version>` in `Directory.Build.props`
-only labels local builds.
+only labels local builds. To cut a release (only when the user asks): `release` skill.
 
 ## 5. Definition of done
 
