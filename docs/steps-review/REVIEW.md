@@ -19,6 +19,21 @@ Decision proposed: D-102. Follow-up work: PLAN → M18, only after the user answ
 - Choice params show their YAML word in the dropdown and in the card pill (`Spec.Choices` used as is): users see `notDefault`,
   `notRunning`, `communications`, `extend`.
 
+## Adding a step: checklist (standing rule, D-102/D-105)
+
+Enforced by `StepConventionTests`; follow it so the test never has to tell you.
+1. **Title**: imperative verb + bare object, sentence case, no article, group name not repeated ("Set volume", "Open address"). Checks are
+   "Check <noun>" and the only ones. Verb not in the test's list = add it there on purpose. Same title in two groups is fine, twice in one is not.
+2. **Id**: `area.verb` in camelCase (`android.setVolume`). Never rename an id; add new ones to `RetitledStepsKeepTheirSavedIds`.
+3. **Group**: one of the nine themed groups (`CanvasNodeViewModel.Groups`); the id's area maps to it. A step targeting the PC goes in Audio/Displays/…;
+   one targeting a device goes with that device's group. A tenth group needs a decision.
+4. **Order** inside the group (catalog order): connect/start, then act, then undo/stop, **Check last**.
+5. **Params**: device is `device` ("Android device"); a Choice has a `Captions` entry per choice (users never see camelCase); numbers carry `Min`/`Max`;
+   help text is one short sentence; a percent is "(%)" and 0 to 100.
+6. **Behaviour**: default timeout (Short, 20 s for adb, 30 s services/programs), a `Resources` lock, idempotent where it can be (set, not toggle),
+   fail with a plain sentence, no polling, honours cancellation.
+7. **Tests**: provider test with a fake (no device), validation range test, catalog id list; docs: FEATURES line, UX list if the inspector shows it.
+
 ## 1. Inventory (29 step types, 14 palette groups, in palette order)
 
 Timeout = default "Give up after". Lock = resource name held while the step runs. "Only if" ids in brackets. All durations are text like

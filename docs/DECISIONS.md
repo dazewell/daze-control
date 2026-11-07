@@ -1362,3 +1362,17 @@ Status: accepted (user, 2026-11-07: "I don't want UI to jump without a strong re
 - Left alone: the top-of-page error/conflict bars (rare, must be seen), Run to Stop swap, the Flows selection bar (user action, animated).
 - Revisit if: the user still notices a specific jump: add it to the reserved-slot list.
 
+## D-105 · 2026-11-07 · Android media and sound steps: seven steps, percent of the device's own range, no toggles
+Status: accepted (user via coordinator, 2026-11-07: "broader than key events"; the set is the session's judgment)
+- Decision: Android group gets `android.media` (Control media: play/pause/stop/next/previous/fast forward/rewind, sent as media keys),
+  `android.setVolume` (stream media/ring/alarm/notification/system, 0 to 100 %), `android.changeVolume` (up/down 1 to 30 times),
+  `android.mute` (Mute or unmute, media stream), `android.setBrightness` (0 to 100 %, turns auto off), `android.open` (Open address, VIEW intent),
+  `android.wake`; `android.keys` gets 19 more key names. Group order: Connect, Start/Stop app, Open address, Choose input, Send keys, media and
+  sound, brightness, Wake, Sleep.
+- Volume: read `[min..max]` with `cmd media_session volume --get`, fall back to `media volume`, then set round(percent of range). Nothing works =
+  a plain "can't set its volume over adb (Android 8+)" failure, never a guess. Mute uses `--adj mute|unmute` (fallback `cmd audio adj-mute`),
+  because the mute key is a toggle and flows should be repeatable (D-081 style).
+- Why not: a percent-only guess of the maximum (devices differ: 7, 15, 25, 100); a "Toggle mute" step (not repeatable); a Media group in the
+  key box (it is a free-text suggestion box; names are prefixed `media_`).
+- Not done: reading the volume back as a check; per-app volume; install/type text (D-102 "No").
+- Not run on a real device (adb output formats are from AOSP source); the first live run is the check.

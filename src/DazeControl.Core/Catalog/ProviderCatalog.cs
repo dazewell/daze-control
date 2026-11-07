@@ -140,27 +140,8 @@ public static class ProviderCatalog
                 Suggest = ParamSuggest.Devices("credentials"),
             },
         ]),
-        new("android.input", "Choose input", Tv, TimeSpan.FromSeconds(20),
-        [
-            Ref("device", "Android device", LibraryKind.Android),
-            new("input", ParamKind.Text, "Input")
-            {
-                Required = true, Help = "One of the inputs saved with the Android device.",
-                Suggest = ParamSuggest.Config(ParamSuggest.AndroidInputs),
-            },
-        ])
-        { Resources = ["adb:{device}"] },
-        new("android.keys", "Send keys", Tv, TimeSpan.FromSeconds(20),
-        [
-            Ref("device", "Android device", LibraryKind.Android),
-            new("keys", ParamKind.TextList, "Keys")
-            {
-                Required = true, Help = "Sent in order. Alt+Up or Alt+Down on a key's × moves it.",
-                Suggest = ParamSuggest.Static("androidKeys", AndroidKeys.Names), Ordered = true,
-            },
-        ])
-        { Resources = ["adb:{device}"] },
-        new("android.sleep", "Sleep", Tv, TimeSpan.FromSeconds(20),
+        // Android order (REVIEW F6): connect, apps, input and keys, media and sound, screen, wake/sleep.
+        new("android.connect", "Connect", Tv, TimeSpan.FromSeconds(20),
             [Ref("device", "Android device", LibraryKind.Android)])
         { Resources = ["adb:{device}"] },
         new("android.start", "Start app", Tv, TimeSpan.FromSeconds(20),
@@ -183,7 +164,81 @@ public static class ProviderCatalog
             },
         ])
         { Resources = ["adb:{device}"] },
-        new("android.connect", "Connect", Tv, TimeSpan.FromSeconds(20),
+        new("android.open", "Open address", Tv, TimeSpan.FromSeconds(20),
+        [
+            Ref("device", "Android device", LibraryKind.Android),
+            new("address", ParamKind.Text, "Address")
+            {
+                Required = true, Help = "Opens in the app that handles it.",
+                Examples = [new("A web page", "https://example.com"), new("A YouTube video", "https://www.youtube.com/watch?v=dQw4w9WgXcQ")],
+            },
+        ])
+        { Resources = ["adb:{device}"] },
+        new("android.input", "Choose input", Tv, TimeSpan.FromSeconds(20),
+        [
+            Ref("device", "Android device", LibraryKind.Android),
+            new("input", ParamKind.Text, "Input")
+            {
+                Required = true, Help = "One of the inputs saved with the Android device.",
+                Suggest = ParamSuggest.Config(ParamSuggest.AndroidInputs),
+            },
+        ])
+        { Resources = ["adb:{device}"] },
+        new("android.keys", "Send keys", Tv, TimeSpan.FromSeconds(20),
+        [
+            Ref("device", "Android device", LibraryKind.Android),
+            new("keys", ParamKind.TextList, "Keys")
+            {
+                Required = true, Help = "Sent in order. Alt+Up or Alt+Down on a key's × moves it.",
+                Suggest = ParamSuggest.Static("androidKeys", AndroidKeys.Names), Ordered = true,
+            },
+        ])
+        { Resources = ["adb:{device}"] },
+        new("android.media", "Control media", Tv, TimeSpan.FromSeconds(20),
+        [
+            Ref("device", "Android device", LibraryKind.Android),
+            new("action", ParamKind.Choice, "Action")
+            {
+                Choices = ["playPause", "play", "pause", "stop", "next", "previous", "fastForward", "rewind"],
+                Captions = ["Play or pause", "Play", "Pause", "Stop", "Next track", "Previous track", "Fast forward", "Rewind"],
+                Default = "playPause", Help = "Goes to the app that is playing.",
+            },
+        ])
+        { Resources = ["adb:{device}"], Keywords = "play pause next previous track music video" },
+        new("android.setVolume", "Set volume", Tv, TimeSpan.FromSeconds(20),
+        [
+            Ref("device", "Android device", LibraryKind.Android),
+            new("stream", ParamKind.Choice, "Volume of")
+            {
+                Choices = ["media", "ring", "alarm", "notification", "system"],
+                Captions = ["Media", "Ringtone", "Alarms", "Notifications", "System sounds"], Default = "media",
+            },
+            new("percent", ParamKind.WholeNumber, "Volume (%)") { Required = true, Min = 0, Max = 100, Help = "A share of the device's own range." },
+        ])
+        { Resources = ["adb:{device}"] },
+        new("android.changeVolume", "Change volume", Tv, TimeSpan.FromSeconds(20),
+        [
+            Ref("device", "Android device", LibraryKind.Android),
+            new("direction", ParamKind.Choice, "Direction") { Choices = ["up", "down"], Captions = ["Louder", "Quieter"], Default = "up" },
+            new("times", ParamKind.WholeNumber, "Steps") { Min = 1, Max = 30, Default = "1", Help = "How many times the volume key is pressed." },
+        ])
+        { Resources = ["adb:{device}"] },
+        new("android.mute", "Mute or unmute", Tv, TimeSpan.FromSeconds(20),
+        [
+            Ref("device", "Android device", LibraryKind.Android),
+            new("muted", ParamKind.Boolean, "Muted") { Default = "true" },
+        ])
+        { Resources = ["adb:{device}"] },
+        new("android.setBrightness", "Set brightness", Tv, TimeSpan.FromSeconds(20),
+        [
+            Ref("device", "Android device", LibraryKind.Android),
+            new("percent", ParamKind.WholeNumber, "Brightness (%)") { Required = true, Min = 0, Max = 100, Help = "Turns automatic brightness off." },
+        ])
+        { Resources = ["adb:{device}"] },
+        new("android.wake", "Wake", Tv, TimeSpan.FromSeconds(20),
+            [Ref("device", "Android device", LibraryKind.Android)])
+        { Resources = ["adb:{device}"] },
+        new("android.sleep", "Sleep", Tv, TimeSpan.FromSeconds(20),
             [Ref("device", "Android device", LibraryKind.Android)])
         { Resources = ["adb:{device}"] },
         new("service.start", "Start service", Service, TimeSpan.FromSeconds(30),
