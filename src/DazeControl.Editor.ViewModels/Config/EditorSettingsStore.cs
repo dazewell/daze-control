@@ -18,6 +18,9 @@ public sealed class EditorSettings
     /// <summary>The Flows list's view choices (D-087).</summary>
     public FlowListSettings FlowList { get; set; } = new();
 
+    /// <summary>Where the window was last closed (D-098). Null = never saved: the default size.</summary>
+    public WindowSettings? Window { get; set; }
+
     /// <summary>Keys a newer editor wrote: kept, so going back a version doesn't lose them.</summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Other { get; set; }

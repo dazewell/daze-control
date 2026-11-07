@@ -1287,3 +1287,17 @@ Status: accepted (user, 2026-11-06: stop running `adb connect` from a PowerShell
   only need the link up. No pairing (`adb pair` needs a one-time code; codes never go in YAML or logs, D-014).
 - Why not a disconnect step: not asked; add it the same way if wanted. No "Only if" check: T14.9 is parked.
 
+
+## D-098 · 2026-11-06 · The editor window remembers its place: `editor.json` › `window`, saved on close
+Status: accepted (user, 2026-11-06: big flows meant resizing every launch)
+- Decision: on close (`AppWindow.Closing`, before any "unsaved" prompt) the editor stores the restored rectangle
+  (`GetWindowPlacement`, workspace → screen pixels), the maximized flag and the window's DPI under `window` in D-068's
+  `editor.json`; the store's existing write on exit persists it. No timer, nothing on resize. At start
+  `WindowPlacementLogic.Resolve` (pure, tested) picks the rectangle: the one monitor it overlaps most by ≥ 120×48 px,
+  size rescaled if that monitor's DPI differs from the saved one (size stays the same in DIP), clamped into its work
+  area. Off every monitor, smaller than 640×420 DIP, or unreadable → the 1100×720 DIP default centred on the current
+  monitor (the maximized flag still applies). The window is moved/sized before the first `Activate`, then maximized.
+- Why: editor closed = not running (idle = zero), so the geometry must outlive the process. Reusing `editor.json`
+  keeps one per-PC view-state file; config.yaml holds flows the user may share, and writing it makes the engine reload.
+- Why not `SetWindowPlacement` on start: it can't clamp to a changed monitor layout or rescale for DPI.
+- Other windows: the editor is one window; dialogs are `ContentDialog`s sized by content, nothing to remember.
