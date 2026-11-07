@@ -1346,3 +1346,12 @@ Status: accepted (user, 2026-11-06: all 12 open choices of docs/steps-review/REV
 - Why: titles, groups and captions are not saved, so the whole pass costs no migration; ids are what old flows and backups contain.
 - Why not rename ids to a perfect `area.verb`: needs an alias table kept forever (old backups) for no user-visible gain.
 - Revisit if: a new step cannot follow `area.verb`, or the user hand-edits YAML a lot.
+
+## D-104 · 2026-11-07 · No layout jumps: reserved slots, overlays, animated slides
+Status: accepted (user, 2026-11-07: "I don't want UI to jump without a strong reason, in any sense, in any place")
+- Decision: the flow editor's "Not saved" text is a dot in a fixed 12 px slot (opacity fade, `OpacityTransition` with the D-097 fade token, tooltip + accessible name "Unsaved changes"; Save's tooltip and enabled state say it too). Status that toggles gets a reserved slot (Restart now, Make this my order: disabled and transparent/disabled instead of collapsed) or overlays free space (the run result bar over the canvas). The Flows page panel uses `Motion.Animate`, so bars above the list slide it instead of snapping. Exceptions are listed in UX.md "No layout jumps".
+- Why not text in a reserved-width label: still reads as noise at the top of the editor; a dot plus the enabled accent Save says the same.
+- Why not reserve space for every field error: every inspector would grow a permanent gap; the panel already animates them (D-097).
+- Left alone: the top-of-page error/conflict bars (rare, must be seen), Run to Stop swap, the Flows selection bar (user action, animated).
+- Revisit if: the user still notices a specific jump: add it to the reserved-slot list.
+

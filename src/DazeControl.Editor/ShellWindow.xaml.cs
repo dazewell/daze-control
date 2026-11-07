@@ -53,6 +53,8 @@ public sealed partial class ShellWindow : Window
         {
             ImageSource = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(Path.Combine(assets, "app.png"))),
         };
+        if (Motion.Enabled)
+            DraftDot.OpacityTransition = new ScalarTransition { Duration = MotionTokens.Duration(true, MotionTokens.FadeMs) };
         SecondsBox.Minimum = SettingsPageViewModel.MinPopupSeconds;
         SecondsBox.Maximum = SettingsPageViewModel.MaxPopupSeconds;
         ViewModel.Settings.StepDefaults.Rows.CollectionChanged += (_, _) => ShowStepDefaultsEmpty();
@@ -447,6 +449,9 @@ public sealed partial class ShellWindow : Window
         RunsPage.Visibility = Show(!editing && ViewModel.Page == EditorPage.Runs);
         PagesScroller.Visibility = Show(!editing && ViewModel.Page != EditorPage.Runs);
     }
+
+    /// <summary>For a control whose slot stays reserved (D-104): invisible, and disabled alongside, instead of collapsed.</summary>
+    public static double Fade(bool visible) => visible ? 1 : 0;
 
     private static Visibility Show(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
 
@@ -1088,7 +1093,14 @@ public sealed partial class ShellWindow : Window
         var changed = _editor is { HasChanges: true };
         SaveButton.IsEnabled = (changed || _textFocused) && _editor is { CanEdit: true };
         CancelButton.IsEnabled = changed && _editor!.CanEdit;
-        DraftText.Visibility = Show(changed);
+        var showDot = changed && _editor!.CanEdit;
+        DraftDot.Opacity = showDot ? 1 : 0;
+        ToolTipService.SetToolTip(DraftSlot, showDot ? "Unsaved changes" : null);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(DraftSlot, showDot ? "Unsaved changes" : "");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(DraftSlot, showDot ? Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Content : Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+        ToolTipService.SetToolTip(SaveButton, changed
+            ? "You have unsaved changes. Save them (Ctrl+S)"
+            : "Save your changes to this flow (Ctrl+S)");
         ToolTipService.SetToolTip(RunButton, changed
             ? "Run this flow as last saved. Save first to run your changes, or try them with Dry run."
             : "Run this flow now");

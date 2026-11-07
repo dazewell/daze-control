@@ -16,7 +16,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   Details list its screens; an Android card's Inputs panel adds, renames (steps follow), removes (off while used) inputs
   and edits each one's moves as Up/Down chips in order (D-078); Programs add Open file location) · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, step defaults),
   **About** (version + Copy details, Updates, Files: config, logs and app folders). Save errors: InfoBar on top of every page.
-- Flow editor: "Not saved" + **Save** (accent, Ctrl+S) + **Cancel** beside the breadcrumb (D-047): edits are a
+- Flow editor: an unsaved-changes dot (fixed slot, tooltip "Unsaved changes", D-104) + **Save** (accent, Ctrl+S) + **Cancel** beside the breadcrumb (D-047): edits are a
   draft until Save; Cancel throws it away; leaving the flow (breadcrumb, nav pane, closing the window) with a draft
   asks "Save your changes to <flow>?" Save / Don't save / Cancel. **Flows** in the nav pane while a flow is open
   goes back to the list (after that prompt; Cancel stays in the flow). Run runs the saved version (its tooltip says so);
@@ -44,6 +44,16 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   (it stores the id), captions "Turned off" / "Needs fixing" (#29); a deleted target stays selected as its id with
   "Isn't there anymore" and #51 under it; with no other flow it says #69; empty, #9 says "Choose a flow.". The Steps
   panel lists it under **Flows**, and its card shows the called flow's name.
+
+### No layout jumps (D-104)
+Nothing the user is looking at moves unless they caused it and it has to. Status that comes and goes (a dirty dot, a
+"Restart now" button, a "Make this my order" button, a run result) gets a slot that is always there: invisible and
+disabled when off, or drawn over empty space (the run result bar sits over the canvas), never collapsed. Allowed:
+(1) a section the user just opened or a row they just added, animated with the motion tokens (D-097); (2) a field's
+own validation line, in a panel with `Motion.Animate` (it slides, never snaps); (3) a different page or mode (Run
+becomes Stop while a run is on); (4) rare persistent bars that must be seen on top of every page (can't edit, couldn't
+save, conflict, engine not running). Never: a status text or a button that shifts its neighbours, a list that jumps
+when a bar appears (the Flows page panel animates), scroll position lost on update.
 
 ## 5.2 Canvas interaction
 - **Layout is always automatic** (D-020): left→right columns (one per layer), gaps 64 between columns, 16
