@@ -1455,7 +1455,32 @@ public sealed partial class ShellWindow : Window
         }
     }
 
-    private void OnOpenConfigFolder(object sender, RoutedEventArgs e) => OpenFolder(Path.GetDirectoryName(ViewModel.Session.Path)!);
+    /// <summary>Opens the config file in its associated app; with no file or no app for it, its folder opens instead.</summary>
+    private void OnOpenConfigFile(object sender, RoutedEventArgs e)
+    {
+        var file = ViewModel.Session.Path;
+        try
+        {
+            if (File.Exists(file))
+            {
+                using var _ = Process.Start(new ProcessStartInfo(file) { UseShellExecute = true });
+                return;
+            }
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
+        {
+            // No app for the file type: fall through to the folder.
+        }
+        TryOpenFolder(Path.GetDirectoryName(file)!);
+    }
+
+    private void OnOpenAppFolder(object sender, RoutedEventArgs e) => TryOpenFolder(AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar));
+
+    private static void TryOpenFolder(string folder)
+    {
+        try { OpenFolder(folder); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception) { }
+    }
 
     private void ShowStepDefaultsEmpty() =>
         StepDefaultsEmpty.Visibility = ViewModel.Settings.StepDefaults.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
