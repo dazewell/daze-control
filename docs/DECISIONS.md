@@ -1271,8 +1271,8 @@ Status: accepted (user asked for touchpad and mouse back/forward, 2026-11-06)
   or Flows + the open flow's id; it is recorded from `Page` and `Editor` changes, so every route (nav pane, breadcrumb, Used by,
   Runs, "Open this flow") is covered without touching the pages. Opening flow B from A is one step (no list between).
   Triggers: mouse XButton1/2 (pointer event, handled-too), `WM_APPCOMMAND` back/forward (touchpad gestures, subclass), Alt+Left/Right
-  (not while a Flows card has focus: Alt+Left moves it out of its group, D-088). One click can arrive as both pointer and
-  APPCOMMAND: the second within 300 ms is ignored. Back/Forward ask the D-047 prompt first (Cancel stays); entries whose flow
+  (Alt+Left not while a Flows card has focus: it moves it out of its group, D-088). One click can arrive as both pointer and
+  APPCOMMAND: a second one in the same direction within 300 ms is ignored. Back/Forward ask the D-047 prompt first (Cancel stays); entries whose flow
   was deleted are skipped; a rename follows (D-075). No on-screen button: none existed, the tray-less editor has the breadcrumb.
 - Why not restore selection and scroll: no cheap hook in the canvas; a flow opens fresh as it does today.
 - Revisit if: users want a visible Back button or scroll/selection restore.
