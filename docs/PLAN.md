@@ -131,7 +131,7 @@ One PR per task; usage is scarce (D-079). Choices answered by the user (all as r
   Done when: round trip, tamper, traversal, newer-format and old-version fixture tests; the engine AOT publish size is unchanged (±50 KB), no AOT warnings.
 - [x] T19.2 Preview and restore engine: compare with the current config, Replace and Add-missing, needs-attention list (machine-specific values, credential names), safety copy, atomic write, Undo. Depends on T19.1. Done: feat/m19-restore-engine.
   Done when: tests per DESIGN §11 (merge matrix, unreadable config, secret-looking header warning); never touches `%APPDATA%` in tests.
-- [ ] T19.3 `dctl backup` / `dctl restore` (`--merge|--replace`, `--yes`, `--dry-run`, `--editor`, `--config`). Depends on T19.2; parallel with T19.4.
+- [x] T19.3 `dctl backup` / `dctl restore` (`--merge|--replace`, `--yes`, `--dry-run`, `--editor`, `--config`). Depends on T19.2; parallel with T19.4. Done: feat/m19-backup-cli.
   Done when: CLI tests incl. exit codes and non-interactive refusal; usage text and ARCHITECTURE CLI list updated.
 - [ ] T19.4 Editor: Settings › "Backup and restore" card (Backup now, Restore from file, drag-drop, recent list with Restore/Delete, Undo restore, auto on/off and count), restore dialog. Depends on T19.2; parallel with T19.3 (different files; keep to the Settings page to avoid `ShellWindow.xaml` conflicts).
   Done when: VM tests (preview model, draft-open refusal, undo), screenshots light/dark/high contrast/225 % text.

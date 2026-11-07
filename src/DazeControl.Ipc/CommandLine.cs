@@ -11,6 +11,14 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
     /// <summary>shortcut: take the flow's desktop shortcut away instead of adding it.</summary>
     public bool Remove { get; init; }
 
+    /// <summary>backup / restore: the file that stands in for the default config.yaml (tests, a copy of the app).</summary>
+    public string? Config { get; init; }
+    public bool Merge { get; init; }
+    public bool Replace { get; init; }
+    public bool Yes { get; init; }
+    public bool Editor { get; init; }
+    public bool History { get; init; }
+
     private sealed record Shape(int MinWords, int MaxWords, string WordsError, params string[] Flags);
 
     private static readonly Dictionary<string, Shape> Shapes = new(StringComparer.Ordinal)
@@ -25,6 +33,8 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         ["devices"] = new(1, 1, "devices needs one kind: audio, bluetooth, displays, adb or gamepads."),
         ["capture-display-layout"] = new(1, 1, "capture-display-layout needs a name for the layout."),
         ["update"] = new(0, 0, "update takes no arguments."),
+        ["backup"] = new(0, 1, "backup takes at most one file.", "--config", "--editor", "--history"),
+        ["restore"] = new(1, 1, "restore needs one backup file.", "--config", "--merge", "--replace", "--yes", "--dry-run", "--editor"),
         ["shortcut"] = new(1, 1, "shortcut needs one flow.", "--remove"),
     };
 
@@ -36,6 +46,8 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         var words = new List<string>();
         bool wait = false, dryRun = false, remove = false;
         int? limit = null;
+        string? config = null;
+        bool merge = false, replace = false, yes = false, editor = false, history = false;
         for (var i = 0; i < rest.Count; i++)
         {
             var arg = rest[i];
@@ -57,6 +69,26 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
                 case "--remove":
                     remove = true;
                     break;
+                case "--merge":
+                    merge = true;
+                    break;
+                case "--replace":
+                    replace = true;
+                    break;
+                case "--yes":
+                    yes = true;
+                    break;
+                case "--editor":
+                    editor = true;
+                    break;
+                case "--history":
+                    history = true;
+                    break;
+                case "--config":
+                    if (config is not null || i + 1 >= rest.Count || rest[i + 1].StartsWith("--", StringComparison.Ordinal))
+                        throw new CommandLineException("--config needs one file.");
+                    config = rest[++i];
+                    break;
                 case "--limit":
                     if (limit is not null || i + 1 >= rest.Count
                         || !int.TryParse(rest[++i], NumberStyles.None, CultureInfo.InvariantCulture, out var n) || n < 1)
@@ -67,7 +99,12 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         }
         if (words.Count < shape.MinWords || words.Count > shape.MaxWords)
             throw new CommandLineException(shape.WordsError);
-        return new CommandLine(command, words, wait, dryRun, limit) { Remove = remove };
+        if (merge && replace)
+            throw new CommandLineException("Choose --merge or --replace, not both.");
+        return new CommandLine(command, words, wait, dryRun, limit)
+        {
+            Remove = remove, Config = config, Merge = merge, Replace = replace, Yes = yes, Editor = editor, History = history,
+        };
     }
 
     /// <summary>The first word, if any.</summary>
