@@ -1236,3 +1236,31 @@ Status: accepted (user, 2026-11-04)
 - Why: the user does not use a screen reader and wants usage spent elsewhere; the live run touches their real audio setup.
 - Supersedes: the "Parked: pop-up for Narrator" note (user, 2026-11-03) and the Narrator part of the flow-menu design (D-056 area).
 - Revisit if: a user needs screen-reader support.
+
+## D-092 · 2026-11-06 · App names over adb: the literal label, else a known-name table, else the package id in words
+Status: accepted (design docs/android-start-app/DESIGN.md)
+- Decision: the picker's names come from `cmd package query-activities` (launcher + leanback launcher): the literal
+  `nonLocalizedLabel` when set, else a built-in table of well-known package ids, else the package id's last meaningful
+  segment capitalised. The package id is always shown too and is what the flow stores.
+- Why: adb cannot resolve `labelRes` resource ids (checked on an Android 14 box: no `dumpsys` output has labels);
+  most apps only have a resource id. A guess shown next to the exact package id is enough to pick from.
+- Why not pull the APKs and read `resources.arsc`: tens of MB per device per refresh, a binary-resource parser to
+  maintain, slow on Wi-Fi adb. Why not `pm list packages` alone: includes apps with nothing to launch.
+- Revisit if: the guessed names bother the user (then the parser is the only real fix, for the few APKs picked).
+
+## D-093 · 2026-11-06 · The app list is cached on disk per device, refreshed only when the user focuses the box
+Status: accepted
+- Decision: the engine answers `android-apps` from `%LOCALAPPDATA%\DazeControl\android-apps\<serial>.json` and only
+  runs adb when the request says `refresh`; a successful listing rewrites the file. The editor refreshes once when the
+  app box gets focus. No timer, no resident worker.
+- Why: Idle = zero (D-009); adb connect and list take seconds and the TV may be off; the last list is still useful.
+- Why not refresh on every step selection: adb traffic to the user's device just from clicking around.
+
+## D-094 · 2026-11-06 · `android.start`: an `am start` by package, with a searchable picker, free text allowed
+Status: accepted
+- Decision: step `android.start` (`device`, `app` = package id): `am start -a MAIN -c LAUNCHER -p pkg`, then the
+  LEANBACK_LAUNCHER category; failure is decided from the answer text (am exits 0). The inspector shows an AutoSuggestBox
+  (filter by name or package, Enter on unmatched text keeps it as the package). Suggestions never restrict the value (D-050).
+- Why: no activity name needed, works for phones and TV boxes; same adb path, retries and lock as the other Android steps.
+- Why not `monkey -p`: prints "No activities found" with exit 0 for TV-only apps and injects events.
+- Revisit if: an app has several launcher activities and the user wants a specific one.
