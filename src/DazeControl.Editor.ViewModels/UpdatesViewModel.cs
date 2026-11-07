@@ -5,7 +5,7 @@ using DazeControl.Core.Updates;
 namespace DazeControl.Editor.ViewModels;
 
 /// <summary>
-/// Settings › Updates (D-043): what the installed copy knows, "Check for updates" (finds and downloads a newer release)
+/// About › Updates (D-043): what the installed copy knows, "Check for updates" (finds and downloads a newer release)
 /// and "Restart now" once one is downloaded. The engine checks daily on its own; this card is for doing it now.
 /// </summary>
 public sealed partial class UpdatesViewModel : ObservableObject

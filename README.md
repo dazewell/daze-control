@@ -18,7 +18,7 @@ it. It installs to `%LOCALAPPDATA%\DazeControlApp`, adds Daze Control to the Sta
 aren't signed yet, so SmartScreen may ask first ("More info" › "Run anyway").
 
 Turn on **Start with Windows** in the editor's Settings (or `dctl autostart on`). Updates download in the background
-once a day and install the next time Daze Control starts; Settings › Updates checks now and offers **Restart now**.
+once a day and install the next time Daze Control starts; About › Updates checks now and offers **Restart now**.
 Uninstall from Settings › Apps; your flows and history stay.
 
 ## Use it

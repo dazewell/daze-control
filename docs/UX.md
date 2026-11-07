@@ -14,8 +14,8 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   **Library** (Pivot: Audio, Bluetooth, Displays, Android, Programs; settings cards with Test and "Used by 2
   flows", which lists the flows and opens one; layouts and Android devices Rename (their flows follow), a layout's
   Details list its screens; an Android card's Inputs panel adds, renames (steps follow), removes (off while used) inputs
-  and edits each one's moves as Up/Down chips in order (D-078); Programs add Open file location) · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, logs, updates),
-  **About** (Copy details). Save errors: InfoBar on top of every page.
+  and edits each one's moves as Up/Down chips in order (D-078); Programs add Open file location) · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, step defaults),
+  **About** (version + Copy details, Updates, Files: config, logs and app folders). Save errors: InfoBar on top of every page.
 - Flow editor: "Not saved" + **Save** (accent, Ctrl+S) + **Cancel** beside the breadcrumb (D-047): edits are a
   draft until Save; Cancel throws it away; leaving the flow (breadcrumb, nav pane, closing the window) with a draft
   asks "Save your changes to <flow>?" Save / Don't save / Cancel. **Flows** in the nav pane while a flow is open
