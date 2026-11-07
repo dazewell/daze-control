@@ -283,6 +283,7 @@ public sealed partial class ShellWindow : Window
     private const int AppCommandForward = 2;
     private const nuint SubclassId = 0xDC01;
     private long _lastBackForwardTick;
+    private bool _lastWasForward;
     private SubclassProc? _subclass; // kept alive for the window's life
 
     private delegate nint SubclassProc(nint hwnd, uint msg, nint wParam, nint lParam, nuint id, nuint data);
@@ -298,7 +299,7 @@ public sealed partial class ShellWindow : Window
                 var accelerator = new KeyboardAccelerator { Key = key, Modifiers = Windows.System.VirtualKeyModifiers.Menu };
                 accelerator.Invoked += (sender, args) =>
                 {
-                    if (FocusManager.GetFocusedElement(root.XamlRoot) is FlowCard)
+                    if (!forward && FocusManager.GetFocusedElement(root.XamlRoot) is FlowCard)
                         return; // Alt+Left moves the card out of its group (D-088)
                     args.Handled = true;
                     _ = GoBackForwardAsync(forward);
@@ -334,14 +335,15 @@ public sealed partial class ShellWindow : Window
 
     /// <summary>
     /// Back or Forward: the place the history names, after the D-047 prompt when a draft is open (Cancel stays).
-    /// One mouse click can arrive as a pointer event and as WM_APPCOMMAND: the second within 300 ms is ignored.
+    /// One mouse click can arrive as a pointer event and as WM_APPCOMMAND: a second one in the same direction within 300 ms is ignored.
     /// </summary>
     private async Task GoBackForwardAsync(bool forward)
     {
         var now = Environment.TickCount64;
-        if (now - _lastBackForwardTick < 300 || _asking || ViewModel.Target(forward) is null)
+        if ((now - _lastBackForwardTick < 300 && forward == _lastWasForward) || _asking || ViewModel.Target(forward) is null)
             return;
         _lastBackForwardTick = now;
+        _lastWasForward = forward;
         if (!await LeaveFlowAsync())
             return;
         if (ViewModel.Target(forward) is not { } target) // the engine's file may have changed while the prompt was up
@@ -407,7 +409,8 @@ public sealed partial class ShellWindow : Window
     {
         if (!await LeaveFlowAsync())
             return;
-        ViewModel.CloseFlow(); // a discarded draft must not linger as the open editor
+        if (ViewModel.Editor?.FlowId == flowId)
+            ViewModel.CloseFlow(); // a discarded draft must not linger as the open editor; another flow is replaced in one history step
         ViewModel.OpenFlow(flowId);
         UpdatePages();
     }
