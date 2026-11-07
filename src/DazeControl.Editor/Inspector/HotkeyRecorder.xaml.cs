@@ -12,7 +12,7 @@ using Windows.UI.Core;
 namespace DazeControl.Editor.Inspector;
 
 /// <summary>
-/// Ported from the OSD (OSD D-021, D-022). A read-only box that records the chord pressed while it has focus, with reset and turn-off buttons
+/// Ported from the OSD (OSD D-021, D-022). A read-only box that records the chord pressed once the user starts it (click, Enter or Space; focus alone does not), with reset and turn-off buttons
 /// inside. It never stores anything: it raises <see cref="Recorded"/> and shows whatever <see cref="Hotkey"/>
 /// is afterwards, so the owner can refuse a chord (D-022) by leaving it unchanged.
 /// </summary>
@@ -69,7 +69,7 @@ public sealed partial class HotkeyRecorder : UserControl
     /// <summary>Keys were pressed that make no shortcut, and why (UX §5.7 H1–H4, H7; D-073).</summary>
     public event EventHandler<HotkeyRejection>? Rejected;
 
-    /// <summary>True while the box has focus: registered shortcuts must not fire then (D-021).</summary>
+    /// <summary>True while the box is recording (started by click, Enter or Space; ends on Esc, a recorded chord or leaving the box): registered shortcuts must not fire then (D-021).</summary>
     public event EventHandler<bool>? RecordingChanged;
 
     private void OnStoredChanged()
@@ -172,8 +172,8 @@ public sealed partial class HotkeyRecorder : UserControl
         _recorded = false;
         _chordPending = false;
         RecordingChanged?.Invoke(this, true);
-        Box.Text = RecordingPrompt;
         Box.Focus(FocusState.Pointer);
+        Box.Text = RecordingPrompt;
     }
 
     private void StopRecording()
@@ -187,7 +187,11 @@ public sealed partial class HotkeyRecorder : UserControl
             RecordingChanged?.Invoke(this, false);
     }
 
-    private void OnGotFocus(object sender, RoutedEventArgs e) => Box.Text = Hotkey;
+    private void OnGotFocus(object sender, RoutedEventArgs e)
+    {
+        if (!_recording)
+            Box.Text = Hotkey;
+    }
 
     private void OnLostFocus(object sender, RoutedEventArgs e) => StopRecording();
 
