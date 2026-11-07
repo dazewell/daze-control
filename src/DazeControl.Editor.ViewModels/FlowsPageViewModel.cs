@@ -502,6 +502,9 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
 
     public bool HasSelection => _selected.Count > 0;
 
+    /// <summary>The action bar's row is there from the moment Select begins, so the list below never moves when the first row is picked.</summary>
+    public bool ShowSelectionBar => SelectMode || HasSelection;
+
     /// <summary>"3 selected".</summary>
     public string SelectionText => $"{_selected.Count} selected";
 
@@ -592,6 +595,7 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
             header.UpdateSelection(header.Members.Count > 0 && header.Members.All(m => _selected.Contains(m.Id)), SelectMode);
         OnPropertyChanged(nameof(SelectedCount));
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(ShowSelectionBar));
         OnPropertyChanged(nameof(SelectionText));
         OnPropertyChanged(nameof(CanBulkEdit));
         OnPropertyChanged(nameof(CanBulkMove));

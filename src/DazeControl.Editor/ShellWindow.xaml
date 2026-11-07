@@ -227,7 +227,8 @@
                                                   ToolTipService.ToolTip="Pick several flows to group, turn on or off, or delete them together" />
                                 </Grid>
                                 <!-- With a selection (DESIGN Part F): "3 selected" and the bulk actions. -->
-                                <Grid x:Name="FlowSelectionBar" ColumnSpacing="8" Margin="0,0,0,8" Visibility="{x:Bind ViewModel.Flows.HasSelection, Mode=OneWay}">
+                                <!-- MinHeight fits the two-line text (count + why Delete is off), so the bar never changes height while selecting. -->
+                                <Grid x:Name="FlowSelectionBar" ColumnSpacing="8" Margin="0,0,0,8" MinHeight="44" Visibility="{x:Bind ViewModel.Flows.ShowSelectionBar, Mode=OneWay}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
@@ -287,7 +288,7 @@
                                         <local:FlowRowTemplateSelector.GroupTemplate>
                                             <DataTemplate x:DataType="vm:GroupItemViewModel">
                                                 <!-- Group header (D-087): a tray folder. The chevron and a click on the row expand or collapse it. -->
-                                                <Grid Style="{StaticResource SettingsCard}" Margin="0,8,0,0" Tag="{x:Bind Name, Mode=OneWay}" Tapped="OnGroupHeaderTapped"
+                                                <Grid Style="{StaticResource SettingsCard}" Margin="0,8,0,0" Tag="{x:Bind Name, Mode=OneWay}" Tapped="OnGroupHeaderTapped" ContextRequested="OnGroupContextRequested"
                                                       BorderBrush="{x:Bind local:RowFormat.SelectBorder(IsSelected), Mode=OneWay}"
                                                       CanDrag="{x:Bind CanReorder, Mode=OneWay}" DragStarting="OnGroupDragStarting" DropCompleted="OnDragCompleted"
                                                       AutomationProperties.Name="{x:Bind Summary, Mode=OneWay}">
