@@ -454,6 +454,17 @@ public sealed partial class ShellWindow : Window
         items.Add(item);
     }
 
+    /// <summary>Right-click, Menu key, Shift+F10 on a group header: opens the same menu as its "..." button.</summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML event handlers are instance methods.")]
+    private void OnGroupContextRequested(UIElement sender, ContextRequestedEventArgs e)
+    {
+        if (sender is Grid grid && grid.Children.OfType<Button>().LastOrDefault() is { Flyout: { } flyout } button)
+        {
+            e.Handled = true;
+            flyout.ShowAt(button);
+        }
+    }
+
     /// <summary>A click on a group header's row (not its buttons) expands or collapses it.</summary>
     private void OnGroupHeaderTapped(object sender, TappedRoutedEventArgs e)
     {

@@ -142,6 +142,35 @@ public sealed class FlowSelectionTests : IDisposable
     }
 
     [Fact]
+    public void TheActionBarIsThereFromSelectOnSoPickingTheFirstRowMovesNothing()
+    {
+        using var page = Page();
+        var changed = new List<string?>();
+        page.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        Assert.False(page.ShowSelectionBar);
+        page.SelectMode = true;
+        Assert.True(page.ShowSelectionBar);
+        Assert.False(page.HasSelection);
+        changed.Clear();
+        page.ToggleSelected("a");
+        Assert.True(page.ShowSelectionBar);
+        page.ClearSelection();
+        Assert.True(page.ShowSelectionBar); // still reserved
+        page.SelectMode = false;
+        Assert.False(page.ShowSelectionBar);
+    }
+
+    [Fact]
+    public void TheBarAlsoShowsForACtrlClickSelectionOutsideSelectMode()
+    {
+        using var page = Page();
+        page.ToggleSelected("a");
+        Assert.True(page.ShowSelectionBar);
+        page.ClearSelection();
+        Assert.False(page.ShowSelectionBar);
+    }
+
+    [Fact]
     public void TurnOffAndOnAreOneUndoStep()
     {
         using var page = Page();
