@@ -25,6 +25,15 @@ internal static class RowFormat
     public static Microsoft.UI.Xaml.Media.Brush SelectBorder(bool selected) =>
         selected ? Canvas.Theme.Selection : (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
 
+    /// <summary>A slot icon: laid out always, visible only when the fact holds (so rows keep their columns).</summary>
+    public static double Show(bool on) => on ? 1 : 0;
+
+    /// <summary>A turned-off flow reads quieter (name and icon), without changing the layout.</summary>
+    public static double Dim(bool enabled) => enabled ? 1 : 0.55;
+
+    /// <summary>The status dot shows only the ellipse of the row's state (<see cref="FlowRowState"/> as an int).</summary>
+    public static double Dot(FlowRowState state, int shown) => (int)state == shown ? 1 : 0;
+
     // 12 DIP in, then a 1-DIP rail and 11 DIP of padding: the card sits 24 in from the list edge.
     public static Thickness Indent(bool inGroup) => inGroup ? new Thickness(12, 0, 0, 0) : new Thickness(0);
 

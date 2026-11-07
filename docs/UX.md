@@ -29,6 +29,11 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   the reason in its tooltip and Narrator help text). Each card is one Tab stop that opens the flow (Enter/Space,
   Narrator "Open Connect Technics"), then its On switch and Run; its context menu has Open, Run and the desktop item
   (#66, D-070).
+- Row layout (flows-list polish): grip | glyph tile | bold name over "shortcut · steps · last run" | problems | three fixed 28-DIP
+  slots (not in tray menu, on desktop, used by) | On (96) | Run (80), spacing 4/8/12/16. Slots, switch and Run keep their
+  columns on every row; empty slots stay empty and the grip only fades in on hover (opacity, 120 ms, no layout change). A coloured
+  dot before the last-run text (green done, amber done with a problem, red didn't finish, accent running) always sits beside the
+  words; a turned-off flow's name and glyph read quieter. Names are one line, trimmed with an ellipsis.
 - **Back / Forward (D-095):** the mouse's back/forward buttons, a touchpad's back/forward gesture and Alt+Left / Alt+Right
   step through the pages and flows shown in this window (last 50), like a browser; a new place drops Forward. Leaving a flow
   with unsaved changes asks the usual Save / Don't save / Cancel (Cancel stays). Flows deleted since are skipped. There is

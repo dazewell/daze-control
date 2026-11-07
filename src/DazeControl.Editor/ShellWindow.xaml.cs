@@ -774,13 +774,28 @@ public sealed partial class ShellWindow : Window
     private void OnFlowCardPointerEntered(object sender, PointerRoutedEventArgs e)
     {
         if (sender is Grid card)
+        {
             card.Background = (Brush)Application.Current.Resources["CardBackgroundFillColorSecondaryBrush"];
+            if (card.Tag is string id && ViewModel.Flows.Items.FirstOrDefault(i => i.Id == id) is { CanReorder: true })
+                SetGrip(card, 0.7);
+        }
     }
 
     private void OnFlowCardPointerExited(object sender, PointerRoutedEventArgs e)
     {
         if (sender is Grid card)
+        {
             card.ClearValue(Panel.BackgroundProperty); // back to the SettingsCard style's fill
+            SetGrip(card, 0);
+        }
+    }
+
+    // The drag grip fades in on hover (its column is always reserved, so nothing moves).
+    private static void SetGrip(Grid card, double opacity)
+    {
+        foreach (var child in card.Children)
+            if (child is FrameworkElement { Name: "Grip" } grip)
+                grip.Opacity = opacity;
     }
 
     // ---- Sort, search, filter (T16.5, DESIGN Part E) ----
