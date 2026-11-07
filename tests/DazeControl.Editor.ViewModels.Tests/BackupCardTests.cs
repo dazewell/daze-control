@@ -244,4 +244,56 @@ public sealed class BackupCardTests : IDisposable
         Assert.False(saved);
         Assert.False(File.Exists(Path.Combine(_folder, "late.dcbackup")));
     }
+
+    private BackupCardViewModel AutoCard(out AutoBackup auto)
+    {
+        var files = new PhysicalBackupFiles();
+        auto = new AutoBackup(_service, files, _time, _config, _auto);
+        return new BackupCardViewModel(_session, _service, files, new RestoreTarget(_config, Path.Combine(_folder, "editor.json"), _auto),
+            _earlier, _time, machine: "TEST-PC", auto: auto);
+    }
+
+    private void SaveAnEdit(int seconds)
+    {
+        _session.Update(c => c with { Settings = c.Settings with { Popup = c.Settings.Popup with { Seconds = seconds } } });
+        _session.Flush();
+    }
+
+    [Fact]
+    public async Task ASaveTakesOneAutomaticBackupInTheBackgroundAndNotASecondWithinADay()
+    {
+        var card = AutoCard(out _);
+
+        SaveAnEdit(4);
+        await card.PendingAutoBackup!;
+        SaveAnEdit(5);
+        await card.PendingAutoBackup!;
+
+        Assert.Single(_service.List(_auto));
+        Assert.Equal(BackupService.AutoSave, _service.Open(_service.List(_auto)[0].Path).Manifest.Reason);
+    }
+
+    [Fact]
+    public async Task TurningAutomaticBackupsOffIsRememberedAndStopsThem()
+    {
+        var card = AutoCard(out var auto);
+
+        card.AutoEnabled = false;
+        card.AutoKeep = 99;
+        SaveAnEdit(4);
+        await (card.PendingAutoBackup ?? Task.CompletedTask);
+
+        Assert.Empty(_service.List(_auto));
+        Assert.Equal(new AutoBackupSettings(false, AutoBackupSettings.MaxKeep), auto.Load());
+        Assert.False(AutoCard(out _).AutoEnabled);
+    }
+
+    [Fact]
+    public void AutomaticBackupsAreOnByDefaultWithTen()
+    {
+        var card = AutoCard(out _);
+
+        Assert.True(card.AutoEnabled);
+        Assert.Equal(10, card.AutoKeep);
+    }
 }

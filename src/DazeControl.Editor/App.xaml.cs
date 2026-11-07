@@ -64,15 +64,16 @@ public partial class App : Application
         : new ConfigStore(ConfigStore.DefaultPath, ConfigStore.DefaultBackupDirectory);
 
     /// <summary>Safety copies and automatic backups live in backups/auto next to the config (%LOCALAPPDATA%\DazeControl by default, D-103).</summary>
-    private static BackupCardViewModel CreateBackupCard(ConfigSession session, ConfigStore store, EditorSettingsStore settings)
+    private static BackupCardViewModel CreateBackupCard(ConfigSession session, ConfigStore store, EditorSettingsStore settings, Action<Action> post)
     {
         var auto = Program.ConfigPath is { } scratch
             ? Path.Combine(Path.GetDirectoryName(scratch)!, "backups", "auto")
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Core.AppInfo.FolderName, "backups", "auto");
         var files = new PhysicalBackupFiles();
         var service = new BackupService(files, TimeProvider.System, ShellViewModel.Version, Environment.MachineName);
+        var automatic = new AutoBackup(service, files, TimeProvider.System, store.Path, auto, Log);
         return new BackupCardViewModel(session, service, files, new RestoreTarget(store.Path, settings.Path, auto),
-            store.BackupDirectory, TimeProvider.System, settings.Flush);
+            store.BackupDirectory, TimeProvider.System, settings.Flush, auto: automatic, post: post);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -88,12 +89,14 @@ public partial class App : Application
         var settings = new EditorSettingsStore(Program.ConfigPath is { } config
             ? Path.Combine(Path.GetDirectoryName(config)!, "editor.json")
             : EditorSettingsStore.DefaultPath, log: Log);
-        var shell = new ShellViewModel(session, _engine, Post, LogsFolder, CreateUpdateClient(), settings, CreateBackupCard(session, store, settings));
+        var shell = new ShellViewModel(session, _engine, Post, LogsFolder, CreateUpdateClient(), settings, CreateBackupCard(session, store, settings, Post));
         _window = new ShellWindow(shell);
         _window.Closed += (_, _) =>
         {
             shell.Dispose();
             session.Dispose(); // writes pending edits
+            try { shell.Backup?.PendingAutoBackup?.Wait(TimeSpan.FromSeconds(3)); } // an automatic backup the last save started
+            catch (AggregateException) { }
             settings.Dispose(); // and the view state
             _ = _engine.DisposeAsync().AsTask();
         };

@@ -1326,6 +1326,12 @@ Status: accepted (user report: the menu works from the Steam Controller until St
   protocol is undocumented, and it would add an idle cost). Not verified: Steam's own UI for changing Big Picture's layout.
 
 
+## D-104 · 2026-11-07 · Automatic backups: setting in `backups\auto-backup.txt`, gate from file names
+Status: accepted (follows D-103 choices 4-5)
+- Decision: the on/off switch and count (default on, 10, 3-50) live in `%LOCALAPPDATA%\DazeControl\backups\auto-backup.txt` (`enabled=`, `keep=`), read by the editor and `dctl`. Triggers: `dctl update` when a newer version was found (before the download; no gate), and after every successful editor save, on a background task, only if the newest backup in the folder by file name is under 24 h old (`Core/Backup/AutoBackup`). Never throws; a failed backup is logged and the update or save goes on.
+- Why: `dctl` and the editor must agree, and neither can read the other's store (editor.json is editor-only). Not config.yaml: it would change the engine's schema, show up in restores and trigger a hot reload for a per-PC policy.
+- Why not a timer or watcher: idle = zero (D-009). The editor's own update download does not back up (the engine applies it at start; `dctl update` is the scripted path).
+
 ## D-103 · 2026-11-06 · Backup and restore: one zip, byte-for-byte config.yaml, restore through the normal loader
 Status: accepted (user, 2026-11-06, all open choices as recommended; docs/backup-restore/DESIGN.md)
 - Decision: `.dcbackup` = zip (`System.IO.Compression`) with `manifest.yaml` (format, app and config versions, SHA-256 per entry, reason), `config.yaml`

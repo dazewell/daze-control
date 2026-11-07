@@ -189,6 +189,7 @@ public static class Program
                     : $"Up to date ({updates.CurrentVersion}).");
                 return Ok;
             }
+            TakeBeforeUpdateBackup();
             await updates.DownloadAsync(CancellationToken.None).ConfigureAwait(false);
             Console.Out.WriteLine($"Downloaded version {found}; it installs the next time {AppInfo.ProductName} starts.");
             return Ok;
@@ -198,6 +199,24 @@ public static class Program
             // Network, GitHub's rate limit, disk, a broken install: the engine's next daily check tries again.
             Console.Error.WriteLine($"Couldn't check for updates: {e.Message}");
             return Failed;
+        }
+    }
+
+    /// <summary>A copy of the config before a new version is fetched (D-103). Fail-soft: the update goes on whatever happens here.</summary>
+    private static void TakeBeforeUpdateBackup()
+    {
+        try
+        {
+            var files = new PhysicalBackupFiles();
+            var paths = BackupPaths.For(null);
+            var service = new BackupService(files, TimeProvider.System, typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "?", Environment.MachineName);
+            var auto = new AutoBackup(service, files, TimeProvider.System, paths.Config, paths.AutoFolder, m => Console.Error.WriteLine(m));
+            if (auto.Run(BackupService.BeforeUpdate, gated: false) == AutoBackupOutcome.Created)
+                Console.Out.WriteLine("Saved a backup of your flows first.");
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            Console.Error.WriteLine($"Couldn't take the automatic backup ({e.Message}); updating anyway.");
         }
     }
 

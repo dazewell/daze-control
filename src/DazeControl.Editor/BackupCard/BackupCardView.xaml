@@ -55,6 +55,25 @@
             <Button Grid.Column="2" Content="Undo restore" Click="OnUndo" VerticalAlignment="Center" />
         </Grid>
 
+        <Grid Style="{StaticResource SettingsCard}" Visibility="{x:Bind ViewModel.HasAutoSettings}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <FontIcon Glyph="&#xE823;" Style="{StaticResource SettingsCardIcon}" />
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="Automatic backups" />
+                <TextBlock Text="A copy before each update, and after you save (at most one a day). Older ones are removed." Style="{StaticResource SettingsCardDescription}" />
+            </StackPanel>
+            <NumberBox Grid.Column="2" Header="Keep" Value="{x:Bind ViewModel.AutoKeep, Mode=TwoWay}" Minimum="3" Maximum="50"
+                       SpinButtonPlacementMode="Compact" IsEnabled="{x:Bind ViewModel.AutoEnabled, Mode=OneWay}" Margin="0,0,16,0" VerticalAlignment="Center"
+                       AutomationProperties.Name="Automatic backups to keep" />
+            <ToggleSwitch Grid.Column="3" IsOn="{x:Bind ViewModel.AutoEnabled, Mode=TwoWay}" MinWidth="0" VerticalAlignment="Center"
+                          OnContent="On" OffContent="Off" AutomationProperties.Name="Automatic backups" />
+        </Grid>
+
         <TextBlock Text="Recent backups" Style="{StaticResource SettingsSection}" />
         <TextBlock Text="{x:Bind ViewModel.AutomaticText, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" Margin="1,0,0,4" />
         <ItemsControl ItemsSource="{x:Bind ViewModel.Backups}" TabFocusNavigation="Local" motion:Motion.AnimateItems="True">
