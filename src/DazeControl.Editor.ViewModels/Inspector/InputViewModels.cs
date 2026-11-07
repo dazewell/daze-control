@@ -42,6 +42,7 @@ public abstract partial class DevicePickerViewModel : ObservableObject
                     Devices.Add(option);
             }
             Device = Devices.FirstOrDefault(o => o.Key == current && o.IsValue) ?? Devices.FirstOrDefault(o => o.Source == DeviceSource.None);
+            OnPropertyChanged(nameof(Device)); // the drop-down drops its selection when its rows are replaced
         }
         finally
         {

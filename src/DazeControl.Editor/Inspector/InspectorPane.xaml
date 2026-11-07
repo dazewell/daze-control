@@ -117,7 +117,7 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                    <AutoSuggestBox PlaceholderText="Add a key" Tag="{x:Bind}" TextChanged="OnKeyTextChanged"
+                                    <AutoSuggestBox PlaceholderText="Add a key" Tag="{x:Bind}" TextChanged="OnKeyTextChanged" UpdateTextOnSelect="False"
                                                     QuerySubmitted="OnKeySubmitted" GotFocus="OnKeyBoxFocused" AutomationProperties.Name="Add a key" />
                                 </StackPanel>
                                 <!-- menu.show: the flows of the menu in menu order (DESIGN 3.7); Alt+Up/Down on a remove button moves it. -->
@@ -194,9 +194,10 @@
                                 <ToggleSwitch Visibility="{x:Bind IsBoolean}" IsOn="{x:Bind IsOn, Mode=TwoWay}" MinWidth="0"
                                               AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
                                 <TextBlock Text="Mixed" Visibility="{x:Bind HasMixedCaption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
-                                <ComboBox Visibility="{x:Bind IsChoice}" ItemsSource="{x:Bind Choices}" SelectedItem="{x:Bind Choice, Mode=TwoWay}"
+                                <ComboBox Visibility="{x:Bind IsChoice}" ItemsSource="{x:Bind Choices}" SelectedItem="{x:Bind Choice, Mode=TwoWay}" Loaded="OnPickerLoaded" SelectionChanged="OnPickerSelectionChanged"
                                           HorizontalAlignment="Stretch" PlaceholderText="{x:Bind MixedText, Mode=OneWay}" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
                                 <ComboBox Visibility="{x:Bind IsDevice}" PlaceholderText="{x:Bind MixedText, Mode=OneWay}" ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}"
+                                          Loaded="OnPickerLoaded" SelectionChanged="OnPickerSelectionChanged"
                                           ItemTemplate="{StaticResource DeviceTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
                                           DropDownOpened="OnDevicesOpened" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
                                 <!-- Run a flow › Inputs (UX §5.4): a device picker per input of the flow it runs. -->
@@ -212,6 +213,7 @@
                                             <StackPanel>
                                                 <TextBlock Text="{x:Bind Title}" Style="{StaticResource SettingsCardDescription}" Margin="0,0,0,4" />
                                                 <ComboBox ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}"
+                                                          Loaded="OnPickerLoaded" SelectionChanged="OnPickerSelectionChanged"
                                                           ItemTemplate="{StaticResource DeviceTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
                                                           DropDownOpened="OnPickerOpened" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
                                                 <TextBlock Text="{x:Bind Error, Mode=OneWay}" Visibility="{x:Bind HasError, Mode=OneWay}" Style="{StaticResource FieldError}" />
@@ -710,6 +712,7 @@
                                 <ComboBox ItemsSource="{x:Bind vmi:FlowInputViewModel.KindNames}" SelectedIndex="{x:Bind KindIndex, Mode=TwoWay}"
                                           HorizontalAlignment="Stretch" AutomationProperties.Name="Kind" />
                                 <ComboBox ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}" PlaceholderText="Default device"
+                                          Loaded="OnPickerLoaded" SelectionChanged="OnPickerSelectionChanged"
                                           ItemTemplate="{StaticResource DeviceTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
                                           DropDownOpened="OnPickerOpened" AutomationProperties.Name="{x:Bind DefaultName, Mode=OneWay}" />
                                 <TextBlock Text="{x:Bind Error, Mode=OneWay}" Visibility="{x:Bind HasError, Mode=OneWay}" Style="{StaticResource FieldError}" />

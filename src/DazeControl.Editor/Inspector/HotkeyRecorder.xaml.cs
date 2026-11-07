@@ -30,13 +30,15 @@ public sealed partial class HotkeyRecorder : UserControl
         nameof(AccessibleName), typeof(string), typeof(HotkeyRecorder),
         new PropertyMetadata("", (d, e) => AutomationProperties.SetName(((HotkeyRecorder)d).Box, (string)e.NewValue)));
 
-    private bool _recording; // has focus
-    private bool _recorded;  // since focus came: show the stored value, not the prompt, once keys are up
+    private bool _recording; // started by the user (click, Enter or Space), ended by Esc, a recorded chord or leaving the box
+    private bool _recorded;  // since recording began: show the stored value, not the prompt, once keys are up
     private bool _chordPending; // Win, Ctrl or Alt went down and no other key came yet (H7)
 
     public HotkeyRecorder()
     {
         InitializeComponent();
+        // Focus alone never records (it also arrives from a re-created control or tabbing past): a click does.
+        Box.AddHandler(PointerPressedEvent, new PointerEventHandler((_, _) => StartRecording()), true);
         OnStoredChanged();
     }
 
@@ -85,6 +87,16 @@ public sealed partial class HotkeyRecorder : UserControl
     // RegisterHotKey would refuse them anyway.
     private void OnKeyDown(object sender, KeyRoutedEventArgs e)
     {
+        if (!_recording)
+        {
+            // Enter or Space on the focused box starts recording; every other key keeps its normal job (Tab, arrows).
+            if (e.Key is VirtualKey.Enter or VirtualKey.Space)
+            {
+                e.Handled = true;
+                StartRecording();
+            }
+            return;
+        }
         if (!IsModifier(e.Key))
             _chordPending = false; // a key arrived, whatever it does (Tab, Escape, Backspace too): not H7
         if (e.Key == VirtualKey.Tab)
@@ -93,12 +105,12 @@ public sealed partial class HotkeyRecorder : UserControl
         if (e.Key == VirtualKey.Back || e.Key == VirtualKey.Delete && !IsNumberPadNavigation(e)) // pad Delete = Num. with Num Lock off
         {
             Recorded?.Invoke(this, "");
-            ShowRecorded();
+            StopRecording();
             return;
         }
         if (e.Key == VirtualKey.Escape)
         {
-            ShowRecorded();
+            StopRecording();
             return;
         }
         var modifiers = HeldModifiers();
@@ -109,16 +121,26 @@ public sealed partial class HotkeyRecorder : UserControl
             return;
         }
         if (IsNumberPadNavigation(e))
+        {
             Rejected?.Invoke(this, HotkeyRejection.NumLockOff);
+            ShowRecorded();
+        }
         else if (Core.Input.Hotkey.TryCreate(modifiers, (uint)e.Key, out var hotkey))
+        {
             Recorded?.Invoke(this, hotkey.ToString());
+            StopRecording();
+        }
         else
+        {
             Rejected?.Invoke(this, Core.Input.Hotkey.Check(modifiers, (uint)e.Key)); // TryCreate is Check == None
-        ShowRecorded();
+            ShowRecorded();
+        }
     }
 
     private void OnKeyUp(object sender, KeyRoutedEventArgs e)
     {
+        if (!_recording)
+            return;
         e.Handled = true;
         if (HeldModifiers() != HotkeyModifiers.None)
             return;
@@ -142,21 +164,32 @@ public sealed partial class HotkeyRecorder : UserControl
         or VirtualKey.End or VirtualKey.Down or VirtualKey.PageDown or VirtualKey.Left or VirtualKey.Clear
         or VirtualKey.Delete or VirtualKey.Right or VirtualKey.Home or VirtualKey.Up or VirtualKey.PageUp;
 
-    private void OnGotFocus(object sender, RoutedEventArgs e)
+    private void StartRecording()
     {
+        if (_recording)
+            return;
         _recording = true;
         _recorded = false;
         _chordPending = false;
         RecordingChanged?.Invoke(this, true);
         Box.Text = RecordingPrompt;
+        Box.Focus(FocusState.Pointer);
     }
 
-    private void OnLostFocus(object sender, RoutedEventArgs e)
+    private void StopRecording()
     {
+        var was = _recording;
         _recording = false;
-        RecordingChanged?.Invoke(this, false);
+        _recorded = false;
+        _chordPending = false;
         Box.Text = Hotkey;
+        if (was)
+            RecordingChanged?.Invoke(this, false);
     }
+
+    private void OnGotFocus(object sender, RoutedEventArgs e) => Box.Text = Hotkey;
+
+    private void OnLostFocus(object sender, RoutedEventArgs e) => StopRecording();
 
     /// <summary>Typed text was refused; the owner shows why (same place as <see cref="Rejected"/>).</summary>
     public event EventHandler<string>? TypedRefused;

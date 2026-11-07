@@ -326,6 +326,8 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                 ?? Devices.FirstOrDefault(o => o.Source == DeviceSource.None);
             if (IsMixed)
                 Device = null;
+            // The drop-down drops its selection when its rows are replaced and pushes null back; read the value again.
+            OnPropertyChanged(nameof(Device));
         }
         finally
         {
