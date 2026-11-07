@@ -66,7 +66,7 @@ public sealed class InspectorManyParamsTests : IDisposable
         var device = Field("device");
         Assert.True(device.IsMixed);
         Assert.Null(device.Device);
-        Assert.Equal("Device, mixed", device.AutomationName);
+        Assert.Equal("Audio device, mixed", device.AutomationName);
         Assert.Equal(["device", "roles"], _inspector.ManyFields.Select(f => f.Name));
 
         device.Device = device.Devices.First(o => o.Key == "technics");

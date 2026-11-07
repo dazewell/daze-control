@@ -123,13 +123,13 @@ One PR (design + build). Editor edits stay in the inspector/param picker (other 
 
 ---
 
-## M18 Steps: one vocabulary and the missing actions (user, 2026-11-06; proposal docs/steps-review/REVIEW.md, D-102) — after the user approves REVIEW.md
+## M18 Steps: one vocabulary and the missing actions (user, 2026-11-06; proposal docs/steps-review/REVIEW.md, D-102); the user approved REVIEW §6 as recommended (D-102 accepted)
 
-Start only when the user has answered REVIEW §6; tasks marked (ask) wait for their own answer. Strings never say node, DAG or OSD.
+T18.8, T18.10 and T18.11 are not planned (the user kept them for later / no id renames). Strings never say node, DAG or OSD.
 `T18.1 → T18.2`; T18.3–T18.5 touch other files; T18.6–T18.10 are one provider folder each and all add lines to `Core/Catalog/ProviderCatalog.cs`
 (merge main before pushing). Safe in parallel: {T18.3, T18.4, T18.5}, {T18.6, T18.7, T18.8, T18.9, T18.10} once T18.1 has landed.
 
-- [ ] T18.1 Titles and labels (feat/m18-titles; choices 1, 2, 4, 6, 11). Files: `ProviderCatalog.cs` (titles, picker labels, "It's connected"), tests that assert
+- [x] T18.1 Titles and labels (feat/m18-titles, done; choices 1, 2, 4, 6, 11). Files: `ProviderCatalog.cs` (titles, picker labels, "It's connected"), tests that assert
   titles, UX/FEATURES strings. Done when: every title follows D-102, quick-add and breadcrumbs read well, saved YAML unchanged (a round-trip test).
 - [ ] T18.2 Palette groups and order (feat/m18-groups, after T18.1; choice 3). Files: `ProviderDescriptor` (display group) or a table in `CanvasNodeViewModel.Area`,
   `StepPaletteViewModel`, `ShellWindow` Step defaults list, catalog order. Done when: nine groups in the order of REVIEW §2 F5, Check last in each, nothing saved changes.
@@ -139,11 +139,11 @@ Start only when the user has answered REVIEW §6; tasks marked (ask) wait for th
 - [ ] T18.5 Docs: the "Wait until" recipe (Check + Try again + Wait between tries) and more PowerShell examples (choice 7). Files: UX/FEATURES, `ProviderCatalog` examples, check steps' help.
 - [ ] T18.6 `process.close` Close program (feat/m18-process-close, after T18.1). Files: `Providers/Process`, catalog. Done when: fake-process tests (graceful, force after time,
   not running = success, elevated = clear sentence); live: closes Notepad.
-- [ ] T18.7 Android Stop app; Disconnect and Wake only if the user said yes (feat/m18-android, after T18.1). Files: `Providers/Android`, catalog. Done when: fake-adb tests, same lock and timeout.
-- [ ] T18.8 (ask) Web: Wake on LAN, web address check (feat/m18-web, after T18.1). Files: `Providers/Http` (+ `Providers/Network`), catalog.
+- [ ] T18.7 Android Stop app only (Disconnect and Wake stay later) (feat/m18-android, after T18.1). Files: `Providers/Android`, catalog. Done when: fake-adb tests, same lock and timeout.
+- [ ] T18.8 NOT PLANNED (user: later) Web: Wake on LAN, web address check (feat/m18-web, after T18.1). Files: `Providers/Http` (+ `Providers/Network`), catalog.
 - [ ] T18.9 Displays: Turn screens off (feat/m18-screens-off, after T18.1; HDR spike only if asked). Files: `Providers/Display`, catalog. Done when: live on the dev PC (ask the user first, it blanks the screens).
-- [ ] T18.10 (ask) Flows: Stop flow (feat/m18-stop-flow, after T18.1). Files: `Runtime/Providers`, catalog, validator. Done when: stopping a running flow and "this flow" are tested.
-- [ ] T18.11 Only if the user chose to rename ids (choice 9): alias table in `ConfigMapper`, kept forever (feat/m18-aliases, before any rename). Not planned.
+- [ ] T18.10 NOT PLANNED (user: later) Flows: Stop flow (feat/m18-stop-flow, after T18.1). Files: `Runtime/Providers`, catalog, validator. Done when: stopping a running flow and "this flow" are tested.
+- [ ] T18.11 NOT PLANNED (choice 9: no id renames): alias table in `ConfigMapper`, kept forever, only if ids are ever renamed.
 
 ## M16 Flow list: reorder, groups, richer rows (user, 2026-11-04) — after the user approves docs/flow-list/DESIGN.md
 Designed 2026-11-04: docs/flow-list/DESIGN.md, D-087..D-090 (accepted by the user, 2026-11-04, all open choices as recommended). Groups are the tray folders: no config.yaml change. One PR per task, no

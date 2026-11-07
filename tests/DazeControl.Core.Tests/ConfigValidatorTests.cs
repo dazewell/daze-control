@@ -146,7 +146,7 @@ public class ConfigValidatorTests
         "{ id: g, group: [a, b], after: [z] }", "{ id: c, step: notify, with: { text: x }, after: [g] }"));
 
     [Theory]
-    [InlineData("{ id: a, step: bluetooth.connect }", "flows.f.nodes.a.with", "Device is missing")]
+    [InlineData("{ id: a, step: bluetooth.connect }", "flows.f.nodes.a.with", "Bluetooth device is missing")]
     [InlineData("{ id: a, step: bluetooth.connect, with: { device: sony } }", "flows.f.nodes.a.with.device", "No Bluetooth device called \"sony\"")]
     [InlineData("{ id: a, step: audio.setDefault, with: { device: technics, roles: some } }", "flows.f.nodes.a.with.roles", "isn't one of")]
     [InlineData("{ id: a, step: audio.setVolume, with: { percent: 120 } }", "flows.f.nodes.a.with.percent", "Use 0 to 100")]

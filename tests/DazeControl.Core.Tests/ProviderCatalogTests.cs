@@ -20,6 +20,33 @@ public class ProviderCatalogTests
         Assert.Null(ProviderCatalog.Find("bluetooth"));
     }
 
+    [Fact]
+    public void TitlesFollowTheVocabulary()
+    {
+        // D-102: imperative verb + bare object, no article, the group name not repeated (ids stay as saved).
+        var expected = new Dictionary<string, string>
+        {
+            ["audio.mute"] = "Mute or unmute", ["bluetooth.check"] = "Check connection", ["audio.check"] = "Check default device",
+            ["process.check"] = "Check program", ["service.check"] = "Check service", ["file.check"] = "Check file", ["flag.check"] = "Check flag",
+            ["android.connect"] = "Connect", ["android.start"] = "Start app", ["android.input"] = "Choose input",
+            ["android.keys"] = "Send keys", ["android.sleep"] = "Sleep", ["flag.set"] = "Set flag", [ProviderCatalog.RunFlowId] = "Run flow",
+            [ProviderCatalog.MenuShowId] = "Show menu", ["notify"] = "Show message", ["http.request"] = "Send web request",
+        };
+        foreach (var (id, title) in expected)
+            Assert.Equal(title, ProviderCatalog.Find(id)!.Title);
+        Assert.All(ProviderCatalog.All, d => Assert.DoesNotMatch(@"(^| )(a|an|the) ", d.Title));
+        Assert.All(ProviderCatalog.All.Where(d => d.Id.StartsWith("android.", StringComparison.Ordinal)), d => Assert.DoesNotContain("Android", d.Title));
+    }
+
+    [Fact]
+    public void PickerLabelsNameTheKindOfDevice()
+    {
+        Assert.Equal("Audio device", ProviderCatalog.Find("audio.setDefault")!.FindParam("device")!.Title);
+        Assert.Equal("Bluetooth device", ProviderCatalog.Find("bluetooth.connect")!.FindParam("device")!.Title);
+        Assert.Equal("Android device", ProviderCatalog.Find("android.keys")!.FindParam("device")!.Title);
+        Assert.Equal("It's connected", ProviderCatalog.Find("bluetooth.disconnect")!.Conditions[0].Label);
+    }
+
     [Theory]
     [MemberData(nameof(Ids))]
     public void DescriptorIsWellFormed(string id)
