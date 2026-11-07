@@ -660,6 +660,25 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                            </StackPanel>
+
+                            <!-- About -->
+                            <StackPanel x:Name="AboutPage" Grid.Row="1" Spacing="4" Visibility="Collapsed" motion:Motion.Animate="True">
+                                <TextBlock Text="About" Style="{StaticResource PageTitle}" />
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Image Source="ms-appx:///Assets/app.png" Width="40" Height="40" Margin="0,0,16,0" VerticalAlignment="Center"
+                                           AutomationProperties.AccessibilityView="Raw" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Daze Control" />
+                                        <TextBlock x:Name="VersionText" Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="Copy details" Click="OnCopyDetails" />
+                                </Grid>
 
                                 <TextBlock Text="Updates" Style="{StaticResource SettingsSection}" />
                                 <Grid Style="{StaticResource SettingsCard}">
@@ -708,25 +727,6 @@
                                         <TextBlock Text="{x:Bind ViewModel.Settings.LogsFolder}" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
                                     </StackPanel>
                                     <Button Grid.Column="2" Content="Open folder" Click="OnOpenLogsFolder" />
-                                </Grid>
-                            </StackPanel>
-
-                            <!-- About -->
-                            <StackPanel x:Name="AboutPage" Grid.Row="1" Spacing="4" Visibility="Collapsed">
-                                <TextBlock Text="About" Style="{StaticResource PageTitle}" />
-                                <Grid Style="{StaticResource SettingsCard}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <Image Source="ms-appx:///Assets/app.png" Width="40" Height="40" Margin="0,0,16,0" VerticalAlignment="Center"
-                                           AutomationProperties.AccessibilityView="Raw" />
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="Daze Control" />
-                                        <TextBlock x:Name="VersionText" Style="{StaticResource SettingsCardDescription}" />
-                                    </StackPanel>
-                                    <Button Grid.Column="2" Content="Copy details" Click="OnCopyDetails" />
                                 </Grid>
                                 <Grid Style="{StaticResource SettingsCard}">
                                     <Grid.ColumnDefinitions>

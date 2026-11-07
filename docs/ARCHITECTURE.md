@@ -259,7 +259,7 @@ D-043. `scripts/pack.ps1` → one folder (editor self-contained + AOT `DazeContr
   real engine runs). `Program` then applies a downloaded update (exit; the updater restarts the engine with the same
   args). `Engine/Lifecycle/UpdateCheck`: installed copies only, runs `dctl update` hidden at +1 min and daily, logs
   its output.
-- `dctl update`: find + download, never apply; exit 0 / 1. Editor: `UpdatesViewModel` (Settings › Updates card).
+- `dctl update`: find + download, never apply; exit 0 / 1. Editor: `UpdatesViewModel` (About › Updates card).
 
 ## IPC
 
