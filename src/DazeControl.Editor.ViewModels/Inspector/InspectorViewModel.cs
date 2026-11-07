@@ -408,7 +408,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     {
         var descriptor = ProviderCatalog.Find(step.Step);
         Glyph = FlowItemViewModel.DecodeGlyph(descriptor?.Glyph ?? "E9CE");
-        Kind = descriptor is null ? step.Step : $"{CanvasNodeViewModel.Area(descriptor.Area)} › {descriptor.Title}";
+        Kind = descriptor is null ? step.Step : $"{CanvasNodeViewModel.Group(descriptor.Area)} › {descriptor.Title}";
         // A call's pill is named after the flow it runs; the name box shows the same (UX §5.4).
         NamePlaceholder = step.Step == ProviderCatalog.RunFlowId && ConfigValidator.CalledFlow(step) is { Length: > 0 } called
             && _session.Current.Flows.FirstOrDefault(f => f.Id == called) is { } target

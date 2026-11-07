@@ -24,9 +24,13 @@ public sealed record PaletteGroup(string Area, IReadOnlyList<PaletteItem> Items)
 /// </summary>
 public sealed partial class StepPaletteViewModel : ObservableObject
 {
+    /// <summary>Palette order (D-102): the nine groups in their fixed order, catalog order inside, Check steps last in each.</summary>
     public static IReadOnlyList<PaletteItem> All { get; } =
     [
-        .. ProviderCatalog.All.Select(d => new PaletteItem(d.Id, d.Title, FlowItemViewModel.DecodeGlyph(d.Glyph), CanvasNodeViewModel.Area(d.Area), d.Keywords)),
+        .. ProviderCatalog.All
+            .Select(d => new PaletteItem(d.Id, d.Title, FlowItemViewModel.DecodeGlyph(d.Glyph), CanvasNodeViewModel.Group(d.Area), d.Keywords))
+            .OrderBy(i => CanvasNodeViewModel.Groups.ToList().IndexOf(i.Area))
+            .ThenBy(i => i.IsCheck),
     ];
 
     public StepPaletteViewModel() => Filter();

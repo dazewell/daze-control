@@ -335,6 +335,23 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         _ => key,
     };
 
+    /// <summary>The nine themed palette groups, in palette order (D-102 choice 3). Display only: step ids and areas are unchanged.</summary>
+    public static IReadOnlyList<string> Groups { get; } = ["Audio", "Bluetooth", "Displays", "Android", "Programs", "Services", "Files", "Web", "Flow"];
+
+    /// <summary>The palette group of a step area ("script" and "process" are both Programs; "wait", "notify", "flag", "flow", "menu" are Flow).</summary>
+    internal static string Group(string area) => area switch
+    {
+        "audio" => "Audio",
+        "bluetooth" => "Bluetooth",
+        "display" => "Displays",
+        "android" => "Android",
+        "process" or "script" => "Programs",
+        "service" => "Services",
+        "file" => "Files",
+        "http" => "Web",
+        _ => "Flow",
+    };
+
     internal static string Area(string area) => area switch
     {
         "audio" => "Audio",

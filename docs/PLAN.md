@@ -147,7 +147,7 @@ T18.8, T18.10 and T18.11 are not planned (the user kept them for later / no id r
 
 - [x] T18.1 Titles and labels (feat/m18-titles, done; choices 1, 2, 4, 6, 11). Files: `ProviderCatalog.cs` (titles, picker labels, "It's connected"), tests that assert
   titles, UX/FEATURES strings. Done when: every title follows D-102, quick-add and breadcrumbs read well, saved YAML unchanged (a round-trip test).
-- [ ] T18.2 Palette groups and order (feat/m18-groups, after T18.1; choice 3). Files: `ProviderDescriptor` (display group) or a table in `CanvasNodeViewModel.Area`,
+- [x] T18.2 Palette groups and order (feat/m18-groups, done, after T18.1; choice 3). Files: `ProviderDescriptor` (display group) or a table in `CanvasNodeViewModel.Area`,
   `StepPaletteViewModel`, `ShellWindow` Step defaults list, catalog order. Done when: nine groups in the order of REVIEW §2 F5, Check last in each, nothing saved changes.
 - [x] T18.3 Choice captions (feat/m18-choice-captions, choice 5). Files: `ParamSpec` (captions), `ParamFieldViewModel`, card pill `Summarize`, bulk edit. Done when:
   the dropdown and pill show words, YAML keeps `notDefault` etc., bulk mixed state still works.

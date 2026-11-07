@@ -873,7 +873,7 @@ public sealed class InspectorViewModelTests : IDisposable
     {
         AddRunStep(null);
 
-        Assert.Equal("Flows › Run flow", _inspector.Kind);
+        Assert.Equal("Flow › Run flow", _inspector.Kind);
     }
 
     [Fact]
