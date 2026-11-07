@@ -100,6 +100,11 @@ public sealed partial class BackupCardViewModel : ObservableObject
     public bool BackupNow(string path)
     {
         _session.Flush();
+        if (_session.HasUnwrittenChanges)
+        {
+            Show("Your latest changes aren't saved yet, so the backup would miss them. Nothing was backed up.", BackupMessageKind.Error);
+            return false;
+        }
         _flushEditorSettings();
         try
         {
@@ -222,6 +227,12 @@ public sealed partial class BackupCardViewModel : ObservableObject
         try
         {
             _files.Delete(row.Path);
+            // The safety copy is Undo's only source: without it Undo would fail.
+            if (_undo?.SafetyPath is { } safety && string.Equals(System.IO.Path.GetFullPath(safety), System.IO.Path.GetFullPath(row.Path), StringComparison.OrdinalIgnoreCase))
+            {
+                _undo = null;
+                CanUndo = false;
+            }
             Refresh();
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)

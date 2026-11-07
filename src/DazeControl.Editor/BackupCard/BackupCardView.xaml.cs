@@ -69,13 +69,15 @@ public sealed partial class BackupCardView : UserControl
         };
         picker.FileTypeChoices.Add("Daze Control backup", [BackupFormat.Extension]);
         InitializeWithWindow.Initialize(picker, Hwnd);
-        // The picker creates an empty placeholder file; the service writes its own (never overwriting), so drop the placeholder first.
+        // The picker leaves an empty placeholder: remove only that. A file with content is an earlier backup the user picked; it stays
+        // until the new one is written, so the service adds a counter to the name instead of overwriting it.
         if (await picker.PickSaveFileAsync() is not { } file)
             return;
         var path = file.Path;
         try
         {
-            await file.DeleteAsync();
+            if (new FileInfo(path).Length == 0)
+                await file.DeleteAsync();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
         {

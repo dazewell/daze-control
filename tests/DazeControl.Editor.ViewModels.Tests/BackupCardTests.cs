@@ -221,4 +221,27 @@ public sealed class BackupCardTests : IDisposable
         Assert.Empty(_card.Backups);
         Assert.False(File.Exists(row.Path));
     }
+
+    [Fact]
+    public void DeletingTheSafetyCopyEndsUndo()
+    {
+        _card.OpenForRestore(MakeBackup(Theirs))!.Apply();
+
+        _card.Delete(Assert.Single(_card.Backups));
+
+        Assert.False(_card.CanUndo);
+        Assert.False(_card.Undo());
+    }
+
+    [Fact]
+    public void ABackupIsRefusedWhileEditsAreUnwritten()
+    {
+        _session.Update(c => c with { Settings = c.Settings with { Popup = c.Settings.Popup with { Seconds = 9 } } });
+        File.AppendAllText(_config, "# edited elsewhere" + Environment.NewLine); // the save meets an outside change and stops
+
+        var saved = _card.BackupNow(Path.Combine(_folder, "late.dcbackup"));
+
+        Assert.False(saved);
+        Assert.False(File.Exists(Path.Combine(_folder, "late.dcbackup")));
+    }
 }
