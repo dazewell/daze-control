@@ -1303,3 +1303,14 @@ Status: accepted (user, 2026-11-06: big flows meant resizing every launch)
   keeps one per-PC view-state file; config.yaml holds flows the user may share, and writing it makes the engine reload.
 - Why not `SetWindowPlacement` on start: it can't clamp to a changed monitor layout or rescale for DPI.
 - Other windows: the editor is one window; dialogs are `ContentDialog`s sized by content, nothing to remember.
+
+## D-100 · 2026-11-06 · Controller menu: the number pad works as a d-pad (Steam Controller reaches us as keys)
+Status: accepted (investigation for the user's report "Steam Controller doesn't drive the menu").
+- Finding (user's PC, Steam running): no XInput pad in slots 0–3 (`dctl devices gamepads`: none), no HID gamepad or virtual
+  Xbox pad; the Steam Controller exists only as a Bluetooth LE device (`BTHLE`, "Steam Ctrl (BT)"). As D-056 found, it is
+  never an XInput/GameInput pad on the desktop: Steam turns it into keys/mouse. The pad reader is not at fault.
+- Cause: the user's Steam layout sends number-pad keys (Num Lock is on), and the menu registered only arrows, Enter, Esc, Tab,
+  Home/End and the top-row 1–9.
+- Decision: the open menu also registers Num8/2/4/6 (move), Num7/Num9 (previous/next), Num5 (run), Num0 (close).
+  Num Enter is Enter already. Registered only while a menu is open, like the other keys. Needs Num Lock on.
+- Not done: raw HID / Bluetooth reading of the Steam Controller (Steam owns it; needs its protocol, idle cost, fragile).

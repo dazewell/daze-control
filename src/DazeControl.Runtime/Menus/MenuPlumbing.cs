@@ -39,7 +39,7 @@ public enum MenuKeyKind { Move, Activate, Cancel, Number }
 /// <param name="Number">For <see cref="MenuKeyKind.Number"/>: 1–9.</param>
 public readonly record struct MenuKeyAction(MenuKeyKind Kind, MenuDirection Direction = MenuDirection.Down, int Number = 0);
 
-/// <summary>The keys a menu registers while it is open: Up Down Left Right Enter Space Esc Tab Shift+Tab Home End 1–9.</summary>
+/// <summary>The keys a menu registers while it is open: Up Down Left Right Enter Space Esc Tab Shift+Tab Home End 1–9, and Num8 Num2 Num4 Num6 Num7 Num9 Num5 Num0.</summary>
 public static class MenuKeyMap
 {
     private const int Shift = 0x4; // MOD_SHIFT
@@ -57,6 +57,12 @@ public static class MenuKeyMap
             (0x24, 0, Move(MenuDirection.First)), (0x23, 0, Move(MenuDirection.Last)),
             (0x0D, 0, new(MenuKeyKind.Activate)), (0x20, 0, new(MenuKeyKind.Activate)),
             (0x1B, 0, new(MenuKeyKind.Cancel)),
+            // The number pad as a d-pad, for a Steam layout that sends Num keys (Num Lock on; D-100): 8 2 4 6 move,
+            // 7 / 9 previous / next, 5 and Num0 run / close. Num Enter is Enter already.
+            (0x68, 0, Move(MenuDirection.Up)), (0x62, 0, Move(MenuDirection.Down)),
+            (0x64, 0, Move(MenuDirection.Left)), (0x66, 0, Move(MenuDirection.Right)),
+            (0x67, 0, Move(MenuDirection.Previous)), (0x69, 0, Move(MenuDirection.Next)),
+            (0x65, 0, new(MenuKeyKind.Activate)), (0x60, 0, new(MenuKeyKind.Cancel)),
         ];
         for (var n = 1; n <= 9; n++)
             keys.Add((0x30 + n, 0, new(MenuKeyKind.Number, Number: n)));
