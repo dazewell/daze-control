@@ -42,6 +42,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     {
         ParamKind.TextList => "One per line",
         ParamKind.TextMap => "Name: value, one per line",
+        ParamKind.Choice when Spec.Default is { } d => Spec.CaptionOf(d),
         _ => Spec.Default ?? (Spec.Required ? "" : "Optional"),
     };
 
@@ -206,6 +207,22 @@ public sealed partial class ParamFieldViewModel : ObservableObject
 
     public IReadOnlyList<string> Choices => Spec.Choices;
 
+    /// <summary>The drop-down rows: value (as in YAML) and its words. Built once so the control's selection can be matched by reference.</summary>
+    public IReadOnlyList<ChoiceOption> ChoiceOptions => _choiceOptions ??= [.. Spec.Choices.Select(c => new ChoiceOption(c, Spec.CaptionOf(c)))];
+
+    private IReadOnlyList<ChoiceOption>? _choiceOptions;
+
+    /// <summary>The row of the current <see cref="Choice"/>; null while mixed or unset.</summary>
+    public ChoiceOption? ChoiceOption
+    {
+        get => Choice is null ? null : ChoiceOptions.FirstOrDefault(o => o.Value == Choice);
+        set
+        {
+            if (value is not null)
+                Choice = value.Value;
+        }
+    }
+
     /// <summary>Text, script, file path, list (one per line) or map ("Name: value" lines).</summary>
     [ObservableProperty]
     public partial string Text { get; set; } = "";
@@ -301,7 +318,10 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                 Device = null;
             // Same value again raises nothing, but the control may have dropped its selection since: read both again.
             if (IsChoice)
+            {
                 OnPropertyChanged(nameof(Choice));
+                OnPropertyChanged(nameof(ChoiceOption));
+            }
             if (IsDevice)
                 OnPropertyChanged(nameof(Device));
             Error = problem ?? FileProblem();
@@ -542,6 +562,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
 
     partial void OnChoiceChanged(string? value)
     {
+        OnPropertyChanged(nameof(ChoiceOption));
         if (!_loading && value is not null)
             _write(this, Scalar(value));
     }
@@ -588,4 +609,10 @@ public sealed partial class ParamFieldViewModel : ObservableObject
         path = Environment.ExpandEnvironmentVariables(path.Trim('"'));
         return Path.IsPathFullyQualified(path) && !_fileExists(path) ? (IsFolder ? "Can't find this folder." : "Can't find this file.") : null;
     }
+}
+
+/// <summary>A drop-down row of a choice param: the stored <see cref="Value"/> and its <see cref="Caption"/> (D-102).</summary>
+public sealed record ChoiceOption(string Value, string Caption)
+{
+    public override string ToString() => Caption;
 }

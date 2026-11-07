@@ -1325,6 +1325,19 @@ Status: accepted (user report: the menu works from the Steam Controller until St
 - Decision: document it (README known limits). No raw BLE/HID reading of the Steam Controller (Steam owns the device, its
   protocol is undocumented, and it would add an idle cost). Not verified: Steam's own UI for changing Big Picture's layout.
 
+
+## D-103 · 2026-11-06 · Backup and restore: one zip, byte-for-byte config.yaml, restore through the normal loader
+Status: accepted (user, 2026-11-06, all open choices as recommended; docs/backup-restore/DESIGN.md)
+- Decision: `.dcbackup` = zip (`System.IO.Compression`) with `manifest.yaml` (format, app and config versions, SHA-256 per entry, reason), `config.yaml`
+  byte for byte, optional `editor.json` and `history.jsonl`. Never secrets (D-014: only credential names; restore lists names missing in Credential Manager).
+  Logic in `Core/Backup/BackupService`; zip work runs in the editor and `dctl backup|restore`, never resident in the engine (no timer, no new engine path, D-009).
+  Automatic copies only at existing events (before update, after an editor save, at most daily; newest 10). Restore: preview, Replace or Add-missing, safety copy
+  first, one atomic config.yaml replace, the engine's hot reload judges every flow (D-021), Undo from the safety copy. An unreadable backup config disables Restore.
+- Why: the repo already writes only config.yaml for the engine; copying it verbatim keeps hand comments and needs no schema; the normal loader is the one fail-soft path.
+- Why not a folder of files: harder to move. Why not encrypt or DPAPI values: no secrets are in the file (D-014). Why not a scheduled/periodic backup: idle = zero.
+  Why not an engine-side zip: footprint budget. Why not rewrite machine-specific values on restore: wrong guesses; list them instead.
+- Revisit if: credentials must roam (D-014's trigger), per-flow export/import (M16 "Out") is wanted, or config grows past a few hundred KB.
+
 ## D-102 · 2026-11-06 · Step vocabulary: verb + bare object, themed palette groups, ids stay
 Status: accepted (user, 2026-11-06: all 12 open choices of docs/steps-review/REVIEW.md as recommended). Choice 9 = no id renames; 7 = add Close program, Stop app (Android), Turn screens off, the "Wait until" recipe and more PowerShell examples; 8 = every "maybe later" item stays later, HDR and non-audio Bluetooth spikes are no for now.
 - Decision: palette titles are an imperative verb plus a bare object (no article, group name not repeated: Android → "Connect", "Start app");

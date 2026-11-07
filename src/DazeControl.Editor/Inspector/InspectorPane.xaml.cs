@@ -253,7 +253,7 @@ public sealed partial class InspectorPane : UserControl
     {
         var wanted = box.DataContext switch
         {
-            ParamFieldViewModel { IsMixed: false } f => f.IsChoice ? (object?)f.Choice : f.Device,
+            ParamFieldViewModel { IsMixed: false } f => f.IsChoice ? (object?)f.ChoiceOption : f.Device,
             DevicePickerViewModel d => (object?)d.Device,
             _ => null,
         };
