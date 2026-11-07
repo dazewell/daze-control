@@ -8,6 +8,7 @@
     xmlns:inspector="using:DazeControl.Editor.Inspector"
     xmlns:library="using:DazeControl.Editor.Library"
     xmlns:runs="using:DazeControl.Editor.Runs"
+    xmlns:backup="using:DazeControl.Editor.BackupCard"
     xmlns:local="using:DazeControl.Editor"
     xmlns:motion="using:DazeControl.Editor"
     xmlns:vmc="using:DazeControl.Editor.ViewModels.Canvas"
@@ -660,6 +661,8 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+
+                                <backup:BackupCardView ViewModel="{x:Bind ViewModel.Backup}" />
                             </StackPanel>
 
                             <!-- About -->

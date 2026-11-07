@@ -1,4 +1,6 @@
+using DazeControl.Core.Backup;
 using DazeControl.Editor.ViewModels;
+using DazeControl.Editor.ViewModels.BackupCard;
 using DazeControl.Editor.ViewModels.Config;
 using DazeControl.Editor.ViewModels.Engine;
 using Microsoft.UI.Xaml;
@@ -19,6 +21,9 @@ public partial class App : Application
     }
 
     public static App? Instance { get; private set; }
+
+    /// <summary>The editor window (owner of the file pickers); null before launch.</summary>
+    public Microsoft.UI.Xaml.Window? MainWindow => _window;
 
     public static string LogsFolder { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Core.AppInfo.FolderName, "logs");
@@ -58,19 +63,32 @@ public partial class App : Application
         ? new ConfigStore(path, Path.Combine(Path.GetDirectoryName(path)!, "backups", Path.GetFileName(path)))
         : new ConfigStore(ConfigStore.DefaultPath, ConfigStore.DefaultBackupDirectory);
 
+    /// <summary>Safety copies and automatic backups live in backups/auto next to the config (%LOCALAPPDATA%\DazeControl by default, D-103).</summary>
+    private static BackupCardViewModel CreateBackupCard(ConfigSession session, ConfigStore store, EditorSettingsStore settings)
+    {
+        var auto = Program.ConfigPath is { } scratch
+            ? Path.Combine(Path.GetDirectoryName(scratch)!, "backups", "auto")
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Core.AppInfo.FolderName, "backups", "auto");
+        var files = new PhysicalBackupFiles();
+        var service = new BackupService(files, TimeProvider.System, ShellViewModel.Version, Environment.MachineName);
+        return new BackupCardViewModel(session, service, files, new RestoreTarget(store.Path, settings.Path, auto),
+            store.BackupDirectory, TimeProvider.System, settings.Flush);
+    }
+
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         var ui = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         void Post(Action action) => ui.TryEnqueue(() => action());
 
         _engine = new EngineClient();
-        var session = new ConfigSession(OpenStore(), TimeProvider.System, Post);
+        var store = OpenStore();
+        var session = new ConfigSession(store, TimeProvider.System, Post);
         session.Load();
         // With --config (a scratch file), view state goes next to it too, so test runs leave this PC's alone.
         var settings = new EditorSettingsStore(Program.ConfigPath is { } config
             ? Path.Combine(Path.GetDirectoryName(config)!, "editor.json")
             : EditorSettingsStore.DefaultPath, log: Log);
-        var shell = new ShellViewModel(session, _engine, Post, LogsFolder, CreateUpdateClient(), settings);
+        var shell = new ShellViewModel(session, _engine, Post, LogsFolder, CreateUpdateClient(), settings, CreateBackupCard(session, store, settings));
         _window = new ShellWindow(shell);
         _window.Closed += (_, _) =>
         {
