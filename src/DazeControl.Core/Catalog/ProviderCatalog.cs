@@ -15,6 +15,9 @@ public static class ProviderCatalog
 
     private static readonly TimeSpan Short = TimeSpan.FromSeconds(10);
 
+    /// <summary>The "Wait until" recipe in the check steps' help (T18.5, D-081).</summary>
+    private const string WaitUntilHelp = "Fails when it isn't. To wait until it is, set Try again and Wait between tries.";
+
     /// <summary>UX §5.4.</summary>
     private static readonly ValueList<ParamExample> PowerShellExamples =
     [
@@ -22,6 +25,9 @@ public static class ProviderCatalog
         new("Start an app and wait", "Start-Process notepad -Wait"),
         new("Close an app", "Stop-Process -Name 'Spotify' -ErrorAction SilentlyContinue"),
         new("Lock the PC", "rundll32.exe user32.dll,LockWorkStation"),
+        new("Put the PC to sleep", "rundll32.exe powrprof.dll,SetSuspendState 0,1,0"),
+        new("Switch to the Balanced power plan", "powercfg /setactive SCHEME_BALANCED"),
+        new("Turn on dark mode", "Set-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize' AppsUseLightTheme 0"),
         new("Fail unless an app is running", "if (-not (Get-Process steam -ErrorAction SilentlyContinue)) { exit 1 }"),
     ];
 
@@ -39,7 +45,7 @@ public static class ProviderCatalog
         new("audio.check", "Check default device", Audio, Short,
         [
             Ref("device", "Audio device", LibraryKind.Audio),
-            new("is", ParamKind.Choice, "Is") { Choices = ["default", "notDefault"], Default = "default" },
+            new("is", ParamKind.Choice, "Is") { Choices = ["default", "notDefault"], Default = "default", Help = WaitUntilHelp },
         ]),
         new("audio.setVolume", "Set volume", Audio, Short,
         [
@@ -69,7 +75,7 @@ public static class ProviderCatalog
         new("bluetooth.check", "Check connection", Bluetooth, Short,
         [
             Ref("device", "Bluetooth device", LibraryKind.Bluetooth),
-            new("is", ParamKind.Choice, "Is") { Choices = ["connected", "disconnected"], Default = "connected", Help = "Fails when it isn't; follow it with an \"if it fails\" branch." },
+            new("is", ParamKind.Choice, "Is") { Choices = ["connected", "disconnected"], Default = "connected", Help = WaitUntilHelp },
         ])
         { Resources = ["bluetooth:{device}"] },
         new("display.topology", "Project screens", Display, Short,
@@ -102,7 +108,7 @@ public static class ProviderCatalog
         new("process.check", "Check program", Process, Short,
         [
             new("program", ParamKind.Text, "Program") { Required = true, Help = "Its name or path, like Spotify or Spotify.exe." },
-            new("is", ParamKind.Choice, "Is") { Choices = ["running", "notRunning"], Default = "running" },
+            new("is", ParamKind.Choice, "Is") { Choices = ["running", "notRunning"], Default = "running", Help = WaitUntilHelp },
         ]) { Keywords = "running is" },
         new("script.powershell", "Run PowerShell", Script, TimeSpan.FromSeconds(60),
             [new("script", ParamKind.MultilineText, "Script") { Required = true, Examples = PowerShellExamples }]),
@@ -172,12 +178,12 @@ public static class ProviderCatalog
         new("service.check", "Check service", Service, Short,
         [
             new("name", ParamKind.Text, "Service") { Required = true, Suggest = ParamSuggest.Devices("services") },
-            new("is", ParamKind.Choice, "Is") { Choices = ["running", "stopped"], Default = "running" },
+            new("is", ParamKind.Choice, "Is") { Choices = ["running", "stopped"], Default = "running", Help = WaitUntilHelp },
         ]),
         new("file.check", "Check file", File, Short,
         [
             new("path", ParamKind.Text, "File or folder") { Required = true, Help = "A full path; %VARIABLES% work." },
-            new("is", ParamKind.Choice, "Is") { Choices = ["exists", "missing"], Default = "exists" },
+            new("is", ParamKind.Choice, "Is") { Choices = ["exists", "missing"], Default = "exists", Help = WaitUntilHelp },
         ]) { Keywords = "folder exists" },
         new("wait", "Wait", Wait, TimeSpan.FromHours(1),
             [new("duration", ParamKind.Duration, "How long") { Required = true }]),
@@ -191,7 +197,7 @@ public static class ProviderCatalog
         new("flag.check", "Check flag", Flag, Short,
         [
             new("name", ParamKind.Text, "Flag") { Required = true, Suggest = ParamSuggest.Config(ParamSuggest.Flags) },
-            new("value", ParamKind.Boolean, "Is on") { Default = "true", Help = "Fails when the flag differs; follow it with an \"if it fails\" branch." },
+            new("value", ParamKind.Boolean, "Is on") { Default = "true", Help = WaitUntilHelp },
         ]),
         // No resources: the step holds no lock while it waits; the called flow's steps take their own (D-062).
         new(RunFlowId, "Run flow", RunFlow, TimeSpan.FromMinutes(10),

@@ -583,7 +583,7 @@ public sealed class EngineControllerTests : IDisposable
         var nodes = answer.Run!.Nodes.ToDictionary(n => n.NodeId);
         Assert.Equal(NodeOutcome.Succeeded, nodes["here"].Outcome);
         Assert.Equal(NodeOutcome.Failed, nodes["gone"].Outcome);
-        Assert.Equal("buds isn't in your Library.", nodes["gone"].Error);
+        Assert.Equal("There's no Bluetooth device called \"buds\" in your Library.", nodes["gone"].Error);
         Assert.Equal(NodeOutcome.Skipped, nodes["after"].Outcome);
         Assert.Equal("Editor (dry run)", answer.Run.Trigger);
         Assert.Empty(_history.Recent);

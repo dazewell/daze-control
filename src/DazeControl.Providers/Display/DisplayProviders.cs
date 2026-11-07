@@ -85,7 +85,7 @@ public sealed class DisplayLayoutProvider(IDisplays displays) : IStepProvider
     {
         var key = context.RequiredText("layout");
         var layout = context.Library.Displays.FirstOrDefault(d => d.Key == key)
-            ?? throw new StepFailedException($"No screen layout called \"{key}\" in the library.");
+            ?? throw new StepFailedException(Library.Missing(LibraryKind.Display, key));
         displays.ApplyLayout(layout, cancellationToken);
         return Task.CompletedTask;
     }
