@@ -300,9 +300,12 @@ per connection, ends when the connection does: the editor sends it on the persis
 through `Runtime/Control/IDeviceQueries` (read-only; `Providers/SystemDevices` on the real PC); `test-step`
 answers "can't do that yet" until the editor. `PipeClient` copies each request to stamp its id: a new
 `PipeRequest` field goes into that copy too (`PipeTests.EveryRequestFieldReachesTheServer` fails otherwise).
-`dctl` (`src/DazeControl.Cli`): run/cancel/list/validate/status/history/autostart/devices/capture-display-layout/shortcut/update, parsed strictly by
+`dctl` (`src/DazeControl.Cli`): run/cancel/list/validate/status/history/autostart/devices/capture-display-layout/shortcut/backup/restore/update, parsed strictly by
 `Ipc/CommandLine` (unknown flag or wrong word count → exit 2, never ignored); `validate <file>`
 and, with no engine, `list`/`validate` read the YAML themselves. Exit codes 0 ok, 1 failed, 2 usage, 3 no engine.
+`backup [file] [--editor] [--history] [--config]` / `restore <file> [--merge|--replace] [--yes] [--dry-run] [--editor] [--config]` are `Core/Backup/BackupCommands` (T19.3; no engine, files only;
+`--config` moves config, editor.json, history and the `backups/auto` safety folder next to that file). Restore always prints the preview; `--dry-run` stops there (exit 0); applying needs `--yes`, or `y` on a terminal,
+else exit 2; an open editor (its `Local\DazeControl.Editor` mutex) also exits 2, since the CLI can't see its draft. Unreadable/damaged/newer file, unreadable backup config, safety-copy or write failure: exit 1 with the DESIGN §10 sentence.
 
 ## Editor
 

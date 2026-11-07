@@ -74,4 +74,25 @@ public class CommandLineTests
         Assert.Null(Parse("validate").Word);
         Assert.Equal("a.yaml", Parse("validate", "a.yaml").Word);
     }
+
+    [Fact]
+    public void RestoreTakesItsFlags()
+    {
+        var line = Parse("restore", "a.dcbackup", "--merge", "--yes", "--editor", "--config", "c.yaml");
+        Assert.Equal("a.dcbackup", line.Word);
+        Assert.True(line.Merge && line.Yes && line.Editor);
+        Assert.Equal("c.yaml", line.Config);
+        Assert.True(Parse("restore", "a", "--dry-run").DryRun);
+    }
+
+    [Theory]
+    [InlineData("restore")]
+    [InlineData("restore", "a", "--merge", "--replace")]
+    [InlineData("restore", "a", "--config")]
+    [InlineData("restore", "a", "--history")]
+    [InlineData("backup", "a", "b")]
+    [InlineData("backup", "--yes")]
+    [InlineData("run", "tv", "--config", "x")]
+    public void BackupAndRestoreAreStrict(params string[] args) =>
+        Assert.Throws<CommandLineException>(() => Parse(args));
 }

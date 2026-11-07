@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using DazeControl.Core;
+using DazeControl.Core.Backup;
 using DazeControl.Core.Model;
 using DazeControl.Core.Runs;
 using DazeControl.Core.Updates;
@@ -34,8 +37,12 @@ public static class Program
                                             what steps can name on this PC
           capture-display-layout <name>     the screens as they are now, as YAML for library.displays
           shortcut <flow> [--remove]        put a desktop shortcut that runs the flow (or take it away)
+          backup [file] [--editor] [--history] [--config <path>]
+                                            save config.yaml (and the editor layout / run history if asked) to a .dcbackup file
+          restore <file> [--merge|--replace] [--yes] [--dry-run] [--editor] [--config <path>]
+                                            --dry-run shows what would change; --yes applies it (--replace is the default)
           update                            download a newer version; it installs at the next start
-        Exit codes: 0 ok, 1 failed, 2 usage, 3 the engine isn't running.
+        Exit codes: 0 ok, 1 failed, 2 usage (restore: also refused without --yes), 3 the engine isn't running.
         """;
 
     public static async Task<int> Main(string[] args)
@@ -121,12 +128,38 @@ public static class Program
             case "shortcut":
                 return await SendAsync(new PipeRequest { Op = line.Remove ? Ops.RemoveShortcut : Ops.CreateShortcut, Flow = line.Word },
                     m => PrintShortcut(m, line.Remove)).ConfigureAwait(false);
+            case "backup":
+                return Commands(line).Backup(line.Word, line.Editor, line.History);
+            case "restore":
+                return Commands(line).Restore(line.Word!, line.Merge ? RestoreMode.AddMissing : RestoreMode.Replace, line.Yes, line.DryRun, line.Editor);
             case "update":
                 return await UpdateAsync().ConfigureAwait(false);
             default:
                 throw new UnreachableException();
         }
     }
+
+    private static BackupCommands Commands(CommandLine line)
+    {
+        var files = new PhysicalBackupFiles();
+        var version = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "?";
+        var service = new BackupService(files, TimeProvider.System, version, Environment.MachineName);
+        return new BackupCommands(service, files, BackupPaths.For(line.Config), Console.Out, Console.Error,
+            interactive: !Console.IsInputRedirected && !Console.IsOutputRedirected, EditorRunning(line.Config));
+    }
+
+    // The session-local mutex the editor holds (Editor/Program.cs): one editor per user and config file.
+    private static Func<bool> EditorRunning(string? config) => () =>
+    {
+        var scope = config is null || SamePath(config, BackupPaths.For(null).Config) ? "" : "." + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(config).ToUpperInvariant())))[..16];
+        if (!Mutex.TryOpenExisting(@"Local\DazeControl.Editor" + scope, out var mutex))
+            return false;
+        mutex.Dispose();
+        return true;
+    };
+
+    // The editor started without --config holds the unsuffixed mutex, also when the path given is the default one.
+    private static bool SamePath(string a, string b) => string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
 
     private static int PrintShortcut(PipeMessage message, bool removed)
     {
