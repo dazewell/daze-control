@@ -98,8 +98,15 @@ public sealed class AndroidRemote(IAdb adb, TimeProvider time)
             if (attempt < ConnectAttempts)
                 await Task.Delay(RetryDelay, time, cancellationToken).ConfigureAwait(false);
         }
-        throw new StepFailedException($"Couldn't reach the Android device at {serial} ({reason}). Is it on, with network debugging turned on?");
+        var hint = reason.Contains("authenticat", StringComparison.OrdinalIgnoreCase)
+            ? "Accept the debugging prompt on the device, or pair it again."
+            : "Is it on, with network debugging turned on?";
+        throw new StepFailedException($"Couldn't reach the Android device at {serial} ({reason}). {hint}");
     }
+
+    /// <summary>The <c>android.connect</c> step (D-096): just the connect, with its retries; "already connected" counts as success.</summary>
+    public Task ConnectAsync(AndroidDevice device, CancellationToken cancellationToken) =>
+        ConnectAsync(device.Adb ?? DefaultAdb, device.Serial, cancellationToken);
 
     internal static string Reason(AdbResult result)
     {
@@ -192,4 +199,13 @@ public sealed class AndroidStartProvider(AndroidRemote remote) : IStepProvider
         var package = context.RequiredText("app").Trim();
         return remote.StartAppAsync(context.Device(), package, cancellationToken);
     }
+}
+
+/// <summary><c>android.connect</c>: <c>adb connect</c> to the library device, so later steps (or other tools) find it (D-096).</summary>
+public sealed class AndroidConnectProvider(AndroidRemote remote) : IStepProvider
+{
+    public string Id => "android.connect";
+
+    public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken) =>
+        remote.ConnectAsync(context.Device(), cancellationToken);
 }

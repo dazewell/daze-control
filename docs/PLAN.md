@@ -119,6 +119,7 @@ One PR (design + build). Editor edits stay in the inspector/param picker (other 
 - [x] T17.2 Searchable app picker in the inspector (same PR). Files: `Editor.ViewModels/Inspector`, `InspectorPane.xaml`. Done when: VM tests (filter, sort, free text); built.
 - [x] T17.3 Gate: move as-built facts to ARCHITECTURE/FEATURES/UX and cut DESIGN (D-053), in this PR or the next docs PR.
 - [x] T17.4 Editor Back/Forward: mouse side buttons, touchpad gestures, Alt+Left/Right (feat/editor-back-forward, D-095). Files: `NavigationHistory.cs`, `ShellViewModel`, `ShellWindow`. Done when: history tests (bounded, deleted flows skipped, rename follows); seen with injected XButton and Alt+Left.
+- [x] T17.5 `android.connect` step (feat/android-adb-connect, D-096). Files: `Providers/Android`, catalog. Done when: fake-adb tests (already connected, failed authentication); AOT publish clean.
 
 ---
 

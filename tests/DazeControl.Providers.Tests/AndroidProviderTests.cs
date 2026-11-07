@@ -125,6 +125,28 @@ public class AndroidProviderTests
     }
 
     [Fact]
+    public async Task ConnectStepOnlyConnectsAndAlreadyConnectedIsSuccess()
+    {
+        var adb = new FakeAdb("already connected to 192.168.1.50:5555");
+
+        await Run(new AndroidConnectProvider(new AndroidRemote(adb, TimeProvider.System)), Context("android.connect"));
+
+        Assert.Equal(["adb connect 192.168.1.50:5555"], adb.Calls);
+    }
+
+    [Fact]
+    public async Task ConnectStepFailedAuthenticationSaysToAcceptThePrompt()
+    {
+        var adb = new FakeAdb("failed to authenticate to 192.168.1.50:5555");
+
+        var failure = await Assert.ThrowsAsync<StepFailedException>(
+            () => Run(new AndroidConnectProvider(new AndroidRemote(adb, TimeProvider.System)), Context("android.connect")));
+
+        Assert.Contains("Accept the debugging prompt", failure.Message);
+        Assert.Equal(3, adb.Calls.Count);
+    }
+
+    [Fact]
     public async Task ShellErrorFailsTheStep()
     {
         var adb = new FakeAdb { ShellExitCode = 1 };

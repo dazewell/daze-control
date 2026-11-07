@@ -154,6 +154,9 @@ public static class ProviderCatalog
             },
         ])
         { Resources = ["adb:{device}"] },
+        new("android.connect", "Connect Android device", Tv, TimeSpan.FromSeconds(20),
+            [Ref("device", "Android device", LibraryKind.Android)])
+        { Resources = ["adb:{device}"] },
         new("service.start", "Start service", Service, TimeSpan.FromSeconds(30),
             [new("name", ParamKind.Text, "Service name") { Required = true, Suggest = ParamSuggest.Devices("services") }])
         {
