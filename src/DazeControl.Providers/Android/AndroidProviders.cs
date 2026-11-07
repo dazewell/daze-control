@@ -25,7 +25,7 @@ public sealed class AdbProcess : IAdb
             start.ArgumentList.Add(arg);
         try
         {
-            var (exitCode, lastError, output) = await ProcessRunner.RunAsync(start, null, keepOutput: true, cancellationToken).ConfigureAwait(false);
+            var (exitCode, lastError, output) = await ProcessRunner.RunAsync(start, null, keepOutput: true, cancellationToken, outputLimit: 65536).ConfigureAwait(false);
             return new AdbResult(exitCode, output, lastError);
         }
         catch (StepFailedException e) when (e.InnerException is System.ComponentModel.Win32Exception)
@@ -59,7 +59,32 @@ public sealed class AndroidRemote(IAdb adb, TimeProvider time)
             throw new StepFailedException($"The Android device refused the keys: {Reason(result)}");
     }
 
-    private async Task ConnectAsync(string exe, string serial, CancellationToken cancellationToken)
+    /// <summary>
+    /// Opens an app by package id (D-094): <c>am start</c> for the phone launcher, then the TV one. <c>am</c> exits 0 when
+    /// nothing could start, so its "Error" answer decides.
+    /// </summary>
+    public async Task StartAppAsync(AndroidDevice device, string package, CancellationToken cancellationToken)
+    {
+        if (!AndroidAppList.IsPackage(package))
+            throw new StepFailedException($"\"{package}\" isn't an app's package name (like com.spotify.music).");
+        var exe = device.Adb ?? DefaultAdb;
+        var serial = device.Serial;
+        await ConnectAsync(exe, serial, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        foreach (var category in (string[])["LAUNCHER", "LEANBACK_LAUNCHER"])
+        {
+            var result = await adb.RunAsync(exe,
+                ["-s", serial, "shell", $"am start -a android.intent.action.MAIN -c android.intent.category.{category} -p {package}"],
+                cancellationToken).ConfigureAwait(false);
+            if (result.ExitCode != 0)
+                throw new StepFailedException($"The Android device refused to start {package}: {Reason(result)}");
+            if (!(result.Output + result.LastError).Contains("Error", StringComparison.Ordinal))
+                return;
+        }
+        throw new StepFailedException($"{package} isn't installed on the Android device \"{device.Key}\", or it has no icon to open.");
+    }
+
+    public async Task ConnectAsync(string exe, string serial, CancellationToken cancellationToken)
     {
         string reason = "";
         for (var attempt = 1; attempt <= ConnectAttempts; attempt++)
@@ -76,7 +101,7 @@ public sealed class AndroidRemote(IAdb adb, TimeProvider time)
         throw new StepFailedException($"Couldn't reach the Android device at {serial} ({reason}). Is it on, with network debugging turned on?");
     }
 
-    private static string Reason(AdbResult result)
+    internal static string Reason(AdbResult result)
     {
         var text = result.LastError.Length > 0 ? result.LastError : result.Output;
         var line = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault();
@@ -155,4 +180,16 @@ public sealed class AndroidSleepProvider(AndroidRemote remote) : IStepProvider
 
     public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken) =>
         remote.ShellAsync(context.Device(), [AndroidRemote.KeyEvent("sleep")], cancellationToken);
+}
+
+/// <summary><c>android.start</c>: opens the app (package id) on the device (D-094).</summary>
+public sealed class AndroidStartProvider(AndroidRemote remote) : IStepProvider
+{
+    public string Id => "android.start";
+
+    public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
+    {
+        var package = context.RequiredText("app").Trim();
+        return remote.StartAppAsync(context.Device(), package, cancellationToken);
+    }
 }

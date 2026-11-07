@@ -20,7 +20,7 @@ internal static class ProcessRunner
 
     /// <summary>As above; with <paramref name="keepOutput"/> also the last 4 KB of stdout (adb answers there).</summary>
     public static async Task<(int ExitCode, string LastError, string Output)> RunAsync(ProcessStartInfo start, string? stdin,
-        bool keepOutput, CancellationToken cancellationToken)
+        bool keepOutput, CancellationToken cancellationToken, int outputLimit = ErrorTail)
     {
         start.UseShellExecute = false;
         start.CreateNoWindow = true;
@@ -41,9 +41,9 @@ internal static class ProcessRunner
         // Fixed-size chunks, never whole lines: a child writing without newlines can't grow the engine's memory.
         using var drain = new CancellationTokenSource();
         var kept = new StringBuilder();
-        var output = keepOutput ? TailAsync(process.StandardOutput, kept, drain.Token) : DiscardAsync(process.StandardOutput.BaseStream, drain.Token);
+        var output = keepOutput ? TailAsync(process.StandardOutput, kept, outputLimit, drain.Token) : DiscardAsync(process.StandardOutput.BaseStream, drain.Token);
         var tail = new StringBuilder();
-        var error = TailAsync(process.StandardError, tail, drain.Token);
+        var error = TailAsync(process.StandardError, tail, ErrorTail, drain.Token);
         try
         {
             if (stdin is not null)
@@ -92,7 +92,7 @@ internal static class ProcessRunner
         }
     }
 
-    private static async Task TailAsync(StreamReader reader, StringBuilder tail, CancellationToken cancellationToken)
+    private static async Task TailAsync(StreamReader reader, StringBuilder tail, int limit, CancellationToken cancellationToken)
     {
         var buffer = new char[1024];
         try
@@ -103,8 +103,8 @@ internal static class ProcessRunner
                 lock (tail)
                 {
                     tail.Append(buffer, 0, read);
-                    if (tail.Length > ErrorTail)
-                        tail.Remove(0, tail.Length - ErrorTail);
+                    if (tail.Length > limit)
+                        tail.Remove(0, tail.Length - limit);
                 }
             }
         }

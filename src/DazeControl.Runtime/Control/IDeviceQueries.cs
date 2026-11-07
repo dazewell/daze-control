@@ -16,4 +16,8 @@ public interface IDeviceQueries
 
     /// <summary>The screens as they are now; changes nothing.</summary>
     Task<DisplayLayout> CaptureDisplayLayoutAsync(string key, CancellationToken cancellationToken);
+
+    /// <summary>The launchable apps of an Android device, by name (D-092, D-093): the saved list, or the device's when <paramref name="refresh"/>.</summary>
+    Task<IReadOnlyList<DeviceInfo>> AndroidAppsAsync(string address, string? adbPath, bool refresh, CancellationToken cancellationToken) =>
+        throw new Providers.StepFailedException("This engine can't list Android apps.");
 }

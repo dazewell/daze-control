@@ -12,7 +12,7 @@ using DazeControl.Runtime.Providers;
 namespace DazeControl.Providers;
 
 /// <summary>The real PC's devices, read-only, for <c>dctl devices</c> and <c>dctl capture-display-layout</c>.</summary>
-public sealed class SystemDevices(IDisplays displays, IAdb adb, IPairedBluetooth paired) : IDeviceQueries
+public sealed class SystemDevices(IDisplays displays, IAdb adb, IPairedBluetooth paired, AndroidAppLister? apps = null) : IDeviceQueries
 {
     public IReadOnlyList<string> Kinds { get; } = ["audio", "bluetooth", "displays", "adb", "services", "credentials"];
 
@@ -73,4 +73,12 @@ public sealed class SystemDevices(IDisplays displays, IAdb adb, IPairedBluetooth
 
     public Task<DisplayLayout> CaptureDisplayLayoutAsync(string key, CancellationToken cancellationToken) =>
         Task.Run(() => displays.CaptureLayout(key), cancellationToken);
+
+    public async Task<IReadOnlyList<DeviceInfo>> AndroidAppsAsync(string address, string? adbPath, bool refresh, CancellationToken cancellationToken)
+    {
+        if (apps is null)
+            throw new StepFailedException("This engine can't list Android apps.");
+        var list = await apps.ListAsync(address, adbPath, refresh, cancellationToken).ConfigureAwait(false);
+        return [.. list.Select(a => new DeviceInfo { Name = a.Name, Detail = a.Package, Value = a.Package })];
+    }
 }

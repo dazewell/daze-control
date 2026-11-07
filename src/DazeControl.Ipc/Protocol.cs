@@ -39,6 +39,7 @@ public static class Ops
     public const string Devices = "devices";
     public const string TestStep = "test-step";
     public const string CaptureDisplayLayout = "capture-display-layout";
+    public const string AndroidApps = "android-apps";
     public const string Shortcuts = "shortcuts";
     public const string CreateShortcut = "create-shortcut";
     public const string RemoveShortcut = "remove-shortcut";
@@ -90,6 +91,15 @@ public sealed class PipeRequest
 
     /// <summary>capture-display-layout: the library key the layout is saved under.</summary>
     public string? Key { get; init; }
+
+    /// <summary>android-apps: the device's address ("host" or "host:port", as in the library).</summary>
+    public string? Address { get; init; }
+
+    /// <summary>android-apps: the device's own adb.exe path, if the library names one.</summary>
+    public string? Adb { get; init; }
+
+    /// <summary>android-apps: true = ask the device now (connects), false = answer from the saved list (D-093).</summary>
+    public bool Refresh { get; init; }
 
     /// <summary>test-step: the step's id in <see cref="Flow"/>.</summary>
     public string? Node { get; init; }

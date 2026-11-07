@@ -144,6 +144,16 @@ public static class ProviderCatalog
         new("android.sleep", "Android sleep", Tv, TimeSpan.FromSeconds(20),
             [Ref("device", "Android device", LibraryKind.Android)])
         { Resources = ["adb:{device}"] },
+        new("android.start", "Start Android app", Tv, TimeSpan.FromSeconds(20),
+        [
+            Ref("device", "Android device", LibraryKind.Android),
+            new("app", ParamKind.Text, "App")
+            {
+                Required = true, Help = "Pick one from the list, or type its package name (like com.spotify.music).",
+                Suggest = ParamSuggest.Devices(ParamSuggest.AndroidApps),
+            },
+        ])
+        { Resources = ["adb:{device}"] },
         new("service.start", "Start service", Service, TimeSpan.FromSeconds(30),
             [new("name", ParamKind.Text, "Service name") { Required = true, Suggest = ParamSuggest.Devices("services") }])
         {
