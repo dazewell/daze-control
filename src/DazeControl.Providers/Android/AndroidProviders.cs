@@ -84,6 +84,23 @@ public sealed class AndroidRemote(IAdb adb, TimeProvider time)
         throw new StepFailedException($"{package} isn't installed on the Android device \"{device.Key}\", or it has no icon to open.");
     }
 
+    /// <summary>
+    /// Ends an app by package id: <c>am force-stop</c>. It exits 0 for an app that isn't running or isn't installed, so
+    /// "not running" is success, as for Close program.
+    /// </summary>
+    public async Task StopAppAsync(AndroidDevice device, string package, CancellationToken cancellationToken)
+    {
+        if (!AndroidAppList.IsPackage(package))
+            throw new StepFailedException($"\"{package}\" isn't an app's package name (like com.spotify.music).");
+        var exe = device.Adb ?? DefaultAdb;
+        var serial = device.Serial;
+        await ConnectAsync(exe, serial, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = await adb.RunAsync(exe, ["-s", serial, "shell", $"am force-stop {package}"], cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+            throw new StepFailedException($"The Android device refused to stop {package}: {Reason(result)}");
+    }
+
     public async Task ConnectAsync(string exe, string serial, CancellationToken cancellationToken)
     {
         string reason = "";
@@ -199,6 +216,15 @@ public sealed class AndroidStartProvider(AndroidRemote remote) : IStepProvider
         var package = context.RequiredText("app").Trim();
         return remote.StartAppAsync(context.Device(), package, cancellationToken);
     }
+}
+
+/// <summary><c>android.stop</c>: force-stops the app (package id) on the device; not running counts as done.</summary>
+public sealed class AndroidStopProvider(AndroidRemote remote) : IStepProvider
+{
+    public string Id => "android.stop";
+
+    public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken) =>
+        remote.StopAppAsync(context.Device(), context.RequiredText("app").Trim(), cancellationToken);
 }
 
 /// <summary><c>android.connect</c>: <c>adb connect</c> to the library device, so later steps (or other tools) find it (D-096).</summary>
