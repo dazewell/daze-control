@@ -242,22 +242,15 @@ public static partial class ConfigValidator
         return null;
     }
 
-    private static string LibraryName(LibraryKind kind) => kind switch
-    {
-        LibraryKind.Audio => "audio device",
-        LibraryKind.Bluetooth => "Bluetooth device",
-        LibraryKind.Display => "screen layout",
-        LibraryKind.Android => "Android device",
-        _ => kind.ToString(),
-    };
+    private static string LibraryName(LibraryKind kind) => Library.KindName(kind);
 
     /// <summary>"an audio device", "a Bluetooth device".</summary>
     private static string WithArticle(LibraryKind kind) => (kind == LibraryKind.Audio || kind == LibraryKind.Android ? "an " : "a ") + LibraryName(kind);
 
     /// <summary>Why <paramref name="key"/> can't be a <paramref name="kind"/> from the library, or null.</summary>
     private static string? LibraryKeyProblem(Library library, HashSet<(LibraryKind, string)> badLibraryItems, LibraryKind kind, string key) =>
-        !library.Contains(kind, key) ? $"No {LibraryName(kind)} called \"{key}\" in the library."
-        : badLibraryItems.Contains((kind, key)) ? $"The {LibraryName(kind)} \"{key}\" needs fixing in the library first."
+        !library.Contains(kind, key) ? Library.Missing(kind, key)
+        : badLibraryItems.Contains((kind, key)) ? $"The {LibraryName(kind)} \"{key}\" needs fixing in your Library first."
         : null;
 
     /// <summary>

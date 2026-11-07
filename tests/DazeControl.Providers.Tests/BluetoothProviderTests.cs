@@ -45,7 +45,7 @@ public class BluetoothProviderTests
     public async Task UnknownDeviceFailsPlainly()
     {
         var failure = await Assert.ThrowsAsync<StepFailedException>(() => Run(new BluetoothConnectProvider(new FakeBluetooth()), "sony"));
-        Assert.Equal("No Bluetooth device called \"sony\" in the library.", failure.Message);
+        Assert.Equal("There's no Bluetooth device called \"sony\" in your Library.", failure.Message);
     }
 
     [Theory]
