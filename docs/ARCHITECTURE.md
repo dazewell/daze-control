@@ -134,6 +134,15 @@ optional `editor.json`/`history.jsonl`. Zip-slip guard: entries are only ever re
 (`../x`, absolute, nested) makes the file Damaged. `SecretScan` returns warnings for secret-looking literals (the file is still written). Used by the editor,
 `dctl` and the update step; the engine does not reference it (AOT image +512 B, T19.1), so idle stays 0.
 
+Restore (T19.2, `BackupService.Restore.cs`, `RestoreCompare`): `Preview(archive, RestoreTarget, PreviewEnvironment?)` loads both configs with the normal loader/validator and
+returns `RestorePreview` (flow and library `ItemChange`s New/Changed/Same/OnlyHere, `CanReplace`/`CanAddMissing`, `NeedsAttention`, secret `Warnings`); an unreadable backup config
+sets `Unreadable` and disables both. `Restore(archive, RestoreMode.Replace|AddMissing, target, includeEditorLayout)` makes a `before-restore` safety backup into
+`target.SafetyFolder` (skipped if there is no config; failure stops the restore), then one `IBackupFiles.ReplaceAtomic` of config.yaml (Replace = the backup's bytes; AddMissing =
+current + new items, re-serialised (comments and keys this build doesn't map are lost, said in `Notes`; refused when the current config has any load error), validated to load, current wins on a clash and is listed in `KeptCurrent`), then editor.json without its `window`. `Undo(outcome, target)`
+puts the safety copy back without a new one. Needs-attention covers failing flows, Bluetooth/screen layouts when the backup's machine differs, missing credential names
+(caller passes the engine's list), adb and fixed step paths that don't exist (checked once). Errors are `RestoreException` (Kind + the DESIGN §10 sentence). The caller (editor/`dctl`)
+refuses while a flow draft is open and keeps the outcome for Undo. T19.5: retention pruning is name-based, so give `before-restore` copies their own count or age rule (24 h).
+
 ## Runtime
 
 `Runtime/Scheduling/Scheduler` (pure, D-025): one per run; `Start()` and `Complete(step, StepResult)` return

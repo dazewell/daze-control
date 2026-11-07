@@ -45,6 +45,10 @@ public interface IBackupFiles
     /// <summary>Writes a new file (temp + move, creates the folder); returns false, touching nothing, when the path already exists, even if it appeared a moment ago.</summary>
     bool TryWriteNew(string path, byte[] data);
     void Delete(string path);
+    /// <summary>The file's bytes, or null when it does not exist.</summary>
+    byte[]? TryReadAll(string path);
+    /// <summary>Replaces (or creates) the file atomically: temp file in the same folder + move, so a failure leaves the old file intact and readers see old or new, never half.</summary>
+    void ReplaceAtomic(string path, byte[] data);
     /// <summary>Full paths of the files directly in the folder; empty when it is missing.</summary>
     IReadOnlyList<string> ListFiles(string folder);
 }
@@ -67,6 +71,31 @@ public sealed class PhysicalBackupFiles : IBackupFiles
             return true;
         }
         catch (IOException) when (File.Exists(path)) { return false; }
+        finally { if (File.Exists(tmp)) File.Delete(tmp); }
+    }
+
+    // Only "not there" is null; an unreadable file must not look like a missing one (a restore would skip the safety copy).
+    public byte[]? TryReadAll(string path)
+    {
+        try { return File.ReadAllBytes(path); }
+        catch (FileNotFoundException) { return null; }
+        catch (DirectoryNotFoundException) { return null; }
+    }
+
+    public void ReplaceAtomic(string path, byte[] data)
+    {
+        var dir = Path.GetDirectoryName(Path.GetFullPath(path))!;
+        Directory.CreateDirectory(dir);
+        var tmp = Path.Combine(dir, Path.GetFileName(path) + "." + Guid.NewGuid().ToString("N") + ".tmp");
+        try
+        {
+            using (var stream = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                stream.Write(data);
+                stream.Flush(flushToDisk: true);
+            }
+            File.Move(tmp, path, overwrite: true);
+        }
         finally { if (File.Exists(tmp)) File.Delete(tmp); }
     }
 
