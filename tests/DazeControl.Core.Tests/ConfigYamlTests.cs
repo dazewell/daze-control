@@ -43,7 +43,8 @@ public class ConfigYamlTests
             "display.topology", "display.outputs", "display.layout", "process.run", "process.check", "script.powershell", "http.request",
             "android.input", "android.keys", "android.sleep", "android.start", "android.connect", "service.start", "service.stop",
             "service.check", "file.check", "wait", "notify", "flag.set", "flag.check", "flow.run", "menu.show",
-            "process.close", "android.stop", "display.screensOff",
+            "process.close", "android.stop", "display.screensOff", "android.open", "android.media", "android.setVolume", "android.changeVolume",
+            "android.mute", "android.setBrightness", "android.wake",
         ];
         Assert.Equal(ids.Order(), DazeControl.Core.Catalog.ProviderCatalog.All.Select(d => d.Id).Order());
 
