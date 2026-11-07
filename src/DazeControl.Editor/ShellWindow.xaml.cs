@@ -303,6 +303,8 @@ public sealed partial class ShellWindow : Window
         {
             // handledEventsToo: a card or text box under the pointer may have marked the click handled.
             root.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(OnPointerReleasedBackForward), true);
+            // The accelerators live on the window root: left on Auto, WinUI pops an "Alt+Left" tooltip over whatever has focus.
+            root.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
             foreach (var (key, forward) in new[] { (VirtualKey.Left, false), (VirtualKey.Right, true) })
             {
                 var accelerator = new KeyboardAccelerator { Key = key, Modifiers = Windows.System.VirtualKeyModifiers.Menu };
@@ -456,6 +458,9 @@ public sealed partial class ShellWindow : Window
 
     /// <summary>For a control whose slot stays reserved (D-104): invisible, and disabled alongside, instead of collapsed.</summary>
     public static double Fade(bool visible) => visible ? 1 : 0;
+
+    /// <summary>Visible when <paramref name="flag"/> equals <paramref name="expected"/>.</summary>
+    public static Visibility VisibleWhen(bool flag, bool expected) => flag == expected ? Visibility.Visible : Visibility.Collapsed;
 
     private static Visibility Show(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
 
