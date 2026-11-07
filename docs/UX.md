@@ -218,8 +218,8 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   reason reads) but A/Enter only shakes it. Hint row (Caption) follows the last input: pad "Ⓐ Run  Ⓑ Close", keys
   "Enter Run · Esc Close", mouse none (#30); last 5 s of the close timer "Closing in 5 s" (#31). All off → #28.
   Input: pad D-pad/left stick move, A run, B close; keys arrows/Tab/Shift+Tab/Home/End move, Enter/Space run, Esc close,
-  1–9 pick; mouse hover focuses, click picks, wheel scrolls, click outside closes. Steam Controller reaches it as keys: arrows,
-  Enter, Esc, or the number pad (Num8/2/4/6 move, Num5 run, Num0 close; Num Lock on, D-100). Text size grows rows and tiles. Known limits (README): games still see pad presses; borderless or windowed
+  1–9 pick; mouse hover focuses, click picks, wheel scrolls, click outside closes. Steam Controller reaches it as arrows,
+  Enter, Esc. Text size grows rows and tiles. Known limits (README): games still see pad presses; borderless or windowed
   games only (#32 over exclusive/FSO); keys another app owns as global shortcuts don't reach the menu; no Narrator (D-091);
   Steam turns View+Menu into Alt+Tab (unbind it in Steam's desktop layout, D-057).
 - Pop-up: 340 wide, padding 16, spacing 12, radius 8, acrylic, no-activate, the OSD's six positions. Row 1 (min

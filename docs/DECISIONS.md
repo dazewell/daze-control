@@ -1305,7 +1305,7 @@ Status: accepted (user, 2026-11-06: big flows meant resizing every launch)
 - Other windows: the editor is one window; dialogs are `ContentDialog`s sized by content, nothing to remember.
 
 ## D-100 · 2026-11-06 · Controller menu: the number pad works as a d-pad (Steam Controller reaches us as keys)
-Status: accepted (investigation for the user's report "Steam Controller doesn't drive the menu").
+Status: reverted 2026-11-06 (user): the Num keys were not the cause (D-101) and the user fixed it in Steam.
 - Finding (user's PC, Steam running): no XInput pad in slots 0–3 (`dctl devices gamepads`: none), no HID gamepad or virtual
   Xbox pad; the Steam Controller exists only as a Bluetooth LE device (`BTHLE`, "Steam Ctrl (BT)"). As D-056 found, it is
   never an XInput/GameInput pad on the desktop: Steam turns it into keys/mouse. The pad reader is not at fault.
