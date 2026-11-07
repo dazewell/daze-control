@@ -58,6 +58,9 @@ public sealed record ParamSuggest(SuggestSource Source, string Kind)
     /// <summary>Config kinds (<see cref="SuggestSource.Config"/>).</summary>
     public const string Flags = "flags", AndroidInputs = "androidInputs", Flows = "flows";
 
+    /// <summary>A <see cref="SuggestSource.Devices"/> kind that needs the step's Android device: the apps installed on it (D-092).</summary>
+    public const string AndroidApps = "androidApps";
+
     public static ParamSuggest Devices(string kind) => new(SuggestSource.Devices, kind);
 
     public static ParamSuggest Config(string kind) => new(SuggestSource.Config, kind);

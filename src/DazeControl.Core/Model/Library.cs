@@ -56,7 +56,9 @@ public sealed record DisplayLayout(string Key, ValueList<string> Monitors, strin
 public sealed record AndroidDevice(string Key, string Address, ValueDictionary<ValueList<string>> Inputs, string? Adb = null)
 {
     /// <summary>adb's name for it, "host:port"; 5555 is the port Android's network debugging (adb's default) uses. Also its lock.</summary>
-    public string Serial => Address.Contains(':', StringComparison.Ordinal) ? Address : Address + ":5555";
+    public string Serial => SerialOf(Address);
+
+    public static string SerialOf(string address) => address.Contains(':', StringComparison.Ordinal) ? address : address + ":5555";
 }
 
 /// <summary>Credentials live in Windows Credential Manager, referenced by name only (D-014, D-031).</summary>

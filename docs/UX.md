@@ -158,6 +158,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   · "Fail unless an app is running" `if (-not (Get-Process steam -ErrorAction SilentlyContinue)) { exit 1 }`
   (pairs with "If it fails, run…"). Web request: address "Sunshine: close the running app"
   `https://localhost:47990/api/apps/close`; headers `Content-Type: application/json`; body `{ "key": "value" }`.
+  Android app (`android.start`): an AutoSuggestBox over the device's apps, name with the package id under it, sorted by name; typing filters by name or package; Enter on a row stores its package, Enter on other text keeps it as the package; focusing the box asks the device once for a fresh list (D-094).
 - Bluetooth pickers list Windows' paired devices (D-052); ones without audio are disabled with #26.
 - **Run a flow** (M13, built T13.10): **Flow** ComboBox (glyph + name +
   caption: the inputs it takes, "Turned off", "Needs fixing"; its own flow and loop-making flows off with #49/#50);

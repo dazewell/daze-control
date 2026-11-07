@@ -16,7 +16,13 @@ namespace DazeControl.Providers;
 public static class BuiltInProviders
 {
     /// <summary>What <c>dctl devices</c> and <c>dctl capture-display-layout</c> read.</summary>
-    public static IDeviceQueries Devices() => new SystemDevices(new CcdDisplays(), new AdbProcess(), new CfgMgrPairedBluetooth());
+    public static IDeviceQueries Devices()
+    {
+        var adb = new AdbProcess();
+        var cache = new AndroidAppCache(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Core.AppInfo.FolderName, "android-apps"));
+        var apps = new AndroidAppLister(new AndroidRemote(adb, TimeProvider.System), adb, cache);
+        return new SystemDevices(new CcdDisplays(), adb, new CfgMgrPairedBluetooth(), apps);
+    }
 
     /// <summary>
     /// The read-only fact probes (D-081) behind "Only if" and the check steps. Each reads on demand from the same
@@ -63,6 +69,7 @@ public static class BuiltInProviders
             new AndroidInputProvider(android),
             new AndroidKeysProvider(android),
             new AndroidSleepProvider(android),
+            new AndroidStartProvider(android),
             new ServiceStartProvider(services, time),
             new ServiceStopProvider(services, time),
             new FactCheckProvider("audio.check", probes["audio.isDefault"], "default"),

@@ -78,7 +78,7 @@ public class DeviceQueryTests
     {
         var kinds = BuiltInProviders.Devices().Kinds;
         var wanted = ProviderCatalog.All.SelectMany(d => d.Params).Select(p => p.Suggest)
-            .Where(s => s?.Source == SuggestSource.Devices).Select(s => s!.Kind).Distinct();
+            .Where(s => s?.Source == SuggestSource.Devices && s.Kind != ParamSuggest.AndroidApps).Select(s => s!.Kind).Distinct(); // the apps have their own op (D-093)
 
         Assert.All(wanted, kind => Assert.Contains(kind, kinds));
     }

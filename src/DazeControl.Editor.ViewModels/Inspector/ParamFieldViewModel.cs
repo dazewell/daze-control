@@ -48,7 +48,10 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     public bool IsText => Kind is ParamKind.Text && Spec.Suggest is null;
 
     /// <summary>Text with suggestions: an editable ComboBox, typing stays allowed (D-050).</summary>
-    public bool IsSuggestText => Kind is ParamKind.Text && Spec.Suggest is not null && !IsFlowRef;
+    public bool IsSuggestText => Kind is ParamKind.Text && Spec.Suggest is not null && !IsFlowRef && !IsAppPicker;
+
+    /// <summary>An Android app (package id): a search box over the device's apps by name, typing a package allowed (D-094).</summary>
+    public bool IsAppPicker => Kind is ParamKind.Text && Spec.Suggest is { Source: SuggestSource.Devices, Kind: ParamSuggest.AndroidApps };
 
     /// <summary>Another flow (<c>flow.run</c>): a picker of names that stores the id, like a device picker.</summary>
     public bool IsFlowRef => Kind is ParamKind.Text && Spec.RefersTo == ConfigRef.Flow;
@@ -348,6 +351,52 @@ public sealed partial class ParamFieldViewModel : ObservableObject
 
     internal void SetSuggestionHint(string hint) => SuggestionHint = hint;
 
+    private IReadOnlyList<AppItem> _apps = [];
+
+    /// <summary>The Android device whose apps the picker lists; null until one is chosen.</summary>
+    internal AndroidDevice? AppsDevice { get; private set; }
+
+    /// <summary>The device was asked once for a fresh list since this step was selected (D-093).</summary>
+    internal bool AppsRefreshed { get; set; }
+
+    /// <summary>Rows for what is typed in the app box, by name (D-094).</summary>
+    public IReadOnlyList<AppItem> AppMatches(string query) => AppChoices.Match(_apps, query);
+
+    /// <summary>The name of the app whose package is stored; empty when unknown (shown under the box).</summary>
+    public string AppCaption => _apps.FirstOrDefault(a => a.Package == Text.Trim())?.Name ?? "";
+
+    public bool HasAppCaption => AppCaption.Length > 0;
+
+    /// <summary>The picker's drop-down rows: the apps matching <see cref="SetAppQuery"/>, by name.</summary>
+    public ObservableCollection<AppItem> AppRows { get; } = [];
+
+    private string _appQuery = "";
+
+    public void SetAppQuery(string query)
+    {
+        _appQuery = query;
+        var rows = AppMatches(query);
+        if (!AppRows.SequenceEqual(rows))
+        {
+            AppRows.Clear();
+            foreach (var row in rows)
+                AppRows.Add(row);
+        }
+    }
+
+    internal void SetApps(AndroidDevice? device, IEnumerable<AppItem> apps, string hint)
+    {
+        if (AppsDevice?.Serial != device?.Serial)
+            AppsRefreshed = false;
+        AppsDevice = device;
+        _apps = AppChoices.Sorted(apps);
+        HintDevice = null;
+        SuggestionHint = hint;
+        OnPropertyChanged(nameof(AppCaption));
+        OnPropertyChanged(nameof(HasAppCaption));
+        SetAppQuery(_appQuery);
+    }
+
     /// <summary>The engine's screens (null: not known); rebuilds the checklist around the step's entries.</summary>
     internal void SetScreens(IReadOnlyList<Ipc.DeviceInfo>? live)
     {
@@ -441,6 +490,11 @@ public sealed partial class ParamFieldViewModel : ObservableObject
 
     partial void OnTextChanged(string value)
     {
+        if (IsAppPicker)
+        {
+            OnPropertyChanged(nameof(AppCaption));
+            OnPropertyChanged(nameof(HasAppCaption));
+        }
         if (_loading)
             return;
         Error = FileProblem();

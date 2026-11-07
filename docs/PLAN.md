@@ -111,6 +111,16 @@ No version bumps (D-079). Opus medium.
   fields with different library kinds across types are not shown, a required param can't be cleared, an optional one clears
   for all; one Undo each; screenshots of a one-type selection (mixed and uniform) and a two-type selection (moved from T15.2).
 
+## M17 Android "Start app" (user, 2026-11-06; design docs/android-start-app/DESIGN.md, D-092..D-094)
+One PR (design + build). Editor edits stay in the inspector/param picker (other sessions own `ShellWindow.xaml`).
+
+- [x] T17.1 `android.start` step, app listing and cache (feat/m17-android-start-app). Files: `Providers/Android` (`AndroidApps`, step, `AndroidRemote.StartAppAsync`), catalog,
+  `Ipc` (`android-apps` op), `IDeviceQueries`/`SystemDevices`/`EngineController`. Done when: fake-adb tests (launch, fallback category, bad package, parse/sort/cache, op).
+- [x] T17.2 Searchable app picker in the inspector (same PR). Files: `Editor.ViewModels/Inspector`, `InspectorPane.xaml`. Done when: VM tests (filter, sort, free text); built.
+- [x] T17.3 Gate: move as-built facts to ARCHITECTURE/FEATURES/UX and cut DESIGN (D-053), in this PR or the next docs PR.
+
+---
+
 ## M16 Flow list: reorder, groups, richer rows (user, 2026-11-04) — after the user approves docs/flow-list/DESIGN.md
 Designed 2026-11-04: docs/flow-list/DESIGN.md, D-087..D-090 (accepted by the user, 2026-11-04, all open choices as recommended). Groups are the tray folders: no config.yaml change. One PR per task, no
 version bumps (D-079); each moves its as-built facts from DESIGN into ARCHITECTURE/UX/FEATURES and cuts them there (D-053). Opus medium.

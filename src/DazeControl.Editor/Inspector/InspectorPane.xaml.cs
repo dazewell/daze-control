@@ -100,6 +100,45 @@ public sealed partial class InspectorPane : UserControl
             _ = _viewModel?.RefreshSuggestionsAsync(suggest.Kind);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnAppTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput && sender.Tag is ParamFieldViewModel field)
+            field.SetAppQuery(sender.Text);
+    }
+
+    /// <summary>Focus shows every app by name and asks the device once for a fresh list (D-093).</summary>
+    private void OnAppFocused(object sender, RoutedEventArgs e)
+    {
+        if (sender is not AutoSuggestBox { Tag: ParamFieldViewModel field } box)
+            return;
+        field.SetAppQuery("");
+        box.IsSuggestionListOpen = field.AppRows.Count > 0;
+        if (_viewModel is null)
+            return;
+        // Rows that arrive after the box opened empty are shown once they are in (the refresh's own update is queued first).
+        _ = _viewModel.RefreshAppsAsync(field, refresh: true).ContinueWith(_ => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (box.FocusState != FocusState.Unfocused && field.AppRows.Count > 0)
+                box.IsSuggestionListOpen = true;
+        }), TaskScheduler.Default);
+    }
+
+    /// <summary>Choosing a row stores its package; other text is kept as typed, as the package.</summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnAppSubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        if (sender.Tag is ParamFieldViewModel field)
+            field.Text = args.ChosenSuggestion is AppItem app ? app.Package : args.QueryText.Trim();
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnAppLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is AutoSuggestBox { Tag: ParamFieldViewModel field } box && box.Text.Trim() != field.Text)
+            field.Text = box.Text.Trim();
+    }
+
     private void OnHintLinkClick(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is ParamFieldViewModel field)

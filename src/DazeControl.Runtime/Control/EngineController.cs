@@ -126,6 +126,8 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                 return Autostart(request);
             case Ops.Devices:
                 return await DevicesAsync(request, cancellationToken).ConfigureAwait(false);
+            case Ops.AndroidApps:
+                return await AndroidAppsAsync(request, cancellationToken).ConfigureAwait(false);
             case Ops.CaptureDisplayLayout:
                 return await CaptureDisplayLayoutAsync(request, cancellationToken).ConfigureAwait(false);
             case Ops.TestStep:
@@ -212,6 +214,24 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         try
         {
             var list = await devices.ListAsync(kind, cancellationToken).ConfigureAwait(false);
+            return new PipeMessage { Id = request.Id, Ok = true, Devices = [.. list] };
+        }
+        catch (StepFailedException e)
+        {
+            return PipeMessage.Fail(request.Id, e.Message);
+        }
+    }
+
+    /// <summary>The apps of an Android device for the editor's picker (D-093): from the saved list unless asked to refresh.</summary>
+    private async Task<PipeMessage> AndroidAppsAsync(PipeRequest request, CancellationToken cancellationToken)
+    {
+        if (devices is null)
+            return PipeMessage.Fail(request.Id, "This engine can't list devices.");
+        if (string.IsNullOrWhiteSpace(request.Address))
+            return PipeMessage.Fail(request.Id, "Say which Android device (its address).");
+        try
+        {
+            var list = await devices.AndroidAppsAsync(request.Address.Trim(), request.Adb, request.Refresh, cancellationToken).ConfigureAwait(false);
             return new PipeMessage { Id = request.Id, Ok = true, Devices = [.. list] };
         }
         catch (StepFailedException e)

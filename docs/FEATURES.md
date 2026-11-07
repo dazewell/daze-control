@@ -38,7 +38,7 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
   ports on, in the arrangement Windows saved for them), `display.layout` (captured CCD layout); both fail when
   Windows sets the screens up differently · `process.run` (exe, args[], cwd, wait, exit codes,
   kill tree on timeout) · `script.powershell` · `http.request` (Sunshine API etc., credentials by name) ·
-  `android.input`/`android.keys`/`android.sleep` (adb, connect retries, one chained shell call; any adb device, D-045) ·
+  `android.input`/`android.keys`/`android.sleep`/`android.start` (open an app: pick it from a searchable, name-sorted list of the device's apps or type the package, D-092..D-094; adb, connect retries, one chained shell call; any adb device, D-045) ·
   `service.start`/`stop` (fails clearly without rights) · `wait` · `notify` (pop-up text) ·
   `flag.set`/`flag.check` (check fails when unmet → combine with `when: failure`) · read-only checks `audio.check` (default device), `process.check`, `service.check`, `file.check` (exists/missing) fail with a sentence like "Spotify isn't running" (D-081); "Only if" on `audio.setDefault` (`notDefault`), `process.run` (`notRunning`), `service.start` (`stopped`), `service.stop` (`running`) · `flow.run` (Run a flow, D-061):
   waits for the called flow by default (its result is the step's, one pop-up and one history record, loops refused

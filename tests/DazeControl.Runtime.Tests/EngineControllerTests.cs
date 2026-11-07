@@ -412,6 +412,40 @@ public sealed class EngineControllerTests : IDisposable
         new Autostart(_root + @"\Run", _root + @"\Approved"), new EngineInfo("1.2.3", 42, "x.exe", "c.yaml"), _ => { }, new FakeDevices());
 
     [Fact]
+    public async Task AndroidAppsAsksTheDeviceListOnlyAsTold()
+    {
+        var devices = new AppDevices();
+        var controller = new EngineController(ReadConfig, _launcher, _history, EngineController.CreateDryRunner(_time),
+            new Autostart(_root + @"\Run", _root + @"\Approved"), new EngineInfo("1.2.3", 42, "x.exe", "c.yaml"), _ => { }, devices);
+
+        var saved = await controller.HandleAsync(new PipeRequest { Id = 1, Op = Ops.AndroidApps, Address = " tv.lan " }, CancellationToken.None);
+        var fresh = await controller.HandleAsync(new PipeRequest { Id = 2, Op = Ops.AndroidApps, Address = "tv.lan", Adb = "adb2", Refresh = true }, CancellationToken.None);
+        var none = await controller.HandleAsync(new PipeRequest { Id = 3, Op = Ops.AndroidApps }, CancellationToken.None);
+
+        Assert.Equal(["tv.lan|False", "tv.lan|True|adb2"], devices.Calls);
+        Assert.Equal("Kodi", Assert.Single(saved.Devices!).Name);
+        Assert.True(fresh.Ok);
+        Assert.False(none.Ok);
+    }
+
+    private sealed class AppDevices : IDeviceQueries
+    {
+        public List<string> Calls { get; } = [];
+
+        public IReadOnlyList<string> Kinds { get; } = [];
+
+        public Task<IReadOnlyList<DeviceInfo>> ListAsync(string kind, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<DisplayLayout> CaptureDisplayLayoutAsync(string key, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<DeviceInfo>> AndroidAppsAsync(string address, string? adbPath, bool refresh, CancellationToken cancellationToken)
+        {
+            Calls.Add($"{address}|{refresh}" + (adbPath is null ? "" : "|" + adbPath));
+            return Task.FromResult<IReadOnlyList<DeviceInfo>>([new DeviceInfo { Name = "Kodi", Value = "org.xbmc.kodi" }]);
+        }
+    }
+
+    [Fact]
     public async Task DevicesListsTheKindAsked()
     {
         var answer = await WithDevices().HandleAsync(new PipeRequest { Id = 3, Op = Ops.Devices, Kind = "audio" }, CancellationToken.None);
