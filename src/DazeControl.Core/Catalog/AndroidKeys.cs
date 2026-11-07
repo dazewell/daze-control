@@ -18,6 +18,17 @@ public static class AndroidKeys
         ("volume_down", "KEYCODE_VOLUME_DOWN"), ("volume_mute", "KEYCODE_VOLUME_MUTE"), ("power", "KEYCODE_POWER"),
         ("wakeup", "KEYCODE_WAKEUP"), ("sleep", "KEYCODE_SLEEP"), ("settings", "KEYCODE_SETTINGS"),
         ("tv_input", "KEYCODE_TV_INPUT"),
+        // Media transport (appended: existing names and their order stay as they were).
+        ("media_play", "KEYCODE_MEDIA_PLAY"), ("media_pause", "KEYCODE_MEDIA_PAUSE"), ("media_stop", "KEYCODE_MEDIA_STOP"),
+        ("media_fast_forward", "KEYCODE_MEDIA_FAST_FORWARD"), ("media_rewind", "KEYCODE_MEDIA_REWIND"),
+        ("media_skip_forward", "KEYCODE_MEDIA_SKIP_FORWARD"), ("media_skip_backward", "KEYCODE_MEDIA_SKIP_BACKWARD"),
+        ("media_step_forward", "KEYCODE_MEDIA_STEP_FORWARD"), ("media_step_backward", "KEYCODE_MEDIA_STEP_BACKWARD"),
+        ("media_record", "KEYCODE_MEDIA_RECORD"), ("media_eject", "KEYCODE_MEDIA_EJECT"),
+        ("media_close", "KEYCODE_MEDIA_CLOSE"), ("media_top_menu", "KEYCODE_MEDIA_TOP_MENU"),
+        ("media_audio_track", "KEYCODE_MEDIA_AUDIO_TRACK"),
+        // TV remote extras.
+        ("channel_up", "KEYCODE_CHANNEL_UP"), ("channel_down", "KEYCODE_CHANNEL_DOWN"),
+        ("captions", "KEYCODE_CAPTIONS"), ("info", "KEYCODE_INFO"), ("guide", "KEYCODE_GUIDE"),
     ];
 
     public static ValueList<string> Names { get; } = [.. Table.Select(k => k.Name)];

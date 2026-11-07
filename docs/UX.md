@@ -178,7 +178,8 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   checklist rows name + Caption "DP-3 · On now", plus "Use the screens that are on now" (#27); saved but unplugged
   rows stay checked with #8. Send keys: token list in send order (× per token, Alt+Up/Down reorders) + an
   AutoSuggestBox "Add a key" (home, back, dpad_up/down/left/right/center, enter, menu, media_play_pause,
-  media_next, media_previous, volume_up/down/mute, power, wakeup, sleep, settings, tv_input). Choose input: the
+  media_next, media_previous, volume_up/down/mute, power, wakeup, sleep, settings, tv_input, media_play/pause/stop/fast_forward/rewind/skip_*/step_*/record/eject/close/top_menu/audio_track,
+  channel_up/down, captions, info, guide). Choose input: the
   chosen device's inputs, none yet → hyperlink "Add inputs in the Library" (opens Library › Android with that device's inputs open, D-078). Code boxes: DropDownButton "Examples"
   under the box; picking fills it (replaces, Ctrl+Z undoes). Examples — PowerShell: "Open a website"
   `Start-Process 'https://example.com'` · "Start an app and wait" `Start-Process notepad -Wait` · "Close an app"

@@ -138,4 +138,24 @@ public class ProviderCatalogTests
         Assert.Equal("KEYCODE_HOME", AndroidKeys.Code("Home"));
         Assert.Null(AndroidKeys.Code("teleport"));
     }
+
+    [Theory]
+    [InlineData("media_play", "KEYCODE_MEDIA_PLAY")]
+    [InlineData("media_pause", "KEYCODE_MEDIA_PAUSE")]
+    [InlineData("media_stop", "KEYCODE_MEDIA_STOP")]
+    [InlineData("media_fast_forward", "KEYCODE_MEDIA_FAST_FORWARD")]
+    [InlineData("media_rewind", "KEYCODE_MEDIA_REWIND")]
+    [InlineData("media_skip_forward", "KEYCODE_MEDIA_SKIP_FORWARD")]
+    [InlineData("media_step_backward", "KEYCODE_MEDIA_STEP_BACKWARD")]
+    [InlineData("media_top_menu", "KEYCODE_MEDIA_TOP_MENU")]
+    [InlineData("channel_up", "KEYCODE_CHANNEL_UP")]
+    public void MediaKeysMapToTheirKeyCodes(string name, string code) => Assert.Equal(code, AndroidKeys.Code(name));
+
+    [Fact]
+    public void AndroidKeyNamesAreUniqueAndOldOnesKeepTheirPlace()
+    {
+        Assert.Equal(AndroidKeys.Names.Count, AndroidKeys.Names.Distinct().Count());
+        Assert.Equal("home", AndroidKeys.Names[0]);
+        Assert.Equal("tv_input", AndroidKeys.Names[19]);
+    }
 }
