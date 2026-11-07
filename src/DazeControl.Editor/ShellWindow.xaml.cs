@@ -771,13 +771,25 @@ public sealed partial class ShellWindow : Window
         }
     }
 
+    // Hover fades follow the Windows "Animation effects" setting (D-097): the transitions are only attached when it is on.
+    private void OnFlowRowLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Grid card)
+            return;
+        var duration = MotionTokens.Duration(Motion.Enabled, MotionTokens.FadeMs);
+        card.BackgroundTransition = duration == TimeSpan.Zero ? null : new BrushTransition { Duration = duration };
+        foreach (var child in card.Children)
+            if (child is FrameworkElement { Name: "Grip" } grip)
+                grip.OpacityTransition = duration == TimeSpan.Zero ? null : new ScalarTransition { Duration = duration };
+    }
+
     private void OnFlowCardPointerEntered(object sender, PointerRoutedEventArgs e)
     {
         if (sender is Grid card)
         {
             card.Background = (Brush)Application.Current.Resources["CardBackgroundFillColorSecondaryBrush"];
-            if (card.Tag is string id && ViewModel.Flows.Items.FirstOrDefault(i => i.Id == id) is { CanReorder: true })
-                SetGrip(card, 0.7);
+            if (card.Tag is string id && ViewModel.Flows.Items.FirstOrDefault(i => i.Id == id) is { } item)
+                item.IsHovered = true;
         }
     }
 
@@ -786,16 +798,9 @@ public sealed partial class ShellWindow : Window
         if (sender is Grid card)
         {
             card.ClearValue(Panel.BackgroundProperty); // back to the SettingsCard style's fill
-            SetGrip(card, 0);
+            if (card.Tag is string id && ViewModel.Flows.Items.FirstOrDefault(i => i.Id == id) is { } item)
+                item.IsHovered = false;
         }
-    }
-
-    // The drag grip fades in on hover (its column is always reserved, so nothing moves).
-    private static void SetGrip(Grid card, double opacity)
-    {
-        foreach (var child in card.Children)
-            if (child is FrameworkElement { Name: "Grip" } grip)
-                grip.Opacity = opacity;
     }
 
     // ---- Sort, search, filter (T16.5, DESIGN Part E) ----

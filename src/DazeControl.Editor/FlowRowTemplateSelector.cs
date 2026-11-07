@@ -28,6 +28,9 @@ internal static class RowFormat
     /// <summary>A slot icon: laid out always, visible only when the fact holds (so rows keep their columns).</summary>
     public static double Show(bool on) => on ? 1 : 0;
 
+    /// <summary>The drag grip shows while the pointer is over a row that can be dragged.</summary>
+    public static double Grip(bool hovered, bool canReorder) => hovered && canReorder ? 0.7 : 0;
+
     /// <summary>A turned-off flow reads quieter (name and icon), without changing the layout.</summary>
     public static double Dim(bool enabled) => enabled ? 1 : 0.55;
 

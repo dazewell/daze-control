@@ -407,10 +407,7 @@
                                                      slot icons are always laid out and only fade (opacity), so nothing moves on hover. -->
                                                 <Grid Style="{StaticResource SettingsCard}" Tag="{x:Bind Id}" Tapped="OnFlowCardTapped" ColumnSpacing="12" Padding="8,12,16,12"
                                                       BorderBrush="{x:Bind local:RowFormat.SelectBorder(IsSelected), Mode=OneWay}"
-                                                      PointerEntered="OnFlowCardPointerEntered" PointerExited="OnFlowCardPointerExited">
-                                                    <Grid.BackgroundTransition>
-                                                        <BrushTransition Duration="0:0:0.12" />
-                                                    </Grid.BackgroundTransition>
+                                                      Loaded="OnFlowRowLoaded" PointerEntered="OnFlowCardPointerEntered" PointerExited="OnFlowCardPointerExited">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="16" />
                                                         <ColumnDefinition Width="Auto" />
@@ -421,12 +418,9 @@
                                                         <ColumnDefinition Width="80" />
                                                     </Grid.ColumnDefinitions>
                                                     <!-- Drag grip: shows on hover for rows that can be dragged; its tooltip says why not otherwise. -->
-                                                    <FontIcon x:Name="Grip" Glyph="&#xE784;" FontSize="12" Opacity="0" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                    <FontIcon x:Name="Grip" Glyph="&#xE784;" FontSize="12" Opacity="{x:Bind local:RowFormat.Grip(IsHovered, CanReorder), Mode=OneWay}" VerticalAlignment="Center" HorizontalAlignment="Center"
                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AccessibilityView="Raw"
                                                               ToolTipService.ToolTip="{x:Bind DragTip, Mode=OneWay}">
-                                                        <FontIcon.OpacityTransition>
-                                                            <ScalarTransition Duration="0:0:0.12" />
-                                                        </FontIcon.OpacityTransition>
                                                     </FontIcon>
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                                                         <CheckBox IsChecked="{x:Bind IsSelected, Mode=OneWay}" Tag="{x:Bind Id}" Click="OnFlowCheckClick" MinWidth="0" Padding="0"
@@ -441,6 +435,8 @@
                                                         <TextBlock Text="{x:Bind Name, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                                                                    Opacity="{x:Bind local:RowFormat.Dim(IsEnabled), Mode=OneWay}" />
                                                         <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <TextBlock Text="{x:Bind CaptionLead, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextWrapping="NoWrap"
+                                                                       ToolTipService.ToolTip="{x:Bind ShortcutTip, Mode=OneWay}" />
                                                             <!-- Status dot: one ellipse per state, faded in or out, so the colours follow the theme and high contrast. -->
                                                             <Grid Width="8" Height="8" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw">
                                                                 <Ellipse Fill="{ThemeResource SystemFillColorSuccessBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 2), Mode=OneWay}" />
@@ -448,8 +444,7 @@
                                                                 <Ellipse Fill="{ThemeResource SystemFillColorCriticalBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 4), Mode=OneWay}" />
                                                                 <Ellipse Fill="{ThemeResource AccentFillColorDefaultBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 1), Mode=OneWay}" />
                                                             </Grid>
-                                                            <TextBlock Text="{x:Bind Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                                                                       ToolTipService.ToolTip="{x:Bind ShortcutTip, Mode=OneWay}" />
+                                                            <TextBlock Text="{x:Bind CaptionRun, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
                                                         </StackPanel>
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"

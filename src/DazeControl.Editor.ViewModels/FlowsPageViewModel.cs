@@ -1103,7 +1103,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
 
     /// <summary>A run of this flow is going on.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RunText), nameof(RunName), nameof(RunTip), nameof(Caption), nameof(Summary), nameof(State))]
+    [NotifyPropertyChangedFor(nameof(RunText), nameof(RunName), nameof(RunTip), nameof(Caption), nameof(CaptionRun), nameof(Summary), nameof(State))]
     [NotifyCanExecuteChangedFor(nameof(RunCommand))]
     public partial bool IsRunning { get; private set; }
 
@@ -1144,7 +1144,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
 
     /// <summary>First shortcut, or "No shortcut".</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Caption))]
+    [NotifyPropertyChangedFor(nameof(Caption), nameof(CaptionLead))]
     public partial string Shortcut { get; private set; } = "";
 
     /// <summary>All shortcuts, for the tooltip.</summary>
@@ -1152,11 +1152,11 @@ public sealed partial class FlowItemViewModel : ObservableObject
     public partial string ShortcutTip { get; private set; } = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Caption))]
+    [NotifyPropertyChangedFor(nameof(Caption), nameof(CaptionLead))]
     public partial string Steps { get; private set; } = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Caption))]
+    [NotifyPropertyChangedFor(nameof(Caption), nameof(CaptionRun))]
     public partial string LastRun { get; private set; } = "";
 
     /// <summary>The status dot: running, or how the last run ended (UpdateTimes keeps it current).</summary>
@@ -1164,6 +1164,16 @@ public sealed partial class FlowItemViewModel : ObservableObject
 
     /// <summary>Line 2 of the card: "Alt+Z · 5 steps · Done 2 h ago"; "Running" while a run goes on.</summary>
     public string Caption => $"{Shortcut} · {Steps} · {(IsRunning ? "Running" : LastRun)}";
+
+    /// <summary>The first part of line 2 ("Alt+Z · 5 steps ·"); the status dot sits between it and <see cref="CaptionRun"/>.</summary>
+    public string CaptionLead => $"{Shortcut} · {Steps} ·";
+
+    /// <summary>The last-run words ("Done 2 h ago", "Running").</summary>
+    public string CaptionRun => IsRunning ? "Running" : LastRun;
+
+    /// <summary>The pointer is over the row (the drag grip shows while it can be dragged).</summary>
+    [ObservableProperty]
+    public partial bool IsHovered { get; set; }
 
     /// <summary>The flow isn't in the tray menu.</summary>
     [ObservableProperty]
