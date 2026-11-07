@@ -1314,3 +1314,13 @@ Status: accepted (investigation for the user's report "Steam Controller doesn't 
 - Decision: the open menu also registers Num8/2/4/6 (move), Num7/Num9 (previous/next), Num5 (run), Num0 (close).
   Num Enter is Enter already. Registered only while a menu is open, like the other keys. Needs Num Lock on.
 - Not done: raw HID / Bluetooth reading of the Steam Controller (Steam owns it; needs its protocol, idle cost, fragile).
+
+## D-101 · 2026-11-06 · Steam Controller and Big Picture: documented limit, no second input path
+Status: accepted (user report: the menu works from the Steam Controller until Steam Big Picture is open). Corrects D-100's cause.
+- Finding (user's PC, Big Picture open and foreground, 2026-11-06): still no XInput pad in slots 0–3, `dctl devices gamepads` none,
+  no HID/virtual pad; only the Bluetooth LE controller and Steam's "Enhanced Features" driver. So the Steam Controller is
+  invisible to us with Big Picture open too: it works as keys only through Steam's desktop layout, and Big Picture swaps that
+  layout for its own UI navigation, so no keys reach the menu. Nothing to fix in the pad reader. D-100's Num keys stay (harmless
+  extra), but they were not this problem.
+- Decision: document it (README known limits). No raw BLE/HID reading of the Steam Controller (Steam owns the device, its
+  protocol is undocumented, and it would add an idle cost). Not verified: Steam's own UI for changing Big Picture's layout.
