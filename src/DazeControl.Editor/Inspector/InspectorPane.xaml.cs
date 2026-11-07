@@ -114,8 +114,14 @@ public sealed partial class InspectorPane : UserControl
             return;
         field.SetAppQuery("");
         box.IsSuggestionListOpen = field.AppRows.Count > 0;
-        if (_viewModel is not null)
-            _ = _viewModel.RefreshAppsAsync(field, refresh: true);
+        if (_viewModel is null)
+            return;
+        // Rows that arrive after the box opened empty are shown once they are in (the refresh's own update is queued first).
+        _ = _viewModel.RefreshAppsAsync(field, refresh: true).ContinueWith(_ => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (box.FocusState != FocusState.Unfocused && field.AppRows.Count > 0)
+                box.IsSuggestionListOpen = true;
+        }), TaskScheduler.Default);
     }
 
     /// <summary>Choosing a row stores its package; other text is kept as typed, as the package.</summary>

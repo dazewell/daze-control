@@ -1250,7 +1250,7 @@ Status: accepted (design docs/android-start-app/DESIGN.md)
 
 ## D-093 · 2026-11-06 · The app list is cached on disk per device, refreshed only when the user focuses the box
 Status: accepted
-- Decision: the engine answers `android-apps` from `%LOCALAPPDATA%\DazeControl\android-apps\<serial>.json` and only
+- Decision: the engine answers `android-apps` from `%LOCALAPPDATA%\DazeControl\android-apps\<serial>.txt` and only
   runs adb when the request says `refresh`; a successful listing rewrites the file. The editor refreshes once when the
   app box gets focus. No timer, no resident worker.
 - Why: Idle = zero (D-009); adb connect and list take seconds and the TV may be off; the last list is still useful.

@@ -138,7 +138,10 @@ public sealed class AndroidAppCache(string directory)
         try
         {
             Directory.CreateDirectory(directory);
-            File.WriteAllLines(PathFor(serial), apps.Select(a => a.Package + "\t" + a.Name.Replace('\t', ' ').Replace('\n', ' ')));
+            var path = PathFor(serial);
+            var temp = path + ".tmp";
+            File.WriteAllLines(temp, apps.Select(a => a.Package + "\t" + a.Name.Replace('\t', ' ').Replace('\n', ' ')));
+            File.Move(temp, path, overwrite: true); // the last good list survives an interrupted write
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {

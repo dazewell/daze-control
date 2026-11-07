@@ -152,6 +152,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   AutoSuggestBox "Add a key" (home, back, dpad_up/down/left/right/center, enter, menu, media_play_pause,
   media_next, media_previous, volume_up/down/mute, power, wakeup, sleep, settings, tv_input). Android input: the
   chosen device's inputs, none yet → hyperlink "Add inputs in the Library" (opens Library › Android with that device's inputs open, D-078). Code boxes: DropDownButton "Examples"
+  Android app (`android.start`): an AutoSuggestBox over the device's apps, name with the package id under it, sorted by name; typing filters by name or package; Enter on a row stores its package, Enter on other text keeps it as the package; focusing the box asks the device once for a fresh list (D-094).
   under the box; picking fills it (replaces, Ctrl+Z undoes). Examples — PowerShell: "Open a website"
   `Start-Process 'https://example.com'` · "Start an app and wait" `Start-Process notepad -Wait` · "Close an app"
   `Stop-Process -Name 'Spotify' -ErrorAction SilentlyContinue` · "Lock the PC" `rundll32.exe user32.dll,LockWorkStation`
