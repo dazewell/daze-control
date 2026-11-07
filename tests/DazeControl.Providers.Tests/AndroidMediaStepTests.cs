@@ -75,11 +75,26 @@ public class AndroidMediaStepTests
     }
 
     [Fact]
-    public async Task MuteUsesTheAdjustmentAndFallsBackToTheAudioService()
+    public async Task MuteTriesTheAudioServiceThenTheSessionAdjustmentAndAnErrorLineWithExitZeroIsAFailure()
     {
-        var adb = new ScriptedAdb(c => c.Contains("media_session", StringComparison.Ordinal) ? new(255, "", "Exception occurred") : new(0, "", ""));
+        var adb = new ScriptedAdb(c => c.StartsWith("cmd audio", StringComparison.Ordinal) ? new(0, "Error: unknown command adj-unmute\n", "") : new(0, "", ""));
         await Run(new AndroidMuteProvider(Remote(adb)), Context("android.mute", ("muted", "false")));
-        Assert.Equal(["cmd media_session volume --stream 3 --adj unmute", "cmd audio adj-unmute 3"], adb.Shells);
+        Assert.Equal(["cmd audio adj-unmute 3", "cmd media_session volume --stream 3 --adj unmute"], adb.Shells);
+    }
+
+    [Fact]
+    public async Task MuteThatNoCommandCanDoFails()
+    {
+        var adb = new ScriptedAdb(_ => new(0, "Error: no valid volume adjustment\n", ""));
+        var failure = await Assert.ThrowsAsync<StepFailedException>(() => Run(new AndroidMuteProvider(Remote(adb)), Context("android.mute")));
+        Assert.StartsWith("This Android device can't mute over adb", failure.Message);
+    }
+
+    [Fact]
+    public async Task AnErrorInsideAnAddressIsNotAnErrorLine()
+    {
+        var adb = new ScriptedAdb(_ => new(0, "Starting: Intent { dat=https://example.com/Error }\n", ""));
+        await Run(new AndroidOpenProvider(Remote(adb)), Context("android.open", ("address", "https://example.com/Error")));
     }
 
     [Theory]

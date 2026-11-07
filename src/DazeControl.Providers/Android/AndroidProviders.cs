@@ -107,14 +107,15 @@ public sealed class AndroidRemote(IAdb adb, TimeProvider time)
     {
         var (exe, serial) = await OpenAsync(device, cancellationToken).ConfigureAwait(false);
         var reason = "";
-        foreach (var command in (string[])[$"cmd media_session volume --stream 3 --adj {(muted ? "mute" : "unmute")}", $"cmd audio {(muted ? "adj-mute" : "adj-unmute")} 3"])
+        // AOSP's media_session --adj only knows raise/same/lower (it prints "Error:" and exits 0 for mute), so the audio service comes first.
+        foreach (var command in (string[])[$"cmd audio {(muted ? "adj-mute" : "adj-unmute")} 3", $"cmd media_session volume --stream 3 --adj {(muted ? "mute" : "unmute")}"])
         {
             var result = await adb.RunAsync(exe, ["-s", serial, "shell", command], cancellationToken).ConfigureAwait(false);
             if (Worked(result))
                 return;
             reason = Reason(result);
         }
-        throw new StepFailedException($"This Android device can't {(muted ? "mute" : "unmute")} over adb (it needs Android 8 or newer): {reason}");
+        throw new StepFailedException($"This Android device can't {(muted ? "mute" : "unmute")} over adb (this Android version has no command for it; the Mute key is a toggle, so Send keys can do it once): {reason}");
     }
 
     /// <summary>Opens a web or app address in the device's default app (<c>am start -a VIEW -d</c>); <c>am</c> exits 0 on "Error".</summary>
@@ -127,7 +128,7 @@ public sealed class AndroidRemote(IAdb adb, TimeProvider time)
         var result = await adb.RunAsync(exe, ["-s", serial, "shell", $"am start -a android.intent.action.VIEW -d '{url}'"], cancellationToken).ConfigureAwait(false);
         if (result.ExitCode != 0)
             throw new StepFailedException($"The Android device refused to open {url}: {Reason(result)}");
-        if ((result.Output + result.LastError).Contains("Error", StringComparison.Ordinal))
+        if (HasErrorLine(result))
             throw new StepFailedException($"No app on the Android device \"{device.Key}\" opens {url}.");
     }
 
@@ -144,7 +145,12 @@ public sealed class AndroidRemote(IAdb adb, TimeProvider time)
     internal static bool Worked(AdbResult result) =>
         result.ExitCode == 0 && !(result.Output + result.LastError).Contains("Unknown command", StringComparison.OrdinalIgnoreCase)
         && !(result.Output + result.LastError).Contains("Exception", StringComparison.Ordinal)
-        && !(result.Output + result.LastError).Contains("not found", StringComparison.OrdinalIgnoreCase);
+        && !(result.Output + result.LastError).Contains("not found", StringComparison.OrdinalIgnoreCase)
+        && !HasErrorLine(result);
+
+    /// <summary>A line that starts with "Error" (am and cmd print these and still exit 0); "Error" inside an address doesn't count.</summary>
+    internal static bool HasErrorLine(AdbResult result) =>
+        (result.Output + "\n" + result.LastError).Split('\n').Any(l => l.TrimStart().StartsWith("Error", StringComparison.Ordinal));
 
     /// <summary>"volume is 7 in range [0..15]" → 0 and 15.</summary>
     internal static bool TryParseRange(string text, out int min, out int max)

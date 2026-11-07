@@ -1370,7 +1370,7 @@ Status: accepted (user via coordinator, 2026-11-07: "broader than key events"; t
   `android.wake`; `android.keys` gets 19 more key names. Group order: Connect, Start/Stop app, Open address, Choose input, Send keys, media and
   sound, brightness, Wake, Sleep.
 - Volume: read `[min..max]` with `cmd media_session volume --get`, fall back to `media volume`, then set round(percent of range). Nothing works =
-  a plain "can't set its volume over adb (Android 8+)" failure, never a guess. Mute uses `--adj mute|unmute` (fallback `cmd audio adj-mute`),
+  a plain "can't set its volume over adb (Android 8+)" failure, never a guess. Mute uses `cmd audio adj-mute|adj-unmute 3` (newer Android; `media_session --adj` only knows raise/lower, so it is the second try),
   because the mute key is a toggle and flows should be repeatable (D-081 style).
 - Why not: a percent-only guess of the maximum (devices differ: 7, 15, 25, 100); a "Toggle mute" step (not repeatable); a Media group in the
   key box (it is a free-text suggestion box; names are prefixed `media_`).

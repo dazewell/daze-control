@@ -31,7 +31,7 @@ their mind (then record a superseding decision) or may not remember the trade-of
   `chore/<topic>`, `spike/<topic>`. Spikes are throwaway; their *result* goes into the docs.
 - One PR per task (PLAN.md). Build and test with the `build` skill. Keep the tree building at every commit.
 - **Checkpoint after every green sub-step** (`resume` skill): commit + push + the PR's "## Resume" section.
-- Adding a step type? Follow the checklist in `docs/steps-review/REVIEW.md` ("Adding a step"); `StepConventionTests` enforces it.
+- Adding a step type? Follow the checklist in `docs/steps-review/REVIEW.md` ("Adding a step"); `StepConventionTests` enforces its naming, group, order and id rules.
 - Respect the hard rules in CLAUDE.md (fail-soft, timeouts, idle = zero, AOT-clean, no admin, no focus stealing).
 - Ported code: copy from the OSD/scd and cite the source decision: `// Shell_NotifyIcon, dark menu (OSD D-009)`.
 - Write a code comment only where the code can't explain itself — mostly interop quirks and Windows
