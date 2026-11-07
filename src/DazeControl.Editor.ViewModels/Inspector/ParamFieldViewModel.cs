@@ -299,6 +299,11 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                 Choice = null;
             if (mixed && IsDevice)
                 Device = null;
+            // Same value again raises nothing, but the control may have dropped its selection since: read both again.
+            if (IsChoice)
+                OnPropertyChanged(nameof(Choice));
+            if (IsDevice)
+                OnPropertyChanged(nameof(Device));
             Error = problem ?? FileProblem();
             OnPropertyChanged(nameof(AutomationName));
         }
@@ -326,6 +331,8 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                 ?? Devices.FirstOrDefault(o => o.Source == DeviceSource.None);
             if (IsMixed)
                 Device = null;
+            // The drop-down drops its selection when its rows are replaced and pushes null back; read the value again.
+            OnPropertyChanged(nameof(Device));
         }
         finally
         {

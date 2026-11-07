@@ -227,6 +227,29 @@ public sealed partial class InspectorPane : UserControl
         return null;
     }
 
+    // A ComboBox whose items were rebuilt while its selection was being committed ends up empty although the view model
+    // holds the value (the card shows it, the box doesn't): put the view model's value back once the dust has settled.
+    private void OnPickerLoaded(object sender, RoutedEventArgs e) => ResyncPicker((ComboBox)sender);
+
+    private void OnPickerSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var box = (ComboBox)sender;
+        if (box.SelectedItem is null && !box.IsEditable)
+            DispatcherQueue.TryEnqueue(() => ResyncPicker(box));
+    }
+
+    private static void ResyncPicker(ComboBox box)
+    {
+        var wanted = box.DataContext switch
+        {
+            ParamFieldViewModel { IsMixed: false } f => f.IsChoice ? (object?)f.Choice : f.Device,
+            DevicePickerViewModel d => (object?)d.Device,
+            _ => null,
+        };
+        if (wanted is not null && !Equals(box.SelectedItem, wanted) && box.Items.Contains(wanted))
+            box.SelectedItem = wanted;
+    }
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
     private void OnKeyTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
@@ -236,8 +259,11 @@ public sealed partial class InspectorPane : UserControl
 
     private void OnKeyBoxFocused(object sender, RoutedEventArgs e)
     {
-        if (sender is AutoSuggestBox { Tag: ParamFieldViewModel field } box)
-            box.ItemsSource = field.KeySuggestions(box.Text);
+        if (sender is not AutoSuggestBox { Tag: ParamFieldViewModel field } box)
+            return;
+        // Focus always offers every key: leftover text must not filter the list (it is not the value).
+        box.ItemsSource = field.KeySuggestions("");
+        box.IsSuggestionListOpen = box.Text.Trim().Length == 0;
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
@@ -247,6 +273,7 @@ public sealed partial class InspectorPane : UserControl
             return;
         field.AddToken(args.ChosenSuggestion as string ?? args.QueryText);
         sender.Text = "";
+        sender.ItemsSource = field.KeySuggestions("");
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]

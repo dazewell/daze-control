@@ -55,8 +55,11 @@ public sealed partial class InspectorViewModel
         HasOnlyIf = _conditions.Count > 0;
         var inherited = TypeDefault(step.Step)?.Only;
         var overrides = inherited is not null && inherited != StepNode.OnlyAlways;
-        OnlyIfOptions = OnlyChoices(_conditions, overrides);
+        var options = OnlyChoices(_conditions, overrides);
+        if (!options.SequenceEqual(OnlyIfOptions)) // a new list resets the open ComboBox's selection, even with the same rows
+            OnlyIfOptions = options;
         OnlyIfIndex = OnlyIndex(_conditions, step.Only ?? inherited);
+        OnPropertyChanged(nameof(OnlyIfIndex)); // read again: the box may have dropped its selection meanwhile
         OnlyIfIsSet = step.Only is not null;
         ResetOnlyIfTip = $"Use the default ({OnlyIfOptions[OnlyIndex(_conditions, inherited)].ToLowerInvariant()})";
         IsCheck = Outcomes.IsCheck(step.Step);

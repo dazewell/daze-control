@@ -125,8 +125,10 @@ public sealed partial class InspectorViewModel
         {
             var inherited = bulk.StepType is { } stepType ? TypeDefault(stepType)?.Only : null;
             var options = OnlyChoices(bulk.OnlyChoices, inherited is not null && inherited != StepNode.OnlyAlways);
-            ManyOnlyOptions = options;
+            if (!options.SequenceEqual(ManyOnlyOptions))
+                ManyOnlyOptions = options;
             ManyOnlyIndex = only is { State: not BulkState.Mixed, Value: string o } ? OnlyIndex(bulk.OnlyChoices, o) : -1;
+            OnPropertyChanged(nameof(ManyOnlyIndex));
             ManyOnlyView = View(only, "Only if", v => options[OnlyIndex(bulk.OnlyChoices, (string?)v)].ToLowerInvariant(), n, what);
         }
         else

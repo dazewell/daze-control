@@ -223,7 +223,7 @@ given on the command line as the Run value's argument.
 - `Runtime/Triggers/HotkeyTable`: chord → flow from `RunnableFlows`, applied as a diff on each reload (unchanged
   chords stay registered), first flow wins a chord, a chord that fails (another app) fails alone and is retried
   on the next reload and on `RetryFailures` (tray menu opens), Resume and the end of recording (D-072, no timer);
-  Pause and `Recording` (pipe `record-hotkey`, the editor's shortcut box has focus) each unregister all; failures
+  Pause and `Recording` (pipe `record-hotkey`, the editor's shortcut box is recording: clicked, or Enter/Space on it; focus alone never records) each unregister all; failures
   stay known while either is on. `FailuresChanged` → `ShellStatus` + a `shortcutsChanged` pipe event. Failures → `status` ("Alt+Z: Another app uses…").
   Keys (`Core/Input/Hotkey`, T13b.1, D-071): A–Z, 0–9, F1–F24, punctuation (VK_OEM_*, US names in YAML) and
   Num0–Num9 (alone allowed, no Shift, Num Lock on); `Hotkey.Check` → `HotkeyRejection` for the recorder;
