@@ -127,7 +127,7 @@ One PR (design + build). Editor edits stay in the inspector/param picker (other 
 ## M19 Backup and restore (user, 2026-11-06; design docs/backup-restore/DESIGN.md, D-103, accepted 2026-11-06)
 One PR per task; usage is scarce (D-079). Choices answered by the user (all as recommended, DESIGN §12).
 
-- [ ] T19.1 `Core/Backup`: manifest, create/open/verify (SHA-256, zip-slip guard, format check), `IBackupFiles`, retention pruning. Files: `Core/Backup`, `Core.Tests`.
+- [x] T19.1 `Core/Backup`: manifest, create/open/verify (SHA-256, zip-slip guard, format check), `IBackupFiles`, retention pruning. Files: `Core/Backup`, `Core.Tests`. Done: feat/m19-backup-core.
   Done when: round trip, tamper, traversal, newer-format and old-version fixture tests; the engine AOT publish size is unchanged (±50 KB), no AOT warnings.
 - [ ] T19.2 Preview and restore engine: compare with the current config, Replace and Add-missing, needs-attention list (machine-specific values, credential names), safety copy, atomic write, Undo. Depends on T19.1.
   Done when: tests per DESIGN §11 (merge matrix, unreadable config, secret-looking header warning); never touches `%APPDATA%` in tests.

@@ -126,6 +126,14 @@ flows that must not run as written. Problems with no flow id (library, settings)
 themselves: a bad library entry is dropped (mapper) or marked broken (validator), so a step that references it
 fails its own flow instead. Hotkeys go only to enabled flows without errors; the later of two clashing flows fails.
 
+`Core/Backup` (M19, D-103; built in T19.1, restore/CLI/editor are later tasks): `BackupService(IBackupFiles, TimeProvider, appVersion, machine)` writes
+`.dcbackup` zips with `CreateIn(folder, …)` (sortable `DazeControl-backup-yyyy-MM-dd-HHmm[-n].dcbackup`, never overwrites) or `CreateAt(path, …)`, opens them
+with `Open(path)` (full SHA-256 + format check, throws `BackupException` with `Kind` NotABackup/Damaged/TooNew), lists them newest first by file name
+(`List`) and `Prune(folder, keep)`. `BackupFormat` is the layout: `manifest.yaml` first (hand-written flat YAML, no static context), `config.yaml` byte for byte,
+optional `editor.json`/`history.jsonl`. Zip-slip guard: entries are only ever read into memory by the four known names; any entry the manifest does not list
+(`../x`, absolute, nested) makes the file Damaged. `SecretScan` returns warnings for secret-looking literals (the file is still written). Used by the editor,
+`dctl` and the update step; the engine does not reference it (AOT image +512 B, T19.1), so idle stays 0.
+
 ## Runtime
 
 `Runtime/Scheduling/Scheduler` (pure, D-025): one per run; `Start()` and `Complete(step, StepResult)` return
