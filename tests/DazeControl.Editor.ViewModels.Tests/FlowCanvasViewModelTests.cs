@@ -748,6 +748,24 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     // ---- T7.5: palette ----
 
     [Fact]
+    public void PaletteHasNineGroupsInOrderWithChecksLastAndEveryStepInOne()
+    {
+        var palette = new StepPaletteViewModel();
+        var expected = new[] { "Audio", "Bluetooth", "Displays", "Android", "Programs", "Services", "Files", "Web", "Flow" };
+        Assert.Equal(expected, CanvasNodeViewModel.Groups);
+        Assert.Equal(expected.Where(g => palette.Groups.Any(p => p.Area == g)), palette.Groups.Select(g => g.Area));
+        Assert.Equal(Core.Catalog.ProviderCatalog.All.Select(d => d.Id).Order(), palette.Groups.SelectMany(g => g.Items).Select(i => i.Step).Order());
+        Assert.All(Core.Catalog.ProviderCatalog.All, d => Assert.Contains(CanvasNodeViewModel.Group(d.Area), expected));
+        foreach (var group in palette.Groups)
+        {
+            var checks = group.Items.Select(i => i.IsCheck).ToList();
+            Assert.Equal(checks.OrderBy(c => c), checks); // no check before a non-check
+        }
+        Assert.Contains(palette.Groups.Single(g => g.Area == "Programs").Items, i => i.Step == "script.powershell");
+        Assert.Equal("process.check", palette.Groups.Single(g => g.Area == "Programs").Items[^1].Step);
+    }
+
+    [Fact]
     public void PaletteGroupsByAreaAndFilters()
     {
         var palette = new StepPaletteViewModel();
