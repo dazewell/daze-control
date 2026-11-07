@@ -9,6 +9,7 @@
     xmlns:library="using:DazeControl.Editor.Library"
     xmlns:runs="using:DazeControl.Editor.Runs"
     xmlns:local="using:DazeControl.Editor"
+    xmlns:motion="using:DazeControl.Editor"
     xmlns:vmc="using:DazeControl.Editor.ViewModels.Canvas"
     Title="Daze Control">
 
@@ -471,7 +472,7 @@
                             </StackPanel>
 
                             <!-- Settings -->
-                            <StackPanel x:Name="SettingsPage" Grid.Row="1" Spacing="4" Visibility="Collapsed">
+                            <StackPanel x:Name="SettingsPage" Grid.Row="1" Spacing="4" Visibility="Collapsed" motion:Motion.Animate="True">
                                 <TextBlock Text="Settings" Style="{StaticResource PageTitle}" />
 
                                 <Grid Style="{StaticResource SettingsCard}">

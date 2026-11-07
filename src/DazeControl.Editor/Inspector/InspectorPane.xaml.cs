@@ -31,10 +31,21 @@ public sealed partial class InspectorPane : UserControl
         set
         {
             _viewModel?.PreviewPolicy(null);
+            if (_viewModel is not null)
+                _viewModel.PropertyChanged -= OnViewModelChanged;
             _viewModel = value;
+            if (value is not null)
+                value.PropertyChanged += OnViewModelChanged;
             GlyphGrid.ItemsSource = value?.GlyphOptions;
             Bindings.Update();
         }
+    }
+
+    // Another step or card selected (or Many mode): the pane fades to the new content instead of snapping (D-097).
+    private void OnViewModelChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(InspectorViewModel.NodeId) or nameof(InspectorViewModel.Mode))
+            Motion.Swap(Scroller);
     }
 
     public static Visibility Not(bool value) => value ? Visibility.Collapsed : Visibility.Visible;

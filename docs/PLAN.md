@@ -588,6 +588,8 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   unchanged; a card inside a chain counts as one box; wrapped-edge hit-test; drag-reorder and Tidy up on a wrapped
   flow keep `nodes` as before; screenshots light/dark at 175 %.
 
+- [x] E1 Editor config-page motion (user, 2026-11-06; D-097, feat/editor-config-animations): shared `Motion` helper + `MotionTokens`, applied to inspector, Many mode and Settings.
+
 ## Library fixes (user reports)
 - [x] L1 Edit Android inputs in Library › Android (user, 2026-11-03): add, rename (refs follow), remove (off while used),
   moves as an ordered Up/Down list; the `android.input` hint "Add inputs in the Library." becomes a link there.
