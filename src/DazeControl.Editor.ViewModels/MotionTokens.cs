@@ -7,9 +7,6 @@ public static class MotionTokens
     /// <summary>Content appearing or a selection swap: a quick fade.</summary>
     public const int FadeMs = 120;
 
-    /// <summary>Neighbours sliding to make room (reposition).</summary>
-    public const int RepositionMs = 167;
-
     /// <summary>Opacity a swapped-in pane starts from.</summary>
     public const float SwapStartOpacity = 0.4f;
 

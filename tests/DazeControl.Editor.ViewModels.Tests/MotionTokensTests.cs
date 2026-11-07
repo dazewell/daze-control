@@ -7,7 +7,6 @@ public sealed class MotionTokensTests
     public void DisabledAnimationsGiveZeroDuration()
     {
         Assert.Equal(TimeSpan.Zero, MotionTokens.Duration(false, MotionTokens.FadeMs));
-        Assert.Equal(TimeSpan.Zero, MotionTokens.Duration(false, MotionTokens.RepositionMs));
     }
 
     [Fact]
@@ -15,7 +14,6 @@ public sealed class MotionTokensTests
     {
         Assert.Equal(TimeSpan.FromMilliseconds(MotionTokens.FadeMs), MotionTokens.Duration(true, MotionTokens.FadeMs));
         Assert.InRange(MotionTokens.FadeMs, 100, 200);
-        Assert.InRange(MotionTokens.RepositionMs, 100, 200);
         Assert.Equal(TimeSpan.Zero, MotionTokens.Duration(true, 0));
     }
 }

@@ -374,7 +374,7 @@
                 <StackPanel Visibility="{x:Bind ViewModel.HasConnections, Mode=OneWay}" Spacing="8" motion:Motion.Animate="True">
                     <TextBlock Text="Connections" Style="{StaticResource InspectorSection}" />
                     <ContentControl IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" IsTabStop="False" HorizontalContentAlignment="Stretch">
-                    <ItemsControl ItemsSource="{x:Bind ViewModel.Connections}" IsTabStop="False">
+                    <ItemsControl motion:Motion.AnimateItems="True" ItemsSource="{x:Bind ViewModel.Connections}" IsTabStop="False">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vmi:ConnectionViewModel">
                                 <StackPanel Spacing="4" Margin="0,0,0,8">
@@ -479,7 +479,7 @@
 
                 <!-- Params every selected step has (T15.3): the same controls as for one step; differing values read "Mixed". -->
                 <TextBlock Text="Settings" Style="{StaticResource InspectorSection}" Visibility="{x:Bind ViewModel.ManyHasFields, Mode=OneWay}" />
-                <ItemsControl ItemsSource="{x:Bind ViewModel.ManyFields, Mode=OneWay}" IsTabStop="False" ItemTemplate="{StaticResource ParamFieldTemplate}"
+                <ItemsControl motion:Motion.AnimateItems="True" ItemsSource="{x:Bind ViewModel.ManyFields, Mode=OneWay}" IsTabStop="False" ItemTemplate="{StaticResource ParamFieldTemplate}"
                               Visibility="{x:Bind ViewModel.ManyHasFields, Mode=OneWay}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>

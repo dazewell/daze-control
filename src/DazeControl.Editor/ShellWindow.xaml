@@ -581,7 +581,7 @@
                                                         IsEnabled="{x:Bind CanEdit, Mode=OneWay}">
                                                     <Button.Flyout>
                                                         <Flyout Placement="BottomEdgeAlignedRight">
-                                                            <StackPanel Width="340" Spacing="12" motion:Motion.Animate="True">
+                                                            <StackPanel Width="340" Spacing="12">
                                                                 <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
                                                                 <Grid ColumnSpacing="8">
                                                                     <Grid.ColumnDefinitions>
