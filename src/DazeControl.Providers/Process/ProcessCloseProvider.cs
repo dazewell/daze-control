@@ -71,7 +71,7 @@ public sealed class WindowsCloseTargets : ICloseTargets
                 }
                 catch (Exception e) when (e is Win32Exception or InvalidOperationException)
                 {
-                    return false;
+                    return HasExited; // gone between the two checks counts as closed, not as elevated
                 }
             }
         }
@@ -124,14 +124,13 @@ public sealed class ProcessCloseProvider(ICloseTargets targets, TimeProvider tim
     public async Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
     {
         var text = context.RequiredText("program");
-        if (string.IsNullOrWhiteSpace(text))
-            throw new StepFailedException("Choose a program.");
         var name = ProcessRunningProbe.ProgramName(Environment.ExpandEnvironmentVariables(text));
         var force = context.Text("force") is null ? TimeSpan.FromSeconds(10) : context.Duration("force");
 
         var found = targets.Find(name);
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (found.Count == 0)
                 return;
             if (found.Any(t => !t.HasExited && !t.CanControl))

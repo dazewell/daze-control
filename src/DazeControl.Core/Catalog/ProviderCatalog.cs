@@ -115,7 +115,7 @@ public static class ProviderCatalog
             new("program", ParamKind.Text, "Program") { Required = true, Help = "Its name or path, like Spotify or Spotify.exe. Not running counts as done." },
             new("force", ParamKind.Duration, "End it after")
             {
-                Default = "10s", Help = "It is asked to close first; if it is still there after this long, it is ended (with the programs it started).",
+                Default = "10s", Help = "It is asked to close first; if it is still there after this long, it is ended (with the programs it started). The step itself gives up after 30 s.",
             },
         ]),
         new("process.check", "Check program", Process, Short,

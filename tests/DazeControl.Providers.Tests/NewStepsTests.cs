@@ -138,17 +138,24 @@ public class NewStepsTests
     [Fact]
     public async Task ClosesARealProgramStartedHere()
     {
-        var cmd = Path.Combine(Environment.SystemDirectory, "ping.exe");
+        // A uniquely named copy, so the name-based lookup can only ever find the process started here.
+        var name = "dc-close-" + Guid.NewGuid().ToString("N")[..8];
+        var dir = Path.Combine(Path.GetTempPath(), name);
+        Directory.CreateDirectory(dir);
+        var cmd = Path.Combine(dir, name + ".exe");
+        File.Copy(Path.Combine(Environment.SystemDirectory, "ping.exe"), cmd);
         using var started = System.Diagnostics.Process.Start(new ProcessStartInfo(cmd, "-n 60 127.0.0.1") { CreateNoWindow = true, UseShellExecute = false })!;
         try
         {
-            await Close(new WindowsCloseTargets(), TimeProvider.System, ("program", "ping"), ("force", "1s"));
+            await Close(new WindowsCloseTargets(), TimeProvider.System, ("program", name), ("force", "1s"));
             Assert.True(started.WaitForExit(5000));
         }
         finally
         {
             if (!started.HasExited)
                 started.Kill(entireProcessTree: true);
+            started.WaitForExit(5000);
+            try { Directory.Delete(dir, true); } catch (IOException) { }
         }
     }
 
