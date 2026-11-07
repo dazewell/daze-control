@@ -268,6 +268,9 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
             ? config with { Flows = [.. config.Flows.Select(f => f.Id == flow.Id ? flow : f)] }
             : config with { Flows = [.. config.Flows, flow] };
 
+    /// <summary>Raised after every successful write of the config file (on the saving thread), for the automatic backup (D-103).</summary>
+    public event Action? Saved;
+
     /// <summary>Writes pending edits now (window closing, a timer firing).</summary>
     public void Flush() => Save(overwrite: false);
 
@@ -287,6 +290,7 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
             _store.Save(_saved);
             _dirty = false;
             SaveError = null;
+            Saved?.Invoke();
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {

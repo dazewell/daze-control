@@ -29,13 +29,30 @@ public sealed partial class BackupCardViewModel : ObservableObject
     private readonly Action _flushEditorSettings;
     private readonly string _machine;
     private RestoreOutcome? _undo;
+    private readonly AutoBackup? _auto;
+    private readonly Action<Action> _post;
+    private bool _autoEnabled = true;
+    private int _autoKeep = AutoBackupSettings.DefaultKeep;
+    private readonly object _autoLock = new();
+    private bool _autoRunning;
+    private bool _autoPending;
 
     /// <param name="target">Config, editor.json and the safety-copy folder (the automatic folder); a test passes a temp folder.</param>
     /// <param name="earlierFolder">The per-session config-*.yaml saves of <see cref="ConfigStore"/>.</param>
     /// <param name="flushEditorSettings">Writes editor.json's pending change so the backup holds it.</param>
     public BackupCardViewModel(ConfigSession session, BackupService service, IBackupFiles files, RestoreTarget target,
-        string earlierFolder, TimeProvider? time = null, Action? flushEditorSettings = null, string? machine = null)
+        string earlierFolder, TimeProvider? time = null, Action? flushEditorSettings = null, string? machine = null,
+        AutoBackup? auto = null, Action<Action>? post = null)
     {
+        _auto = auto;
+        _post = post ?? (a => a());
+        if (auto is not null)
+        {
+            var settings = auto.Load();
+            _autoEnabled = settings.Enabled;
+            _autoKeep = settings.Keep;
+            session.Saved += OnSessionSaved;
+        }
         _session = session;
         _service = service;
         _files = files;
@@ -62,6 +79,87 @@ public sealed partial class BackupCardViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool CanUndo { get; private set; }
+
+    /// <summary>False when no automatic-backup service was given (tests that don't need one).</summary>
+    public bool HasAutoSettings => _auto is not null;
+
+    public bool AutoEnabled
+    {
+        get => _autoEnabled;
+        set
+        {
+            if (_autoEnabled == value) return;
+            if (SaveAutoSettings(new(value, _autoKeep))) { _autoEnabled = value; }
+            OnPropertyChanged();
+        }
+    }
+
+    public int AutoKeep
+    {
+        get => _autoKeep;
+        set
+        {
+            var keep = Math.Clamp(value, AutoBackupSettings.MinKeep, AutoBackupSettings.MaxKeep);
+            if (_autoKeep != keep && SaveAutoSettings(new(_autoEnabled, keep))) _autoKeep = keep;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>The backup started by the last save, or null; the app waits for it when the window closes so none is cut in half.</summary>
+    public Task? PendingAutoBackup { get; private set; }
+
+    private bool SaveAutoSettings(AutoBackupSettings settings)
+    {
+        try
+        {
+            _auto!.Save(settings);
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Show($"Couldn't save the automatic backup setting: {e.Message}", BackupMessageKind.Error);
+            return false;
+        }
+    }
+
+    // After a successful save: one background task, never on the UI thread, never two at once. A save that arrives while one runs
+    // is coalesced into one more run afterwards (the 24 h gate drops redundant files), so a failed first run is retried.
+    private void OnSessionSaved()
+    {
+        if (_auto is null) return;
+        lock (_autoLock)
+        {
+            if (_autoRunning)
+            {
+                _autoPending = true;
+                return;
+            }
+            _autoRunning = true;
+            PendingAutoBackup = Task.Run(RunAutoBackups);
+        }
+    }
+
+    private void RunAutoBackups()
+    {
+        while (true)
+        {
+            try
+            {
+                if (_auto!.Run(BackupService.AutoSave, gated: true) == AutoBackupOutcome.Created)
+                    _post(Refresh);
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { } // Run is fail-soft; this keeps the loop's bookkeeping safe
+            lock (_autoLock)
+            {
+                if (!_autoPending)
+                {
+                    _autoRunning = false;
+                    return;
+                }
+                _autoPending = false;
+            }
+        }
+    }
 
     public bool HasMessage => Message is not null;
 
