@@ -31,6 +31,7 @@ public class ProviderCatalogTests
             ["android.connect"] = "Connect", ["android.start"] = "Start app", ["android.input"] = "Choose input",
             ["android.keys"] = "Send keys", ["android.sleep"] = "Sleep", ["flag.set"] = "Set flag", [ProviderCatalog.RunFlowId] = "Run flow",
             [ProviderCatalog.MenuShowId] = "Show menu", ["notify"] = "Show message", ["http.request"] = "Send web request",
+            ["process.close"] = "Close program", ["android.stop"] = "Stop app", ["display.screensOff"] = "Turn screens off",
         };
         foreach (var (id, title) in expected)
             Assert.Equal(title, ProviderCatalog.Find(id)!.Title);
@@ -97,7 +98,7 @@ public class ProviderCatalogTests
     }
 
     /// <summary>Free text the user is fine typing (reviewed 2026-11-02, D-050): a message, a program's own arguments.</summary>
-    private static readonly HashSet<string> TypedFreely = ["notify.text", "menu.show.title","process.run.args", "process.run.exitCodes", "process.check.program", "file.check.path"];
+    private static readonly HashSet<string> TypedFreely = ["notify.text", "menu.show.title","process.run.args", "process.run.exitCodes", "process.check.program", "process.close.program", "file.check.path"];
 
     [Fact]
     public void EveryFreeTextParamSaysWhereItsValuesComeFrom()

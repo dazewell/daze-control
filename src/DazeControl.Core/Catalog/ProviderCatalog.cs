@@ -94,6 +94,11 @@ public static class ProviderCatalog
         new("display.layout", "Restore screen layout", Display, Short,
             [Ref("layout", "Layout", LibraryKind.Display, help: "A layout captured with dctl capture-display-layout.")])
         { Resources = ["display"] },
+        new("display.screensOff", "Turn screens off", Display, Short, [])
+        {
+            Resources = ["display"],
+            Keywords = "monitor power sleep blank",
+        },
         new("process.run", "Run program", Process, TimeSpan.FromSeconds(30),
         [
             new("path", ParamKind.FilePath, "Program") { Required = true },
@@ -105,6 +110,14 @@ public static class ProviderCatalog
         {
             Conditions = [new ConditionSpec("notRunning", "It isn't running", "process.running", false)],
         },
+        new("process.close", "Close program", Process, TimeSpan.FromSeconds(30),
+        [
+            new("program", ParamKind.Text, "Program") { Required = true, Help = "Its name or path, like Spotify or Spotify.exe. Not running counts as done." },
+            new("force", ParamKind.Duration, "End it after")
+            {
+                Default = "10s", Help = "It is asked to close first; if it is still there after this long, it is ended (with the programs it started). The step itself gives up after 30 s.",
+            },
+        ]),
         new("process.check", "Check program", Process, Short,
         [
             new("program", ParamKind.Text, "Program") { Required = true, Help = "Its name or path, like Spotify or Spotify.exe." },
@@ -156,6 +169,16 @@ public static class ProviderCatalog
             new("app", ParamKind.Text, "App")
             {
                 Required = true, Help = "Pick one from the list, or type its package name (like com.spotify.music).",
+                Suggest = ParamSuggest.Devices(ParamSuggest.AndroidApps),
+            },
+        ])
+        { Resources = ["adb:{device}"] },
+        new("android.stop", "Stop app", Tv, TimeSpan.FromSeconds(20),
+        [
+            Ref("device", "Android device", LibraryKind.Android),
+            new("app", ParamKind.Text, "App")
+            {
+                Required = true, Help = "Pick one from the list, or type its package name (like com.spotify.music). Not running counts as done.",
                 Suggest = ParamSuggest.Devices(ParamSuggest.AndroidApps),
             },
         ])

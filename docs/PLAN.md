@@ -153,11 +153,11 @@ T18.8, T18.10 and T18.11 are not planned (the user kept them for later / no id r
   the dropdown and pill show words, YAML keeps `notDefault` etc., bulk mixed state still works.
 - [x] T18.4 (fix/m18-messages-docs) One wording for "no such Library item" and check texts (fix/m18-messages, choice 10). Files: `Providers/*` messages, `EngineController` dry run, tests.
 - [x] T18.5 (fix/m18-messages-docs) Docs: the "Wait until" recipe (Check + Try again + Wait between tries) and more PowerShell examples (choice 7). Files: UX/FEATURES, `ProviderCatalog` examples, check steps' help.
-- [ ] T18.6 `process.close` Close program (feat/m18-process-close, after T18.1). Files: `Providers/Process`, catalog. Done when: fake-process tests (graceful, force after time,
+- [x] T18.6 `process.close` Close program (feat/m18-process-close, after T18.1). Files: `Providers/Process`, catalog. Done when: fake-process tests (graceful, force after time,
   not running = success, elevated = clear sentence); live: closes Notepad.
-- [ ] T18.7 Android Stop app only (Disconnect and Wake stay later) (feat/m18-android, after T18.1). Files: `Providers/Android`, catalog. Done when: fake-adb tests, same lock and timeout.
+- [x] T18.7 Android Stop app only (Disconnect and Wake stay later) (feat/m18-android, after T18.1). Files: `Providers/Android`, catalog. Done when: fake-adb tests, same lock and timeout.
 - [ ] T18.8 NOT PLANNED (user: later) Web: Wake on LAN, web address check (feat/m18-web, after T18.1). Files: `Providers/Http` (+ `Providers/Network`), catalog.
-- [ ] T18.9 Displays: Turn screens off (feat/m18-screens-off, after T18.1; HDR spike only if asked). Files: `Providers/Display`, catalog. Done when: live on the dev PC (ask the user first, it blanks the screens).
+- [x] T18.9 (live check open: ask the user, it blanks the screens) Displays: Turn screens off (feat/m18-screens-off, after T18.1; HDR spike only if asked). Files: `Providers/Display`, catalog. Done when: live on the dev PC (ask the user first, it blanks the screens).
 - [ ] T18.10 NOT PLANNED (user: later) Flows: Stop flow (feat/m18-stop-flow, after T18.1). Files: `Runtime/Providers`, catalog, validator. Done when: stopping a running flow and "this flow" are tested.
 - [ ] T18.11 NOT PLANNED (choice 9: no id renames): alias table in `ConfigMapper`, kept forever, only if ids are ever renamed.
 
