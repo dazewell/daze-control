@@ -6,13 +6,21 @@ namespace DazeControl.Core.Tests;
 
 public class BackupTests
 {
-    private sealed class MemFiles : IBackupFiles
+    internal sealed class MemFiles : IBackupFiles
     {
         public readonly Dictionary<string, byte[]> Files = new(StringComparer.OrdinalIgnoreCase);
         public bool Exists(string path) => Files.ContainsKey(path);
         public byte[] ReadAll(string path) => Files[path];
-        public bool TryWriteNew(string path, byte[] data) { if (Files.ContainsKey(path)) return false; Files[path] = data; return true; }
+        public bool TryWriteNew(string path, byte[] data) { if (FailNewFiles) throw new IOException("disk full"); if (Files.ContainsKey(path)) return false; Files[path] = data; return true; }
         public void Delete(string path) => Files.Remove(path);
+        public bool FailReplace { get; set; }
+        public bool FailNewFiles { get; set; }
+        public byte[]? TryReadAll(string path) => Files.GetValueOrDefault(path);
+        public void ReplaceAtomic(string path, byte[] data)
+        {
+            if (FailReplace) throw new IOException("disk full");
+            Files[path] = data;
+        }
         public IReadOnlyList<string> ListFiles(string folder) =>
             Files.Keys.Where(k => Path.GetDirectoryName(k) == folder).ToList();
     }

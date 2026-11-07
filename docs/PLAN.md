@@ -129,7 +129,7 @@ One PR per task; usage is scarce (D-079). Choices answered by the user (all as r
 
 - [x] T19.1 `Core/Backup`: manifest, create/open/verify (SHA-256, zip-slip guard, format check), `IBackupFiles`, retention pruning. Files: `Core/Backup`, `Core.Tests`. Done: feat/m19-backup-core.
   Done when: round trip, tamper, traversal, newer-format and old-version fixture tests; the engine AOT publish size is unchanged (±50 KB), no AOT warnings.
-- [ ] T19.2 Preview and restore engine: compare with the current config, Replace and Add-missing, needs-attention list (machine-specific values, credential names), safety copy, atomic write, Undo. Depends on T19.1.
+- [x] T19.2 Preview and restore engine: compare with the current config, Replace and Add-missing, needs-attention list (machine-specific values, credential names), safety copy, atomic write, Undo. Depends on T19.1. Done: feat/m19-restore-engine.
   Done when: tests per DESIGN §11 (merge matrix, unreadable config, secret-looking header warning); never touches `%APPDATA%` in tests.
 - [ ] T19.3 `dctl backup` / `dctl restore` (`--merge|--replace`, `--yes`, `--dry-run`, `--editor`, `--config`). Depends on T19.2; parallel with T19.4.
   Done when: CLI tests incl. exit codes and non-interactive refusal; usage text and ARCHITECTURE CLI list updated.
