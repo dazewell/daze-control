@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:DazeControl.Editor.Inspector"
+    xmlns:motion="using:DazeControl.Editor"
     xmlns:vmi="using:DazeControl.Editor.ViewModels.Inspector"
     AutomationProperties.Name="Inspector">
 
@@ -54,7 +55,7 @@
             </StackPanel>
         </DataTemplate>
         <DataTemplate x:Key="ParamFieldTemplate" x:DataType="vmi:ParamFieldViewModel">
-                            <StackPanel>
+                            <StackPanel motion:Motion.Animate="True">
                                 <TextBlock Text="{x:Bind Title}" Style="{StaticResource FieldTitle}" />
                                 <TextBox Visibility="{x:Bind IsText}" Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder, Mode=OneWay}"
                                          AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" KeyDown="OnCommitOnEnter" />
@@ -93,10 +94,10 @@
                                 </StackPanel>
                                 <!-- Android keys: tokens in send order; Alt+Up/Down on a token's remove button moves it. -->
                                 <StackPanel Visibility="{x:Bind IsTokenList}" Spacing="4">
-                                    <ItemsControl ItemsSource="{x:Bind Tokens}" AutomationProperties.Name="{x:Bind Title}" IsTabStop="False">
+                                    <ItemsControl motion:Motion.AnimateItems="True" ItemsSource="{x:Bind Tokens}" AutomationProperties.Name="{x:Bind Title}" IsTabStop="False">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <StackPanel Spacing="4" />
+                                                <StackPanel Spacing="4" motion:Motion.Animate="True" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
@@ -122,10 +123,10 @@
                                 </StackPanel>
                                 <!-- menu.show: the flows of the menu in menu order (DESIGN 3.7); Alt+Up/Down on a remove button moves it. -->
                                 <StackPanel Visibility="{x:Bind IsFlowList}" Spacing="4">
-                                    <ItemsControl ItemsSource="{x:Bind FlowTokens, Mode=OneWay}" AutomationProperties.Name="{x:Bind Title}" IsTabStop="False">
+                                    <ItemsControl motion:Motion.AnimateItems="True" ItemsSource="{x:Bind FlowTokens, Mode=OneWay}" AutomationProperties.Name="{x:Bind Title}" IsTabStop="False">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <StackPanel Spacing="4" />
+                                                <StackPanel Spacing="4" motion:Motion.Animate="True" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
@@ -201,11 +202,11 @@
                                           ItemTemplate="{StaticResource DeviceTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
                                           DropDownOpened="OnDevicesOpened" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
                                 <!-- Run a flow › Inputs (UX §5.4): a device picker per input of the flow it runs. -->
-                                <ItemsControl Visibility="{x:Bind IsCallInputs}" ItemsSource="{x:Bind CallInputs}" IsTabStop="False"
+                                <ItemsControl motion:Motion.AnimateItems="True" Visibility="{x:Bind IsCallInputs}" ItemsSource="{x:Bind CallInputs}" IsTabStop="False"
                                               AutomationProperties.Name="{x:Bind Title}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <StackPanel Spacing="8" />
+                                            <StackPanel Spacing="8" motion:Motion.Animate="True" />
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
@@ -236,10 +237,10 @@
     </UserControl.Resources>
 
     <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
-        <StackPanel Padding="16,8,16,24" Spacing="8">
+        <StackPanel Padding="16,8,16,24" Spacing="8" motion:Motion.Animate="True">
 
             <!-- ===== A step or a card ===== -->
-            <StackPanel Visibility="{x:Bind ViewModel.IsNode, Mode=OneWay, FallbackValue=Collapsed}" Spacing="8">
+            <StackPanel Visibility="{x:Bind ViewModel.IsNode, Mode=OneWay, FallbackValue=Collapsed}" Spacing="8" motion:Motion.Animate="True">
                 <Grid ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
@@ -254,7 +255,7 @@
                          KeyDown="OnCommitOnEnter" />
 
                 <!-- Test this step -->
-                <StackPanel Visibility="{x:Bind ViewModel.IsStep, Mode=OneWay}" Spacing="8">
+                <StackPanel Visibility="{x:Bind ViewModel.IsStep, Mode=OneWay}" Spacing="8" motion:Motion.Animate="True">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button Command="{x:Bind ViewModel.TestCommand, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.CanTest, Mode=OneWay}"
                                 Visibility="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
@@ -286,10 +287,10 @@
 
                 <!-- Settings -->
                 <TextBlock Text="Settings" Style="{StaticResource InspectorSection}" Visibility="{x:Bind ViewModel.HasFields, Mode=OneWay}" />
-                <ItemsControl ItemsSource="{x:Bind ViewModel.Fields, Mode=OneWay}" IsTabStop="False" IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
+                <ItemsControl motion:Motion.AnimateItems="True" ItemsSource="{x:Bind ViewModel.Fields, Mode=OneWay}" IsTabStop="False" IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Spacing="12" />
+                            <StackPanel Spacing="12" motion:Motion.Animate="True" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -301,7 +302,7 @@
                                  Visibility="{x:Bind ViewModel.CanOpenCalledFlow, Mode=OneWay}" />
 
                 <!-- Only if (D-081): the choices come from the step type's conditions; not shown when it has none. -->
-                <StackPanel Visibility="{x:Bind ViewModel.HasOnlyIf, Mode=OneWay}" Spacing="4"
+                <StackPanel Visibility="{x:Bind ViewModel.HasOnlyIf, Mode=OneWay}" Spacing="4" motion:Motion.Animate="True"
                             Opacity="{x:Bind local:InspectorPane.DimStep(ViewModel.IsStep, ViewModel.OnlyIfIsSet), Mode=OneWay}">
                     <ComboBox x:Name="OnlyIfBox" Header="Only if" HorizontalAlignment="Stretch" ItemsSource="{x:Bind ViewModel.OnlyIfOptions, Mode=OneWay}"
                               SelectedIndex="{x:Bind ViewModel.OnlyIfIndex, Mode=TwoWay}" AutomationProperties.Name="Only if"
@@ -345,7 +346,7 @@
                         </StackPanel>
                     </RadioButton>
                 </RadioButtons>
-                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                     <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                            Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.PolicyIsSet), Mode=OneWay}" />
                     <HyperlinkButton Command="{x:Bind ViewModel.ResetPolicyCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetPolicyTip, Mode=OneWay}"
@@ -370,10 +371,10 @@
                 </DropDownButton>
 
                 <!-- Connections: each edge at this step with its condition (UX §5.4). -->
-                <StackPanel Visibility="{x:Bind ViewModel.HasConnections, Mode=OneWay}" Spacing="8">
+                <StackPanel Visibility="{x:Bind ViewModel.HasConnections, Mode=OneWay}" Spacing="8" motion:Motion.Animate="True">
                     <TextBlock Text="Connections" Style="{StaticResource InspectorSection}" />
                     <ContentControl IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" IsTabStop="False" HorizontalContentAlignment="Stretch">
-                    <ItemsControl ItemsSource="{x:Bind ViewModel.Connections}" IsTabStop="False">
+                    <ItemsControl motion:Motion.AnimateItems="True" ItemsSource="{x:Bind ViewModel.Connections}" IsTabStop="False">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vmi:ConnectionViewModel">
                                 <StackPanel Spacing="4" Margin="0,0,0,8">
@@ -389,12 +390,12 @@
 
                 <!-- Timing -->
                 <ContentControl IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" IsTabStop="False" HorizontalContentAlignment="Stretch">
-                <StackPanel Visibility="{x:Bind ViewModel.IsStep, Mode=OneWay}" Spacing="8">
+                <StackPanel Visibility="{x:Bind ViewModel.IsStep, Mode=OneWay}" Spacing="8" motion:Motion.Animate="True">
                     <TextBlock Text="Timing" Style="{StaticResource InspectorSection}" />
                     <NumberBox Header="Try again" Value="{x:Bind ViewModel.Retries, Mode=TwoWay}" Minimum="0" Maximum="10"
                                Opacity="{x:Bind local:InspectorPane.Dim(ViewModel.RetriesIsSet), Mode=OneWay}"
                                SpinButtonPlacementMode="Inline" ValidationMode="InvalidInputOverwritten" />
-                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                    Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.RetriesIsSet), Mode=OneWay}" />
                         <HyperlinkButton Command="{x:Bind ViewModel.ResetRetriesCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetRetriesTip, Mode=OneWay}"
@@ -412,7 +413,7 @@
                                    SpinButtonPlacementMode="Inline" MinWidth="200" IsEnabled="{x:Bind ViewModel.CanRetryDelay, Mode=OneWay}" />
                         <TextBlock Text="s" VerticalAlignment="Bottom" Margin="0,0,0,8" />
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                    Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.RetryDelayIsSet), Mode=OneWay}" />
                         <HyperlinkButton Command="{x:Bind ViewModel.ResetRetryDelayCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetRetryDelayTip, Mode=OneWay}"
@@ -430,7 +431,7 @@
                                    PlaceholderText="{x:Bind ViewModel.TimeoutPlaceholder, Mode=OneWay}" SpinButtonPlacementMode="Inline" MinWidth="200" />
                         <TextBlock Text="s" VerticalAlignment="Bottom" Margin="0,0,0,8" />
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                    Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.TimeoutIsSet), Mode=OneWay}" />
                         <HyperlinkButton Command="{x:Bind ViewModel.ResetTimeoutCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetTimeoutTip, Mode=OneWay}"
@@ -472,17 +473,17 @@
 
             <!-- ===== Several selected ===== -->
             <ContentControl IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" IsTabStop="False" HorizontalContentAlignment="Stretch">
-            <StackPanel Visibility="{x:Bind ViewModel.IsMany, Mode=OneWay, FallbackValue=Collapsed}" Spacing="8" Margin="0,8,0,0">
+            <StackPanel Visibility="{x:Bind ViewModel.IsMany, Mode=OneWay, FallbackValue=Collapsed}" Spacing="8" Margin="0,8,0,0" motion:Motion.Animate="True">
                 <TextBlock Text="{x:Bind ViewModel.ManyHeader, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" AutomationProperties.HeadingLevel="Level2" />
                 <InfoBar IsOpen="{x:Bind ViewModel.HasManyProblem, Mode=OneWay}" Severity="Warning" IsClosable="False" Message="{x:Bind ViewModel.ManyProblem, Mode=OneWay}" />
 
                 <!-- Params every selected step has (T15.3): the same controls as for one step; differing values read "Mixed". -->
                 <TextBlock Text="Settings" Style="{StaticResource InspectorSection}" Visibility="{x:Bind ViewModel.ManyHasFields, Mode=OneWay}" />
-                <ItemsControl ItemsSource="{x:Bind ViewModel.ManyFields, Mode=OneWay}" IsTabStop="False" ItemTemplate="{StaticResource ParamFieldTemplate}"
+                <ItemsControl motion:Motion.AnimateItems="True" ItemsSource="{x:Bind ViewModel.ManyFields, Mode=OneWay}" IsTabStop="False" ItemTemplate="{StaticResource ParamFieldTemplate}"
                               Visibility="{x:Bind ViewModel.ManyHasFields, Mode=OneWay}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Spacing="12" />
+                            <StackPanel Spacing="12" motion:Motion.Animate="True" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
@@ -492,7 +493,7 @@
                     <ComboBox Header="Only if" HorizontalAlignment="Stretch" ItemsSource="{x:Bind ViewModel.ManyOnlyOptions, Mode=OneWay}"
                               SelectedIndex="{x:Bind ViewModel.ManyOnlyIndex, Mode=TwoWay}" PlaceholderText="Mixed"
                               AutomationProperties.Name="{x:Bind ViewModel.ManyOnlyView.Name, Mode=OneWay}" />
-                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="{x:Bind ViewModel.ManyOnlyView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                Visibility="{x:Bind ViewModel.ManyOnlyView.ShowCaption, Mode=OneWay}" />
                         <HyperlinkButton Command="{x:Bind ViewModel.ResetManyOnlyCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyOnlyView.ResetTip, Mode=OneWay}"
@@ -528,7 +529,7 @@
                         </StackPanel>
                     </RadioButton>
                 </RadioButtons>
-                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="{x:Bind ViewModel.ManyPolicyView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                Visibility="{x:Bind ViewModel.ManyPolicyView.ShowCaption, Mode=OneWay}" />
                         <HyperlinkButton Command="{x:Bind ViewModel.ResetManyPolicyCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyPolicyView.ResetTip, Mode=OneWay}"
@@ -547,7 +548,7 @@
                                PlaceholderText="Mixed" SpinButtonPlacementMode="Inline" ValidationMode="InvalidInputOverwritten" MinWidth="200"
                                Opacity="{x:Bind local:InspectorPane.DimRow(ViewModel.ManyRetriesView), Mode=OneWay}"
                                AutomationProperties.Name="{x:Bind ViewModel.ManyRetriesView.Name, Mode=OneWay}" />
-                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="{x:Bind ViewModel.ManyRetriesView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                Visibility="{x:Bind ViewModel.ManyRetriesView.ShowCaption, Mode=OneWay}" />
                         <HyperlinkButton Command="{x:Bind ViewModel.ResetManyRetriesCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyRetriesView.ResetTip, Mode=OneWay}"
@@ -566,7 +567,7 @@
                                AutomationProperties.Name="{x:Bind ViewModel.ManyRetryDelayView.Name, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.ManyCanRetryDelay, Mode=OneWay}" />
                         <TextBlock Text="s" VerticalAlignment="Bottom" Margin="0,0,0,8" />
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="{x:Bind ViewModel.ManyRetryDelayView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                Visibility="{x:Bind ViewModel.ManyRetryDelayView.ShowCaption, Mode=OneWay}" />
                         <HyperlinkButton Command="{x:Bind ViewModel.ResetManyRetryDelayCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyRetryDelayView.ResetTip, Mode=OneWay}"
@@ -585,7 +586,7 @@
                                AutomationProperties.Name="{x:Bind ViewModel.ManyTimeoutView.Name, Mode=OneWay}" />
                         <TextBlock Text="s" VerticalAlignment="Bottom" Margin="0,0,0,8" />
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="{x:Bind ViewModel.ManyTimeoutView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                Visibility="{x:Bind ViewModel.ManyTimeoutView.ShowCaption, Mode=OneWay}" />
                         <HyperlinkButton Command="{x:Bind ViewModel.ResetManyTimeoutCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyTimeoutView.ResetTip, Mode=OneWay}"
@@ -640,7 +641,7 @@
                 <ItemsControl ItemsSource="{x:Bind ViewModel.Shortcuts, Mode=OneWay}" IsTabStop="False">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Spacing="8" />
+                            <StackPanel Spacing="8" motion:Motion.Animate="True" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
