@@ -155,6 +155,22 @@ public sealed class InspectorDefaultsTests : IDisposable
     }
 
     [Fact]
+    public void ReloadingTheSameStepKeepsTheOnlyIfListAndRereadsTheIndex()
+    {
+        _canvas.Select("bt");
+        var options = _inspector.OnlyIfOptions;
+        var raised = new List<string?>();
+        _inspector.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        _inspector.OnlyIfIndex = 1; // an edit reloads the step
+
+        // A new list (even with equal rows) clears the open ComboBox; the same list stays, and the index is read again.
+        Assert.Same(options, _inspector.OnlyIfOptions);
+        Assert.DoesNotContain(nameof(InspectorViewModel.OnlyIfOptions), raised);
+        Assert.Contains(nameof(InspectorViewModel.OnlyIfIndex), raised);
+    }
+
+    [Fact]
     public void OnlyIfFollowsTheTypeDefaultAlwaysOverridesItAndResetReturns()
     {
         SetDefault("bluetooth.connect", new StepDefault { Only = "disconnected" });

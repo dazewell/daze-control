@@ -299,6 +299,11 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                 Choice = null;
             if (mixed && IsDevice)
                 Device = null;
+            // Same value again raises nothing, but the control may have dropped its selection since: read both again.
+            if (IsChoice)
+                OnPropertyChanged(nameof(Choice));
+            if (IsDevice)
+                OnPropertyChanged(nameof(Device));
             Error = problem ?? FileProblem();
             OnPropertyChanged(nameof(AutomationName));
         }

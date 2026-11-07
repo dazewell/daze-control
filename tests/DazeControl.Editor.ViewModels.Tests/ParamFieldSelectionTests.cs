@@ -48,4 +48,29 @@ public sealed class ParamFieldSelectionTests
         Assert.Equal(["HOME", "BACK"], field.KeySuggestions(""));
         Assert.Equal(["HOME"], field.KeySuggestions("ho"));
     }
+
+    [Fact]
+    public void EveryParamOfEveryStepLoadsWithoutWritingAndShowsItsValue()
+    {
+        var writes = new List<string>();
+        foreach (var provider in ProviderCatalog.All)
+            foreach (var spec in provider.Params)
+            {
+                var field = new ParamFieldViewModel(spec, (f, _) => writes.Add(provider.Id + "." + f.Name), _ => true);
+                field.Load(null, null);
+                field.Load(null, null, mixed: true);
+                field.Load(spec.Choices.Count > 0 ? new ScalarParam(spec.Choices[0]) : new ScalarParam("1"), null);
+                if (field.IsChoice)
+                    Assert.Equal(spec.Choices[0], field.Choice);
+                if (field.IsDevice)
+                {
+                    field.SetDevices([new DeviceOption(DeviceSource.None, null, "None", "", ""), Row("a")], "a");
+                    field.Load(new ScalarParam("a"), null);
+                    Assert.Equal("a", field.Device?.Key);
+                }
+            }
+
+        // Showing a value is never an edit (no write loops, nothing dirty on a step switch).
+        Assert.Empty(writes);
+    }
 }
