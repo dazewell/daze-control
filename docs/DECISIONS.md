@@ -1276,3 +1276,14 @@ Status: accepted (user asked for touchpad and mouse back/forward, 2026-11-06)
   was deleted are skipped; a rename follows (D-075). No on-screen button: none existed, the tray-less editor has the breadcrumb.
 - Why not restore selection and scroll: no cheap hook in the canvas; a flow opens fresh as it does today.
 - Revisit if: users want a visible Back button or scroll/selection restore.
+
+## D-096 · 2026-11-06 · `android.connect`: the existing library device and connect, as its own step
+Status: accepted (user, 2026-11-06: stop running `adb connect` from a PowerShell script)
+- Decision: step `android.connect` (`device` = library Android device, which already holds host, port default 5555 and adb path)
+  runs `AndroidRemote.ConnectAsync`: `adb connect`, up to 3 tries, success judged from the answer (`connected to` /
+  `already connected to`, never `failed`; adb exits 0 either way). `failed to authenticate` adds "accept the debugging prompt".
+  Same `adb:{device}` lock, 20 s timeout, process-tree kill and dry run as the other Android steps.
+- Why: no new host/port fields, no second place to remember devices; the other steps already connect, this one is for flows that
+  only need the link up. No pairing (`adb pair` needs a one-time code; codes never go in YAML or logs, D-014).
+- Why not a disconnect step: not asked; add it the same way if wanted. No "Only if" check: T14.9 is parked.
+

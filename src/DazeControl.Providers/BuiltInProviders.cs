@@ -70,6 +70,7 @@ public static class BuiltInProviders
             new AndroidKeysProvider(android),
             new AndroidSleepProvider(android),
             new AndroidStartProvider(android),
+            new AndroidConnectProvider(android),
             new ServiceStartProvider(services, time),
             new ServiceStopProvider(services, time),
             new FactCheckProvider("audio.check", probes["audio.isDefault"], "default"),
