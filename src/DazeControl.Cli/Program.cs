@@ -151,12 +151,15 @@ public static class Program
     // The session-local mutex the editor holds (Editor/Program.cs): one editor per user and config file.
     private static Func<bool> EditorRunning(string? config) => () =>
     {
-        var scope = config is null ? "" : "." + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(config).ToUpperInvariant())))[..16];
+        var scope = config is null || SamePath(config, BackupPaths.For(null).Config) ? "" : "." + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(config).ToUpperInvariant())))[..16];
         if (!Mutex.TryOpenExisting(@"Local\DazeControl.Editor" + scope, out var mutex))
             return false;
         mutex.Dispose();
         return true;
     };
+
+    // The editor started without --config holds the unsuffixed mutex, also when the path given is the default one.
+    private static bool SamePath(string a, string b) => string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
 
     private static int PrintShortcut(PipeMessage message, bool removed)
     {

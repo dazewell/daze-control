@@ -94,14 +94,15 @@ public sealed class BackupCommands(
             output.WriteLine("Dry run: nothing was changed.");
             return Ok;
         }
-        if (editorRunning())
-        {
-            error.WriteLine("The editor is open. Close it first (it may hold a flow with unsaved changes), then run this again.");
-            return Refused;
-        }
         if (!yes && !Confirm())
         {
             error.WriteLine(interactive ? "Nothing was restored." : "Nothing was restored. Add --yes to restore without asking.");
+            return Refused;
+        }
+        // Checked last, right before the write, so an editor opened while the question was waiting is seen too.
+        if (editorRunning())
+        {
+            error.WriteLine("The editor is open. Close it first (it may hold a flow with unsaved changes), then run this again.");
             return Refused;
         }
         try
@@ -119,6 +120,12 @@ public sealed class BackupCommands(
         catch (RestoreException e)
         {
             error.WriteLine(e.Message);
+            return Failed;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Every read the restore does (config, editor.json) comes before its first write, so nothing was changed.
+            error.WriteLine($"Couldn't read a file for the restore: {e.Message} Nothing was changed.");
             return Failed;
         }
     }
