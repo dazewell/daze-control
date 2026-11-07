@@ -46,6 +46,13 @@
                 <TextBlock Text="{x:Bind Caption}" Visibility="{x:Bind HasCaption}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
             </StackPanel>
         </DataTemplate>
+        <!-- App rows: name, with the package id under it (D-094). -->
+        <DataTemplate x:Key="AppTemplate" x:DataType="vmi:AppItem">
+            <StackPanel AutomationProperties.Name="{x:Bind AutomationName}">
+                <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{x:Bind Package}" Style="{StaticResource SettingsCardDescription}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </DataTemplate>
         <DataTemplate x:Key="ParamFieldTemplate" x:DataType="vmi:ParamFieldViewModel">
                             <StackPanel>
                                 <TextBlock Text="{x:Bind Title}" Style="{StaticResource FieldTitle}" />
@@ -55,6 +62,14 @@
                                           Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder, Mode=OneWay}"
                                           ItemTemplate="{StaticResource SuggestionTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
                                           DropDownOpened="OnSuggestionsOpened" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
+                                <!-- android.start: search the device's apps by name; Enter on other text keeps it as the package (D-094). -->
+                                <AutoSuggestBox Visibility="{x:Bind IsAppPicker}" ItemsSource="{x:Bind AppRows}" Text="{x:Bind Text, Mode=OneWay}"
+                                                TextMemberPath="Package" PlaceholderText="Search apps or type a package name" Tag="{x:Bind}"
+                                                ItemTemplate="{StaticResource AppTemplate}" UpdateTextOnSelect="True"
+                                                TextChanged="OnAppTextChanged" QuerySubmitted="OnAppSubmitted" GotFocus="OnAppFocused" LostFocus="OnAppLostFocus"
+                                                AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
+                                <TextBlock Text="{x:Bind AppCaption, Mode=OneWay}" Visibility="{x:Bind HasAppCaption, Mode=OneWay}"
+                                           Style="{StaticResource SettingsCardDescription}" Margin="0,4,0,0" />
                                 <TextBlock Text="{x:Bind SuggestionHint, Mode=OneWay}" Visibility="{x:Bind HasSuggestionHint, Mode=OneWay}"
                                            Style="{StaticResource SettingsCardDescription}" Margin="0,4,0,0" />
                                 <!-- Android input with no inputs yet: the link opens the device's inputs in the Library (L1). -->

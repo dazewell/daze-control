@@ -114,10 +114,10 @@ No version bumps (D-079). Opus medium.
 ## M17 Android "Start app" (user, 2026-11-06; design docs/android-start-app/DESIGN.md, D-092..D-094)
 One PR (design + build). Editor edits stay in the inspector/param picker (other sessions own `ShellWindow.xaml`).
 
-- [ ] T17.1 `android.start` step, app listing and cache (feat/m17-android-start-app). Files: `Providers/Android` (`AndroidApps`, step, `AndroidRemote.StartAppAsync`), catalog,
+- [x] T17.1 `android.start` step, app listing and cache (feat/m17-android-start-app). Files: `Providers/Android` (`AndroidApps`, step, `AndroidRemote.StartAppAsync`), catalog,
   `Ipc` (`android-apps` op), `IDeviceQueries`/`SystemDevices`/`EngineController`. Done when: fake-adb tests (launch, fallback category, bad package, parse/sort/cache, op).
-- [ ] T17.2 Searchable app picker in the inspector (same PR). Files: `Editor.ViewModels/Inspector`, `InspectorPane.xaml`. Done when: VM tests (filter, sort, free text); built.
-- [ ] T17.3 Gate: move as-built facts to ARCHITECTURE/FEATURES/UX and cut DESIGN (D-053), in this PR or the next docs PR.
+- [x] T17.2 Searchable app picker in the inspector (same PR). Files: `Editor.ViewModels/Inspector`, `InspectorPane.xaml`. Done when: VM tests (filter, sort, free text); built.
+- [x] T17.3 Gate: move as-built facts to ARCHITECTURE/FEATURES/UX and cut DESIGN (D-053), in this PR or the next docs PR.
 
 ---
 

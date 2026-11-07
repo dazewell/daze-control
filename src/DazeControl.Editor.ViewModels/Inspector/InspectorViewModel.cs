@@ -435,7 +435,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             HasFields = Fields.Count > 0;
             foreach (var kind in Fields.Where(f => f.IsDevice).Select(f => f.Spec.Library).OfType<LibraryKind>().Distinct())
                 _ = RefreshDevicesAsync(kind);
-            foreach (var kind in Fields.Select(f => f.Spec.Suggest).Where(s => s?.Source == SuggestSource.Devices).Select(s => s!.Kind).Distinct())
+            foreach (var kind in Fields.Select(f => f.Spec.Suggest).Where(s => s?.Source == SuggestSource.Devices && s.Kind != ParamSuggest.AndroidApps).Select(s => s!.Kind).Distinct())
                 _ = RefreshSuggestionsAsync(kind);
         }
         var path = $"flows.{FlowId}.nodes.{step.Id}.with.";
@@ -461,6 +461,9 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     {
         switch (field.Spec.Suggest)
         {
+            case { Source: SuggestSource.Devices, Kind: ParamSuggest.AndroidApps }:
+                LoadApps(field, step);
+                break;
             case { Source: SuggestSource.Devices, Kind: var kind } when field.IsChecklist:
                 field.SetScreens(_suggested.GetValueOrDefault(kind));
                 break;
@@ -487,6 +490,51 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                     device is null ? "Choose the Android device first." : AddInputsHint, device?.Key);
                 break;
         }
+    }
+
+    /// <summary>Android apps by device serial, as the engine last answered (D-093).</summary>
+    private readonly Dictionary<string, List<AppItem>> _apps = new(StringComparer.Ordinal);
+
+    /// <summary>Fills the app picker from what is known; asks the engine for its saved list (never the device) when nothing is.</summary>
+    private void LoadApps(ParamFieldViewModel field, StepNode step)
+    {
+        var device = AndroidDeviceOf(step);
+        if (device is null)
+        {
+            field.SetApps(null, [], "Choose the Android device first.");
+            return;
+        }
+        field.SetApps(device, _apps.GetValueOrDefault(device.Serial) ?? [], "");
+        if (!_apps.ContainsKey(device.Serial))
+            _ = RefreshAppsAsync(field, refresh: false);
+    }
+
+    /// <summary>
+    /// Asks the engine for the device's apps: its saved list, or with <paramref name="refresh"/> the device itself (D-093;
+    /// the box asks once when it gets focus). A failure keeps the old list and says so; typing a package still works.
+    /// </summary>
+    public async Task RefreshAppsAsync(ParamFieldViewModel field, bool refresh)
+    {
+        ArgumentNullException.ThrowIfNull(field);
+        if (field.AppsDevice is not { } device || (refresh && field.AppsRefreshed))
+            return;
+        field.AppsRefreshed |= refresh;
+        var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.AndroidApps, Address = device.Address, Adb = device.Adb, Refresh = refresh })
+            .ConfigureAwait(false);
+        _post(() =>
+        {
+            if (field.AppsDevice?.Serial != device.Serial)
+                return; // another device was chosen meanwhile
+            if (answer is { Ok: true, Devices: { } devices })
+            {
+                var apps = AppChoices.From(devices);
+                _apps[device.Serial] = apps;
+                field.SetApps(device, apps, apps.Count == 0 && refresh ? "No apps found on the device. Type the package name." : "");
+            }
+            else if (refresh)
+                field.SetApps(device, _apps.GetValueOrDefault(device.Serial) ?? [],
+                    $"Couldn't read the apps: {answer?.Error ?? "the engine isn't running"}. Type the package name.");
+        });
     }
 
     /// <summary>The Android input hint; a link that opens the device's inputs in the Library (L1).</summary>
@@ -1156,7 +1204,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             foreach (var kind in Fields.Select(f => f.Spec.Library).OfType<LibraryKind>().Distinct())
                 _ = RefreshDevicesAsync(kind);
             // The screens checklist has no drop-down to retry from.
-            foreach (var kind in Fields.Select(f => f.Spec.Suggest).Where(s => s?.Source == SuggestSource.Devices).Select(s => s!.Kind).Distinct())
+            foreach (var kind in Fields.Select(f => f.Spec.Suggest).Where(s => s?.Source == SuggestSource.Devices && s.Kind != ParamSuggest.AndroidApps).Select(s => s!.Kind).Distinct())
                 _ = RefreshSuggestionsAsync(kind);
         }
     });

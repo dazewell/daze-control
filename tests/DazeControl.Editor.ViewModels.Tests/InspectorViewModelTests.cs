@@ -787,6 +787,78 @@ public sealed class InspectorViewModelTests : IDisposable
         Assert.Equal("Choose the Android device first.", field.SuggestionHint);
     }
 
+    // ---- M17: the Android app picker (D-094) ----
+
+    private static DeviceInfo App(string name, string package) => new() { Name = name, Detail = package, Value = package };
+
+    private void AddAndroidStartStep(string device)
+    {
+        _session.Update(c => c with { Library = c.Library with { Android = [new AndroidDevice("tv", "192.168.1.50", new([]))] } });
+        _canvas.Edit(f => f with { Nodes = [.. f.Nodes, new StepNode("go", "android.start") { With = new([new("device", (ParamValue)device)]) }] });
+        _canvas.Select("go");
+    }
+
+    [Fact]
+    public async Task TheAppPickerListsTheDevicesAppsByNameAndNamesTheStoredOne()
+    {
+        _engine.Answer = request => request.Op == Ops.AndroidApps
+            ? new PipeMessage { Id = request.Id, Ok = true, Devices = [App("Zoom", "us.zoom"), App("kodi", "org.xbmc.kodi"), App("Netflix", "com.netflix.ninja")] }
+            : new PipeMessage { Id = request.Id, Ok = true, Devices = [] };
+        AddAndroidStartStep("tv");
+        var field = Field("app");
+
+        Assert.True(field.IsAppPicker);
+        var saved = Assert.Single(_engine.Requests, r => r.Op == Ops.AndroidApps);
+        Assert.Equal(("192.168.1.50", false), (saved.Address, saved.Refresh)); // selecting the step never asks the device
+
+        await _inspector.RefreshAppsAsync(field, refresh: true);
+        await _inspector.RefreshAppsAsync(field, refresh: true); // once per selection
+
+        Assert.True(Assert.Single(_engine.Requests, r => r.Op == Ops.AndroidApps && r.Refresh).Refresh);
+        Assert.Equal(["kodi", "Netflix", "Zoom"], field.AppMatches("").Select(a => a.Name));
+        Assert.Equal(["Netflix"], field.AppMatches("ninja").Select(a => a.Name));
+        field.Text = "org.xbmc.kodi";
+        Assert.Equal("kodi", field.AppCaption);
+        field.Text = "com.typed.by.hand";
+        Assert.Equal("", field.AppCaption);
+    }
+
+    [Fact]
+    public async Task AFailedRefreshKeepsTheListAndSaysSo()
+    {
+        var fail = false;
+        _engine.Answer = request => fail ? PipeMessage.Fail(request.Id, "Couldn't reach the Android device at x.")
+            : new PipeMessage { Id = request.Id, Ok = true, Devices = [App("Kodi", "org.xbmc.kodi")] };
+        AddAndroidStartStep("tv");
+        var field = Field("app");
+        await _inspector.RefreshAppsAsync(field, refresh: false);
+        fail = true;
+
+        await _inspector.RefreshAppsAsync(field, refresh: true);
+
+        Assert.Single(field.AppMatches(""));
+        Assert.StartsWith("Couldn't read the apps: Couldn't reach", field.SuggestionHint, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheAppPickerAsksForADeviceFirst()
+    {
+        AddAndroidStartStep("gone");
+
+        Assert.Equal("Choose the Android device first.", Field("app").SuggestionHint);
+        Assert.DoesNotContain(_engine.Requests, r => r.Op == Ops.AndroidApps);
+    }
+
+    [Fact]
+    public void AppSearchMatchesEveryWordInNameOrPackage()
+    {
+        List<AppItem> apps = [new("YouTube", "com.google.android.youtube.tv"), new("Kodi", "org.xbmc.kodi"), new("YouTube Music", "com.google.android.youtube.tvmusic")];
+
+        Assert.Equal(["YouTube Music"], AppChoices.Match(apps, "you music").Select(a => a.Name));
+        Assert.Equal(["Kodi"], AppChoices.Match(apps, "XBMC").Select(a => a.Name));
+        Assert.Equal(3, AppChoices.Match(apps, "  ").Count);
+    }
+
     private void AddRunStep(string? target)
     {
         var step = new StepNode("call", Core.Catalog.ProviderCatalog.RunFlowId);
