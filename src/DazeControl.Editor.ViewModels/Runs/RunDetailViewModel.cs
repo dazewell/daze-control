@@ -141,7 +141,7 @@ public sealed partial class RunDetailViewModel : ObservableObject
     public string Sentence { get; }
 
     /// <summary>"Alt+Z · Today 14:02 · 3.1 s".</summary>
-    public string Facts => string.Join(" · ", Record.Trigger, Record.Started.ToLocalTime().ToString("g", CultureInfo.CurrentCulture),
+    public string Facts => Captions.Join(Record.Trigger, Record.Started.ToLocalTime().ToString("g", CultureInfo.CurrentCulture),
         RunWords.Seconds(Record.Duration));
 
     /// <summary>Steps that never ran: they have no bar.</summary>

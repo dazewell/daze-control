@@ -63,6 +63,11 @@ becomes Stop while a run is on); (4) rare persistent bars that must be seen on t
 save, conflict, engine not running). Never: a status text or a button that shifts its neighbours, a list that jumps
 when a bar appears (the Flows page panel animates), scroll position lost on update.
 
+**No empty reserved gaps; join non-empty parts.** Inside one line of text ("Alt+Z · 4 steps · ● Done 2 h ago") a part
+that is absent (no shortcut, no run, no dot, empty trigger) takes its separator and its gap with it: build every
+" · " line with `Captions.Join`, and collapse an inline dot/icon that has no state (the text of that line is
+changing anyway). The slot rule above is for standalone status and buttons, not for parts of a sentence.
+
 ## 5.2 Canvas interaction
 - **Layout is always automatic** (D-020): left→right columns (one per layer), gaps 64 between columns, 16
   between rows. Users choose connections and order within a column, never x/y; dragging regroups/reorders and

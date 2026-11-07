@@ -1103,7 +1103,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
 
     /// <summary>A run of this flow is going on.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RunText), nameof(RunName), nameof(RunTip), nameof(Caption), nameof(CaptionRun), nameof(Summary), nameof(State))]
+    [NotifyPropertyChangedFor(nameof(RunText), nameof(RunName), nameof(RunTip), nameof(Caption), nameof(CaptionRun), nameof(Summary), nameof(State), nameof(HasDot))]
     [NotifyCanExecuteChangedFor(nameof(RunCommand))]
     public partial bool IsRunning { get; private set; }
 
@@ -1163,10 +1163,13 @@ public sealed partial class FlowItemViewModel : ObservableObject
     public FlowRowState State => FlowRowFacts.State(_lastRun, IsRunning);
 
     /// <summary>Line 2 of the card: "Alt+Z · 5 steps · Done 2 h ago"; "Running" while a run goes on.</summary>
-    public string Caption => $"{Shortcut} · {Steps} · {(IsRunning ? "Running" : LastRun)}";
+    public string Caption => Captions.Join(Shortcut, Steps, CaptionRun);
 
     /// <summary>The first part of line 2 ("Alt+Z · 5 steps ·"); the status dot sits between it and <see cref="CaptionRun"/>.</summary>
-    public string CaptionLead => $"{Shortcut} · {Steps} ·";
+    public string CaptionLead => Captions.Join(Shortcut, Steps) + " ·";
+
+    /// <summary>The status dot shows only when there is a state: no dot, no reserved gap.</summary>
+    public bool HasDot => State != FlowRowState.None;
 
     /// <summary>The last-run words ("Done 2 h ago", "Running").</summary>
     public string CaptionRun => IsRunning ? "Running" : LastRun;
@@ -1318,6 +1321,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
         LastRun = FlowRowFacts.LastRun(_lastRun, now);
         OnPropertyChanged(nameof(Summary));
         OnPropertyChanged(nameof(State));
+        OnPropertyChanged(nameof(HasDot));
     }
 
     /// <summary>YAML holds the code point in hex ("E7F4"); anything else falls back to the default.</summary>

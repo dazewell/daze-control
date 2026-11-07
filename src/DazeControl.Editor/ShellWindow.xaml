@@ -437,7 +437,7 @@
                                                             <TextBlock Text="{x:Bind CaptionLead, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextWrapping="NoWrap"
                                                                        ToolTipService.ToolTip="{x:Bind ShortcutTip, Mode=OneWay}" />
                                                             <!-- Status dot: one ellipse per state, faded in or out, so the colours follow the theme and high contrast. -->
-                                                            <Grid Width="8" Height="8" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw">
+                                                            <Grid Width="8" Height="8" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw" Visibility="{x:Bind HasDot, Mode=OneWay}">
                                                                 <Ellipse Fill="{ThemeResource SystemFillColorSuccessBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 2), Mode=OneWay}" />
                                                                 <Ellipse Fill="{ThemeResource SystemFillColorCautionBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 3), Mode=OneWay}" />
                                                                 <Ellipse Fill="{ThemeResource SystemFillColorCriticalBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 4), Mode=OneWay}" />

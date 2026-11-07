@@ -34,6 +34,9 @@ public sealed class RunItemViewModel(RunRecord record, string glyph)
 
     public FlowOutcome Outcome => Record.Outcome;
 
+    /// <summary>"Alt+Z · 14:02 · 3.1 s"; an empty trigger leaves no separator.</summary>
+    public string Caption => Captions.Join(Trigger, Time, Duration);
+
     public string Duration => RunWords.Seconds(Record.Duration);
 
     /// <summary>UIA reads list rows by <c>ToString()</c>.</summary>

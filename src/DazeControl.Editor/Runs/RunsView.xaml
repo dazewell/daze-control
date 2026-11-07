@@ -51,9 +51,7 @@
                         <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap">
-                                <Run Text="{x:Bind Trigger}" /><Run Text=" · " /><Run Text="{x:Bind Time}" /><Run Text=" · " /><Run Text="{x:Bind Duration}" />
-                            </TextBlock>
+                            <TextBlock Text="{x:Bind Caption}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
                         </StackPanel>
                         <Border Grid.Column="2" CornerRadius="10" Padding="8,2" VerticalAlignment="Center"
                                 Background="{x:Bind local:RunsView.ChipBackground(Outcome)}"

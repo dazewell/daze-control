@@ -301,7 +301,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             if (values.Count == 2)
                 break;
         }
-        return values.Count == 0 ? Area(descriptor.Area) : string.Join(" · ", values);
+        return values.Count == 0 ? Area(descriptor.Area) : Captions.Join(values);
     }
 
     /// <summary>
@@ -320,7 +320,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             .Distinct(StringComparer.Ordinal)
             .Take(2)
             .ToList();
-        return names.Count > 0 ? string.Join(" · ", names) : called.Inputs.Count > 0 ? "Its defaults" : Area("flow");
+        return names.Count > 0 ? Captions.Join(names) : called.Inputs.Count > 0 ? "Its defaults" : Area("flow");
     }
 
     /// <summary>The flow the step is in (its inputs name <c>$name</c> values).</summary>
