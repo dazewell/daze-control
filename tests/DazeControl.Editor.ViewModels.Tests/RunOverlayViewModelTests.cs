@@ -76,7 +76,7 @@ public sealed class RunOverlayViewModelTests : IDisposable
         Raise(EventKinds.RunFinished, outcome: FlowOutcome.Succeeded);
 
         Assert.Equal((RunInfoSeverity.Success, "Done"), (_run.InfoSeverity, _run.InfoTitle));
-        Assert.Equal("Connect Technics worked. Set default device didn't work, so Show a message ran instead.", _run.InfoMessage);
+        Assert.Equal("Connect Technics worked. Set default device didn't work, so Show message ran instead.", _run.InfoMessage);
     }
 
     [Fact]
@@ -288,7 +288,7 @@ public sealed class RunOverlayViewModelTests : IDisposable
         _engine.Raise(new PipeEvent { Kind = EventKinds.NodeStarted, RunId = nested, FlowId = "inner", NodeId = "a", ParentRunId = _runId, ParentNodeId = "bt" });
 
         Assert.Equal(NodeRunState.Running, State("bt"));
-        Assert.Equal("Show a message…", _canvas.Find("bt")!.ShownSummary); // #59
+        Assert.Equal("Show message…", _canvas.Find("bt")!.ShownSummary); // #59
 
         _engine.Raise(new PipeEvent { Kind = EventKinds.RunFinished, RunId = nested, FlowId = "inner", Outcome = FlowOutcome.Succeeded });
         Raise(EventKinds.NodeFinished, result: new NodeResult("bt", NodeOutcome.Succeeded, Duration: TimeSpan.FromSeconds(2)));

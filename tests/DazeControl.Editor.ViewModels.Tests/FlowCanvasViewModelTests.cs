@@ -762,6 +762,15 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         Assert.True(palette.IsEmpty);
     }
 
+    [Theory]
+    [InlineData("check a program is running", "process.check")]
+    [InlineData("android keys", "android.keys")]
+    [InlineData("web request", "http.request")]
+    [InlineData("folder", "file.check")]
+    [InlineData("mute", "audio.mute")]
+    public void SearchStillFindsStepsByTheirOldTitleWords(string query, string step) =>
+        Assert.Contains(StepPaletteViewModel.Search(query), r => r.Step == step);
+
     [Fact]
     public void SearchPutsTitleMatchesFirst()
     {

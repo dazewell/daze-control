@@ -40,7 +40,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   flow goes at once and an InfoBar on the Flows page says #67 with **Undo**, until another Delete, New flow, opening
   a flow, leaving the page or closing the editor. Off while another flow runs it, with #68 as a greyed line under it.
   Renaming a flow and saving gives it a new id made from the name (D-075); nothing on screen shows the id.
-- **M13 fixes (F2):** the "Run a flow" step's Flow setting is a picker of the other flows by icon and name
+- **M13 fixes (F2):** the "Run flow" step's Flow setting is a picker of the other flows by icon and name
   (it stores the id), captions "Turned off" / "Needs fixing" (#29); a deleted target stays selected as its id with
   "Isn't there anymore" and #51 under it; with no other flow it says #69; empty, #9 says "Choose a flow.". The Steps
   panel lists it under **Flows**, and its card shows the called flow's name.
@@ -136,7 +136,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   Any new fallback (this menu, Connections, the edge menu) turns "Stop the flow" into "Skip what depends on it",
   which is what the run does then (D-024), in the same undo step, with a tip (§5.7 #46); Skip and Keep going stay,
   and removing the fallback doesn't switch back (D-059).
-- Connections: one row per edge at the step ("Runs after Connect", "Show a message runs after this") with a
+- Connections: one row per edge at the step ("Runs after Connect", "Show message runs after this") with a
   ComboBox "When it works" / "Only if it fails" / "Whatever happens".
 - **"Wait until" recipe (T18.5, D-081):** there is no Wait-until step. Put a Check step (Check a program is running, a service, a file, a connection…) in the flow, set its "Try again" (e.g. 10) and "Wait between tries" (e.g. 3 s) and the flow continues once the check passes. Every check's "Is" setting says so in its help: "Fails when it isn't. To wait until it is, set Try again and Wait between tries."
 - Timing: "Try again" 0–10, "Wait between tries" s, "Give up after" s + "No limit". Each row (and "If it fails") is *Default* (effective value at 60 % opacity, caption "Default") or *Set* (normal, "Reset" link E777, tip "Use the default (1 s)", clears only that field); typing or picking a different value sets it. Caption "From the default for Set default device steps" when the type has an entry. Button "Use these for all Set default device steps…" → flyout (the values, "Applies to n other steps in m flows that don't set their own.", Apply / Cancel) → InfoBar "Saved as the default for Set default device steps" + Undo. Canvas chips show effective values, tertiary text when all inherited, only if different from the built-in. The "If it fails, run…" Stop→Skip switch (D-059) looks at the effective policy.
@@ -153,19 +153,19 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   Text: editable ComboBox, items glyph + name + Caption (service: display name · Running; credential: "Saved in
   Windows"; flag: "Used in 2 flows"; program: its folder); typing stays allowed. Screens (`display.outputs`):
   checklist rows name + Caption "DP-3 · On now", plus "Use the screens that are on now" (#27); saved but unplugged
-  rows stay checked with #8. Android keys: token list in send order (× per token, Alt+Up/Down reorders) + an
+  rows stay checked with #8. Send keys: token list in send order (× per token, Alt+Up/Down reorders) + an
   AutoSuggestBox "Add a key" (home, back, dpad_up/down/left/right/center, enter, menu, media_play_pause,
-  media_next, media_previous, volume_up/down/mute, power, wakeup, sleep, settings, tv_input). Android input: the
+  media_next, media_previous, volume_up/down/mute, power, wakeup, sleep, settings, tv_input). Choose input: the
   chosen device's inputs, none yet → hyperlink "Add inputs in the Library" (opens Library › Android with that device's inputs open, D-078). Code boxes: DropDownButton "Examples"
   under the box; picking fills it (replaces, Ctrl+Z undoes). Examples — PowerShell: "Open a website"
   `Start-Process 'https://example.com'` · "Start an app and wait" `Start-Process notepad -Wait` · "Close an app"
   `Stop-Process -Name 'Spotify' -ErrorAction SilentlyContinue` · "Lock the PC" `rundll32.exe user32.dll,LockWorkStation`
   · "Fail unless an app is running" `if (-not (Get-Process steam -ErrorAction SilentlyContinue)) { exit 1 }`
-  (pairs with "If it fails, run…"). Web request: address "Sunshine: close the running app"
+  (pairs with "If it fails, run…"). Send web request: address "Sunshine: close the running app"
   `https://localhost:47990/api/apps/close`; headers `Content-Type: application/json`; body `{ "key": "value" }`.
   Android app (`android.start`): an AutoSuggestBox over the device's apps, name with the package id under it, sorted by name; typing filters by name or package; Enter on a row stores its package, Enter on other text keeps it as the package; focusing the box asks the device once for a fresh list (D-094).
 - Bluetooth pickers list Windows' paired devices (D-052); ones without audio are disabled with #26.
-- **Run a flow** (M13, built T13.10): **Flow** ComboBox (glyph + name +
+- **Run flow** (M13, built T13.10): **Flow** ComboBox (glyph + name +
   caption: the inputs it takes, "Turned off", "Needs fixing"; its own flow and loop-making flows off with #49/#50);
   **Wait for it to finish** toggle, on by default (#55); **Inputs**: a device picker per input of the chosen flow,
   first item "Its default: Technics", then "From this flow's inputs", then "Library" (#60); with no flow chosen
@@ -196,7 +196,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   editor" shows that run on the canvas. Keep the last 100 runs.
 - Fallbacks (D-065, built): a fallback that wasn't needed is listed "Not needed" (#47), not a skip, and has no bar; a
   failure its fallback fixed is a caution-dashed bar and the run says "Connect Technics worked." with #48.
-- M13 (D-062, built T13.10): a "Run a flow" bar that waited has a chevron after it ("Show the steps of …"); expanded,
+- M13 (D-062, built T13.10): a "Run flow" bar that waited has a chevron after it ("Show the steps of …"); expanded,
   the called flow's lanes show below under a bracket with its name (one level), and "Open in editor" with one of them
   selected opens that flow showing its part of the run. Live: the call's pill says the called flow's current step
   ("Connect…", #59), and a flow running inside another shows its states with InfoBar #64.
@@ -234,7 +234,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 - Fallbacks (D-065, built): "n of m" leaves out fallbacks until one starts (then m grows by it); a fallback that
   wasn't needed counts for nothing. A failure its fallback fixed ends "Done" with #48 on row 3, in the normal tone.
   The canvas's live "Running · n of m" counts the same way and its pills say "Not needed" (#47). M13 (D-062): a flow
-  run by "Run a flow" (waiting) is one step of its caller: row 3 shows "Make it the default · Connecting Sony…"
+  run by "Run flow" (waiting) is one step of its caller: row 3 shows "Make it the default · Connecting Sony…"
   (#59) and the bar moves within that step; the called flow shows no pop-up of its own.
 
 ## 5.7 Microcopy (the OSD's D-026 voice: plain, friendly, sentence case)
@@ -332,9 +332,9 @@ contrast: solid background, no dots.
   (the fork starts under the chain); every Layout choice changes the canvas visibly on a sample flow; the Flows card
   shows the flow's icon and runs it with Run (keyboard: Tab to the card, Enter opens); nav Flows leaves the editor;
   the collapsed nav pane survives a restart; Connect Technics with Technics on says "Done" and "n of m" never counts
-  the Sony branch; "Run a flow" shows one pop-up and one Runs entry with the nested lanes.
+  the Sony branch; "Run flow" shows one pop-up and one Runs entry with the nested lanes.
 - M13 fixes: the wheel zooms with the point under the pointer staying put, and a 2-step flow moves with right-drag;
-  resting the pointer anywhere in the flow editor never shows a "Ctrl+S" tip; the Steps panel's "Run a flow" sits
+  resting the pointer anywhere in the flow editor never shows a "Ctrl+S" tip; the Steps panel's "Run flow" sits
   under "Flows", and its Flow picker lists the other flows by name; Delete on a card, then Undo, brings it back with
   its shortcut working; renaming "New flow" to "Morning" and saving shows `morning` in the next run's log line.
   "Use only these screens" with both screens gives the user's Extend arrangement, with one gives that screen alone,

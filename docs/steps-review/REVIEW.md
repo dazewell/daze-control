@@ -1,4 +1,4 @@
-# Steps review (proposal, awaiting the user's approval)
+# Steps review (approved 2026-11-06, D-102)
 
 Requested 2026-11-06: are the steps consistent inside and between palette groups, and what is missing? Facts below come from the code at
 `origin/main` 88c2bc0 (v0.45.0): `Core/Catalog/ProviderCatalog.cs` (the single list of step types, D-006), `Providers/*`,
@@ -147,17 +147,6 @@ What holds user state, from the code and ARCHITECTURE:
   with those flows disabled and listed. Any future id alias must stay forever (§4).
 - Flow ids and step ids are the stable part; titles are not stored, so this review's title changes never affect a backup.
 
-## 6. Open choices for the user (recommended answer first)
+## 6. Answers (user, 2026-11-06)
 
-1. **Title grammar**: imperative verb + bare object, no article ("Set flag", "Run flow", "Check service")? Rec: **yes**. Alt: keep articles.
-2. **Android titles**: Connect · Start app · Choose input · Send keys · Sleep (group name not repeated)? Rec: **yes**. Alt: keep "Android …" prefix on all five.
-3. **Palette groups**: merge to Audio · Bluetooth · Displays · Android · Programs · Services · Files · Web · Flow (9 groups, this order)? Rec: **yes**. Alt: only reorder the 14.
-4. **Check titles**: "Check program / service / file / flag / connection / default device"? Rec: **yes**.
-5. **Choice captions** in the inspector ("It isn't the default" instead of `notDefault`; YAML unchanged)? Rec: **yes**.
-6. **"Mute or unmute"** as the title of `audio.mute`? Rec: **yes**.
-7. **Add now** (small, same pattern as existing steps): Close program, Stop app (Android), Turn screens off, the "Wait until" recipe in docs, extra PowerShell examples? Rec: **yes to all five**; say which to drop.
-8. **Maybe later** (answer per item, rec in brackets): Open file/address [later], Android Disconnect [later], Android Wake [later], Wake on LAN [later], web address check [later], Stop flow [later], HDR spike [no for now], Bluetooth non-audio spike [no for now].
-9. **Rename any ids** (e.g. `notify` → `message.show`, `display.topology` → `display.project`)? Rec: **no**; a permanent alias table for little gain.
-10. **Unify error wording** ("There's no … called "x" in your Library.", no trailing full stop on checks)? Rec: **yes**.
-11. **Picker labels** "Audio device" / "Bluetooth device" / "Android device"? Rec: **yes**.
-12. **Services**: leave as is (no admin, D-033)? Rec: **yes**. Reopen only if Sunshine needs it.
+All 12 open choices answered "yes, as recommended"; recorded in D-102. Not built: Open file/address, Android Disconnect and Wake, Wake on LAN, web address check, Stop flow (later); HDR and non-audio Bluetooth spikes (no for now); no id renames; Services unchanged.

@@ -88,7 +88,7 @@ public sealed class RunsPageViewModelTests : IDisposable
         Assert.NotEqual(bars["out"].Y, bars["vol"].Y);
         Assert.True(bars["out"].IsMayFailFailed);
         Assert.Equal([100.0], bars["vol"].Notches);
-        Assert.Equal(["Show a message: skipped"], detail.NotRun);
+        Assert.Equal(["Show message: skipped"], detail.NotRun);
         Assert.Equal(RunDetailViewModel.AxisHeight + 2 * RunDetailViewModel.LaneHeight, detail.Height);
     }
 
@@ -104,7 +104,7 @@ public sealed class RunsPageViewModelTests : IDisposable
 
         detail.Layout(400);
 
-        Assert.Equal("Connect Technics worked. Set default device didn't work, so Show a message ran instead.", detail.Sentence); // #48
+        Assert.Equal("Connect Technics worked. Set default device didn't work, so Show message ran instead.", detail.Sentence); // #48
         var bars = detail.Bars.ToDictionary(b => b.NodeId);
         Assert.True(bars["out"].IsHandled);
         Assert.True(bars["out"].IsMayFailFailed); // drawn caution-dashed

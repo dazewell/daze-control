@@ -701,7 +701,7 @@ public sealed class InspectorViewModelTests : IDisposable
     public void ConnectionsListTheEdgesAndChangeTheirCondition()
     {
         _canvas.Select("out");
-        Assert.Equal(["Runs after Connect", "Show a message runs after this"], _inspector.Connections.Select(c => c.Text));
+        Assert.Equal(["Runs after Connect", "Show message runs after this"], _inspector.Connections.Select(c => c.Text));
         var fallback = _inspector.Connections[1];
         Assert.Equal(1, fallback.WhenIndex);
 
@@ -712,7 +712,7 @@ public sealed class InspectorViewModelTests : IDisposable
         Assert.Equal(EdgeWhen.Failure, Step("out").After.Single().When);
     }
 
-    // ---- F2: "Run a flow" picks a flow by name and stores its id ----
+    // ---- F2: "Run flow" picks a flow by name and stores its id ----
 
     private static Flow NotifyFlow(string id, string name) =>
         new(id, name, [new StepNode("a", "notify") { With = new([new("text", (ParamValue)"x")]) }]);
@@ -873,7 +873,7 @@ public sealed class InspectorViewModelTests : IDisposable
     {
         AddRunStep(null);
 
-        Assert.Equal("Flows › Run a flow", _inspector.Kind);
+        Assert.Equal("Flows › Run flow", _inspector.Kind);
     }
 
     [Fact]

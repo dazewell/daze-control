@@ -35,7 +35,7 @@ public static class ProviderCatalog
     [
         new("audio.setDefault", "Set default device", Audio, Short,
         [
-            Ref("device", "Device", LibraryKind.Audio),
+            Ref("device", "Audio device", LibraryKind.Audio),
             new("roles", ParamKind.Choice, "Use for") { Choices = ["all", "console", "communications"], Captions = ["Everything", "Media and system sounds", "Calls only"], Default = "all" },
         ])
         {
@@ -44,41 +44,41 @@ public static class ProviderCatalog
         },
         new("audio.check", "Check default device", Audio, Short,
         [
-            Ref("device", "Device", LibraryKind.Audio),
+            Ref("device", "Audio device", LibraryKind.Audio),
             new("is", ParamKind.Choice, "Is") { Choices = ["default", "notDefault"], Captions = ["It is the default", "It isn't the default"], Default = "default", Help = WaitUntilHelp },
         ]),
         new("audio.setVolume", "Set volume", Audio, Short,
         [
-            Ref("device", "Device", LibraryKind.Audio, required: false, help: "Empty = the current default device."),
+            Ref("device", "Audio device", LibraryKind.Audio, required: false, help: "Empty = the current default device."),
             new("percent", ParamKind.WholeNumber, "Volume (%)") { Required = true, Min = 0, Max = 100 },
         ])
         { Resources = ["audio"] },
-        new("audio.mute", "Mute", Audio, Short,
+        new("audio.mute", "Mute or unmute", Audio, Short,
         [
-            Ref("device", "Device", LibraryKind.Audio, required: false, help: "Empty = the current default device."),
+            Ref("device", "Audio device", LibraryKind.Audio, required: false, help: "Empty = the current default device."),
             new("muted", ParamKind.Boolean, "Muted") { Default = "true" },
         ])
         { Resources = ["audio"] },
         new("bluetooth.connect", "Connect", Bluetooth, TimeSpan.FromSeconds(20),
-            [Ref("device", "Device", LibraryKind.Bluetooth)])
+            [Ref("device", "Bluetooth device", LibraryKind.Bluetooth)])
         {
             Resources = ["bluetooth:{device}"],
             Conditions = [new ConditionSpec("disconnected", "It isn't connected", BluetoothConnected, false)],
         },
         new("bluetooth.disconnect", "Disconnect", Bluetooth, TimeSpan.FromSeconds(20),
-            [Ref("device", "Device", LibraryKind.Bluetooth)])
+            [Ref("device", "Bluetooth device", LibraryKind.Bluetooth)])
         {
             Resources = ["bluetooth:{device}"],
-            Conditions = [new ConditionSpec("connected", "It is connected", BluetoothConnected, true)],
+            Conditions = [new ConditionSpec("connected", "It's connected", BluetoothConnected, true)],
         },
         // Read-only: takes the device's lock so it answers after a Connect that is still running.
         new("bluetooth.check", "Check connection", Bluetooth, Short,
         [
-            Ref("device", "Device", LibraryKind.Bluetooth),
+            Ref("device", "Bluetooth device", LibraryKind.Bluetooth),
             new("is", ParamKind.Choice, "Is") { Choices = ["connected", "disconnected"], Captions = ["It's connected", "It isn't connected"], Default = "connected", Help = WaitUntilHelp },
         ])
         { Resources = ["bluetooth:{device}"] },
-        new("display.topology", "Project", Display, Short,
+        new("display.topology", "Project screens", Display, Short,
         [
             new("mode", ParamKind.Choice, "Mode") { Required = true, Choices = ["internal", "clone", "extend", "external"], Captions = ["This PC only", "Duplicate", "Extend", "Second screen only"] },
         ])
@@ -105,14 +105,14 @@ public static class ProviderCatalog
         {
             Conditions = [new ConditionSpec("notRunning", "It isn't running", "process.running", false)],
         },
-        new("process.check", "Check a program is running", Process, Short,
+        new("process.check", "Check program", Process, Short,
         [
             new("program", ParamKind.Text, "Program") { Required = true, Help = "Its name or path, like Spotify or Spotify.exe." },
             new("is", ParamKind.Choice, "Is") { Choices = ["running", "notRunning"], Captions = ["Running", "Not running"], Default = "running", Help = WaitUntilHelp },
-        ]),
+        ]) { Keywords = "running is" },
         new("script.powershell", "Run PowerShell", Script, TimeSpan.FromSeconds(60),
             [new("script", ParamKind.MultilineText, "Script") { Required = true, Examples = PowerShellExamples }]),
-        new("http.request", "Web request", Http, Short,
+        new("http.request", "Send web request", Http, Short,
         [
             new("url", ParamKind.Text, "Address")
             {
@@ -127,7 +127,7 @@ public static class ProviderCatalog
                 Suggest = ParamSuggest.Devices("credentials"),
             },
         ]),
-        new("android.input", "Android input", Tv, TimeSpan.FromSeconds(20),
+        new("android.input", "Choose input", Tv, TimeSpan.FromSeconds(20),
         [
             Ref("device", "Android device", LibraryKind.Android),
             new("input", ParamKind.Text, "Input")
@@ -137,7 +137,7 @@ public static class ProviderCatalog
             },
         ])
         { Resources = ["adb:{device}"] },
-        new("android.keys", "Android keys", Tv, TimeSpan.FromSeconds(20),
+        new("android.keys", "Send keys", Tv, TimeSpan.FromSeconds(20),
         [
             Ref("device", "Android device", LibraryKind.Android),
             new("keys", ParamKind.TextList, "Keys")
@@ -147,10 +147,10 @@ public static class ProviderCatalog
             },
         ])
         { Resources = ["adb:{device}"] },
-        new("android.sleep", "Android sleep", Tv, TimeSpan.FromSeconds(20),
+        new("android.sleep", "Sleep", Tv, TimeSpan.FromSeconds(20),
             [Ref("device", "Android device", LibraryKind.Android)])
         { Resources = ["adb:{device}"] },
-        new("android.start", "Start Android app", Tv, TimeSpan.FromSeconds(20),
+        new("android.start", "Start app", Tv, TimeSpan.FromSeconds(20),
         [
             Ref("device", "Android device", LibraryKind.Android),
             new("app", ParamKind.Text, "App")
@@ -160,47 +160,47 @@ public static class ProviderCatalog
             },
         ])
         { Resources = ["adb:{device}"] },
-        new("android.connect", "Connect Android device", Tv, TimeSpan.FromSeconds(20),
+        new("android.connect", "Connect", Tv, TimeSpan.FromSeconds(20),
             [Ref("device", "Android device", LibraryKind.Android)])
         { Resources = ["adb:{device}"] },
         new("service.start", "Start service", Service, TimeSpan.FromSeconds(30),
-            [new("name", ParamKind.Text, "Service name") { Required = true, Suggest = ParamSuggest.Devices("services") }])
+            [new("name", ParamKind.Text, "Service") { Required = true, Suggest = ParamSuggest.Devices("services") }])
         {
             Resources = ["service:{name}"],
             Conditions = [new ConditionSpec("stopped", "It isn't running", "service.running", false)],
         },
         new("service.stop", "Stop service", Service, TimeSpan.FromSeconds(30),
-            [new("name", ParamKind.Text, "Service name") { Required = true, Suggest = ParamSuggest.Devices("services") }])
+            [new("name", ParamKind.Text, "Service") { Required = true, Suggest = ParamSuggest.Devices("services") }])
         {
             Resources = ["service:{name}"],
             Conditions = [new ConditionSpec("running", "It's running", "service.running", true)],
         },
-        new("service.check", "Check a service", Service, Short,
+        new("service.check", "Check service", Service, Short,
         [
-            new("name", ParamKind.Text, "Service name") { Required = true, Suggest = ParamSuggest.Devices("services") },
+            new("name", ParamKind.Text, "Service") { Required = true, Suggest = ParamSuggest.Devices("services") },
             new("is", ParamKind.Choice, "Is") { Choices = ["running", "stopped"], Captions = ["Running", "Stopped"], Default = "running", Help = WaitUntilHelp },
         ]),
-        new("file.check", "Check a file or folder", File, Short,
+        new("file.check", "Check file", File, Short,
         [
             new("path", ParamKind.Text, "File or folder") { Required = true, Help = "A full path; %VARIABLES% work." },
             new("is", ParamKind.Choice, "Is") { Choices = ["exists", "missing"], Captions = ["It exists", "It's missing"], Default = "exists", Help = WaitUntilHelp },
-        ]),
+        ]) { Keywords = "folder exists" },
         new("wait", "Wait", Wait, TimeSpan.FromHours(1),
             [new("duration", ParamKind.Duration, "How long") { Required = true }]),
-        new("notify", "Show a message", Message, Short,
+        new("notify", "Show message", Message, Short,
             [new("text", ParamKind.Text, "Message") { Required = true }]),
-        new("flag.set", "Set a flag", Flag, Short,
+        new("flag.set", "Set flag", Flag, Short,
         [
             new("name", ParamKind.Text, "Flag") { Required = true, Suggest = ParamSuggest.Config(ParamSuggest.Flags) },
             new("value", ParamKind.Boolean, "On") { Default = "true" },
         ]),
-        new("flag.check", "Check a flag", Flag, Short,
+        new("flag.check", "Check flag", Flag, Short,
         [
             new("name", ParamKind.Text, "Flag") { Required = true, Suggest = ParamSuggest.Config(ParamSuggest.Flags) },
             new("value", ParamKind.Boolean, "Is on") { Default = "true", Help = WaitUntilHelp },
         ]),
         // No resources: the step holds no lock while it waits; the called flow's steps take their own (D-062).
-        new(RunFlowId, "Run a flow", RunFlow, TimeSpan.FromMinutes(10),
+        new(RunFlowId, "Run flow", RunFlow, TimeSpan.FromMinutes(10),
         [
             new("flow", ParamKind.Text, "Flow")
             {
@@ -219,7 +219,7 @@ public static class ProviderCatalog
             },
         ]),
         // No resources yet: T12.4 decides how menus serialize (the presenter's gate, DESIGN §3.2).
-        new(MenuShowId, "Show a menu", MenuGlyph, TimeSpan.FromMinutes(10),
+        new(MenuShowId, "Show menu", MenuGlyph, TimeSpan.FromMinutes(10),
         [
             new("items", ParamKind.TextList, "Flows")
             {

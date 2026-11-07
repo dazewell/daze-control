@@ -7,7 +7,7 @@ using DazeControl.Ipc;
 
 namespace DazeControl.Editor.ViewModels.Tests;
 
-/// <summary>T13.10: flow inputs in flow settings, <c>$name</c> in device pickers, and "Run a flow"'s input pickers (UX §5.4).</summary>
+/// <summary>T13.10: flow inputs in flow settings, <c>$name</c> in device pickers, and "Run flow"'s input pickers (UX §5.4).</summary>
 public sealed class FlowInputsEditorTests : IDisposable
 {
     private const string Yaml = """
@@ -219,7 +219,7 @@ public sealed class FlowInputsEditorTests : IDisposable
         Assert.Equal("$output", Field("device").Device?.Key);
     }
 
-    // ---- Run a flow ----
+    // ---- Run flow ----
 
     [Fact]
     public void ACallShowsOnePickerPerInputOfTheCalledFlow()

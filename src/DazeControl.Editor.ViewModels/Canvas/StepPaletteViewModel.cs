@@ -5,7 +5,7 @@ using DazeControl.Core.Catalog;
 namespace DazeControl.Editor.ViewModels.Canvas;
 
 /// <summary>One step type in the palette or the quick-add search (UX §5.1, §5.2).</summary>
-public sealed record PaletteItem(string Step, string Title, string Glyph, string Area)
+public sealed record PaletteItem(string Step, string Title, string Glyph, string Area, string Keywords = "")
 {
     /// <summary>"Connect, Bluetooth": titles repeat across areas ("Connect", "Disconnect").</summary>
     public string Name => $"{Title}, {Area}";
@@ -26,7 +26,7 @@ public sealed partial class StepPaletteViewModel : ObservableObject
 {
     public static IReadOnlyList<PaletteItem> All { get; } =
     [
-        .. ProviderCatalog.All.Select(d => new PaletteItem(d.Id, d.Title, FlowItemViewModel.DecodeGlyph(d.Glyph), CanvasNodeViewModel.Area(d.Area))),
+        .. ProviderCatalog.All.Select(d => new PaletteItem(d.Id, d.Title, FlowItemViewModel.DecodeGlyph(d.Glyph), CanvasNodeViewModel.Area(d.Area), d.Keywords)),
     ];
 
     public StepPaletteViewModel() => Filter();
@@ -56,6 +56,7 @@ public sealed partial class StepPaletteViewModel : ObservableObject
         item.Title.Contains(word, StringComparison.OrdinalIgnoreCase)
         || item.Area.Contains(word, StringComparison.OrdinalIgnoreCase)
         || item.Step.Contains(word, StringComparison.OrdinalIgnoreCase)
+        || item.Keywords.Contains(word, StringComparison.OrdinalIgnoreCase)
         || item.IsCheck && "check".StartsWith(word, StringComparison.OrdinalIgnoreCase);
 
     partial void OnQueryChanged(string value) => Filter();

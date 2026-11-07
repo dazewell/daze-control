@@ -34,6 +34,27 @@ public class ConfigYamlTests
     }
 
     [Fact]
+    public void RetitledStepsKeepTheirSavedIds()
+    {
+        // D-102 renamed titles only: the ids a saved flow holds are the contract, so old files load and save identically.
+        string[] ids =
+        [
+            "audio.setDefault", "audio.check", "audio.setVolume", "audio.mute", "bluetooth.connect", "bluetooth.disconnect", "bluetooth.check",
+            "display.topology", "display.outputs", "display.layout", "process.run", "process.check", "script.powershell", "http.request",
+            "android.input", "android.keys", "android.sleep", "android.start", "android.connect", "service.start", "service.stop",
+            "service.check", "file.check", "wait", "notify", "flag.set", "flag.check", "flow.run", "menu.show",
+        ];
+        Assert.Equal(ids.Order(), DazeControl.Core.Catalog.ProviderCatalog.All.Select(d => d.Id).Order());
+
+        var yaml = "version: 1"+Environment.NewLine+"flows:"+Environment.NewLine+"  f:"+Environment.NewLine+"    nodes:"+Environment.NewLine;
+        yaml += string.Concat(ids.Select((id, i) => $"      - {{ id: s{i}, step: {id} }}" + Environment.NewLine));
+        var saved = ConfigYaml.Save(ConfigYaml.Load(yaml).Config!);
+        foreach (var (id, i) in ids.Select((id, i) => (id, i)))
+            Assert.Matches($@"id: s{i}\W+step: {System.Text.RegularExpressions.Regex.Escape(id)}\b", saved);
+        Assert.Equal(saved, ConfigYaml.Save(ConfigYaml.Load(saved).Config!));
+    }
+
+    [Fact]
     public void ReadsSettingsAndLibrary()
     {
         var config = LoadClean(Fixture("full.yaml"));

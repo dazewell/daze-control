@@ -12,6 +12,9 @@ public sealed record ProviderDescriptor(string Id, string Title, string Glyph, T
 {
     public ValueList<string> Resources { get; init; } = [];
 
+    /// <summary>Extra words palette search matches, e.g. words of the title before D-102 renamed it ("folder", "running").</summary>
+    public string Keywords { get; init; } = "";
+
     /// <summary>What "Only if" can say on this step type (D-081); empty = the step has no such row.</summary>
     public ValueList<ConditionSpec> Conditions { get; init; } = [];
 

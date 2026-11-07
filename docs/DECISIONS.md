@@ -1339,7 +1339,7 @@ Status: accepted (user, 2026-11-06, all open choices as recommended; docs/backup
 - Revisit if: credentials must roam (D-014's trigger), per-flow export/import (M16 "Out") is wanted, or config grows past a few hundred KB.
 
 ## D-102 · 2026-11-06 · Step vocabulary: verb + bare object, themed palette groups, ids stay
-Status: proposed (docs/steps-review/REVIEW.md; becomes accepted when the user answers its open choices 1–6, 9)
+Status: accepted (user, 2026-11-06: all 12 open choices of docs/steps-review/REVIEW.md as recommended). Choice 9 = no id renames; 7 = add Close program, Stop app (Android), Turn screens off, the "Wait until" recipe and more PowerShell examples; 8 = every "maybe later" item stays later, HDR and non-audio Bluetooth spikes are no for now.
 - Decision: palette titles are an imperative verb plus a bare object (no article, group name not repeated: Android → "Connect", "Start app");
   checks are "Check <noun>" and last in their group; palette groups are themed (Audio, Bluetooth, Displays, Android, Programs, Services, Files,
   Web, Flow) through a display mapping, not the id prefix; choices get captions in the editor. Step ids and param names are **not** renamed.
