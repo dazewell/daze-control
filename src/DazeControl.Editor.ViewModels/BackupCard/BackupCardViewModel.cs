@@ -33,7 +33,9 @@ public sealed partial class BackupCardViewModel : ObservableObject
     private readonly Action<Action> _post;
     private bool _autoEnabled = true;
     private int _autoKeep = AutoBackupSettings.DefaultKeep;
-    private int _autoRunning;
+    private readonly object _autoLock = new();
+    private bool _autoRunning;
+    private bool _autoPending;
 
     /// <param name="target">Config, editor.json and the safety-copy folder (the automatic folder); a test passes a temp folder.</param>
     /// <param name="earlierFolder">The per-session config-*.yaml saves of <see cref="ConfigStore"/>.</param>
@@ -120,19 +122,43 @@ public sealed partial class BackupCardViewModel : ObservableObject
         }
     }
 
-    // After a successful save: one background task, never on the UI thread, never two at once, observed (Run never throws).
+    // After a successful save: one background task, never on the UI thread, never two at once. A save that arrives while one runs
+    // is coalesced into one more run afterwards (the 24 h gate drops redundant files), so a failed first run is retried.
     private void OnSessionSaved()
     {
-        if (_auto is null || Interlocked.Exchange(ref _autoRunning, 1) == 1) return;
-        PendingAutoBackup = Task.Run(() =>
+        if (_auto is null) return;
+        lock (_autoLock)
+        {
+            if (_autoRunning)
+            {
+                _autoPending = true;
+                return;
+            }
+            _autoRunning = true;
+            PendingAutoBackup = Task.Run(RunAutoBackups);
+        }
+    }
+
+    private void RunAutoBackups()
+    {
+        while (true)
         {
             try
             {
-                if (_auto.Run(BackupService.AutoSave, gated: true) == AutoBackupOutcome.Created)
+                if (_auto!.Run(BackupService.AutoSave, gated: true) == AutoBackupOutcome.Created)
                     _post(Refresh);
             }
-            finally { Interlocked.Exchange(ref _autoRunning, 0); }
-        });
+            catch (Exception e) when (e is not OutOfMemoryException) { } // Run is fail-soft; this keeps the loop's bookkeeping safe
+            lock (_autoLock)
+            {
+                if (!_autoPending)
+                {
+                    _autoRunning = false;
+                    return;
+                }
+                _autoPending = false;
+            }
+        }
     }
 
     public bool HasMessage => Message is not null;

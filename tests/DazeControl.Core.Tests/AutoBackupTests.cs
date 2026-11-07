@@ -157,4 +157,13 @@ public sealed class AutoBackupTests
         _files.Data.Remove(Config);
         Assert.Equal(AutoBackupOutcome.NoConfig, auto.Run(BackupService.AutoSave, gated: true));
     }
+
+    [Fact]
+    public void AThrowingLoggerDoesNotBreakTheOutcome()
+    {
+        _files.Data[Config] = "version: 1"u8.ToArray();
+        var auto = new AutoBackup(new BackupService(_files, _clock, "1.0.0", "PC"), _files, _clock, Config, Auto, _ => throw new IOException("closed"));
+        _files.FailWrites = true;
+        Assert.Equal(AutoBackupOutcome.Failed, auto.Run(BackupService.BeforeUpdate, gated: false));
+    }
 }

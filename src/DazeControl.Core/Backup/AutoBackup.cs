@@ -67,14 +67,21 @@ public sealed class AutoBackup(BackupService service, IBackupFiles files, TimePr
             if (files.TryReadAll(configPath) is not { } config) return AutoBackupOutcome.NoConfig;
             service.CreateIn(autoFolder, new BackupContents(config), reason);
             try { service.Prune(autoFolder, settings.Keep); }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { log?.Invoke($"Automatic backup: couldn't delete old backups: {e.Message}"); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log($"Automatic backup: couldn't delete old backups: {e.Message}"); }
             return AutoBackupOutcome.Created;
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
-            log?.Invoke($"Automatic backup ({reason}) failed: {e.Message}");
+            Log($"Automatic backup ({reason}) failed: {e.Message}");
             return AutoBackupOutcome.Failed;
         }
+    }
+
+    // The logger is the caller's (a closed console, a full log file): it must not turn a fail-soft outcome into a failure.
+    private void Log(string message)
+    {
+        try { log?.Invoke(message); }
+        catch (Exception e) when (e is not OutOfMemoryException) { }
     }
 
     // A stamp in the future (clock moved back) doesn't hold the gate shut.
