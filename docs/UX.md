@@ -152,13 +152,13 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   AutoSuggestBox "Add a key" (home, back, dpad_up/down/left/right/center, enter, menu, media_play_pause,
   media_next, media_previous, volume_up/down/mute, power, wakeup, sleep, settings, tv_input). Android input: the
   chosen device's inputs, none yet → hyperlink "Add inputs in the Library" (opens Library › Android with that device's inputs open, D-078). Code boxes: DropDownButton "Examples"
-  Android app (`android.start`): an AutoSuggestBox over the device's apps, name with the package id under it, sorted by name; typing filters by name or package; Enter on a row stores its package, Enter on other text keeps it as the package; focusing the box asks the device once for a fresh list (D-094).
   under the box; picking fills it (replaces, Ctrl+Z undoes). Examples — PowerShell: "Open a website"
   `Start-Process 'https://example.com'` · "Start an app and wait" `Start-Process notepad -Wait` · "Close an app"
   `Stop-Process -Name 'Spotify' -ErrorAction SilentlyContinue` · "Lock the PC" `rundll32.exe user32.dll,LockWorkStation`
   · "Fail unless an app is running" `if (-not (Get-Process steam -ErrorAction SilentlyContinue)) { exit 1 }`
   (pairs with "If it fails, run…"). Web request: address "Sunshine: close the running app"
   `https://localhost:47990/api/apps/close`; headers `Content-Type: application/json`; body `{ "key": "value" }`.
+  Android app (`android.start`): an AutoSuggestBox over the device's apps, name with the package id under it, sorted by name; typing filters by name or package; Enter on a row stores its package, Enter on other text keeps it as the package; focusing the box asks the device once for a fresh list (D-094).
 - Bluetooth pickers list Windows' paired devices (D-052); ones without audio are disabled with #26.
 - **Run a flow** (M13, built T13.10): **Flow** ComboBox (glyph + name +
   caption: the inputs it takes, "Turned off", "Needs fixing"; its own flow and loop-making flows off with #49/#50);
