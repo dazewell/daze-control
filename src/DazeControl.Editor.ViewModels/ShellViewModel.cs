@@ -70,6 +70,55 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
     public Runs.RunsPageViewModel Runs { get; }
 
+    /// <summary>Back/forward (D-095): fed by page and flow changes, not by the pages.</summary>
+    public NavigationHistory History { get; } = new();
+
+    private int _quiet;
+
+    private EditorLocation Here => Editor is { } e ? new(EditorPage.Flows, e.FlowId) : new(Page);
+
+    private void RecordVisit()
+    {
+        if (_quiet == 0)
+            History.Visit(Here);
+    }
+
+    private bool Exists(EditorLocation l) => l.FlowId is null || Session.Current.Flows.Any(f => f.Id == l.FlowId);
+
+    public bool CanGoBack => History.PeekBack(Exists) is not null;
+
+    public bool CanGoForward => History.PeekForward(Exists) is not null;
+
+    /// <summary>The place Back/Forward would show; the window asks about a draft first (D-047), then calls <see cref="Go"/>.</summary>
+    public EditorLocation? Target(bool forward) => forward ? History.PeekForward(Exists) : History.PeekBack(Exists);
+
+    /// <summary>Shows the place <see cref="Target"/> gave and moves the history there.</summary>
+    public void Go(bool forward)
+    {
+        if (Target(forward) is not { } target)
+            return;
+        _quiet++;
+        try
+        {
+            CloseFlow();
+            if (target.FlowId is { } id)
+            {
+                OpenFlow(id);
+                Page = EditorPage.Flows;
+            }
+            else
+                Page = target.Page;
+        }
+        finally
+        {
+            _quiet--;
+        }
+        if (forward)
+            History.CommitForward();
+        else
+            History.CommitBack();
+    }
+
     /// <summary>Library › "Used by" › a flow: that flow in the editor.</summary>
     private void OnLibraryFlowRequested(string flowId)
     {
@@ -82,6 +131,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     private void OnFlowRenamed(string oldId, string newId)
     {
         EditorSettings?.RenameFlow(oldId, newId);
+        History.Rename(oldId, newId);
         _ = Desktop.MoveAsync(oldId, newId);
     }
 
@@ -103,6 +153,8 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
     public bool IsEditingFlow => Editor is not null;
 
+    partial void OnEditorChanged(Canvas.FlowCanvasViewModel? value) => RecordVisit();
+
     /// <summary>The flow editor's right pane; set before <see cref="Editor"/>, so it is there when the editor shows.</summary>
     public Inspector.InspectorViewModel? Inspector { get; private set; }
 
@@ -116,9 +168,20 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         if (Editor?.FlowId == flowId)
             return;
         _ = Flows.EndUndoAsync(); // opening a flow ends the chance to undo a Delete (D-076)
-        CloseFlow();
+        _quiet++; // closing the old flow on the way is not a place of its own
+        try
+        {
+            CloseFlow();
+        }
+        finally
+        {
+            _quiet--;
+        }
         if (!Session.Current.Flows.Any(f => f.Id == flowId))
+        {
+            RecordVisit(); // the list, if a flow was open
             return;
+        }
         var editor = new Canvas.FlowCanvasViewModel(Session, flowId, _clipboard, EditorSettings);
         Inspector = new Inspector.InspectorViewModel(Session, editor, _engine, _post, desktop: Desktop);
         Inspector.OpenFlowRequested += OnCalledFlowRequested;
@@ -167,6 +230,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
     partial void OnPageChanged(EditorPage value)
     {
+        RecordVisit();
         if (value == EditorPage.Flows)
             Flows.RefreshTimes();
     }

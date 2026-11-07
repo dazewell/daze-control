@@ -107,6 +107,7 @@ public sealed partial class ShellWindow : Window
                 ViewModel.Flows.RefreshTimes(); // no timer ticks them (D-009)
         };
         AppWindow.Closing += OnClosing;
+        HookBackForward(hwnd);
         Closed += (_, _) =>
         {
             _watcher?.Dispose();
@@ -259,6 +260,11 @@ public sealed partial class ShellWindow : Window
             _ = ViewModel.Flows.EndUndoAsync(); // leaving the page ends the chance to undo a Delete (D-076)
         ViewModel.Page = page;
         ViewModel.CloseFlow(); // Flows in the pane always means the list
+        ShowPage(page);
+    }
+
+    private void ShowPage(EditorPage page)
+    {
         FlowsPage.Visibility = Show(page == EditorPage.Flows);
         LibraryPage.Visibility = Show(page == EditorPage.Library);
         if (page == EditorPage.Library)
@@ -267,6 +273,100 @@ public sealed partial class ShellWindow : Window
             _ = ViewModel.Runs.RefreshAsync();
         SettingsPage.Visibility = Show(page == EditorPage.Settings);
         AboutPage.Visibility = Show(page == EditorPage.About);
+        UpdatePages();
+    }
+
+    // ---- Back / forward (D-095): mouse side buttons, Alt+Left/Right, touchpad gestures (WM_APPCOMMAND) ----
+
+    private const uint WmAppCommand = 0x0319;
+    private const int AppCommandBack = 1;
+    private const int AppCommandForward = 2;
+    private const nuint SubclassId = 0xDC01;
+    private long _lastBackForwardTick;
+    private SubclassProc? _subclass; // kept alive for the window's life
+
+    private delegate nint SubclassProc(nint hwnd, uint msg, nint wParam, nint lParam, nuint id, nuint data);
+
+    private void HookBackForward(nint hwnd)
+    {
+        if (Content is UIElement root)
+        {
+            // handledEventsToo: a card or text box under the pointer may have marked the click handled.
+            root.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(OnPointerReleasedBackForward), true);
+            foreach (var (key, forward) in new[] { (VirtualKey.Left, false), (VirtualKey.Right, true) })
+            {
+                var accelerator = new KeyboardAccelerator { Key = key, Modifiers = Windows.System.VirtualKeyModifiers.Menu };
+                accelerator.Invoked += (sender, args) =>
+                {
+                    if (FocusManager.GetFocusedElement(root.XamlRoot) is FlowCard)
+                        return; // Alt+Left moves the card out of its group (D-088)
+                    args.Handled = true;
+                    _ = GoBackForwardAsync(forward);
+                };
+                root.KeyboardAccelerators.Add(accelerator);
+            }
+        }
+        _subclass = (h, msg, w, l, id, data) =>
+        {
+            if (msg == WmAppCommand)
+            {
+                var command = (int)(((long)l >> 16) & 0x0FFF);
+                if (command is AppCommandBack or AppCommandForward)
+                {
+                    _ = GoBackForwardAsync(command == AppCommandForward);
+                    return 1; // handled
+                }
+            }
+            return DefSubclassProc(h, msg, w, l);
+        };
+        SetWindowSubclass(hwnd, _subclass, SubclassId, 0);
+    }
+
+    private void OnPointerReleasedBackForward(object sender, PointerRoutedEventArgs e)
+    {
+        var kind = e.GetCurrentPoint(null).Properties.PointerUpdateKind;
+        if (kind is PointerUpdateKind.XButton1Released or PointerUpdateKind.XButton2Released)
+        {
+            e.Handled = true;
+            _ = GoBackForwardAsync(kind == PointerUpdateKind.XButton2Released);
+        }
+    }
+
+    /// <summary>
+    /// Back or Forward: the place the history names, after the D-047 prompt when a draft is open (Cancel stays).
+    /// One mouse click can arrive as a pointer event and as WM_APPCOMMAND: the second within 300 ms is ignored.
+    /// </summary>
+    private async Task GoBackForwardAsync(bool forward)
+    {
+        var now = Environment.TickCount64;
+        if (now - _lastBackForwardTick < 300 || _asking || ViewModel.Target(forward) is null)
+            return;
+        _lastBackForwardTick = now;
+        if (!await LeaveFlowAsync())
+            return;
+        if (ViewModel.Target(forward) is not { } target) // the engine's file may have changed while the prompt was up
+            return;
+        _ = ViewModel.Flows.EndUndoAsync(); // leaving the page ends the chance to undo a Delete (D-076)
+        ViewModel.Go(forward);
+        if (target.FlowId is null)
+        {
+            var item = Navigation.MenuItems.Concat(Navigation.FooterMenuItems).OfType<NavigationViewItem>()
+                .FirstOrDefault(i => i.Tag as string == target.Page.ToString());
+            _navigating = true;
+            try
+            {
+                Navigation.SelectedItem = item;
+            }
+            finally
+            {
+                _navigating = false;
+            }
+            ShowPage(target.Page);
+        }
+        else
+        {
+            SelectFlowsPane();
+        }
         UpdatePages();
     }
 
@@ -1349,6 +1449,14 @@ public sealed partial class ShellWindow : Window
         package.SetText(ViewModel.Details(sdk));
         Clipboard.SetContent(package);
     }
+
+    // DllImport: the source generator can't marshal a delegate parameter; the editor is not Native AOT.
+    [DllImport("comctl32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowSubclass(nint hwnd, SubclassProc proc, nuint id, nuint data);
+
+    [DllImport("comctl32.dll")]
+    private static extern nint DefSubclassProc(nint hwnd, uint msg, nint wParam, nint lParam);
 
     [LibraryImport("user32.dll")]
     private static partial uint GetDpiForWindow(nint hwnd);
