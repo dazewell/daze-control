@@ -58,11 +58,24 @@ public sealed class MenuPlumbingTests : IDisposable
     {
         var keys = MenuKeyMap.All;
 
-        Assert.Equal(11 + 9, keys.Count);
+        Assert.Equal(11 + 8 + 9, keys.Count);
         Assert.Equal(keys.Count, keys.Select(k => (k.Key, k.Modifiers)).Distinct().Count());
         Assert.Contains(keys, k => k.Key == 0x1B && k.Action.Kind == MenuKeyKind.Cancel);
         Assert.Contains(keys, k => k.Key == 0x09 && k.Modifiers == 4 && k.Action.Direction == MenuDirection.Previous);
         Assert.Equal([1, 2, 3, 4, 5, 6, 7, 8, 9], keys.Where(k => k.Action.Kind == MenuKeyKind.Number).Select(k => k.Action.Number));
+    }
+
+    [Fact]
+    public void NumberPadActsAsADpad()
+    {
+        var keys = MenuKeyMap.All;
+
+        Assert.Contains(keys, k => k.Key == 0x68 && k.Action.Direction == MenuDirection.Up);
+        Assert.Contains(keys, k => k.Key == 0x62 && k.Action.Direction == MenuDirection.Down);
+        Assert.Contains(keys, k => k.Key == 0x64 && k.Action.Direction == MenuDirection.Left);
+        Assert.Contains(keys, k => k.Key == 0x66 && k.Action.Direction == MenuDirection.Right);
+        Assert.Contains(keys, k => k.Key == 0x65 && k.Action.Kind == MenuKeyKind.Activate);
+        Assert.Contains(keys, k => k.Key == 0x60 && k.Action.Kind == MenuKeyKind.Cancel);
     }
 
     [Fact]
