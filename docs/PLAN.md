@@ -133,7 +133,7 @@ One PR per task; usage is scarce (D-079). Choices answered by the user (all as r
   Done when: tests per DESIGN §11 (merge matrix, unreadable config, secret-looking header warning); never touches `%APPDATA%` in tests.
 - [ ] T19.3 `dctl backup` / `dctl restore` (`--merge|--replace`, `--yes`, `--dry-run`, `--editor`, `--config`). Depends on T19.2; parallel with T19.4.
   Done when: CLI tests incl. exit codes and non-interactive refusal; usage text and ARCHITECTURE CLI list updated.
-- [ ] T19.4 Editor: Settings › "Backup and restore" card (Backup now, Restore from file, drag-drop, recent list with Restore/Delete, Undo restore, auto on/off and count), restore dialog. Depends on T19.2; parallel with T19.3 (different files; keep to the Settings page to avoid `ShellWindow.xaml` conflicts).
+- [x] T19.4 Editor: Settings › "Backup and restore" card (Backup now, Restore from file, drag-drop, recent list with Restore/Delete, Undo restore, auto on/off and count), restore dialog. Depends on T19.2; parallel with T19.3 (different files; keep to the Settings page to avoid `ShellWindow.xaml` conflicts). Done: feat/m19-backup-card. Left: the automatic-backups toggle and count setting (T19.5 defines where it lives) and the Editor layout tick (EditorSettingsStore can't reload a restored editor.json yet).
   Done when: VM tests (preview model, draft-open refusal, undo), screenshots light/dark/high contrast/225 % text.
 - [ ] T19.5 Automatic backups: before-update in `dctl update`, after-save (24 h gate from file names) in the editor, no timers. Depends on T19.1; parallel with T19.2–T19.4 except the Settings toggle (needs T19.4).
   Done when: tests with `TimeProvider`; `measure.ps1` unchanged (idle 0 ms CPU, +2 MB gate).

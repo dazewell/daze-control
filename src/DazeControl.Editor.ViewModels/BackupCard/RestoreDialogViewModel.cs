@@ -46,6 +46,7 @@ public sealed partial class RestoreDialogViewModel : ObservableObject
         OnPropertyChanged(nameof(AddMissingSelected));
         OnPropertyChanged(nameof(CanRestore));
         OnPropertyChanged(nameof(Rows));
+        OnPropertyChanged(nameof(HasRows));
     }
 
     public bool CanReplace => Preview.CanReplace;
@@ -56,6 +57,11 @@ public sealed partial class RestoreDialogViewModel : ObservableObject
     public bool CanRestore => SelectedMode == RestoreMode.Replace ? Preview.CanReplace : Preview.CanAddMissing;
 
     public string? Unreadable => Preview.Unreadable;
+
+    public bool HasRows => Preview.Items.Any(i => i.State != ChangeState.Same);
+
+    /// <summary>The modes only matter when the backup can be restored at all.</summary>
+    public bool CanChooseMode => Preview.CanReplace;
 
     public bool IsUnreadable => Preview.Unreadable is not null;
 
