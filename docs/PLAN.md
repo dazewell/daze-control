@@ -123,8 +123,9 @@ One PR (design + build). Editor edits stay in the inspector/param picker (other 
 
 ---
 
-## M19 Backup and restore (user, 2026-11-06; design docs/backup-restore/DESIGN.md, D-103 proposed) — after the user approves docs/backup-restore/DESIGN.md
-One PR per task; usage is scarce (D-079). Open choices are DESIGN §12: wait for the answers, record them in D-103, then start.
+
+## M19 Backup and restore (user, 2026-11-06; design docs/backup-restore/DESIGN.md, D-103, accepted 2026-11-06)
+One PR per task; usage is scarce (D-079). Choices answered by the user (all as recommended, DESIGN §12).
 
 - [ ] T19.1 `Core/Backup`: manifest, create/open/verify (SHA-256, zip-slip guard, format check), `IBackupFiles`, retention pruning. Files: `Core/Backup`, `Core.Tests`.
   Done when: round trip, tamper, traversal, newer-format and old-version fixture tests; the engine AOT publish size is unchanged (±50 KB), no AOT warnings.
@@ -137,6 +138,28 @@ One PR per task; usage is scarce (D-079). Open choices are DESIGN §12: wait for
 - [ ] T19.5 Automatic backups: before-update in `dctl update`, after-save (24 h gate from file names) in the editor, no timers. Depends on T19.1; parallel with T19.2–T19.4 except the Settings toggle (needs T19.4).
   Done when: tests with `TimeProvider`; `measure.ps1` unchanged (idle 0 ms CPU, +2 MB gate).
 - [ ] T19.6 Gate: move as-built facts to ARCHITECTURE/FEATURES/UX, cut DESIGN (D-053), UX acceptance rows, release-notes line. Depends on T19.1–T19.5.
+
+## M18 Steps: one vocabulary and the missing actions (user, 2026-11-06; proposal docs/steps-review/REVIEW.md, D-102) — after the user approves REVIEW.md
+
+Start only when the user has answered REVIEW §6; tasks marked (ask) wait for their own answer. Strings never say node, DAG or OSD.
+`T18.1 → T18.2`; T18.3–T18.5 touch other files; T18.6–T18.10 are one provider folder each and all add lines to `Core/Catalog/ProviderCatalog.cs`
+(merge main before pushing). Safe in parallel: {T18.3, T18.4, T18.5}, {T18.6, T18.7, T18.8, T18.9, T18.10} once T18.1 has landed.
+
+- [ ] T18.1 Titles and labels (feat/m18-titles; choices 1, 2, 4, 6, 11). Files: `ProviderCatalog.cs` (titles, picker labels, "It's connected"), tests that assert
+  titles, UX/FEATURES strings. Done when: every title follows D-102, quick-add and breadcrumbs read well, saved YAML unchanged (a round-trip test).
+- [ ] T18.2 Palette groups and order (feat/m18-groups, after T18.1; choice 3). Files: `ProviderDescriptor` (display group) or a table in `CanvasNodeViewModel.Area`,
+  `StepPaletteViewModel`, `ShellWindow` Step defaults list, catalog order. Done when: nine groups in the order of REVIEW §2 F5, Check last in each, nothing saved changes.
+- [ ] T18.3 Choice captions (feat/m18-choice-captions, choice 5). Files: `ParamSpec` (captions), `ParamFieldViewModel`, card pill `Summarize`, bulk edit. Done when:
+  the dropdown and pill show words, YAML keeps `notDefault` etc., bulk mixed state still works.
+- [x] T18.4 (fix/m18-messages-docs) One wording for "no such Library item" and check texts (fix/m18-messages, choice 10). Files: `Providers/*` messages, `EngineController` dry run, tests.
+- [x] T18.5 (fix/m18-messages-docs) Docs: the "Wait until" recipe (Check + Try again + Wait between tries) and more PowerShell examples (choice 7). Files: UX/FEATURES, `ProviderCatalog` examples, check steps' help.
+- [ ] T18.6 `process.close` Close program (feat/m18-process-close, after T18.1). Files: `Providers/Process`, catalog. Done when: fake-process tests (graceful, force after time,
+  not running = success, elevated = clear sentence); live: closes Notepad.
+- [ ] T18.7 Android Stop app; Disconnect and Wake only if the user said yes (feat/m18-android, after T18.1). Files: `Providers/Android`, catalog. Done when: fake-adb tests, same lock and timeout.
+- [ ] T18.8 (ask) Web: Wake on LAN, web address check (feat/m18-web, after T18.1). Files: `Providers/Http` (+ `Providers/Network`), catalog.
+- [ ] T18.9 Displays: Turn screens off (feat/m18-screens-off, after T18.1; HDR spike only if asked). Files: `Providers/Display`, catalog. Done when: live on the dev PC (ask the user first, it blanks the screens).
+- [ ] T18.10 (ask) Flows: Stop flow (feat/m18-stop-flow, after T18.1). Files: `Runtime/Providers`, catalog, validator. Done when: stopping a running flow and "this flow" are tested.
+- [ ] T18.11 Only if the user chose to rename ids (choice 9): alias table in `ConfigMapper`, kept forever (feat/m18-aliases, before any rename). Not planned.
 
 ## M16 Flow list: reorder, groups, richer rows (user, 2026-11-04) — after the user approves docs/flow-list/DESIGN.md
 Designed 2026-11-04: docs/flow-list/DESIGN.md, D-087..D-090 (accepted by the user, 2026-11-04, all open choices as recommended). Groups are the tray folders: no config.yaml change. One PR per task, no

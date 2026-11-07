@@ -26,7 +26,7 @@ internal static class BluetoothSteps
     {
         var key = context.RequiredText("device");
         return context.Library.Bluetooth.FirstOrDefault(d => d.Key == key)
-            ?? throw new StepFailedException($"No Bluetooth device called \"{key}\" in the library.");
+            ?? throw new StepFailedException(Library.Missing(LibraryKind.Bluetooth, key));
     }
 
     /// <summary>The name the user knows the device by in messages.</summary>

@@ -609,7 +609,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                 if (key.Length == 0 && spec.Required)
                     return Task.FromException(new StepFailedException("Choose a device."));
                 if (key.Length > 0 && !context.Library.Contains(spec.Library!.Value, key))
-                    return Task.FromException(new StepFailedException($"{key} isn't in your Library."));
+                    return Task.FromException(new StepFailedException(Library.Missing(spec.Library!.Value, key)));
             }
             return Task.CompletedTask;
         }

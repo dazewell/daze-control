@@ -1,6 +1,6 @@
 # Backup and restore (M19) — design
 
-Proposed 2026-11-06, **not built, waiting for the user's answers** (§12). Decisions: D-103 (all proposed). Tasks: [PLAN.md](../PLAN.md) → M19.
+Designed 2026-11-06, **not built yet**; the user accepted every choice as recommended (2026-11-06). Decisions: D-103. Tasks: [PLAN.md](../PLAN.md) → M19.
 Inventory of user state is from ARCHITECTURE (Config, Editor) and docs/steps-review/REVIEW.md §5. A task that builds a part moves the
 as-built facts into ARCHITECTURE/UX/FEATURES and cuts them here (D-053). User text never says node, DAG or OSD; no Narrator work (D-091).
 
@@ -166,7 +166,7 @@ by the UX acceptance list. Keyboard: every action reachable by Tab/Enter; no dra
 - Every test uses a temp `--config` directory and never touches `%APPDATA%`. Live check by the user: back up the real config, change a flow, restore, compare.
 - Footprint: `scripts/measure.ps1` unchanged for the engine; the AOT publish size diff is checked (§5).
 
-## 12. Open choices for the user (recommended answer first)
+## 12. Choices (answered by the user 2026-11-06: all as recommended, the first answer of each)
 1. **What goes in by default**: config.yaml (flows, library, settings, tray) always; editor layout opt-in; run history opt-in. Rec: **yes**. Alt: also include editor layout by default.
 2. **Format**: one `.dcbackup` zip, manifest + byte-for-byte config.yaml, SHA-256 per entry. Rec: **yes**. Alt: a folder of files.
 3. **Restore choice**: Replace everything (recommended) or Add what's missing, whole-backup only (no per-flow ticks). Rec: **yes**. Alt: per-flow ticks in v1 (bigger dialog).

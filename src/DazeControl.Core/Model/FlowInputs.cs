@@ -62,7 +62,7 @@ public static class FlowInputs
             if (!called.Inputs.TryGetValue(name, out var input))
                 return $"{called.Name} has no input called \"{name}\" anymore.";
             if (!library.Contains(input.Kind, key))
-                return $"{input.Label} (from {callerName}: {key}) isn't in your Library anymore.";
+                return $"{callerName} passes {input.Label} \"{key}\", but there's no {Library.KindName(input.Kind)} called that in your Library.";
         }
         return null;
     }

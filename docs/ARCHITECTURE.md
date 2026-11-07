@@ -199,7 +199,7 @@ Flow inputs (D-064, T13.9): `Flow.Inputs` (name → `FlowInput(kind, label, defa
 setting holds `$name`. `FlowInputs.Apply` runs first in `RunCoreAsync` and replaces every `$name` (step settings and the
 `inputs` map its own calls pass) with the caller's value, else the default, so steps, `ResourcesOf` locks and nested
 calls only see Library keys (two calls with one device share its lock). A call checks what it passes against the
-called flow's library first (`FlowInputs.Check`: "Output (from Headphones: sony) isn't in your Library anymore.");
+called flow's library first (`FlowInputs.Check`: "Headphones passes Output "sony", but there's no audio device called that in your Library.");
 start mode applies the inputs before `TriggerAsync`. Validation: input names `[a-z][a-z0-9-]*`, default required and in
 the library; `$name` unknown / other kind / a flow's input outside a device setting; `CheckPassedInputs` for calls
 (unknown input, key not in the library, pass-through of the caller's input of the same kind). `LibraryEdits.Rename`

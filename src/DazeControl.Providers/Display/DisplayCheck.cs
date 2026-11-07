@@ -90,10 +90,10 @@ internal static class DisplayCheck
 
         foreach (var want in wanted)
             if (!now.Any(s => Same(want, s)))
-                return $"{Prefix}{want.Name} is still off.";
+                return $"{Prefix}{want.Name} is still off";
         foreach (var screen in now)
             if (!wanted.Any(w => Same(w, screen)))
-                return $"{Prefix}{screen.Name} is still on.";
+                return $"{Prefix}{screen.Name} is still on";
 
         for (var i = 0; i < now.Count; i++)
             for (var j = i + 1; j < now.Count; j++)
@@ -103,7 +103,7 @@ internal static class DisplayCheck
                 var a = wanted.First(w => Same(w, now[i]));
                 var b = wanted.First(w => Same(w, now[j]));
                 if (a.Group != b.Group)
-                    return $"{Prefix}{now[i].Name} and {now[j].Name} show the same picture.";
+                    return $"{Prefix}{now[i].Name} and {now[j].Name} show the same picture";
             }
         // The other way round: a saved duplicate whose screens came up apart.
         foreach (var group in wanted.GroupBy(w => w.Group).Where(g => g.Count() > 1))
@@ -111,7 +111,7 @@ internal static class DisplayCheck
             var screens = group.Select(w => now.First(s => Same(w, s))).ToList();
             var apart = screens.FirstOrDefault(s => s.Adapter != screens[0].Adapter || s.Source != screens[0].Source);
             if (apart is not null)
-                return $"{Prefix}{screens[0].Name} and {apart.Name} don't show the same picture.";
+                return $"{Prefix}{screens[0].Name} and {apart.Name} don't show the same picture";
         }
 
         if (layout is not null)
@@ -119,7 +119,7 @@ internal static class DisplayCheck
             {
                 var screen = now.First(s => Same(want, s));
                 if (want.Place is { } place && (place.Width, place.Height, place.X, place.Y) != (screen.Width, screen.Height, screen.X, screen.Y))
-                    return $"{Prefix}{want.Name} isn't where {layout} puts it.";
+                    return $"{Prefix}{want.Name} isn't where {layout} puts it";
             }
         return null;
     }

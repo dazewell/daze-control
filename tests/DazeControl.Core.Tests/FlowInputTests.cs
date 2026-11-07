@@ -191,7 +191,7 @@ public class FlowInputTests
     }
 
     [Theory]
-    [InlineData("output: { kind: audio, name: Output, default: nope }", "flows.mk.inputs.output.default", "No audio device called \"nope\" in the library.")]
+    [InlineData("output: { kind: audio, name: Output, default: nope }", "flows.mk.inputs.output.default", "There's no audio device called \"nope\" in your Library.")]
     [InlineData("output: { kind: audio, name: Output }", "flows.mk.inputs.output.default", "Output needs a default device.")]
     [InlineData("Output: { kind: audio, default: technics }", "flows.mk.inputs.Output", "Name inputs with small letters, digits and dashes, starting with a letter (like output).")]
     public void ABadInputIsAnErrorOnTheFlow(string inputs, string path, string message)
@@ -219,7 +219,7 @@ public class FlowInputTests
     public void PassingAnUnknownDeviceIsAnError()
     {
         var problem = SingleError(Caller("output: bose"));
-        Assert.Equal(("flows.top.nodes.call.with.inputs.output", "No audio device called \"bose\" in the library."), (problem.Path, problem.Message));
+        Assert.Equal(("flows.top.nodes.call.with.inputs.output", "There's no audio device called \"bose\" in your Library."), (problem.Path, problem.Message));
     }
 
     [Fact]
@@ -280,7 +280,7 @@ public class FlowInputTests
 
         var message = FlowInputs.Check(config.Flows[0], config.Library, new Dictionary<string, string> { ["output"] = "bose" }, "Headphones");
 
-        Assert.Equal("Output (from Headphones: bose) isn't in your Library anymore.", message);
+        Assert.Equal("Headphones passes Output \"bose\", but there's no audio device called that in your Library.", message);
         Assert.Null(FlowInputs.Check(config.Flows[0], config.Library, new Dictionary<string, string> { ["output"] = "sony" }, "Headphones"));
         Assert.Equal("Make it the default has no input called \"speaker\" anymore.",
             FlowInputs.Check(config.Flows[0], config.Library, new Dictionary<string, string> { ["speaker"] = "sony" }, "Headphones"));
