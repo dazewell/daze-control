@@ -23,8 +23,10 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     private readonly Action<Action> _post;
 
     public ShellViewModel(ConfigSession session, IEngineClient engine, Action<Action> post, string logsFolder,
-        Core.Updates.IUpdateClient? updates = null, EditorSettingsStore? editorSettings = null)
+        Core.Updates.IUpdateClient? updates = null, EditorSettingsStore? editorSettings = null,
+        BackupCard.BackupCardViewModel? backup = null)
     {
+        Backup = backup;
         Session = session;
         EditorSettings = editorSettings;
         IsNavPaneOpen = editorSettings?.Settings.NavPaneOpen ?? true;
@@ -65,6 +67,9 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     public SettingsPageViewModel Settings { get; }
 
     public UpdatesViewModel Updates { get; }
+
+    /// <summary>Settings › Backup and restore; null in tests that don't need it.</summary>
+    public BackupCard.BackupCardViewModel? Backup { get; }
 
     public LibraryPage.LibraryPageViewModel Library { get; }
 
