@@ -36,7 +36,7 @@ public static class ProviderCatalog
         new("audio.setDefault", "Set default device", Audio, Short,
         [
             Ref("device", "Device", LibraryKind.Audio),
-            new("roles", ParamKind.Choice, "Use for") { Choices = ["all", "console", "communications"], Default = "all" },
+            new("roles", ParamKind.Choice, "Use for") { Choices = ["all", "console", "communications"], Captions = ["Everything", "Media and system sounds", "Calls only"], Default = "all" },
         ])
         {
             Resources = ["audio"],
@@ -45,7 +45,7 @@ public static class ProviderCatalog
         new("audio.check", "Check default device", Audio, Short,
         [
             Ref("device", "Device", LibraryKind.Audio),
-            new("is", ParamKind.Choice, "Is") { Choices = ["default", "notDefault"], Default = "default", Help = WaitUntilHelp },
+            new("is", ParamKind.Choice, "Is") { Choices = ["default", "notDefault"], Captions = ["It is the default", "It isn't the default"], Default = "default", Help = WaitUntilHelp },
         ]),
         new("audio.setVolume", "Set volume", Audio, Short,
         [
@@ -75,12 +75,12 @@ public static class ProviderCatalog
         new("bluetooth.check", "Check connection", Bluetooth, Short,
         [
             Ref("device", "Device", LibraryKind.Bluetooth),
-            new("is", ParamKind.Choice, "Is") { Choices = ["connected", "disconnected"], Default = "connected", Help = WaitUntilHelp },
+            new("is", ParamKind.Choice, "Is") { Choices = ["connected", "disconnected"], Captions = ["It's connected", "It isn't connected"], Default = "connected", Help = WaitUntilHelp },
         ])
         { Resources = ["bluetooth:{device}"] },
         new("display.topology", "Project", Display, Short,
         [
-            new("mode", ParamKind.Choice, "Mode") { Required = true, Choices = ["internal", "clone", "extend", "external"] },
+            new("mode", ParamKind.Choice, "Mode") { Required = true, Choices = ["internal", "clone", "extend", "external"], Captions = ["This PC only", "Duplicate", "Extend", "Second screen only"] },
         ])
         { Resources = ["display"] },
         new("display.outputs", "Use only these screens", Display, Short,
@@ -108,7 +108,7 @@ public static class ProviderCatalog
         new("process.check", "Check a program is running", Process, Short,
         [
             new("program", ParamKind.Text, "Program") { Required = true, Help = "Its name or path, like Spotify or Spotify.exe." },
-            new("is", ParamKind.Choice, "Is") { Choices = ["running", "notRunning"], Default = "running", Help = WaitUntilHelp },
+            new("is", ParamKind.Choice, "Is") { Choices = ["running", "notRunning"], Captions = ["Running", "Not running"], Default = "running", Help = WaitUntilHelp },
         ]),
         new("script.powershell", "Run PowerShell", Script, TimeSpan.FromSeconds(60),
             [new("script", ParamKind.MultilineText, "Script") { Required = true, Examples = PowerShellExamples }]),
@@ -178,12 +178,12 @@ public static class ProviderCatalog
         new("service.check", "Check a service", Service, Short,
         [
             new("name", ParamKind.Text, "Service name") { Required = true, Suggest = ParamSuggest.Devices("services") },
-            new("is", ParamKind.Choice, "Is") { Choices = ["running", "stopped"], Default = "running", Help = WaitUntilHelp },
+            new("is", ParamKind.Choice, "Is") { Choices = ["running", "stopped"], Captions = ["Running", "Stopped"], Default = "running", Help = WaitUntilHelp },
         ]),
         new("file.check", "Check a file or folder", File, Short,
         [
             new("path", ParamKind.Text, "File or folder") { Required = true, Help = "A full path; %VARIABLES% work." },
-            new("is", ParamKind.Choice, "Is") { Choices = ["exists", "missing"], Default = "exists", Help = WaitUntilHelp },
+            new("is", ParamKind.Choice, "Is") { Choices = ["exists", "missing"], Captions = ["It exists", "It's missing"], Default = "exists", Help = WaitUntilHelp },
         ]),
         new("wait", "Wait", Wait, TimeSpan.FromHours(1),
             [new("duration", ParamKind.Duration, "How long") { Required = true }]),
@@ -227,10 +227,10 @@ public static class ProviderCatalog
                 Help = "1 to 12 flows, in menu order. Keys 1 to 9 pick the first nine.",
             },
             new("title", ParamKind.Text, "Title") { Help = "Empty = this flow's name." },
-            new("layout", ParamKind.Choice, "Layout") { Choices = ["list", "grid"], Default = "list" },
+            new("layout", ParamKind.Choice, "Layout") { Choices = ["list", "grid"], Captions = ["List", "Grid"], Default = "list" },
             new("size", ParamKind.Choice, "Size")
             {
-                Choices = ["normal", "large"], Default = "normal", Help = "Large is for a TV across the room.",
+                Choices = ["normal", "large"], Captions = ["Normal", "Large"], Default = "normal", Help = "Large is for a TV across the room.",
             },
             new("closeAfter", ParamKind.Duration, "Close after")
             {

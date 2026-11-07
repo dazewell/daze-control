@@ -295,6 +295,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
                 ParamKind.LibraryRef => LibraryName(config.Library, spec.Library, text),
                 _ when spec.RefersTo == ConfigRef.Flow => config.Flows.FirstOrDefault(f => f.Id == text.Trim())?.Name ?? text,
                 ParamKind.MultilineText => text.Split('\n')[0].Trim(),
+                ParamKind.Choice => spec.CaptionOf(text),
                 _ => text,
             });
             if (values.Count == 2)
