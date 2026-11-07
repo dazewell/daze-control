@@ -1324,3 +1324,12 @@ Status: accepted (user report: the menu works from the Steam Controller until St
   extra), but they were not this problem.
 - Decision: document it (README known limits). No raw BLE/HID reading of the Steam Controller (Steam owns the device, its
   protocol is undocumented, and it would add an idle cost). Not verified: Steam's own UI for changing Big Picture's layout.
+
+## D-102 · 2026-11-06 · Step vocabulary: verb + bare object, themed palette groups, ids stay
+Status: proposed (docs/steps-review/REVIEW.md; becomes accepted when the user answers its open choices 1–6, 9)
+- Decision: palette titles are an imperative verb plus a bare object (no article, group name not repeated: Android → "Connect", "Start app");
+  checks are "Check <noun>" and last in their group; palette groups are themed (Audio, Bluetooth, Displays, Android, Programs, Services, Files,
+  Web, Flow) through a display mapping, not the id prefix; choices get captions in the editor. Step ids and param names are **not** renamed.
+- Why: titles, groups and captions are not saved, so the whole pass costs no migration; ids are what old flows and backups contain.
+- Why not rename ids to a perfect `area.verb`: needs an alias table kept forever (old backups) for no user-visible gain.
+- Revisit if: a new step cannot follow `area.verb`, or the user hand-edits YAML a lot.
