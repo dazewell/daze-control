@@ -38,6 +38,9 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   step through the pages and flows shown in this window (last 50), like a browser; a new place drops Forward. Leaving a flow
   with unsaved changes asks the usual Save / Don't save / Cancel (Cancel stays). Flows deleted since are skipped. There is
   no on-screen button. Alt+Left on a focused Flows card still moves it out of its group.
+  **No hint of any kind** (popup, tip or tooltip) ever names Alt+Left / Alt+Right on any page: there is no on-screen
+  Back/Forward control to hang one on and a keyboard user already pressed the keys. The accelerators are `Hidden` on the window root, or
+  WinUI popped an "Alt+Left" tooltip over the focused element, Settings and About included.
 - The nav pane collapses: the toggle above the items ("Close Navigation" / "Open Navigation" for Narrator) shrinks
   it to a 48-DIP icon strip whose items show their name as a tooltip; open or collapsed is remembered on this PC
   (D-068).
