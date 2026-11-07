@@ -35,7 +35,11 @@ public sealed partial class ShellWindow : Window
     private bool _closeAnyway;
     private bool _asking;
     private FlowCanvasViewModel? _editor;
-    private bool _textFocused;
+    // An inspector box holding text its binding has not committed yet (it commits on LostFocus): the only reason
+    // Save is on without HasChanges. Focus alone is not one (the box's text still equals what it had on entry).
+    private TextBox? _editBox;
+    private string _editBaseline = "";
+    private bool PendingText => _editBox is { IsLoaded: true } && _editBox.Text != _editBaseline;
     private RunOverlayViewModel? _run;
     private readonly StepPaletteViewModel _palette = new();
 
@@ -53,6 +57,8 @@ public sealed partial class ShellWindow : Window
         {
             ImageSource = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(Path.Combine(assets, "app.png"))),
         };
+        if (Motion.Enabled)
+            DraftDot.OpacityTransition = new ScalarTransition { Duration = MotionTokens.Duration(true, MotionTokens.FadeMs) };
         SecondsBox.Minimum = SettingsPageViewModel.MinPopupSeconds;
         SecondsBox.Maximum = SettingsPageViewModel.MaxPopupSeconds;
         ViewModel.Settings.StepDefaults.Rows.CollectionChanged += (_, _) => ShowStepDefaultsEmpty();
@@ -447,6 +453,9 @@ public sealed partial class ShellWindow : Window
         RunsPage.Visibility = Show(!editing && ViewModel.Page == EditorPage.Runs);
         PagesScroller.Visibility = Show(!editing && ViewModel.Page != EditorPage.Runs);
     }
+
+    /// <summary>For a control whose slot stays reserved (D-104): invisible, and disabled alongside, instead of collapsed.</summary>
+    public static double Fade(bool visible) => visible ? 1 : 0;
 
     private static Visibility Show(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
 
@@ -1045,15 +1054,42 @@ public sealed partial class ShellWindow : Window
     private void OnSaveFlow(object sender, RoutedEventArgs e)
     {
         if (_editor is { } editor)
-            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => editor.Save());
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+            {
+                editor.Save();
+                if (_editBox is not null)
+                    _editBaseline = _editBox.Text; // still focused: what it holds is saved now
+                UpdateDraft();
+            });
     }
 
     /// <summary>A focused inspector box may hold an edit not committed yet: Save stays on so a click can commit it.</summary>
-    private void OnInspectorFocusChanged(object sender, RoutedEventArgs e)
+    private void OnInspectorGotFocus(object sender, RoutedEventArgs e)
     {
-        _textFocused = FocusManager.GetFocusedElement(Content.XamlRoot) is TextBox box && IsInside(box, InspectorPaneControl);
+        if (e.OriginalSource is not TextBox box || !IsInside(box, InspectorPaneControl))
+            return;
+        EndEdit();
+        _editBox = box;
+        _editBaseline = box.Text;
+        box.TextChanged += OnEditBoxTextChanged;
+    }
+
+    private void OnInspectorLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (ReferenceEquals(e.OriginalSource, _editBox))
+            EndEdit();
+    }
+
+    private void EndEdit()
+    {
+        if (_editBox is null)
+            return;
+        _editBox.TextChanged -= OnEditBoxTextChanged;
+        _editBox = null;
         UpdateDraft();
     }
+
+    private void OnEditBoxTextChanged(object sender, TextChangedEventArgs e) => UpdateDraft();
 
     private static bool IsInside(DependencyObject element, DependencyObject ancestor)
     {
@@ -1086,9 +1122,17 @@ public sealed partial class ShellWindow : Window
     private void UpdateDraft()
     {
         var changed = _editor is { HasChanges: true };
-        SaveButton.IsEnabled = (changed || _textFocused) && _editor is { CanEdit: true };
+        // One source for Save's state, the dot and the tooltips: the session's draft (or an uncommitted box), nothing else.
+        var showDot = (changed || PendingText) && _editor is { CanEdit: true };
+        SaveButton.IsEnabled = showDot;
         CancelButton.IsEnabled = changed && _editor!.CanEdit;
-        DraftText.Visibility = Show(changed);
+        DraftDot.Opacity = showDot ? 1 : 0;
+        ToolTipService.SetToolTip(DraftSlot, showDot ? "Unsaved changes" : null);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(DraftSlot, showDot ? "Unsaved changes" : "");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(DraftSlot, showDot ? Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Content : Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+        ToolTipService.SetToolTip(SaveButton, showDot
+            ? "You have unsaved changes. Save them (Ctrl+S)"
+            : "Save your changes to this flow (Ctrl+S)");
         ToolTipService.SetToolTip(RunButton, changed
             ? "Run this flow as last saved. Save first to run your changes, or try them with Dry run."
             : "Run this flow now");

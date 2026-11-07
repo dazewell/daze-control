@@ -128,6 +128,44 @@ public sealed class InspectorViewModelTests : IDisposable
         Assert.False(Step("out").With.ContainsKey("roles"));
     }
 
+    // Focus or a no-op write must never mark a flow changed or add an Undo step: Save's accent comes from HasChanges alone.
+    [Fact]
+    public void WritingTheValueAFieldAlreadyHoldsNeverMarksTheFlowChanged()
+    {
+        _canvas.Edit(f => f with { Nodes = [.. f.Nodes, new StepNode("run", "process.run") { With = new([new("path", (ParamValue)"notepad.exe")]) }] });
+        _canvas.Save();
+        foreach (var node in _canvas.Flow!.Nodes)
+        {
+            _canvas.Select(node.Id);
+            foreach (var field in _inspector.Fields.ToList())
+            {
+                field.Text = field.Text;
+                field.Number = field.Number;
+                field.IsOn = field.IsOn;
+                field.Choice = field.Choice;
+                Assert.False(_canvas.HasChanges, $"{node.Id}.{field.Name}");
+                Assert.False(_canvas.CanUndo, $"{node.Id}.{field.Name}");
+            }
+        }
+    }
+
+    [Fact]
+    public void AnEditThenSaveThenALateEqualWriteStaysClean()
+    {
+        _canvas.Edit(f => f with { Nodes = [.. f.Nodes, new StepNode("run", "process.run") { With = new([new("path", (ParamValue)"notepad.exe")]) }] });
+        _canvas.Save();
+        _canvas.Select("run");
+        Field("path").Text = "calc.exe";
+        Assert.True(_canvas.HasChanges);
+        _canvas.Save();
+        Field("path").Text = "calc.exe"; // a late write of the same value
+        Field("args").Text = "";
+        Assert.False(_canvas.HasChanges);
+        Assert.False(_canvas.CanUndo);
+        _canvas.Undo(); // nothing to undo after a save
+        Assert.False(_canvas.HasChanges);
+    }
+
     [Fact]
     public void ListsAreOnePerLine()
     {

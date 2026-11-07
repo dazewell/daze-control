@@ -106,7 +106,7 @@
                             </Grid.RowDefinitions>
 
                             <!-- Flows -->
-                            <StackPanel x:Name="FlowsPage" Grid.Row="1" Spacing="4">
+                            <StackPanel x:Name="FlowsPage" Grid.Row="1" Spacing="4" motion:Motion.Animate="True">
                                 <Grid Margin="0,0,0,12">
                                     <TextBlock Text="Flows" Style="{StaticResource TitleTextBlockStyle}" />
                                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
@@ -221,7 +221,6 @@
                                         <ComboBoxItem Content="Show: Not in tray" />
                                     </ComboBox>
                                     <Button Grid.Column="3" Content="Make this my order" Command="{x:Bind ViewModel.Flows.MakeOrderCommand}"
-                                            Visibility="{x:Bind ViewModel.Flows.CanMakeOrder, Mode=OneWay}"
                                             ToolTipService.ToolTip="Write the order shown here as the list and tray order" />
                                     <!-- Select (D-090): a checkbox on every card; a click toggles it. Ctrl/Shift+click and Ctrl+Space work without it. -->
                                     <ToggleButton Grid.Column="4" Content="Select" IsChecked="{x:Bind ViewModel.Flows.SelectMode, Mode=TwoWay}"
@@ -700,7 +699,7 @@
                                         <Button Content="Check for updates" Click="OnCheckForUpdates"
                                                 IsEnabled="{x:Bind ViewModel.Updates.CanCheck, Mode=OneWay}" />
                                         <Button Content="Restart now" Click="OnRestartForUpdate" Style="{StaticResource AccentButtonStyle}"
-                                                Visibility="{x:Bind ViewModel.Updates.CanRestart, Mode=OneWay}" />
+                                                IsEnabled="{x:Bind ViewModel.Updates.CanRestart, Mode=OneWay}" Opacity="{x:Bind local:ShellWindow.Fade(ViewModel.Updates.CanRestart), Mode=OneWay}" />
                                     </StackPanel>
                                 </Grid>
 
@@ -778,7 +777,10 @@
                         <BreadcrumbBar x:Name="FlowBreadcrumb" VerticalAlignment="Center" ItemClicked="OnBreadcrumbClicked" />
                         <!-- Save / Cancel (D-047): flow edits are a draft until Save. -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <TextBlock x:Name="DraftText" Text="Not saved" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+                            <!-- Unsaved edits: a dot in a slot that is always there (no text, nothing moves, D-104); Save turns enabled as well. -->
+                            <Grid x:Name="DraftSlot" Width="12" Height="12" VerticalAlignment="Center" Background="Transparent">
+                                <Ellipse x:Name="DraftDot" Width="8" Height="8" Opacity="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+                            </Grid>
                             <Button x:Name="SaveButton" Content="Save" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" Click="OnSaveFlow"
                                     ToolTipService.ToolTip="Save your changes to this flow (Ctrl+S)" AutomationProperties.AcceleratorKey="Control+S" />
                             <Button x:Name="CancelButton" Content="Cancel" IsEnabled="False" Click="OnCancelFlow"
@@ -871,7 +873,7 @@
                         </CommandBar>
                     </Grid>
                     <!-- A run on the canvas: "You can edit again when this run finishes" (§5.7 #22), then how it went. -->
-                    <InfoBar x:Name="RunInfo" Grid.Row="1" Margin="36,0,16,8" Closed="OnRunInfoClosed" />
+                    <InfoBar x:Name="RunInfo" Grid.Row="2" VerticalAlignment="Top" Canvas.ZIndex="10" Margin="36,0,16,0" Closed="OnRunInfoClosed" />
                     <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -880,7 +882,7 @@
                         </Grid.ColumnDefinitions>
                         <!-- Inspector (UX §5.4): 320 wide right of the canvas. -->
                         <inspector:InspectorPane x:Name="InspectorPaneControl" Grid.Column="2" Width="320"
-                                                 GotFocus="OnInspectorFocusChanged" LostFocus="OnInspectorFocusChanged" />
+                                                 GotFocus="OnInspectorGotFocus" LostFocus="OnInspectorLostFocus" />
 
                         <!-- Palette (UX §5.1): 240 wide, search, step types by area; click or drag onto the canvas. -->
                         <Grid x:Name="PalettePane" Width="240" Padding="12,4,12,0" RowSpacing="8">
