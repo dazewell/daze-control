@@ -18,6 +18,6 @@ public static partial class SecretScan
         return found;
     }
 
-    [GeneratedRegex(@"(?i)(authorization\s*[:=]\s*[""']?\S{3,})|(bearer\s+[A-Za-z0-9._~+/=-]{8,})|(^\s*-?\s*[""']?(password|passwd|secret|api[_-]?key|token)[""']?\s*:\s*[""']?[^\s""'#{][^\s""']*)")]
+    [GeneratedRegex(@"(?i)(authorization\s*[:=]\s*[""']?\S{3,})|(bearer\s+[A-Za-z0-9._~+/=-]{8,})|((?<![A-Za-z0-9_])[""']?(password|passwd|secret|api[_-]?key|token)[""']?\s*:\s*[""']?[^\s""'#{][^\s""']*)")]
     private static partial Regex Suspicious();
 }

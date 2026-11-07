@@ -49,7 +49,6 @@ public static partial class BackupFormat
             var byName = new Dictionary<string, ZipArchiveEntry>(StringComparer.Ordinal);
             foreach (var entry in zip.Entries)
             {
-                if (entry.FullName.EndsWith('/')) continue;
                 if (!byName.TryAdd(entry.FullName, entry)) throw Damaged();
             }
 
@@ -142,7 +141,8 @@ public static partial class BackupFormat
             var em = EntryLine().Match(line);
             if (em.Success)
             {
-                entries.Add(new BackupEntryInfo(em.Groups[1].Value, long.Parse(em.Groups[2].Value, CultureInfo.InvariantCulture), em.Groups[3].Value));
+                if (!long.TryParse(em.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var bytes)) throw Damaged();
+                entries.Add(new BackupEntryInfo(em.Groups[1].Value, bytes, em.Groups[3].Value));
                 continue;
             }
             var tm = TopLine().Match(line);

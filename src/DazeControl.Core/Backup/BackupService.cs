@@ -28,15 +28,16 @@ public sealed partial class BackupService(IBackupFiles files, TimeProvider time,
     public BackupResult CreateAt(string path, BackupContents contents, string reason)
     {
         var ext = Path.GetExtension(path);
-        return Write(path[..^ext.Length], ext, contents, reason, time.GetLocalNow());
+        if (ext.Length == 0) ext = BackupFormat.Extension;
+        else path = path[..^ext.Length];
+        return Write(path, ext, contents, reason, time.GetLocalNow());
     }
 
     private BackupResult Write(string stem, string ext, BackupContents contents, string reason, DateTimeOffset now)
     {
         var bytes = BackupFormat.Write(contents, now, appVersion, machine, reason, out var manifest);
         var path = stem + ext;
-        for (var n = 2; files.Exists(path); n++) path = $"{stem}-{n}{ext}";
-        files.WriteAtomic(path, bytes);
+        for (var n = 2; !files.TryWriteNew(path, bytes); n++) path = $"{stem}-{n}{ext}";
         return new BackupResult(path, manifest, SecretScan.Find(Encoding.UTF8.GetString(contents.Config)));
     }
 
@@ -48,7 +49,9 @@ public sealed partial class BackupService(IBackupFiles files, TimeProvider time,
         files.ListFiles(folder)
             .Select(p => (Path: p, M: NameRx().Match(System.IO.Path.GetFileName(p))))
             .Where(x => x.M.Success)
-            .Select(x => new BackupFile(x.Path, x.M.Groups[1].Value, x.M.Groups[2].Success ? int.Parse(x.M.Groups[2].Value, CultureInfo.InvariantCulture) : 1))
+            .Select(x => (x.Path, Stamp: x.M.Groups[1].Value, Counter: ParseCounter(x.M.Groups[2])))
+            .Where(x => x.Counter > 0)
+            .Select(x => new BackupFile(x.Path, x.Stamp, x.Counter))
             .OrderByDescending(f => f.Stamp, StringComparer.Ordinal).ThenByDescending(f => f.Counter)
             .ToList();
 
@@ -59,6 +62,10 @@ public sealed partial class BackupService(IBackupFiles files, TimeProvider time,
         foreach (var p in old) files.Delete(p);
         return old;
     }
+
+    // 0 = out of range: a foreign or damaged name is skipped, never thrown on.
+    private static int ParseCounter(Group g) =>
+        !g.Success ? 1 : int.TryParse(g.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var n) ? n : 0;
 
     [GeneratedRegex(@"^DazeControl-backup-(\d{4}-\d{2}-\d{2}-\d{4})(?:-(\d+))?\.dcbackup$", RegexOptions.IgnoreCase)]
     private static partial Regex NameRx();

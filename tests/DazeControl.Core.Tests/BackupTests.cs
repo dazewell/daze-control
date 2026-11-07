@@ -11,7 +11,7 @@ public class BackupTests
         public readonly Dictionary<string, byte[]> Files = new(StringComparer.OrdinalIgnoreCase);
         public bool Exists(string path) => Files.ContainsKey(path);
         public byte[] ReadAll(string path) => Files[path];
-        public void WriteAtomic(string path, byte[] data) => Files[path] = data;
+        public bool TryWriteNew(string path, byte[] data) { if (Files.ContainsKey(path)) return false; Files[path] = data; return true; }
         public void Delete(string path) => Files.Remove(path);
         public IReadOnlyList<string> ListFiles(string folder) =>
             Files.Keys.Where(k => Path.GetDirectoryName(k) == folder).ToList();
@@ -216,6 +216,33 @@ public class BackupTests
     }
 
     [Fact]
+    public void ListSkipsOutOfRangeCountersAndDirectoryEntriesAreDamaged()
+    {
+        var files = new MemFiles();
+        files.Files[Path.Combine(Dir, "DazeControl-backup-2026-01-01-0000-99999999999999.dcbackup")] = [1];
+        Assert.Empty(NewService(files).List(Dir));
+        var m = Encoding.UTF8.GetBytes(Manifest(1, Config));
+        Assert.Equal(BackupFailure.Damaged, Assert.Throws<BackupException>(() =>
+            BackupFormat.Open(RawZip(("manifest.yaml", m), ("config.yaml", Config), ("evil/", [])))).Kind);
+        var big = Manifest(1, Config).Replace($"bytes: {Config.Length}", "bytes: 99999999999999999999");
+        Assert.Equal(BackupFailure.Damaged, Assert.Throws<BackupException>(() =>
+            BackupFormat.Open(RawZip(("manifest.yaml", Encoding.UTF8.GetBytes(big)), ("config.yaml", Config)))).Kind);
+    }
+
+    [Fact]
+    public void SecretInsideEmbeddedBodyWarns()
+    {
+        Assert.Single(SecretScan.Find("version: 1\nbody: '{\"password\":\"hunter2\"}'\n"));
+    }
+
+    [Fact]
+    public void CreateAtWithoutExtensionAddsOne()
+    {
+        var r = NewService(new MemFiles()).CreateAt(Path.Combine(Dir, "mine"), new BackupContents(Config), "manual");
+        Assert.EndsWith("mine.dcbackup", r.Path);
+    }
+
+    [Fact]
     public void PhysicalFilesWriteAtomicallyInATempFolder()
     {
         var dir = Path.Combine(Path.GetTempPath(), "dc-backup-test-" + Guid.NewGuid().ToString("N"));
@@ -225,6 +252,8 @@ public class BackupTests
             var r = svc.CreateIn(dir, new BackupContents(Config), "manual");
             Assert.Equal(Config, svc.Open(r.Path).Config);
             Assert.Single(Directory.GetFiles(dir));
+            Assert.False(new PhysicalBackupFiles().TryWriteNew(r.Path, [1]));
+            Assert.Equal(Config, svc.Open(r.Path).Config);
             Assert.Single(svc.List(dir));
         }
         finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }

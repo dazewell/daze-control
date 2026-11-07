@@ -42,8 +42,8 @@ public interface IBackupFiles
 {
     bool Exists(string path);
     byte[] ReadAll(string path);
-    /// <summary>Temp file + move; creates the folder.</summary>
-    void WriteAtomic(string path, byte[] data);
+    /// <summary>Writes a new file (temp + move, creates the folder); returns false, touching nothing, when the path already exists, even if it appeared a moment ago.</summary>
+    bool TryWriteNew(string path, byte[] data);
     void Delete(string path);
     /// <summary>Full paths of the files directly in the folder; empty when it is missing.</summary>
     IReadOnlyList<string> ListFiles(string folder);
@@ -55,7 +55,7 @@ public sealed class PhysicalBackupFiles : IBackupFiles
     public byte[] ReadAll(string path) => File.ReadAllBytes(path);
     public void Delete(string path) => File.Delete(path);
 
-    public void WriteAtomic(string path, byte[] data)
+    public bool TryWriteNew(string path, byte[] data)
     {
         var dir = Path.GetDirectoryName(Path.GetFullPath(path))!;
         Directory.CreateDirectory(dir);
@@ -63,8 +63,10 @@ public sealed class PhysicalBackupFiles : IBackupFiles
         try
         {
             File.WriteAllBytes(tmp, data);
-            File.Move(tmp, path, overwrite: true);
+            File.Move(tmp, path, overwrite: false);
+            return true;
         }
+        catch (IOException) when (File.Exists(path)) { return false; }
         finally { if (File.Exists(tmp)) File.Delete(tmp); }
     }
 
