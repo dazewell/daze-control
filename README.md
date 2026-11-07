@@ -60,7 +60,7 @@ is open.
 
 Known limits: games still see your pad presses while the menu is open; it shows over borderless and windowed games, not
 over a game in its own full-screen mode (set the game to borderless); a key another app owns as a global shortcut won't
-reach the menu; there is no screen-reader support.
+reach the menu; there is no screen-reader support. A Steam Controller reaches the menu only as the keys Steam's desktop layout sends (it is not a pad Windows can read); while Steam Big Picture is open Steam keeps those buttons for itself, so close Big Picture to steer the menu with it.
 
 ### Command line
 
