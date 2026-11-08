@@ -286,6 +286,27 @@ public sealed class DesktopShortcutsTests : IDisposable
         Assert.Equal(Exe, _links.Files[Path.Combine(Desktop, "old.lnk")].IconPath);
     }
 
+    [Fact]
+    public void RepairAlsoFixesCopiesInTheStartMenuButListOnlyShowsTheDesktop()
+    {
+        var startMenu = Path.Combine(_root, "Programs");
+        var folder = Path.Combine(startMenu, "My flows");
+        Directory.CreateDirectory(folder);
+        var copy = Path.Combine(folder, "TV.lnk");
+        _links.Put(copy, new(Stub, "--run \"tv\"", Exe));
+        _links.Put(Path.Combine(startMenu, "Daze Control.lnk"), new(Exe, "", Exe));
+        var shortcuts = new DesktopShortcuts(new ShortcutPlaces(Desktop, Icons, Stub, [Stub, Exe], null, DefaultConfig)
+        {
+            CopyFolders = [startMenu, Path.Combine(_root, "missing")],
+        }, _links, _icons);
+
+        Assert.Equal(1, shortcuts.RepairIcons([Flow("tv", "TV")]));
+
+        Assert.Equal(shortcuts.IconPath("tv"), _links.Files[copy].IconPath);
+        Assert.Equal(Exe, _links.Files[Path.Combine(startMenu, "Daze Control.lnk")].IconPath);
+        Assert.Empty(shortcuts.List());
+    }
+
     /// <summary>Links as real (empty) files, so the Desktop scan and the name clash check see them.</summary>
     private sealed class FakeLinks : IShellLinkStore
     {
@@ -302,7 +323,8 @@ public sealed class DesktopShortcutsTests : IDisposable
                 Files[path] = link;
         }
 
-        public IEnumerable<string> Links(string directory) => Directory.EnumerateFiles(directory, "*.lnk");
+        public IEnumerable<string> Links(string directory, bool recursive = false) =>
+            Directory.EnumerateFiles(directory, "*.lnk", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
 
         public ShellLinkData? Read(string path) => _unreadable.Contains(path) ? null : Files.GetValueOrDefault(path);
 

@@ -180,7 +180,7 @@ public sealed class EngineControllerTests : IDisposable
     {
         private readonly Dictionary<string, ShellLinkData> _files = new(StringComparer.OrdinalIgnoreCase);
 
-        public IEnumerable<string> Links(string directory) => Directory.EnumerateFiles(directory, "*.lnk");
+        public IEnumerable<string> Links(string directory, bool recursive = false) => Directory.EnumerateFiles(directory, "*.lnk");
 
         public ShellLinkData? Read(string path) => _files.GetValueOrDefault(path);
 
