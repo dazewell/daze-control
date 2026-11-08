@@ -27,6 +27,9 @@ if ($SelfTest) {
     @(@('v0.50.2', 'junk', 'v0.50.0'), 'v0.51.0'), @(@('v1.2.3'), 'v1.3.0'))
   $bad = 0
   foreach ($c in $cases) { $got = Get-NextVersion $c[0]; if ($got -ne $c[1]) { "FAIL $($c[0] -join ',') -> $got (want $($c[1]))"; $bad++ } }
+  # Guard: a space after a comma in a --json field list splits it into separate gh arguments.
+  $src = Get-Content $PSCommandPath -Raw
+  if ($src -match ('--' + 'json \S+, ')) { "FAIL: --json field list contains ', ' (no spaces after commas)"; $bad++ }
   if ($bad) { exit 1 }
   "selftest ok ($($cases.Count) cases)"; exit 0
 }
@@ -74,15 +77,16 @@ if ($DryRun) {
 # 3. CI on the target sha
 $ci = $null
 while (-not $ci) {
-  $runs = gh run list --repo $Repo --workflow ci.yml --branch main --limit 30 --json databaseId, headSha, status, conclusion, url | ConvertFrom-Json
+  $runs = gh run list --repo $Repo --workflow ci.yml --branch main --limit 30 --json databaseId,headSha,status,conclusion,url 2>&1 | Out-String
+  if ($LASTEXITCODE) { $ghErr = $runs.Trim(); $runs = @() } else { $ghErr = ''; $runs = $runs | ConvertFrom-Json }
   $ci = $runs | Where-Object { $_.headSha -eq $sha } | Select-Object -First 1
   if ($ci) { break }
-  if ((Get-Date) -gt $deadline) { Fail 6 "timeout: no CI run for $($sha.Substring(0, 10))" }
+  if ((Get-Date) -gt $deadline) { Fail 6 "timeout: no CI run for $($sha.Substring(0, 10))$(if ($ghErr) { "; gh said: $ghErr" })" }
   Start-Sleep -Seconds 15
 }
 if ($ci.status -ne 'completed') {
   gh run watch $ci.databaseId --repo $Repo --exit-status *> $null
-  $ci = gh run view $ci.databaseId --repo $Repo --json databaseId, conclusion, url | ConvertFrom-Json
+  $ci = gh run view $ci.databaseId --repo $Repo --json databaseId,conclusion,url | ConvertFrom-Json
 }
 if ($ci.conclusion -ne 'success') { Fail 3 "CI red ($($ci.conclusion)): $($ci.url)" }
 Write-Output "CI green on $($sha.Substring(0, 10)): run $($ci.databaseId)"
@@ -94,21 +98,21 @@ git push origin $Version --quiet; if ($LASTEXITCODE) { Fail 5 "git push $Version
 # 5. Release run
 $rel = $null
 while (-not $rel) {
-  $rel = gh run list --repo $Repo --workflow release.yml --branch $Version --limit 5 --json databaseId, status, conclusion, url | ConvertFrom-Json | Select-Object -First 1
+  $rel = gh run list --repo $Repo --workflow release.yml --branch $Version --limit 5 --json databaseId,status,conclusion,url | ConvertFrom-Json | Select-Object -First 1
   if ($rel) { break }
   if ((Get-Date) -gt $deadline) { Fail 6 "timeout: no release run for $Version (tag is pushed)" }
   Start-Sleep -Seconds 10
 }
 if ($rel.status -ne 'completed') {
   gh run watch $rel.databaseId --repo $Repo --exit-status *> $null
-  $rel = gh run view $rel.databaseId --repo $Repo --json databaseId, conclusion, url | ConvertFrom-Json
+  $rel = gh run view $rel.databaseId --repo $Repo --json databaseId,conclusion,url | ConvertFrom-Json
 }
 if ($rel.conclusion -ne 'success') { Fail 4 "release run red ($($rel.conclusion)): $($rel.url)" }
 Write-Output "release run green: $($rel.databaseId)"
 
 # 6. Notes + assets
 gh release edit $Version --repo $Repo --notes-file $Notes *> $null; if ($LASTEXITCODE) { Fail 5 "gh release edit $Version failed (tag and release exist)" }
-$info = gh release view $Version --repo $Repo --json url, assets | ConvertFrom-Json
+$info = gh release view $Version --repo $Repo --json url,assets | ConvertFrom-Json
 $names = @($info.assets | ForEach-Object name)
 $want = @{ 'Setup.exe' = '*Setup.exe'; 'Portable.zip' = '*Portable.zip'; 'full nupkg' = '*-full.nupkg'; 'delta nupkg' = '*-delta.nupkg'; 'RELEASES' = 'RELEASES*' }
 $missing = @($want.Keys | Where-Object { $p = $want[$_]; -not ($names | Where-Object { $_ -like $p }) })
