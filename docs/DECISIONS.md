@@ -1376,3 +1376,15 @@ Status: accepted (user via coordinator, 2026-11-07: "broader than key events"; t
   key box (it is a free-text suggestion box; names are prefixed `media_`).
 - Not done: reading the volume back as a check; per-app volume; install/type text (D-102 "No").
 - Not run on a real device (adb output formats are from AOSP source); the first live run is the check.
+
+## D-106 · 2026-11-08 · Flow shortcut icons: the engine puts them back at each start
+Status: accepted
+- Cause: Velopack's updater "updates" every .lnk on the Desktop/Start menu whose target is under the app root, and resets
+  its icon to `current\DazeControl.exe` (velopack_DazeControlApp.log, 2026-11-07 15:11, 0.49 → 0.50). Our D-049 links
+  target the stub, so they match.
+- Decision: once per engine start, off the message thread, `DesktopShortcuts.RepairIcons` rewrites (same path and
+  name) any of our shortcuts whose icon isn't its flow's .ico or whose .ico is gone. Shortcuts of flows no longer in the
+  config are left alone.
+- Why not: a target outside the app root (no stable exe there; the stub is what survives updates, D-049); a Velopack
+  option (none turns this off per shortcut); only after `VELOPACK_RESTART` (a manual install or an editor-started
+  engine after an update would miss it; the scan is a handful of .lnk reads).

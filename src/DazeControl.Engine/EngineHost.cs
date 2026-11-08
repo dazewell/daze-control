@@ -58,6 +58,7 @@ internal sealed class EngineHost : IDisposable
     private readonly RunHistory _history;
     private readonly FlowLauncher _launcher;
     private readonly EngineController _controller;
+    private readonly DesktopShortcuts _shortcuts;
     private readonly PipeServer _pipe;
     private readonly string _editorPath = Path.Combine(AppContext.BaseDirectory, "DazeControl.Editor.exe");
 
@@ -109,13 +110,14 @@ internal sealed class EngineHost : IDisposable
         _config.Changed += snapshot => _window.Post(() => Apply(snapshot));
 
         var exe = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "DazeControl.exe");
+        _shortcuts = FlowShortcuts.Create(paths.ConfigArgument, EnginePaths.DefaultConfig, Log.Info);
         var version = typeof(EngineHost).Assembly.GetName().Version?.ToString(3) ?? "?";
         _controller = new EngineController(() => _config.Current, _launcher, _history,
             EngineController.CreateDryRunner(TimeProvider.System), new Autostart(),
             new EngineInfo(version, Environment.ProcessId, exe, paths.Config, paths.ConfigArgument), Log.Info, devices,
             // Step tests share the providers and locks but raise no run events: no pop-up, no history.
             new FlowRunner(stepProviders, TimeProvider.System, locks, probes: probes) { Flows = calls },
-            FlowShortcuts.Create(paths.ConfigArgument, EnginePaths.DefaultConfig, Log.Info), _gamepads);
+            _shortcuts, _gamepads);
         _controller.RunRefused += refusal => _window.Post(() => ShowRefusal(refusal));
         _controller.HotkeyRecordingChanged += on => _window.Post(() => OnHotkeyRecording(on));
         _pipe = new PipeServer(Protocol.CurrentPipeName(), _controller.HandleAsync, (what, e) => Log.Error(what, e));
@@ -128,6 +130,7 @@ internal sealed class EngineHost : IDisposable
     public void Run(string? runFlowId = null)
     {
         Log.Info("engine: ready");
+        _ = RepairShortcutIconsAsync();
         if (runFlowId is not null)
             _ = RunFromDesktopAsync(runFlowId);
         MessageWindow.RunMessageLoop();
@@ -296,6 +299,25 @@ internal sealed class EngineHost : IDisposable
         catch (Exception failure)
         {
             Log.Error("popup: not shown", failure);
+        }
+    }
+
+    /// <summary>
+    /// Once per start, off the message thread: an update re-points our desktop shortcuts at the main exe's icon (D-106),
+    /// so each gets its flow's icon back. A failure only leaves the plain icon.
+    /// </summary>
+    private async Task RepairShortcutIconsAsync()
+    {
+        try
+        {
+            var flows = _config.Current.Flows.Select(f => f.Running ?? f.Written).OfType<Flow>().ToList();
+            var repaired = await Task.Run(() => _shortcuts.RepairIcons(flows)).ConfigureAwait(false);
+            if (repaired > 0)
+                Log.Info($"shortcuts: {repaired} icon(s) put back");
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            Log.Error("shortcuts: icon repair", e);
         }
     }
 
