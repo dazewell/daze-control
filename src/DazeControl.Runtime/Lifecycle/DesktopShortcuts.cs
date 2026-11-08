@@ -12,7 +12,8 @@ public sealed record ShellLinkData(string Target, string Arguments, string? Icon
 /// <summary>The .lnk files themselves: IShellLinkW in the engine, a dictionary in tests.</summary>
 public interface IShellLinkStore
 {
-    IEnumerable<string> Links(string directory);
+    /// <summary>The .lnk files in <paramref name="directory"/>, and in its subfolders too when <paramref name="recursive"/>.</summary>
+    IEnumerable<string> Links(string directory, bool recursive = false);
 
     /// <summary>Null when the file isn't a link that can be read.</summary>
     ShellLinkData? Read(string path);
@@ -43,7 +44,14 @@ public sealed record DesktopShortcut(string FlowId, string Path)
 /// <param name="ConfigArgument">The config this engine was started with; null for the default one.</param>
 /// <param name="DefaultConfig">The default config's path, so a link naming it counts as the default.</param>
 public sealed record ShortcutPlaces(string Desktop, string IconFolder, string Target, IReadOnlyCollection<string> OurTargets,
-    string? ConfigArgument, string DefaultConfig);
+    string? ConfigArgument, string DefaultConfig)
+{
+    /// <summary>
+    /// Where copies of our shortcuts may also be, searched with their subfolders, only to put icons back (D-106): the
+    /// Start menu, taskbar pins and Startup, the places Velopack's updater rewrites besides the Desktop.
+    /// </summary>
+    public IReadOnlyList<string> CopyFolders { get; init; } = [];
+}
 
 /// <summary>
 /// A desktop shortcut per flow (D-049): a .lnk to the engine with <c>--run &lt;flow id&gt;</c>. No state of its own:
@@ -84,7 +92,7 @@ public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkSt
     }
 
     /// <summary>
-    /// Puts each shortcut's flow icon back where something else replaced it (Velopack's updater re-points every link
+    /// Puts each shortcut's flow icon back (on the Desktop and in <see cref="ShortcutPlaces.CopyFolders"/>) where something else replaced it (Velopack's updater re-points every link
     /// to the app's folder at the main exe's icon, D-106) or its .ico is gone; name and place stay. How many it fixed.
     /// </summary>
     public int RepairIcons(IEnumerable<Flow> flows)
@@ -96,7 +104,8 @@ public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkSt
         lock (_gate)
         {
             var fixedCount = 0;
-            foreach (var shortcut in Scan(anyConfig: false).ToList())
+            var all = Scan(anyConfig: false).Concat(places.CopyFolders.SelectMany(f => Scan(anyConfig: false, f, recursive: true)));
+            foreach (var shortcut in all.DistinctBy(s => s.Path, StringComparer.OrdinalIgnoreCase).ToList())
             {
                 if (!byId.TryGetValue(shortcut.FlowId, out var flow) || links.Read(shortcut.Path) is not { } link)
                     continue;
@@ -198,11 +207,12 @@ public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkSt
         throw new IOException($"Too many files on the desktop are called {name}.");
     }
 
-    private IEnumerable<DesktopShortcut> Scan(bool anyConfig)
+    private IEnumerable<DesktopShortcut> Scan(bool anyConfig, string? folder = null, bool recursive = false)
     {
-        if (!Directory.Exists(places.Desktop))
+        folder ??= places.Desktop;
+        if (!Directory.Exists(folder))
             yield break;
-        foreach (var path in links.Links(places.Desktop))
+        foreach (var path in links.Links(folder, recursive))
         {
             if (links.Read(path) is not { } link || !IsOurTarget(link.Target))
                 continue;

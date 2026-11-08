@@ -1384,7 +1384,9 @@ Status: accepted
   target the stub, so they match.
 - Decision: once per engine start, off the message thread, `DesktopShortcuts.RepairIcons` rewrites (same path and
   name) any of our shortcuts whose icon isn't its flow's .ico or whose .ico is gone. Shortcuts of flows no longer in the
-  config are left alone.
+  config are left alone. Copies in the Start menu (with Startup) and taskbar pins (`User Pinned`), searched with
+  subfolders, are repaired too (user: "I definitely want Start menu to keep the icon"); listing and the editor stay
+  Desktop-only.
 - Why not: a target outside the app root (no stable exe there; the stub is what survives updates, D-049); a Velopack
   option (none turns this off per shortcut); only after `VELOPACK_RESTART` (a manual install or an editor-started
   engine after an update would miss it; the scan is a handful of .lnk reads).

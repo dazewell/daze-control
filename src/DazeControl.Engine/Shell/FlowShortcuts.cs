@@ -28,7 +28,16 @@ internal static class FlowShortcuts
         // .NET reads the Desktop with SHGetKnownFolderPath(FOLDERID_Desktop), so a OneDrive desktop is the one used.
         var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory, Environment.SpecialFolderOption.DoNotVerify);
         var icons = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppInfo.FolderName, "shortcuts");
-        var places = new ShortcutPlaces(desktop, icons, stub ?? exe, stub is null ? [exe] : [stub, exe], configArgument, defaultConfig);
+        var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var places = new ShortcutPlaces(desktop, icons, stub ?? exe, stub is null ? [exe] : [stub, exe], configArgument, defaultConfig)
+        {
+            // Velopack's updater rewrites links here too (D-106); a pin is a copy in the taskbar's own folder.
+            CopyFolders =
+            [
+                Environment.GetFolderPath(Environment.SpecialFolder.Programs, Environment.SpecialFolderOption.DoNotVerify),
+                Path.Combine(roaming, "Microsoft", "Internet Explorer", "Quick Launch", "User Pinned"),
+            ],
+        };
         return new DesktopShortcuts(places, new ShellLinkStore(), new FlowIconRenderer(), log);
     }
 
@@ -51,7 +60,8 @@ internal sealed unsafe class ShellLinkStore : IShellLinkStore
 {
     private const int MaxText = 32768;
 
-    public IEnumerable<string> Links(string directory) => Directory.EnumerateFiles(directory, "*.lnk");
+    public IEnumerable<string> Links(string directory, bool recursive = false) =>
+        Directory.EnumerateFiles(directory, "*.lnk", new EnumerationOptions { RecurseSubdirectories = recursive, IgnoreInaccessible = true });
 
     public ShellLinkData? Read(string path) => Mta.Run(() =>
     {
