@@ -77,6 +77,45 @@ public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkSt
     {
         var mine = Scan(anyConfig: false).Where(s => s.FlowId == flow.Id).ToList();
         var path = FreePath(flow, mine);
+        WriteLink(path, flow);
+        foreach (var old in mine.Where(s => !SamePath(s.Path, path)))
+            links.Delete(old.Path);
+        return new DesktopShortcut(flow.Id, path);
+    }
+
+    /// <summary>
+    /// Puts each shortcut's flow icon back where something else replaced it (Velopack's updater re-points every link
+    /// to the app's folder at the main exe's icon, D-106) or its .ico is gone; name and place stay. How many it fixed.
+    /// </summary>
+    public int RepairIcons(IEnumerable<Flow> flows)
+    {
+        ArgumentNullException.ThrowIfNull(flows);
+        var byId = new Dictionary<string, Flow>(StringComparer.Ordinal);
+        foreach (var flow in flows)
+            byId.TryAdd(flow.Id, flow);
+        lock (_gate)
+        {
+            var fixedCount = 0;
+            foreach (var shortcut in Scan(anyConfig: false).ToList())
+            {
+                if (!byId.TryGetValue(shortcut.FlowId, out var flow) || links.Read(shortcut.Path) is not { } link)
+                    continue;
+                var icon = IconPath(flow.Id);
+                if (link.IconPath is { } current && SamePath(current, icon) && File.Exists(icon))
+                    continue;
+                if (WriteLink(shortcut.Path, flow))
+                    fixedCount++;
+            }
+            return fixedCount;
+        }
+    }
+
+    /// <summary>
+    /// Draws the flow's icon and writes its link at <paramref name="path"/>; false when the icon couldn't be drawn, which
+    /// leaves the shortcut with the engine's own icon (fail-soft).
+    /// </summary>
+    private bool WriteLink(string path, Flow flow)
+    {
         string? icon = IconPath(flow.Id);
         try
         {
@@ -90,9 +129,7 @@ public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkSt
         }
         links.Write(path, new ShellLinkData(places.Target, EngineArguments.Format(flow.Id, places.ConfigArgument), icon,
             $"Runs {flow.Name} in Daze Control", Path.GetDirectoryName(places.Target)));
-        foreach (var old in mine.Where(s => !SamePath(s.Path, path)))
-            links.Delete(old.Path);
-        return new DesktopShortcut(flow.Id, path);
+        return icon is not null;
     }
 
     /// <summary>Removes the flow's shortcuts (and its icon); how many there were.</summary>

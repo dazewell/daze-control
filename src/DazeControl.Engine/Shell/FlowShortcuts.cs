@@ -70,7 +70,12 @@ internal sealed unsafe class ShellLinkStore : IShellLinkStore
                 var target = new string(b);
                 buffer.AsSpan().Clear();
                 link->GetArguments(b, MaxText);
-                return new ShellLinkData(target, new string(b));
+                var arguments = new string(b);
+                buffer.AsSpan().Clear();
+                int index;
+                link->GetIconLocation(b, MaxText, &index);
+                var icon = new string(b);
+                return new ShellLinkData(target, arguments, icon.Length > 0 ? icon : null);
             }
         }
         catch (COMException)

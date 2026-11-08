@@ -248,6 +248,44 @@ public sealed class DesktopShortcutsTests : IDisposable
         Assert.Equal(8, shortcuts.List().Select(s => s.Path).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
+    [Fact]
+    public void RepairPutsBackAnIconAnUpdateReplacedAndKeepsTheName()
+    {
+        var shortcuts = Make();
+        var made = shortcuts.Create(Flow("tv", "TV", "E7F4"));
+        var icon = _links.Files[made.Path].IconPath!;
+        // What Velopack's updater leaves: same target and arguments, the main exe's icon.
+        _links.Put(made.Path, new(Stub, "--run \"tv\"", Exe));
+
+        Assert.Equal(1, shortcuts.RepairIcons([Flow("tv", "Renamed", "E7F4")]));
+
+        Assert.Equal(icon, _links.Files[made.Path].IconPath);
+        Assert.Equal(["TV"], shortcuts.List().Select(s => s.Name));
+    }
+
+    [Fact]
+    public void RepairRedrawsAMissingIconAndLeavesGoodOnesAlone()
+    {
+        var shortcuts = Make();
+        var a = shortcuts.Create(Flow("a", "A"));
+        shortcuts.Create(Flow("b", "B"));
+        File.Delete(_links.Files[a.Path].IconPath!);
+        _icons.Written.Clear();
+
+        Assert.Equal(1, shortcuts.RepairIcons([Flow("a", "A"), Flow("b", "B")]));
+
+        Assert.Equal([shortcuts.IconPath("a")], _icons.Written.Keys);
+    }
+
+    [Fact]
+    public void RepairSkipsAShortcutWhoseFlowIsGone()
+    {
+        _links.Put(Path.Combine(Desktop, "old.lnk"), new(Stub, "--run \"gone\"", Exe));
+
+        Assert.Equal(0, Make().RepairIcons([Flow("tv", "TV")]));
+        Assert.Equal(Exe, _links.Files[Path.Combine(Desktop, "old.lnk")].IconPath);
+    }
+
     /// <summary>Links as real (empty) files, so the Desktop scan and the name clash check see them.</summary>
     private sealed class FakeLinks : IShellLinkStore
     {
