@@ -15,6 +15,7 @@ public sealed class TriggerServiceTests : IDisposable
     private readonly FlowLauncher _launcher;
     private readonly FakeSource _session = new("session.lock", "session.unlock");
     private readonly FakeSource _power = new("power.ac", "power.battery");
+    private readonly FakeSource _network = new("network.connected", "network.disconnected");
     private readonly Dictionary<string, Flow> _known = [];
     private readonly List<string> _log = [];
     private readonly FakeCondition _onBattery = new("onBattery");
@@ -51,7 +52,7 @@ public sealed class TriggerServiceTests : IDisposable
             Loaded = false;
         }
 
-        public void Raise(string name, IReadOnlyList<string>? chain = null) => Raised?.Invoke(new TriggerEvent(name, chain));
+        public void Raise(string name, IReadOnlyList<string>? chain = null, string? detail = null) => Raised?.Invoke(new TriggerEvent(name, chain, detail));
 
         public void Dispose()
         {
@@ -82,15 +83,15 @@ public sealed class TriggerServiceTests : IDisposable
     }
 
     private TriggerService Service(TriggerOptions? options = null) =>
-        new([_session, _power], _launcher, new FakeFlows(this), _time, () => _paused, [_onBattery], _log.Add, options);
+        new([_session, _power, _network], _launcher, new FakeFlows(this), _time, () => _paused, [_onBattery], _log.Add, options);
 
-    private Flow On(string id, string eventName, string? only = null, WhenRunning whenRunning = WhenRunning.Ignore)
+    private Flow On(string id, string eventName, string? only = null, WhenRunning whenRunning = WhenRunning.Ignore, string? ssid = null)
     {
         var flow = Flow(Step("a")) with
         {
             Id = id,
             WhenRunning = whenRunning,
-            Triggers = [new EventTrigger(eventName) { Only = only }],
+            Triggers = [new EventTrigger(eventName) { Only = only, Ssid = ssid }],
         };
         _known[id] = flow;
         return flow;
@@ -138,6 +139,26 @@ public sealed class TriggerServiceTests : IDisposable
 
         Assert.True(_power.Loaded);
         Assert.Contains(_log, l => l.Contains("start failed", StringComparison.Ordinal) || l.Contains("load failed", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ASsidNarrowsNetworkConnected()
+    {
+        using var service = Service();
+        service.Apply([On("home", "network.connected", ssid: "home wifi"), On("any", "network.connected")]);
+        var started = new List<string>();
+        _launcher.RunCompleted += r => { lock (started) started.Add(r.FlowId); };
+
+        _network.Raise("network.connected", detail: "Office");
+        await SettleAsync(service);
+        lock (started)
+            Assert.Equal(["any"], started);
+
+        _time.Advance(TimeSpan.FromMinutes(1));
+        _network.Raise("network.connected", detail: "Home WiFi"); // case-insensitive
+        await SettleAsync(service);
+        lock (started)
+            Assert.Contains("home", started);
     }
 
     [Fact]

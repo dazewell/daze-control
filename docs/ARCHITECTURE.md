@@ -491,6 +491,7 @@ Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 i
 | 2026-11-04 | same | 30 s after the menu closed (log: `gamepad: reading stopped`): no pad thread | 9.0 | 27.8 | 0 (25 s) |
 
 | not run | T20.3 (session + power sources) | `measure.ps1` couldn't run: the installed engine holds the pipe. Expected: no event trigger = no source loaded; with one, a WTS / power-setting registration on the existing window, no thread, no timer | - | - | - |
+| 2026-11-08 | T20.4 (device, audio, display, network sources, Release AOT, exe 13.4 MB) | one flow subscribed to all five events (`device.added`, `audio.default-changed`, `display.changed`, `network.*`), nothing changing, 8 threads: USB + Bluetooth CM notification, IMMNotificationClient thread, WM_DISPLAYCHANGE on the window, `NotifyNetworkConnectivityChange`. Costs by source were not split; with no event trigger none loads (unit-tested) | 11 | 32 | 0 (60 s) |
 
 | 2026-11-02 | 4328146 (M10 gate, Release AOT, exe 11.6 MB with Velopack) | no config, not installed (no update checks), 5 threads | 5.4 | 21.7 | 0 (600 s) |
 

@@ -139,6 +139,9 @@ public sealed class TriggerService : IDisposable
             matches = [];
             foreach (var subscription in subscriptions)
             {
+                // A Wi-Fi name on the trigger narrows network.connected; a name the source couldn't read matches none.
+                if (subscription.Trigger.Ssid is { } ssid && !string.Equals(ssid, e.Detail, StringComparison.OrdinalIgnoreCase))
+                    continue;
                 var key = (subscription.FlowId, subscription.Index);
                 if (_lastStart.TryGetValue(key, out var started) && _time.GetElapsedTime(started, now) < _options.Cooldown)
                     continue;
