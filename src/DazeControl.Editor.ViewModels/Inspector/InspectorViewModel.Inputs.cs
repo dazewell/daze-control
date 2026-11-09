@@ -128,6 +128,23 @@ public sealed partial class InspectorViewModel
         _ = RefreshDevicesAsync(kind);
     }
 
+    internal void SetInputAsk(string name, bool ask) =>
+        EditInput(name, (f, input) => input.Ask == ask ? f : WithInput(f, name, input with { Ask = ask }));
+
+    /// <summary>Clamped to the 5 s to 10 min a prompt may wait (the default, 30 s, is written as unset).</summary>
+    internal void SetInputTimeout(string name, TimeSpan timeout)
+    {
+        var clamped = timeout < Prompts.MinTimeout ? Prompts.MinTimeout : timeout > Prompts.MaxTimeout ? Prompts.MaxTimeout : TimeSpan.FromSeconds(Math.Round(timeout.TotalSeconds));
+        EditInput(name, (f, input) => input.Timeout == clamped || input.Timeout is null && clamped == Prompts.DefaultTimeout
+            ? f
+            : WithInput(f, name, input with { Timeout = clamped == Prompts.DefaultTimeout ? null : clamped }));
+        if (Flow is { } flow && flow.Inputs.TryGetValue(name, out var now) && now.Timeout is null && clamped != Prompts.DefaultTimeout)
+            Load();
+    }
+
+    internal void SetInputOnTimeout(string name, string onTimeout) =>
+        EditInput(name, (f, input) => input.OnTimeout == onTimeout ? f : WithInput(f, name, input with { OnTimeout = onTimeout }));
+
     internal void SetInputDefault(string name, LibraryKind kind, DeviceOption option)
     {
         if (!CanEdit)

@@ -80,6 +80,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     private readonly Action<Action> _post;
     private readonly Func<string, bool> _fileExists;
     private readonly DesktopShortcutStore _desktop;
+    private readonly TimeProvider _time;
     private readonly Dictionary<LibraryKind, IReadOnlyList<DeviceInfo>> _live = [];
 
     /// <summary>The engine's lists behind <c>Suggest = Devices(kind)</c>: displays, services, credentials.</summary>
@@ -91,8 +92,9 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     private string? _stepType;
 
     public InspectorViewModel(ConfigSession session, FlowCanvasViewModel canvas, IEngineClient engine, Action<Action> post,
-        Func<string, bool>? fileExists = null, DesktopShortcutStore? desktop = null)
+        Func<string, bool>? fileExists = null, DesktopShortcutStore? desktop = null, TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         _session = session;
         _canvas = canvas;
         _engine = engine;
@@ -682,6 +684,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         WhenRunningIndex = (int)flow.WhenRunning;
         ShowPopup = flow.Popup;
         LoadInputs(flow);
+        LoadTriggers(flow);
 
         var pending = Shortcuts.Where(s => s.Hotkey.Length == 0).ToList();
         // A refused key's reason lives until the next recorded key, not until the next refresh (same row, same value).

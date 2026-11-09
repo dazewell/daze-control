@@ -79,6 +79,7 @@ Windows toast buttons: rejected (packaging identity, footprint).
 Flow inspector gets a "When this runs" card (Hotkey, Schedule and Event rows, a plain sentence: "Weekdays at 22:30",
 "When the PC is unlocked"), a next-run line ("Next: today 22:30") and "Test this trigger" (fire now). Palette: Ask (Yes/No,
 Choose). The Flows list shows a clock/bolt chip. Strings never say trigger/cron/node (UX).
+**Built (T20.6):** `WhenThisRuns` (sentences, edits, event list from `TriggerText.Events` + engine start), `InspectorViewModel.Triggers`, Flows chips, ask-input rows; Ask step uses the catalog fields. See UX §5.4.
 
 ## 6. Tasks
 PLAN M20: Core model + `ScheduleTable` -> schedule runtime -> event framework + session/power -> device/audio/display/network

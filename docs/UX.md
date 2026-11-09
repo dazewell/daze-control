@@ -143,6 +143,14 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
 ## 5.4 Inspector
 - Header: glyph, editable title, Caption "Bluetooth › Connect", "Test this step". Sections: Settings · If it
   fails · Timing.
+- When this runs (M20 T20.6, D-107): the flow settings' card lists the Shortcut recorders, then one expander row per
+  schedule or event: clock/bolt, a plain sentence ("Weekdays at 22:30", "When the PC is unlocked, only on battery"),
+  "Next: tomorrow 22:30". Open: Starts (At a time / Every so often / Once / When something happens), its pickers, the
+  per-schedule "If the PC was off or asleep" (Run it late + minutes / Skip it; chosen when the row is added, no global
+  default), "Test this trigger" (runs the saved flow named like the trigger), Remove. Add schedule / Add event.
+  Flows list: clock and bolt slots. Flow inputs: "Ask me when it runs" + seconds to wait + "If nobody answers". The
+  Ask step's inspector is the catalog's own fields. Screenshots: docs/triggers/t20.6 (dark only: light, high contrast
+  and 225% need system settings changed, so they await the user).
 - Device picker: ComboBox items glyph + name + Caption state ("Connected" / "Not connected" / "Unplugged");
   Library items first, then "From Windows" live group (picking adds to Library silently); missing ref stays
   selected as "Not found on this PC"; refreshes live while open.

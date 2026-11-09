@@ -637,7 +637,7 @@
                           ItemsSource="{x:Bind ViewModel.Folders, Mode=OneWay}" PlaceholderText="None" HorizontalAlignment="Stretch" />
                 <CheckBox Content="Line above it" IsChecked="{x:Bind ViewModel.LineAbove, Mode=TwoWay}" />
 
-                <TextBlock Text="Shortcuts" Style="{StaticResource InspectorSection}" />
+                <TextBlock Text="When this runs" Style="{StaticResource InspectorSection}" />
                 <ItemsControl ItemsSource="{x:Bind ViewModel.Shortcuts, Mode=OneWay}" IsTabStop="False">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -661,6 +661,108 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
                 <HyperlinkButton Content="Add shortcut" Command="{x:Bind ViewModel.AddShortcutCommand, Mode=OneWay}" Padding="0,4" />
+
+                <!-- M20 T20.6 (DESIGN §5): a row per schedule or event, a plain sentence on top, the pickers when opened. -->
+                <ItemsControl ItemsSource="{x:Bind ViewModel.Triggers, Mode=OneWay}" IsTabStop="False" Margin="0,8,0,0" AutomationProperties.Name="Schedules and events">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="8" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vmi:TriggerRowViewModel">
+                            <Expander IsExpanded="{x:Bind IsOpen, Mode=TwoWay}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                      AutomationProperties.Name="{x:Bind Sentence}">
+                                <Expander.Header>
+                                    <Grid ColumnSpacing="10" Padding="0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <StackPanel Grid.Column="1" Spacing="2">
+                                            <TextBlock Text="{x:Bind Sentence}" TextWrapping="Wrap" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                            <TextBlock Text="{x:Bind Next}" Visibility="{x:Bind HasNext}" Style="{StaticResource SettingsCardDescription}" />
+                                            <TextBlock Text="{x:Bind Problem, Mode=OneWay}" Visibility="{x:Bind HasProblem, Mode=OneWay}" TextWrapping="Wrap" Style="{StaticResource FieldError}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Expander.Header>
+                                <StackPanel Spacing="12">
+                                    <ComboBox ItemsSource="{x:Bind vmi:TriggerRowViewModel.KindNames}" SelectedIndex="{x:Bind KindIndex, Mode=TwoWay}"
+                                              HorizontalAlignment="Stretch" Header="Starts" AutomationProperties.Name="Starts" />
+
+                                    <StackPanel Spacing="8" Visibility="{x:Bind IsAt}">
+                                        <TimePicker Time="{x:Bind Time, Mode=TwoWay}" ClockIdentifier="24HourClock" Header="At" MinuteIncrement="1" />
+                                        <TextBlock Text="On" Style="{StaticResource CaptionTextBlockStyle}" />
+                                        <ItemsRepeater ItemsSource="{x:Bind DayToggles}" AutomationProperties.Name="Days">
+                                            <ItemsRepeater.Layout>
+                                                <UniformGridLayout MinItemWidth="52" MinRowSpacing="4" MinColumnSpacing="4" ItemsStretch="Fill" />
+                                            </ItemsRepeater.Layout>
+                                            <ItemsRepeater.ItemTemplate>
+                                                <DataTemplate x:DataType="vmi:DayToggleViewModel">
+                                                    <ToggleButton Content="{x:Bind Name}" IsChecked="{x:Bind IsOn, Mode=TwoWay}" MinWidth="0" Padding="4,6"
+                                                                  HorizontalAlignment="Stretch" AutomationProperties.Name="{x:Bind Name}" />
+                                                </DataTemplate>
+                                            </ItemsRepeater.ItemTemplate>
+                                        </ItemsRepeater>
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="8" Visibility="{x:Bind IsEvery}">
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <NumberBox Value="{x:Bind IntervalCount, Mode=TwoWay}" Minimum="1" Maximum="1440" SpinButtonPlacementMode="Compact"
+                                                       Header="Every" AutomationProperties.Name="Interval" />
+                                            <ComboBox Grid.Column="1" ItemsSource="{x:Bind vmi:TriggerRowViewModel.UnitNames}" SelectedIndex="{x:Bind IntervalUnitIndex, Mode=TwoWay}"
+                                                      HorizontalAlignment="Stretch" VerticalAlignment="Bottom" AutomationProperties.Name="Unit" />
+                                        </Grid>
+                                        <CheckBox Content="Only between two times" IsChecked="{x:Bind HasWindow, Mode=TwoWay}" />
+                                        <StackPanel Spacing="8" Visibility="{x:Bind HasWindow, Mode=OneWay}">
+                                            <TimePicker Time="{x:Bind From, Mode=TwoWay}" ClockIdentifier="24HourClock" Header="From" />
+                                            <TimePicker Time="{x:Bind To, Mode=TwoWay}" ClockIdentifier="24HourClock" Header="Until" />
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="8" Visibility="{x:Bind IsOnce}">
+                                        <DatePicker Date="{x:Bind OnceDate, Mode=TwoWay}" Header="On" />
+                                        <TimePicker Time="{x:Bind Time, Mode=TwoWay}" ClockIdentifier="24HourClock" Header="At" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="8" Visibility="{x:Bind IsEvent}">
+                                        <ComboBox ItemsSource="{x:Bind vmi:TriggerRowViewModel.EventNames}" SelectedIndex="{x:Bind EventIndex, Mode=TwoWay}"
+                                                  HorizontalAlignment="Stretch" Header="When" AutomationProperties.Name="When" />
+                                        <ComboBox ItemsSource="{x:Bind vmi:TriggerRowViewModel.OnlyNames}" SelectedIndex="{x:Bind OnlyIndex, Mode=TwoWay}"
+                                                  HorizontalAlignment="Stretch" Header="Run it" AutomationProperties.Name="Run it" />
+                                    </StackPanel>
+
+                                    <!-- Missed runs are chosen per schedule when it is created (D-107). -->
+                                    <StackPanel Spacing="8" Visibility="{x:Bind IsSchedule}">
+                                        <ComboBox ItemsSource="{x:Bind vmi:TriggerRowViewModel.IfMissedNames}" SelectedIndex="{x:Bind IfMissedIndex, Mode=TwoWay}"
+                                                  HorizontalAlignment="Stretch" Header="If the PC was off or asleep at that time" AutomationProperties.Name="If the PC was off or asleep at that time" />
+                                        <NumberBox Value="{x:Bind GraceMinutes, Mode=TwoWay}" Minimum="0" Maximum="1440" SpinButtonPlacementMode="Compact"
+                                                   Header="Run it only if it is no more than this many minutes late" Visibility="{x:Bind ShowGrace, Mode=OneWay}"
+                                                   AutomationProperties.Name="Minutes late" />
+                                    </StackPanel>
+
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button Content="Test this trigger" Command="{x:Bind TestCommand}" AutomationProperties.Name="{x:Bind TestName}"
+                                                ToolTipService.ToolTip="Runs the saved flow now, the way this would start it" />
+                                        <Button Content="Remove" Command="{x:Bind RemoveCommand}" AutomationProperties.Name="{x:Bind RemoveName}" />
+                                    </StackPanel>
+                                    <TextBlock Text="{x:Bind TestResult, Mode=OneWay}" Visibility="{x:Bind HasTestResult, Mode=OneWay}" TextWrapping="Wrap"
+                                               Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </Expander>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <HyperlinkButton Content="Add schedule" Command="{x:Bind ViewModel.AddScheduleCommand, Mode=OneWay}" Padding="0,4" />
+                    <HyperlinkButton Content="Add event" Command="{x:Bind ViewModel.AddEventCommand, Mode=OneWay}" Padding="0,4" />
+                </StackPanel>
+                <TextBlock Text="{x:Bind vmi:InspectorViewModel.AddScheduleHelp}" TextWrapping="Wrap" Style="{StaticResource SettingsCardDescription}" />
 
                 <!-- D-049, UX §5.4: "Shortcut" alone is a hotkey; the .lnk is always the desktop shortcut. -->
                 <TextBlock Text="Desktop shortcut" Style="{StaticResource InspectorSection}" />
@@ -716,6 +818,14 @@
                                           Loaded="OnPickerLoaded" SelectionChanged="OnPickerSelectionChanged"
                                           ItemTemplate="{StaticResource DeviceTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
                                           DropDownOpened="OnPickerOpened" AutomationProperties.Name="{x:Bind DefaultName, Mode=OneWay}" />
+                                <ToggleSwitch Header="Ask me when it runs" IsOn="{x:Bind Ask, Mode=TwoWay}" OnContent="Yes" OffContent="No"
+                                              AutomationProperties.Name="{x:Bind AskName, Mode=OneWay}" />
+                                <StackPanel Spacing="8" Visibility="{x:Bind Ask, Mode=OneWay}">
+                                    <NumberBox Value="{x:Bind TimeoutSeconds, Mode=TwoWay}" Minimum="5" Maximum="600" SpinButtonPlacementMode="Compact"
+                                               Header="Seconds to wait for an answer" AutomationProperties.Name="Seconds to wait" />
+                                    <ComboBox ItemsSource="{x:Bind vmi:FlowInputViewModel.OnTimeoutNames}" SelectedIndex="{x:Bind OnTimeoutIndex, Mode=TwoWay}"
+                                              HorizontalAlignment="Stretch" Header="If nobody answers" AutomationProperties.Name="If nobody answers" />
+                                </StackPanel>
                                 <TextBlock Text="{x:Bind Error, Mode=OneWay}" Visibility="{x:Bind HasError, Mode=OneWay}" Style="{StaticResource FieldError}" />
                             </StackPanel>
                         </DataTemplate>
