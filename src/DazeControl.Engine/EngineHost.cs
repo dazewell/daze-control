@@ -111,7 +111,8 @@ internal sealed class EngineHost : IDisposable
         calls.Launcher = _launcher;
         _launcher.StartPrompts = new InputPrompts(menus);
         // Event triggers (M20, D-107): sources load only while a flow subscribes; events are dropped while shortcuts are paused.
-        _triggers = new TriggerService([new SessionSource(_window), new PowerSource(_window), new DeviceSource(), new AudioSource(), new DisplaySource(_window), new NetworkSource()], _launcher, calls, TimeProvider.System,
+        var resume = new ResumeMonitor(_window);
+        _triggers = new TriggerService([new SessionSource(_window), new PowerSource(_window, resume), new DeviceSource(), new AudioSource(), new DisplaySource(_window), new NetworkSource()], _launcher, calls, TimeProvider.System,
             () => _hotkeyTable.Paused, PowerCondition.All(), Log.Info);
         _launcher.RunCompleted += OnRunCompleted;
         _launcher.ListenerFailed += e => Log.Error("run: completion listener", e);
@@ -133,12 +134,21 @@ internal sealed class EngineHost : IDisposable
         _controller.HotkeyRecordingChanged += on => _window.Post(() => OnHotkeyRecording(on));
         // Schedules (M20, D-107): one due-time timer; a power resume or a clock change re-arms it and runs what came due.
         _schedules = new ScheduleSource(TimeProvider.System, (flowId, text) => _ = _controller.TriggerAsync(flowId, text), () => _hotkeyTable.Paused, Log.Info);
-        _window.Add((message, wParam, _) =>
+        resume.Resumed += _schedules.Rearm; // the same wake-up signal as power.resume (Modern Standby included)
+        _window.Add((message, _, _) =>
         {
-            if (message == 0x1E || (message == 0x218 && wParam.Value is 0x7 or 0x12)) // WM_TIMECHANGE; WM_POWERBROADCAST resume
+            if (message == 0x1E) // WM_TIMECHANGE
                 _schedules.Rearm();
             return false;
         });
+        try
+        {
+            resume.Start();
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            Log.Error("ResumeMonitor start failed (only classic resume works)", e);
+        }
         _pipe = new PipeServer(Protocol.CurrentPipeName(), _controller.HandleAsync, (what, e) => Log.Error(what, e));
         _pipe.Start();
         Apply(_config.Current);

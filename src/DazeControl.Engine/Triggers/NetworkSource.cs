@@ -6,8 +6,8 @@ using DazeControl.Runtime.Triggers;
 namespace DazeControl.Engine.Triggers;
 
 /// <summary>
-/// <c>network.connected/disconnected</c> (M20, T20.4): <c>NotifyNetworkConnectivityChange</c> (iphlpapi), registered
-/// only while loaded. The callback only says "something changed"; <see cref="NetworkTracker"/> compares with the last
+/// <c>network.connected/disconnected</c> (M20, T20.4): <c>NotifyIpInterfaceChange</c> (iphlpapi: an adapter or its address
+/// came, went or changed), registered only while loaded. The callback only says "something changed"; <see cref="NetworkTracker"/> compares with the last
 /// state and raises a real change, with the Wi-Fi name (read from the WLAN API at that moment, no resident handle)
 /// so <c>ssid:</c> can narrow a trigger. No polling, no admin.
 /// </summary>
@@ -32,11 +32,11 @@ internal sealed unsafe partial class NetworkSource : ITriggerSource
                 return;
             _self = GCHandle.Alloc(this);
             nint handle;
-            var result = NotifyNetworkConnectivityChange(0 /* AF_UNSPEC */, &OnChanged, (void*)GCHandle.ToIntPtr(_self), 0, &handle);
+            var result = NotifyIpInterfaceChange(0 /* AF_UNSPEC */, &OnChanged, (void*)GCHandle.ToIntPtr(_self), 0, &handle);
             if (result != 0)
             {
                 _self.Free();
-                throw new InvalidOperationException($"NotifyNetworkConnectivityChange failed: {result}");
+                throw new InvalidOperationException($"NotifyIpInterfaceChange failed: {result}");
             }
             _registration = handle;
             _tracker.Reset();
@@ -111,7 +111,7 @@ internal sealed unsafe partial class NetworkSource : ITriggerSource
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static void OnChanged(void* context, int connectivityLevel)
+    private static void OnChanged(void* context, void* row, int notificationType)
     {
         try
         {
@@ -125,8 +125,8 @@ internal sealed unsafe partial class NetworkSource : ITriggerSource
     }
 
     [LibraryImport("iphlpapi.dll")]
-    private static partial uint NotifyNetworkConnectivityChange(ushort family,
-        delegate* unmanaged[Stdcall]<void*, int, void> callback, void* context, byte initialNotification, nint* handle);
+    private static partial uint NotifyIpInterfaceChange(ushort family,
+        delegate* unmanaged[Stdcall]<void*, void*, int, void> callback, void* context, byte initialNotification, nint* handle);
 
     [LibraryImport("iphlpapi.dll")]
     private static partial uint CancelMibChangeNotify2(nint handle);
