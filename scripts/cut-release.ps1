@@ -1,10 +1,13 @@
 <#
 Cuts a Daze Control release end to end with terse output (one line per phase). Run ONLY when the user asked for a release (D-043).
 Blocks until done, so run it with run_in_background: waiting costs no model calls.
-  pwsh scripts/cut-release.ps1 -Notes notes.md [-Prs 130,131] [-Version v0.51.0] [-TimeoutMinutes 90] [-DryRun] [-SelfTest]
+  pwsh scripts/cut-release.ps1 -Notes notes.md [-Prs 130,131] [-Version v0.51.0] [-Rc] [-TimeoutMinutes 90] [-DryRun] [-SelfTest]
+  -Rc cuts a release candidate: the next minor version plus -rc.<n> (n = 1 + the highest existing rc of it), e.g. v0.52.0-rc.1.
+  The release is marked pre-release, so installed apps (stable only) do not update to it; install its Setup.exe by hand.
+  A later stable release of the same number supersedes it. A tag like v0.52.0-rc.2 can also be passed with -Version.
 Exit: 0 ok | 2 PR closed/not merged | 3 CI red | 4 release run red | 5 preflight/other error | 6 timeout.
 #>
-param([string]$Notes, [int[]]$Prs = @(), [string]$Version, [int]$TimeoutMinutes = 90, [switch]$DryRun, [switch]$SelfTest)
+param([string]$Notes, [int[]]$Prs = @(), [string]$Version, [switch]$Rc, [int]$TimeoutMinutes = 90, [switch]$DryRun, [switch]$SelfTest)
 $ErrorActionPreference = 'Stop'
 $Repo = 'dazewell/daze-control'
 
@@ -19,6 +22,11 @@ function Get-NextVersion([string[]]$Tags) {
   if (-not $best) { throw 'no v<major>.<minor>.<patch> tag found' }
   "v$($best.Major).$($best.Minor + 1).0"
 }
+function Get-NextRc([string]$Base, [string[]]$Tags) {
+  $max = 0
+  foreach ($t in $Tags) { if ($t -match ('^' + [regex]::Escape($Base) + '-rc\.(\d+)$') -and [int]$Matches[1] -gt $max) { $max = [int]$Matches[1] } }
+  "$Base-rc.$($max + 1)"
+}
 function Fail([int]$Code, [string]$Msg) { Write-Output $Msg; exit $Code }
 
 if ($SelfTest) {
@@ -27,6 +35,10 @@ if ($SelfTest) {
     @(@('v0.50.2', 'junk', 'v0.50.0'), 'v0.51.0'), @(@('v1.2.3'), 'v1.3.0'))
   $bad = 0
   foreach ($c in $cases) { $got = Get-NextVersion $c[0]; if ($got -ne $c[1]) { "FAIL $($c[0] -join ',') -> $got (want $($c[1]))"; $bad++ } }
+  # Release candidates never count as the latest stable version; the next rc number follows the highest existing one.
+  if ((Get-NextVersion @('v0.51.2', 'v0.52.0-rc.1')) -ne 'v0.52.0') { 'FAIL: an rc tag changed the next stable version'; $bad++ }
+  if ((Get-NextRc 'v0.52.0' @('v0.51.2')) -ne 'v0.52.0-rc.1') { 'FAIL: first rc'; $bad++ }
+  if ((Get-NextRc 'v0.52.0' @('v0.52.0-rc.1', 'v0.52.0-rc.2', 'v0.53.0-rc.9')) -ne 'v0.52.0-rc.3') { 'FAIL: next rc'; $bad++ }
   # Guard: a space after a comma in a --json field list splits it into separate gh arguments.
   $src = Get-Content $PSCommandPath -Raw
   if ($src -match ('--' + 'json \S+, ')) { "FAIL: --json field list contains ', ' (no spaces after commas)"; $bad++ }
@@ -64,8 +76,12 @@ if ($Prs.Count) {
 # 2. Target
 git fetch origin main --tags --quiet; if ($LASTEXITCODE) { Fail 5 'git fetch failed' }
 $sha = (git rev-parse origin/main).Trim()
-if (-not $Version) { $Version = Get-NextVersion @(git tag --list 'v*') }
-if ($Version -notmatch '^v\d+\.\d+\.\d+$') { Fail 5 "bad version '$Version' (want vX.Y.Z)" }
+if ($Rc -and $Version) { Fail 5 'preflight: use either -Rc or -Version, not both' }
+if (-not $Version) {
+  $Version = Get-NextVersion @(git tag --list 'v*')
+  if ($Rc) { $Version = Get-NextRc $Version @(git tag --list 'v*') }
+}
+if ($Version -notmatch '^v\d+\.\d+\.\d+(-rc\.\d+)?$') { Fail 5 "bad version '$Version' (want vX.Y.Z or vX.Y.Z-rc.N)" }
 if (git tag --list $Version) { Fail 5 "tag $Version already exists locally" }
 git ls-remote --exit-code --tags origin "refs/tags/$Version" *> $null
 if ($LASTEXITCODE -eq 0) { Fail 5 "tag $Version already exists on origin" }

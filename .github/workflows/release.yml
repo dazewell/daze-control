@@ -30,8 +30,11 @@ jobs:
         shell: pwsh
         run: |
           $version = $env:GITHUB_REF_NAME -replace '^v', ''
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Tag $env:GITHUB_REF_NAME isn't v<major>.<minor>.<patch>." }
+          # v<major>.<minor>.<patch> is a release; v<major>.<minor>.<patch>-rc.<n> a release candidate (marked pre-release,
+          # so installed apps, which only follow stable releases, don't update to it).
+          if ($version -notmatch '^\d+\.\d+\.\d+(-rc\.\d+)?$') { throw "Tag $env:GITHUB_REF_NAME isn't v<major>.<minor>.<patch> or v<major>.<minor>.<patch>-rc.<n>." }
           "version=$version" >> $env:GITHUB_OUTPUT
+          "pre=$($version.Contains('-').ToString().ToLower())" >> $env:GITHUB_OUTPUT
 
       - name: Build and test
         run: |
@@ -71,4 +74,4 @@ jobs:
         run: >
           dotnet vpk upload github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
           -o artifacts/releases --tag v${{ steps.check.outputs.version }} --targetCommitish ${{ github.sha }}
-          --releaseName "Daze Control ${{ steps.check.outputs.version }}" --publish
+          --releaseName "Daze Control ${{ steps.check.outputs.version }}" --publish ${{ steps.check.outputs.pre == 'true' && '--pre' || '' }}

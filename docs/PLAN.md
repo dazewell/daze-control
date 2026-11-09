@@ -1,7 +1,7 @@
 # Plan
 
 ## Resume
-Current: M20 (scheduled and event triggers, input prompts; D-107) is merged: T20.1–T20.7 plus follow-ups T20.8–T20.10 (M20 section); not released yet (the user asked for a dev build to test, not a release). M12, M13, M14, M18, M19 are done except the live checks listed in their sections.
+Current: M20 (scheduled and event triggers, input prompts; D-107) is merged: T20.1–T20.7 plus follow-ups T20.8–T20.10 (M20 section); not released as stable yet: the user asked for a release candidate first (T20.13). M12, M13, M14, M18, M19 are done except the live checks listed in their sections.
 Next action: the user's live check of M20 with `scripts/dev-run.ps1` (T20.11), then fix what it finds; run T20.2's idle `measure.ps1` gate (stop the installed engine first). Also open: the M13 gate (UX acceptance list); DESIGN §1 B live run (changes the default audio device: ask the user). Cut a release only when the user asks.
 Workflow (D-079): PRs don't bump `<Version>`, merge with `gh pr merge --auto --merge`, keep their live state in the PR's `## Resume`, and don't edit this block.
 Notes for next agent:
@@ -139,6 +139,7 @@ One PR per task (D-079). T20.2 amends D-009 (done in D-107). `ifMissed` is set p
 - [x] T20.9 Fixes from the user's first real test (#148): `power.resume` also on Modern Standby (display/session back; classic resume kept; the schedule's missed-run re-arm uses the same signal); `NetworkSource` used a function that doesn't exist in iphlpapi, now `NotifyIpInterfaceChange`.
 - [x] T20.10 Post-merge Copilot review (#140–#143, #147, #148 merged without one): reviewed through review-only PRs #149–#151 (closed), valid findings fixed in #152 (duplicate schedules, backward clock jump, `only` on schedules, cooldown/debounce order, failed source load never retried, `ask` input saved without `onTimeout`, WLAN query, audio roles…).
 - [ ] T20.12 Network events per connection: a cable plugged in or out while Wi-Fi stays up fires (`via: wifi|cable`, `ssid:` on both events, editor Connection picker). (fix/network-per-connection) Live check: plug a cable with Wi-Fi up via `scripts/dev-run.ps1`.
+- [ ] T20.13 Release candidate (user, 2026-11-09): `cut-release.ps1 -Rc` tags v0.52.0-rc.1 (release.yml accepts `-rc.N` and marks it pre-release; installed apps follow stable only, so the RC is installed by hand from its Setup.exe). Feature-complete means T20.1–T20.12 on main; the stable v0.52.0 follows only after the T20.11 live checks pass or their fixes are released as rc.2…
 - [ ] T20.11 The user's live check on real hardware with `scripts/dev-run.ps1` (#153; dev config `%LOCALAPPDATA%\DazeControl\dev\config.yaml`): wake from Modern Standby runs the flow, Wi-Fi/network events, USB/audio/display events, a schedule after sleep (`ifMissed`), a prompt over a game or app without taking focus, the "When this runs" card and multi-event picker. Anything wrong becomes a `fix/` PR.
 - Rule learned (user, 2026-11-09): no PR with code merges before its Copilot review landed and every review thread is replied to AND resolved (repo-workflow); child sessions must turn on auto-fix themselves.
 
