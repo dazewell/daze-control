@@ -149,7 +149,7 @@ public sealed class PromptRunTests : IDisposable
         var result = await run;
 
         Assert.Equal(FlowOutcome.Cancelled, result.Outcome);
-        Assert.True(_presenter.TokenCancelled);
+        await _presenter.Cancelled.Task.WaitAsync(Hung, TestContext.Current.CancellationToken); // the runner doesn't wait for the window to close
     }
 
     [Fact]
@@ -293,7 +293,7 @@ public sealed class PromptRunTests : IDisposable
 
         public TaskCompletionSource Opened { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public bool TokenCancelled { get; private set; }
+        public TaskCompletionSource Cancelled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public List<MenuRequest> Shown { get; } = [];
 
@@ -310,7 +310,7 @@ public sealed class PromptRunTests : IDisposable
                 }
                 catch (OperationCanceledException)
                 {
-                    TokenCancelled = true;
+                    Cancelled.TrySetResult();
                     throw;
                 }
             }
