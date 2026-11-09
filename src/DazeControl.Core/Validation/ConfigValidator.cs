@@ -361,6 +361,8 @@ public static partial class ConfigValidator
                     EveryTrigger e when e.Interval < EveryTrigger.MinInterval => "An interval is at least a minute.",
                     EveryTrigger e when (e.From is null) != (e.To is null) || (e.From is not null && e.From == e.To) => "between needs two different times.",
                     ScheduleTrigger { Grace: { } g } when g < TimeSpan.Zero => "grace can't be negative.",
+                    { Only: { } only } when !string.IsNullOrWhiteSpace(only) && !TriggerText.IsCondition(only) =>
+                        $"only \"{only}\" isn't a condition I know ({string.Join(", ", TriggerText.Conditions)}).",
                     _ => null,
                 };
                 if (why is not null)

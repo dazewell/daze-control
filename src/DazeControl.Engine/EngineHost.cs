@@ -15,6 +15,7 @@ using DazeControl.Providers;
 using DazeControl.Providers.Basic;
 using DazeControl.Runtime.Providers;
 using DazeControl.Runtime.Tray;
+using DazeControl.Engine.Triggers;
 using DazeControl.Runtime.Triggers;
 using DazeControl.Core.Input;
 using Windows.Win32;
@@ -57,6 +58,7 @@ internal sealed class EngineHost : IDisposable
     private readonly ConfigHost _config;
     private readonly RunHistory _history;
     private readonly FlowLauncher _launcher;
+    private readonly TriggerService _triggers;
     private readonly EngineController _controller;
     private readonly DesktopShortcuts _shortcuts;
     private readonly PipeServer _pipe;
@@ -102,6 +104,9 @@ internal sealed class EngineHost : IDisposable
         var runner = new FlowRunner(stepProviders, TimeProvider.System, locks, events: OnRunEvent, probes: probes) { Flows = calls };
         _launcher = new FlowLauncher(runner, _history);
         calls.Launcher = _launcher;
+        // Event triggers (M20, D-107): sources load only while a flow subscribes; events are dropped while shortcuts are paused.
+        _triggers = new TriggerService([new SessionSource(_window), new PowerSource(_window)], _launcher, calls, TimeProvider.System,
+            () => _hotkeyTable.Paused, PowerCondition.All(), Log.Info);
         _launcher.RunCompleted += OnRunCompleted;
         _launcher.ListenerFailed += e => Log.Error("run: completion listener", e);
 
@@ -166,6 +171,7 @@ internal sealed class EngineHost : IDisposable
         foreach (var problem in snapshot.Problems)
             Log.Info($"config: {problem}");
         _hotkeyTable.Apply(snapshot.RunnableFlows);
+        _triggers.Apply(snapshot.RunnableFlows);
         foreach (var invalid in _hotkeyTable.Invalid)
             Log.Info($"hotkey: not a valid shortcut: {invalid}");
         Log.Info($"config: {snapshot.Flows.Count} flow(s), {snapshot.RunnableFlows.Count()} runnable, "
@@ -408,6 +414,7 @@ internal sealed class EngineHost : IDisposable
 
     public void Dispose()
     {
+        _triggers.Dispose();
         _gamepads.Dispose();
         _hotkeys.Dispose();
         _menu.Dispose();
