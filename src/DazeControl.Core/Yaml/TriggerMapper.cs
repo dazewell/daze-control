@@ -48,11 +48,11 @@ internal static class TriggerMapper
         if (d.On is not null)
         {
             var name = d.On.Trim();
-            if (name == EngineStartTrigger.Name)
-                return (new EngineStartTrigger { Only = only }, null);
             var ssid = string.IsNullOrWhiteSpace(d.Ssid) ? null : d.Ssid.Trim();
             if (ssid is not null && name != "network.connected")
                 return (null, "ssid only goes with network.connected.");
+            if (name == EngineStartTrigger.Name)
+                return (new EngineStartTrigger { Only = only }, null);
             return TriggerText.IsEvent(name)
                 ? (new EventTrigger(name) { Only = only, Ssid = ssid }, null)
                 : (null, $"\"{name}\" isn't an event I know ({string.Join(", ", TriggerText.Events)}, {EngineStartTrigger.Name}).");

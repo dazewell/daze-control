@@ -22,18 +22,19 @@ public sealed class NetworkTracker(Func<(bool Connected, string? Ssid)> read, Ac
     /// <summary>Called on every OS notification (any thread).</summary>
     public void Changed()
     {
-        (bool Connected, string? Ssid) now;
-        try
-        {
-            now = read();
-        }
-        catch (Exception e) when (e is not OutOfMemoryException)
-        {
-            return; // unknown: say nothing rather than guess
-        }
         TriggerEvent? e2 = null;
+        // The read happens under the lock, so concurrent notifications (and Reset) can't commit out of order.
         lock (_lock)
         {
+            (bool Connected, string? Ssid) now;
+            try
+            {
+                now = read();
+            }
+            catch (Exception e) when (e is not OutOfMemoryException)
+            {
+                return; // unknown: say nothing rather than guess
+            }
             var was = _connected;
             var wasSsid = _ssid;
             (_connected, _ssid) = (now.Connected, now.Connected ? now.Ssid : null);

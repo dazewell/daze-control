@@ -44,6 +44,15 @@ internal sealed unsafe partial class PowerSource : ITriggerSource
         if (_registration == 0)
             throw new InvalidOperationException($"RegisterPowerSettingNotification failed: {Marshal.GetLastPInvokeError()}");
         _resume.Resumed += OnResumed;
+        try
+        {
+            _resume.Retain(this);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            // Without the display-state signal only classic resume works; the AC/battery triggers still do.
+            _ = e; // fail-soft
+        }
         _started = true;
     }
 
@@ -55,6 +64,7 @@ internal sealed unsafe partial class PowerSource : ITriggerSource
             return;
         _started = false;
         _resume.Resumed -= OnResumed;
+        _resume.Release(this);
         if (_registration != 0)
             _ = UnregisterPowerSettingNotification(_registration);
         _registration = 0;
@@ -111,6 +121,7 @@ internal sealed unsafe partial class ResumeMonitor : IDisposable
 
     private readonly MessageWindow _window;
     private readonly ResumeDetector _detector;
+    private readonly HashSet<object> _owners = [];
     private nint _registration;
 
     public ResumeMonitor(MessageWindow window)
@@ -123,16 +134,43 @@ internal sealed unsafe partial class ResumeMonitor : IDisposable
     /// <summary>Raised on the message-loop thread once per wake-up.</summary>
     public event Action? Resumed;
 
-    /// <summary>Registers the display-state notification. Fail-soft: without it only classic resume works.</summary>
-    public void Start()
+    /// <summary>
+    /// An owner (the power source, the schedules) needs the signal: the first one registers the display-state
+    /// notification. Fail-soft: without it only classic resume works. Nobody needs it = nothing registered.
+    /// </summary>
+    public void Retain(object owner)
     {
-        var guid = ConsoleDisplayState;
-        _registration = RegisterPowerSettingNotification(_window.Handle, &guid, 0 /* DEVICE_NOTIFY_WINDOW_HANDLE */);
-        if (_registration == 0)
-            throw new InvalidOperationException($"RegisterPowerSettingNotification (display state) failed: {Marshal.GetLastPInvokeError()}");
+        lock (_owners)
+        {
+            if (!_owners.Add(owner) || _owners.Count > 1 || _registration != 0)
+                return;
+            var guid = ConsoleDisplayState;
+            _registration = RegisterPowerSettingNotification(_window.Handle, &guid, 0 /* DEVICE_NOTIFY_WINDOW_HANDLE */);
+            if (_registration == 0)
+                throw new InvalidOperationException($"RegisterPowerSettingNotification (display state) failed: {Marshal.GetLastPInvokeError()}");
+        }
+    }
+
+    /// <summary>The owner no longer needs it; the last one out unregisters.</summary>
+    public void Release(object owner)
+    {
+        lock (_owners)
+        {
+            if (_owners.Remove(owner) && _owners.Count == 0)
+                Unregister();
+        }
     }
 
     public void Dispose()
+    {
+        lock (_owners)
+        {
+            _owners.Clear();
+            Unregister();
+        }
+    }
+
+    private void Unregister()
     {
         if (_registration != 0)
             _ = UnregisterPowerSettingNotification(_registration);

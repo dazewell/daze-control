@@ -78,12 +78,12 @@ internal sealed unsafe partial class NetworkSource : ITriggerSource
                 {
                     // WLAN_INTERFACE_INFO_LIST: dwNumberOfItems, dwIndex, then 532-byte items: GUID, description[256], state.
                     var item = (byte*)list + 8 + i * 532;
-                    if (WlanQueryInterface(client, (Guid*)item, 7 /* current_connection */, 0, out _, out var data, 0) != 0)
+                    if (WlanQueryInterface(client, (Guid*)item, 7 /* wlan_intf_opcode_current_connection */, 0, out var size, out var data, 0) != 0)
                         continue;
                     try
                     {
                         // WLAN_CONNECTION_ATTRIBUTES: state, mode, profile[256], then the association's DOT11_SSID.
-                        var length = *(uint*)((byte*)data + 520);
+                        var length = size >= 556 ? *(uint*)((byte*)data + 520) : 0; // 524 + the 32-byte SSID
                         if (length is > 0 and <= 32)
                             return System.Text.Encoding.UTF8.GetString((byte*)data + 524, (int)length);
                     }

@@ -45,6 +45,18 @@ public class PromptTests
     private static string[] Errors(string yaml) => [.. Problems(yaml).Where(p => p.Severity == Severity.Error).Select(p => p.Path)];
 
     [Fact]
+    public void AnAskedInputWithoutOnTimeoutSavesAndRoundTrips()
+    {
+        var load = ConfigYaml.Load(AskFlow("{ kind: audio, default: technics, ask: true }"));
+        Assert.Empty(load.Problems);
+
+        var saved = ConfigYaml.Save(load.Config!);
+
+        Assert.DoesNotContain("onTimeout", saved, StringComparison.Ordinal);
+        Assert.Equal(load.Config!.Flows[0].Inputs["output"], ConfigYaml.Load(saved).Config!.Flows[0].Inputs["output"]);
+    }
+
+    [Fact]
     public void AnAskedInputReadsAndSavesItsPromptSettings()
     {
         var load = ConfigYaml.Load(AskFlow());

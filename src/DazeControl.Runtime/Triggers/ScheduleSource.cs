@@ -23,7 +23,7 @@ public sealed class ScheduleSource(TimeProvider time, Action<string, string> fir
     private const int MaxSteps = 100_000;
 
     private readonly Lock _lock = new();
-    private readonly Dictionary<(string FlowId, ScheduleTrigger Rule), Rule> _rules = [];
+    private readonly Dictionary<(string FlowId, int Index), Rule> _rules = [];
     private ITimer? _timer;
     private bool _disposed;
 
@@ -55,13 +55,16 @@ public sealed class ScheduleSource(TimeProvider time, Action<string, string> fir
         {
             if (_disposed)
                 return;
-            var next = new Dictionary<(string, ScheduleTrigger), Rule>();
+            var next = new Dictionary<(string, int), Rule>();
             foreach (var flow in flows)
             {
-                foreach (var rule in flow.Triggers.OfType<ScheduleTrigger>().Where(TriggerText.IsValidSchedule)) // the validator calls the others ignored
+                // Keyed by the trigger's index: identical entries stay separate rules (the validator keeps them runnable).
+                for (var i = 0; i < flow.Triggers.Count; i++)
                 {
-                    var key = (flow.Id, rule);
-                    next[key] = _rules.TryGetValue(key, out var kept) ? kept : Compute(new Rule(flow.Id, flow.Name, rule, now), now);
+                    if (flow.Triggers[i] is not ScheduleTrigger rule || !TriggerText.IsValidSchedule(rule)) // the validator calls the others ignored; `only` on a schedule is one of them
+                        continue;
+                    var key = (flow.Id, i);
+                    next[key] = _rules.TryGetValue(key, out var kept) && kept.Trigger == rule ? kept : Compute(new Rule(flow.Id, flow.Name, rule, now), now);
                 }
             }
             _rules.Clear();
@@ -99,9 +102,8 @@ public sealed class ScheduleSource(TimeProvider time, Action<string, string> fir
                     continue;
                 if (now < rule.Cursor)
                 {
-                    // The clock went back: due times already passed in the new timeline stay passed.
-                    rule.Cursor = now;
-                    Compute(rule, now);
+                    // The clock went back: what was handled stays handled. The cursor and the next due time (always after
+                    // it) are kept, so an occurrence that already ran doesn't run again when the clock passes it.
                     continue;
                 }
                 if (rule.Next is not { } next || next > now)

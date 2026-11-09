@@ -33,8 +33,8 @@ public sealed class TriggerService : IDisposable
     private readonly CancellationTokenSource _closed = new();
     private readonly Lock _lock = new();
     private readonly HashSet<Task> _inFlight = [];
-    private readonly Dictionary<string, long> _lastEvent = [];
-    private readonly Dictionary<(string Flow, int Index), long> _lastStart = [];
+    private readonly Dictionary<(string Name, string? Detail), long> _lastEvent = [];
+    private readonly Dictionary<Subscription, long> _lastStart = [];
     private readonly HashSet<ITriggerSource> _started = [];
 
     private Dictionary<string, List<Subscription>> _byEvent = [];
@@ -109,15 +109,23 @@ public sealed class TriggerService : IDisposable
                 else if (!wanted && _started.Remove(source))
                     toStop.Add(source);
             }
-            // A cooldown belongs to a trigger that still exists.
-            foreach (var key in _lastStart.Keys.Where(k => !table.Values.Any(l => l.Any(s => s.FlowId == k.Flow && s.Index == k.Index))).ToList())
+            // A cooldown belongs to a trigger that still exists, unchanged (a replaced trigger at the same index starts fresh).
+            var live = table.Values.SelectMany(l => l).ToHashSet();
+            foreach (var key in _lastStart.Keys.Where(k => !live.Contains(k)).ToList())
                 _lastStart.Remove(key);
         }
         // Outside the lock: a source may raise from inside Start/Stop.
         foreach (var source in toStop)
             Guarded(source, "stop", source.Unload);
         foreach (var source in toStart)
-            Guarded(source, "start", source.Load);
+        {
+            if (Guarded(source, "start", source.Load))
+                continue;
+            // A failed Load isn't running: forget it so the next Apply retries, and release whatever it half-registered.
+            lock (_lock)
+                _started.Remove(source);
+            Guarded(source, "stop", source.Unload);
+        }
     }
 
     /// <summary>Feeds an event in, as a source's <see cref="ITriggerSource.Raised"/> does.</summary>
@@ -132,8 +140,10 @@ public sealed class TriggerService : IDisposable
             if (_paused())
                 return;
             var now = _time.GetTimestamp();
-            var seen = _lastEvent.TryGetValue(e.Name, out var last);
-            _lastEvent[e.Name] = now;
+            // Debounce per name and detail: a connection to another Wi-Fi doesn't swallow the one a trigger waits for.
+            var debounceKey = (e.Name, e.Detail);
+            var seen = _lastEvent.TryGetValue(debounceKey, out var last);
+            _lastEvent[debounceKey] = now;
             if (seen && _time.GetElapsedTime(last, now) < _options.Debounce)
                 return;
             matches = [];
@@ -142,10 +152,8 @@ public sealed class TriggerService : IDisposable
                 // A Wi-Fi name on the trigger narrows network.connected; a name the source couldn't read matches none.
                 if (subscription.Trigger.Ssid is { } ssid && !string.Equals(ssid, e.Detail, StringComparison.OrdinalIgnoreCase))
                     continue;
-                var key = (subscription.FlowId, subscription.Index);
-                if (_lastStart.TryGetValue(key, out var started) && _time.GetElapsedTime(started, now) < _options.Cooldown)
+                if (InCooldown(subscription, now))
                     continue;
-                _lastStart[key] = now;
                 matches.Add(subscription);
             }
         }
@@ -235,6 +243,15 @@ public sealed class TriggerService : IDisposable
                 _log($"trigger: {flowId}: {e.Name} not started: {loop}");
                 return;
             }
+            // Admitted: reserve the cooldown now (atomically: a concurrent event for the same trigger loses), not before the
+            // condition, flow and chain checks, so an event that started nothing doesn't eat the cooldown.
+            lock (_lock)
+            {
+                var now = _time.GetTimestamp();
+                if (InCooldown(subscription, now))
+                    return;
+                _lastStart[subscription] = now;
+            }
             var text = TriggerText.Describe(subscription.Trigger);
             // The launcher applies whenRunning; this doesn't wait for the run, only observes a fault.
             var run = _launcher.TriggerAsync(flow, called.Library, text, chain);
@@ -247,16 +264,22 @@ public sealed class TriggerService : IDisposable
         }
     }
 
-    private void Guarded(ITriggerSource source, string what, Action action)
+    /// <summary>Under the lock.</summary>
+    private bool InCooldown(Subscription subscription, long now) =>
+        _lastStart.TryGetValue(subscription, out var started) && _time.GetElapsedTime(started, now) < _options.Cooldown;
+
+    private bool Guarded(ITriggerSource source, string what, Action action)
     {
         try
         {
             action();
+            return true;
         }
         catch (Exception failure) when (failure is not OutOfMemoryException)
         {
             // One source's failure disables only itself (D-021).
             _log($"trigger: {source.GetType().Name} {what} failed: {failure.Message}");
+            return false;
         }
     }
 

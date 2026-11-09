@@ -61,6 +61,7 @@ internal sealed class EngineHost : IDisposable
     private readonly TriggerService _triggers;
     private readonly EngineController _controller;
     private readonly ScheduleSource _schedules;
+    private readonly ResumeMonitor _resume;
     private readonly DesktopShortcuts _shortcuts;
     private readonly PipeServer _pipe;
     private readonly string _editorPath = Path.Combine(AppContext.BaseDirectory, "DazeControl.Editor.exe");
@@ -111,7 +112,7 @@ internal sealed class EngineHost : IDisposable
         calls.Launcher = _launcher;
         _launcher.StartPrompts = new InputPrompts(menus);
         // Event triggers (M20, D-107): sources load only while a flow subscribes; events are dropped while shortcuts are paused.
-        var resume = new ResumeMonitor(_window);
+        var resume = _resume = new ResumeMonitor(_window);
         _triggers = new TriggerService([new SessionSource(_window), new PowerSource(_window, resume), new DeviceSource(), new AudioSource(), new DisplaySource(_window), new NetworkSource()], _launcher, calls, TimeProvider.System,
             () => _hotkeyTable.Paused, PowerCondition.All(), Log.Info);
         _launcher.RunCompleted += OnRunCompleted;
@@ -141,14 +142,6 @@ internal sealed class EngineHost : IDisposable
                 _schedules.Rearm();
             return false;
         });
-        try
-        {
-            resume.Start();
-        }
-        catch (Exception e) when (e is not OutOfMemoryException)
-        {
-            Log.Error("ResumeMonitor start failed (only classic resume works)", e);
-        }
         _pipe = new PipeServer(Protocol.CurrentPipeName(), _controller.HandleAsync, (what, e) => Log.Error(what, e));
         _pipe.Start();
         Apply(_config.Current);
@@ -198,6 +191,18 @@ internal sealed class EngineHost : IDisposable
         _hotkeyTable.Apply(snapshot.RunnableFlows);
         _triggers.Apply(snapshot.RunnableFlows);
         _schedules.Apply(snapshot.RunnableFlows);
+        // The wake-up signal is registered only while something needs it: schedules here, power.resume in PowerSource.
+        try
+        {
+            if (_schedules.Count > 0)
+                _resume.Retain(_schedules);
+            else
+                _resume.Release(_schedules);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            Log.Error("ResumeMonitor start failed (only classic resume works)", e);
+        }
         foreach (var invalid in _hotkeyTable.Invalid)
             Log.Info($"hotkey: not a valid shortcut: {invalid}");
         Log.Info($"config: {snapshot.Flows.Count} flow(s), {snapshot.RunnableFlows.Count()} runnable, "
@@ -441,6 +446,7 @@ internal sealed class EngineHost : IDisposable
     public void Dispose()
     {
         _triggers.Dispose();
+        _resume.Dispose();
         _gamepads.Dispose();
         _hotkeys.Dispose();
         _menu.Dispose();

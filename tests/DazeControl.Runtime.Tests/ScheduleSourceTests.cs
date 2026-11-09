@@ -140,6 +140,33 @@ public sealed class ScheduleSourceTests : IDisposable
     }
 
     [Fact]
+    public void ClockMovedBackAfterARunDoesNotRunItAgain()
+    {
+        using var source = Source();
+        source.Apply([FlowWith("a", At("22:30"))]);
+        _clock.Advance(TimeSpan.FromMinutes(30)); // 22:30 runs
+        Assert.Single(_fired);
+
+        _clock.Jump(TimeSpan.FromMinutes(-45)); // 21:45
+        source.Rearm();
+        _clock.Jump(TimeSpan.FromMinutes(50)); // 22:35, past the occurrence that already ran
+        source.Rearm();
+
+        Assert.Single(_fired);
+    }
+
+    [Fact]
+    public void IdenticalScheduleEntriesAreSeparateRules()
+    {
+        using var source = Source();
+        source.Apply([FlowWith("a", At("22:30"), At("22:30"))]);
+
+        Assert.Equal(2, source.Count);
+        _clock.Advance(TimeSpan.FromMinutes(30));
+        Assert.Equal(2, _fired.Count);
+    }
+
+    [Fact]
     public void OnceInThePastNeverFires()
     {
         using var source = Source();

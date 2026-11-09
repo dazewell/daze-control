@@ -212,6 +212,74 @@ public sealed class TriggerServiceTests : IDisposable
     }
 
     [Fact]
+    public void AFailedLoadIsRetriedOnTheNextApply()
+    {
+        _session.Throws = true;
+        using var service = Service();
+        var flows = new[] { On("f", "session.unlock") };
+
+        service.Apply(flows);
+        Assert.Equal(0, service.RunningSources);
+
+        _session.Throws = false;
+        service.Apply(flows);
+
+        Assert.Equal(2, _session.Loads);
+        Assert.Equal(1, service.RunningSources);
+    }
+
+    [Fact]
+    public async Task AnEventThatStartedNothingDoesNotEatTheCooldown()
+    {
+        using var service = Service(new TriggerOptions(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5)));
+        service.Apply([On("f", "power.battery", only: "onBattery")]);
+
+        _onBattery.Value = false;
+        _power.Raise("power.battery");
+        await SettleAsync(service);
+        Assert.Empty(_provider.Attempts);
+
+        _onBattery.Value = true;
+        _time.Advance(TimeSpan.FromSeconds(5)); // past the debounce, inside the cooldown a start would have set
+        _power.Raise("power.battery");
+        await _provider.Started("a");
+        await SettleAsync(service);
+        Assert.Single(_provider.Attempts);
+    }
+
+    [Fact]
+    public async Task AReplacedTriggerAtTheSameIndexStartsWithoutACooldown()
+    {
+        using var service = Service(new TriggerOptions(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5)));
+        service.Apply([On("f", "session.unlock")]);
+        _session.Raise("session.unlock");
+        await _provider.Started("a");
+        await SettleAsync(service);
+
+        service.Apply([On("f", "session.lock")]); // the same flow and index, a different trigger
+        _time.Advance(TimeSpan.FromSeconds(5));
+        _session.Raise("session.lock");
+        await _provider.Started("a");
+        await SettleAsync(service);
+
+        Assert.Equal(2, _provider.Attempts.Count);
+    }
+
+    [Fact]
+    public async Task AnotherWifiDoesNotSwallowTheOneATriggerWaitsFor()
+    {
+        using var service = Service();
+        service.Apply([On("home", "network.connected", ssid: "Home")]);
+
+        _network.Raise("network.connected", detail: "Office");
+        _network.Raise("network.connected", detail: "Home"); // inside the debounce of Office's event
+        await _provider.Started("a");
+        await SettleAsync(service);
+
+        Assert.Single(_provider.Attempts);
+    }
+
+    [Fact]
     public async Task ACooldownHoldsTheTriggerBack()
     {
         using var service = Service(new TriggerOptions(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5)));
