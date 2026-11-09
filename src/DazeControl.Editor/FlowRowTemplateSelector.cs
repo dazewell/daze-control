@@ -28,6 +28,10 @@ internal static class RowFormat
     /// <summary>A slot icon: laid out always, visible only when the fact holds (so rows keep their columns).</summary>
     public static double Show(bool on) => on ? 1 : 0;
 
+    /// <summary>A chip that says something (a schedule, an event) is in the screen reader's tree only while it shows.</summary>
+    public static Microsoft.UI.Xaml.Automation.Peers.AccessibilityView View(bool on) =>
+        on ? Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Content : Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw;
+
     /// <summary>The drag grip shows while the pointer is over a row that can be dragged.</summary>
     public static double Grip(bool hovered, bool canReorder) => hovered && canReorder ? 0.7 : 0;
 

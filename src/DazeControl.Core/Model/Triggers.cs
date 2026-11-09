@@ -54,6 +54,9 @@ public sealed record AtTrigger(TimeOnly Time, Days Days) : ScheduleTrigger;
 public sealed record EveryTrigger(TimeSpan Interval, TimeOnly? From = null, TimeOnly? To = null) : ScheduleTrigger
 {
     public static readonly TimeSpan MinInterval = TimeSpan.FromMinutes(1);
+
+    /// <summary>Unwindowed intervals restart at each midnight, so a longer one would never come due.</summary>
+    public static readonly TimeSpan MaxInterval = TimeSpan.FromHours(24);
 }
 
 /// <summary><c>once: "2026-12-01 09:30"</c>, local time.</summary>

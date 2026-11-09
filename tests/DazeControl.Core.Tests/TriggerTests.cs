@@ -17,7 +17,7 @@ public class TriggerTests
             "      - { at: \"22:30\", days: weekdays }",
             "      - { at: \"07:15\" }",
             "      - { at: \"09:00\", days: [mon, wed, sat], ifMissed: skip, grace: 5m }",
-            "      - { every: 2h, between: [\"09:00\", \"18:00\"], only: onBattery }",
+            "      - { every: 2h, between: [\"09:00\", \"18:00\"] }",
             "      - { every: 30m }",
             "      - { once: \"2026-12-01 09:30\", ifMissed: run, grace: 1h }",
             "      - { on: engine.start }",
@@ -30,7 +30,7 @@ public class TriggerTests
         Assert.Equal(new AtTrigger(new(22, 30), Days.Weekdays), flow.Triggers[0]);
         Assert.Equal(new AtTrigger(new(7, 15), Days.Daily), flow.Triggers[1]);
         Assert.Equal(new AtTrigger(new(9, 0), Days.Mon | Days.Wed | Days.Sat) { IfMissed = IfMissed.Skip, Grace = TimeSpan.FromMinutes(5) }, flow.Triggers[2]);
-        Assert.Equal(new EveryTrigger(TimeSpan.FromHours(2), new(9, 0), new(18, 0)) { Only = "onBattery" }, flow.Triggers[3]);
+        Assert.Equal(new EveryTrigger(TimeSpan.FromHours(2), new(9, 0), new(18, 0)), flow.Triggers[3]);
         Assert.IsType<EngineStartTrigger>(flow.Triggers[6]);
         Assert.Equal(new EventTrigger("session.unlock") { Only = "onBattery" }, flow.Triggers[7]);
 
@@ -66,6 +66,9 @@ public class TriggerTests
     [InlineData("{ at: \"22:30\", ifMissed: maybe }")]
     [InlineData("{ at: \"22:30\", grace: soon }")]
     [InlineData("{ every: 10s }")]
+    [InlineData("{ every: 25h }")]
+    [InlineData("{ at: \"22:30\", only: onBattery }")]
+    [InlineData("{ every: 2h, only: onAC }")]
     [InlineData("{ every: 2h, between: [\"09:00\"] }")]
     [InlineData("{ every: 2h, between: [\"09:00\", \"09:00\"] }")]
     [InlineData("{ between: [\"09:00\", \"18:00\"] }")]
@@ -91,11 +94,11 @@ public class TriggerTests
     {
         var flow = new Flow("f", "f", [])
         {
-            Triggers = [new EventTrigger("nope"), new EveryTrigger(TimeSpan.FromSeconds(5)), new AtTrigger(new(1, 0), Days.None),
+            Triggers = [new EventTrigger("nope"), new EveryTrigger(TimeSpan.FromSeconds(5)), new EveryTrigger(TimeSpan.FromHours(25)), new AtTrigger(new(2, 0), Days.Daily) { Only = "onAC" }, new AtTrigger(new(1, 0), Days.None),
                 new EventTrigger("session.lock"), new EventTrigger("session.lock")],
         };
         var problems = ConfigValidator.Validate(new Configuration { Flows = [flow] }).Where(p => p.Path.Contains("triggers", StringComparison.Ordinal)).ToList();
-        Assert.Equal(4, problems.Count);
+        Assert.Equal(6, problems.Count);
         Assert.All(problems, p => Assert.Equal(Severity.Warning, p.Severity));
     }
 
