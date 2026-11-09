@@ -81,6 +81,33 @@ public static class TriggerText
         "network.connected", "network.disconnected",
     ];
 
+    /// <summary>
+    /// What a trigger's <c>only</c> may say (T20.3): context-free machine conditions the runtime reads when the
+    /// trigger fires. A step's "Only if" needs a step's device or program, a trigger has none, so these stand alone.
+    /// </summary>
+    public static readonly IReadOnlyList<string> Conditions = ["onBattery", "onAC"];
+
+    public static bool IsCondition(string? name) => name is not null && Conditions.Contains(name);
+
+    /// <summary>History wording of an event: "Event · PC unlocked".</summary>
+    public static string EventLabel(string name) => name switch
+    {
+        "session.lock" => "PC locked",
+        "session.unlock" => "PC unlocked",
+        "session.logon" => "signed in",
+        "session.logoff" => "signed out",
+        "power.resume" => "PC woke up",
+        "power.ac" => "plugged in",
+        "power.battery" => "on battery",
+        "device.added" => "device connected",
+        "device.removed" => "device disconnected",
+        "audio.default-changed" => "default sound device changed",
+        "display.changed" => "screens changed",
+        "network.connected" => "network connected",
+        "network.disconnected" => "network disconnected",
+        _ => name,
+    };
+
     private static readonly string[] ShortDays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
     private static readonly string[] LongDays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -149,14 +176,14 @@ public static class TriggerText
 
     public static bool IsEvent(string? name) => name is not null && Events.Contains(name);
 
-    /// <summary>Human text for history and the editor: "Schedule · 22:30", "Event · session.unlock".</summary>
+    /// <summary>Human text for history and the editor: "Schedule · 22:30", "Event · PC unlocked".</summary>
     public static string Describe(Trigger trigger) => trigger switch
     {
         AtTrigger at => $"Schedule · {FormatTime(at.Time)}",
         EveryTrigger every => $"Schedule · every {Duration.Format(every.Interval)}",
         OnceTrigger once => $"Schedule · {FormatDateTime(once.When)}",
         EngineStartTrigger => "Event · engine start",
-        EventTrigger e => "Event · " + e.Name,
+        EventTrigger e => "Event · " + EventLabel(e.Name),
         _ => "Trigger",
     };
 }

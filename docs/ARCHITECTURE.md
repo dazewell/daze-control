@@ -489,6 +489,8 @@ Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 i
 | 2026-11-04 | same | menu open 25 s, no pad awake (XInput lists none): reader thread parked, 15 threads | 19.5 | 41.9 | 0 (20 s) |
 | 2026-11-04 | same | 30 s after the menu closed (log: `gamepad: reading stopped`): no pad thread | 9.0 | 27.8 | 0 (25 s) |
 
+| not run | T20.3 (session + power sources) | `measure.ps1` couldn't run: the installed engine holds the pipe. Expected: no event trigger = no source loaded; with one, a WTS / power-setting registration on the existing window, no thread, no timer | - | - | - |
+
 | 2026-11-02 | 4328146 (M10 gate, Release AOT, exe 11.6 MB with Velopack) | no config, not installed (no update checks), 5 threads | 5.4 | 21.7 | 0 (600 s) |
 
 | 2026-11-04 | T12.1 probe (`spikes/GamepadProbe xi`, AOT exe 1.5 MB, not the engine) | XInput reader + device-interface and suspend/resume notifications, no XInput pad (Steam Controller puck present), 7 threads | 5.4 | 15.8 | 0 (600 s; 22.7 M cycles); an earlier run 16 (one tick) |

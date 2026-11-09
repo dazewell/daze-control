@@ -1401,3 +1401,8 @@ Status: accepted (user answers to docs/triggers/DESIGN.md §7, 2026-11-08)
 - Why: 0 CPU between runs and no OS objects to clean; prompts keep "never activates" (D-055).
 - Why not Task Scheduler: leaves OS tasks and rebuilds pause/history/`whenRunning` outside the engine; revisit if waking the PC is wanted.
 - Why not program start/stop events: needs WMI (X-011) or ETW (admin).
+- T20.3: a trigger has no step, so M14 fact probes (they read a step's device or program) can't answer its `only`. `only` is
+  a small context-free list (`TriggerText.Conditions`: `onBattery`, `onAC`; `GetSystemPowerStatus` when it fires); unknown
+  ids warn (trigger ignored), a condition that can't be read lets the trigger fire (as D-081). Debounce is a timestamp
+  compare from the latest event (2 s), cooldown per trigger (10 s), both without timers; an event whose `chain` holds the
+  flow is refused by `FlowCalls.Guard`. Sources `Load`/`Unload` on the message window, registered only while subscribed.

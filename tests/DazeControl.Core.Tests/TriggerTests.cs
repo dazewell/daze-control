@@ -117,4 +117,23 @@ public class TriggerTests
         Assert.All(TriggerText.Events, e => Assert.True(TriggerText.IsEvent(e)));
         Assert.False(TriggerText.IsEvent("window.opened"));
     }
+
+    [Fact]
+    public void OnlyMustBeAKnownCondition()
+    {
+        var flow = new Flow("f", "f", [])
+        {
+            Triggers = [new EventTrigger("session.lock") { Only = "onBattery" }, new EventTrigger("session.unlock") { Only = "onFire" }],
+        };
+        var problem = Assert.Single(ConfigValidator.Validate(new Configuration { Flows = [flow] }), p => p.Path.Contains("triggers", StringComparison.Ordinal));
+        Assert.Equal(Severity.Warning, problem.Severity);
+        Assert.Contains("onFire", problem.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EventsReadAsWordsInHistory()
+    {
+        Assert.Equal("Event · PC unlocked", TriggerText.Describe(new EventTrigger("session.unlock")));
+        Assert.All(TriggerText.Events, e => Assert.NotEqual(e, TriggerText.EventLabel(e)));
+    }
 }
