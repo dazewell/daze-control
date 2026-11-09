@@ -78,7 +78,7 @@ internal sealed unsafe partial class NetworkSource : ITriggerSource
                 {
                     // WLAN_INTERFACE_INFO_LIST: dwNumberOfItems, dwIndex, then 532-byte items: GUID, description[256], state.
                     var item = (byte*)list + 8 + i * 532;
-                    if (WlanQueryInterface(client, (Guid*)item, 7 /* wlan_intf_opcode_current_connection */, 0, out var size, out var data, 0) != 0)
+                    if (WlanQueryInterface(client, (Guid*)item, 7 /* wlan_intf_opcode_current_connection */, 0, out var size, out var data, out _) != 0)
                         continue;
                     try
                     {
@@ -140,11 +140,11 @@ internal sealed unsafe partial class NetworkSource : ITriggerSource
     [LibraryImport("wlanapi.dll")]
     private static partial uint WlanEnumInterfaces(nint client, nint reserved, out nint list);
 
-    // The last parameter is a pointer (PWLAN_OPCODE_VALUE_TYPE*, optional), not an int: a 32-bit argument in a 64-bit slot
-    // leaves garbage in the upper half, and wlanapi writes through it when the query succeeds (the engine crashed with an
+    // The last parameter is a pointer (PWLAN_OPCODE_VALUE_TYPE*): declared as an int, the 64-bit slot
+    // held garbage in its upper half and wlanapi wrote through it (the engine crashed with an
     // access violation in wlanapi.dll on the first network change while on Wi-Fi, 2026-11-08).
     [LibraryImport("wlanapi.dll")]
-    private static partial uint WlanQueryInterface(nint client, Guid* interfaceGuid, int opcode, nint reserved, out uint size, out nint data, nint valueType);
+    private static partial uint WlanQueryInterface(nint client, Guid* interfaceGuid, int opcode, nint reserved, out uint size, out nint data, out int valueType);
 
     [LibraryImport("wlanapi.dll")]
     private static partial void WlanFreeMemory(nint memory);
