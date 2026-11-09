@@ -38,6 +38,8 @@ The engine keeps running after you start it and locks its exe → stop it before
 `pwsh scripts/stop.ps1`. Start the published engine in the background (`Start-Process`), never with a
 blocking call.
 
+Try a checkout on the user's PC: `pwsh scripts/dev-run.ps1` stops the running engine, builds this worktree and runs it on the fixed dev config `%LOCALAPPDATA%\DazeControl\dev\config.yaml` (seeded once from `samples/dev-config.yaml`; `-NoEditor`, `-ResetConfig`); `pwsh scripts/dev-run.ps1 -Restore` brings the installed app back.
+
 ## Measuring the footprint (gates M0, M3, M10)
 
 ```powershell
