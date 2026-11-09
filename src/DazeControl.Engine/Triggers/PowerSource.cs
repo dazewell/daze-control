@@ -147,7 +147,10 @@ internal sealed unsafe partial class ResumeMonitor : IDisposable
             var guid = ConsoleDisplayState;
             _registration = RegisterPowerSettingNotification(_window.Handle, &guid, 0 /* DEVICE_NOTIFY_WINDOW_HANDLE */);
             if (_registration == 0)
+            {
+                _owners.Remove(owner); // so the next Retain tries again
                 throw new InvalidOperationException($"RegisterPowerSettingNotification (display state) failed: {Marshal.GetLastPInvokeError()}");
+            }
         }
     }
 

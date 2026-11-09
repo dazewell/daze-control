@@ -201,7 +201,7 @@ internal sealed class EngineHost : IDisposable
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
-            Log.Error("ResumeMonitor start failed (only classic resume works)", e);
+            Log.Error("ResumeMonitor retain/release failed (only classic resume works)", e);
         }
         foreach (var invalid in _hotkeyTable.Invalid)
             Log.Info($"hotkey: not a valid shortcut: {invalid}");
