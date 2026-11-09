@@ -4,17 +4,20 @@
 #   pwsh scripts/dev-run.ps1 -NoEditor    engine only
 #   pwsh scripts/dev-run.ps1 -Restore     stop the dev engine/editor and start the installed app again
 #   pwsh scripts/dev-run.ps1 -ResetConfig overwrite the dev config with samples/dev-config.yaml
-# The dev config lives outside the repo: %LOCALAPPDATA%\DazeControl\dev\config.yaml. It is copied from
-# samples/dev-config.yaml once and then left alone, so edits you make in the editor stay across runs.
+# The dev config lives at a fixed place outside the repo: %LOCALAPPDATA%\DazeControl\dev\config.yaml. It is
+# copied from samples/dev-config.yaml once and then left alone, so edits you make in the editor stay across runs.
 # Logs and history are shared with the installed engine (%LOCALAPPDATA%\DazeControl).
+# The editor is started here on the dev config. The dev engine's own tray "Open editor" stays off on purpose:
+# it would open your real config.
+# If the build fails after the installed app was stopped, the installed app is started again.
 param(
     [switch]$NoEditor,
     [switch]$Restore,
-    [switch]$ResetConfig,
-    [string]$Config = (Join-Path $env:LOCALAPPDATA 'DazeControl\dev\config.yaml')
+    [switch]$ResetConfig
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
+$config = Join-Path $env:LOCALAPPDATA 'DazeControl\dev\config.yaml'
 $installed = Join-Path $env:LOCALAPPDATA 'DazeControlApp\current\DazeControl.exe'
 $engineExe = Join-Path $repo 'artifacts\engine\DazeControl.exe'
 $dctl = Join-Path $repo 'artifacts\cli\dctl.exe'
@@ -22,9 +25,27 @@ $editorExe = Join-Path $repo 'src\DazeControl.Editor\bin\Debug\net10.0-windows10
 
 function Stop-Editors {
     # Only editors started on the dev config; other checkouts' editors on other files are left alone.
-    Get-CimInstance Win32_Process -Filter "Name = 'DazeControl.Editor.exe'" |
-        Where-Object { $_.CommandLine -and $_.CommandLine -like "*$Config*" } |
-        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    # Closed through the window first so the editor flushes pending edits; killed only if it doesn't exit.
+    $ids = @(Get-CimInstance Win32_Process -Filter "Name = 'DazeControl.Editor.exe'" |
+        Where-Object { $_.CommandLine -and $_.CommandLine -like "*$config*" } | ForEach-Object { $_.ProcessId })
+    foreach ($id in $ids) {
+        $p = Get-Process -Id $id -ErrorAction SilentlyContinue
+        if (-not $p) { continue }
+        [void]$p.CloseMainWindow()
+        if (-not $p.WaitForExit(8000)) {
+            Write-Host "dev-run: editor pid $id didn't close, killing it" -ForegroundColor Yellow
+            Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Start-Installed {
+    if (Test-Path $installed) {
+        Start-Process $installed
+        Write-Host "dev-run: installed app started ($installed)" -ForegroundColor Green
+    } else {
+        Write-Host "dev-run: no installed app at $installed, nothing to restart" -ForegroundColor Yellow
+    }
 }
 
 function Invoke-Step([string]$What, [scriptblock]$Run) {
@@ -38,42 +59,53 @@ Stop-Editors
 & (Join-Path $PSScriptRoot 'stop.ps1')
 
 if ($Restore) {
-    if (Test-Path $installed) {
-        Start-Process $installed
-        Write-Host "dev-run: installed app started ($installed)" -ForegroundColor Green
-    } else {
-        Write-Host "dev-run: no installed app at $installed, nothing to restart" -ForegroundColor Yellow
-    }
+    Start-Installed
     return
 }
 
-# The dev config: created once from the template (or on -ResetConfig).
-$template = Join-Path $repo 'samples\dev-config.yaml'
-if ($ResetConfig -or -not (Test-Path $Config)) {
-    New-Item -ItemType Directory -Force (Split-Path -Parent $Config) | Out-Null
-    Copy-Item $template $Config -Force
-    Write-Host "dev-run: dev config written to $Config"
-}
-
-# ILC's link step needs vswhere on PATH (build skill, 2026-11-01).
-$vs = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer'
-if ($env:PATH -notlike "*$vs*") { $env:PATH += ";$vs" }
-
-Push-Location $repo
 try {
-    Invoke-Step 'publishing the engine (Native AOT, a few minutes)' { dotnet publish src/DazeControl.Engine -c Release -r win-x64 -o artifacts/engine --nologo -v q }
-    Invoke-Step 'publishing dctl' { dotnet publish src/DazeControl.Cli -c Release -r win-x64 -o artifacts/cli --nologo -v q }
-    if (-not $NoEditor) {
-        Invoke-Step 'building the editor' { dotnet build src/DazeControl.Editor -c Debug --nologo -v q }
+    # The dev config: created once from the template (or on -ResetConfig).
+    $template = Join-Path $repo 'samples\dev-config.yaml'
+    if ($ResetConfig -or -not (Test-Path $config)) {
+        New-Item -ItemType Directory -Force (Split-Path -Parent $config) | Out-Null
+        Copy-Item $template $config -Force
+        Write-Host "dev-run: dev config written to $config"
     }
-} finally { Pop-Location }
 
-Start-Process $engineExe -ArgumentList "`"$Config`""
-Start-Sleep -Seconds 3
-& $dctl status
-if (-not $NoEditor) {
-    Start-Process $editorExe -ArgumentList '--config', "`"$Config`""
+    # ILC's link step needs vswhere on PATH (build skill, 2026-11-01).
+    $vs = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer'
+    if ($env:PATH -notlike "*$vs*") { $env:PATH += ";$vs" }
+
+    Push-Location $repo
+    try {
+        Invoke-Step 'publishing the engine (Native AOT, a few minutes)' { dotnet publish src/DazeControl.Engine -c Release -r win-x64 -o artifacts/engine --nologo -v q }
+        Invoke-Step 'publishing dctl' { dotnet publish src/DazeControl.Cli -c Release -r win-x64 -o artifacts/cli --nologo -v q }
+        if (-not $NoEditor) {
+            Invoke-Step 'building the editor' { dotnet build src/DazeControl.Editor -c Debug --nologo -v q }
+        }
+    } finally { Pop-Location }
+
+    Start-Process $engineExe -ArgumentList "`"$config`""
+    # The engine needs a moment to start: ask it for up to ~15 s.
+    $up = $false
+    for ($i = 0; $i -lt 15 -and -not $up; $i++) {
+        Start-Sleep -Seconds 1
+        & $dctl status | Out-Null
+        $up = ($LASTEXITCODE -eq 0)
+    }
+    if (-not $up) { throw 'dev-run: the dev engine did not answer dctl status' }
+    & $dctl status
+    if (-not $NoEditor) {
+        Start-Process $editorExe -ArgumentList '--config', "`"$config`""
+    }
+} catch {
+    Write-Host "dev-run: failed: $($_.Exception.Message)" -ForegroundColor Red
+    Stop-Editors
+    & (Join-Path $PSScriptRoot 'stop.ps1')
+    Start-Installed
+    throw
 }
+
 $branch = (git -C $repo branch --show-current)
-Write-Host "dev-run: running '$branch' on $Config" -ForegroundColor Green
+Write-Host "dev-run: running '$branch' on $config" -ForegroundColor Green
 Write-Host "dev-run: back to your installed app with: pwsh scripts/dev-run.ps1 -Restore"

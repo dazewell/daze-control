@@ -31,6 +31,6 @@ flows:
     name: Ask
     hotkeys: [Ctrl+Alt+F11]
     nodes:
-      - { id: q, step: prompt.ask, with: { question: "Go on?", timeout: 20s } }
+      - { id: q, step: prompt.ask, with: { question: "Go on?", timeout: 20s, onTimeout: use-default, default: no } }
       - { id: yes, step: notify, with: { text: "You said Yes" }, after: [q] }
       - { id: no, step: notify, with: { text: "You said No or no answer" }, after: [{ id: q, when: failure }] }
