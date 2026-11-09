@@ -71,8 +71,18 @@ public sealed record EngineStartTrigger : Trigger
 /// <summary><c>on: session.unlock</c> and friends (<see cref="TriggerText.Events"/>).</summary>
 public sealed record EventTrigger(string Name) : Trigger
 {
-    /// <summary><c>ssid: Home</c> on <c>network.connected</c>: only that Wi-Fi network (null = any network).</summary>
+    /// <summary><c>ssid: Home</c> on a network event: only that Wi-Fi network (null = any network). Implies Wi-Fi.</summary>
     public string? Ssid { get; init; }
+
+    /// <summary><c>via: wifi|cable</c> on a network event: only connections of that kind (null = any connection).</summary>
+    public NetworkVia? Via { get; init; }
+}
+
+/// <summary>The kind of connection a network event is about (<c>via:</c>); each connection raises its own event.</summary>
+public enum NetworkVia
+{
+    WiFi,
+    Cable,
 }
 
 /// <summary>Text forms of triggers, shared by the YAML reader, the validator and (later) the editor.</summary>
@@ -112,6 +122,34 @@ public static class TriggerText
     }
 
     public static bool IsCondition(string? name) => name is not null && Conditions.Contains(name);
+
+    /// <summary><c>network.connected</c> and <c>network.disconnected</c>: the events <c>via</c> and <c>ssid</c> narrow.</summary>
+    public static bool IsNetworkEvent(string? name) => name is "network.connected" or "network.disconnected";
+
+    /// <summary>The YAML and event word of a connection kind: "wifi", "cable".</summary>
+    public static string ViaText(NetworkVia via) => via == NetworkVia.WiFi ? "wifi" : "cable";
+
+    public static bool TryParseVia(string? text, out NetworkVia via)
+    {
+        via = default;
+        switch (text?.Trim().ToLowerInvariant())
+        {
+            case "wifi" or "wi-fi":
+                via = NetworkVia.WiFi;
+                return true;
+            case "cable" or "ethernet":
+                via = NetworkVia.Cable;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>Why a network filter can't stand on this event, or null: the reader and the validator say the same.</summary>
+    public static string? NetworkFilterProblem(string name, NetworkVia? via, string? ssid) =>
+        (via is not null || ssid is not null) && !IsNetworkEvent(name) ? $"{(ssid is not null ? "ssid" : "via")} only goes with network.connected or network.disconnected."
+        : ssid is not null && via == NetworkVia.Cable ? "ssid names a Wi-Fi network, so it can't go with via: cable."
+        : null;
 
     /// <summary>History wording of an event: "Event · PC unlocked".</summary>
     public static string EventLabel(string name) => name switch

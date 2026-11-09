@@ -6,7 +6,8 @@ namespace DazeControl.Runtime.Triggers;
 /// <summary>Guards every event trigger shares (DESIGN §3).</summary>
 /// <param name="Debounce">Events of one name closer together than this count once: a burst (a dock plugging in four
 /// devices) starts a flow once. Measured from the latest event, so a long burst stays one.</param>
-/// <param name="Cooldown">After a trigger started its flow, it can't start it again for this long.</param>
+/// <param name="Cooldown">After a trigger started its flow, it can't start it again for this long for the same detail
+/// (another connection's event still starts it).</param>
 /// <param name="ConditionTimeout">How long <c>only</c> may take; past it the trigger fires anyway.</param>
 public sealed record TriggerOptions(TimeSpan Debounce, TimeSpan Cooldown, TimeSpan ConditionTimeout)
 {
@@ -33,8 +34,8 @@ public sealed class TriggerService : IDisposable
     private readonly CancellationTokenSource _closed = new();
     private readonly Lock _lock = new();
     private readonly HashSet<Task> _inFlight = [];
-    private readonly Dictionary<(string Name, string? Detail), long> _lastEvent = [];
-    private readonly Dictionary<Subscription, long> _lastStart = [];
+    private readonly Dictionary<(string Name, string? Kind, string? Detail), long> _lastEvent = [];
+    private readonly Dictionary<(Subscription Subscription, string? Kind, string? Detail), long> _lastStart = [];
     private readonly HashSet<ITriggerSource> _started = [];
 
     private Dictionary<string, List<Subscription>> _byEvent = [];
@@ -111,7 +112,7 @@ public sealed class TriggerService : IDisposable
             }
             // A cooldown belongs to a trigger that still exists, unchanged (a replaced trigger at the same index starts fresh).
             var live = table.Values.SelectMany(l => l).ToHashSet();
-            foreach (var key in _lastStart.Keys.Where(k => !live.Contains(k)).ToList())
+            foreach (var key in _lastStart.Keys.Where(k => !live.Contains(k.Subscription)).ToList())
                 _lastStart.Remove(key);
         }
         // Outside the lock: a source may raise from inside Start/Stop.
@@ -141,7 +142,7 @@ public sealed class TriggerService : IDisposable
                 return;
             var now = _time.GetTimestamp();
             // Debounce per name and detail: a connection to another Wi-Fi doesn't swallow the one a trigger waits for.
-            var debounceKey = (e.Name, e.Detail);
+            var debounceKey = (e.Name, e.Kind, e.Detail);
             var seen = _lastEvent.TryGetValue(debounceKey, out var last);
             _lastEvent[debounceKey] = now;
             if (seen && _time.GetElapsedTime(last, now) < _options.Debounce)
@@ -149,10 +150,9 @@ public sealed class TriggerService : IDisposable
             matches = [];
             foreach (var subscription in subscriptions)
             {
-                // A Wi-Fi name on the trigger narrows network.connected; a name the source couldn't read matches none.
-                if (subscription.Trigger.Ssid is { } ssid && !string.Equals(ssid, e.Detail, StringComparison.OrdinalIgnoreCase))
+                if (!Matches(subscription.Trigger, e))
                     continue;
-                if (InCooldown(subscription, now))
+                if (InCooldown(subscription, e, now))
                     continue;
                 matches.Add(subscription);
             }
@@ -248,9 +248,9 @@ public sealed class TriggerService : IDisposable
             lock (_lock)
             {
                 var now = _time.GetTimestamp();
-                if (InCooldown(subscription, now))
+                if (InCooldown(subscription, e, now))
                     return;
-                _lastStart[subscription] = now;
+                _lastStart[(subscription, e.Kind, e.Detail)] = now;
             }
             var text = TriggerText.Describe(subscription.Trigger);
             // The launcher applies whenRunning; this doesn't wait for the run, only observes a fault.
@@ -264,9 +264,21 @@ public sealed class TriggerService : IDisposable
         }
     }
 
+    /// <summary>
+    /// A network trigger's filters: <c>via</c> wants that kind of connection; a Wi-Fi name wants a Wi-Fi connection of
+    /// that name (any case). An event without a kind or name (one the source couldn't read) matches no filter.
+    /// </summary>
+    internal static bool Matches(EventTrigger trigger, TriggerEvent e)
+    {
+        if (trigger.Via is { } via && !string.Equals(e.Kind, TriggerText.ViaText(via), StringComparison.Ordinal))
+            return false;
+        return trigger.Ssid is not { } ssid
+            || (string.Equals(e.Kind, TriggerText.ViaText(NetworkVia.WiFi), StringComparison.Ordinal) && string.Equals(ssid, e.Detail, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>Under the lock.</summary>
-    private bool InCooldown(Subscription subscription, long now) =>
-        _lastStart.TryGetValue(subscription, out var started) && _time.GetElapsedTime(started, now) < _options.Cooldown;
+    private bool InCooldown(Subscription subscription, TriggerEvent e, long now) =>
+        _lastStart.TryGetValue((subscription, e.Kind, e.Detail), out var started) && _time.GetElapsedTime(started, now) < _options.Cooldown;
 
     private bool Guarded(ITriggerSource source, string what, Action action)
     {

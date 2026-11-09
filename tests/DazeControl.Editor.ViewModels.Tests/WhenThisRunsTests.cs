@@ -43,6 +43,40 @@ public sealed class WhenThisRunsTests
     }
 
     [Fact]
+    public void NetworkSentencesSayWhichConnection()
+    {
+        Assert.Equal("When the network connects", WhenThisRuns.Sentence(new EventTrigger("network.connected")));
+        Assert.Equal("When a cable is plugged in", WhenThisRuns.Sentence(new EventTrigger("network.connected") { Via = NetworkVia.Cable }));
+        Assert.Equal("When a cable is unplugged", WhenThisRuns.Sentence(new EventTrigger("network.disconnected") { Via = NetworkVia.Cable }));
+        Assert.Equal("When Wi-Fi connects", WhenThisRuns.Sentence(new EventTrigger("network.connected") { Via = NetworkVia.WiFi }));
+        Assert.Equal("When Wi-Fi 'Home' connects", WhenThisRuns.Sentence(new EventTrigger("network.connected") { Ssid = "Home" }));
+        Assert.Equal("When Wi-Fi 'Home' disconnects, only on battery",
+            WhenThisRuns.Sentence(new EventTrigger("network.disconnected") { Via = NetworkVia.WiFi, Ssid = "Home", Only = "onBattery" }));
+    }
+
+    [Fact]
+    public void ConnectionEditsKeepTheFiltersConsistent()
+    {
+        Trigger t = new EventTrigger("network.connected") { Only = "onAC" };
+        t = WhenThisRuns.WithConnection(t, WhenThisRuns.WiFiConnection);
+        t = WhenThisRuns.WithNetworkName(t, "  Home ");
+        Assert.Equal(new EventTrigger("network.connected") { Only = "onAC", Via = NetworkVia.WiFi, Ssid = "Home" }, t);
+
+        t = WhenThisRuns.WithEvent(t, "network.disconnected"); // the other network event keeps the choice
+        Assert.Equal(new EventTrigger("network.disconnected") { Only = "onAC", Via = NetworkVia.WiFi, Ssid = "Home" }, t);
+
+        Assert.Equal(new EventTrigger("network.disconnected") { Only = "onAC", Via = NetworkVia.Cable }, WhenThisRuns.WithConnection(t, WhenThisRuns.CableConnection));
+        Assert.Equal(new EventTrigger("network.disconnected") { Only = "onAC" }, WhenThisRuns.WithConnection(t, WhenThisRuns.AnyConnection));
+        Assert.Equal(new EventTrigger("network.disconnected") { Only = "onAC", Via = NetworkVia.WiFi }, WhenThisRuns.WithNetworkName(t, " "));
+        Assert.Equal(new EventTrigger("session.unlock") { Only = "onAC" }, WhenThisRuns.WithEvent(t, "session.unlock")); // filters don't follow out
+        Assert.Equal(WhenThisRuns.WiFiConnection, WhenThisRuns.ConnectionIndex(new EventTrigger("network.connected") { Ssid = "Home" }));
+
+        var unlock = new EventTrigger("session.unlock");
+        Assert.Same(unlock, WhenThisRuns.WithConnection(unlock, WhenThisRuns.CableConnection));
+        Assert.Same(unlock, WhenThisRuns.WithNetworkName(unlock, "Home"));
+    }
+
+    [Fact]
     public void EveryEventInCoreHasASentenceAndIsInThePicker()
     {
         foreach (var name in TriggerText.Events)

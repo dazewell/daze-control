@@ -52,7 +52,8 @@ public sealed class TriggerServiceTests : IDisposable
             Loaded = false;
         }
 
-        public void Raise(string name, IReadOnlyList<string>? chain = null, string? detail = null) => Raised?.Invoke(new TriggerEvent(name, chain, detail));
+        public void Raise(string name, IReadOnlyList<string>? chain = null, string? detail = null, string? kind = null) =>
+            Raised?.Invoke(new TriggerEvent(name, chain, detail, kind));
 
         public void Dispose()
         {
@@ -85,13 +86,13 @@ public sealed class TriggerServiceTests : IDisposable
     private TriggerService Service(TriggerOptions? options = null) =>
         new([_session, _power, _network], _launcher, new FakeFlows(this), _time, () => _paused, [_onBattery], _log.Add, options);
 
-    private Flow On(string id, string eventName, string? only = null, WhenRunning whenRunning = WhenRunning.Ignore, string? ssid = null)
+    private Flow On(string id, string eventName, string? only = null, WhenRunning whenRunning = WhenRunning.Ignore, string? ssid = null, NetworkVia? via = null)
     {
         var flow = Flow(Step("a")) with
         {
             Id = id,
             WhenRunning = whenRunning,
-            Triggers = [new EventTrigger(eventName) { Only = only, Ssid = ssid }],
+            Triggers = [new EventTrigger(eventName) { Only = only, Ssid = ssid, Via = via }],
         };
         _known[id] = flow;
         return flow;
@@ -149,13 +150,19 @@ public sealed class TriggerServiceTests : IDisposable
         var started = new List<string>();
         _launcher.RunCompleted += r => { lock (started) started.Add(r.FlowId); };
 
-        _network.Raise("network.connected", detail: "Office");
+        _network.Raise("network.connected", detail: "Office", kind: "wifi");
         await SettleAsync(service);
         lock (started)
             Assert.Equal(["any"], started);
 
         _time.Advance(TimeSpan.FromMinutes(1));
-        _network.Raise("network.connected", detail: "Home WiFi"); // case-insensitive
+        _network.Raise("network.connected", detail: "Home WiFi", kind: "cable"); // a cable adapter named like the network isn't it
+        await SettleAsync(service);
+        lock (started)
+            Assert.DoesNotContain("home", started);
+
+        _time.Advance(TimeSpan.FromMinutes(1));
+        _network.Raise("network.connected", detail: "Home WiFi", kind: "wifi"); // case-insensitive
         await SettleAsync(service);
         lock (started)
             Assert.Contains("home", started);
@@ -288,12 +295,58 @@ public sealed class TriggerServiceTests : IDisposable
         using var service = Service();
         service.Apply([On("home", "network.connected", ssid: "Home")]);
 
-        _network.Raise("network.connected", detail: "Office");
-        _network.Raise("network.connected", detail: "Home"); // inside the debounce of Office's event
+        _network.Raise("network.connected", detail: "Office", kind: "wifi");
+        _network.Raise("network.connected", detail: "Home", kind: "wifi"); // inside the debounce of Office's event
         await _provider.Started("a");
         await SettleAsync(service);
 
         Assert.Single(_provider.Attempts);
+    }
+
+    [Fact]
+    public async Task ViaNarrowsToWifiOrCableOnBothEvents()
+    {
+        using var service = Service();
+        service.Apply([
+            On("cable-in", "network.connected", via: NetworkVia.Cable),
+            On("cable-out", "network.disconnected", via: NetworkVia.Cable),
+            On("wifi-in", "network.connected", via: NetworkVia.WiFi),
+            On("home-out", "network.disconnected", ssid: "Home"),
+        ]);
+        var started = new List<string>();
+        _launcher.RunCompleted += r => { lock (started) started.Add(r.FlowId); };
+
+        _network.Raise("network.connected", detail: "Ethernet 4", kind: "cable");
+        _network.Raise("network.disconnected", detail: "Home", kind: "wifi");
+        _network.Raise("network.disconnected", detail: "Ethernet 4", kind: "cable");
+        _network.Raise("network.connected", detail: "Office", kind: "wifi");
+        _network.Raise("network.connected"); // a source that couldn't say what it was: no filter matches
+        await SettleAsync(service);
+
+        lock (started)
+            Assert.Equal(["cable-in", "cable-out", "home-out", "wifi-in"], started.Order());
+    }
+
+    [Fact]
+    public async Task AnotherConnectionIsNotHeldBackByTheCooldown()
+    {
+        using var service = Service();
+        service.Apply([On("any", "network.connected")]);
+        var started = 0;
+        _launcher.RunCompleted += _ => Interlocked.Increment(ref started);
+
+        _network.Raise("network.connected", detail: "Home", kind: "wifi");
+        await SettleAsync(service);
+        _time.Advance(TimeSpan.FromSeconds(3)); // past the debounce, inside the cooldown
+        _network.Raise("network.connected", detail: "Home", kind: "wifi"); // the same connection again: held back
+        await SettleAsync(service);
+        _network.Raise("network.connected", detail: "Ethernet 4", kind: "cable"); // another one: starts
+        await SettleAsync(service);
+        _time.Advance(TimeSpan.FromSeconds(3));
+        _network.Raise("network.connected", detail: "Home", kind: "cable"); // an adapter named like the Wi-Fi is still another one
+        await SettleAsync(service);
+
+        Assert.Equal(3, Volatile.Read(ref started));
     }
 
     [Fact]

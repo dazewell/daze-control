@@ -73,7 +73,7 @@ public static class WhenThisRuns
             AtTrigger at => $"{DaysText(at.Days)} at {TriggerText.FormatTime(at.Time)}",
             EveryTrigger every => Every(every),
             OnceTrigger once => OnceText(once.When),
-            EventTrigger e => Event(e.Name),
+            EventTrigger e => TriggerText.IsNetworkEvent(e.Name) ? Network(e) : Event(e.Name),
             EngineStartTrigger => Event(EngineStartTrigger.Name),
             _ => "Starts by itself",
         };
@@ -99,6 +99,33 @@ public static class WhenThisRuns
         "network.connected" => "When the network connects",
         "network.disconnected" => "When the network disconnects",
         _ => "When " + TriggerText.EventLabel(name), // a source added later reads passably until its sentence is written here
+    };
+
+    /// <summary>The network picker's rows (index 0 = any connection); a Wi-Fi network's name goes in its own box.</summary>
+    public static IReadOnlyList<string> ConnectionNames { get; } = ["Any connection", "Wi-Fi", "Cable"];
+
+    public const int AnyConnection = 0, WiFiConnection = 1, CableConnection = 2;
+
+    /// <summary>"When a cable is plugged in", "When Wi-Fi 'Home' connects"; any connection keeps the event's own sentence.</summary>
+    public static string Network(EventTrigger e)
+    {
+        var connected = e.Name == "network.connected";
+        if (e.Ssid is { Length: > 0 } ssid)
+            return $"When Wi-Fi '{ssid}' {(connected ? "connects" : "disconnects")}";
+        return e.Via switch
+        {
+            NetworkVia.WiFi => connected ? "When Wi-Fi connects" : "When Wi-Fi disconnects",
+            NetworkVia.Cable => connected ? "When a cable is plugged in" : "When a cable is unplugged",
+            _ => Event(e.Name),
+        };
+    }
+
+    /// <summary>A Wi-Fi name means Wi-Fi even without <c>via</c> (a hand-written <c>ssid:</c>).</summary>
+    public static int ConnectionIndex(Trigger t) => t switch
+    {
+        EventTrigger { Ssid: not null } or EventTrigger { Via: NetworkVia.WiFi } => WiFiConnection,
+        EventTrigger { Via: NetworkVia.Cable } => CableConnection,
+        _ => AnyConnection,
     };
 
     public static string DaysText(Days days) => days switch
@@ -233,10 +260,34 @@ public static class WhenThisRuns
 
     public static Trigger WithWhen(Trigger t, DateTime when) => t is OnceTrigger ? new OnceTrigger(when) { IfMissed = ((OnceTrigger)t).IfMissed, Grace = ((OnceTrigger)t).Grace, Only = t.Only } : t;
 
+    /// <summary>Another event; connected and disconnected swap with their connection choice kept.</summary>
     public static Trigger WithEvent(Trigger t, string name) =>
         name == EngineStartTrigger.Name ? new EngineStartTrigger { Only = t.Only }
+        : t is EventTrigger e && TriggerText.IsNetworkEvent(e.Name) && TriggerText.IsNetworkEvent(name) ? e with { Name = name }
         : t is EventTrigger or EngineStartTrigger ? new EventTrigger(name) { Only = t.Only }
         : t;
+
+    /// <summary>Any connection, Wi-Fi or cable; leaving Wi-Fi drops the network name.</summary>
+    public static Trigger WithConnection(Trigger t, int index)
+    {
+        if (t is not EventTrigger e || !TriggerText.IsNetworkEvent(e.Name) || ConnectionIndex(t) == index)
+            return t;
+        return index switch
+        {
+            WiFiConnection => e with { Via = NetworkVia.WiFi },
+            CableConnection => e with { Via = NetworkVia.Cable, Ssid = null },
+            _ => e with { Via = null, Ssid = null },
+        };
+    }
+
+    /// <summary>A Wi-Fi network's name (empty = any Wi-Fi); a name makes the trigger Wi-Fi.</summary>
+    public static Trigger WithNetworkName(Trigger t, string? name)
+    {
+        if (t is not EventTrigger e || !TriggerText.IsNetworkEvent(e.Name))
+            return t;
+        var ssid = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        return ssid is null ? e with { Ssid = null } : e with { Ssid = ssid, Via = NetworkVia.WiFi };
+    }
 
     public static Trigger WithOnly(Trigger t, int index) =>
         t is ScheduleTrigger ? t : t with { Only = index > 0 && index < OnlyIds.Length ? OnlyIds[index] : null };

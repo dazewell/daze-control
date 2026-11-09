@@ -732,6 +732,10 @@
                                     <StackPanel Spacing="8" Visibility="{x:Bind IsEvent}">
                                         <ComboBox ItemsSource="{x:Bind vmi:TriggerRowViewModel.EventNames}" SelectedIndex="{x:Bind EventIndex, Mode=TwoWay}"
                                                   HorizontalAlignment="Stretch" Header="When" AutomationProperties.Name="When" />
+                                        <ComboBox ItemsSource="{x:Bind vmi:TriggerRowViewModel.ConnectionNames}" SelectedIndex="{x:Bind ConnectionIndex, Mode=TwoWay}"
+                                                  Visibility="{x:Bind IsNetwork}" HorizontalAlignment="Stretch" Header="Connection" AutomationProperties.Name="Connection" />
+                                        <TextBox Text="{x:Bind NetworkName, Mode=TwoWay}" Visibility="{x:Bind ShowNetworkName, Mode=OneWay}"
+                                                 Header="Wi-Fi network name" PlaceholderText="Any Wi-Fi network" AutomationProperties.Name="Wi-Fi network name" />
                                         <ComboBox ItemsSource="{x:Bind vmi:TriggerRowViewModel.OnlyNames}" SelectedIndex="{x:Bind OnlyIndex, Mode=TwoWay}"
                                                   HorizontalAlignment="Stretch" Header="Run it" AutomationProperties.Name="Run it" />
                                     </StackPanel>

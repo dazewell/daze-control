@@ -1406,3 +1406,7 @@ Status: accepted (user answers to docs/triggers/DESIGN.md §7, 2026-11-08)
   ids warn (trigger ignored), a condition that can't be read lets the trigger fire (as D-081). Debounce is a timestamp
   compare from the latest event (2 s), cooldown per trigger (10 s), both without timers; an event whose `chain` holds the
   flow is refused by `FlowCalls.Guard`. Sources `Load`/`Unload` on the message window, registered only while subscribed.
+- T20.12 (2026-11-08): network events are per connection (user's choice): a connection = an adapter Up with a gateway
+  (Wi-Fi by SSID, Ethernet-type by adapter id); each one coming or going raises its own event with a kind and detail,
+  filtered by `via: wifi|cable` / `ssid:`; cooldown per trigger + detail. Why not one "PC online" state: a cable under live
+  Wi-Fi changed nothing, so it never fired. Cellular/PPP/VPN aren't connections (a VPN shouldn't read as "a network came").

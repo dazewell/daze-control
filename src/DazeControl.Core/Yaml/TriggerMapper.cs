@@ -49,12 +49,19 @@ internal static class TriggerMapper
         {
             var name = d.On.Trim();
             var ssid = string.IsNullOrWhiteSpace(d.Ssid) ? null : d.Ssid.Trim();
-            if (ssid is not null && name != "network.connected")
-                return (null, "ssid only goes with network.connected.");
+            NetworkVia? via = null;
+            if (!string.IsNullOrWhiteSpace(d.Via))
+            {
+                if (!TriggerText.TryParseVia(d.Via, out var v))
+                    return (null, $"via \"{d.Via.Trim()}\" isn't wifi or cable.");
+                via = v;
+            }
+            if (TriggerText.NetworkFilterProblem(name, via, ssid) is { } filter)
+                return (null, filter);
             if (name == EngineStartTrigger.Name)
                 return (new EngineStartTrigger { Only = only }, null);
             return TriggerText.IsEvent(name)
-                ? (new EventTrigger(name) { Only = only, Ssid = ssid }, null)
+                ? (new EventTrigger(name) { Only = only, Ssid = ssid, Via = via }, null)
                 : (null, $"\"{name}\" isn't an event I know ({string.Join(", ", TriggerText.Events)}, {EngineStartTrigger.Name}).");
         }
 
@@ -148,7 +155,7 @@ internal static class TriggerMapper
             },
             OnceTrigger once => new TriggerDocument { Once = TriggerText.FormatDateTime(once.When) },
             EngineStartTrigger => new TriggerDocument { On = EngineStartTrigger.Name },
-            EventTrigger e => new TriggerDocument { On = e.Name, Ssid = e.Ssid },
+            EventTrigger e => new TriggerDocument { On = e.Name, Ssid = e.Ssid, Via = e.Via is { } via ? TriggerText.ViaText(via) : null },
             _ => new TriggerDocument(),
         };
         document.Only = trigger.Only;
