@@ -39,6 +39,9 @@ public sealed record Flow(string Id, string Name, ValueList<Node> Nodes)
     /// <summary>As written ("Alt+Z"); validation parses them with <see cref="Input.Hotkey"/>.</summary>
     public ValueList<string> Hotkeys { get; init; } = [];
 
+    /// <summary>Ways the flow starts by itself (M20): schedules and system events. Bad ones are dropped on load with a warning.</summary>
+    public ValueList<Trigger> Triggers { get; init; } = [];
+
     public WhenRunning WhenRunning { get; init; } = WhenRunning.Ignore;
 
     public bool Popup { get; init; } = true;

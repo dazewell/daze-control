@@ -1390,3 +1390,17 @@ Status: accepted
 - Why not: a target outside the app root (no stable exe there; the stub is what survives updates, D-049); a Velopack
   option (none turns this off per shortcut); only after `VELOPACK_RESTART` (a manual install or an editor-started
   engine after an update would miss it; the scan is a handful of .lnk reads).
+
+## D-107 · 2026-11-08 · Triggers: in-engine due-time timer, `triggers:` per flow, lazy event sources (M20)
+Status: accepted
+- Decision: a flow may list `triggers:` (schedule: `at` + `days`, `every` + `between`, `once`; `on: engine.start`; event:
+  `on: <name>`, optional `only` = an M14 step condition). Schedules run from one engine due-time timer (D-009 amended:
+  "no periodic timers; one due-time timer is allowed"); event sources load lazily. Core (T20.1): `Trigger` records,
+  `TriggerMapper`, warnings in `ConfigValidator`, pure `ScheduleTable.Next`. A bad trigger is dropped with a *warning* on
+  its flow (errors would disable the flow, D-021). v1 events: session.lock/unlock/logon/logoff, power.resume/ac/battery,
+  device.added/removed, audio.default-changed, display.changed, network.connected/disconnected (DESIGN §3).
+- Time rules: local zone from `TimeProvider.LocalTimeZone`; a spring-forward gap time runs once just after the gap; a
+  fall-back repeated time runs at its first occurrence only; `every` counts from the window start (or local midnight,
+  restarting daily), window end included, an end before the start crosses midnight; minimum interval 1 minute.
+- Why not: Task Scheduler per rule (DESIGN §2 B: OS objects to clean up, Pause/history/`whenRunning` rebuilt outside).
+- Open for T20.3: `only` is stored as text; the runtime validates it against the step conditions.

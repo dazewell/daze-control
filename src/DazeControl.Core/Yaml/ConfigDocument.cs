@@ -109,6 +109,8 @@ public sealed class FlowDocument
 
     public List<string>? Hotkeys { get; set; }
 
+    public List<TriggerDocument>? Triggers { get; set; }
+
     /// <summary>Read only so an old file still loads (D-086); never written.</summary>
     public List<string>? Gamepad { get; set; }
 
@@ -132,6 +134,32 @@ public sealed class InputDocument
     public string? Name { get; set; }
 
     public string? Default { get; set; }
+}
+
+/// <summary>
+/// A <c>triggers:</c> item (M20): <c>at</c> (+ <c>days</c>), <c>every</c> (+ <c>between</c>), <c>once</c> or <c>on</c>. Days and
+/// between are read whole (a word or a list) so a wrong shape is a problem on this trigger only (D-021).
+/// </summary>
+[YamlSerializable]
+public sealed class TriggerDocument
+{
+    public string? At { get; set; }
+
+    public ParamDocument? Days { get; set; }
+
+    public string? Every { get; set; }
+
+    public ParamDocument? Between { get; set; }
+
+    public string? Once { get; set; }
+
+    public string? On { get; set; }
+
+    public string? Only { get; set; }
+
+    public string? IfMissed { get; set; }
+
+    public string? Grace { get; set; }
 }
 
 [YamlSerializable]

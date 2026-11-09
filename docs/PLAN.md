@@ -127,7 +127,7 @@ One PR (design + build). Editor edits stay in the inspector/param picker (other 
 ## M20 Scheduled and event-based triggers, input prompts (user, 2026-11-08; PROPOSED, design docs/triggers/DESIGN.md, waiting on its §7)
 One PR per task (D-079). Do not start until the user answers DESIGN §7 and a decision (D-107) is recorded; D-009 first gets its "one due-time timer" amendment.
 
-- [ ] T20.1 Core: `triggers:` model, YAML, validation, pure `ScheduleTable.Next` (DST, month ends). Done when: Core tests with `ManualTime`; existing samples round-trip byte-identical.
+- [x] T20.1 Core: `triggers:` model, YAML, validation, pure `ScheduleTable.Next` (DST, month ends). Done when: Core tests with `ManualTime`; existing samples round-trip byte-identical. (feat/m20-triggers-core)
 - [ ] T20.2 Runtime: schedule source (one due-time timer, resume/time-change re-arm, missed-run grace, Pause), history text. After T20.1. Done when: Runtime tests; `measure.ps1` idle 0 ms CPU.
 - [ ] T20.3 Runtime: lazy `ITriggerSource` framework (debounce, cooldown, chain guard, `only`) + session and power sources. After T20.1.
 - [ ] T20.4 Device, audio, display and network sources. After T20.3; one file each, parallel-safe.

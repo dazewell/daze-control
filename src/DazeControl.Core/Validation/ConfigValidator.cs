@@ -336,10 +336,39 @@ public static partial class ConfigValidator
                 else if (LibraryKeyProblem(library, badLibraryItems, input.Kind, input.Default) is { } message)
                     Error(path + ".default", message);
             }
+            CheckTriggers();
             foreach (var text in flow.Hotkeys)
             {
                 if (!Hotkey.TryParse(text, out _))
                     Error(_path + ".hotkeys", $"\"{text}\" isn't a shortcut: use Win, Ctrl or Alt plus a letter, number, F1–F24 or a key like [, or a number pad key like Num1.");
+            }
+        }
+
+        /// <summary>
+        /// Triggers a file can't hold (the reader already drops those) but an edited model can. Warnings, so the flow stays (D-021):
+        /// the runtime skips a trigger that has one.
+        /// </summary>
+        private void CheckTriggers()
+        {
+            for (var i = 0; i < flow.Triggers.Count; i++)
+            {
+                var path = $"{_path}.triggers[{i}]";
+                var trigger = flow.Triggers[i];
+                var why = trigger switch
+                {
+                    EventTrigger e when !TriggerText.IsEvent(e.Name) => $"\"{e.Name}\" isn't an event I know.",
+                    AtTrigger a when a.Days == Days.None => "Pick at least one day.",
+                    EveryTrigger e when e.Interval < EveryTrigger.MinInterval => "An interval is at least a minute.",
+                    EveryTrigger e when (e.From is null) != (e.To is null) || (e.From is not null && e.From == e.To) => "between needs two different times.",
+                    ScheduleTrigger { Grace: { } g } when g < TimeSpan.Zero => "grace can't be negative.",
+                    _ => null,
+                };
+                if (why is not null)
+                    Add(Severity.Warning, path, why + " This trigger is ignored.");
+                else if (trigger.Only is { } only && string.IsNullOrWhiteSpace(only))
+                    Add(Severity.Warning, path + ".only", "only is empty.");
+                else if (flow.Triggers.Take(i).Contains(trigger))
+                    Add(Severity.Warning, path, "The same trigger is already listed; it would fire twice.");
             }
         }
 
