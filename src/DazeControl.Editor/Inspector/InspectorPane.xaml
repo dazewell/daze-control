@@ -760,6 +760,31 @@
                 <StackPanel Orientation="Vertical">
                     <HyperlinkButton Content="Add schedule" Command="{x:Bind ViewModel.AddScheduleCommand, Mode=OneWay}" Padding="0,4" />
                     <HyperlinkButton Content="Add event" Command="{x:Bind ViewModel.AddEventCommand, Mode=OneWay}" Padding="0,4" />
+                    <Button Content="Add events…" Padding="0,4" Style="{StaticResource TextBlockButtonStyle}" AutomationProperties.Name="Add several events at once">
+                        <Button.Flyout>
+                            <Flyout Placement="Bottom">
+                                <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{x:Bind ViewModel.EventGroups}" IsTabStop="False" AutomationProperties.Name="Events">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vmi:EventGroupViewModel">
+                                                <StackPanel Margin="0,0,0,8">
+                                                    <TextBlock Text="{x:Bind Title}" Style="{StaticResource InspectorSection}" />
+                                                    <ItemsControl ItemsSource="{x:Bind Events}" IsTabStop="False">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="vmi:EventOptionViewModel">
+                                                                <CheckBox Content="{x:Bind Sentence}" IsChecked="{x:Bind IsChecked, Mode=TwoWay}"
+                                                                          AutomationProperties.Name="{x:Bind Sentence}" />
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
                 </StackPanel>
                 <TextBlock Text="{x:Bind ViewModel.TriggerNotes, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasTriggerNotes, Mode=OneWay}"
                            TextWrapping="Wrap" Style="{StaticResource FieldError}" />

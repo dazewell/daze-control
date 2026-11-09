@@ -101,6 +101,46 @@ public sealed class InspectorTriggersTests : IDisposable
         Assert.Equal(new EventTrigger("session.unlock"), Saved[^1]);
     }
 
+    private EventOptionViewModel Box(string name) => _inspector.EventGroups.SelectMany(g => g.Events).Single(e => e.Name == name);
+
+    [Fact]
+    public void EventPickerListsEveryEventGroupedAndTicksTheUsedOnes()
+    {
+        Assert.Equal(["Session", "Power", "Devices", "Sound and screens", "Network"], _inspector.EventGroups.Select(g => g.Title));
+        Assert.Equal(TriggerText.Events.Order(), _inspector.EventGroups.SelectMany(g => g.Events).Select(e => e.Name).Order());
+        Assert.True(Box("session.unlock").IsChecked);
+        Assert.False(Box("power.resume").IsChecked);
+    }
+
+    [Fact]
+    public void TickingAddsRowsInOrderAndUntickingRemovesThem()
+    {
+        Box("power.resume").IsChecked = true;
+        Box("network.connected").IsChecked = true;
+        Assert.Equal([new EventTrigger("session.unlock"), new EventTrigger("power.resume"), new EventTrigger("network.connected")], Saved.Skip(1));
+        Assert.Equal(4, _inspector.Triggers.Count);
+
+        Box("power.resume").IsChecked = false;
+        Assert.Equal([new EventTrigger("session.unlock"), new EventTrigger("network.connected")], Saved.Skip(1));
+        Assert.True(Box("network.connected").IsChecked);
+        Assert.False(Box("power.resume").IsChecked);
+    }
+
+    [Fact]
+    public void TickingKeepsTheSettingsOfExistingRowsAndUndoRestores()
+    {
+        _inspector.Triggers[1].OnlyIndex = 1; // session.unlock, only on battery
+        var before = Saved.ToList();
+        Box("device.added").IsChecked = true;
+
+        Assert.Equal("onBattery", Saved[1].Only);
+        Assert.Equal(before.Count + 1, Saved.Count);
+
+        _canvas.Undo();
+        Assert.Equal(before, Saved);
+        Assert.False(Box("device.added").IsChecked);
+    }
+
     [Fact]
     public void RemoveDropsOnlyThatRow()
     {
