@@ -124,6 +124,17 @@ One PR (design + build). Editor edits stay in the inspector/param picker (other 
 ---
 
 
+## M20 Scheduled and event-based triggers, input prompts (user, 2026-11-08; PROPOSED, design docs/triggers/DESIGN.md, waiting on its §7)
+One PR per task (D-079). Do not start until the user answers DESIGN §7 and a decision (D-107) is recorded; D-009 first gets its "one due-time timer" amendment.
+
+- [ ] T20.1 Core: `triggers:` model, YAML, validation, pure `ScheduleTable.Next` (DST, month ends). Done when: Core tests with `ManualTime`; existing samples round-trip byte-identical.
+- [ ] T20.2 Runtime: schedule source (one due-time timer, resume/time-change re-arm, missed-run grace, Pause), history text. After T20.1. Done when: Runtime tests; `measure.ps1` idle 0 ms CPU.
+- [ ] T20.3 Runtime: lazy `ITriggerSource` framework (debounce, cooldown, chain guard, `only`) + session and power sources. After T20.1.
+- [ ] T20.4 Device, audio, display and network sources. After T20.3; one file each, parallel-safe.
+- [ ] T20.5 Prompts: `ask: true` flow inputs, `prompt.ask` confirm/choose with timeout and default. After T20.1; parallel with T20.2-T20.4.
+- [ ] T20.6 Editor: "When this runs" card, next-run line, Test this trigger, Ask inspector, screenshots. After T20.2 and T20.5.
+- [ ] T20.7 Gate: footprint rows per source, ARCHITECTURE/FEATURES/UX, cut DESIGN (D-053), release-notes line.
+
 ## M19 Backup and restore (user, 2026-11-06; design docs/backup-restore/DESIGN.md, D-103, accepted 2026-11-06)
 One PR per task; usage is scarce (D-079). Choices answered by the user (all as recommended, DESIGN §12).
 
