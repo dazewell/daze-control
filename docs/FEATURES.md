@@ -71,7 +71,7 @@ flags, credentials, programs, script snippets; D-050, D-051); "Add to desktop" p
 
 **F8 CLI** — `dctl run <flow> [--wait] [--dry-run]`, `list`, `validate [file]`, `status`,
 `devices audio|bluetooth|displays|adb|services|credentials`, `capture-display-layout <name>`, `history [flow]`,
-`shortcut <flow> [--remove]`; M12: `devices gamepads`. `devices bluetooth` = the PC's paired devices, as Settings lists them (D-052).
+`shortcut <flow> [--remove]`, `backup [file]`, `restore <file> [--merge|--replace] [--yes] [--dry-run]`; M12: `devices gamepads`. `devices bluetooth` = the PC's paired devices, as Settings lists them (D-052).
 
 **F9 Ops** — per-user install + in-app updates, start with Windows (HKCU Run), single instance, rolling logs
-(7 days), crash capture, no admin, config backups (last 10).
+(7 days), crash capture, no admin, config backups (last 10); **backup and restore** (M19, D-103): one `.dcbackup` file with flows, library, settings and tray order, from Settings › Backup and restore or `dctl`; a preview before restoring (Replace everything or Add what's missing), a safety copy first, Undo, and an automatic copy before updates and after saves (at most one a day, newest 10 kept, D-104). Secrets, shortcuts and autostart are not in it.

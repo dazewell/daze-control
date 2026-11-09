@@ -14,7 +14,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   **Library** (Pivot: Audio, Bluetooth, Displays, Android, Programs; settings cards with Test and "Used by 2
   flows", which lists the flows and opens one; layouts and Android devices Rename (their flows follow), a layout's
   Details list its screens; an Android card's Inputs panel adds, renames (steps follow), removes (off while used) inputs
-  and edits each one's moves as Up/Down chips in order (D-078); Programs add Open file location) · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, step defaults),
+  and edits each one's moves as Up/Down chips in order (D-078); Programs add Open file location) · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, step defaults, Backup and restore card),
   **About** (version + Copy details, Updates, Files: config, logs and app folders). Save errors: InfoBar on top of every page.
 - Flow editor: an unsaved-changes dot (fixed slot, tooltip "Unsaved changes", D-104) + **Save** (accent, Ctrl+S) + **Cancel** beside the breadcrumb (D-047): edits are a
   draft until Save; Cancel throws it away; leaving the flow (breadcrumb, nav pane, closing the window) with a draft
@@ -352,6 +352,10 @@ contrast: solid background, no dots.
   `FlowMenuTests`). **Open, for the user** (list in [flow-menu/DESIGN.md](flow-menu/DESIGN.md)): a real Xbox / Steam
   pad driving the menu; focus readable from 3 m (Large, light/dark/high contrast); animation effects off = no motion;
   225 % text doesn't clip rows or tiles; the menu over a real borderless game, and #32 over a real exclusive one.
+- M19 (code and tests; dark/light seen in screenshots; the rest **open, for the user**): [ ] Back up now saves a file and says where; Restore from file (button and a dropped file) shows "what will change" with
+  New/Changed/Same/Only here as words, not colour alone, before anything is written; a damaged or newer file shows one InfoBar sentence and changes nothing; an unreadable backup config disables Restore;
+  Undo restore puts the old flows back; Restore is refused with "Save or discard the open flow first" while a flow is open; Tab/Enter reach every action, Esc cancels the dialog; high contrast and 225 % text
+  don't clip the card, dialog or rows; real run: back up, change a flow, restore, flows reload without a restart; Keep and the Automatic backups switch survive a restart.
 - M13: right-drag pans and a still right click opens the menu; a 7-step chain then a fork leaves no long empty line
   (the fork starts under the chain); every Layout choice changes the canvas visibly on a sample flow; the Flows card
   shows the flow's icon and runs it with Run (keyboard: Tab to the card, Enter opens); nav Flows leaves the editor;
