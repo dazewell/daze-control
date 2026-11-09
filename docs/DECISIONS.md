@@ -1437,3 +1437,12 @@ Status: accepted (user report: the update installed the version found at check t
   start (30 s cap, so a bad network can't hold the start). `dctl update` already checks fresh, and the daily check stays the only timer.
 - Why not apply at once and let the next daily check catch up: the user restarts to get the newest, then has to repeat the cycle.
 
+
+## D-110 · 2026-11-09 · Editor: Check only looks, Install fetches the newest and says when it changed
+Status: accepted (user, 2026-11-09). Refines D-043/D-109 for the editor card.
+- Decision: About › Updates has "Check for updates" (finds, downloads nothing, always available) and "Install" (re-finds the
+  newest, downloads with a % in the status, applies, restarts). If Install finds a newer release than the one shown it stops
+  and says "Version 2 is out, newer than version 1. Install now installs version 2, not 1."; the next click installs it.
+  Offline, an already downloaded update still installs. The engine's daily check still downloads quietly and the engine start
+  still applies (with D-109's re-check), so updates need no editor.
+- Why not install the newer one at once: the editor closes right after, so the notice would never be read.
