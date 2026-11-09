@@ -58,6 +58,7 @@ internal sealed class EngineHost : IDisposable
     private readonly RunHistory _history;
     private readonly FlowLauncher _launcher;
     private readonly EngineController _controller;
+    private readonly ScheduleSource _schedules;
     private readonly DesktopShortcuts _shortcuts;
     private readonly PipeServer _pipe;
     private readonly string _editorPath = Path.Combine(AppContext.BaseDirectory, "DazeControl.Editor.exe");
@@ -125,6 +126,14 @@ internal sealed class EngineHost : IDisposable
             _shortcuts, _gamepads);
         _controller.RunRefused += refusal => _window.Post(() => ShowRefusal(refusal));
         _controller.HotkeyRecordingChanged += on => _window.Post(() => OnHotkeyRecording(on));
+        // Schedules (M20, D-107): one due-time timer; a power resume or a clock change re-arms it and runs what came due.
+        _schedules = new ScheduleSource(TimeProvider.System, (flowId, text) => _ = _controller.TriggerAsync(flowId, text), () => _hotkeyTable.Paused, Log.Info);
+        _window.Add((message, wParam, _) =>
+        {
+            if (message == 0x1E || (message == 0x218 && wParam.Value is 0x7 or 0x12)) // WM_TIMECHANGE; WM_POWERBROADCAST resume
+                _schedules.Rearm();
+            return false;
+        });
         _pipe = new PipeServer(Protocol.CurrentPipeName(), _controller.HandleAsync, (what, e) => Log.Error(what, e));
         _pipe.Start();
         Apply(_config.Current);
@@ -141,6 +150,7 @@ internal sealed class EngineHost : IDisposable
         MessageWindow.RunMessageLoop();
         Log.Info("engine: exiting");
         _hotkeyTable.Clear();
+        _schedules.Dispose();
         _config.Dispose();
         // No new requests, cancel the runs, let every waiting client get its answer, then close the pipe; all of it
         // within the grace (drain gives up a second early so the pipe still closes cleanly).
@@ -171,6 +181,7 @@ internal sealed class EngineHost : IDisposable
         foreach (var problem in snapshot.Problems)
             Log.Info($"config: {problem}");
         _hotkeyTable.Apply(snapshot.RunnableFlows);
+        _schedules.Apply(snapshot.RunnableFlows);
         foreach (var invalid in _hotkeyTable.Invalid)
             Log.Info($"hotkey: not a valid shortcut: {invalid}");
         Log.Info($"config: {snapshot.Flows.Count} flow(s), {snapshot.RunnableFlows.Count()} runnable, "
