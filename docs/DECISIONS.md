@@ -1410,3 +1410,22 @@ Status: accepted (user answers to docs/triggers/DESIGN.md §7, 2026-11-08)
   (Wi-Fi by SSID, Ethernet-type by adapter id); each one coming or going raises its own event with a kind and detail,
   filtered by `via: wifi|cable` / `ssid:`; cooldown per trigger + detail. Why not one "PC online" state: a cable under live
   Wi-Fi changed nothing, so it never fired. Cellular/PPP/VPN aren't connections (a VPN shouldn't read as "a network came").
+
+## D-108 · 2026-11-09 · Update channel: Stable or Release candidates, a per-user file, no automatic downgrade
+Status: accepted (user, 2026-11-09: opt in to release candidates from the app)
+- Decision: `UpdateChannel` Stable (default) or ReleaseCandidates, kept in `%LOCALAPPDATA%\DazeControl\update-channel.txt`
+  (`channel=stable|rc`). `VelopackUpdateClient` passes `prerelease: true` on the RC channel. Set from About › Updates ("Updates to
+  follow", a drop-down that saves at once) or `dctl update --channel stable|rc`; the engine's daily check, `dctl update` and
+  the editor all read the file. Switching to Stable never downgrades: an RC newer than the latest stable stays until a newer
+  stable ships (Velopack orders `0.52.0-rc.1 < 0.52.0`; `AllowVersionDowngrade` stays off). UI words: "Release candidates"
+  and "Stable", never "pre-release" or "semver".
+- Why a small text file: same reasons as the auto-backup switch (D-104): per PC, so a restore, a hot reload or a config copied
+  from another PC never moves this PC onto RCs; readable by `dctl` without the editor or the engine running.
+- Why default Stable: an RC may have rough edges; the user opts in. Unreadable file = Stable.
+- Why no downgrade: a downgrade replaces a newer install with an older one and can leave config the old version can't read
+  (a newer schema); the user can reinstall an older Setup.exe by hand.
+- Why not: a key in config.yaml (a restore would flip the channel); the registry (not visible next to the other per-user files);
+  a per-release channel name in Velopack (`vpk --channel`: RCs and stable would need two feeds and a stable could not supersede
+  its RC); a Settings-page row (the Updates card already lives in About, two places would drift); a radio group (a drop-down
+  matches the other Settings rows and reads well at 225 % text).
+- A download already waiting still installs after a switch (it was chosen under the old channel; Restart/next start applies it).
