@@ -66,7 +66,11 @@ public sealed record EngineStartTrigger : Trigger
 }
 
 /// <summary><c>on: session.unlock</c> and friends (<see cref="TriggerText.Events"/>).</summary>
-public sealed record EventTrigger(string Name) : Trigger;
+public sealed record EventTrigger(string Name) : Trigger
+{
+    /// <summary><c>ssid: Home</c> on <c>network.connected</c>: only that Wi-Fi network (null = any network).</summary>
+    public string? Ssid { get; init; }
+}
 
 /// <summary>Text forms of triggers, shared by the YAML reader, the validator and (later) the editor.</summary>
 public static class TriggerText

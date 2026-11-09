@@ -266,16 +266,17 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
 
         public IMMNotificationClient* Pointer { get; }
 
-        private DeviceChangeClient(Action changed)
+        private DeviceChangeClient(Action changed, bool onDefault)
         {
             _handle = GCHandle.Alloc(changed);
-            var instance = (nint*)NativeMemory.Alloc((nuint)(2 * sizeof(nint)));
+            var instance = (nint*)NativeMemory.Alloc((nuint)(3 * sizeof(nint)));
             instance[0] = (nint)Vtable;
             instance[1] = GCHandle.ToIntPtr(_handle);
+            instance[2] = onDefault ? 1 : 0; // also signal on a new default endpoint (the default-changed trigger, T20.4)
             Pointer = (IMMNotificationClient*)instance;
         }
 
-        public static DeviceChangeClient Create(Action changed) => new(changed);
+        public static DeviceChangeClient Create(Action changed, bool onDefault = false) => new(changed, onDefault);
 
         public void Dispose()
         {
@@ -350,7 +351,12 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
         }
 
         [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-        private static HRESULT OnDefaultDeviceChanged(void* self, EDataFlow flow, ERole role, char* id) => Ok;
+        private static HRESULT OnDefaultDeviceChanged(void* self, EDataFlow flow, ERole role, char* id)
+        {
+            if (((nint*)self)[2] == 1 && role == ERole.eConsole)
+                Signal(self);
+            return Ok;
+        }
 
         [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
         private static HRESULT OnPropertyValueChanged(void* self, char* id, PROPERTYKEY key)

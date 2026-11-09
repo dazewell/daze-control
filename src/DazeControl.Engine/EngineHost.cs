@@ -111,7 +111,7 @@ internal sealed class EngineHost : IDisposable
         calls.Launcher = _launcher;
         _launcher.StartPrompts = new InputPrompts(menus);
         // Event triggers (M20, D-107): sources load only while a flow subscribes; events are dropped while shortcuts are paused.
-        _triggers = new TriggerService([new SessionSource(_window), new PowerSource(_window)], _launcher, calls, TimeProvider.System,
+        _triggers = new TriggerService([new SessionSource(_window), new PowerSource(_window), new DeviceSource(), new AudioSource(), new DisplaySource(_window), new NetworkSource()], _launcher, calls, TimeProvider.System,
             () => _hotkeyTable.Paused, PowerCondition.All(), Log.Info);
         _launcher.RunCompleted += OnRunCompleted;
         _launcher.ListenerFailed += e => Log.Error("run: completion listener", e);
