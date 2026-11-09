@@ -78,7 +78,7 @@ Status: accepted
 
 ## D-009 · 2026-10-31 · Event-driven waits, zero idle timers, lazy COM workers
 Status: accepted
-- Decision: no timers or polling while idle; waits use notifications (IMMNotificationClient, device
+- Decision: no periodic timers or polling while idle (D-107 allows one due-time timer for schedules); waits use notifications (IMMNotificationClient, device
   state, WM_DISPLAYCHANGE) with a timeout; each COM provider starts its MTA worker on first use and stops
   it after 60 s idle.
 - Why: the idle budget (0 ms CPU over 10 min) and scd's 250 ms audio poll.
@@ -1391,16 +1391,13 @@ Status: accepted
   option (none turns this off per shortcut); only after `VELOPACK_RESTART` (a manual install or an editor-started
   engine after an update would miss it; the scan is a handful of .lnk reads).
 
-## D-107 · 2026-11-08 · Triggers: in-engine due-time timer, `triggers:` per flow, lazy event sources (M20)
-Status: accepted
-- Decision: a flow may list `triggers:` (schedule: `at` + `days`, `every` + `between`, `once`; `on: engine.start`; event:
-  `on: <name>`, optional `only` = an M14 step condition). Schedules run from one engine due-time timer (D-009 amended:
-  "no periodic timers; one due-time timer is allowed"); event sources load lazily. Core (T20.1): `Trigger` records,
-  `TriggerMapper`, warnings in `ConfigValidator`, pure `ScheduleTable.Next`. A bad trigger is dropped with a *warning* on
-  its flow (errors would disable the flow, D-021). v1 events: session.lock/unlock/logon/logoff, power.resume/ac/battery,
-  device.added/removed, audio.default-changed, display.changed, network.connected/disconnected (DESIGN §3).
-- Time rules: local zone from `TimeProvider.LocalTimeZone`; a spring-forward gap time runs once just after the gap; a
-  fall-back repeated time runs at its first occurrence only; `every` counts from the window start (or local midnight,
-  restarting daily), window end included, an end before the start crosses midnight; minimum interval 1 minute.
-- Why not: Task Scheduler per rule (DESIGN §2 B: OS objects to clean up, Pause/history/`whenRunning` rebuilt outside).
-- Open for T20.3: `only` is stored as text; the runtime validates it against the step conditions.
+## D-107 · 2026-11-08 · Triggers: schedules in the engine, lazy push event sources, prompts that never take focus
+Status: accepted (user answers to docs/triggers/DESIGN.md §7, 2026-11-08)
+- Decision: flows get a `triggers:` list (schedule, event; hotkey unchanged). Schedules run in the engine on one due-time
+  timer (amends D-009: no periodic timers, one due-time timer allowed). Missed runs: chosen per schedule when it is created
+  (`ifMissed: run|skip`, with a grace for run; no global default). v1 events: session lock/unlock/logon, power resume and
+  AC/battery, device/audio/display changes, network/Wi-Fi; each a lazy push source. v1 prompts: ask-at-start inputs and
+  `prompt.ask` Yes/No and choose, always with timeout and default; text/number later.
+- Why: 0 CPU between runs and no OS objects to clean; prompts keep "never activates" (D-055).
+- Why not Task Scheduler: leaves OS tasks and rebuilds pause/history/`whenRunning` outside the engine; revisit if waking the PC is wanted.
+- Why not program start/stop events: needs WMI (X-011) or ETW (admin).
