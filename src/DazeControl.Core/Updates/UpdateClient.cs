@@ -150,6 +150,10 @@ public sealed class VelopackUpdateClient : IUpdateClient
 
     private static readonly TimeSpan RefreshAtStartLimit = TimeSpan.FromSeconds(30);
 
+    /// <summary>True when version <paramref name="candidate"/> is strictly newer than <paramref name="than"/> (semver, so an RC is older than its release).</summary>
+    public static bool IsNewer(string candidate, string than) =>
+        SemanticVersion.TryParse(candidate, out var a) && SemanticVersion.TryParse(than, out var b) && a > b;
+
     /// <summary>True when this process runs from a Velopack install.</summary>
     public static bool IsInstalledCopy() => CreateManager(UpdateChannel.Stable).IsInstalled;
 

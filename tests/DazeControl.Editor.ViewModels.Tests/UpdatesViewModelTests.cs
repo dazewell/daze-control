@@ -94,6 +94,36 @@ public sealed class UpdatesViewModelTests
     }
 
     [Fact]
+    public async Task InstallWhenTheOfferedReleaseIsGoneSaysUpToDateAndAppliesNothing()
+    {
+        var client = new FakeUpdates { Newer = "0.18.0" };
+        var updates = new UpdatesViewModel(client, a => a());
+        await updates.CheckAsync();
+
+        client.Newer = null;
+        Assert.False(await updates.RestartAsync());
+        Assert.False(client.Applied);
+        Assert.False(updates.CanRestart);
+        Assert.StartsWith("Up to date", updates.Status, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task InstallDoesNotTreatAnOlderReleaseAsNewerThanShown()
+    {
+        var client = new FakeUpdates { Newer = "0.19.0-rc.1" };
+        var updates = new UpdatesViewModel(client, a => a());
+        await updates.CheckAsync();
+
+        client.Newer = "0.18.5";
+        Assert.True(await updates.RestartAsync());
+        Assert.Equal("0.18.5", client.PendingVersion);
+    }
+
+    [Fact]
+    public void CheckStaysAvailableWhileADownloadedUpdateWaits() =>
+        Assert.True(new UpdatesViewModel(new FakeUpdates { PendingVersion = "0.18.0" }, a => a()).CanCheck);
+
+    [Fact]
     public async Task InstallOfADownloadedUpdateStillWorksOffline()
     {
         var client = new FakeUpdates { PendingVersion = "0.18.0", FindFails = new HttpRequestException("offline") };

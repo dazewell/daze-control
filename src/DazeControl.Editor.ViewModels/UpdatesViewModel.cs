@@ -151,10 +151,16 @@ public sealed partial class UpdatesViewModel : ObservableObject
                     return false;
                 }
             }
-            if (found is not null && shown is not null && found != shown)
+            if (found is not null && shown is not null && VelopackUpdateClient.IsNewer(found, shown))
             {
                 _offered = found;
                 Post(($"Version {found} is out, newer than version {shown}. Install now installs version {found}, not {shown}.", true, true));
+                return false;
+            }
+            if (found is null && _client.PendingVersion is null)
+            {
+                // The offered release is gone (pulled, or the channel changed): nothing to install.
+                Post(StateFor(null));
                 return false;
             }
             if (found is not null)
@@ -182,7 +188,7 @@ public sealed partial class UpdatesViewModel : ObservableObject
         : ($"Version {_client.CurrentVersion}, {ChannelLabel}. {AppInfo.ProductName} checks once a day.", true, false);
 
     private static (string, bool, bool) Ready(string version) =>
-        ($"Version {version} is downloaded. Install restarts {AppInfo.ProductName} into it; it also installs by itself the next time {AppInfo.ProductName} starts.", false, true);
+        ($"Version {version} is downloaded. Install restarts {AppInfo.ProductName} into it; it also installs by itself the next time {AppInfo.ProductName} starts.", true, true);
 
     private void Post((string Status, bool CanCheck, bool CanRestart) state) => _post(() => Show(state));
 
