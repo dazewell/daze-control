@@ -17,6 +17,13 @@ public sealed partial class InspectorViewModel
 
     private int _openTrigger = -1;
 
+    /// <summary>Why a trigger in the file is ignored (from the validator and the reader), or "".</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTriggerNotes))]
+    public partial string TriggerNotes { get; private set; } = "";
+
+    public bool HasTriggerNotes => TriggerNotes.Length > 0;
+
     /// <summary>The editor's clock: "Next:" lines and the date a new schedule starts from.</summary>
     internal TimeProvider Clock => _time;
 
@@ -29,12 +36,11 @@ public sealed partial class InspectorViewModel
         for (var i = 0; i < flow.Triggers.Count; i++)
         {
             var trigger = flow.Triggers[i];
-            var row = new TriggerRowViewModel(this, i, trigger, now, _openTrigger == i || open.Contains(i))
-            {
-                Problem = problems.FirstOrDefault(p => p.Path.StartsWith($"flows.{flow.Id}.triggers[{i}]", StringComparison.Ordinal))?.Message,
-            };
-            Triggers.Add(row);
+            Triggers.Add(new TriggerRowViewModel(this, i, trigger, now, _openTrigger == i || open.Contains(i)));
         }
+        // The reader drops a trigger it can't read but keeps its file position, so a warning's index doesn't match the
+        // rows: say them under the rows instead of on a possibly wrong one.
+        TriggerNotes = string.Join(Environment.NewLine, problems.Select(p => p.Message));
         _openTrigger = -1;
     }
 
@@ -82,12 +88,15 @@ public sealed partial class InspectorViewModel
         if (Flow is not { } flow || index < 0 || index >= flow.Triggers.Count)
             return;
         var trigger = flow.Triggers[index];
+        var occurrence = flow.Triggers.Take(index).Count(t => t == trigger); // equal triggers are allowed: the nth of them
         var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.Run, Flow = flow.Id, Trigger = DazeControl.Core.Model.TriggerText.Describe(trigger) }).ConfigureAwait(false);
         var text = answer is { Ok: true } ? "Started. See Runs for how it went." : answer?.Error ?? "The engine isn't running.";
+        // The rows are rebuilt on every edit and the list may have changed while the engine answered: find the same
+        // trigger of the same flow again instead of trusting the index.
         _post(() =>
         {
-            if (index < Triggers.Count)
-                Triggers[index].TestResult = text;
+            if (Flow?.Id == flow.Id && Triggers.Where(r => r.Trigger == trigger).Skip(occurrence).FirstOrDefault() is { } row)
+                row.TestResult = text;
         });
     }
 }
@@ -194,12 +203,6 @@ public sealed partial class TriggerRowViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsOpen { get; set; }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasProblem))]
-    public partial string? Problem { get; internal set; }
-
-    public bool HasProblem => Problem is not null;
-
     /// <summary>What "Test this trigger" said: started, or why not.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasTestResult))]
@@ -226,7 +229,11 @@ public sealed partial class TriggerRowViewModel : ObservableObject
     public partial double IntervalCount { get; set; } = 1;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IntervalMax))]
     public partial int IntervalUnitIndex { get; set; }
+
+    /// <summary>24 hours at most: an interval restarts at midnight, so a longer one would never come due.</summary>
+    public double IntervalMax => IntervalUnitIndex == 1 ? 24 : 1440;
 
     [ObservableProperty]
     public partial DateTimeOffset OnceDate { get; set; }
@@ -270,7 +277,7 @@ public sealed partial class TriggerRowViewModel : ObservableObject
 
     private static TimeSpan Interval(double count, int unit)
     {
-        var n = double.IsNaN(count) ? 1 : Math.Clamp(Math.Round(count), 1, 1440);
+        var n = double.IsNaN(count) ? 1 : Math.Clamp(Math.Round(count), 1, unit == 1 ? 24 : 1440);
         return unit == 1 ? TimeSpan.FromHours(n) : TimeSpan.FromMinutes(n);
     }
 

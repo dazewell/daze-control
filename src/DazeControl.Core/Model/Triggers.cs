@@ -54,6 +54,9 @@ public sealed record AtTrigger(TimeOnly Time, Days Days) : ScheduleTrigger;
 public sealed record EveryTrigger(TimeSpan Interval, TimeOnly? From = null, TimeOnly? To = null) : ScheduleTrigger
 {
     public static readonly TimeSpan MinInterval = TimeSpan.FromMinutes(1);
+
+    /// <summary>Unwindowed intervals restart at each midnight, so a longer one would never come due.</summary>
+    public static readonly TimeSpan MaxInterval = TimeSpan.FromHours(24);
 }
 
 /// <summary><c>once: "2026-12-01 09:30"</c>, local time.</summary>
@@ -90,6 +93,23 @@ public static class TriggerText
     /// trigger fires. A step's "Only if" needs a step's device or program, a trigger has none, so these stand alone.
     /// </summary>
     public static readonly IReadOnlyList<string> Conditions = ["onBattery", "onAC"];
+
+    /// <summary>
+    /// Whether a schedule can ever be due and is one the runtime may register: the validator's schedule rules in one
+    /// place, so the runtime skips exactly what the validator calls ignored.
+    /// </summary>
+    public static bool IsValidSchedule(ScheduleTrigger rule)
+    {
+        if (rule.Only is not null || rule.Grace < TimeSpan.Zero)
+            return false;
+        return rule switch
+        {
+            AtTrigger a => a.Days != Days.None,
+            EveryTrigger e => e.Interval >= EveryTrigger.MinInterval && e.Interval <= EveryTrigger.MaxInterval
+                && (e.From is null) == (e.To is null) && (e.From is null || e.From != e.To),
+            _ => true,
+        };
+    }
 
     public static bool IsCondition(string? name) => name is not null && Conditions.Contains(name);
 

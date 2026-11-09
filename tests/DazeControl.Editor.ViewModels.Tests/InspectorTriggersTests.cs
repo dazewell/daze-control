@@ -218,6 +218,62 @@ public sealed class InspectorTriggersTests : IDisposable
         Assert.Equal("The engine isn't running.", _inspector.Triggers[0].TestResult);
     }
 
+    [Fact]
+    public void ASchedulesOnlyIsNotShownBecauseTheRuntimeNeverChecksIt() =>
+        Assert.Equal("Weekdays at 22:30", WhenThisRuns.Sentence(new AtTrigger(new TimeOnly(22, 30), Days.Weekdays) { Only = "onBattery" }));
+
+    [Fact]
+    public void IntervalsStopAt24HoursBecauseTheyRestartAtMidnight()
+    {
+        _inspector.Triggers[0].KindIndex = WhenThisRuns.EveryKind;
+        _inspector.Triggers[0].IntervalUnitIndex = 1;
+        Assert.Equal(24, _inspector.Triggers[0].IntervalMax);
+        _inspector.Triggers[0].IntervalCount = 99;
+        Assert.Equal(TimeSpan.FromHours(24), Assert.IsType<EveryTrigger>(Saved[0]).Interval);
+        _inspector.Triggers[0].IntervalUnitIndex = 0;
+        Assert.Equal(1440, _inspector.Triggers[0].IntervalMax);
+    }
+
+    [Fact]
+    public async Task TestResultLandsOnTheSameTriggerEvenWhenARowWasRemovedMeanwhile()
+    {
+        _engine.Answer = _ =>
+        {
+            _inspector.RemoveTrigger(0); // while the engine answers
+            return new PipeMessage { Ok = true };
+        };
+
+        await _inspector.TestTriggerAsync(1);
+
+        var row = Assert.Single(_inspector.Triggers);
+        Assert.Equal("When the PC is unlocked", row.Sentence);
+        Assert.StartsWith("Started", row.TestResult);
+    }
+
+    [Fact]
+    public async Task TestResultOfTheSecondOfTwoEqualTriggersShowsOnTheSecond()
+    {
+        _inspector.AddEventCommand.Execute(null); // a second session.unlock beside the first
+        Assert.Equal(Saved[1], Saved[2]);
+
+        await _inspector.TestTriggerAsync(2);
+
+        Assert.Null(_inspector.Triggers[1].TestResult);
+        Assert.StartsWith("Started", _inspector.Triggers[2].TestResult);
+    }
+
+    [Fact]
+    public void AnIgnoredTriggerIsSaidUnderTheRowsNotOnAWrongRow()
+    {
+        File.WriteAllText(_session.Path, Yaml.Replace("{ at: \"22:30\", days: weekdays }", "{ at: \"25:00\" }" + Environment.NewLine + "      - { at: \"22:30\", days: weekdays }", StringComparison.Ordinal));
+        _session.Load();
+        Open("night");
+
+        Assert.Equal(2, _inspector.Triggers.Count);
+        Assert.True(_inspector.HasTriggerNotes);
+        Assert.Contains("ignored", _inspector.TriggerNotes, StringComparison.Ordinal);
+    }
+
     // ---- Ask inputs ----
 
     [Fact]

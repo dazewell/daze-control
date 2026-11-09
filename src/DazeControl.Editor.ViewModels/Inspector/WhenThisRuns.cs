@@ -54,7 +54,7 @@ public static class WhenThisRuns
             EngineStartTrigger => Event(EngineStartTrigger.Name),
             _ => "Starts by itself",
         };
-        return trigger.Only is { Length: > 0 } only && Array.IndexOf(OnlyIds, only) is > 0 and var i
+        return trigger is not ScheduleTrigger && trigger.Only is { Length: > 0 } only && Array.IndexOf(OnlyIds, only) is > 0 and var i
             ? $"{text}, {OnlyNames[i].ToLowerInvariant()}"
             : text;
     }

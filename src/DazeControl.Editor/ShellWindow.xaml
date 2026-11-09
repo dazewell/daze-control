@@ -453,15 +453,18 @@
                                                     </StackPanel>
                                                     <!-- Five fixed 28-DIP slots (DESIGN Part D, M20): on a schedule, on an event, not in the tray menu, on the desktop, used by other flows.
                                                          An empty slot stays empty, so the same column always means the same thing. -->
-                                                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw">
-                                                        <Grid Width="28" Height="28" IsHitTestVisible="{x:Bind HasScheduleChip, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind TriggersTip, Mode=OneWay}">
+                                                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+<Grid Width="28" Height="28" IsHitTestVisible="{x:Bind HasScheduleChip, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind TriggersTip, Mode=OneWay}"
+                                                              AutomationProperties.Name="{x:Bind TriggersTip, Mode=OneWay}" AutomationProperties.AccessibilityView="{x:Bind local:RowFormat.View(HasScheduleChip), Mode=OneWay}">
                                                             <FontIcon Glyph="&#xE121;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                                       Opacity="{x:Bind local:RowFormat.Show(HasScheduleChip), Mode=OneWay}" />
                                                         </Grid>
-                                                        <Grid Width="28" Height="28" IsHitTestVisible="{x:Bind HasEventChip, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind TriggersTip, Mode=OneWay}">
+                                                        <Grid Width="28" Height="28" IsHitTestVisible="{x:Bind HasEventChip, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind TriggersTip, Mode=OneWay}"
+                                                              AutomationProperties.Name="{x:Bind TriggersTip, Mode=OneWay}" AutomationProperties.AccessibilityView="{x:Bind local:RowFormat.View(HasEventChip), Mode=OneWay}">
                                                             <FontIcon Glyph="&#xE945;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                                       Opacity="{x:Bind local:RowFormat.Show(HasEventChip), Mode=OneWay}" />
                                                         </Grid>
+                                                        <StackPanel Orientation="Horizontal" AutomationProperties.AccessibilityView="Raw">
                                                         <Grid Width="28" Height="28" IsHitTestVisible="{x:Bind NotInTray, Mode=OneWay}" ToolTipService.ToolTip="Not in the tray menu">
                                                             <FontIcon Glyph="&#xE7B3;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                                       Opacity="{x:Bind local:RowFormat.Show(NotInTray), Mode=OneWay}" />
@@ -474,6 +477,7 @@
                                                             <FontIcon Glyph="&#xE71B;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                                       Opacity="{x:Bind local:RowFormat.Show(HasUsedBy), Mode=OneWay}" />
                                                         </Grid>
+                                                        </StackPanel>
                                                     </StackPanel>
                                                     <ToggleSwitch Grid.Column="5" IsOn="{x:Bind IsEnabled, Mode=TwoWay}" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" MinWidth="0" HorizontalAlignment="Left"
                                                                   OnContent="On" OffContent="Off" AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" />

@@ -58,7 +58,7 @@ public sealed class ScheduleSource(TimeProvider time, Action<string, string> fir
             var next = new Dictionary<(string, ScheduleTrigger), Rule>();
             foreach (var flow in flows)
             {
-                foreach (var rule in flow.Triggers.OfType<ScheduleTrigger>())
+                foreach (var rule in flow.Triggers.OfType<ScheduleTrigger>().Where(TriggerText.IsValidSchedule)) // the validator calls the others ignored
                 {
                     var key = (flow.Id, rule);
                     next[key] = _rules.TryGetValue(key, out var kept) ? kept : Compute(new Rule(flow.Id, flow.Name, rule, now), now);

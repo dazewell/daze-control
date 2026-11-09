@@ -415,7 +415,8 @@ public static partial class ConfigValidator
                     EventTrigger e when !TriggerText.IsEvent(e.Name) => $"\"{e.Name}\" isn't an event I know.",
                     EventTrigger { Ssid: not null } e when e.Name != "network.connected" => "ssid only goes with network.connected.",
                     AtTrigger a when a.Days == Days.None => "Pick at least one day.",
-                    EveryTrigger e when e.Interval < EveryTrigger.MinInterval => "An interval is at least a minute.",
+                    EveryTrigger e when e.Interval < EveryTrigger.MinInterval || e.Interval > EveryTrigger.MaxInterval => "An interval is from a minute to 24 hours.",
+                    ScheduleTrigger { Only: not null } => "only goes with an event, not a schedule.",
                     EveryTrigger e when (e.From is null) != (e.To is null) || (e.From is not null && e.From == e.To) => "between needs two different times.",
                     ScheduleTrigger { Grace: { } g } when g < TimeSpan.Zero => "grace can't be negative.",
                     { Only: { } only } when !string.IsNullOrWhiteSpace(only) && !TriggerText.IsCondition(only) =>

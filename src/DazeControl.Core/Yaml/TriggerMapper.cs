@@ -38,6 +38,8 @@ internal static class TriggerMapper
         var isSchedule = d.On is null;
         if (!isSchedule && (d.IfMissed is not null || d.Grace is not null))
             return (null, "ifMissed and grace only go with at, every and once.");
+        if (isSchedule && only is not null)
+            return (null, "only goes with on, not with a schedule.");
         if (d.Days is not null && d.At is null)
             return (null, "days only goes with at.");
         if (d.Between is not null && d.Every is null)
@@ -79,8 +81,8 @@ internal static class TriggerMapper
         }
         else if (d.Every is not null)
         {
-            if (!Duration.TryParse(d.Every, out var interval) || interval < EveryTrigger.MinInterval)
-                error = $"\"{d.Every}\" isn't an interval of at least a minute (like 2h or 30m).";
+            if (!Duration.TryParse(d.Every, out var interval) || interval < EveryTrigger.MinInterval || interval > EveryTrigger.MaxInterval)
+                error = $"\"{d.Every}\" isn't an interval from a minute to 24 hours (like 2h or 30m).";
             else if (d.Between is null)
                 schedule = new EveryTrigger(interval);
             else if (d.Between.ToValue() is ListParam { Items: [ScalarParam a, ScalarParam b] }
