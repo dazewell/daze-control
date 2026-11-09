@@ -1,0 +1,36 @@
+# Template for scripts/dev-run.ps1: copied once to %LOCALAPPDATA%\DazeControl\dev\config.yaml.
+# Harmless flows (pop-ups only) to try triggers and prompts on a dev build. Edit the copy, not this file.
+version: 1
+flows:
+  every-minute:
+    name: Every minute
+    triggers:
+      - { every: 1m }
+    nodes:
+      - { id: n, step: notify, with: { text: "Schedule fired" } }
+  unlock:
+    name: On unlock
+    triggers:
+      - { on: session.unlock }
+    nodes:
+      - { id: n, step: notify, with: { text: "PC unlocked" } }
+  wake:
+    name: On wake
+    triggers:
+      - { on: power.resume }
+    nodes:
+      - { id: n, step: notify, with: { text: "PC awake" } }
+  network:
+    name: On network change
+    triggers:
+      - { on: network.connected }
+      - { on: network.disconnected }
+    nodes:
+      - { id: n, step: notify, with: { text: "Network changed" } }
+  ask:
+    name: Ask
+    hotkeys: [Ctrl+Alt+F11]
+    nodes:
+      - { id: q, step: prompt.ask, with: { question: "Go on?", timeout: 20s } }
+      - { id: yes, step: notify, with: { text: "You said Yes" }, after: [q] }
+      - { id: no, step: notify, with: { text: "You said No or no answer" }, after: [{ id: q, when: failure }] }
