@@ -72,11 +72,12 @@ public sealed class FlowRunner
     /// <param name="chain">The call chain of the flow that started this one (start-mode <c>flow.run</c>); empty for
     /// a trigger by a person, which starts a fresh chain (D-063).</param>
     /// <param name="cancellationToken">Cancels the run.</param>
-    public Task<RunResult> RunAsync(Flow flow, Library library, IReadOnlyList<string> chain, CancellationToken cancellationToken)
+    /// <param name="trigger">What started the run ("Schedule · 22:30"): prompts there default to stopping (D-107).</param>
+    public Task<RunResult> RunAsync(Flow flow, Library library, IReadOnlyList<string> chain, CancellationToken cancellationToken, string trigger = "")
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(chain);
-        return RunCoreAsync(flow, library, NoInputs, [.. chain, flow.Id], null, null, cancellationToken);
+        return RunCoreAsync(flow, library, NoInputs, [.. chain, flow.Id], null, null, cancellationToken, trigger);
     }
 
     /// <summary>
@@ -102,7 +103,7 @@ public sealed class FlowRunner
     private static readonly IReadOnlyDictionary<string, string> NoInputs = new Dictionary<string, string>();
 
     private async Task<RunResult> RunCoreAsync(Flow flow, Library library, IReadOnlyDictionary<string, string> inputs, string[] chain,
-        Guid? parentRunId, string? parentNodeId, CancellationToken cancellationToken)
+        Guid? parentRunId, string? parentNodeId, CancellationToken cancellationToken, string trigger = "")
     {
         // Inputs resolve before anything runs (D-064): steps, their locks and nested calls only ever see Library keys.
         flow = FlowInputs.Apply(flow, inputs);
@@ -110,7 +111,7 @@ public sealed class FlowRunner
         var runId = Guid.NewGuid();
         var started = _time.GetUtcNow();
         var startedTicks = _time.GetTimestamp();
-        var scope = new RunScope(runId, chain, parentRunId, parentNodeId);
+        var scope = new RunScope(runId, chain, parentRunId, parentNodeId, trigger);
         Raise(new RunStarted(runId, flow.Id, started, flow.Nodes.Count) { Flow = flow, ParentRunId = parentRunId, ParentNodeId = parentNodeId });
         var reported = new HashSet<string>();
         using var stepsCancel = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -204,7 +205,7 @@ public sealed class FlowRunner
     private readonly record struct AttemptResult(string? Error, bool EndsFlow = false, string? SkippedBecause = null);
 
     /// <param name="Chain">Flow ids from the top run down to this run's flow.</param>
-    private sealed record RunScope(Guid RunId, string[] Chain, Guid? ParentRunId, string? ParentNodeId);
+    private sealed record RunScope(Guid RunId, string[] Chain, Guid? ParentRunId, string? ParentNodeId, string Trigger = "");
 
     /// <summary>One try of a call that waits.</summary>
     private readonly record struct CallTry(string? Error, CalledRun? Called, bool Quiet);
@@ -266,6 +267,7 @@ public sealed class FlowRunner
                 var context = new StepContext(flow, node, descriptor, library, attempt)
                 {
                     Chain = scope.Chain,
+                    Trigger = scope.Trigger,
                     RunNested = Flows is null ? null : (target, token) => NestedAsync(scope, flow, node, target, c => called = c, token),
                 };
                 var attemptResult = await AttemptAsync(provider!, context, timeout, flowToken).ConfigureAwait(false);
@@ -320,7 +322,7 @@ public sealed class FlowRunner
         RunResult result;
         try
         {
-            result = await RunCoreAsync(flow, resolved.Library, inputs, [.. scope.Chain, flow.Id], scope.RunId, node.Id, linked.Token)
+            result = await RunCoreAsync(flow, resolved.Library, inputs, [.. scope.Chain, flow.Id], scope.RunId, node.Id, linked.Token, scope.Trigger)
                 .ConfigureAwait(false);
         }
 #pragma warning disable CA1031 // a runner bug in the nested run fails this step only

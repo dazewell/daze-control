@@ -25,14 +25,15 @@ public static class FlowInputs
     /// steps pass (pass-through), so the steps, their locks and nested calls see plain Library keys. Lists and other
     /// maps are left alone. Unknown names stay as written (validation reports them). No inputs: the same instance.
     /// </summary>
-    public static Flow Apply(Flow flow, IReadOnlyDictionary<string, string> given)
+    /// <param name="keepAsked">An <c>ask: true</c> input (D-107) nobody answered stays <c>$name</c> for the launcher's prompt.</param>
+    public static Flow Apply(Flow flow, IReadOnlyDictionary<string, string> given, bool keepAsked = false)
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(given);
         if (flow.Inputs.Count == 0)
             return flow;
         ParamValue Resolve(ParamValue value) => NameIn(value) is { } name && flow.Inputs.TryGetValue(name, out var input)
-            ? given.TryGetValue(name, out var key) ? key : input.Default
+            ? given.TryGetValue(name, out var key) ? key : keepAsked && input.Ask ? value : input.Default
             : value;
         ParamValue Setting(StepNode step, string param, ParamValue value) =>
             value is MapParam map && param == Param && step.Step == Catalog.ProviderCatalog.RunFlowId

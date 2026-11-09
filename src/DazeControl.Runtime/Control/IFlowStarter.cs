@@ -82,7 +82,7 @@ public sealed class FlowCalls(Func<ConfigSnapshot> snapshot) : IFlowStarter
         if (flow.WhenRunning == WhenRunning.Ignore && launcher.IsRunning(flowId))
             return new(true, $"{called.Name} was already running, so it wasn't started again.");
         // Resolved here, so the launched run (whose runner sees no caller) gets the caller's devices (D-064).
-        var run = launcher.TriggerAsync(FlowInputs.Apply(flow, inputs), called.Library, trigger, chain);
+        var run = launcher.TriggerAsync(FlowInputs.Apply(flow, inputs, keepAsked: true), called.Library, trigger, chain);
         // The launched run is the launcher's: its result goes to history and the pop-up. Observe a fault only.
         _ = run.ContinueWith(t => _ = t.Exception, CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);

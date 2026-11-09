@@ -368,6 +368,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         "file" => "Files",
         "flow" => "Flows",
         "menu" => "Menu",
+        "prompt" => "Questions",
         _ => area,
     };
 }

@@ -23,7 +23,10 @@ public sealed record TraySettings
 /// A flow input (D-064): a Library device of <paramref name="Kind"/> that a <c>flow.run</c> caller may pass, else
 /// <paramref name="Default"/>. <paramref name="Label"/> is what the editor and messages show ("Output").
 /// </summary>
-public sealed record FlowInput(LibraryKind Kind, string Label, string Default);
+/// <param name="Ask">D-107: the person is asked at the start of a run (a prompt offering the Library items of <paramref name="Kind"/>); the default is the answer when none comes.</param>
+/// <param name="Timeout">How long the prompt waits; null = 30 s.</param>
+/// <param name="OnTimeout"><c>stop</c> or <c>use-default</c> (<see cref="Prompts"/>); empty = use-default when a person started the run, stop otherwise.</param>
+public sealed record FlowInput(LibraryKind Kind, string Label, string Default, bool Ask = false, TimeSpan? Timeout = null, string OnTimeout = "");
 
 /// <summary>
 /// A named DAG of nodes (D-003). <see cref="Nodes"/> order is the order within a canvas column (D-020) and

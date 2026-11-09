@@ -85,6 +85,9 @@ public static class ConfigMapper
             Kind = EnumText(i.Value.Kind),
             Name = i.Value.Label == i.Key ? null : i.Value.Label,
             Default = i.Value.Default,
+            Ask = i.Value.Ask ? "true" : null,
+            Timeout = i.Value.Ask && i.Value.Timeout is { } timeout ? Duration.Format(timeout) : null,
+            OnTimeout = i.Value.Ask && i.Value.OnTimeout.Length > 0 ? i.Value.OnTimeout : null,
         }),
         Nodes = [.. flow.Nodes.Select(ToDocument)],
     };
@@ -353,7 +356,18 @@ public static class ConfigMapper
                 if (item?.Kind is null)
                     Error($"{path}.{name}.kind", "Say what kind of device it takes (kind: audio, bluetooth, android or display).");
                 else if (TryEnum(item.Kind, $"{path}.{name}.kind", LibraryKind.Audio, out var kind))
-                    inputs.Add(KeyValuePair.Create(name, new FlowInput(kind, string.IsNullOrWhiteSpace(item.Name) ? name : item.Name, item.Default?.Trim() ?? "")));
+                {
+                    TimeSpan? timeout = null;
+                    if (item.Timeout is { } written)
+                    {
+                        if (Duration.TryParse(written, out var span))
+                            timeout = span;
+                        else
+                            Error($"{path}.{name}.timeout", $"\"{written}\" isn't a duration (like 30s, 2m).");
+                    }
+                    inputs.Add(KeyValuePair.Create(name, new FlowInput(kind, string.IsNullOrWhiteSpace(item.Name) ? name : item.Name,
+                        item.Default?.Trim() ?? "", Bool(item.Ask, $"{path}.{name}.ask", false), timeout, item.OnTimeout?.Trim() ?? "")));
+                }
             }
             return new(inputs);
         }

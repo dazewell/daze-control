@@ -26,6 +26,9 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
 
     public event Action<Exception>? ListenerFailed;
 
+    /// <summary>Asks <c>ask: true</c> inputs before a run starts (D-107); null = they take their defaults (tests, no window).</summary>
+    public Menus.InputPrompts? StartPrompts { get; set; }
+
     /// <param name="flow">The flow version to run.</param>
     /// <param name="library">The library that version was validated with (<c>FlowState.Library</c>); a queued
     /// run keeps it even if the config reloads before it starts.</param>
@@ -155,7 +158,18 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
         Exception? failure = null;
         try
         {
-            result = await runner.RunAsync(flow, library, chain, cancel.Token).ConfigureAwait(false);
+            string? note = null;
+            if (StartPrompts is { } prompts && flow.Inputs.Values.Any(i => i.Ask))
+            {
+                var answer = await prompts.AskAsync(flow, library, trigger, cancel.Token).ConfigureAwait(false);
+                note = answer.Note;
+                flow = answer.Flow ?? flow;
+            }
+            else
+            {
+                flow = FlowInputs.Apply(flow, new Dictionary<string, string>()); // an asked input nobody can ask takes its default
+            }
+            result = note is not null ? NotStarted(flow, note) : await runner.RunAsync(flow, library, chain, cancel.Token, trigger).ConfigureAwait(false);
             history?.Add(new RunRecord(result.RunId, flow.Id, flow.Name, trigger, result.Started, result.Duration,
                 result.Outcome, [.. result.Nodes]));
         }
@@ -194,6 +208,15 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
         completion?.TrySetResult(result);
         return result;
     }
+
+    /// <summary>A run that ended before its first step because a prompt got no answer: quiet, the note on the first step for history.</summary>
+    private static RunResult NotStarted(Flow flow, string note) =>
+        new(FlowOutcome.Cancelled, new(flow.Nodes.Select((n, i) => new NodeResult(n.Id, NodeOutcome.Cancelled, Attempts: 0, Error: i == 0 ? note : null))))
+        {
+            RunId = Guid.NewGuid(),
+            Started = DateTimeOffset.UtcNow,
+            Quiet = true,
+        };
 
     private void RaiseCompleted(RunFinished finished)
     {
