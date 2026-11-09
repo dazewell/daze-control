@@ -124,8 +124,8 @@ One PR (design + build). Editor edits stay in the inspector/param picker (other 
 ---
 
 
-## M20 Scheduled and event-based triggers, input prompts (user, 2026-11-08; PROPOSED, design docs/triggers/DESIGN.md, waiting on its §7)
-One PR per task (D-079). Do not start until the user answers DESIGN §7 and a decision (D-107) is recorded; D-009 first gets its "one due-time timer" amendment.
+## M20 Scheduled and event-based triggers, input prompts (user, 2026-11-08; design docs/triggers/DESIGN.md, D-107 accepted)
+One PR per task (D-079). T20.2 amends D-009 (done in D-107). `ifMissed` is set per schedule in the editor, no default.
 
 - [ ] T20.1 Core: `triggers:` model, YAML, validation, pure `ScheduleTable.Next` (DST, month ends). Done when: Core tests with `ManualTime`; existing samples round-trip byte-identical.
 - [ ] T20.2 Runtime: schedule source (one due-time timer, resume/time-change re-arm, missed-run grace, Pause), history text. After T20.1. Done when: Runtime tests; `measure.ps1` idle 0 ms CPU.

@@ -1,6 +1,6 @@
 # Triggers and prompts: scheduled, event-based, input prompts (M20)
 
-Status: PROPOSED 2026-11-08, waiting for the user's answers (§7). Same rules as the other sub-projects: design first,
+Status: ACCEPTED 2026-11-08 (D-107): §7 answered: engine timer; events = session, power, device/audio/display, network; prompts = Yes/No + choose; missed runs chosen per schedule at creation (`ifMissed: run|skip`). Same rules as the other sub-projects: design first,
 one PR per task (D-079), cut this file into ARCHITECTURE/FEATURES/UX at the gate.
 
 ## 1. Goal and what already exists
