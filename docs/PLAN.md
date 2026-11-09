@@ -1,11 +1,12 @@
 # Plan
 
 ## Resume
-Current: M13 and L1 done (released up to v0.39.0). M12: T12.2 done (#56, "Borderless only", D-055); T12.1 (spike S1, controller input) paused in draft PR #58 until the user has the Xbox pad: its PR `## Resume` has the gates left.
-Next action: T12.1 when the pad is back; T12.3 (core: `menu.show`, `GamepadChord`, validation) can start before it. Also open: the M13 gate (UX acceptance list); DESIGN §1 B live run (changes the default audio device: ask the user).
+Current: M20 (scheduled and event triggers, input prompts; D-107) is merged: T20.1–T20.7 plus follow-ups T20.8–T20.10 (M20 section); not released yet (the user asked for a dev build to test, not a release). M12, M13, M14, M18, M19 are done except the live checks listed in their sections.
+Next action: the user's live check of M20 with `scripts/dev-run.ps1` (T20.11), then fix what it finds; run T20.2's idle `measure.ps1` gate (stop the installed engine first). Also open: the M13 gate (UX acceptance list); DESIGN §1 B live run (changes the default audio device: ask the user). Cut a release only when the user asks.
 Workflow (D-079): PRs don't bump `<Version>`, merge with `gh pr merge --auto --merge`, keep their live state in the PR's `## Resume`, and don't edit this block.
 Notes for next agent:
 - Never push a v-tag without the user (D-043). Live display tests: `scripts/display-check.ps1` (`-Go` changes the user's screens: ask first every time).
+- Try a checkout on the user's PC: `pwsh scripts/dev-run.ps1` (stops the engine, builds, runs on the dev config; `-Restore` brings the installed app back).
 - Installed app version: `%LOCALAPPDATA%\DazeControlApp\current\sq.version` (updates apply on the next engine start).
 - Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. measure.ps1 can't run while the installed engine holds the pipe.
 - Win+[ and Win+] are held by the user's `SwitchDisplay.ahk` (leave it running). This PC runs with Num Lock off: live-test hotkeys with F-key chords.
@@ -134,6 +135,11 @@ One PR per task (D-079). T20.2 amends D-009 (done in D-107). `ifMissed` is set p
 - [x] T20.5 Prompts: `ask: true` flow inputs, `prompt.ask` confirm/choose with timeout and default. After T20.1; parallel with T20.2-T20.4. (feat/m20-prompts)
 - [x] T20.6 Editor: "When this runs" card, next-run line, Test this trigger, Ask inspector, screenshots. After T20.2 and T20.5. (feat/m20-editor-triggers)
 - [x] T20.7 Gate: footprint rows per source, ARCHITECTURE/FEATURES/UX, cut DESIGN (D-053), release-notes line. Done: docs/m20-gate (release-notes line is in the PR body).
+- [x] T20.8 Editor: "Add events…" flyout, grouped checkboxes, one trigger row per ticked event (user, 2026-11-09; #147). The picker's screenshots (light/dark/high contrast/225 %) are still to take.
+- [x] T20.9 Fixes from the user's first real test (#148): `power.resume` also on Modern Standby (display/session back; classic resume kept; the schedule's missed-run re-arm uses the same signal); `NetworkSource` used a function that doesn't exist in iphlpapi, now `NotifyIpInterfaceChange`.
+- [x] T20.10 Post-merge Copilot review (#140–#143, #147, #148 merged without one): reviewed through review-only PRs #149–#151 (closed), valid findings fixed in #152 (duplicate schedules, backward clock jump, `only` on schedules, cooldown/debounce order, failed source load never retried, `ask` input saved without `onTimeout`, WLAN query, audio roles…).
+- [ ] T20.11 The user's live check on real hardware with `scripts/dev-run.ps1` (#153; dev config `%LOCALAPPDATA%\DazeControl\dev\config.yaml`): wake from Modern Standby runs the flow, Wi-Fi/network events, USB/audio/display events, a schedule after sleep (`ifMissed`), a prompt over a game or app without taking focus, the "When this runs" card and multi-event picker. Anything wrong becomes a `fix/` PR.
+- Rule learned (user, 2026-11-09): no PR with code merges before its Copilot review landed and every review thread is replied to AND resolved (repo-workflow); child sessions must turn on auto-fix themselves.
 
 ## M19 Backup and restore (user, 2026-11-06; design docs/backup-restore/DESIGN.md, D-103, accepted 2026-11-06)
 One PR per task; usage is scarce (D-079). Choices answered by the user (all as recommended, DESIGN §12).
