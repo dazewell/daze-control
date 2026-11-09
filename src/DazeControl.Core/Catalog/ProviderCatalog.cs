@@ -8,7 +8,7 @@ namespace DazeControl.Core.Catalog;
 public static class ProviderCatalog
 {
     private const string Audio = "E767", Bluetooth = "E702", Display = "E7F4", Process = "E756", Script = "E943",
-        Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", File = "E8A5", RunFlow = "E768", MenuGlyph = "E700";
+        Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", File = "E8A5", RunFlow = "E768", MenuGlyph = "E700", AskGlyph = "E897";
 
     /// <summary>The fact id of <c>BluetoothConnectedProbe</c> (D-081).</summary>
     public const string BluetoothConnected = "bluetooth.connected";
@@ -334,7 +334,42 @@ public static class ProviderCatalog
                 Help = "On: this step waits for the picked flow and takes its result. Off: the picked flow starts on its own.",
             },
         ]),
+        // No resources: the prompt waits for a person, never for a device (D-107).
+        new(PromptAskId, "Ask", AskGlyph, TimeSpan.FromMinutes(11),
+        [
+            new("mode", ParamKind.Choice, "Kind")
+            {
+                Choices = [Prompts.Confirm, Prompts.Choose], Captions = ["Yes or No", "Choose"], Default = Prompts.Confirm,
+                Help = "Yes or No: Yes goes on, No fails the step (a \"when it fails\" branch can follow). Choose: pick one of 2 to 12 answers.",
+            },
+            new("question", ParamKind.Text, "Question") { Required = true },
+            new("choices", ParamKind.TextList, "Answers")
+            {
+                Ordered = true, Help = "Choose only: 2 to 12 answers, in order. Keys 1 to 9 pick the first nine.",
+            },
+            new("flag", ParamKind.Text, "Remember the answer in flag")
+            {
+                Suggest = ParamSuggest.Config(ParamSuggest.Flags),
+                Help = "Yes turns the flag on, No off. For Choose, the flag \"name:answer\" turns on and the others off, so \"Check flag\" can branch on it.",
+            },
+            new("timeout", ParamKind.Duration, "Wait")
+            {
+                Default = "30s", Help = "5 s to 10 min for an answer.",
+            },
+            new("onTimeout", ParamKind.Choice, "No answer")
+            {
+                Choices = [Prompts.Stop, Prompts.UseDefault, Prompts.Skip], Captions = ["Stop the flow", "Use the default answer", "Carry on without it"],
+                Help = "Empty = stop the flow (its history says \"No answer\"), so a run nobody is there for never waits.",
+            },
+            new("default", ParamKind.Text, "Default answer")
+            {
+                Help = "Used when nobody answers and \"No answer\" says so: yes or no, or one of the answers.",
+            },
+        ]),
     ];
+
+    /// <summary>The <c>prompt.ask</c> step type (M20, D-107).</summary>
+    public const string PromptAskId = "prompt.ask";
 
     /// <summary>The <c>menu.show</c> step type (M12, D-054).</summary>
     public const string MenuShowId = "menu.show";

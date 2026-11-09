@@ -65,7 +65,14 @@ Two layers, both on the no-activate pop-up (`FlowMenu`/`RunPopup`, D-055), so a 
    variable (`$answer-name`, late binding) and keyboard focus.
 Every prompt has a **timeout and a default** (`onTimeout: skip|stop|use-default`), because scheduled and event runs happen when
 nobody is there; for those starts the default is `stop` with a "No answer" note, so a flow slot is never blocked forever.
-Text/number conflict with "never activates": proposal = show non-activating, take keys only after the person clicks it (§7.3).
+**Built (T20.5):** `FlowInput.Ask/Timeout/OnTimeout` (YAML `ask`, `timeout` 5s-10m, `onTimeout: stop|use-default`) asked by
+`InputPrompts` in `FlowLauncher` before the run (inside the slot, so Stop/restart closes the prompt; only inputs a step still
+uses and with 2+ Library items; a `flow.run` that passes the input skips it; nested waits and dry runs take defaults).
+`prompt.ask` (`PromptProvider`, `mode: confirm|choose`, `question`, `choices`, `flag`, `timeout`, `onTimeout: stop|use-default|skip`,
+`default`) runs on the same `IMenuPresenter` seam: No fails the step, a choice sets flags `name:answer`. Unset `onTimeout`:
+`stop` for steps, default device for ask inputs a person started, `stop` for a "Schedule ·"/"Event ·" trigger
+(`Prompts.IsNonInteractive`); stop = quiet run, "No answer" on the first step in history. The close timer is the menu's
+(time with no input). Text/number conflict with "never activates": proposal = show non-activating, take keys only after the person clicks it (§7.3).
 Windows toast buttons: rejected (packaging identity, footprint).
 
 ## 5. Editor

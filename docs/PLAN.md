@@ -131,7 +131,7 @@ One PR per task (D-079). T20.2 amends D-009 (done in D-107). `ifMissed` is set p
 - [ ] T20.2 Runtime: schedule source (one due-time timer, resume/time-change re-arm, missed-run grace, Pause), history text. After T20.1. Done when: Runtime tests; `measure.ps1` idle 0 ms CPU.
 - [ ] T20.3 Runtime: lazy `ITriggerSource` framework (debounce, cooldown, chain guard, `only`) + session and power sources. After T20.1.
 - [ ] T20.4 Device, audio, display and network sources. After T20.3; one file each, parallel-safe.
-- [ ] T20.5 Prompts: `ask: true` flow inputs, `prompt.ask` confirm/choose with timeout and default. After T20.1; parallel with T20.2-T20.4.
+- [x] T20.5 Prompts: `ask: true` flow inputs, `prompt.ask` confirm/choose with timeout and default. After T20.1; parallel with T20.2-T20.4. (feat/m20-prompts)
 - [ ] T20.6 Editor: "When this runs" card, next-run line, Test this trigger, Ask inspector, screenshots. After T20.2 and T20.5.
 - [ ] T20.7 Gate: footprint rows per source, ARCHITECTURE/FEATURES/UX, cut DESIGN (D-053), release-notes line.
 

@@ -98,10 +98,15 @@ internal sealed class EngineHost : IDisposable
         var calls = new FlowCalls(() => _config!.Current);
         stepProviders.Add(new FlowProvider(calls));
         // menu.show (M12, D-055): one menu at a time; none over a full-screen game (#32); the window answers on the message thread.
-        stepProviders.Add(new MenuProvider(new GatedMenuPresenter(new FullScreenGuardPresenter(_menu, FullScreen.OverGame, Log.Info)), calls));
+        var menus = new GatedMenuPresenter(new FullScreenGuardPresenter(_menu, FullScreen.OverGame, Log.Info));
+        stepProviders.Add(new MenuProvider(menus, calls));
+        // prompt.ask and ask-at-start inputs (M20, D-107) use the same window, so they never take focus either.
+        var flagStore = stepProviders.OfType<DazeControl.Providers.Basic.FlagSetProvider>().FirstOrDefault()?.Flags;
+        stepProviders.Add(new PromptProvider(menus, flagStore is null ? null : flagStore.Set));
         var runner = new FlowRunner(stepProviders, TimeProvider.System, locks, events: OnRunEvent, probes: probes) { Flows = calls };
         _launcher = new FlowLauncher(runner, _history);
         calls.Launcher = _launcher;
+        _launcher.StartPrompts = new InputPrompts(menus);
         _launcher.RunCompleted += OnRunCompleted;
         _launcher.ListenerFailed += e => Log.Error("run: completion listener", e);
 

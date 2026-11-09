@@ -603,6 +603,11 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                 context.SetSummary($"Would show {count} {(count == 1 ? "choice" : "choices")}");
                 return Task.CompletedTask;
             }
+            if (context.Node.Step == ProviderCatalog.PromptAskId)
+            {
+                context.SetSummary(PromptProvider.DrySummary(context.Node));
+                return Task.CompletedTask;
+            }
             foreach (var spec in context.Descriptor.Params.Where(p => p.Kind == ParamKind.LibraryRef && p.Library is not null))
             {
                 var key = context.Node.With.TryGetValue(spec.Name, out var value) && value is ScalarParam s ? s.Text : "";

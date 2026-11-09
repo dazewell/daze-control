@@ -134,6 +134,12 @@ public sealed class InputDocument
     public string? Name { get; set; }
 
     public string? Default { get; set; }
+
+    public string? Ask { get; set; }
+
+    public string? Timeout { get; set; }
+
+    public string? OnTimeout { get; set; }
 }
 
 /// <summary>

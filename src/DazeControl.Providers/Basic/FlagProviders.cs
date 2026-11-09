@@ -21,6 +21,9 @@ public sealed class FlagSetProvider(FlagStore flags) : IStepProvider
 {
     public string Id => "flag.set";
 
+    /// <summary>The store this sets, for steps that remember an answer in a flag (<c>prompt.ask</c>).</summary>
+    public FlagStore Flags => flags;
+
     public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

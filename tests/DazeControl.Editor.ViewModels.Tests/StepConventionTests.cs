@@ -10,7 +10,7 @@ public class StepConventionTests
     private static readonly string[] Verbs =
     [
         "Set", "Check", "Connect", "Disconnect", "Project", "Use", "Restore", "Turn", "Run", "Close", "Send", "Start", "Stop", "Show",
-        "Wait", "Choose", "Open", "Control", "Change", "Mute", "Wake", "Sleep",
+        "Wait", "Choose", "Open", "Control", "Change", "Mute", "Wake", "Sleep", "Ask",
     ];
 
     [Fact]

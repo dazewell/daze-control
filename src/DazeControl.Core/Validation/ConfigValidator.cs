@@ -40,6 +40,7 @@ public static partial class ConfigValidator
         foreach (var checker in checkers)
             checker.Check();
         CheckMenus(config.Flows, config.Settings.StepDefaults, problems);
+        CheckPrompts(config.Flows, config.Settings.StepDefaults, problems);
         CheckWaits(config.Flows, config.Settings.StepDefaults, problems);
         CheckCalls(config.Flows, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, problems);
@@ -214,6 +215,60 @@ public static partial class ConfigValidator
         }
     }
 
+    /// <summary><c>prompt.ask</c> rules that read several settings (D-107): answers, the default, the wait against the step's time limit.</summary>
+    private static void CheckPrompts(IReadOnlyList<Flow> flows, ValueDictionary<StepDefault> defaults, List<Problem> problems)
+    {
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.PromptAskId))
+            {
+                var path = $"flows.{flow.Id}.nodes.{step.Id}.with";
+                string? Text(string name) => step.With.TryGetValue(name, out var v) && v is ScalarParam s ? s.Text.Trim() : null;
+                void Bad(string name, string message) => problems.Add(new(Severity.Error, $"{path}.{name}", message, flow.Id));
+                var choose = Text("mode") == Prompts.Choose;
+                List<string> answers = step.With.TryGetValue("choices", out var list) && list is ListParam { Items: var items }
+                    ? [.. items.OfType<ScalarParam>().Select(i => i.Text.Trim())]
+                    : [];
+                if (choose)
+                {
+                    if (answers.Count is < 2 or > Prompts.MaxChoices)
+                        Bad("choices", $"Choose needs 2 to {Prompts.MaxChoices} answers.");
+                    else if (answers.Any(a => a.Length == 0))
+                        Bad("choices", "An answer can't be empty.");
+                    else if (answers.Distinct(StringComparer.OrdinalIgnoreCase).Count() != answers.Count)
+                        Bad("choices", "Two answers are the same.");
+                }
+                else if (answers.Count > 0)
+                {
+                    problems.Add(new(Severity.Warning, $"{path}.choices", "Yes or No has no answers to list; they are ignored.", flow.Id));
+                }
+                var onTimeout = Text("onTimeout") ?? "";
+                var fallback = Text("default");
+                if (onTimeout == Prompts.UseDefault)
+                {
+                    if (string.IsNullOrEmpty(fallback))
+                        Bad("default", "Give the default answer to use when nobody answers.");
+                    else if (!choose && !fallback.Equals("yes", StringComparison.OrdinalIgnoreCase) && !fallback.Equals("no", StringComparison.OrdinalIgnoreCase))
+                        Bad("default", "The default answer is yes or no.");
+                }
+                if (choose && !string.IsNullOrEmpty(fallback) && !answers.Contains(fallback, StringComparer.OrdinalIgnoreCase))
+                    Bad("default", $"\"{fallback}\" isn't one of the answers.");
+                if (!choose && onTimeout == Prompts.Skip && Text("flag") is { Length: > 0 })
+                    problems.Add(new(Severity.Warning, $"{path}.onTimeout", "Carrying on without an answer leaves the flag as it was.", flow.Id));
+                var wait = Prompts.DefaultTimeout;
+                if (Text("timeout") is { } text && Duration.TryParse(text, out var parsed))
+                {
+                    wait = parsed;
+                    if (parsed < Prompts.MinTimeout || parsed > Prompts.MaxTimeout)
+                        Bad("timeout", "Wait 5s to 10m for an answer.");
+                }
+                if (ResolvedTimeout(step, defaults) <= wait)
+                    problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.timeout",
+                        "The step's time limit must be longer than the wait, or it ends the question first.", flow.Id));
+            }
+        }
+    }
+
     /// <summary>The flow a <c>flow.run</c> step names, or null when it names none (that is the param check's error).</summary>
     public static string? CalledFlow(StepNode step) =>
         step.With.TryGetValue("flow", out var value) && value is ScalarParam { Text: var text } ? text.Trim() : null;
@@ -337,6 +392,7 @@ public static partial class ConfigValidator
                     Error(path + ".default", message);
             }
             CheckTriggers();
+            CheckAsks();
             foreach (var text in flow.Hotkeys)
             {
                 if (!Hotkey.TryParse(text, out _))
@@ -434,6 +490,19 @@ public static partial class ConfigValidator
                     Error(path, $"\"{edge.From}\" is in card \"{card}\"; wait for the card instead.");
                 else if (!seen.Add(edge.From))
                     Error(path, $"\"{edge.From}\" is listed twice.");
+            }
+        }
+
+        /// <summary><c>ask: true</c> inputs (D-107): the wait is 5 s to 10 min, and a start with no answer stops or takes the default.</summary>
+        private void CheckAsks()
+        {
+            foreach (var (name, input) in flow.Inputs.Where(i => i.Value.Ask))
+            {
+                var path = $"{_path}.inputs.{name}";
+                if (input.Timeout is { } timeout && (timeout < Prompts.MinTimeout || timeout > Prompts.MaxTimeout))
+                    Error(path + ".timeout", "Wait 5s to 10m for an answer.");
+                if (input.OnTimeout.Length > 0 && input.OnTimeout is not (Prompts.Stop or Prompts.UseDefault))
+                    Error(path + ".onTimeout", $"With no answer, an input can only be: {Prompts.Stop}, {Prompts.UseDefault}.");
             }
         }
 

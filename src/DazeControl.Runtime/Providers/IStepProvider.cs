@@ -13,6 +13,9 @@ public sealed record StepContext(Flow Flow, StepNode Node, ProviderDescriptor De
     /// <summary>Flow ids from the top run down to this flow (D-063): a start-mode <c>flow.run</c> passes it on.</summary>
     public IReadOnlyList<string> Chain { get; init; } = [Flow.Id];
 
+    /// <summary>What started the run (history's words, "Schedule · 22:30"); empty in tests. Prompts read it (D-107).</summary>
+    public string Trigger { get; init; } = "";
+
     /// <summary>What the step says about itself, read by the runner after the attempt (<see cref="SetSummary"/>).</summary>
     public string? Summary { get; private set; }
 
