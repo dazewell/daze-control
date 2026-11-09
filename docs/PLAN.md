@@ -128,7 +128,7 @@ One PR (design + build). Editor edits stay in the inspector/param picker (other 
 One PR per task (D-079). T20.2 amends D-009 (done in D-107). `ifMissed` is set per schedule in the editor, no default.
 
 - [x] T20.1 Core: `triggers:` model, YAML, validation, pure `ScheduleTable.Next` (DST, month ends). Done when: Core tests with `ManualTime`; existing samples round-trip byte-identical. (feat/m20-triggers-core)
-- [x] T20.2 Runtime: schedule source (one due-time timer, resume/time-change re-arm, missed-run grace, Pause), history text. After T20.1. Done when: Runtime tests; `measure.ps1` idle 0 ms CPU.
+- [ ] T20.2 Runtime: schedule source (one due-time timer, resume/time-change re-arm, missed-run grace, Pause), history text. After T20.1. Done when: Runtime tests; `measure.ps1` idle 0 ms CPU. Code merged (feat/m20-schedule-source, fixes in fix/m20-copilot-findings); the idle `measure.ps1` gate is NOT yet run (the installed engine holds the pipe): tick this after running it.
 - [x] T20.3 Runtime: lazy `ITriggerSource` framework (debounce, cooldown, chain guard, `only`) + session and power sources. After T20.1. (feat/m20-event-sources)
 - [x] T20.4 Device, audio, display and network sources (+ `ssid:` on `network.connected`). After T20.3; one file each, parallel-safe. (feat/m20-more-sources)
 - [x] T20.5 Prompts: `ask: true` flow inputs, `prompt.ask` confirm/choose with timeout and default. After T20.1; parallel with T20.2-T20.4. (feat/m20-prompts)

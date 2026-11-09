@@ -11,6 +11,14 @@ public class TriggerTests
     private static ConfigLoad Load(string triggers) => ConfigYaml.Load(Head + triggers);
 
     [Fact]
+    public void SsidOnEngineStartIsAProblemNotSilentlyDropped()
+    {
+        var load = Load("    triggers:\n      - { on: engine.start, ssid: Home }\n");
+
+        Assert.Contains(load.Problems, p => p.Message.Contains("ssid", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void EveryKindRoundTrips()
     {
         var load = Load(string.Join('\n',

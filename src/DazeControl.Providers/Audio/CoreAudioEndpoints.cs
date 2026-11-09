@@ -353,7 +353,7 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
         [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
         private static HRESULT OnDefaultDeviceChanged(void* self, EDataFlow flow, ERole role, char* id)
         {
-            if (((nint*)self)[2] == 1 && role == ERole.eConsole)
+            if (((nint*)self)[2] == 1) // every role: the trigger means any default sound device change (the service debounces the repeats)
                 Signal(self);
             return Ok;
         }

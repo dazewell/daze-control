@@ -87,7 +87,7 @@ public static class ConfigMapper
             Default = i.Value.Default,
             Ask = i.Value.Ask ? "true" : null,
             Timeout = i.Value.Ask && i.Value.Timeout is { } timeout ? Duration.Format(timeout) : null,
-            OnTimeout = i.Value.Ask && i.Value.OnTimeout.Length > 0 ? i.Value.OnTimeout : null,
+            OnTimeout = i.Value.Ask && !string.IsNullOrEmpty(i.Value.OnTimeout) ? i.Value.OnTimeout : null,
         }),
         Nodes = [.. flow.Nodes.Select(ToDocument)],
     };
