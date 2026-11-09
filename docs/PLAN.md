@@ -47,11 +47,11 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   new `StepDefaultsEditor` service (add/edit/remove entry, "Used by n steps in m flows" counts) in `Editor.ViewModels`, UX §5.7
   strings. Done when: view-model tests for add/edit/remove/counts, autosave writes `stepDefaults` and nothing else, a screenshot
   of the card (empty and with two rows), keyboard and Narrator names checked.
-- [ ] T14.4 Inspector: Default/Set rows, Reset, "Use these for all … steps…" (feat/m14-defaults-inspector, after T14.3: uses its service). Files:
+- [x] T14.4 Inspector: Default/Set rows, Reset, "Use these for all … steps…" (feat/m14-defaults-inspector, after T14.3: uses its service). Files:
   `Editor.ViewModels/Inspector*`, the Timing and "If it fails" XAML, canvas chips (effective values, dimmer when inherited),
   the fallback menu's Stop→Skip switch (uses effective policy). Done when: view-model tests: Reset clears one field; a changed
   default moves inherited steps and not set ones; "Use for all" shows n steps and has Undo; D-059 switch sets Skip when the
-  inherited policy is Stop; screenshots of a step with inherited and set rows. (PR #81 merged without the screenshots: still to do.)
+  inherited policy is Stop; screenshots of a step with inherited and set rows (`docs/step-settings/t14.4/`, feat/m14-leftovers; PR #81 had none).
 - [x] T14.5 Conditions core + runtime (feat/m14-conditions-core, after T14.2: same Core/Runtime files). Files: `ProviderDescriptor.Conditions`,
   `IFactProbe` (`Runtime/Providers`), `StepNode.Only` + YAML + validator (B7), `FlowRunner` (probe after the lock, once, inside the
   timeout; cannot tell → run; skip = Succeeded + note), `NodeResult` note through events, IPC and run history, dry-run assumption,
@@ -71,9 +71,9 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   `Providers/Service`, new `Providers/File`, catalog entries (B5 rows). Done when: provider tests with fakes for each probe and
   `Conditions` (`notDefault`, `notRunning`, `stopped`/`running`), `file.check` exists/missing on a temp file, descriptor-has-one-
   implementation test passes, a dry run of each.
-- [ ] T14.9 Display and Android checks, optional (feat/m14-checks-b, after T14.5). Files: `Providers/Display` (reuse `DisplayCheck`, D-077),
+- [x] T14.9 Display and Android checks, optional (feat/m14-leftovers; fake tests only, no live run of `display.check`, after T14.5). Files: `Providers/Display` (reuse `DisplayCheck`, D-077),
   `Providers/Android`; catalog. Done when: fake tests; `display.check` on the dev PC reports the current layout match without changing
-  the screens (read-only); `android.check` only behind an adb already running (no new process on a quiet PC, or noted in
+  the screens (read-only; the live run was left out of M14, not done); `android.check` only behind an adb already running (no new process on a quiet PC, or noted in
   FEATURES).
 - [x] T14.10 `only` in step defaults (feat/m14-only-defaults, after T14.7). Files: `StepDefaults`/validator/mapper (`only`), Settings card row,
   inspector row state (Default/Set). Done when: `bluetooth.connect: { only: disconnected }` skips a connected Connect, a step with

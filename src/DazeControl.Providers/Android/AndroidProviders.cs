@@ -231,6 +231,23 @@ public sealed class AndroidRemote(IAdb adb, TimeProvider time)
     public Task ConnectAsync(AndroidDevice device, CancellationToken cancellationToken) =>
         ConnectAsync(device.Adb ?? DefaultAdb, device.Serial, cancellationToken);
 
+    /// <summary>
+    /// The <c>android.check</c> step: asks the adb server that is already running, never starts one (a quiet PC stays
+    /// quiet, D-077). No adb process means nothing is connected, so "is not connected" holds without a call.
+    /// </summary>
+    public async Task<bool> IsConnectedAsync(AndroidDevice device, IProcesses processes, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!processes.IsRunning("adb"))
+            return false;
+        var result = await adb.RunAsync(device.Adb ?? DefaultAdb, ["devices"], cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+            throw new StepFailedException($"adb couldn't list the devices: {Reason(result)}");
+        return result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(l => l.Split(['\t', ' '], 2, StringSplitOptions.RemoveEmptyEntries))
+            .Any(p => p.Length == 2 && string.Equals(p[0], device.Serial, StringComparison.OrdinalIgnoreCase) && p[1].Trim() == "device");
+    }
+
     internal static string Reason(AdbResult result)
     {
         var text = result.LastError.Length > 0 ? result.LastError : result.Output;
@@ -340,6 +357,22 @@ public sealed class AndroidConnectProvider(AndroidRemote remote) : IStepProvider
 
     public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken) =>
         remote.ConnectAsync(context.Device(), cancellationToken);
+}
+
+/// <summary><c>android.check</c> (D-081): fails unless the device is (or, with <c>is: disconnected</c>, isn't) connected to the adb that is already running.</summary>
+public sealed class AndroidCheckProvider(AndroidRemote remote, IProcesses processes) : IStepProvider
+{
+    public string Id => "android.check";
+
+    public async Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
+    {
+        var device = context.Device();
+        var wanted = context.Text("is") != "disconnected";
+        var connected = await remote.IsConnectedAsync(device, processes, cancellationToken).ConfigureAwait(false);
+        if (connected != wanted)
+            throw new StepFailedException(connected ? $"The Android device {device.Key} is connected." : $"The Android device {device.Key} isn't connected.");
+        context.SetSummary(connected ? $"{device.Key} is connected" : $"{device.Key} isn't connected");
+    }
 }
 
 /// <summary><c>android.wake</c>: wakes the device (the pair of Sleep); a device that is awake stays awake.</summary>

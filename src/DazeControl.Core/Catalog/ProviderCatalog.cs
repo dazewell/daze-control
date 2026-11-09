@@ -99,6 +99,13 @@ public static class ProviderCatalog
             Resources = ["display"],
             Keywords = "monitor power sleep blank",
         },
+        // Read-only (D-077): compares the screens on now with a captured layout; changes nothing.
+        new("display.check", "Check layout", Display, Short,
+        [
+            Ref("layout", "Layout", LibraryKind.Display, help: "A layout captured with dctl capture-display-layout."),
+            new("is", ParamKind.Choice, "Is") { Choices = ["matches", "differs"], Captions = ["The screens match it", "The screens differ from it"], Default = "matches", Help = WaitUntilHelp },
+        ])
+        { Resources = ["display"] },
         new("process.run", "Run program", Process, TimeSpan.FromSeconds(30),
         [
             new("path", ParamKind.FilePath, "Program") { Required = true },
@@ -240,6 +247,13 @@ public static class ProviderCatalog
         { Resources = ["adb:{device}"] },
         new("android.sleep", "Sleep", Tv, TimeSpan.FromSeconds(20),
             [Ref("device", "Android device", LibraryKind.Android)])
+        { Resources = ["adb:{device}"] },
+        // Read-only, and only asks an adb that is already running: it never starts one (D-077).
+        new("android.check", "Check connection", Tv, TimeSpan.FromSeconds(20),
+        [
+            Ref("device", "Android device", LibraryKind.Android),
+            new("is", ParamKind.Choice, "Is") { Choices = ["connected", "disconnected"], Captions = ["It's connected", "It isn't connected"], Default = "connected", Help = WaitUntilHelp },
+        ])
         { Resources = ["adb:{device}"] },
         new("service.start", "Start service", Service, TimeSpan.FromSeconds(30),
             [new("name", ParamKind.Text, "Service") { Required = true, Suggest = ParamSuggest.Devices("services") }])

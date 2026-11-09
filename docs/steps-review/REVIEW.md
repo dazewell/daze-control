@@ -51,6 +51,7 @@ Timeout = default "Give up after". Lock = resource name held while the step runs
 | Displays | Project | `display.topology` | `mode` "Mode" (internal/clone/extend/external, req) | 10 s | display | – |
 | Displays | Use only these screens | `display.outputs` | `outputs` "Screens" (list, req, live suggestions) | 10 s | display | – |
 | Displays | Restore screen layout | `display.layout` | `layout` "Layout" (Display ref, req) | 10 s | display | – |
+| Displays | Check layout | `display.check` | `layout` "Layout" (Display ref, req) · `is` "Is" (matches/differs, matches) | 10 s | display | – |
 | Programs | Run program | `process.run` | `path` "Program" (file, req) · `args` "Arguments" (list) · `cwd` "Start in" (folder) · `wait` "Wait until it exits" (bool, true) · `exitCodes` "Exit codes that mean success" (list, 0) | 30 s | – | [notRunning] |
 | Programs | Check a program is running | `process.check` | `program` "Program" (text, req) · `is` "Is" (running/notRunning, running) | 10 s | – | – |
 | Scripts | Run PowerShell | `script.powershell` | `script` "Script" (multiline, req, 5 examples) | 60 s | – | – |
@@ -58,6 +59,7 @@ Timeout = default "Give up after". Lock = resource name held while the step runs
 | Android | Android input | `android.input` | `device` "Android device" (Android ref, req) · `input` "Input" (text, req, from the device's inputs) | 20 s | adb:{device} | – |
 | Android | Android keys | `android.keys` | `device` · `keys` "Keys" (ordered list, req) | 20 s | adb:{device} | – |
 | Android | Android sleep | `android.sleep` | `device` | 20 s | adb:{device} | – |
+| Android | Check connection | `android.check` | `device` "Android device" · `is` "Is" (connected/disconnected, connected); asks a running adb only | 20 s | adb:{device} | – |
 | Android | Start Android app | `android.start` | `device` · `app` "App" (text, req, searchable list or package) | 20 s | adb:{device} | – |
 | Android | Connect Android device | `android.connect` | `device` | 20 s | adb:{device} | – |
 | Services | Start service | `service.start` | `name` "Service name" (text, req, live list) | 30 s | service:{name} | [stopped] |

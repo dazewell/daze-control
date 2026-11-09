@@ -1,6 +1,7 @@
 using DazeControl.Core.Catalog;
 using DazeControl.Core.Model;
 using DazeControl.Providers.Android;
+using DazeControl.Providers.Process;
 using DazeControl.Runtime.Providers;
 
 namespace DazeControl.Providers.Tests;
@@ -173,4 +174,50 @@ public class AndroidProviderTests
     [Fact]
     public void EverySuggestedKeyIsSentAsItsTableCode() =>
         Assert.All(AndroidKeys.Names, name => Assert.Equal(AndroidKeys.Code(name), AndroidRemote.KeyCode(name)));
+
+    private sealed class FakeProcesses(bool adbRunning) : IProcesses
+    {
+        public bool IsRunning(string name) => adbRunning && name == "adb";
+    }
+
+    private sealed class DevicesAdb(string output) : IAdb
+    {
+        public List<string> Calls { get; } = [];
+
+        public Task<AdbResult> RunAsync(string adb, IReadOnlyList<string> args, CancellationToken cancellationToken)
+        {
+            Calls.Add(string.Join(' ', args));
+            return Task.FromResult(new AdbResult(0, output, ""));
+        }
+    }
+
+    private const string Listing = "List of devices attached\n192.168.1.50:5555\tdevice\n10.0.0.9:5556\toffline\n\n";
+
+    [Theory]
+    [InlineData(true, "connected", true)]
+    [InlineData(true, "disconnected", false)]
+    [InlineData(false, "disconnected", true)]
+    [InlineData(false, "connected", false)]
+    public async Task CheckReadsDevicesFromARunningAdb(bool running, string asks, bool passes)
+    {
+        var check = new AndroidCheckProvider(new AndroidRemote(new DevicesAdb(Listing), TimeProvider.System), new FakeProcesses(running));
+        var context = Context("android.check", ("is", asks));
+        if (passes)
+            await Run(check, context);
+        else
+            await Assert.ThrowsAsync<StepFailedException>(() => Run(check, context));
+    }
+
+    [Fact]
+    public async Task CheckNeverStartsAdbAndTreatsOfflineAsNotConnected()
+    {
+        var quiet = new DevicesAdb(Listing);
+        await Run(new AndroidCheckProvider(new AndroidRemote(quiet, TimeProvider.System), new FakeProcesses(false)), Context("android.check", ("is", "disconnected")));
+        Assert.Empty(quiet.Calls);
+
+        var adb = new DevicesAdb(Listing);
+        var check = new AndroidCheckProvider(new AndroidRemote(adb, TimeProvider.System), new FakeProcesses(true));
+        await Run(check, Context("android.check", ("device", "den"), ("is", "disconnected")));
+        Assert.Equal(["devices"], adb.Calls);
+    }
 }

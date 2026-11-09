@@ -27,6 +27,45 @@ public class DisplayProviderTests
         public DisplayLayout CaptureLayout(string key) => new(key, ["mon"], OneScreen);
 
         public void ApplyLayout(DisplayLayout layout, CancellationToken cancellationToken) => Calls.Add($"layout {layout.Key}");
+
+        public string? Difference { get; init; }
+
+        public string? LayoutDifferences(DisplayLayout layout)
+        {
+            Calls.Add($"check {layout.Key}");
+            return Difference;
+        }
+    }
+
+    private static StepContext WithLayout(params (string Name, string Value)[] with) =>
+        Steps.Context("display.check", with) with { Library = new Library { Displays = [new DisplayLayout("desk", ["mon"], OneScreen)] } };
+
+    [Fact]
+    public async Task CheckPassesWhenTheScreensMatchAndOnlyReads()
+    {
+        var displays = new FakeDisplays();
+        await new DisplayCheckProvider(displays).ExecuteAsync(WithLayout(("layout", "desk")), TestContext.Current.CancellationToken);
+        Assert.Equal(["check desk"], displays.Calls);
+    }
+
+    [Fact]
+    public async Task CheckFailsWithTheDifference()
+    {
+        var displays = new FakeDisplays { Difference = "Windows set up the screens differently: LG is still off" };
+        var failure = await Assert.ThrowsAsync<StepFailedException>(() =>
+            new DisplayCheckProvider(displays).ExecuteAsync(WithLayout(("layout", "desk")), TestContext.Current.CancellationToken));
+        Assert.Contains("LG is still off", failure.Message);
+        await new DisplayCheckProvider(displays).ExecuteAsync(WithLayout(("layout", "desk"), ("is", "differs")), TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task CheckDiffersFailsWhenTheyMatchAndUnknownLayoutFails()
+    {
+        var displays = new FakeDisplays();
+        await Assert.ThrowsAsync<StepFailedException>(() =>
+            new DisplayCheckProvider(displays).ExecuteAsync(WithLayout(("layout", "desk"), ("is", "differs")), TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<StepFailedException>(() =>
+            new DisplayCheckProvider(displays).ExecuteAsync(WithLayout(("layout", "nope")), TestContext.Current.CancellationToken));
     }
 
     [Theory]

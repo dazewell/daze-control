@@ -52,8 +52,8 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
 
 **M14 (designed, D-080..D-082):** per-step-type defaults for Try again / Wait between tries / Give up after / If it fails
 (`settings.stepDefaults`, set in Settings or "Use these for all <type> steps"); per-step **Only if…** (skips a step that has
-nothing to do, e.g. Connect when already connected; the flow carries on) and **Check** steps (Bluetooth, audio, program,
-service, file; they fail when unmet, so an "if it isn't" branch works). Spec: docs/step-settings/DESIGN.md.
+nothing to do, e.g. Connect when already connected; the flow carries on) and **Check** steps (Bluetooth, audio, screen layout, Android connection, program,
+service, file; the screen and Android checks only read, the Android one asks an adb that is already running and never starts one; they fail when unmet, so an "if it isn't" branch works). Spec: docs/step-settings/DESIGN.md.
 
 **F4 Library** — named, reusable resources referenced by steps: audio devices (match text + flow), Bluetooth
 devices (address + name), display layouts/outputs, Android devices + inputs (edited on the card: moves as an Up/Down list, D-078), programs, credentials (secret in
