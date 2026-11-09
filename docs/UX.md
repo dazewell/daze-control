@@ -149,8 +149,7 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   per-schedule "If the PC was off or asleep" (Run it late + minutes / Skip it; chosen when the row is added, no global
   default), "Test this trigger" (runs the saved flow named like the trigger), Remove. Add schedule / Add event.
   Flows list: clock and bolt slots. Flow inputs: "Ask me when it runs" + seconds to wait + "If nobody answers". The
-  Ask step's inspector is the catalog's own fields. Screenshots: docs/triggers/t20.6 (dark only: light, high contrast
-  and 225% need system settings changed, so they await the user).
+  Ask step's inspector is the catalog's own fields. Screenshots: docs/triggers/t20.6 (dark) and docs/triggers/t20.7 (light, high contrast, 225% text).
 - Device picker: ComboBox items glyph + name + Caption state ("Connected" / "Not connected" / "Unplugged");
   Library items first, then "From Windows" live group (picking adds to Library silently); missing ref stays
   selected as "Not found on this PC"; refreshes live while open.
@@ -379,3 +378,4 @@ contrast: solid background, no dots.
   and after that app quits, clicking into the box and out again (or opening the tray menu) clears the note
   without a restart; Num Lock off shows H3.
 - M15: select two steps of one type (right-click › "Select all <type> steps"): header "2 steps selected · <type>", Settings shows the shared params, "Mixed" where they differ. Pick one device for both, then Undo once: both go back. Clearing a required param (Volume) shows a problem and changes nothing. Select two types: only "If it fails" and Timing (plus a param only when both have it with the same kind). Select a step and a card: only "If it fails". Tab reaches every row; Narrator reads "Give up after, mixed" / "Give up after, 10 seconds, default".
+- M20 (code and tests; the card and Ask inspector seen in dark, light, high contrast and 225 % text, docs/triggers; the rest **open, for the user**, DESIGN lists them): [ ] "When this runs" lists Shortcut recorders then one row per schedule/event with a plain sentence and "Next: …"; Add schedule / Add event; "If the PC was off or asleep" is chosen when the row is added; Test this trigger runs the saved flow; Flows list shows the clock/bolt chip; Ask input rows read "Ask me when it runs" with seconds and "If nobody answers"; Ask step shows Yes/No or Choose fields; a prompt on screen never takes focus and closes on its timeout. No text says trigger, cron or node. Narrator reads each row's sentence and next-run.
