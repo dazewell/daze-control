@@ -18,6 +18,10 @@ Steps:
 3. `pwsh scripts/cut-release.ps1 -DryRun` to confirm version and sha (default: latest tag, minor + 1, right when any title is a `feat`; for fixes only pass `-Version` with patch + 1; pass `-Version vX.Y.Z` for a patch or other number, `-Prs 130,131` to wait for PRs first).
 4. `pwsh scripts/cut-release.ps1 -Notes <file> [-Prs …] [-Version …]` in the background.
 
+Release candidate (user asks for "RC" / "pre-release"): add `-Rc` (next minor + `-rc.<n>`, e.g. `v0.52.0-rc.1`). The release is marked
+pre-release, so installed apps (stable only) do not update to it; the user installs its Setup.exe by hand. Say so in the final reply, and
+list what is unverified. The stable release of the same number is cut later with no `-Rc`.
+
 Exit codes: 0 done | 2 PR closed unmerged | 3 CI red (URL printed) | 4 release run red | 5 preflight/git/gh error | 6 timeout.
 On 3/4 report the URL and stop; don't retag. If a tag was pushed and the run failed, ask the user.
 
