@@ -27,7 +27,8 @@ public sealed partial class UpdatesViewModel : ObservableObject
             _channelIndex = (int)store.Load();
         if (_client is not null)
             _client.Channel = (UpdateChannel)_channelIndex;
-        Show(_client?.PendingVersion is { } pending ? Ready(pending) : Idle());
+        _offered = _client?.PendingVersion;
+        Show(_offered is { } pending ? Ready(pending) : Idle());
     }
 
     public string ChannelNote { get; } = "Release candidates come first and may have rough edges. Going back to Stable keeps the version you have until a newer stable one is out.";
@@ -75,9 +76,14 @@ public sealed partial class UpdatesViewModel : ObservableObject
     [ObservableProperty]
     public partial bool CanCheck { get; private set; }
 
+    /// <summary>True when Install is offered: a release was found, or one is already downloaded.</summary>
     [ObservableProperty]
     public partial bool CanRestart { get; private set; }
 
+    // The version the card last showed as installable; Install compares what it finds at click time against it.
+    private string? _offered;
+
+    /// <summary>Looks only: names the newest release, downloads nothing. Safe to press any time.</summary>
     public async Task CheckAsync()
     {
         if (_client is null || _checking)
@@ -87,18 +93,11 @@ public sealed partial class UpdatesViewModel : ObservableObject
         try
         {
             var found = await _client.FindAsync(CancellationToken.None).ConfigureAwait(false);
-            if (found is null)
-            {
-                Post(_client.PendingVersion is { } pending ? Ready(pending) : ($"Up to date ({_client.CurrentVersion}).", true, false));
-                return;
-            }
-            Post(($"Downloading version {found}…", false, false));
-            await _client.DownloadAsync(CancellationToken.None).ConfigureAwait(false);
-            Post(Ready(found));
+            Post(StateFor(found));
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
-            // Network, GitHub's rate limit, disk: the engine's daily check tries again too.
+            // Network, GitHub's rate limit: the engine's daily check tries again too.
             Post(_client.PendingVersion is { } pending ? Ready(pending) : ($"Couldn't check: {e.Message}", true, false));
         }
         finally
@@ -107,27 +106,75 @@ public sealed partial class UpdatesViewModel : ObservableObject
         }
     }
 
+    private (string, bool, bool) StateFor(string? found)
+    {
+        if (found is not null)
+        {
+            _offered = found;
+            return ($"Version {found} is available. Install downloads it and restarts {AppInfo.ProductName}.", true, true);
+        }
+        if (_client?.PendingVersion is { } pending)
+        {
+            _offered = pending;
+            return Ready(pending);
+        }
+        _offered = null;
+        return ($"Up to date ({_client?.CurrentVersion}).", true, false);
+    }
+
     /// <summary>
-    /// Looks once more for a newer release (the one downloaded may be old by now), then hands the newest to the updater,
-    /// which waits for the editor to exit, closes the engine cleanly, applies and starts the engine. True when it did:
-    /// the caller then closes the editor. False (with the reason in Status) otherwise.
+    /// Install: looks for the newest release right now, downloads it (progress in Status) and hands it to the updater, which
+    /// waits for the editor to exit, closes the engine, applies and starts it again. True when it did: the caller closes the
+    /// editor. If a newer release than the one shown has appeared, it stops first and says so, so the click that follows
+    /// installs the newer one knowingly. False (reason in Status) otherwise.
     /// </summary>
     public async Task<bool> RestartAsync()
     {
         if (_client is null || !CanRestart || _checking)
             return false;
         _checking = true;
-        Show(("Looking for a newer version…", false, false));
+        var shown = _offered;
+        Show(("Looking for the newest version…", false, false));
         try
         {
-            await _client.RefreshBeforeApplyAsync(CancellationToken.None).ConfigureAwait(false);
+            string? found = null;
+            try
+            {
+                found = await _client.FindAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is not OutOfMemoryException)
+            {
+                // Offline: a download that already finished still installs; otherwise say why and stay put.
+                if (_client.PendingVersion is null)
+                {
+                    Post(($"Couldn't check: {e.Message}", true, shown is not null));
+                    return false;
+                }
+            }
+            if (found is not null && shown is not null && VelopackUpdateClient.IsNewer(found, shown))
+            {
+                _offered = found;
+                Post(($"Version {found} is out, newer than version {shown}. Install now installs version {found}, not {shown}.", true, true));
+                return false;
+            }
+            if (found is null && _client.PendingVersion is null)
+            {
+                // The offered release is gone (pulled, or the channel changed): nothing to install.
+                Post(StateFor(null));
+                return false;
+            }
+            if (found is not null)
+            {
+                Post(($"Downloading version {found}…", false, false));
+                await _client.DownloadAsync(percent => Post(($"Downloading version {found}… {percent} %", false, false)), CancellationToken.None).ConfigureAwait(false);
+            }
             _client.ApplyAfterExit();
             return true;
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
-            // Update.exe missing, quarantined or blocked: stay open, the update still applies at the next engine start.
-            Post(($"Couldn't start the update: {e.Message} It installs the next time {AppInfo.ProductName} starts.", true, true));
+            // Download failed, or Update.exe is missing or blocked: stay open; a downloaded update still applies at the next engine start.
+            Post(($"Couldn't install: {e.Message}", true, true));
             return false;
         }
         finally
@@ -141,7 +188,7 @@ public sealed partial class UpdatesViewModel : ObservableObject
         : ($"Version {_client.CurrentVersion}, {ChannelLabel}. {AppInfo.ProductName} checks once a day.", true, false);
 
     private static (string, bool, bool) Ready(string version) =>
-        ($"Version {version} is ready. It installs the next time {AppInfo.ProductName} starts, or now.", false, true);
+        ($"Version {version} is downloaded. Install restarts {AppInfo.ProductName} into it; it also installs by itself the next time {AppInfo.ProductName} starts.", true, true);
 
     private void Post((string Status, bool CanCheck, bool CanRestart) state) => _post(() => Show(state));
 

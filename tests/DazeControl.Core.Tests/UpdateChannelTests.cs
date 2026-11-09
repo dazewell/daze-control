@@ -183,7 +183,7 @@ public sealed class UpdateChannelTests
             client.Channel = UpdateChannel.Stable;
             gate.SetResult();
             Assert.Null(await check);
-            await Assert.ThrowsAsync<InvalidOperationException>(() => client.DownloadAsync(CancellationToken.None));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => client.DownloadAsync(null, CancellationToken.None));
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
@@ -215,7 +215,7 @@ public sealed class UpdateChannelTests
             var client = new VelopackUpdateClient(UpdateChannel.Stable, _ => new UpdateManager(feed, new UpdateOptions(),
                 new TestVelopackLocator("DazeControl", "0.51.0", dir, logger: null)));
             Assert.Equal("0.52.0", await client.FindAsync(CancellationToken.None));
-            await client.DownloadAsync(CancellationToken.None);
+            await client.DownloadAsync(null, CancellationToken.None);
 
             feed.Versions = ["0.52.0", "0.53.0"];
             await client.RefreshBeforeApplyAsync(CancellationToken.None);

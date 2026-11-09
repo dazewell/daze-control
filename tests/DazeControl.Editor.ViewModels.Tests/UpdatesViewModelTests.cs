@@ -17,20 +17,13 @@ public sealed class UpdatesViewModelTests
         public Exception? ApplyFails { get; init; }
 
         public Task<string?> FindAsync(CancellationToken cancellationToken) =>
-            FindFails is { } e ? Task.FromException<string?>(e) : Task.FromResult(Newer);
+            FindFails is { } e ? Task.FromException<string?>(e) : Task.FromResult(Newer == PendingVersion ? null : Newer);
 
-        public Task DownloadAsync(CancellationToken cancellationToken)
+        public Task DownloadAsync(Action<int>? progress, CancellationToken cancellationToken)
         {
+            progress?.Invoke(50);
             PendingVersion = Newer;
             return Task.CompletedTask;
-        }
-
-        public string? NewerAtApply { get; set; }
-        public Task<string?> RefreshBeforeApplyAsync(CancellationToken cancellationToken)
-        {
-            if (NewerAtApply is not null)
-                PendingVersion = NewerAtApply;
-            return Task.FromResult(PendingVersion);
         }
 
         public void ApplyAfterExit() => Applied = ApplyFails is null ? true : throw ApplyFails;
@@ -65,27 +58,76 @@ public sealed class UpdatesViewModelTests
     }
 
     [Fact]
-    public async Task CheckDownloadsANewerReleaseAndRestartHandsItToTheUpdater()
+    public async Task CheckOnlyNamesTheReleaseAndInstallDownloadsAndRestarts()
     {
         var client = new FakeUpdates { Newer = "0.18.0" };
         var updates = new UpdatesViewModel(client, a => a());
 
         await updates.CheckAsync();
+        Assert.Contains("0.18.0 is available", updates.Status, StringComparison.Ordinal);
+        Assert.Null(client.PendingVersion);
+        Assert.True(updates.CanCheck);
         Assert.True(updates.CanRestart);
-        Assert.False(updates.CanCheck);
-        Assert.True(await updates.RestartAsync());
 
+        Assert.True(await updates.RestartAsync());
+        Assert.Equal("0.18.0", client.PendingVersion);
         Assert.True(client.Applied);
     }
 
     [Fact]
-    public async Task RestartLooksForANewerReleaseFirstAndInstallsThat()
+    public async Task InstallThatFindsANewerReleaseThanShownSaysSoAndInstallsItOnTheNextClick()
     {
-        var client = new FakeUpdates { PendingVersion = "0.18.0", NewerAtApply = "0.19.0" };
+        var client = new FakeUpdates { Newer = "0.18.0" };
         var updates = new UpdatesViewModel(client, a => a());
+        await updates.CheckAsync();
+
+        client.Newer = "0.19.0";
+        Assert.False(await updates.RestartAsync());
+        Assert.Contains("0.19.0 is out, newer than version 0.18.0", updates.Status, StringComparison.Ordinal);
+        Assert.Contains("installs version 0.19.0, not 0.18.0", updates.Status, StringComparison.Ordinal);
+        Assert.False(client.Applied);
+        Assert.True(updates.CanRestart);
 
         Assert.True(await updates.RestartAsync());
         Assert.Equal("0.19.0", client.PendingVersion);
+        Assert.True(client.Applied);
+    }
+
+    [Fact]
+    public async Task InstallWhenTheOfferedReleaseIsGoneSaysUpToDateAndAppliesNothing()
+    {
+        var client = new FakeUpdates { Newer = "0.18.0" };
+        var updates = new UpdatesViewModel(client, a => a());
+        await updates.CheckAsync();
+
+        client.Newer = null;
+        Assert.False(await updates.RestartAsync());
+        Assert.False(client.Applied);
+        Assert.False(updates.CanRestart);
+        Assert.StartsWith("Up to date", updates.Status, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task InstallDoesNotTreatAnOlderReleaseAsNewerThanShown()
+    {
+        var client = new FakeUpdates { Newer = "0.19.0-rc.1" };
+        var updates = new UpdatesViewModel(client, a => a());
+        await updates.CheckAsync();
+
+        client.Newer = "0.18.5";
+        Assert.True(await updates.RestartAsync());
+        Assert.Equal("0.18.5", client.PendingVersion);
+    }
+
+    [Fact]
+    public void CheckStaysAvailableWhileADownloadedUpdateWaits() =>
+        Assert.True(new UpdatesViewModel(new FakeUpdates { PendingVersion = "0.18.0" }, a => a()).CanCheck);
+
+    [Fact]
+    public async Task InstallOfADownloadedUpdateStillWorksOffline()
+    {
+        var client = new FakeUpdates { PendingVersion = "0.18.0", FindFails = new HttpRequestException("offline") };
+        Assert.True(await new UpdatesViewModel(client, a => a()).RestartAsync());
         Assert.True(client.Applied);
     }
 
@@ -117,7 +159,7 @@ public sealed class UpdatesViewModelTests
         var updates = new UpdatesViewModel(client, a => a());
 
         Assert.False(await updates.RestartAsync());
-        Assert.StartsWith("Couldn't start the update: Update.exe is missing.", updates.Status, StringComparison.Ordinal);
+        Assert.StartsWith("Couldn't install: Update.exe is missing.", updates.Status, StringComparison.Ordinal);
         Assert.True(updates.CanRestart);
     }
 
