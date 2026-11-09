@@ -46,11 +46,11 @@ public partial class App : Application
     public void BringToFront() => _window?.DispatcherQueue.TryEnqueue(() => _window?.BringToFront());
 
     /// <summary>Null when Velopack can't tell (fail-soft): the Updates card then says this copy doesn't update.</summary>
-    private static Core.Updates.VelopackUpdateClient? CreateUpdateClient()
+    private static Core.Updates.VelopackUpdateClient? CreateUpdateClient(Core.Updates.UpdateChannel channel)
     {
         try
         {
-            return new Core.Updates.VelopackUpdateClient();
+            return new Core.Updates.VelopackUpdateClient(channel);
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
@@ -89,7 +89,12 @@ public partial class App : Application
         var settings = new EditorSettingsStore(Program.ConfigPath is { } config
             ? Path.Combine(Path.GetDirectoryName(config)!, "editor.json")
             : EditorSettingsStore.DefaultPath, log: Log);
-        var shell = new ShellViewModel(session, _engine, Post, LogsFolder, CreateUpdateClient(), settings, CreateBackupCard(session, store, settings, Post));
+        // The channel file is per user like the auto-backup switch; with --config it sits next to the scratch file (D-108).
+        var channelStore = new Core.Updates.UpdateChannelStore(Program.ConfigPath is { } scratch
+            ? Path.Combine(Path.GetDirectoryName(scratch)!, "update-channel.txt")
+            : Core.Updates.UpdateChannelStore.DefaultPath);
+        var shell = new ShellViewModel(session, _engine, Post, LogsFolder, CreateUpdateClient(channelStore.Load()), settings,
+            CreateBackupCard(session, store, settings, Post), channelStore);
         _window = new ShellWindow(shell);
         _window.Closed += (_, _) =>
         {

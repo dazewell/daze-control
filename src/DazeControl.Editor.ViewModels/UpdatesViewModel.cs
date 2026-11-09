@@ -14,13 +14,60 @@ public sealed partial class UpdatesViewModel : ObservableObject
     private readonly Action<Action> _post;
     private bool _checking;
 
+    private readonly UpdateChannelStore? _store;
+
     /// <param name="client">Null outside an install (Debug, a published folder).</param>
-    public UpdatesViewModel(IUpdateClient? client, Action<Action> post)
+    /// <param name="store">The per-user channel file (D-108); null keeps the choice in memory only (tests).</param>
+    public UpdatesViewModel(IUpdateClient? client, Action<Action> post, UpdateChannelStore? store = null)
     {
         _client = client is { IsInstalled: true } ? client : null;
         _post = post;
+        _store = store;
+        if (store is not null)
+            _channelIndex = (int)store.Load();
+        if (_client is not null)
+            _client.Channel = (UpdateChannel)_channelIndex;
         Show(_client?.PendingVersion is { } pending ? Ready(pending) : Idle());
     }
+
+    public string ChannelNote { get; } = "Release candidates come first and may have rough edges. Going back to Stable keeps the version you have until a newer stable one is out.";
+
+    private int _channelIndex;
+
+    /// <summary>0 = Stable, 1 = Release candidates (<see cref="UpdateChannel"/>'s order). Saved at once; the next check uses it.</summary>
+    public int ChannelIndex
+    {
+        get => _channelIndex;
+        set
+        {
+            if (value is < 0 or > 1 || value == _channelIndex)
+                return;
+            var channel = (UpdateChannel)value;
+            try
+            {
+                _store?.Save(channel);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // The old choice stays; the combo box is put back by the property change below.
+                OnPropertyChanged();
+                Show(($"Couldn't save the update channel: {e.Message}", _client is not null, false));
+                return;
+            }
+            _channelIndex = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ChannelLabel));
+            if (_client is null)
+                return;
+            _client.Channel = channel;
+            // A download already waiting still installs; otherwise the old "up to date" no longer answers for the new channel.
+            if (!CanRestart && !_checking)
+                Show(Idle());
+        }
+    }
+
+    /// <summary>The channel's name in the card's status line.</summary>
+    public string ChannelLabel => ((UpdateChannel)_channelIndex).Label();
 
     [ObservableProperty]
     public partial string Status { get; private set; } = "";
@@ -83,7 +130,7 @@ public sealed partial class UpdatesViewModel : ObservableObject
 
     private (string, bool, bool) Idle() => _client is null
         ? ("This copy isn't installed, so it doesn't update.", false, false)
-        : ($"Version {_client.CurrentVersion}. {AppInfo.ProductName} checks once a day.", true, false);
+        : ($"Version {_client.CurrentVersion}, {ChannelLabel}. {AppInfo.ProductName} checks once a day.", true, false);
 
     private static (string, bool, bool) Ready(string version) =>
         ($"Version {version} is ready. It installs the next time {AppInfo.ProductName} starts, or now.", false, true);

@@ -12,6 +12,7 @@ public sealed class UpdatesViewModelTests
         public string? PendingVersion { get; set; }
         public string? Newer { get; set; }
         public Exception? FindFails { get; set; }
+        public UpdateChannel Channel { get; set; }
         public bool Applied { get; private set; }
         public Exception? ApplyFails { get; init; }
 
@@ -100,4 +101,88 @@ public sealed class UpdatesViewModelTests
         Assert.StartsWith("Couldn't start the update: Update.exe is missing.", updates.Status, StringComparison.Ordinal);
         Assert.True(updates.CanRestart);
     }
+
+    private static string TempChannelFile() => Path.Combine(Directory.CreateTempSubdirectory("dc-chan").FullName, "update-channel.txt");
+
+    [Fact]
+    public void TheSavedChannelIsShownAndHandedToTheClient()
+    {
+        var path = TempChannelFile();
+        new UpdateChannelStore(path).Save(UpdateChannel.ReleaseCandidates);
+        var client = new FakeUpdates();
+        var updates = new UpdatesViewModel(client, a => a(), new UpdateChannelStore(path));
+        Assert.Equal(1, updates.ChannelIndex);
+        Assert.Equal(UpdateChannel.ReleaseCandidates, client.Channel);
+        Assert.Contains("Release candidates", updates.Status, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ChoosingAChannelSavesItAtOnceAndSwitchesTheClient()
+    {
+        var path = TempChannelFile();
+        var client = new FakeUpdates();
+        var updates = new UpdatesViewModel(client, a => a(), new UpdateChannelStore(path));
+        Assert.Equal(0, updates.ChannelIndex);
+        var changed = new List<string?>();
+        updates.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        updates.ChannelIndex = 1;
+
+        Assert.Equal(UpdateChannel.ReleaseCandidates, new UpdateChannelStore(path).Load());
+        Assert.Equal(UpdateChannel.ReleaseCandidates, client.Channel);
+        Assert.Contains(nameof(UpdatesViewModel.ChannelLabel), changed);
+        Assert.Contains("Release candidates", updates.Status, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SwitchingChannelAsksAgainAndKeepsADownloadedUpdate()
+    {
+        var client = new FakeUpdates();
+        var updates = new UpdatesViewModel(client, a => a(), new UpdateChannelStore(TempChannelFile()));
+        await updates.CheckAsync();
+        Assert.StartsWith("Up to date", updates.Status, StringComparison.Ordinal);
+        updates.ChannelIndex = 1;
+        Assert.StartsWith("Version 0.17.0, Release candidates", updates.Status, StringComparison.Ordinal);
+        Assert.True(updates.CanCheck);
+
+        client.Newer = "0.18.0";
+        await updates.CheckAsync();
+        updates.ChannelIndex = 0;
+        Assert.True(updates.CanRestart);
+        Assert.Contains("0.18.0", updates.Status, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnUnsavableChoiceIsPutBackAndSaysWhy()
+    {
+        // A file where the folder should be: the save fails with an IOException.
+        var blocker = Path.Combine(Directory.CreateTempSubdirectory("dc-chan").FullName, "x");
+        File.WriteAllText(blocker, "");
+        var client = new FakeUpdates();
+        var updates = new UpdatesViewModel(client, a => a(), new UpdateChannelStore(Path.Combine(blocker, "update-channel.txt")));
+
+        updates.ChannelIndex = 1;
+
+        Assert.Equal(0, updates.ChannelIndex);
+        Assert.Equal(UpdateChannel.Stable, client.Channel);
+        Assert.StartsWith("Couldn't save the update channel", updates.Status, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheNoteSaysInPlainWordsWhatTheChoiceMeans()
+    {
+        var note = new UpdatesViewModel(null, a => a()).ChannelNote;
+        Assert.Contains("rough edges", note, StringComparison.Ordinal);
+        Assert.Contains("keeps the version you have", note, StringComparison.Ordinal);
+        foreach (var banned in new[] { "prerelease", "pre-release", "semver", "node", "DAG", "OSD" })
+            Assert.DoesNotContain(banned, note, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("0.52.0-rc.1+3fa9c1d", "0.52.0-rc.1")]
+    [InlineData("0.52.0+3fa9c1d", "0.52.0")]
+    [InlineData("0.52.0", "0.52.0")]
+    [InlineData(null, null)]
+    public void TheInstalledVersionLosesItsHashButKeepsTheCandidateSuffix(string? given, string? expected) =>
+        Assert.Equal(expected, ShellViewModel.StripBuildMetadata(given));
 }

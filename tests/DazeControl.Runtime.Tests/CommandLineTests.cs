@@ -95,4 +95,24 @@ public class CommandLineTests
     [InlineData("run", "tv", "--config", "x")]
     public void BackupAndRestoreAreStrict(params string[] args) =>
         Assert.Throws<CommandLineException>(() => Parse(args));
+
+    [Theory]
+    [InlineData("stable", "stable")]
+    [InlineData("rc", "rc")]
+    [InlineData("RC", "rc")]
+    public void UpdateTakesAChannel(string given, string expected) =>
+        Assert.Equal(expected, Parse("update", "--channel", given).Channel);
+
+    [Fact]
+    public void UpdateWithoutAChannelLeavesItUnset() => Assert.Null(Parse("update").Channel);
+
+    [Theory]
+    [InlineData("update", "--channel")]
+    [InlineData("update", "--channel", "beta")]
+    [InlineData("update", "--channel", "prerelease")]
+    [InlineData("update", "--channel", "rc", "--channel", "stable")]
+    [InlineData("update", "rc")]
+    [InlineData("run", "tv", "--channel", "rc")]
+    public void BadChannelUseIsAUsageError(params string[] args) =>
+        Assert.Throws<CommandLineException>(() => Parse(args));
 }

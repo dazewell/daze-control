@@ -19,6 +19,9 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
     public bool Editor { get; init; }
     public bool History { get; init; }
 
+    /// <summary>update: <c>stable</c> or <c>rc</c> (lower-case), the channel to switch to first (D-108).</summary>
+    public string? Channel { get; init; }
+
     private sealed record Shape(int MinWords, int MaxWords, string WordsError, params string[] Flags);
 
     private static readonly Dictionary<string, Shape> Shapes = new(StringComparer.Ordinal)
@@ -32,7 +35,7 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         ["autostart"] = new(0, 1, "autostart takes on or off."),
         ["devices"] = new(1, 1, "devices needs one kind: audio, bluetooth, displays, adb or gamepads."),
         ["capture-display-layout"] = new(1, 1, "capture-display-layout needs a name for the layout."),
-        ["update"] = new(0, 0, "update takes no arguments."),
+        ["update"] = new(0, 0, "update takes no arguments but --channel stable|rc.", "--channel"),
         ["backup"] = new(0, 1, "backup takes at most one file.", "--config", "--editor", "--history"),
         ["restore"] = new(1, 1, "restore needs one backup file.", "--config", "--merge", "--replace", "--yes", "--dry-run", "--editor"),
         ["shortcut"] = new(1, 1, "shortcut needs one flow.", "--remove"),
@@ -46,7 +49,7 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         var words = new List<string>();
         bool wait = false, dryRun = false, remove = false;
         int? limit = null;
-        string? config = null;
+        string? config = null, channel = null;
         bool merge = false, replace = false, yes = false, editor = false, history = false;
         for (var i = 0; i < rest.Count; i++)
         {
@@ -89,6 +92,12 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
                         throw new CommandLineException("--config needs one file.");
                     config = rest[++i];
                     break;
+                case "--channel":
+                    if (channel is not null || i + 1 >= rest.Count || rest[i + 1].ToLowerInvariant() is not ("stable" or "rc"))
+                        throw new CommandLineException("--channel needs stable or rc.");
+                    channel = rest[i + 1].ToLowerInvariant();
+                    i++;
+                    break;
                 case "--limit":
                     if (limit is not null || i + 1 >= rest.Count
                         || !int.TryParse(rest[++i], NumberStyles.None, CultureInfo.InvariantCulture, out var n) || n < 1)
@@ -103,7 +112,7 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
             throw new CommandLineException("Choose --merge or --replace, not both.");
         return new CommandLine(command, words, wait, dryRun, limit)
         {
-            Remove = remove, Config = config, Merge = merge, Replace = replace, Yes = yes, Editor = editor, History = history,
+            Remove = remove, Config = config, Merge = merge, Replace = replace, Yes = yes, Editor = editor, History = history, Channel = channel,
         };
     }
 

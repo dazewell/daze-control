@@ -731,6 +731,24 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE9F5;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Updates to follow" />
+                                        <TextBlock Text="{x:Bind ViewModel.Updates.ChannelNote}" Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <ComboBox Grid.Column="2" MinWidth="180" AutomationProperties.Name="Updates to follow"
+                                              SelectedIndex="{x:Bind ViewModel.Updates.ChannelIndex, Mode=TwoWay}">
+                                        <!-- UpdateChannel's order -->
+                                        <x:String>Stable</x:String>
+                                        <x:String>Release candidates</x:String>
+                                    </ComboBox>
+                                </Grid>
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
                                     <FontIcon Glyph="&#xE895;" Style="{StaticResource SettingsCardIcon}" />
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                         <TextBlock Text="Automatic updates" />

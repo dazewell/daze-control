@@ -13,6 +13,9 @@ public interface IUpdateClient
     /// <summary>The version this copy is, when installed.</summary>
     string? CurrentVersion { get; }
 
+    /// <summary>Which releases <see cref="FindAsync"/> looks at (D-108). Set it before checking.</summary>
+    UpdateChannel Channel { get; set; }
+
     /// <summary>A downloaded update newer than this copy, if any; it applies the next time the engine starts.</summary>
     string? PendingVersion { get; }
 
@@ -26,7 +29,8 @@ public interface IUpdateClient
 }
 
 /// <summary>
-/// Velopack against this repo's GitHub Releases (D-015, OSD D-029/D-030): stable releases only, no token. The engine,
+/// Velopack against this repo's GitHub Releases (D-015, OSD D-029/D-030), no token: stable releases, or also release
+/// candidates on <see cref="UpdateChannel.ReleaseCandidates"/> (D-108). The engine,
 /// the editor and <c>dctl</c> all sit in the install's <c>current</c> folder, so each finds the same install.
 /// </summary>
 public sealed class VelopackUpdateClient : IUpdateClient
@@ -36,8 +40,35 @@ public sealed class VelopackUpdateClient : IUpdateClient
     /// <summary>A local feed folder (vpk pack output) in place of GitHub, for testing updates (build skill).</summary>
     public const string SourceOverrideVariable = "DAZECONTROL_UPDATE_SOURCE";
 
-    private readonly UpdateManager _manager = CreateManager();
+    private readonly Func<UpdateChannel, UpdateManager> _factory;
+    private UpdateManager _manager;
+    private UpdateChannel _channel;
     private UpdateInfo? _found;
+
+    public VelopackUpdateClient(UpdateChannel channel = UpdateChannel.Stable) : this(channel, CreateManager)
+    {
+    }
+
+    internal VelopackUpdateClient(UpdateChannel channel, Func<UpdateChannel, UpdateManager> factory)
+    {
+        _factory = factory;
+        _channel = channel;
+        _manager = factory(channel);
+    }
+
+    public UpdateChannel Channel
+    {
+        get => _channel;
+        set
+        {
+            if (value == _channel)
+                return;
+            _manager = _factory(value);
+            _channel = value;
+            _found = null;
+            _foundBy = null;
+        }
+    }
 
     public bool IsInstalled => _manager.IsInstalled;
 
@@ -45,20 +76,29 @@ public sealed class VelopackUpdateClient : IUpdateClient
 
     public string? PendingVersion => _manager.UpdatePendingRestart?.Version.ToString();
 
+    // The manager that found the update downloads it: a channel switch mid-check must not mix an RC found by the old
+    // manager with the new one (and a result that arrives after the switch is dropped).
+    private UpdateManager? _foundBy;
+
     public async Task<string?> FindAsync(CancellationToken cancellationToken)
     {
-        _found = await _manager.CheckForUpdatesAsync().ConfigureAwait(false);
-        var version = _found?.TargetFullRelease.Version.ToString();
+        var manager = _manager;
+        var found = await manager.CheckForUpdatesAsync().ConfigureAwait(false);
+        if (!ReferenceEquals(manager, _manager))
+            return null;
+        var version = found?.TargetFullRelease.Version.ToString();
         // Already downloaded and waiting for a restart: nothing new (the daily check mustn't fetch it again).
         if (version is not null && version == PendingVersion)
-            _found = null;
+            found = null;
+        _found = found;
+        _foundBy = found is null ? null : manager;
         return _found is null ? null : version;
     }
 
     public Task DownloadAsync(CancellationToken cancellationToken) =>
-        _found is null
+        _found is null || _foundBy is null
             ? throw new InvalidOperationException("Nothing found to download.")
-            : _manager.DownloadUpdatesAsync(_found, progress: null, cancellationToken);
+            : _foundBy.DownloadUpdatesAsync(_found, progress: null, cancellationToken);
 
     // Started from the editor, which doesn't know the engine's args: the updater starts the engine on the default config.
     public void ApplyAfterExit() =>
@@ -73,7 +113,7 @@ public sealed class VelopackUpdateClient : IUpdateClient
     {
         if (restartedByUpdater)
             return false;
-        var manager = CreateManager();
+        var manager = CreateManager(UpdateChannel.Stable); // the source is never asked: only a downloaded update is applied
         if (!manager.IsInstalled || manager.UpdatePendingRestart is not { } pending)
             return false;
         manager.WaitExitThenApplyUpdates(pending, silent: true, restart: true, restartArgs: args);
@@ -81,13 +121,13 @@ public sealed class VelopackUpdateClient : IUpdateClient
     }
 
     /// <summary>True when this process runs from a Velopack install.</summary>
-    public static bool IsInstalledCopy() => CreateManager().IsInstalled;
+    public static bool IsInstalledCopy() => CreateManager(UpdateChannel.Stable).IsInstalled;
 
     /// <summary>Velopack sets it when its updater starts the app; read it before <c>VelopackApp.Run()</c>, which clears it.</summary>
     public static bool RestartedByUpdater() =>
         !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VELOPACK_RESTART"));
 
-    private static UpdateManager CreateManager()
+    private static UpdateManager CreateManager(UpdateChannel channel)
     {
         // UpdateManager needs the locator VelopackApp.Run() sets; the engine ran it for its hooks, the editor and dctl
         // haven't. Not the main exe, so no hook ever reaches them; no auto-apply (only the engine applies, D-043).
@@ -95,6 +135,6 @@ public sealed class VelopackUpdateClient : IUpdateClient
             VelopackApp.Build().SetAutoApplyOnStartup(false).Run();
         return Environment.GetEnvironmentVariable(SourceOverrideVariable) is { Length: > 0 } feed
             ? new UpdateManager(feed)
-            : new UpdateManager(new GithubSource(RepoUrl, accessToken: null, prerelease: false));
+            : new UpdateManager(new GithubSource(RepoUrl, accessToken: null, prerelease: channel.IncludesPreReleases()));
     }
 }

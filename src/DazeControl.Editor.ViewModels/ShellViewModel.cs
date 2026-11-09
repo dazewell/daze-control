@@ -24,7 +24,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
     public ShellViewModel(ConfigSession session, IEngineClient engine, Action<Action> post, string logsFolder,
         Core.Updates.IUpdateClient? updates = null, EditorSettingsStore? editorSettings = null,
-        BackupCard.BackupCardViewModel? backup = null)
+        BackupCard.BackupCardViewModel? backup = null, Core.Updates.UpdateChannelStore? updateChannel = null)
     {
         Backup = backup;
         Session = session;
@@ -35,7 +35,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         Desktop = new Engine.DesktopShortcutStore(engine, session.Path);
         Flows = new FlowsPageViewModel(session, engine, post, Desktop, settings: editorSettings);
         Settings = new SettingsPageViewModel(session, engine, post, logsFolder);
-        Updates = new UpdatesViewModel(updates, post);
+        Updates = new UpdatesViewModel(updates, post, updateChannel);
         Library = new LibraryPage.LibraryPageViewModel(session, engine, post);
         Runs = new Runs.RunsPageViewModel(session, engine, post);
         Library.FlowRequested += OnLibraryFlowRequested;
@@ -247,8 +247,11 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     public bool EngineMissing => !EngineRunning;
 
     public static string Version { get; } =
-        typeof(ShellViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
+        StripBuildMetadata(typeof(ShellViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion)
         ?? "0.0.0";
+
+    /// <summary>The installed version without Velopack's or MSBuild's <c>+hash</c>: <c>0.52.0-rc.1+abc</c> shows as <c>0.52.0-rc.1</c>.</summary>
+    public static string? StripBuildMetadata(string? version) => version?.Split('+')[0];
 
     /// <summary>About › Copy details.</summary>
     public string Details(string windowsAppSdk) => string.Join(Environment.NewLine,

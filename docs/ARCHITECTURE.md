@@ -283,13 +283,14 @@ Android apps (M17, D-092..D-094): `android.start` runs `am start -a MAIN -c LAUN
 D-043. `scripts/pack.ps1` → one folder (editor self-contained + AOT `DazeControl.exe` + AOT `dctl.exe`, no .pdb) →
 `vpk pack` (packId `DazeControlApp`, installs to `%LOCALAPPDATA%\DazeControlApp\current`, Start-menu shortcut).
 `scripts/install.ps1` packs and installs this checkout the same way; `release.yml` publishes on a `v<Version>` tag.
-- `Core/Updates/VelopackUpdateClient` (GitHub Releases, stable, no token; `DAZECONTROL_UPDATE_SOURCE` = local feed):
+- `Core/Updates/VelopackUpdateClient` (GitHub Releases, no token; `DAZECONTROL_UPDATE_SOURCE` = local feed; `Channel` Stable = no pre-releases, ReleaseCandidates = `prerelease: true`, D-108):
   shared by the three exes; sets Velopack's locator itself in the editor and dctl (only the engine runs the hooks).
 - `Engine/Lifecycle/Installer`: Velopack hooks before the single-instance check and the log (a hook runs while the
   real engine runs). `Program` then applies a downloaded update (exit; the updater restarts the engine with the same
   args). `Engine/Lifecycle/UpdateCheck`: installed copies only, runs `dctl update` hidden at +1 min and daily, logs
   its output.
-- `dctl update`: find + download, never apply; exit 0 / 1. Editor: `UpdatesViewModel` (About › Updates card).
+- `dctl update [--channel stable|rc]`: sets (when given) and prints the channel, then find + download, never apply; exit 0 / 1. Editor: `UpdatesViewModel` (About › Updates card: "Updates to follow" drop-down + status + Check).
+- Update channel (D-108): `Core/Updates/UpdateChannelStore`, `%LOCALAPPDATA%\DazeControl\update-channel.txt` (`channel=stable|rc`, default and any unreadable content = Stable; per user, not in config.yaml or a backup). The engine's daily `dctl update`, `dctl update` and the editor all read it; the editor re-reads nothing: its drop-down writes it at once and sets `IUpdateClient.Channel`. Velopack orders by semver (`0.52.0-rc.1` < `0.52.0`) and `AllowVersionDowngrade` stays off, so going RC → Stable keeps the installed RC until a newer stable ships (`UpdateChannelTests` runs the real `UpdateManager` over a fake feed). A download already waiting still installs after a switch.
 
 ## IPC
 
