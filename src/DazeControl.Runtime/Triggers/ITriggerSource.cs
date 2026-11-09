@@ -2,9 +2,11 @@ namespace DazeControl.Runtime.Triggers;
 
 /// <summary>One thing that happened (M20): an event name from <c>TriggerText.Events</c>.</summary>
 /// <param name="Name">The event name, e.g. <c>session.unlock</c>.</param>
-/// <param name="Detail">Extra the source knows (the Wi-Fi name on <c>network.connected</c>), else null.</param>
+/// <param name="Detail">Extra the source knows (on a network event: the Wi-Fi name, or the cable adapter's name), else null.
+/// Debounce and cooldown are kept per detail, so one connection doesn't swallow another's event.</param>
 /// <param name="Chain">Flow ids the event descends from (a future <c>flow.finished</c> source); null = a person or the OS.</param>
-public sealed record TriggerEvent(string Name, IReadOnlyList<string>? Chain = null, string? Detail = null);
+/// <param name="Kind">On a network event, the connection's kind as <c>TriggerText.ViaText</c> says it ("wifi", "cable"), else null.</param>
+public sealed record TriggerEvent(string Name, IReadOnlyList<string>? Chain = null, string? Detail = null, string? Kind = null);
 
 /// <summary>
 /// A push source of system events (DESIGN §3, D-107): session, power, … Lazy like the gamepad reader (D-086): the

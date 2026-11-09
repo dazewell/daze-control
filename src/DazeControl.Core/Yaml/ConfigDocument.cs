@@ -165,6 +165,8 @@ public sealed class TriggerDocument
 
     public string? Ssid { get; set; }
 
+    public string? Via { get; set; }
+
     public string? IfMissed { get; set; }
 
     public string? Grace { get; set; }

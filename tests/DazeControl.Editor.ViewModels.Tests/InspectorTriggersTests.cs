@@ -127,6 +127,28 @@ public sealed class InspectorTriggersTests : IDisposable
     }
 
     [Fact]
+    public void ANetworkRowPicksCableWifiOrAWifiName()
+    {
+        Box("network.connected").IsChecked = true;
+        var row = _inspector.Triggers[^1];
+        Assert.True(row.IsNetwork);
+        Assert.False(row.ShowNetworkName);
+        Assert.False(_inspector.Triggers[1].IsNetwork);
+
+        row.ConnectionIndex = WhenThisRuns.CableConnection;
+        Assert.Equal(new EventTrigger("network.connected") { Via = NetworkVia.Cable }, Saved[^1]);
+        Assert.Equal("When a cable is plugged in", _inspector.Triggers[^1].Sentence);
+
+        _inspector.Triggers[^1].ConnectionIndex = WhenThisRuns.WiFiConnection;
+        row = _inspector.Triggers[^1];
+        Assert.True(row.ShowNetworkName);
+        row.NetworkName = "Home";
+        Assert.Equal(new EventTrigger("network.connected") { Via = NetworkVia.WiFi, Ssid = "Home" }, Saved[^1]);
+        Assert.Equal("When Wi-Fi 'Home' connects", _inspector.Triggers[^1].Sentence);
+        Assert.Equal("Home", _inspector.Triggers[^1].NetworkName);
+    }
+
+    [Fact]
     public void TickingKeepsTheSettingsOfExistingRowsAndUndoRestores()
     {
         _inspector.Triggers[1].OnlyIndex = 1; // session.unlock, only on battery

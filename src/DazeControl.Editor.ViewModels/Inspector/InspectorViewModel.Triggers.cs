@@ -170,6 +170,8 @@ public sealed partial class TriggerRowViewModel : ObservableObject
                 break;
             case EventTrigger e:
                 EventIndex = Math.Max(0, IndexOfEvent(e.Name));
+                ConnectionIndex = WhenThisRuns.ConnectionIndex(e);
+                NetworkName = e.Ssid ?? "";
                 break;
             case EngineStartTrigger:
                 EventIndex = 0;
@@ -200,6 +202,8 @@ public sealed partial class TriggerRowViewModel : ObservableObject
 
     public static IReadOnlyList<string> UnitNames { get; } = ["minutes", "hours"];
 
+    public static IReadOnlyList<string> ConnectionNames => WhenThisRuns.ConnectionNames;
+
     public static IReadOnlyList<string> IfMissedNames { get; } = ["Run it late", "Skip it"];
 
     public ObservableCollection<DayToggleViewModel> DayToggles { get; } = [];
@@ -213,6 +217,12 @@ public sealed partial class TriggerRowViewModel : ObservableObject
     public bool IsOnce => Trigger is OnceTrigger;
 
     public bool IsEvent => !IsSchedule;
+
+    /// <summary>A network event: the connection picker shows.</summary>
+    public bool IsNetwork => Trigger is EventTrigger e && TriggerText.IsNetworkEvent(e.Name);
+
+    /// <summary>Wi-Fi picked: the network name box shows.</summary>
+    public bool ShowNetworkName => IsNetwork && ConnectionIndex == WhenThisRuns.WiFiConnection;
 
     /// <summary>Time of day for "At a time" and "Once".</summary>
     public bool HasTime => Trigger is AtTrigger or OnceTrigger;
@@ -277,6 +287,14 @@ public sealed partial class TriggerRowViewModel : ObservableObject
     public partial int OnlyIndex { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowNetworkName))]
+    public partial int ConnectionIndex { get; set; }
+
+    /// <summary>The Wi-Fi network's name; empty = any Wi-Fi.</summary>
+    [ObservableProperty]
+    public partial string NetworkName { get; set; } = "";
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGrace))]
     public partial int IfMissedIndex { get; set; }
 
@@ -316,6 +334,10 @@ public sealed partial class TriggerRowViewModel : ObservableObject
     partial void OnEventIndexChanged(int value) => Edit(t => value >= 0 && value < WhenThisRuns.EventChoices.Count ? WhenThisRuns.WithEvent(t, WhenThisRuns.EventChoices[value].Name) : t);
 
     partial void OnOnlyIndexChanged(int value) => Edit(t => WhenThisRuns.WithOnly(t, value));
+
+    partial void OnConnectionIndexChanged(int value) => Edit(t => WhenThisRuns.WithConnection(t, value));
+
+    partial void OnNetworkNameChanged(string value) => Edit(t => WhenThisRuns.WithNetworkName(t, value));
 
     partial void OnIfMissedIndexChanged(int value) => Edit(t => WhenThisRuns.WithIfMissed(t, value == 1 ? IfMissed.Skip : IfMissed.Run));
 

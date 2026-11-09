@@ -2,55 +2,83 @@ using DazeControl.Runtime.Triggers;
 
 namespace DazeControl.Runtime.Tests;
 
-/// <summary>T20.4: network.connected/disconnected comes from a tracker that turns "something changed" into real changes.</summary>
+/// <summary>T20.4/T20.12: network.connected/disconnected per connection, from a tracker that turns "something changed" into real changes.</summary>
 public sealed class NetworkTrackerTests
 {
-    private (bool Connected, string? Ssid) _state;
+    private static readonly NetworkConnection Home = new("wifi:Home", "wifi", "Home");
+    private static readonly NetworkConnection Office = new("wifi:Office", "wifi", "Office");
+    private static readonly NetworkConnection Cable = new("cable:{1}", "cable", "Ethernet 4");
+
+    private NetworkConnection[] _state = [];
     private readonly List<TriggerEvent> _events = [];
     private readonly NetworkTracker _tracker;
 
     public NetworkTrackerTests() => _tracker = new NetworkTracker(() => _state, _events.Add);
 
-    private void Now(bool connected, string? ssid = null)
+    private void Now(params NetworkConnection[] connections)
     {
-        _state = (connected, ssid);
+        _state = connections;
         _tracker.Changed();
     }
+
+    private IEnumerable<string> Said => _events.Select(e => $"{e.Name} {e.Kind} {e.Detail}");
 
     [Fact]
     public void TheFirstReadingIsABaseline()
     {
-        Now(true, "Home");
+        Now(Home);
         Assert.Empty(_events);
     }
 
     [Fact]
-    public void LosingAndRegainingTheNetworkRaisesBoth()
+    public void ACableComesAndGoesWhileWifiStaysUp()
     {
-        Now(true, "Home");
-        Now(false);
-        Now(true, "Home");
+        Now(); // offline
+        Now(Home); // Wi-Fi up
+        Now(Home, Cable); // cable plugged in while Wi-Fi is up
+        Now(Home); // cable out, Wi-Fi stays
+        Now(); // Wi-Fi down
 
-        Assert.Equal(["network.disconnected", "network.connected"], _events.Select(e => e.Name));
-        Assert.Equal("Home", _events[1].Detail);
+        Assert.Equal([
+            "network.connected wifi Home",
+            "network.connected cable Ethernet 4",
+            "network.disconnected cable Ethernet 4",
+            "network.disconnected wifi Home",
+        ], Said);
     }
 
     [Fact]
-    public void RepeatedNotificationsOfTheSameStateRaiseNothing()
+    public void BothComingUpAtOnceAreTwoConnections()
     {
-        Now(false);
-        Now(false);
-        Now(true);
-        Now(true);
-        Assert.Equal(["network.connected"], _events.Select(e => e.Name));
+        Now();
+        Now(Cable, Home);
+        Assert.Equal(["network.connected cable Ethernet 4", "network.connected wifi Home"], Said);
     }
 
     [Fact]
-    public void SwitchingWifiCountsAsConnecting()
+    public void FlappingRaisesEveryRealChangeAndRepeatsNothing()
     {
-        Now(true, "Home");
-        Now(true, "Office");
-        Assert.Equal("Office", Assert.Single(_events).Detail);
+        Now(Home);
+        Now(Home, Cable);
+        Now(Home, Cable); // the OS repeats itself
+        Now(Home);
+        Now(Home, Cable);
+        Now(Home);
+
+        Assert.Equal([
+            "network.connected cable Ethernet 4",
+            "network.disconnected cable Ethernet 4",
+            "network.connected cable Ethernet 4",
+            "network.disconnected cable Ethernet 4",
+        ], Said);
+    }
+
+    [Fact]
+    public void SwitchingWifiIsOneGoingAndOneComing()
+    {
+        Now(Home);
+        Now(Office);
+        Assert.Equal(["network.disconnected wifi Home", "network.connected wifi Office"], Said);
     }
 
     [Fact]
@@ -60,9 +88,9 @@ public sealed class NetworkTrackerTests
         failing.Changed();
         Assert.Empty(_events);
 
-        Now(true);
+        Now(Home);
         _tracker.Reset();
-        Now(false); // a new baseline
+        Now(); // a new baseline
         Assert.Empty(_events);
     }
 }

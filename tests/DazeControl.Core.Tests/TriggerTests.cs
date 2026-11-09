@@ -18,6 +18,51 @@ public class TriggerTests
         Assert.Contains(load.Problems, p => p.Message.Contains("ssid", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("{ on: session.unlock, via: cable }", "via only goes")]
+    [InlineData("{ on: network.connected, via: modem }", "isn't wifi or cable")]
+    [InlineData("{ on: network.connected, via: cable, ssid: Home }", "can't go with via: cable")]
+    public void AWrongNetworkFilterIsAProblemOnThatTriggerOnly(string trigger, string expected)
+    {
+        var load = Load($"      - {trigger}\n      - {{ on: network.connected }}\n");
+
+        Assert.Contains(load.Problems, p => p.Message.Contains(expected, StringComparison.Ordinal));
+        Assert.Equal([new EventTrigger("network.connected")], load.Config!.Flows[0].Triggers); // the flow and its other trigger stay
+    }
+
+    [Fact]
+    public void NetworkFiltersRoundTripOnBothEvents()
+    {
+        var load = Load(string.Join('\n',
+            "      - { on: network.connected, via: cable }",
+            "      - { on: network.disconnected, via: wifi, ssid: Home }",
+            "      - { on: network.disconnected, ssid: Office }",
+            "      - { on: network.connected, via: Wi-Fi }",
+            ""));
+        Assert.Empty(load.Problems);
+        Assert.Equal([
+            new EventTrigger("network.connected") { Via = NetworkVia.Cable },
+            new EventTrigger("network.disconnected") { Via = NetworkVia.WiFi, Ssid = "Home" },
+            new EventTrigger("network.disconnected") { Ssid = "Office" },
+            new EventTrigger("network.connected") { Via = NetworkVia.WiFi },
+        ], load.Config!.Flows[0].Triggers);
+        var saved = ConfigYaml.Save(load.Config);
+        Assert.Contains("via: cable", saved, StringComparison.Ordinal);
+        Assert.Equal(load.Config, ConfigYaml.Load(saved).Config);
+        Assert.DoesNotContain(ConfigValidator.Validate(load.Config), p => p.Path.Contains("triggers", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TheValidatorWarnsAboutAnEditedModelsNetworkFilter()
+    {
+        var config = Load("      - { on: session.unlock }\n").Config!;
+        var flow = config.Flows[0] with { Triggers = [new EventTrigger("session.unlock") { Via = NetworkVia.WiFi }, new EventTrigger("network.connected") { Via = NetworkVia.Cable, Ssid = "Home" }] };
+        var problems = ConfigValidator.Validate(config with { Flows = [flow] });
+
+        Assert.Contains(problems, p => p.Path.EndsWith("triggers[0]", StringComparison.Ordinal) && p.Message.Contains("via only goes", StringComparison.Ordinal));
+        Assert.Contains(problems, p => p.Path.EndsWith("triggers[1]", StringComparison.Ordinal) && p.Message.Contains("via: cable", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void EveryKindRoundTrips()
     {
