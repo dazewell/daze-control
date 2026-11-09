@@ -147,7 +147,7 @@ Backup surfaces (T19.3–T19.5): the zip work runs only in the editor and `dctl`
 Editor: Settings › "Backup and restore" card (`Editor/BackupCard`, `BackupCardViewModel`): Back up now (Save dialog), Restore from file (Open dialog or a dropped file) → preview dialog
 (Replace everything / Add what's missing), Undo restore until the editor closes, automatic on/off + Keep (3–50), "Recent backups" (auto, before-restore) and "Earlier saves" (the per-session `.bak` files,
 config only) with Restore/Delete per row. Restore is refused while a flow draft is open. The running engine is not restarted: its hot reload judges each flow (D-021).
-`Core/Backup/AutoBackup` (D-104): setting in `%LOCALAPPDATA%\DazeControlackupsuto-backup.txt` (`enabled=`, `keep=`; default on, 10), folder `backupsuto`; taken by `dctl update` before a download
+`Core/Backup/AutoBackup` (D-104): setting in `%LOCALAPPDATA%\DazeControl\backups\auto-backup.txt` (`enabled=`, `keep=`; default on, 10), folder `backups\auto`; taken by `dctl update` before a download
 and by the editor after a save when the newest auto backup (by file name) is over 24 h old; never throws. A backup holds config.yaml byte for byte; editor.json and history are opt-in; no credentials,
 shortcuts or autostart. Not built: restoring editor.json from the card ("Editor layout" tick; `EditorSettingsStore` can't reload it) and a per-flow restore.
 
