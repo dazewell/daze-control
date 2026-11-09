@@ -73,7 +73,7 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   implementation test passes, a dry run of each.
 - [x] T14.9 Display and Android checks, optional (feat/m14-leftovers; fake tests only, no live run of `display.check`, after T14.5). Files: `Providers/Display` (reuse `DisplayCheck`, D-077),
   `Providers/Android`; catalog. Done when: fake tests; `display.check` on the dev PC reports the current layout match without changing
-  the screens (read-only); `android.check` only behind an adb already running (no new process on a quiet PC, or noted in
+  the screens (read-only; the live run was left out of M14, not done); `android.check` only behind an adb already running (no new process on a quiet PC, or noted in
   FEATURES).
 - [x] T14.10 `only` in step defaults (feat/m14-only-defaults, after T14.7). Files: `StepDefaults`/validator/mapper (`only`), Settings card row,
   inspector row state (Default/Set). Done when: `bluetooth.connect: { only: disconnected }` skips a connected Connect, a step with

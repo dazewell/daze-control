@@ -237,6 +237,7 @@ public sealed class AndroidRemote(IAdb adb, TimeProvider time)
     /// </summary>
     public async Task<bool> IsConnectedAsync(AndroidDevice device, IProcesses processes, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!processes.IsRunning("adb"))
             return false;
         var result = await adb.RunAsync(device.Adb ?? DefaultAdb, ["devices"], cancellationToken).ConfigureAwait(false);

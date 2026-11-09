@@ -108,6 +108,7 @@ public sealed class DisplayCheckProvider(IDisplays displays) : IStepProvider
         var key = context.RequiredText("layout");
         var layout = context.Library.Displays.FirstOrDefault(d => d.Key == key)
             ?? throw new StepFailedException(Library.Missing(LibraryKind.Display, key));
+        cancellationToken.ThrowIfCancellationRequested();
         var difference = displays.LayoutDifferences(layout);
         var wantMatch = context.Text("is") != "differs";
         if (wantMatch && difference is not null)
