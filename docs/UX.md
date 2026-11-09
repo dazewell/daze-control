@@ -147,7 +147,7 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   schedule or event: clock/bolt, a plain sentence ("Weekdays at 22:30", "When the PC is unlocked, only on battery"),
   "Next: tomorrow 22:30". Open: Starts (At a time / Every so often / Once / When something happens), its pickers, the
   per-schedule "If the PC was off or asleep" (Run it late + minutes / Skip it; chosen when the row is added, no global
-  default), "Test this trigger" (runs the saved flow named like the trigger), Remove. Add schedule / Add event (stacked, so neither clips at 225% text).
+  default), "Test this trigger" (runs the saved flow named like the trigger), Remove. Add schedule / Add event / "Add events…" (stacked, so none clips at 225% text); the last opens a flyout of one CheckBox per event, grouped (Session, Power, Devices, Sound and screens, Network): ticking adds a row, unticking removes it, existing rows keep their settings.
   Flows list: clock and bolt slots. Flow inputs: "Ask me when it runs" + seconds to wait + "If nobody answers". The
   Ask step's inspector is the catalog's own fields. Screenshots: docs/triggers/t20.6 (dark) and docs/triggers/t20.7 (light, high contrast, 225% text).
 - Device picker: ComboBox items glyph + name + Caption state ("Connected" / "Not connected" / "Unplugged");

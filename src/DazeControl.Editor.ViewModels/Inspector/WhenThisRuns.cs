@@ -28,6 +28,29 @@ public static class WhenThisRuns
     public static IReadOnlyList<EventChoice> EventChoices { get; } =
         [new(EngineStartTrigger.Name, Event(EngineStartTrigger.Name)), .. TriggerText.Events.Select(n => new EventChoice(n, Event(n)))];
 
+    /// <summary>The "Add events" flyout's groups; an event of a source added later lands in "Other".</summary>
+    public static IReadOnlyList<EventGroup> EventGroups { get; } = BuildGroups();
+
+    public sealed record EventGroup(string Title, IReadOnlyList<EventChoice> Events);
+
+    private static List<EventGroup> BuildGroups()
+    {
+        (string Title, string[] Prefixes)[] groups =
+            [("Session", ["session."]), ("Power", ["power."]), ("Devices", ["device."]), ("Sound and screens", ["audio.", "display."]), ("Network", ["network."])];
+        var rest = TriggerText.Events.ToList();
+        var result = new List<EventGroup>();
+        foreach (var (title, prefixes) in groups)
+        {
+            var own = rest.Where(n => prefixes.Any(p => n.StartsWith(p, StringComparison.Ordinal))).ToList();
+            rest.RemoveAll(own.Contains);
+            if (own.Count > 0)
+                result.Add(new EventGroup(title, [.. own.Select(n => new EventChoice(n, Event(n)))]));
+        }
+        if (rest.Count > 0)
+            result.Add(new EventGroup("Other", [.. rest.Select(n => new EventChoice(n, Event(n)))]));
+        return result;
+    }
+
     public sealed record EventChoice(string Name, string Sentence);
 
     public static int KindOf(Trigger trigger) => trigger switch

@@ -17,6 +17,37 @@ public sealed partial class InspectorViewModel
 
     private int _openTrigger = -1;
 
+    /// <summary>The "Add events" flyout: every event of the one list in Core, grouped, ticked when a row of the flow has it.</summary>
+    public IReadOnlyList<EventGroupViewModel> EventGroups => _eventGroups ??= BuildEventGroups();
+
+    private IReadOnlyList<EventGroupViewModel>? _eventGroups;
+
+    private IReadOnlyList<EventGroupViewModel> BuildEventGroups() => [.. WhenThisRuns.EventGroups.Select(g => new EventGroupViewModel(g.Title, [.. g.Events.Select(e => new EventOptionViewModel(this, e.Name, e.Sentence))]))];
+
+    private void SyncEventTicks(Flow flow)
+    {
+        var used = flow.Triggers.OfType<EventTrigger>().Select(t => t.Name).ToHashSet();
+        foreach (var option in EventGroups.SelectMany(g => g.Events))
+            option.SetTicked(used.Contains(option.Name));
+    }
+
+    /// <summary>Ticking adds one event row at the end; unticking removes the rows of that event. Other rows keep their settings.</summary>
+    internal void SetEvent(string name, bool on)
+    {
+        if (Flow is not { } flow || !CanEdit)
+            return;
+        var has = flow.Triggers.Any(t => t is EventTrigger e && e.Name == name);
+        if (on == has)
+            return;
+        if (on)
+        {
+            _openTrigger = flow.Triggers.Count;
+            EditFlow(f => f with { Triggers = [.. f.Triggers, new EventTrigger(name)] });
+        }
+        else
+            EditFlow(f => f with { Triggers = [.. f.Triggers.Where(t => t is not EventTrigger e || e.Name != name)] });
+    }
+
     /// <summary>Why a trigger in the file is ignored (from the validator and the reader), or "".</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasTriggerNotes))]
@@ -42,6 +73,7 @@ public sealed partial class InspectorViewModel
         // rows: say them under the rows instead of on a possibly wrong one.
         TriggerNotes = string.Join(Environment.NewLine, problems.Select(p => p.Message));
         _openTrigger = -1;
+        SyncEventTicks(flow);
     }
 
     /// <summary>"Add schedule" / "Add event": a new row of the kind, open so its missed-run choice is seen when it is created.</summary>
@@ -321,5 +353,47 @@ public sealed partial class DayToggleViewModel : ObservableObject
     {
         // The toggle already shows the click; a refused change (the last day) is put back by the row's reload.
         _row.ToggleDay(_index);
+    }
+}
+
+/// <summary>A titled group of event boxes in the "Add events" flyout.</summary>
+public sealed class EventGroupViewModel(string title, IReadOnlyList<EventOptionViewModel> events)
+{
+    public string Title { get; } = title;
+
+    public IReadOnlyList<EventOptionViewModel> Events { get; } = events;
+}
+
+/// <summary>One box of the "Add events" flyout.</summary>
+public sealed partial class EventOptionViewModel : ObservableObject
+{
+    private readonly InspectorViewModel _owner;
+    private bool _loading;
+
+    internal EventOptionViewModel(InspectorViewModel owner, string name, string sentence)
+    {
+        _owner = owner;
+        Name = name;
+        Sentence = sentence;
+    }
+
+    public string Name { get; }
+
+    public string Sentence { get; }
+
+    [ObservableProperty]
+    public partial bool IsChecked { get; set; }
+
+    internal void SetTicked(bool on)
+    {
+        _loading = true;
+        IsChecked = on;
+        _loading = false;
+    }
+
+    partial void OnIsCheckedChanged(bool value)
+    {
+        if (!_loading)
+            _owner.SetEvent(Name, value);
     }
 }
