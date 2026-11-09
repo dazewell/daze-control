@@ -7,6 +7,7 @@ Blocks until done, so run it with run_in_background: waiting costs no model call
   A later stable release of the same number supersedes it. A tag like v0.52.0-rc.2 can also be passed with -Version.
 Exit: 0 ok | 2 PR closed/not merged | 3 CI red | 4 release run red | 5 preflight/other error | 6 timeout.
 #>
+[CmdletBinding()]
 param([string]$Notes, [int[]]$Prs = @(), [string]$Version, [switch]$Rc, [int]$TimeoutMinutes = 90, [switch]$DryRun, [switch]$SelfTest)
 $ErrorActionPreference = 'Stop'
 $Repo = 'dazewell/daze-control'
