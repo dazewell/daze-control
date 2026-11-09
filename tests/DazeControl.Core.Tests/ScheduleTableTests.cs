@@ -110,6 +110,16 @@ public class ScheduleTableTests
     }
 
     [Fact]
+    public void FallBackDayIntervalRunsRepeatedHourOnce()
+    {
+        // 2026-11-01: 01:00 happens twice. Hourly from midnight: 00:00 EDT, 01:00 EDT (first), 02:00 EST.
+        var rule = Every("1h");
+        Assert.Equal(T("2026-11-01 01:00 -4"), Next(rule, "2026-11-01 00:00 -4"));
+        Assert.Equal(T("2026-11-01 02:00 -5"), Next(rule, "2026-11-01 01:30 -4"));
+        Assert.Equal(T("2026-11-01 02:00 -5"), Next(rule, "2026-11-01 01:10 -5"));
+    }
+
+    [Fact]
     public void WindowEndIsIncluded()
     {
         Assert.Equal(T("2026-06-10 18:00 -4"), Next(Every("3h", "09:00", "18:00"), "2026-06-10 15:00 -4"));

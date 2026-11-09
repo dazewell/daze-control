@@ -9,24 +9,59 @@ namespace DazeControl.Core.Yaml;
 /// </summary>
 internal static class TriggerMapper
 {
-    public static ValueList<Trigger> Read(List<TriggerDocument>? documents, string path, string flowId, ICollection<Problem> problems)
+    public static ValueList<Trigger> Read(List<ParamDocument>? documents, string path, string flowId, ICollection<Problem> problems)
     {
         var triggers = new List<Trigger>();
         for (var i = 0; i < (documents?.Count ?? 0); i++)
         {
             var itemPath = $"{path}[{i}]";
-            string? why;
+            string? why = null;
             Trigger? trigger;
-            if (documents![i] is null)
-                (trigger, why) = (null, "Empty trigger.");
+            if (documents![i]?.ToValue() is MapParam map && ToDocument(map, out why) is { } document)
+                (trigger, why) = ReadOne(document);
             else
-                (trigger, why) = ReadOne(documents[i]);
+                (trigger, why) = (null, why ?? "A trigger is a mapping, like { at: \"22:30\" }.");
             if (trigger is null)
                 problems.Add(new Problem(Severity.Warning, itemPath, why + " This trigger is ignored.", flowId));
             else
                 triggers.Add(trigger);
         }
         return new(triggers);
+    }
+
+    private static TriggerDocument? ToDocument(MapParam map, out string? why)
+    {
+        why = null;
+        var d = new TriggerDocument();
+        foreach (var (key, value) in map.Entries)
+        {
+            if (key == "days")
+            {
+                d.Days = new ParamDocument(value);
+                continue;
+            }
+            if (key == "between")
+            {
+                d.Between = new ParamDocument(value);
+                continue;
+            }
+            if (value is not ScalarParam scalar)
+            {
+                why = $"{key} must be a single value.";
+                return null;
+            }
+            switch (key)
+            {
+                case "at": d.At = scalar.Text; break;
+                case "every": d.Every = scalar.Text; break;
+                case "once": d.Once = scalar.Text; break;
+                case "on": d.On = scalar.Text; break;
+                case "only": d.Only = scalar.Text; break;
+                case "ifMissed": d.IfMissed = scalar.Text; break;
+                case "grace": d.Grace = scalar.Text; break;
+            }
+        }
+        return d;
     }
 
     private static (Trigger?, string?) ReadOne(TriggerDocument d)
@@ -125,7 +160,30 @@ internal static class TriggerMapper
         }
     }
 
-    public static TriggerDocument ToDocument(Trigger trigger)
+    public static ParamDocument ToParam(Trigger trigger)
+    {
+        var d = ToDocument(trigger);
+        var entries = new List<KeyValuePair<string, ParamValue>>();
+        void Add(string key, string? text)
+        {
+            if (text is not null)
+                entries.Add(new(key, new ScalarParam(text)));
+        }
+        Add("at", d.At);
+        if (d.Days is not null)
+            entries.Add(new("days", d.Days.ToValue()));
+        Add("every", d.Every);
+        if (d.Between is not null)
+            entries.Add(new("between", d.Between.ToValue()));
+        Add("once", d.Once);
+        Add("on", d.On);
+        Add("only", d.Only);
+        Add("ifMissed", d.IfMissed);
+        Add("grace", d.Grace);
+        return new ParamDocument(new MapParam(new(entries)));
+    }
+
+    private static TriggerDocument ToDocument(Trigger trigger)
     {
         var document = trigger switch
         {
@@ -162,4 +220,26 @@ internal static class TriggerMapper
             ? new ScalarParam(names[0])
             : new ListParam(new(names.Select(n => (ParamValue)new ScalarParam(n)))));
     }
+}
+
+/// <summary>A trigger's keys as text, before checking (not itself a YAML shape: see <see cref="ParamDocument"/>).</summary>
+internal sealed class TriggerDocument
+{
+    public string? At { get; set; }
+
+    public ParamDocument? Days { get; set; }
+
+    public string? Every { get; set; }
+
+    public ParamDocument? Between { get; set; }
+
+    public string? Once { get; set; }
+
+    public string? On { get; set; }
+
+    public string? Only { get; set; }
+
+    public string? IfMissed { get; set; }
+
+    public string? Grace { get; set; }
 }

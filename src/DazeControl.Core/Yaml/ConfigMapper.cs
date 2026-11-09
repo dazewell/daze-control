@@ -76,7 +76,7 @@ public static class ConfigMapper
             Separator = flow.Tray.Separator ? "true" : null,
         },
         Hotkeys = flow.Hotkeys.Count == 0 ? null : [.. flow.Hotkeys],
-        Triggers = flow.Triggers.Count == 0 ? null : [.. flow.Triggers.Select(TriggerMapper.ToDocument)],
+        Triggers = flow.Triggers.Count == 0 ? null : [.. flow.Triggers.Select(TriggerMapper.ToParam)],
         WhenRunning = flow.WhenRunning == WhenRunning.Ignore ? null : EnumText(flow.WhenRunning),
         Popup = flow.Popup ? null : "false",
         Enabled = flow.Enabled ? null : "false",

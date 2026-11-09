@@ -57,23 +57,33 @@ public static class ScheduleTable
         var windowed = every is { From: not null, To: not null };
         var from = every.From ?? TimeOnly.MinValue;
         var to = every.To ?? TimeOnly.MinValue;
+        var localAfter = TimeZoneInfo.ConvertTime(after, zone).DateTime;
         for (var d = -1; d <= 2; d++)
         {
             var date = today.AddDays(d);
-            var start = Resolve(date, from, zone);
+            // Candidates are local wall times, each resolved on its own, so a repeated time runs once and offsets stay right.
             // Windowed: end included, and an end at or before the start is the next day's. Unwindowed: next midnight, excluded.
-            var end = Resolve(windowed && to > from ? date : date.AddDays(1), to, zone);
-            var k = after < start ? 0 : (after - start).Ticks / every.Interval.Ticks + 1;
-            var due = start + every.Interval * k;
-            if (windowed ? due <= end : due < end)
-                return due;
+            var start = date.ToDateTime(from);
+            var end = (windowed && to > from ? date : date.AddDays(1)).ToDateTime(to);
+            var k = localAfter <= start ? 0 : Math.Max(0, (localAfter - start - TimeSpan.FromHours(3)).Ticks / every.Interval.Ticks);
+            for (; ; k++)
+            {
+                var candidate = start + every.Interval * k;
+                if (windowed ? candidate > end : candidate >= end)
+                    break;
+                var due = Resolve(candidate, zone);
+                if (due > after)
+                    return due;
+            }
         }
         return null;
     }
 
-    private static DateTimeOffset Resolve(DateOnly date, TimeOnly time, TimeZoneInfo zone)
+    private static DateTimeOffset Resolve(DateOnly date, TimeOnly time, TimeZoneInfo zone) =>
+        Resolve(date.ToDateTime(time, DateTimeKind.Unspecified), zone);
+
+    private static DateTimeOffset Resolve(DateTime local, TimeZoneInfo zone)
     {
-        var local = date.ToDateTime(time, DateTimeKind.Unspecified);
         if (zone.IsInvalidTime(local))
         {
             // In the gap: the offset from before it puts the time just after the gap.

@@ -75,6 +75,10 @@ public class TriggerTests
     [InlineData("{ on: session.lock, grace: 5m }")]
     [InlineData("{ at: \"22:30\", on: session.lock }")]
     [InlineData("{ }")]
+    [InlineData("42")]
+    [InlineData("[a, b]")]
+    [InlineData("{ at: [\"22:30\"] }")]
+    [InlineData("{ once: \"2026-12-01 09:30:45\" }")]
     public void BadTriggerIsDroppedWithAWarningAndTheFlowStays(string bad)
     {
         var load = Load("      - " + bad + "\n      - { on: session.lock }\n");
@@ -91,11 +95,11 @@ public class TriggerTests
     {
         var flow = new Flow("f", "f", [])
         {
-            Triggers = [new EventTrigger("nope"), new EveryTrigger(TimeSpan.FromSeconds(5)), new AtTrigger(new(1, 0), Days.None),
+            Triggers = [new EventTrigger("nope"), new EveryTrigger(TimeSpan.FromSeconds(5)), new AtTrigger(new(1, 0), Days.None), new AtTrigger(new(1, 0), (Days)128),
                 new EventTrigger("session.lock"), new EventTrigger("session.lock")],
         };
         var problems = ConfigValidator.Validate(new Configuration { Flows = [flow] }).Where(p => p.Path.Contains("triggers", StringComparison.Ordinal)).ToList();
-        Assert.Equal(4, problems.Count);
+        Assert.Equal(5, problems.Count);
         Assert.All(problems, p => Assert.Equal(Severity.Warning, p.Severity));
     }
 

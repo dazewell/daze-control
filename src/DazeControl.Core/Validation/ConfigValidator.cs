@@ -357,7 +357,7 @@ public static partial class ConfigValidator
                 var why = trigger switch
                 {
                     EventTrigger e when !TriggerText.IsEvent(e.Name) => $"\"{e.Name}\" isn't an event I know.",
-                    AtTrigger a when a.Days == Days.None => "Pick at least one day.",
+                    AtTrigger a when a.Days == Days.None || (a.Days & ~Days.Daily) != 0 => "Pick at least one day.",
                     EveryTrigger e when e.Interval < EveryTrigger.MinInterval => "An interval is at least a minute.",
                     EveryTrigger e when (e.From is null) != (e.To is null) || (e.From is not null && e.From == e.To) => "between needs two different times.",
                     ScheduleTrigger { Grace: { } g } when g < TimeSpan.Zero => "grace can't be negative.",
