@@ -25,6 +25,14 @@ public sealed class UpdatesViewModelTests
             return Task.CompletedTask;
         }
 
+        public string? NewerAtApply { get; set; }
+        public Task<string?> RefreshBeforeApplyAsync(CancellationToken cancellationToken)
+        {
+            if (NewerAtApply is not null)
+                PendingVersion = NewerAtApply;
+            return Task.FromResult(PendingVersion);
+        }
+
         public void ApplyAfterExit() => Applied = ApplyFails is null ? true : throw ApplyFails;
     }
 
@@ -65,8 +73,19 @@ public sealed class UpdatesViewModelTests
         await updates.CheckAsync();
         Assert.True(updates.CanRestart);
         Assert.False(updates.CanCheck);
-        Assert.True(updates.Restart());
+        Assert.True(await updates.RestartAsync());
 
+        Assert.True(client.Applied);
+    }
+
+    [Fact]
+    public async Task RestartLooksForANewerReleaseFirstAndInstallsThat()
+    {
+        var client = new FakeUpdates { PendingVersion = "0.18.0", NewerAtApply = "0.19.0" };
+        var updates = new UpdatesViewModel(client, a => a());
+
+        Assert.True(await updates.RestartAsync());
+        Assert.Equal("0.19.0", client.PendingVersion);
         Assert.True(client.Applied);
     }
 
@@ -84,20 +103,20 @@ public sealed class UpdatesViewModelTests
     }
 
     [Fact]
-    public void RestartDoesNothingWithoutAReadyUpdate()
+    public async Task RestartDoesNothingWithoutAReadyUpdate()
     {
         var client = new FakeUpdates();
-        Assert.False(new UpdatesViewModel(client, a => a()).Restart());
+        Assert.False(await new UpdatesViewModel(client, a => a()).RestartAsync());
         Assert.False(client.Applied);
     }
 
     [Fact]
-    public void AnUpdaterThatWontStartSaysWhyAndKeepsTheEditorOpen()
+    public async Task AnUpdaterThatWontStartSaysWhyAndKeepsTheEditorOpen()
     {
         var client = new FakeUpdates { PendingVersion = "0.18.0", ApplyFails = new InvalidOperationException("Update.exe is missing.") };
         var updates = new UpdatesViewModel(client, a => a());
 
-        Assert.False(updates.Restart());
+        Assert.False(await updates.RestartAsync());
         Assert.StartsWith("Couldn't start the update: Update.exe is missing.", updates.Status, StringComparison.Ordinal);
         Assert.True(updates.CanRestart);
     }

@@ -1429,3 +1429,11 @@ Status: accepted (user, 2026-11-09: opt in to release candidates from the app)
   its RC); a Settings-page row (the Updates card already lives in About, two places would drift); a radio group (a drop-down
   matches the other Settings rows and reads well at 225 % text).
 - A download already waiting still installs after a switch (it was chosen under the old channel; Restart/next start applies it).
+
+## D-109 · 2026-11-09 · Updates re-check right before they apply
+Status: accepted (user report: the update installed the version found at check time, not the newest)
+- Decision: `IUpdateClient.RefreshBeforeApplyAsync` looks at the feed again (current channel, D-108) and downloads a release newer than
+  the downloaded one; offline or failing it keeps the downloaded one. Called by the editor's "Restart now" and by the engine's apply at
+  start (30 s cap, so a bad network can't hold the start). `dctl update` already checks fresh, and the daily check stays the only timer.
+- Why not apply at once and let the next daily check catch up: the user restarts to get the newest, then has to repeat the cycle.
+

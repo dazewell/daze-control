@@ -108,23 +108,31 @@ public sealed partial class UpdatesViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Hands the update to the updater, which waits for the editor to exit, closes the engine cleanly, applies and starts
-    /// the engine. True when it did: the caller then closes the editor. False (with the reason in Status) otherwise.
+    /// Looks once more for a newer release (the one downloaded may be old by now), then hands the newest to the updater,
+    /// which waits for the editor to exit, closes the engine cleanly, applies and starts the engine. True when it did:
+    /// the caller then closes the editor. False (with the reason in Status) otherwise.
     /// </summary>
-    public bool Restart()
+    public async Task<bool> RestartAsync()
     {
-        if (_client is null || !CanRestart)
+        if (_client is null || !CanRestart || _checking)
             return false;
+        _checking = true;
+        Show(("Looking for a newer version…", false, false));
         try
         {
+            await _client.RefreshBeforeApplyAsync(CancellationToken.None).ConfigureAwait(false);
             _client.ApplyAfterExit();
             return true;
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
             // Update.exe missing, quarantined or blocked: stay open, the update still applies at the next engine start.
-            Show(($"Couldn't start the update: {e.Message} It installs the next time {AppInfo.ProductName} starts.", true, true));
+            Post(($"Couldn't start the update: {e.Message} It installs the next time {AppInfo.ProductName} starts.", true, true));
             return false;
+        }
+        finally
+        {
+            _checking = false;
         }
     }
 
