@@ -66,6 +66,7 @@ public sealed class VelopackUpdateClient : IUpdateClient
             _manager = _factory(value);
             _channel = value;
             _found = null;
+            _foundBy = null;
         }
     }
 
@@ -75,20 +76,29 @@ public sealed class VelopackUpdateClient : IUpdateClient
 
     public string? PendingVersion => _manager.UpdatePendingRestart?.Version.ToString();
 
+    // The manager that found the update downloads it: a channel switch mid-check must not mix an RC found by the old
+    // manager with the new one (and a result that arrives after the switch is dropped).
+    private UpdateManager? _foundBy;
+
     public async Task<string?> FindAsync(CancellationToken cancellationToken)
     {
-        _found = await _manager.CheckForUpdatesAsync().ConfigureAwait(false);
-        var version = _found?.TargetFullRelease.Version.ToString();
+        var manager = _manager;
+        var found = await manager.CheckForUpdatesAsync().ConfigureAwait(false);
+        if (!ReferenceEquals(manager, _manager))
+            return null;
+        var version = found?.TargetFullRelease.Version.ToString();
         // Already downloaded and waiting for a restart: nothing new (the daily check mustn't fetch it again).
         if (version is not null && version == PendingVersion)
-            _found = null;
+            found = null;
+        _found = found;
+        _foundBy = found is null ? null : manager;
         return _found is null ? null : version;
     }
 
     public Task DownloadAsync(CancellationToken cancellationToken) =>
-        _found is null
+        _found is null || _foundBy is null
             ? throw new InvalidOperationException("Nothing found to download.")
-            : _manager.DownloadUpdatesAsync(_found, progress: null, cancellationToken);
+            : _foundBy.DownloadUpdatesAsync(_found, progress: null, cancellationToken);
 
     // Started from the editor, which doesn't know the engine's args: the updater starts the engine on the default config.
     public void ApplyAfterExit() =>

@@ -156,4 +156,35 @@ public sealed class UpdateChannelTests
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
+
+    private sealed class GatedFeed(Task gate, string version) : IUpdateSource
+    {
+        public async Task<VelopackAssetFeed> GetReleaseFeed(IVelopackLogger logger, string? appId, string channel, Guid? stagingId = null, VelopackAsset? latestLocalFullRelease = null)
+        {
+            await gate.ConfigureAwait(false);
+            return await new Feed(version).GetReleaseFeed(logger, appId, channel, stagingId, latestLocalFullRelease).ConfigureAwait(false);
+        }
+
+        public Task DownloadReleaseEntry(IVelopackLogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken) =>
+            Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task ACheckStillRunningWhenTheChannelChangesFindsNothingAndDownloadsNothing()
+    {
+        var dir = Directory.CreateTempSubdirectory("dc-upd").FullName;
+        try
+        {
+            var gate = new TaskCompletionSource();
+            var client = new VelopackUpdateClient(UpdateChannel.ReleaseCandidates, channel => new UpdateManager(
+                channel == UpdateChannel.ReleaseCandidates ? new GatedFeed(gate.Task, "0.52.0-rc.1") : new Feed("0.51.0"),
+                new UpdateOptions(), new TestVelopackLocator("DazeControl", "0.51.0", dir, logger: null)));
+            var check = client.FindAsync(CancellationToken.None);
+            client.Channel = UpdateChannel.Stable;
+            gate.SetResult();
+            Assert.Null(await check);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => client.DownloadAsync(CancellationToken.None));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
 }
