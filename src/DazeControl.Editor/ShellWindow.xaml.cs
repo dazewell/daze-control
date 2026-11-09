@@ -1529,7 +1529,7 @@ public sealed partial class ShellWindow : Window
     /// <summary>Unsaved edits are asked about first; the window closes only once the updater has the update.</summary>
     private async void OnRestartForUpdate(object sender, RoutedEventArgs e)
     {
-        if (!await ConfirmLosingChangesAsync() || !ViewModel.Updates.Restart())
+        if (!await ConfirmLosingChangesAsync() || !await ViewModel.Updates.RestartAsync())
             return;
         _closeAnyway = true;
         Close();

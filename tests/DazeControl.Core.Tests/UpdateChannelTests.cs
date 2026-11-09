@@ -187,4 +187,56 @@ public sealed class UpdateChannelTests
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
+
+    private sealed class SwitchingFeed : IUpdateSource
+    {
+        public string[] Versions { get; set; } = [];
+        public bool Offline { get; set; }
+        public List<string> Downloaded { get; } = [];
+
+        public Task<VelopackAssetFeed> GetReleaseFeed(IVelopackLogger logger, string? appId, string channel, Guid? stagingId = null, VelopackAsset? latestLocalFullRelease = null) =>
+            Offline ? Task.FromException<VelopackAssetFeed>(new HttpRequestException("offline")) : Task.FromResult(new VelopackAssetFeed { Assets = [.. Versions.Select(v => new VelopackAsset { PackageId = "DazeControl", Version = SemanticVersion.Parse(v), Type = VelopackAssetType.Full, FileName = $"DazeControl-{v}-full.nupkg", SHA1 = "5BA93C9DB0CFF93F52B521D7420E43F6EDA2784F", Size = 1 })] });
+
+        public Task DownloadReleaseEntry(IVelopackLogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken)
+        {
+            Downloaded.Add(releaseEntry.Version.ToString());
+            File.WriteAllBytes(localFile, [0]);
+            return Task.CompletedTask;
+        }
+    }
+
+    [Fact]
+    public async Task RefreshBeforeApplyDownloadsAReleaseThatAppearedAfterTheFirstCheck()
+    {
+        var dir = Directory.CreateTempSubdirectory("dc-upd").FullName;
+        try
+        {
+            var feed = new SwitchingFeed { Versions = ["0.52.0"] };
+            var client = new VelopackUpdateClient(UpdateChannel.Stable, _ => new UpdateManager(feed, new UpdateOptions(),
+                new TestVelopackLocator("DazeControl", "0.51.0", dir, logger: null)));
+            Assert.Equal("0.52.0", await client.FindAsync(CancellationToken.None));
+            await client.DownloadAsync(CancellationToken.None);
+
+            feed.Versions = ["0.52.0", "0.53.0"];
+            await client.RefreshBeforeApplyAsync(CancellationToken.None);
+
+            Assert.Equal(["0.52.0", "0.53.0"], feed.Downloaded);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public async Task RefreshBeforeApplyOfflineDownloadsNothingAndDoesNotThrow()
+    {
+        var dir = Directory.CreateTempSubdirectory("dc-upd").FullName;
+        try
+        {
+            var feed = new SwitchingFeed { Offline = true };
+            var client = new VelopackUpdateClient(UpdateChannel.Stable, _ => new UpdateManager(feed, new UpdateOptions(),
+                new TestVelopackLocator("DazeControl", "0.51.0", dir, logger: null)));
+            await client.RefreshBeforeApplyAsync(CancellationToken.None);
+            Assert.Empty(feed.Downloaded);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
 }

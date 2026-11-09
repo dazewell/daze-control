@@ -24,6 +24,12 @@ public interface IUpdateClient
 
     Task DownloadAsync(CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Right before applying: looks again (on the current channel) and downloads a release newer than the one already
+    /// downloaded. Returns the version that will install. Offline or failing, it returns the downloaded one (never throws).
+    /// </summary>
+    Task<string?> RefreshBeforeApplyAsync(CancellationToken cancellationToken);
+
     /// <summary>Starts the updater, which waits for this process to exit, applies the update and starts the engine.</summary>
     void ApplyAfterExit();
 }
@@ -83,7 +89,7 @@ public sealed class VelopackUpdateClient : IUpdateClient
     public async Task<string?> FindAsync(CancellationToken cancellationToken)
     {
         var manager = _manager;
-        var found = await manager.CheckForUpdatesAsync().ConfigureAwait(false);
+        var found = await manager.CheckForUpdatesAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
         if (!ReferenceEquals(manager, _manager))
             return null;
         var version = found?.TargetFullRelease.Version.ToString();
@@ -100,6 +106,21 @@ public sealed class VelopackUpdateClient : IUpdateClient
             ? throw new InvalidOperationException("Nothing found to download.")
             : _foundBy.DownloadUpdatesAsync(_found, progress: null, cancellationToken);
 
+    public async Task<string?> RefreshBeforeApplyAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            // FindAsync skips the version already waiting, so a result means something newer than the download.
+            if (await FindAsync(cancellationToken).ConfigureAwait(false) is not null)
+                await DownloadAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            // Offline, rate limit, timeout: the version already downloaded still installs.
+        }
+        return PendingVersion;
+    }
+
     // Started from the editor, which doesn't know the engine's args: the updater starts the engine on the default config.
     public void ApplyAfterExit() =>
         _manager.WaitExitThenApplyUpdates(_manager.UpdatePendingRestart, silent: true, restart: true, restartArgs: []);
@@ -113,12 +134,23 @@ public sealed class VelopackUpdateClient : IUpdateClient
     {
         if (restartedByUpdater)
             return false;
-        var manager = CreateManager(UpdateChannel.Stable); // the source is never asked: only a downloaded update is applied
-        if (!manager.IsInstalled || manager.UpdatePendingRestart is not { } pending)
+        var manager = CreateManager(UpdateChannel.Stable);
+        if (!manager.IsInstalled || manager.UpdatePendingRestart is null)
             return false;
-        manager.WaitExitThenApplyUpdates(pending, silent: true, restart: true, restartArgs: args);
+        // A newer release may be out since the download (D-109): look once more, briefly, and fetch it. Any failure
+        // (offline, slow) keeps the downloaded one.
+        var client = new VelopackUpdateClient(new UpdateChannelStore(UpdateChannelStore.DefaultPath).Load());
+        using (var limit = new CancellationTokenSource(RefreshAtStartLimit))
+        {
+            try { client.RefreshBeforeApplyAsync(limit.Token).GetAwaiter().GetResult(); }
+            catch (Exception e) when (e is not OutOfMemoryException) { }
+        }
+        var target = client._manager.UpdatePendingRestart ?? manager.UpdatePendingRestart;
+        client._manager.WaitExitThenApplyUpdates(target, silent: true, restart: true, restartArgs: args);
         return true;
     }
+
+    private static readonly TimeSpan RefreshAtStartLimit = TimeSpan.FromSeconds(30);
 
     /// <summary>True when this process runs from a Velopack install.</summary>
     public static bool IsInstalledCopy() => CreateManager(UpdateChannel.Stable).IsInstalled;
