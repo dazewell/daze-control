@@ -41,7 +41,7 @@ public static class Program
                                             save config.yaml (and the editor layout / run history if asked) to a .dcbackup file
           restore <file> [--merge|--replace] [--yes] [--dry-run] [--editor] [--config <path>]
                                             --dry-run shows what would change; --yes applies it (--replace is the default)
-          update                            download a newer version; it installs at the next start
+          update [--channel stable|rc]      download a newer version (release candidates with rc); it installs at the next start
         Exit codes: 0 ok, 1 failed, 2 usage (restore: also refused without --yes), 3 the engine isn't running.
         """;
 
@@ -133,7 +133,7 @@ public static class Program
             case "restore":
                 return Commands(line).Restore(line.Word!, line.Merge ? RestoreMode.AddMissing : RestoreMode.Replace, line.Yes, line.DryRun, line.Editor);
             case "update":
-                return await UpdateAsync().ConfigureAwait(false);
+                return await UpdateAsync(line.Channel).ConfigureAwait(false);
             default:
                 throw new UnreachableException();
         }
@@ -172,11 +172,24 @@ public static class Program
     }
 
     /// <summary>Checks GitHub Releases and downloads a newer release; the engine applies it at its next start (D-043).</summary>
-    private static async Task<int> UpdateAsync()
+    private static async Task<int> UpdateAsync(string? channelWord)
     {
         try
         {
-            var updates = new VelopackUpdateClient();
+            // --channel sets the per-user choice the editor and the engine's daily check share (D-108).
+            var store = new UpdateChannelStore(UpdateChannelStore.DefaultPath);
+            if (UpdateChannels.FromWord(channelWord) is { } chosen)
+            {
+                try { store.Save(chosen); }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    Console.Error.WriteLine($"Couldn't save the update channel: {e.Message}");
+                    return Failed;
+                }
+            }
+            var channel = store.Load();
+            Console.Out.WriteLine($"Update channel: {channel.Label()}.");
+            var updates = new VelopackUpdateClient(channel);
             if (!updates.IsInstalled)
             {
                 Console.Error.WriteLine("This copy isn't installed, so it doesn't update. Install it with Setup.exe from GitHub Releases.");
