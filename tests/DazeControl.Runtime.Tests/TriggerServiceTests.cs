@@ -248,6 +248,23 @@ public sealed class TriggerServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AnUnchangedReloadKeepsTheCooldown()
+    {
+        using var service = Service(new TriggerOptions(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5)));
+        service.Apply([On("f", "session.unlock")]);
+        _session.Raise("session.unlock");
+        await _provider.Started("a");
+        await SettleAsync(service);
+
+        service.Apply([On("f", "session.unlock")]); // new Flow and trigger instances, equal by value
+        _time.Advance(TimeSpan.FromSeconds(5));
+        _session.Raise("session.unlock");
+        await SettleAsync(service);
+
+        Assert.Single(_provider.Attempts);
+    }
+
+    [Fact]
     public async Task AReplacedTriggerAtTheSameIndexStartsWithoutACooldown()
     {
         using var service = Service(new TriggerOptions(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5)));
