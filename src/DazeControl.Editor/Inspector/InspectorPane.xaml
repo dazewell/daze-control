@@ -758,7 +758,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <StackPanel Orientation="Horizontal" Spacing="16">
+                <StackPanel Orientation="Vertical">
                     <HyperlinkButton Content="Add schedule" Command="{x:Bind ViewModel.AddScheduleCommand, Mode=OneWay}" Padding="0,4" />
                     <HyperlinkButton Content="Add event" Command="{x:Bind ViewModel.AddEventCommand, Mode=OneWay}" Padding="0,4" />
                 </StackPanel>
