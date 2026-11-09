@@ -34,6 +34,34 @@ internal static unsafe class CcdLayout
         return new DisplayLayout(key, [.. monitors], Convert.ToBase64String(bytes));
     }
 
+    /// <summary>
+    /// What <c>display.check</c> asks (D-077): the saved layout's screens, their shared pictures and their resolutions and
+    /// positions against the active screens now. Queries only; null when they match.
+    /// </summary>
+    public static string? Differences(DisplayLayout layout)
+    {
+        var (paths, modes) = Decode(layout);
+        if (paths.Length != layout.Monitors.Count)
+            throw new StepFailedException($"The layout \"{layout.Key}\" is damaged; capture it again.");
+        var names = CcdDisplays.ByPort(CcdDisplays.QueryAllPaths()).Where(p => p.Output.DevicePath.Length > 0)
+            .GroupBy(p => p.Output.DevicePath, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => CcdDisplays.Name(g.First().Output), StringComparer.OrdinalIgnoreCase);
+        var groups = new List<(uint, int, uint)>();
+        var wanted = new List<ScreenWant>(paths.Length);
+        for (var i = 0; i < paths.Length; i++)
+        {
+            var saved = (paths[i].sourceInfo.adapterId.LowPart, paths[i].sourceInfo.adapterId.HighPart, paths[i].sourceInfo.id);
+            if (!groups.Contains(saved))
+                groups.Add(saved);
+            var index = paths[i].sourceInfo.modeInfoIdx;
+            var place = index < modes.Length && modes[index].infoType == DISPLAYCONFIG_MODE_INFO_TYPE.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE
+                ? modes[index].Anonymous.sourceMode : default;
+            wanted.Add(new ScreenWant(names.GetValueOrDefault(layout.Monitors[i], $"Screen {i + 1}"), layout.Monitors[i], groups.IndexOf(saved),
+                place.width > 0 ? ((int)place.width, (int)place.height, place.position.x, place.position.y) : null));
+        }
+        return DisplayCheck.Differences(wanted, CcdDisplays.ActiveScreens(), layout.Key);
+    }
+
     public static void Apply(DisplayLayout layout, bool validateOnly, CancellationToken cancellationToken)
     {
         var (paths, modes) = Decode(layout);

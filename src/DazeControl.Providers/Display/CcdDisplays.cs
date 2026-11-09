@@ -147,6 +147,8 @@ public sealed unsafe class CcdDisplays(bool validateOnly = false) : IDisplays
 
     public void ApplyLayout(DisplayLayout layout, CancellationToken cancellationToken) => CcdLayout.Apply(layout, validateOnly, cancellationToken);
 
+    public string? LayoutDifferences(DisplayLayout layout) => CcdLayout.Differences(layout);
+
     internal const int InvalidParameter = 87; // ERROR_INVALID_PARAMETER
 
     internal static void Check(int error, string what)

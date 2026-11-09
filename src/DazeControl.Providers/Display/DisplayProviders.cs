@@ -34,6 +34,9 @@ public interface IDisplays
     DisplayLayout CaptureLayout(string key);
 
     void ApplyLayout(DisplayLayout layout, CancellationToken cancellationToken);
+
+    /// <summary>Read-only (D-077): null when the screens on now are what <paramref name="layout"/> describes, else how they differ.</summary>
+    string? LayoutDifferences(DisplayLayout layout);
 }
 
 /// <summary><c>display.topology</c>: PC screen only / duplicate / extend / second screen only.</summary>
@@ -87,6 +90,31 @@ public sealed class DisplayLayoutProvider(IDisplays displays) : IStepProvider
         var layout = context.Library.Displays.FirstOrDefault(d => d.Key == key)
             ?? throw new StepFailedException(Library.Missing(LibraryKind.Display, key));
         displays.ApplyLayout(layout, cancellationToken);
+        return Task.CompletedTask;
+    }
+}
+
+
+/// <summary>
+/// <c>display.check</c> (D-077, D-081): reads the screens and fails when they aren't (or, with <c>is: differs</c>, are) the
+/// captured layout. Changes nothing, so it needs no lock beyond the display's own.
+/// </summary>
+public sealed class DisplayCheckProvider(IDisplays displays) : IStepProvider
+{
+    public string Id => "display.check";
+
+    public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
+    {
+        var key = context.RequiredText("layout");
+        var layout = context.Library.Displays.FirstOrDefault(d => d.Key == key)
+            ?? throw new StepFailedException(Library.Missing(LibraryKind.Display, key));
+        var difference = displays.LayoutDifferences(layout);
+        var wantMatch = context.Text("is") != "differs";
+        if (wantMatch && difference is not null)
+            throw new StepFailedException(difference);
+        if (!wantMatch && difference is null)
+            throw new StepFailedException($"The screens already match {layout.Key}.");
+        context.SetSummary(difference is null ? $"The screens match {layout.Key}" : difference);
         return Task.CompletedTask;
     }
 }
