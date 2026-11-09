@@ -126,7 +126,7 @@ flows that must not run as written. Problems with no flow id (library, settings)
 themselves: a bad library entry is dropped (mapper) or marked broken (validator), so a step that references it
 fails its own flow instead. Hotkeys go only to enabled flows without errors; the later of two clashing flows fails.
 
-`Core/Backup` (M19, D-103; built in T19.1, restore/CLI/editor are later tasks): `BackupService(IBackupFiles, TimeProvider, appVersion, machine)` writes
+`Core/Backup` (M19, D-103, D-104): `BackupService(IBackupFiles, TimeProvider, appVersion, machine)` writes
 `.dcbackup` zips with `CreateIn(folder, …)` (sortable `DazeControl-backup-yyyy-MM-dd-HHmm[-n].dcbackup`, never overwrites) or `CreateAt(path, …)`, opens them
 with `Open(path)` (full SHA-256 + format check, throws `BackupException` with `Kind` NotABackup/Damaged/TooNew), lists them newest first by file name
 (`List`) and `Prune(folder, keep)`. `BackupFormat` is the layout: `manifest.yaml` first (hand-written flat YAML, no static context), `config.yaml` byte for byte,
@@ -141,7 +141,15 @@ sets `Unreadable` and disables both. `Restore(archive, RestoreMode.Replace|AddMi
 current + new items, re-serialised (comments and keys this build doesn't map are lost, said in `Notes`; refused when the current config has any load error), validated to load, current wins on a clash and is listed in `KeptCurrent`), then editor.json without its `window`. `Undo(outcome, target)`
 puts the safety copy back without a new one. Needs-attention covers failing flows, Bluetooth/screen layouts when the backup's machine differs, missing credential names
 (caller passes the engine's list), adb and fixed step paths that don't exist (checked once). Errors are `RestoreException` (Kind + the DESIGN §10 sentence). The caller (editor/`dctl`)
-refuses while a flow draft is open and keeps the outcome for Undo. T19.5: retention pruning is name-based, so give `before-restore` copies their own count or age rule (24 h).
+refuses while a flow draft is open and keeps the outcome for Undo. Retention pruning is name-based.
+
+Backup surfaces (T19.3–T19.5): the zip work runs only in the editor and `dctl`; the engine has no backup code path, timer or resident object (idle and the +2 MB gate untouched).
+Editor: Settings › "Backup and restore" card (`Editor/BackupCard`, `BackupCardViewModel`): Back up now (Save dialog), Restore from file (Open dialog or a dropped file) → preview dialog
+(Replace everything / Add what's missing), Undo restore until the editor closes, automatic on/off + Keep (3–50), "Recent backups" (auto, before-restore) and "Earlier saves" (the per-session `.bak` files,
+config only) with Restore/Delete per row. Restore is refused while a flow draft is open. The running engine is not restarted: its hot reload judges each flow (D-021).
+`Core/Backup/AutoBackup` (D-104): setting in `%LOCALAPPDATA%\DazeControlackupsuto-backup.txt` (`enabled=`, `keep=`; default on, 10), folder `backupsuto`; taken by `dctl update` before a download
+and by the editor after a save when the newest auto backup (by file name) is over 24 h old; never throws. A backup holds config.yaml byte for byte; editor.json and history are opt-in; no credentials,
+shortcuts or autostart. Not built: restoring editor.json from the card ("Editor layout" tick; `EditorSettingsStore` can't reload it) and a per-flow restore.
 
 ## Runtime
 

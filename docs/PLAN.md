@@ -137,7 +137,7 @@ One PR per task; usage is scarce (D-079). Choices answered by the user (all as r
   Done when: VM tests (preview model, draft-open refusal, undo), screenshots light/dark/high contrast/225 % text.
 - [x] T19.5 Automatic backups: before-update in `dctl update`, after-save (24 h gate from file names) in the editor, no timers. Depends on T19.1; parallel with T19.2–T19.4 except the Settings toggle (needs T19.4). Done: feat/m19-auto-backup (D-104; setting in `backups\auto-backup.txt`).
   Done when: tests with `TimeProvider`; `measure.ps1` unchanged (idle 0 ms CPU, +2 MB gate).
-- [ ] T19.6 Gate: move as-built facts to ARCHITECTURE/FEATURES/UX, cut DESIGN (D-053), UX acceptance rows, release-notes line. Depends on T19.1–T19.5.
+- [x] T19.6 Gate: move as-built facts to ARCHITECTURE/FEATURES/UX, cut DESIGN (D-053), UX acceptance rows, release-notes line. Depends on T19.1–T19.5. Done: docs/m19-gate (release-notes line is in the PR body).
 
 ## M18 Steps: one vocabulary and the missing actions (user, 2026-11-06; proposal docs/steps-review/REVIEW.md, D-102); the user approved REVIEW §6 as recommended (D-102 accepted)
 
