@@ -101,8 +101,8 @@ internal sealed unsafe partial class NetworkSource : ITriggerSource
             // A name the WLAN API couldn't give: the adapter stands for it, so the connection still counts.
             var name = Guid.TryParse(adapter.Id, out var id) && names.TryGetValue(id, out var ssid) ? ssid : null;
             connections.Add(name is not null
-                ? new NetworkConnection("wifi:" + name, "wifi", name)
-                : new NetworkConnection("wifi:" + adapter.Id, "wifi", adapter.Name));
+                ? new NetworkConnection("wifi:" + name, "wifi", name, adapter.Id)
+                : new NetworkConnection("wifi:" + adapter.Id, "wifi", adapter.Name, adapter.Id, Named: false));
         }
         return connections;
     }

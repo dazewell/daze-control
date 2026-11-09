@@ -4,7 +4,10 @@ namespace DazeControl.Runtime.Triggers;
 /// <param name="Id">Stable while the connection lasts: "wifi:" + the network name, "cable:" + the adapter id.</param>
 /// <param name="Kind">"wifi" or "cable" (<c>TriggerText.ViaText</c>).</param>
 /// <param name="Detail">What a person calls it: the Wi-Fi name, or the adapter's name ("Ethernet 2").</param>
-public sealed record NetworkConnection(string Id, string Kind, string Detail);
+/// <param name="Adapter">The adapter it is on, when a Wi-Fi name may be unreadable for a moment.</param>
+/// <param name="Named">False when the Wi-Fi name couldn't be read (the adapter stands for it): the same adapter with or
+/// without its name is the same connection, so a passing WLAN read failure raises nothing.</param>
+public sealed record NetworkConnection(string Id, string Kind, string Detail, string? Adapter = null, bool Named = true);
 
 /// <summary>
 /// The logic of <c>network.connected/disconnected</c> (T20.4, per connection since T20.12): the OS says "something
@@ -28,8 +31,8 @@ public sealed class NetworkTracker(Func<IReadOnlyCollection<NetworkConnection>> 
     /// <summary>Called on every OS notification (any thread).</summary>
     public void Changed()
     {
-        List<TriggerEvent> events = [];
-        // The read happens under the lock, so concurrent notifications (and Reset) can't commit out of order.
+        // Read, commit and raise under one lock: two notifications (interface and route) can't commit or deliver out
+        // of order. Raising here is safe: the trigger service never calls back into the tracker.
         lock (_lock)
         {
             Dictionary<string, NetworkConnection> now = [];
@@ -46,13 +49,27 @@ public sealed class NetworkTracker(Func<IReadOnlyCollection<NetworkConnection>> 
             _connections = now;
             if (was is null)
                 return;
+            var gone = was.Values.Where(c => !now.ContainsKey(c.Id)).ToList();
+            var came = now.Values.Where(c => !was.ContainsKey(c.Id)).ToList();
+            foreach (var c in came.ToList())
+            {
+                // The same adapter with its Wi-Fi name and without it: one connection. Keep the named one, so the name
+                // coming back later matches again.
+                if (c.Adapter is null || gone.FirstOrDefault(g => g.Adapter == c.Adapter && (!g.Named || !c.Named)) is not { } same)
+                    continue;
+                gone.Remove(same);
+                came.Remove(c);
+                if (!c.Named)
+                {
+                    now.Remove(c.Id);
+                    now[same.Id] = same;
+                }
+            }
             // Gone first: a Wi-Fi switch reads "Home disconnected, Office connected".
-            foreach (var gone in was.Values.Where(c => !now.ContainsKey(c.Id)))
-                events.Add(new TriggerEvent("network.disconnected", Detail: gone.Detail, Kind: gone.Kind));
-            foreach (var came in now.Values.Where(c => !was.ContainsKey(c.Id)))
-                events.Add(new TriggerEvent("network.connected", Detail: came.Detail, Kind: came.Kind));
+            foreach (var g in gone)
+                raise(new TriggerEvent("network.disconnected", Detail: g.Detail, Kind: g.Kind));
+            foreach (var c in came)
+                raise(new TriggerEvent("network.connected", Detail: c.Detail, Kind: c.Kind));
         }
-        foreach (var e in events)
-            raise(e);
     }
 }

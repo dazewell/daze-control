@@ -342,8 +342,11 @@ public sealed class TriggerServiceTests : IDisposable
         await SettleAsync(service);
         _network.Raise("network.connected", detail: "Ethernet 4", kind: "cable"); // another one: starts
         await SettleAsync(service);
+        _time.Advance(TimeSpan.FromSeconds(3));
+        _network.Raise("network.connected", detail: "Home", kind: "cable"); // an adapter named like the Wi-Fi is still another one
+        await SettleAsync(service);
 
-        Assert.Equal(2, Volatile.Read(ref started));
+        Assert.Equal(3, Volatile.Read(ref started));
     }
 
     [Fact]

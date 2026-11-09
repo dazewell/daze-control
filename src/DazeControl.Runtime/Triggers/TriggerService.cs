@@ -34,8 +34,8 @@ public sealed class TriggerService : IDisposable
     private readonly CancellationTokenSource _closed = new();
     private readonly Lock _lock = new();
     private readonly HashSet<Task> _inFlight = [];
-    private readonly Dictionary<(string Name, string? Detail), long> _lastEvent = [];
-    private readonly Dictionary<(Subscription Subscription, string? Detail), long> _lastStart = [];
+    private readonly Dictionary<(string Name, string? Kind, string? Detail), long> _lastEvent = [];
+    private readonly Dictionary<(Subscription Subscription, string? Kind, string? Detail), long> _lastStart = [];
     private readonly HashSet<ITriggerSource> _started = [];
 
     private Dictionary<string, List<Subscription>> _byEvent = [];
@@ -142,7 +142,7 @@ public sealed class TriggerService : IDisposable
                 return;
             var now = _time.GetTimestamp();
             // Debounce per name and detail: a connection to another Wi-Fi doesn't swallow the one a trigger waits for.
-            var debounceKey = (e.Name, e.Detail);
+            var debounceKey = (e.Name, e.Kind, e.Detail);
             var seen = _lastEvent.TryGetValue(debounceKey, out var last);
             _lastEvent[debounceKey] = now;
             if (seen && _time.GetElapsedTime(last, now) < _options.Debounce)
@@ -152,7 +152,7 @@ public sealed class TriggerService : IDisposable
             {
                 if (!Matches(subscription.Trigger, e))
                     continue;
-                if (InCooldown(subscription, e.Detail, now))
+                if (InCooldown(subscription, e, now))
                     continue;
                 matches.Add(subscription);
             }
@@ -248,9 +248,9 @@ public sealed class TriggerService : IDisposable
             lock (_lock)
             {
                 var now = _time.GetTimestamp();
-                if (InCooldown(subscription, e.Detail, now))
+                if (InCooldown(subscription, e, now))
                     return;
-                _lastStart[(subscription, e.Detail)] = now;
+                _lastStart[(subscription, e.Kind, e.Detail)] = now;
             }
             var text = TriggerText.Describe(subscription.Trigger);
             // The launcher applies whenRunning; this doesn't wait for the run, only observes a fault.
@@ -277,8 +277,8 @@ public sealed class TriggerService : IDisposable
     }
 
     /// <summary>Under the lock.</summary>
-    private bool InCooldown(Subscription subscription, string? detail, long now) =>
-        _lastStart.TryGetValue((subscription, detail), out var started) && _time.GetElapsedTime(started, now) < _options.Cooldown;
+    private bool InCooldown(Subscription subscription, TriggerEvent e, long now) =>
+        _lastStart.TryGetValue((subscription, e.Kind, e.Detail), out var started) && _time.GetElapsedTime(started, now) < _options.Cooldown;
 
     private bool Guarded(ITriggerSource source, string what, Action action)
     {

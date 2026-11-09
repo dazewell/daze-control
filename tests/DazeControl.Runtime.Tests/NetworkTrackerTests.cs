@@ -82,6 +82,58 @@ public sealed class NetworkTrackerTests
     }
 
     [Fact]
+    public void AWifiNameUnreadableForAMomentIsTheSameConnection()
+    {
+        var home = Home with { Adapter = "{w}" };
+        var unnamed = new NetworkConnection("wifi:{w}", "wifi", "Wi-Fi", "{w}", Named: false);
+        Now(home);
+        Now(home, Cable);
+        Now(unnamed, Cable); // WLAN couldn't say the name
+        Now(home, Cable); // and now it can again
+        Now(unnamed);
+        Now();
+
+        Assert.Equal([
+            "network.connected cable Ethernet 4",
+            "network.disconnected cable Ethernet 4",
+            "network.disconnected wifi Home",
+        ], Said);
+    }
+
+    [Fact]
+    public void EventsAreDeliveredInTheOrderTheyWereSeen()
+    {
+        // A notification arriving while another delivers waits for it (one lock), so a connect can't land after its disconnect.
+        var gate = new ManualResetEventSlim();
+        var raised = new List<string>();
+        var state = new[] { Cable };
+        var first = true;
+        NetworkTracker tracker = null!;
+        tracker = new NetworkTracker(() => state, e =>
+        {
+            lock (raised)
+                raised.Add(e.Name);
+            if (first)
+            {
+                first = false;
+                state = [];
+                var second = Task.Run(tracker.Changed);
+                Assert.False(second.Wait(100, TestContext.Current.CancellationToken)); // blocked until this delivery ends
+                gate.Set();
+            }
+        });
+        state = [];
+        tracker.Changed();
+        state = [Cable];
+        tracker.Changed();
+        gate.Wait(TestContext.Current.CancellationToken);
+        SpinWait.SpinUntil(() => { lock (raised) return raised.Count == 2; }, 2000);
+
+        lock (raised)
+            Assert.Equal(["network.connected", "network.disconnected"], raised);
+    }
+
+    [Fact]
     public void AnUnreadableStateSaysNothingAndResetStartsOver()
     {
         var failing = new NetworkTracker(() => throw new InvalidOperationException("no"), _events.Add);
