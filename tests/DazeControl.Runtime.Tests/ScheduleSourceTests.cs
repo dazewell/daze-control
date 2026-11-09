@@ -21,6 +21,20 @@ public sealed class ScheduleSourceTests : IDisposable
         new(TimeOnly.ParseExact(time, "HH:mm", System.Globalization.CultureInfo.InvariantCulture), Days.Daily) { IfMissed = ifMissed, Grace = grace };
 
     [Fact]
+    public void SchedulesTheValidatorIgnoresAreNotRegistered()
+    {
+        using var source = Source();
+        source.Apply([FlowWith("a",
+            At("22:30") with { Only = "onBattery" },
+            new EveryTrigger(TimeSpan.FromHours(25)),
+            new AtTrigger(new TimeOnly(22, 30), Days.None))]);
+
+        Assert.Null(_clock.Due);
+        _clock.Advance(TimeSpan.FromHours(3));
+        Assert.Empty(_fired);
+    }
+
+    [Fact]
     public void ArmsOneTimerToTheNextDueTimeAndFiresOnIt()
     {
         using var source = Source();

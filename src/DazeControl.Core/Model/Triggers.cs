@@ -94,6 +94,23 @@ public static class TriggerText
     /// </summary>
     public static readonly IReadOnlyList<string> Conditions = ["onBattery", "onAC"];
 
+    /// <summary>
+    /// Whether a schedule can ever be due and is one the runtime may register: the validator's schedule rules in one
+    /// place, so the runtime skips exactly what the validator calls ignored.
+    /// </summary>
+    public static bool IsValidSchedule(ScheduleTrigger rule)
+    {
+        if (rule.Only is not null || rule.Grace < TimeSpan.Zero)
+            return false;
+        return rule switch
+        {
+            AtTrigger a => a.Days != Days.None,
+            EveryTrigger e => e.Interval >= EveryTrigger.MinInterval && e.Interval <= EveryTrigger.MaxInterval
+                && (e.From is null) == (e.To is null) && (e.From is null || e.From != e.To),
+            _ => true,
+        };
+    }
+
     public static bool IsCondition(string? name) => name is not null && Conditions.Contains(name);
 
     /// <summary>History wording of an event: "Event · PC unlocked".</summary>

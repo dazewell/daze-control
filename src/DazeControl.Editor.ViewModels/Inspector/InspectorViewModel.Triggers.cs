@@ -88,13 +88,14 @@ public sealed partial class InspectorViewModel
         if (Flow is not { } flow || index < 0 || index >= flow.Triggers.Count)
             return;
         var trigger = flow.Triggers[index];
+        var occurrence = flow.Triggers.Take(index).Count(t => t == trigger); // equal triggers are allowed: the nth of them
         var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.Run, Flow = flow.Id, Trigger = DazeControl.Core.Model.TriggerText.Describe(trigger) }).ConfigureAwait(false);
         var text = answer is { Ok: true } ? "Started. See Runs for how it went." : answer?.Error ?? "The engine isn't running.";
         // The rows are rebuilt on every edit and the list may have changed while the engine answered: find the same
         // trigger of the same flow again instead of trusting the index.
         _post(() =>
         {
-            if (Flow?.Id == flow.Id && Triggers.FirstOrDefault(r => r.Trigger == trigger) is { } row)
+            if (Flow?.Id == flow.Id && Triggers.Where(r => r.Trigger == trigger).Skip(occurrence).FirstOrDefault() is { } row)
                 row.TestResult = text;
         });
     }

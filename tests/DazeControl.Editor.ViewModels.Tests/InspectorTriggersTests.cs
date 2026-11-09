@@ -251,6 +251,18 @@ public sealed class InspectorTriggersTests : IDisposable
     }
 
     [Fact]
+    public async Task TestResultOfTheSecondOfTwoEqualTriggersShowsOnTheSecond()
+    {
+        _inspector.AddEventCommand.Execute(null); // a second session.unlock beside the first
+        Assert.Equal(Saved[1], Saved[2]);
+
+        await _inspector.TestTriggerAsync(2);
+
+        Assert.Null(_inspector.Triggers[1].TestResult);
+        Assert.StartsWith("Started", _inspector.Triggers[2].TestResult);
+    }
+
+    [Fact]
     public void AnIgnoredTriggerIsSaidUnderTheRowsNotOnAWrongRow()
     {
         File.WriteAllText(_session.Path, Yaml.Replace("{ at: \"22:30\", days: weekdays }", "{ at: \"25:00\" }" + Environment.NewLine + "      - { at: \"22:30\", days: weekdays }", StringComparison.Ordinal));
