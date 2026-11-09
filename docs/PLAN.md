@@ -132,7 +132,7 @@ One PR per task (D-079). T20.2 amends D-009 (done in D-107). `ifMissed` is set p
 - [x] T20.3 Runtime: lazy `ITriggerSource` framework (debounce, cooldown, chain guard, `only`) + session and power sources. After T20.1. (feat/m20-event-sources)
 - [ ] T20.4 Device, audio, display and network sources. After T20.3; one file each, parallel-safe.
 - [x] T20.5 Prompts: `ask: true` flow inputs, `prompt.ask` confirm/choose with timeout and default. After T20.1; parallel with T20.2-T20.4. (feat/m20-prompts)
-- [ ] T20.6 Editor: "When this runs" card, next-run line, Test this trigger, Ask inspector, screenshots. After T20.2 and T20.5.
+- [x] T20.6 Editor: "When this runs" card, next-run line, Test this trigger, Ask inspector, screenshots. After T20.2 and T20.5. (feat/m20-editor-triggers)
 - [ ] T20.7 Gate: footprint rows per source, ARCHITECTURE/FEATURES/UX, cut DESIGN (D-053), release-notes line.
 
 ## M19 Backup and restore (user, 2026-11-06; design docs/backup-restore/DESIGN.md, D-103, accepted 2026-11-06)
