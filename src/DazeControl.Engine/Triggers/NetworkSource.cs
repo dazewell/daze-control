@@ -140,8 +140,11 @@ internal sealed unsafe partial class NetworkSource : ITriggerSource
     [LibraryImport("wlanapi.dll")]
     private static partial uint WlanEnumInterfaces(nint client, nint reserved, out nint list);
 
+    // The last parameter is a pointer (PWLAN_OPCODE_VALUE_TYPE*, optional), not an int: a 32-bit argument in a 64-bit slot
+    // leaves garbage in the upper half, and wlanapi writes through it when the query succeeds (the engine crashed with an
+    // access violation in wlanapi.dll on the first network change while on Wi-Fi, 2026-11-08).
     [LibraryImport("wlanapi.dll")]
-    private static partial uint WlanQueryInterface(nint client, Guid* interfaceGuid, int opcode, nint reserved, out uint size, out nint data, int type);
+    private static partial uint WlanQueryInterface(nint client, Guid* interfaceGuid, int opcode, nint reserved, out uint size, out nint data, nint valueType);
 
     [LibraryImport("wlanapi.dll")]
     private static partial void WlanFreeMemory(nint memory);
