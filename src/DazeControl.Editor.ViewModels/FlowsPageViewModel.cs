@@ -1147,6 +1147,16 @@ public sealed partial class FlowItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(Caption), nameof(CaptionLead))]
     public partial string Shortcut { get; private set; } = "";
 
+    /// <summary>The flow starts on a schedule (clock chip) or on an event (bolt chip), M20 T20.6; the tooltip lists the sentences.</summary>
+    [ObservableProperty]
+    public partial bool HasScheduleChip { get; private set; }
+
+    [ObservableProperty]
+    public partial bool HasEventChip { get; private set; }
+
+    [ObservableProperty]
+    public partial string TriggersTip { get; private set; } = "";
+
     /// <summary>All shortcuts, for the tooltip.</summary>
     [ObservableProperty]
     public partial string ShortcutTip { get; private set; } = "";
@@ -1289,11 +1299,14 @@ public sealed partial class FlowItemViewModel : ObservableObject
             _lastRun = lastRun;
             Shortcut = FlowRowFacts.Shortcut(_hotkeys);
             ShortcutTip = FlowRowFacts.ShortcutTip(_hotkeys);
+            HasScheduleChip = Inspector.WhenThisRuns.HasSchedule(flow.Triggers);
+            HasEventChip = Inspector.WhenThisRuns.HasEvent(flow.Triggers);
+            TriggersTip = Inspector.WhenThisRuns.ChipTip(flow.Triggers);
             Steps = FlowRowFacts.Steps(_steps);
             NotInTray = !flow.Tray.Show;
             LineAbove = flow.Tray.Separator;
             UsedBy = FlowRowFacts.UsedBy(callers);
-            SearchHaystack = string.Join('\n', new[] { flow.Name, ShortcutTip, Shortcut, flow.Tray.Folder ?? "" }
+            SearchHaystack = string.Join('\n', new[] { flow.Name, ShortcutTip, Shortcut, flow.Tray.Folder ?? "", TriggersTip }
                 .Concat(flow.Nodes.OfType<StepNode>().SelectMany(n => new[] { n.Name ?? "", ProviderCatalog.Find(n.Step)?.Title ?? "", n.Step })));
             UpdateTimes(now);
             HasProblems = errors > 0;

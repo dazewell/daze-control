@@ -93,13 +93,31 @@ public sealed partial class FlowInputViewModel : DevicePickerViewModel
 
     /// <summary>"Output": what the editor and messages call it; commits on leaving the box.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Title), nameof(AutomationName), nameof(RemoveName), nameof(DefaultName))]
+    [NotifyPropertyChangedFor(nameof(Title), nameof(AutomationName), nameof(RemoveName), nameof(DefaultName), nameof(AskName))]
     public partial string Label { get; set; } = "";
 
     [ObservableProperty]
     public partial int KindIndex { get; set; }
 
     public override LibraryKind Kind => Kinds[Math.Clamp(KindIndex, 0, Kinds.Length - 1)];
+
+    /// <summary>"Ask me when it runs" (D-107): a prompt offers the Library items of the kind before each run.</summary>
+    [ObservableProperty]
+    public partial bool Ask { get; set; }
+
+    /// <summary>Seconds to wait for an answer (5 s to 10 min).</summary>
+    [ObservableProperty]
+    public partial double TimeoutSeconds { get; set; } = Prompts.DefaultTimeout.TotalSeconds;
+
+    /// <summary>"No answer" rows: 0 = by how it started (empty), 1 = stop the flow, 2 = use the default.</summary>
+    [ObservableProperty]
+    public partial int OnTimeoutIndex { get; set; }
+
+    public static IReadOnlyList<string> OnTimeoutNames { get; } = ["As usual", "Stop the flow", "Use the default"];
+
+    internal static readonly string[] OnTimeoutValues = ["", Prompts.Stop, Prompts.UseDefault];
+
+    public string AskName => $"{Title}: ask me when it runs";
 
     public string RemoveName => $"Remove {Title}";
 
@@ -112,6 +130,9 @@ public sealed partial class FlowInputViewModel : DevicePickerViewModel
         {
             Label = input.Label;
             KindIndex = Math.Max(0, Array.IndexOf(Kinds, input.Kind));
+            Ask = input.Ask;
+            TimeoutSeconds = (input.Timeout ?? Prompts.DefaultTimeout).TotalSeconds;
+            OnTimeoutIndex = Math.Max(0, Array.IndexOf(OnTimeoutValues, input.OnTimeout));
         }
         finally
         {
@@ -123,6 +144,24 @@ public sealed partial class FlowInputViewModel : DevicePickerViewModel
     {
         if (!Loading)
             _owner.SetInputLabel(Name, value.Trim());
+    }
+
+    partial void OnAskChanged(bool value)
+    {
+        if (!Loading)
+            _owner.SetInputAsk(Name, value);
+    }
+
+    partial void OnTimeoutSecondsChanged(double value)
+    {
+        if (!Loading)
+            _owner.SetInputTimeout(Name, double.IsNaN(value) ? Prompts.DefaultTimeout : TimeSpan.FromSeconds(value));
+    }
+
+    partial void OnOnTimeoutIndexChanged(int value)
+    {
+        if (!Loading && value >= 0 && value < OnTimeoutValues.Length)
+            _owner.SetInputOnTimeout(Name, OnTimeoutValues[value]);
     }
 
     partial void OnKindIndexChanged(int value)
