@@ -755,15 +755,13 @@
                                         <TextBlock Text="{x:Bind ViewModel.Updates.Status, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
                                                    AutomationProperties.LiveSetting="Polite" />
                                     </StackPanel>
-                                    <!-- One fixed slot: Check for updates and Restart now share it (never both), so the button doesn't move or resize between states. -->
-                                    <Grid Grid.Column="2" VerticalAlignment="Center">
-                                        <Button Content="Check for updates" Click="OnCheckForUpdates" MinWidth="148" HorizontalAlignment="Right"
-                                                IsEnabled="{x:Bind ViewModel.Updates.CanCheck, Mode=OneWay}"
-                                                Visibility="{x:Bind local:ShellWindow.VisibleWhen(ViewModel.Updates.CanRestart, x:False), Mode=OneWay}" />
-                                        <Button Content="Restart now" Click="OnRestartForUpdate" Style="{StaticResource AccentButtonStyle}" MinWidth="148" HorizontalAlignment="Right"
-                                                IsEnabled="{x:Bind ViewModel.Updates.CanRestart, Mode=OneWay}"
-                                                Visibility="{x:Bind local:ShellWindow.VisibleWhen(ViewModel.Updates.CanRestart, x:True), Mode=OneWay}" />
-                                    </Grid>
+                                    <!-- One fixed slot: Check for updates and Install sit side by side; Install is only enabled once something can be installed. -->
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <Button Content="Check for updates" Click="OnCheckForUpdates" MinWidth="148"
+                                                IsEnabled="{x:Bind ViewModel.Updates.CanCheck, Mode=OneWay}" />
+                                        <Button Content="Install" Click="OnRestartForUpdate" Style="{StaticResource AccentButtonStyle}" MinWidth="104"
+                                                IsEnabled="{x:Bind ViewModel.Updates.CanRestart, Mode=OneWay}" />
+                                    </StackPanel>
                                 </Grid>
 
                                 <TextBlock Text="Files" Style="{StaticResource SettingsSection}" />

@@ -203,7 +203,7 @@ public static class Program
                 return Ok;
             }
             TakeBeforeUpdateBackup();
-            await updates.DownloadAsync(CancellationToken.None).ConfigureAwait(false);
+            await updates.DownloadAsync(null, CancellationToken.None).ConfigureAwait(false);
             Console.Out.WriteLine($"Downloaded version {found}; it installs the next time {AppInfo.ProductName} starts.");
             return Ok;
         }

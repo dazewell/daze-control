@@ -42,7 +42,8 @@ public static class Program
         bool installed;
         try
         {
-            if (VelopackUpdateClient.ApplyPendingAtStart(restartedByUpdater, args))
+            if (VelopackUpdateClient.ApplyPendingAtStart(restartedByUpdater, args,
+                    ConfigPathOf(arguments) is { } custom ? Path.Combine(Path.GetDirectoryName(Path.GetFullPath(custom))!, "update-channel.txt") : null))
             {
                 Log.Info("engine: exit to apply a downloaded update");
                 return 0;
