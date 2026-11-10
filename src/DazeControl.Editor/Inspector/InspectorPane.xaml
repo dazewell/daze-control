@@ -25,7 +25,7 @@
         <Style TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
             <Setter Property="local:WheelGuard.IsEnabled" Value="True" />
         </Style>
-        <!-- No BasedOn: WinUI has no DefaultNumberBoxStyle key (looking it up crashed opening a flow); its default style still applies. -->
+        <!-- NumberBox has no keyed default style; a style without BasedOn still layers on its theme style. -->
         <Style TargetType="NumberBox">
             <Setter Property="local:WheelGuard.IsEnabled" Value="True" />
         </Style>
