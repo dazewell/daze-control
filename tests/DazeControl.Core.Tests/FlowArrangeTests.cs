@@ -58,6 +58,20 @@ public class FlowArrangeTests
     }
 
     [Fact]
+    public void TreeTakesFractionalUnequalHeights()
+    {
+        // 225 % text: measured heights aren't whole, and a band's far edge can round a hair under its top.
+        var heights = new Dictionary<string, double> { ["lone"] = 57.6, ["root"] = 76.8, ["child"] = 56, ["tall"] = 133.3, ["leaf"] = 19.7 };
+        var flow = FlowOf(Step("lone"), Step("root"), Step("child", "root"), Step("tall"), Step("leaf", "tall"));
+
+        var tree = FlowLayout.Arrange(flow, id => new Size(232, heights[id]), Shape(LayoutShape.Tree));
+
+        AssertNoOverlap(tree);
+        Assert.Equal(tree.Find("root")!.Bounds.CenterY, tree.Find("child")!.Bounds.CenterY, 3);
+        Assert.Equal(tree.Find("tall")!.Bounds.CenterY, tree.Find("leaf")!.Bounds.CenterY, 3);
+    }
+
+    [Fact]
     public void TreeSurvivesAHalfBuiltFlowWithACycle()
     {
         var tree = Arrange(FlowOf(Step("a", "c"), Step("b", "a"), Step("c", "b"), Step("d", "nope")), Shape(LayoutShape.Tree));

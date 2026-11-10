@@ -287,6 +287,32 @@ public sealed class LayoutMenuTests : IDisposable
         Assert.Equal("bt", _canvas.FocusedId);
     }
 
+    [Fact]
+    public void LeftAndRightStepThroughRunOrderOnceAStepIsPlacedByHand()
+    {
+        static StepNode Wait(string id, params string[] after) => new(id, "wait") { After = [.. after.Select(a => new Edge(a))] };
+        _canvas.Edit(f => f with { Nodes = [Wait("p"), Wait("a", "p"), Wait("b", "p"), Wait("c", "p"), Wait("q", "a", "b", "c")] });
+        _canvas.PlaceAt("b", new Point(Node("a").X + 400, Node("a").Y)); // beside a: Up/Down in the column pass it by
+        _canvas.Select("p");
+
+        var right = new List<string>();
+        for (var i = 0; i < 4; i++)
+        {
+            _canvas.MoveFocus(FocusMove.Right);
+            right.Add(_canvas.FocusedId!);
+        }
+        Assert.Equal(["a", "b", "c", "q"], right);
+        _canvas.MoveFocus(FocusMove.Left);
+        _canvas.MoveFocus(FocusMove.Left);
+        Assert.Equal("b", _canvas.FocusedId);
+
+        _canvas.Unplace(["b"]); // back in columns: Right is the next column again
+        _canvas.Select("p");
+        _canvas.MoveFocus(FocusMove.Right);
+        _canvas.MoveFocus(FocusMove.Right);
+        Assert.Equal("q", _canvas.FocusedId);
+    }
+
     [Theory]
     [InlineData(LayoutShape.Circle)]
     [InlineData(LayoutShape.Tree)]

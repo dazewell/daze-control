@@ -674,6 +674,9 @@ public sealed partial class FlowCanvas : UserControl
             case Gesture.DragNode:
                 var node = _dragged!.Node;
                 var (target, zone) = DropAt(position);
+                // Empty canvas under the pointer: DropAt names no target for a dragged card even over another box.
+                var free = target is null && !_viewModel.Nodes.Any(n =>
+                    n.Id != node.Id && n.CardId != node.Id && n.Id != node.CardId && n.Bounds.Contains(C(position)));
                 ResetDragged();
                 if (target is not null && zone != DropZone.None)
                     ShowRefusal(_viewModel.Drop(node.Id, target.Id, zone), target);
@@ -683,10 +686,10 @@ public sealed partial class FlowCanvas : UserControl
                     var spot = DroppedAt(node, position);
                     var refusal = _viewModel.TakeOutOfCard(node.Id);
                     ShowRefusal(refusal, own);
-                    if (refusal == DazeControl.Core.Layout.ConnectRefusal.None && target is null)
+                    if (refusal == DazeControl.Core.Layout.ConnectRefusal.None && free)
                         _viewModel.PlaceAt(node.Id, spot);
                 }
-                else if (target is null && node.CardId is null)
+                else if (free && node.CardId is null)
                     _viewModel.PlaceAt(node.Id, DroppedAt(node, position)); // empty canvas: it stays where it was put (D-115)
                 else // inside its own card, or on another step's top/bottom band: reorder
                     _viewModel.MoveToRow(node.Id, _viewModel.RowAt(node.Id, node.Bounds.CenterY + (position.Y - _pressContent.Y)));

@@ -490,7 +490,9 @@ public static class FlowLayout
             }
             // Midway between its first and last branch (their bands may differ in height), not the band's middle.
             var middle = (spots[list[0]].Y + sizes[list[0]].Height / 2 + spots[list[^1]].Y + sizes[list[^1]].Height / 2) / 2;
-            spots[id] = spots[id] with { Y = Math.Clamp(middle - sizes[id].Height / 2, top, top + span - sizes[id].Height) };
+            // Offset within the band, not absolute bounds: with fractional heights top + span - height can round below top.
+            var room = Math.Max(0, span - sizes[id].Height);
+            spots[id] = spots[id] with { Y = top + Math.Clamp(middle - sizes[id].Height / 2 - top, 0, room) };
         }
         var rootTop = o.Padding;
         foreach (var root in roots)

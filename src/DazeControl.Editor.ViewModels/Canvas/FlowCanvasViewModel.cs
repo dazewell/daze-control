@@ -360,7 +360,10 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         var ring = LayoutChoices.Shape == LayoutShape.Circle;
         var ownCard = from.CardId ?? (from.Kind == CanvasNodeKind.Card ? from.Id : null);
         bool Near(CanvasNodeViewModel n) => !ring || (ownCard is not null && (n.Id == ownCard || n.CardId == ownCard));
-        CanvasNodeViewModel? to = ring && move is FocusMove.Left or FocusMove.Right ? null : move switch
+        // With a step placed by hand the columns don't say what is beside what either: Left/Right step through run
+        // order there too, which reaches every step whatever the picture; Up/Down keep walking the column.
+        var stepwise = ring || !LaysOutInColumns && LayoutChoices.Shape is null or LayoutShape.Columns;
+        CanvasNodeViewModel? to = stepwise && move is FocusMove.Left or FocusMove.Right ? null : move switch
         {
             FocusMove.Up => Nodes.Where(n => Near(n) && n.Column == from.Column && n.Y < from.Y - 0.5).OrderByDescending(n => n.Y).ThenBy(n => Math.Abs(n.X - from.X)).FirstOrDefault(), // hand-placed neighbours can share a height: the nearer one
             FocusMove.Down => Nodes.Where(n => Near(n) && n.Column == from.Column && n.Y > from.Y + 0.5).OrderBy(n => n.Y).ThenBy(n => Math.Abs(n.X - from.X)).FirstOrDefault(), // hand-placed neighbours can share a height: the nearer one

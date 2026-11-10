@@ -1493,7 +1493,7 @@ supersedes D-020's "never sets x/y" and D-067's "why not circular or tree"; the 
   join the two sides that face each other (`EdgeRoute.Leaves`/`Enters`, always curved). All of it is view state in
   `editor.json` (`FlowViewSettings.Shape`, `Pins`, D-068): not a flow edit, no undo, never in YAML.
 - Keyboard and Untangle (PR #168 review): an arrow key that finds nothing steps through run order when anything is
-  hand-placed or not in columns (on the circle Left/Right always do; Up/Down only walk a card's members), so every
+  hand-placed or not in columns (on the circle and with a hand-placed step Left/Right always do; on the circle Up/Down only walk a card's members), so every
   step stays reachable. Untangle lines is off with "Only for steps arranged in columns": it reorders within
   columns, which moves nothing there. A member dragged out of its card onto empty canvas stays where it was dropped.
 - Why: the tools people know (n8n, Node-RED, Power Automate, draw.io) let you drag a box anywhere and pick a layout.
