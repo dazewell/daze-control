@@ -7,6 +7,9 @@ namespace DazeControl.Core.Layout;
 /// port (D-060). The same shape leads from a block into the line under it, whose target may sit far below the gap
 /// (D-066). With Lines › Right angles (D-067) every other edge is orthogonal too: right to the gap's middle, along it
 /// to the target's height, right into the port (<see cref="BendX"/>).
+/// Lines between hand-placed steps or in another Arrange shape (D-115) leave and enter by any side
+/// (<see cref="EdgeRoute.StartSide"/>, <see cref="EdgeRoute.EndSide"/>): a vertical run bends at <see cref="BendY"/>,
+/// a line between a horizontal and a vertical side turns once at <see cref="Elbow"/>.
 /// </summary>
 public readonly record struct EdgeCurve(Point Start, Point Control1, Point Control2, Point End, Point Tip)
 {
@@ -27,8 +30,14 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
     /// <summary>A right-angled edge's vertical run (D-067); null for a curve or a wrapped edge.</summary>
     public double? BendX { get; init; }
 
+    /// <summary>A right-angled edge's horizontal run between a bottom and a top side (D-115).</summary>
+    public double? BendY { get; init; }
+
+    /// <summary>The one corner of a right-angled edge between a horizontal and a vertical side (D-115).</summary>
+    public Point? Elbow { get; init; }
+
     /// <summary>Drawn as straight runs with rounded corners (<see cref="RoundedSegments"/>), not a Bézier.</summary>
-    public bool IsOrthogonal => WrapLaneY is not null || BendX is not null;
+    public bool IsOrthogonal => WrapLaneY is not null || BendX is not null || BendY is not null || Elbow is not null;
 
     /// <summary>The drawn shape of a laid-out edge for the flow's Lines choice.</summary>
     public static EdgeCurve For(EdgeRoute route, LayoutLines lines)
@@ -36,7 +45,63 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
         ArgumentNullException.ThrowIfNull(route);
         if (route.WrapLaneY is { } lane)
             return Wrapped(route.Start, route.End, lane);
-        return lines == LayoutLines.RightAngles ? RightAngled(route.Start, route.End) : Between(route.Start, route.End);
+        return lines == LayoutLines.RightAngles
+            ? RightAngled(route.Start, route.End, route.StartSide, route.EndSide)
+            : Between(route.Start, route.End, route.StartSide, route.EndSide);
+    }
+
+    /// <summary>The outward unit direction of a side.</summary>
+    public static Point Normal(PortSide side) => side switch
+    {
+        PortSide.Left => new(-1, 0),
+        PortSide.Bottom => new(0, 1),
+        PortSide.Top => new(0, -1),
+        _ => new(1, 0),
+    };
+
+    private static bool IsHorizontal(PortSide side) => side is PortSide.Left or PortSide.Right;
+
+    /// <summary>Where the line ends and the arrowhead starts: one arrow length out of <paramref name="tip"/>'s side.</summary>
+    private static Point ArrowBase(Point tip, PortSide side)
+    {
+        var n = Normal(side);
+        return new(tip.X + n.X * ArrowLength, tip.Y + n.Y * ArrowLength);
+    }
+
+    /// <summary>Right-angled between any two sides (D-115): Z-shaped across the gap between parallel sides, an L otherwise.</summary>
+    public static EdgeCurve RightAngled(Point start, Point tip, PortSide startSide, PortSide endSide)
+    {
+        if (startSide == PortSide.Right && endSide == PortSide.Left)
+            return RightAngled(start, tip);
+        var end = ArrowBase(tip, endSide);
+        var n = Normal(startSide);
+        if (IsHorizontal(startSide) != IsHorizontal(endSide))
+        {
+            var elbow = IsHorizontal(startSide) ? new Point(end.X, start.Y) : new Point(start.X, end.Y);
+            return new EdgeCurve(start, start, end, end, tip) { Elbow = elbow };
+        }
+        // Parallel sides: bend halfway across the gap, or one step out of the port when the target is too close or behind.
+        if (IsHorizontal(startSide))
+        {
+            var ahead = (end.X - start.X) * n.X;
+            return new EdgeCurve(start, start, end, end, tip) { BendX = ahead >= 2 * WrapStep ? (start.X + end.X) / 2 : start.X + n.X * WrapStep };
+        }
+        var down = (end.Y - start.Y) * n.Y;
+        return new EdgeCurve(start, start, end, end, tip) { BendY = down >= 2 * WrapStep ? (start.Y + end.Y) / 2 : start.Y + n.Y * WrapStep };
+    }
+
+    /// <summary>A Bézier leaving <paramref name="startSide"/> and entering <paramref name="endSide"/> straight on (D-115).</summary>
+    public static EdgeCurve Between(Point start, Point tip, PortSide startSide, PortSide endSide)
+    {
+        if (startSide == PortSide.Right && endSide == PortSide.Left)
+            return Between(start, tip);
+        var end = ArrowBase(tip, endSide);
+        double dx = Math.Abs(end.X - start.X), dy = Math.Abs(end.Y - start.Y);
+        var span = IsHorizontal(startSide) && IsHorizontal(endSide) ? dx : !IsHorizontal(startSide) && !IsHorizontal(endSide) ? dy : Math.Max(dx, dy);
+        var reach = Math.Max(32, span / 2);
+        Point n1 = Normal(startSide), n2 = Normal(endSide);
+        return new EdgeCurve(start, new Point(start.X + n1.X * reach, start.Y + n1.Y * reach),
+            new Point(end.X + n2.X * reach, end.Y + n2.Y * reach), end, tip);
     }
 
     /// <summary>
@@ -63,6 +128,10 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
         {
             if (BendX is { } bend)
                 return [Start, new(bend, Start.Y), new(bend, End.Y), End];
+            if (BendY is { } bendY)
+                return [Start, new(Start.X, bendY), new(End.X, bendY), End];
+            if (Elbow is { } elbow)
+                return [Start, elbow, End];
             if (WrapLaneY is not { } lane)
                 return [Start, End];
             var outX = Start.X + WrapStep;
@@ -100,6 +169,8 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
     /// <remarks>A right-angled edge's is its vertical run's middle.</remarks>
     public Point Midpoint => WrapLaneY is { } lane ? new((Start.X + WrapStep + Tip.X - WrapStep) / 2, lane)
         : BendX is { } bend ? new(bend, (Start.Y + End.Y) / 2)
+        : BendY is { } bendY ? new((Start.X + End.X) / 2, bendY)
+        : Elbow is { } elbow ? elbow
         : At(0.5);
 
     public Point At(double t)

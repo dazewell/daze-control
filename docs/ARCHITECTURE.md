@@ -360,6 +360,11 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   `nodes` don't see the wrap. `EdgeCurve` is the Bézier + hit-test, or orthogonal (`IsOrthogonal`): the wrapped edge
   (`EdgeRoute.WrapLaneY` set on a row break and on the edge from a block's last box into the next line), or with
   Lines › Right angles every other edge (`BendX` = the gap's middle); `EdgeCurve.For(route, lines)` picks.
+  Arrange and hand placement (D-115): the canvas lays out through `Core/Layout/FlowPlacement.Arrange`, which is
+  `FlowLayout.Arrange` for left to right with nothing placed, else moves its top-level boxes into the shape
+  (members follow their card), applies `LayoutOptions.Placed` and routes edges by `Sides` (any side; `EdgeCurve`
+  bends at `BendY` or one `Elbow`). The VM's `MoveBy` / `Arrange` / `ResetLayout` change `FlowViewSettings` through
+  `ChangeView`; the undo stack holds `UndoEntry(Flow, View?)`, so view steps and flow edits share one history.
   Layout menu (D-067): `LayoutOptions.Of(wrapAfter, spacing, align, lines)` (Compact 40/8, Normal 64/16, Roomy
   96/32 column/row gaps). The canvas VM reads this flow's `FlowViewSettings` at every `Sync` (`SetLayout`,
   `ResetLayout`: not flow edits, no undo); `ShellWindow` builds the flyout on `Opening` (radio items from the VM) and

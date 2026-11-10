@@ -53,12 +53,38 @@ public sealed class FlowViewSettings
 
     public LayoutLines? Lines { get; set; }
 
+    /// <summary>Arrange (D-115); null = left to right.</summary>
+    public LayoutShape? Shape { get; set; }
+
+    /// <summary>Top-left corners of the steps and cards placed by hand (D-115); null = none, the shape lays them out.</summary>
+    public Dictionary<string, Point>? Placed { get; set; }
+
     [JsonIgnore]
-    public bool IsDefault => WrapAfter is null && Spacing is null && Align is null && Lines is null && Other is not { Count: > 0 };
+    public bool IsPlacedByHand => Placed is { Count: > 0 };
+
+    [JsonIgnore]
+    public bool IsDefault => WrapAfter is null && Spacing is null && Align is null && Lines is null && Shape is null
+        && !IsPlacedByHand && Other is not { Count: > 0 };
 
     /// <summary>The layout these choices give.</summary>
     public LayoutOptions ToOptions() => LayoutOptions.Of(WrapAfter ?? LayoutOptions.DefaultWrapAfter,
-        Spacing ?? LayoutSpacing.Normal, Align ?? LayoutAlign.Centre, Lines ?? LayoutLines.Curved);
+        Spacing ?? LayoutSpacing.Normal, Align ?? LayoutAlign.Centre, Lines ?? LayoutLines.Curved) with
+    {
+        Shape = Shape ?? LayoutShape.LeftToRight,
+        Placed = IsPlacedByHand ? Placed : null,
+    };
+
+    /// <summary>A deep copy: an undo step keeps the choices as they were (D-115).</summary>
+    public FlowViewSettings Copy() => new()
+    {
+        WrapAfter = WrapAfter,
+        Spacing = Spacing,
+        Align = Align,
+        Lines = Lines,
+        Shape = Shape,
+        Placed = Placed is null ? null : new Dictionary<string, Point>(Placed, StringComparer.Ordinal),
+        Other = Other is null ? null : new Dictionary<string, JsonElement>(Other),
+    };
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Other { get; set; }

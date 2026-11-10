@@ -386,10 +386,7 @@ public sealed partial class FlowCanvas : UserControl
             curves[path].Figures.Add(figure);
 
             var arrows = accent ? SelectedArrows : edge.Style == EdgeStyle.IfFails ? IfFailsArrows : NormalArrows;
-            var arrow = new PathFigure { StartPoint = P(c.Tip), IsClosed = true, IsFilled = true };
-            arrow.Segments.Add(new LineSegment { Point = new(c.End.X, c.End.Y - 3.5) });
-            arrow.Segments.Add(new LineSegment { Point = new(c.End.X, c.End.Y + 3.5) });
-            curves[arrows].Figures.Add(arrow);
+            curves[arrows].Figures.Add(Arrowhead(c));
 
             if (edge.Chip is { } chip)
                 ChipLayer.Children.Add(Chip(chip, c.Midpoint, edge.Style == EdgeStyle.IfFails));
@@ -398,6 +395,18 @@ public sealed partial class FlowCanvas : UserControl
         SelectedEdges.Stroke = SelectedArrows.Fill = Theme.Selection;
         foreach (var (path, geometry) in curves)
             path.Data = geometry;
+    }
+
+    /// <summary>A 6-DIP arrowhead from the line's end to its tip, square to the way the line comes in (D-115).</summary>
+    private static PathFigure Arrowhead(DazeControl.Core.Layout.EdgeCurve c)
+    {
+        double dx = c.Tip.X - c.End.X, dy = c.Tip.Y - c.End.Y;
+        var length = Math.Sqrt(dx * dx + dy * dy);
+        (dx, dy) = length == 0 ? (1, 0) : (dx / length, dy / length);
+        var arrow = new PathFigure { StartPoint = P(c.Tip), IsClosed = true, IsFilled = true };
+        arrow.Segments.Add(new LineSegment { Point = new(c.End.X - dy * 3.5, c.End.Y + dx * 3.5) });
+        arrow.Segments.Add(new LineSegment { Point = new(c.End.X + dy * 3.5, c.End.Y - dx * 3.5) });
+        return arrow;
     }
 
     /// <summary>The edge that gets "+"/"×" at its midpoint: the hovered one, else the one edge picked by itself.</summary>
@@ -622,7 +631,7 @@ public sealed partial class FlowCanvas : UserControl
                 {
                     _gesture = Gesture.DragNode;
                     foreach (var view in DragGroup())
-                        XamlCanvas.SetZIndex(view, view == _dragged ? 1 : 2);
+                        XamlCanvas.SetZIndex(view, view.Node.CardId is null ? 1 : 2); // members above their card
                 }
                 break;
             case Gesture.DragNode:
@@ -672,13 +681,16 @@ public sealed partial class FlowCanvas : UserControl
             case Gesture.DragNode:
                 var node = _dragged!.Node;
                 var (target, zone) = DropAt(position);
+                var moving = DragIds();
                 ResetDragged();
                 if (target is not null && zone != DropZone.None)
                     ShowRefusal(_viewModel.Drop(node.Id, target.Id, zone), target);
                 else if (node.CardId is { } card && _viewModel.Find(card) is { } own && !own.Bounds.Contains(C(position)))
                     ShowRefusal(_viewModel.TakeOutOfCard(node.Id), own);
-                else
+                else if (node.CardId is not null)
                     _viewModel.MoveToRow(node.Id, _viewModel.RowAt(node.Id, node.Bounds.CenterY + (position.Y - _pressContent.Y)));
+                else
+                    _viewModel.MoveBy(moving, position.X - _pressContent.X, position.Y - _pressContent.Y); // D-115
                 break;
             case Gesture.Marquee:
                 var rect = DazeControl.Core.Layout.Rect.FromCorners(C(_pressContent), C(position));
@@ -707,15 +719,27 @@ public sealed partial class FlowCanvas : UserControl
         }
     }
 
-    /// <summary>The dragged view and, for a card, its members (separate siblings in NodeLayer).</summary>
+    /// <summary>
+    /// What a drag carries: a member alone (it reorders in its card), else the dragged step or card and, when it is
+    /// part of the selection, every other selected top-level step or card (D-115).
+    /// </summary>
+    private List<string> DragIds()
+    {
+        if (_dragged is null || _viewModel is null)
+            return [];
+        var node = _dragged.Node;
+        if (node.CardId is not null || !node.IsSelected)
+            return [node.Id];
+        return [node.Id, .. _viewModel.SelectedIds.Where(id => id != node.Id && _viewModel.Find(id) is { CardId: null })];
+    }
+
+    /// <summary>The dragged views and, for a card, its members (separate siblings in NodeLayer).</summary>
     private IEnumerable<NodeView> DragGroup()
     {
-        if (_dragged is null)
-            yield break;
-        yield return _dragged;
+        var ids = DragIds();
         foreach (var view in _views.Values)
         {
-            if (view.Node.CardId == _dragged.Node.Id)
+            if (ids.Contains(view.Node.Id) || (view.Node.CardId is { } card && ids.Contains(card)))
                 yield return view;
         }
     }
@@ -735,8 +759,8 @@ public sealed partial class FlowCanvas : UserControl
             InPortDot.Visibility = OutPortDot.Visibility = Visibility.Collapsed;
             return;
         }
-        Dot(InPortDot, FlowCanvasViewModel.InPort(hovered));
-        Dot(OutPortDot, FlowCanvasViewModel.OutPort(hovered));
+        Dot(InPortDot, _viewModel.InPortOf(hovered));
+        Dot(OutPortDot, _viewModel.OutPortOf(hovered));
     }
 
     private static void Dot(Microsoft.UI.Xaml.Shapes.Ellipse dot, CorePoint at)
@@ -753,8 +777,8 @@ public sealed partial class FlowCanvas : UserControl
 
     private void PreviewConnect(Windows.Foundation.Point position)
     {
-        var start = FlowCanvasViewModel.OutPort(_connectFrom!);
-        var curve = DazeControl.Core.Layout.EdgeCurve.Between(start, C(position));
+        var start = _viewModel!.OutPortOf(_connectFrom!);
+        var curve = DazeControl.Core.Layout.EdgeCurve.Between(start, C(position), _viewModel.OutSide, _viewModel.InSide);
         var figure = new PathFigure { StartPoint = P(curve.Start), IsFilled = false };
         figure.Segments.Add(new BezierSegment { Point1 = P(curve.Control1), Point2 = P(curve.Control2), Point3 = P(curve.Tip) });
         var geometry = new PathGeometry();
@@ -844,7 +868,7 @@ public sealed partial class FlowCanvas : UserControl
         box.QuerySubmitted += (_, args) =>
             Choose(args.ChosenSuggestion as PaletteItem ?? (StepPaletteViewModel.Search(args.QueryText) is [var first, ..] ? first : null));
         flyout.Opened += (_, _) => { box.Focus(FocusState.Programmatic); box.IsSuggestionListOpen = true; };
-        var position = at ?? (vm.FocusedId is { } id && vm.Find(id) is { } node ? P(FlowCanvasViewModel.OutPort(node)) : default);
+        var position = at ?? (vm.FocusedId is { } id && vm.Find(id) is { } node ? P(vm.OutPortOf(node)) : default);
         if (!Shown && FallbackTarget is not null)
             flyout.ShowAt(FallbackTarget, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Bottom });
         else if (at is null && vm.FocusedId is null)
@@ -928,7 +952,7 @@ public sealed partial class FlowCanvas : UserControl
     private (CanvasNodeViewModel? Target, DropZone Zone) DropAt(Windows.Foundation.Point position)
     {
         var dragged = _dragged?.Node;
-        if (_viewModel is null || dragged is null || dragged.Kind == CanvasNodeKind.Card)
+        if (_viewModel is null || dragged is null || dragged.Kind == CanvasNodeKind.Card || DragIds().Count > 1)
             return (null, DropZone.None);
         var target = _viewModel.Nodes
             .Where(n => n.Id != dragged.Id && n.Id != dragged.CardId && !(n.CardId is not null && n.CardId == dragged.CardId) && n.Bounds.Contains(C(position)))

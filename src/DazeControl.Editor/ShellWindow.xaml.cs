@@ -1246,20 +1246,42 @@ public sealed partial class ShellWindow : Window
             return;
         var o = editor.LayoutOptions;
         var spacing = editor.LayoutChoices.Spacing ?? Core.Layout.LayoutSpacing.Normal;
-        LayoutMenu.Items.Add(LayoutChoice("Wrap long chains", "wrap", o.WrapAfter,
-            [("After 3 steps", 3), ("After 5 steps", 5), ("After 8 steps", 8), ("Never", 0)], v => editor.SetLayout(wrapAfter: v)));
-        LayoutMenu.Items.Add(LayoutChoice("Spacing", "spacing", spacing,
+        var byHand = editor.IsPlacedByHand;
+        var leftToRight = o.Shape == Core.Layout.LayoutShape.LeftToRight;
+
+        // Arrange (D-115): picking a shape, even the current one, lays every step out afresh; Ctrl+Z brings a hand
+        // placement back. While steps are placed by hand no shape is ticked.
+        var arrange = LayoutChoice("Arrange", "shape", byHand ? (Core.Layout.LayoutShape)(-1) : o.Shape,
+            [("Left to right", Core.Layout.LayoutShape.LeftToRight), ("Top to bottom", Core.Layout.LayoutShape.TopToBottom),
+             ("Tree", Core.Layout.LayoutShape.Tree), ("Circle", Core.Layout.LayoutShape.Circle)], editor.Arrange);
+        arrange.Icon = new FontIcon { Glyph = "\uE8A9" };
+        LayoutMenu.Items.Add(arrange);
+        if (byHand)
+        {
+            var again = new MenuFlyoutItem { Text = "Arrange again", Icon = new FontIcon { Glyph = "\uE72C" } };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(again, "Steps are placed by hand: lay them out again as " + ShapeName(o.Shape));
+            again.Click += (_, _) => { editor.Arrange(o.Shape); _layoutPicked = true; };
+            LayoutMenu.Items.Add(again);
+        }
+        LayoutMenu.Items.Add(new MenuFlyoutSeparator());
+
+        // These shape the automatic layout, so they wait while steps are placed by hand; wrap and line up are left to right only.
+        LayoutMenu.Items.Add(Waits(LayoutChoice("Wrap long chains", "wrap", o.WrapAfter,
+            [("After 3 steps", 3), ("After 5 steps", 5), ("After 8 steps", 8), ("Never", 0)], v => editor.SetLayout(wrapAfter: v)),
+            byHand ? "Placed by hand" : leftToRight ? null : "Left to right only"));
+        LayoutMenu.Items.Add(Waits(LayoutChoice("Spacing", "spacing", spacing,
             [("Compact", Core.Layout.LayoutSpacing.Compact), ("Normal", Core.Layout.LayoutSpacing.Normal), ("Roomy", Core.Layout.LayoutSpacing.Roomy)],
-            v => editor.SetLayout(spacing: v)));
-        LayoutMenu.Items.Add(LayoutChoice("Line up", "align", o.Align,
-            [("Centred", Core.Layout.LayoutAlign.Centre), ("Along the top", Core.Layout.LayoutAlign.Top)], v => editor.SetLayout(align: v)));
+            v => editor.SetLayout(spacing: v)), byHand ? "Placed by hand" : null));
+        LayoutMenu.Items.Add(Waits(LayoutChoice("Line up", "align", o.Align,
+            [("Centred", Core.Layout.LayoutAlign.Centre), ("Along the top", Core.Layout.LayoutAlign.Top)], v => editor.SetLayout(align: v)),
+            byHand ? "Placed by hand" : leftToRight ? null : "Left to right only"));
         LayoutMenu.Items.Add(LayoutChoice("Lines", "lines", o.Lines,
             [("Curved", Core.Layout.LayoutLines.Curved), ("Right angles", Core.Layout.LayoutLines.RightAngles)], v => editor.SetLayout(lines: v)));
         LayoutMenu.Items.Add(new MenuFlyoutSeparator());
 
         // Off with its reason (X-006): a disabled item shows no tooltip, so the reason sits where a shortcut would.
-        var untangle = new MenuFlyoutItem { Text = "Untangle lines", Icon = new FontIcon { Glyph = "\uE8CB" }, IsEnabled = editor.CanUntangle };
-        if (editor.UntangleReason is { } reason)
+        var untangle = new MenuFlyoutItem { Text = "Untangle lines", Icon = new FontIcon { Glyph = "\uE8CB" }, IsEnabled = editor.CanUntangle && !byHand };
+        if ((byHand ? "Placed by hand" : editor.UntangleReason) is { } reason)
         {
             untangle.KeyboardAcceleratorTextOverride = reason;
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(untangle, reason);
@@ -1276,6 +1298,25 @@ public sealed partial class ShellWindow : Window
     {
         if (_layoutPicked)
             FlowCanvasControl.Focus(FocusState.Programmatic);
+    }
+
+    private static string ShapeName(Core.Layout.LayoutShape shape) => shape switch
+    {
+        Core.Layout.LayoutShape.TopToBottom => "top to bottom",
+        Core.Layout.LayoutShape.Tree => "a tree",
+        Core.Layout.LayoutShape.Circle => "a circle",
+        _ => "left to right",
+    };
+
+    /// <summary>Off with its reason where a shortcut would sit (a disabled item shows no tooltip, X-006).</summary>
+    private static MenuFlyoutSubItem Waits(MenuFlyoutSubItem item, string? reason)
+    {
+        if (reason is null)
+            return item;
+        item.IsEnabled = false;
+        item.Text += " \u00B7 " + reason;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(item, reason);
+        return item;
     }
 
     private MenuFlyoutSubItem LayoutChoice<T>(string text, string group, T current, (string Text, T Value)[] choices, Action<T> pick)

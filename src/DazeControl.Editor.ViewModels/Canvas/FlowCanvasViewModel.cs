@@ -37,7 +37,10 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     private readonly CanvasClipboard _clipboard;
     private readonly EditorSettingsStore? _settings;
     private FlowViewSettings _localView = new(); // without a store (tests, a failed start): this session only
-    private readonly List<Flow> _undo = [], _redo = [];
+    private readonly List<UndoEntry> _undo = [], _redo = [];
+
+    /// <summary>An undo step: the flow before an edit, or (D-115) this flow's view choices before a move or Arrange.</summary>
+    private sealed record UndoEntry(Flow Flow, FlowViewSettings? View);
     private FlowArrangement _arrangement = new([], [], [], new Size(96, 96));
     private Flow? _known;
     private bool _editing;
@@ -441,10 +444,23 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     public static Point InPort(CanvasNodeViewModel node) => new(node.X, node.Y + node.Height / 2);
 
+    /// <summary>The vertical shapes (top to bottom, tree) put the output port under a step and the input port on top (D-115).</summary>
+    public bool PortsVertical => LayoutChoices.Shape is LayoutShape.TopToBottom or LayoutShape.Tree;
+
+    public PortSide OutSide => PortsVertical ? PortSide.Bottom : PortSide.Right;
+
+    public PortSide InSide => PortsVertical ? PortSide.Top : PortSide.Left;
+
+    /// <summary>Where this flow's lines leave <paramref name="node"/> (right, or bottom in the vertical shapes).</summary>
+    public Point OutPortOf(CanvasNodeViewModel node) => FlowPlacement.Port(node.Bounds, OutSide);
+
+    /// <summary>Where this flow's lines enter <paramref name="node"/> (left, or top in the vertical shapes).</summary>
+    public Point InPortOf(CanvasNodeViewModel node) => FlowPlacement.Port(node.Bounds, InSide);
+
     /// <summary>The step or card whose output port is under <paramref name="p"/>; members have none (ports on the card).</summary>
     public CanvasNodeViewModel? OutPortAt(Point p, double radius = PortRadius) =>
         Nodes.Where(n => n.Kind != CanvasNodeKind.Member)
-            .Select(n => (Node: n, Distance: Distance(OutPort(n), p)))
+            .Select(n => (Node: n, Distance: Distance(OutPortOf(n), p)))
             .Where(x => x.Distance <= radius).OrderBy(x => x.Distance).Select(x => x.Node).FirstOrDefault();
 
     /// <summary>
@@ -454,7 +470,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     public CanvasNodeViewModel? ConnectTargetAt(Point p, double radius = PortRadius)
     {
         var node = HitTest(p) ?? Nodes.Where(n => n.Kind != CanvasNodeKind.Member)
-            .Select(n => (Node: n, Distance: Distance(InPort(n), p)))
+            .Select(n => (Node: n, Distance: Distance(InPortOf(n), p)))
             .Where(x => x.Distance <= radius).OrderBy(x => x.Distance).Select(x => x.Node).FirstOrDefault();
         return node?.CardId is { } card ? Find(card) : node;
     }
@@ -723,41 +739,92 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             if (lines is { } l)
                 v.Lines = l == LayoutLines.Curved ? null : l;
         }
+        ChangeView(Change, undoable: false);
+    }
+
+    /// <summary>Layout › Reset layout: this flow back to the default choices; keys a newer editor wrote are kept.</summary>
+    /// <remarks>It can throw away a hand placement, so it is an undo step (D-115).</remarks>
+    public void ResetLayout()
+    {
+        if (LayoutChoices.IsDefault)
+            return;
+        ChangeView(v => (v.WrapAfter, v.Spacing, v.Align, v.Lines, v.Shape, v.Placed) = (null, null, null, null, null, null), undoable: true);
+    }
+
+    // ---- Arrange and hand placement (D-115) ----
+
+    /// <summary>Some steps were placed by hand: the shape no longer lays the flow out, and Wrap, Spacing and Line up wait.</summary>
+    [ObservableProperty]
+    public partial bool IsPlacedByHand { get; private set; }
+
+    /// <summary>Layout › Arrange: lays every step out afresh in <paramref name="shape"/>, letting go of hand placement; an undo step.</summary>
+    public void Arrange(LayoutShape shape)
+    {
+        var choices = LayoutChoices;
+        if ((choices.Shape ?? LayoutShape.LeftToRight) == shape && !choices.IsPlacedByHand)
+            return;
+        ChangeView(v => (v.Shape, v.Placed) = (shape == LayoutShape.LeftToRight ? null : shape, null), undoable: true);
+    }
+
+    /// <summary>
+    /// A drag to empty canvas: the steps and cards in <paramref name="ids"/> (members count as their card) move by
+    /// (<paramref name="dx"/>, <paramref name="dy"/>), snapped to the grid, never above or left of the padding. The
+    /// first move freezes every other step where it is, so nothing else shifts. One undo step; false when nothing moved.
+    /// </summary>
+    public bool MoveBy(IEnumerable<string> ids, double dx, double dy)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        if (!CanEdit || IsRunLocked)
+            return false;
+        var moving = ids.Select(Find).OfType<CanvasNodeViewModel>()
+            .Select(n => n.CardId is { } card ? Find(card) : n).OfType<CanvasNodeViewModel>()
+            .DistinctBy(n => n.Id).ToList();
+        if (moving.Count == 0)
+            return false;
+        // The first (the one under the pointer) snaps to the grid; the rest keep their distance from it.
+        var padding = LayoutOptions.Padding;
+        var lead = moving[0];
+        dx = FlowPlacement.Snap(lead.X + dx) - lead.X;
+        dy = FlowPlacement.Snap(lead.Y + dy) - lead.Y;
+        dx = Math.Max(dx, padding - moving.Min(n => n.X));
+        dy = Math.Max(dy, padding - moving.Min(n => n.Y));
+        var to = moving.ToDictionary(n => n.Id, n => new Point(n.X + dx, n.Y + dy), StringComparer.Ordinal);
+        if (moving.All(n => n.X == to[n.Id].X && n.Y == to[n.Id].Y))
+            return false;
+        var everything = Nodes.Where(n => n.CardId is null).ToDictionary(n => n.Id, n => new Point(n.X, n.Y), StringComparer.Ordinal);
+        ChangeView(v =>
+        {
+            v.Placed = everything; // rebuilt from what is on the canvas, so deleted steps drop out
+            foreach (var (id, at) in to)
+                v.Placed[id] = at;
+        }, undoable: true);
+        return true;
+    }
+
+    /// <summary>Changes this flow's view choices in editor.json (or this session's copy) and lays it out again.</summary>
+    private void ChangeView(Action<FlowViewSettings> change, bool undoable)
+    {
+        var before = LayoutChoices.Copy();
         if (_settings is null)
-            Change(_localView);
+            change(_localView);
         else
         {
             var id = FlowId;
             _settings.Update(s =>
             {
                 var view = s.Flows.GetValueOrDefault(id) ?? new FlowViewSettings();
-                Change(view);
+                change(view);
                 if (view.IsDefault)
                     s.Flows.Remove(id);
                 else
                     s.Flows[id] = view;
             });
         }
-        Sync();
-    }
-
-    /// <summary>Layout › Reset layout: this flow back to the default choices; keys a newer editor wrote are kept.</summary>
-    public void ResetLayout()
-    {
-        static void Clear(FlowViewSettings v) => (v.WrapAfter, v.Spacing, v.Align, v.Lines) = (null, null, null, null);
-        if (_settings is null)
-            Clear(_localView);
-        else if (_settings.Settings.Flows.ContainsKey(FlowId))
+        if (undoable && Flow is { } flow)
         {
-            var id = FlowId;
-            _settings.Update(s =>
-            {
-                if (!s.Flows.TryGetValue(id, out var view))
-                    return;
-                Clear(view);
-                if (view.IsDefault)
-                    s.Flows.Remove(id);
-            });
+            Push(_undo, new UndoEntry(flow, before));
+            _redo.Clear();
+            UpdateHistory();
         }
         Sync();
     }
@@ -810,7 +877,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         Replace(change);
         if (Flow is not { } after || after.Equals(before))
             return;
-        Push(_undo, before);
+        Push(_undo, new UndoEntry(before, null));
         _redo.Clear();
         UpdateHistory();
     }
@@ -821,14 +888,24 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     /// <summary>Ctrl+Y / Ctrl+Shift+Z.</summary>
     public void Redo() => Step(_redo, _undo);
 
-    private void Step(List<Flow> from, List<Flow> to)
+    private void Step(List<UndoEntry> from, List<UndoEntry> to)
     {
         if (from.Count == 0 || Flow is not { } current || !CanEdit)
             return;
         var target = from[^1];
         from.RemoveAt(from.Count - 1);
-        Replace(_ => target);
-        Push(to, current);
+        if (target.View is { } view)
+        {
+            Push(to, new UndoEntry(current, LayoutChoices.Copy()));
+            var copy = view.Copy();
+            ChangeView(v => (v.WrapAfter, v.Spacing, v.Align, v.Lines, v.Shape, v.Placed, v.Other) =
+                (copy.WrapAfter, copy.Spacing, copy.Align, copy.Lines, copy.Shape, copy.Placed, copy.Other), undoable: false);
+        }
+        else
+        {
+            Replace(_ => target.Flow);
+            Push(to, new UndoEntry(current, null));
+        }
         UpdateHistory();
     }
 
@@ -846,9 +923,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         _known = Flow;
     }
 
-    private static void Push(List<Flow> stack, Flow flow)
+    private static void Push(List<UndoEntry> stack, UndoEntry entry)
     {
-        stack.Add(flow);
+        stack.Add(entry);
         if (stack.Count > HistoryLimit)
             stack.RemoveAt(0);
     }
@@ -969,7 +1046,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         flow ??= new Flow(FlowId, "", []);
         FlowName = flow.Name;
         var options = LayoutOptions;
-        _arrangement = FlowLayout.Arrange(flow, id => _measured.GetValueOrDefault(id, DefaultPillSize), options);
+        _arrangement = FlowPlacement.Arrange(flow, id => _measured.GetValueOrDefault(id, DefaultPillSize), options);
+        IsPlacedByHand = options.Placed is not null;
         ExtentWidth = _arrangement.Extent.Width;
         ExtentHeight = _arrangement.Extent.Height;
 

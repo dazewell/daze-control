@@ -166,7 +166,7 @@ Status: accepted (T4.6 spike passed 2026-11-01: a layout captured on the dev PC 
 - Revisit if: T4.6 shows device paths are unstable too.
 
 ## D-020 · 2026-10-31 · Canvas layout is always automatic; no coordinates in YAML
-Status: accepted
+Status: accepted; "always automatic" superseded by D-115 (steps can be placed by hand; still no coordinates in YAML)
 - Decision: layered left→right layout computed in Core; dragging regroups/reorders, never sets x/y; node
   order within a column = order in `nodes` (designer, 2026-10-31).
 - Why: no overlapping messes; coordinates would churn the file.
@@ -856,7 +856,8 @@ in the column after the block's right edge, top-aligned with its last row")
 - Revisit if: users want the following part beside a short last row (then a "fits in the row" special case).
 
 ## D-067 · 2026-11-03 · Tidy up becomes a Layout menu: wrap, spacing, alignment, line style, untangle
-Status: accepted (M13 design; user, 2026-11-03: "a layout menu… a couple more strategies… make it wider"); built T13.6
+Status: accepted (M13 design; user, 2026-11-03: "a layout menu… a couple more strategies… make it wider"); built T13.6;
+its "why not circular or tree" and "no undo" superseded by D-115
 (no reflow animation: none exists on the canvas yet; the wrapped rows' gap stays 48 for every Spacing)
 - Decision: the CommandBar's Tidy up becomes **Layout** (flyout, §5.7 #63): Wrap long chains after 3 / 5 (default)
   / 8 steps / Never; Spacing Compact (40/8) / Normal (64/16) / Roomy (96/32); Line up Centred / Along the top; Lines
@@ -1482,3 +1483,24 @@ Status: accepted (wording only; supersedes the names in D-024/D-025/D-059; YAML 
   happens to "When it works" and "Only if it fails" links: Skip drops only the first, Run anyway runs both (D-025).
 - Why: a user picked "Keep going" meaning "skip the dependents", and a failed check ran both messages on wake from sleep.
 - Revisit if: users still confuse the second and third option.
+
+## D-115 · 2026-11-09 · Canvas: Arrange as left to right, top to bottom, tree or circle; drag a step anywhere
+Status: accepted (user, 2026-11-09: "moving the actions where I want… tree, circular… familiar to people using similar software")
+- Decision: Layout › **Arrange** picks the shape (`LayoutShape`): Left to right (the column layout, default), Top to
+  bottom (its columns as rows), Tree (each step under the step it waits for that runs last; parents centred over their
+  children), Circle (run order, clockwise from the top). `Core/Layout/FlowPlacement` derives every shape from
+  `FlowLayout.Arrange`, so sizes, cards and run order stay one code path; all shapes are deterministic.
+- A drag dropped on empty canvas places the dragged step or card, with the rest of the selection, on an 8-DIP grid
+  (the dragged one snaps, the rest keep their distance). The first move freezes every step where it is (n8n,
+  Node-RED): nothing else shifts. A step with no place yet (added, pasted) lands one gap past the step it runs after,
+  pushed down clear of the rest. Drops on a step still mean Run after / before / together; a member still reorders in its card.
+- Lines leave by the shape's own side while the target lies ahead (right → left; bottom → top in top to bottom and
+  tree), else by the sides facing each other (`EdgeRoute.StartSide/EndSide`); arrowheads follow. Ports sit
+  bottom/top in the vertical shapes.
+- Stored per flow in editor.json (`FlowViewSettings.Shape`, `Placed`: top-left by id), never in YAML (D-068).
+  Moves, Arrange and Reset layout are **undo steps** in the canvas history (they can throw away hand placement);
+  Wrap, Spacing, Line up and Untangle are off while steps are placed by hand; "Arrange again" lets go.
+- Why not one-step "put back in line" or pins on single steps among auto-laid ones (PR #168): auto-laid neighbours
+  move under a pinned step and overlap it. Why not YAML `pos`: every drag would hot-reload the engine, and
+  diffs churn. Why not force/organic layouts: not deterministic, so a flow would look different on each open.
+- Revisit if: users want positions to follow the config to another PC, or right-angled lines that route round steps between hand-placed ones.
