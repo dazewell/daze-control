@@ -254,6 +254,26 @@ public sealed class LayoutMenuTests : IDisposable
     }
 
     [Fact]
+    public void APinOfADeletedStepNoLongerTurnsUntangleOffAndUndoPutsTheStepBackWhereItWas()
+    {
+        Cross();
+        _canvas.PlaceAt("note", new Point(400, 320));
+        Assert.False(_canvas.CanUntangle);
+
+        _canvas.Select("note");
+        _canvas.DeleteSelection();
+
+        Assert.True(_canvas.LaysOutInColumns);
+        Assert.True(_canvas.CanUntangle);
+        Restart();
+        Assert.True(_canvas.LaysOutInColumns);
+
+        _canvas.Edit(f => f with { Nodes = [.. f.Nodes, new StepNode("note", "wait")] }); // the step is back (Undo, or the same id again)
+        Assert.Equal((400, 320), (Node("note").X, Node("note").Y));
+        Assert.False(_canvas.LaysOutInColumns);
+    }
+
+    [Fact]
     public void ArrowKeysReachAStepPlacedBesideAnotherOfItsColumn()
     {
         _canvas.PlaceAt("both", new Point(Node("bt").X + 400, Node("bt").Y)); // same column as bt, same height

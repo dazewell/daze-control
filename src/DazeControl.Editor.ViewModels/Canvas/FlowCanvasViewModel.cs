@@ -386,7 +386,10 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>The automatic columns place every step: no Arrange shape and nothing placed by hand (D-115).</summary>
-    public bool LaysOutInColumns => LayoutChoices is { Shape: null or LayoutShape.Columns, Pins: not { Count: > 0 } };
+    /// <remarks>A pin whose step was deleted or grouped into a card places nothing (the layout ignores it) and doesn't count;
+    /// it stays stored, so Undo brings the step back where it was put.</remarks>
+    public bool LaysOutInColumns => LayoutChoices is { Shape: null or LayoutShape.Columns } choices
+        && choices.Pins?.Keys.Any(id => Find(id) is { CardId: null }) != true;
 
     private void SetFocus(string? id)
     {
