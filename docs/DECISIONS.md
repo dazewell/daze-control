@@ -1468,3 +1468,8 @@ Status: accepted (user's bug: `show message` after `check` (success) and `restor
 - Open (not changed, needs the user): a "May fail" step with a failure edge fires BOTH its success and failure edges (D-025,
   pinned by tests). A check set to "Keep going" therefore shows both messages when it fails, which matches the wake-from-sleep
   report (devices not ready right after resume). Proposal: with a drawn failure edge, "May fail" fires only failure.
+
+## D-113 · 2026-11-09 · Inspector value controls ignore the mouse wheel
+- `WheelGuard.IsEnabled` (attached, no reflection) is set by implicit styles for ComboBox, NumberBox, Slider and ToggleSwitch in InspectorPane.xaml: the wheel is marked handled and scrolls the nearest scrollable ScrollViewer; an open combo box keeps it for its list. New config controls inherit it with no markup.
+- Group header right-click opens its menu at the pointer (Menu key / Shift+F10 still anchor to the "…" button). The nav hamburger (`TogglePaneButton`) is stretched in code after load, since the template has no knob for it.
+- Only checked by building: run `scripts/dev-run.ps1` to see the wheel, the menu position and the hamburger row.

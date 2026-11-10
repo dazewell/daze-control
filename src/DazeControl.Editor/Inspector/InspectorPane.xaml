@@ -21,6 +21,20 @@
             <Setter Property="Margin" Value="0,4,0,0" />
         </Style>
 
+        <!-- Value controls never take the mouse wheel; it scrolls the pane (WheelGuard). -->
+        <Style TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
+            <Setter Property="local:WheelGuard.IsEnabled" Value="True" />
+        </Style>
+        <Style TargetType="NumberBox" BasedOn="{StaticResource DefaultNumberBoxStyle}">
+            <Setter Property="local:WheelGuard.IsEnabled" Value="True" />
+        </Style>
+        <Style TargetType="Slider" BasedOn="{StaticResource DefaultSliderStyle}">
+            <Setter Property="local:WheelGuard.IsEnabled" Value="True" />
+        </Style>
+        <Style TargetType="ToggleSwitch" BasedOn="{StaticResource DefaultToggleSwitchStyle}">
+            <Setter Property="local:WheelGuard.IsEnabled" Value="True" />
+        </Style>
+
         <!-- Device picker rows: glyph + name + state (UX §5.4). -->
         <DataTemplate x:Key="DeviceTemplate" x:DataType="vmi:DeviceOption">
             <Grid ColumnSpacing="10" AutomationProperties.Name="{x:Bind AutomationName}" Loaded="OnDeviceRowLoaded"
