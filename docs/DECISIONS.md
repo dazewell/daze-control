@@ -1473,3 +1473,11 @@ Status: accepted (user's bug: `show message` after `check` (success) and `restor
 - `WheelGuard.IsEnabled` (attached, no reflection) is set by implicit styles for ComboBox, NumberBox, Slider and ToggleSwitch in InspectorPane.xaml: the wheel is marked handled and scrolls the nearest scrollable ScrollViewer; an open combo box keeps it for its list. New config controls inherit it with no markup.
 - Group header right-click opens its menu at the pointer (Menu key / Shift+F10 still anchor to the "…" button). The nav hamburger (`TogglePaneButton`) is stretched in code after load, since the template has no knob for it.
 - Only checked by building: run `scripts/dev-run.ps1` to see the wheel, the menu position and the hamburger row.
+
+## D-114 · 2026-11-09 · Failure options renamed: "Skip what follows", "Run the next steps anyway"
+Status: accepted (wording only; supersedes the names in D-024/D-025/D-059; YAML `stop`/`skip`/`ignore` and runtime unchanged)
+- Decision: the per-step "If it fails" options read "Stop the flow" · "Skip what follows" (was "Skip what depends on it") ·
+  "Run the next steps anyway" (was "Keep going"); the canvas chip "May fail" is now "Failure ignored". Each description says what
+  happens to "When it works" and "Only if it fails" links: Skip drops only the first, Run anyway runs both (D-025).
+- Why: a user picked "Keep going" meaning "skip the dependents", and a failed check ran both messages on wake from sleep.
+- Revisit if: users still confuse the second and third option.

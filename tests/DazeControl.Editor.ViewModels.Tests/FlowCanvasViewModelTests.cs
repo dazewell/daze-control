@@ -62,7 +62,7 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         Assert.Equal("", bt.Glyph);
         Assert.Equal("Technics EAH-AZ80", Node("out").Summary);
         Assert.True(Node("out").MayFail);
-        Assert.Equal(["May fail"], Node("out").Badges.Select(b => b.Text));
+        Assert.Equal(["Failure ignored"], Node("out").Badges.Select(b => b.Text));
         Assert.Equal(["×3", "5s"], Node("vol").Badges.Select(b => b.Text));
         Assert.Equal("30", Node("vol").Summary);
     }
@@ -93,7 +93,7 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     [Fact]
     public void AutomationNameSaysWhatItWaitsFor()
     {
-        Assert.Equal("Set default device, Technics EAH-AZ80. Audio. Waits for Connect. May fail.", Node("out").AutomationName);
+        Assert.Equal("Set default device, Technics EAH-AZ80. Audio. Waits for Connect. Failure ignored.", Node("out").AutomationName);
         Assert.Equal("Connect, Technics. Bluetooth.", Node("bt").AutomationName);
     }
 
@@ -499,7 +499,7 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         var notes = Notes();
         _canvas.Edit(f => f with { Nodes = [.. f.Nodes.Select(n => n.Id == "bt" ? n with { OnFailure = FailurePolicy.Skip } : n)] });
 
-        Assert.Equal(ConnectRefusal.None, _canvas.LinkFallback("out", "vol")); // out: Keep going
+        Assert.Equal(ConnectRefusal.None, _canvas.LinkFallback("out", "vol")); // out: Run the next steps anyway
         _canvas.SetWhen(_canvas.Edges.Single(e => e.From == "bt" && e.To == "vol"), EdgeWhen.Failure);
 
         Assert.Equal(FailurePolicy.Ignore, Policy("out"));

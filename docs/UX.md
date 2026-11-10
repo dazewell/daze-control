@@ -101,7 +101,7 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   Enter → inspector; F2 rename; Alt+Up/Down reorder; Alt+Right into the adjacent card; Ctrl+L "Runs after…"
   checklist (cycle-making choices disabled with the reason).
 - Screen readers: **Outline view** (TreeView in run order; card = branch) is the accessible equivalent; item
-  name e.g. "Set default output, Technics. Audio. Waits for Connect Technics. May fail."; its context menu has
+  name e.g. "Set default output, Technics. Audio. Waits for Connect Technics. Failure ignored."; its context menu has
   every canvas command; live region announces run results (≤ 1/s); canvas exposes the same names.
 
 - Long simple chains (more than 5 boxes, no forks or joins) wrap onto new rows like text; forks, joins and
@@ -123,8 +123,8 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   hit (40 touch), on hover/selection, always on touch.
 - Glyphs (Segoe Fluent Icons; verify in the gallery): Audio E767, Bluetooth E702, Display E7F4, Process E756,
   Script E943, HTTP E774, Android E8B2, Service E912, Wait E823, Message E8BD, Flag E7C1.
-- Badges: "Stop the flow" = default, no badge · "Skip what depends on it" E893 · "Keep going" = **dashed 4/2
-  border + "May fail" text chip** · retries E72C "×3" · timeout E916 "30 s" · problem E7BA caution + underline.
+- Badges: "Stop the flow" = default, no badge · "Skip what follows" E893 · "Run the next steps anyway" = **dashed 4/2
+  border + "Failure ignored" text chip** · retries E72C "×3" · timeout E916 "30 s" · problem E7BA caution + underline.
 - Card: radius 12, padding 12, member spacing 8, CardBackgroundFillColorSecondary; header 32 (E8FD, editable
   name default "Run together", count chip); ports on the card only; drag-over = 2 px dashed accent + "Drop to run
   together".
@@ -158,13 +158,12 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   number-pad shortcut alone shows the H8 tip under its row. File: TextBox + Browse, inline "Can't find this file."
   Number+unit: NumberBox + suffix ("s"; stored as ms). Key/value rows + "Add header". Script: monospace 8 lines
   + "Open in editor".
-- Failure policy: RadioButtons with descriptions — "Stop the flow" (default) "Nothing after this runs." ·
-  "Skip what depends on it" "Steps that wait for this one are skipped. Others carry on." · "Keep going" "This
-  step may fail, and the flow carries on." Hover/focus previews: affected nodes dim on the canvas.
+- Failure policy: RadioButtons with descriptions — "Stop the flow" (default) "If this fails, the whole flow stops." ·
+  "Skip what follows" "If this fails, the steps after it are skipped. Steps on other paths carry on. Only a "When it works" follow-up is skipped; an "Only if it fails" step runs." · "Run the next steps anyway" "If this fails, the steps after it still run, including the "When it works" ones, as if it had worked. Use it only when failure doesn't matter." (D-114) Hover/focus previews: affected nodes dim on the canvas.
   Below it **"If it fails, run…"** (DropDownButton): "A new step ›" area › step (added after this step with
   `when: failure`, selected) or a step already in the flow (no loops; an existing edge becomes a fallback).
-  Any new fallback (this menu, Connections, the edge menu) turns "Stop the flow" into "Skip what depends on it",
-  which is what the run does then (D-024), in the same undo step, with a tip (§5.7 #46); Skip and Keep going stay,
+  Any new fallback (this menu, Connections, the edge menu) turns "Stop the flow" into "Skip what follows",
+  which is what the run does then (D-024), in the same undo step, with a tip (§5.7 #46); Skip and Run the next steps anyway stay,
   and removing the fallback doesn't switch back (D-059).
 - Connections: one row per edge at the step ("Runs after Connect", "Show message runs after this") with a
   ComboBox "When it works" / "Only if it fails" / "Whatever happens".
@@ -269,12 +268,12 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   (#59) and the bar moves within that step; the called flow shows no pop-up of its own.
 
 ## 5.7 Microcopy (the OSD's D-026 voice: plain, friendly, sentence case)
-Step defaults card (Settings, D-080): "Step defaults" · "How long and how often steps try" / "A step that sets its own value keeps it." · empty "Set how long and how often steps try, once for every step of a type." · "Add a step type…" · row "Give up after 30 s · Try again 2 times · Wait 0.5 s between tries · Skip what depends on it" + "Used by 5 steps in 2 flows" / "Not used yet" · flyout "Give up after (seconds)", "Try again (times)", "Wait between tries (seconds)", "If it fails", each with Reset.
+Step defaults card (Settings, D-080): "Step defaults" · "How long and how often steps try" / "A step that sets its own value keeps it." · empty "Set how long and how often steps try, once for every step of a type." · "Add a step type…" · row "Give up after 30 s · Try again 2 times · Wait 0.5 s between tries · Skip what follows" + "Used by 5 steps in 2 flows" / "Not used yet" · flyout "Give up after (seconds)", "Try again (times)", "Wait between tries (seconds)", "If it fails", each with Reset.
 1 "This flow is empty" / "Add a step to start. Drag one from the left, or double-click anywhere." · 2 "No flows
 yet" / "A flow does a few things for you with one shortcut, like connecting your headphones and switching to
 them." · 3 "That would make a loop. A step can't wait for something that waits for it." · 4 "Steps in a card
-start together, so they can't wait for each other." · 5 policies "Stop the flow" · "Skip what depends on it" ·
-"Keep going" · 6 "May fail" · 7 "Technics isn't in your Library anymore. Pick another device." · 8 "Not
+start together, so they can't wait for each other." · 5 policies "Stop the flow" · "Skip what follows" ·
+"Run the next steps anyway" · 6 "Failure ignored" · 7 "Technics isn't in your Library anymore. Pick another device." · 8 "Not
 connected right now. The flow will still try." · 9 "Choose a device." / "Choose a flow." · 10 "This flow is turned off until you
 fix 2 problems. Your other flows still work." · 11 "Worked in 1.2 s." · 12 "Didn't work: Windows couldn't find
 Technics. Make sure it's on and paired, then try again." · 13 "Connect Technics is done." · 14 "Done, with a
@@ -294,7 +293,7 @@ windowed, then try again." · 33 "Couch TV didn't start. It needs fixing." · 34
 · 40 "Couch TV isn't there anymore. Remove it from the menu." · 41 "Wait for it to finish" / "Steps after the menu
 wait for the picked flow, and stop if it fails." · 42 "You picked Couch TV. Testing doesn't run it." · 43 (recorder) removed · 44 "Nothing picked" · 45 "These steps start together now, so the "if it fails" or
 "whatever happens" connection between them is gone." · 46 "If this fails, its fallback runs and the flow carries
-on, so it's set to "Skip what depends on it" now." · M13: 47 "Not needed" · 48 "Connect Technics didn't work, so
+on, so it's set to "Skip what follows" now." · M13: 47 "Not needed" · 48 "Connect Technics didn't work, so
 Connect Sony ran instead." · 49 "A flow can't run itself." · 50 "That would make a loop: Headphones runs Make it the
 default, which runs Headphones." · 51 "Make it the default isn't there anymore. Pick another flow." · 52 "Make it the
 default is turned off, so this step will fail. Turn it on in Flows." · 53 "Didn't run Make it the default: it's
@@ -336,7 +335,7 @@ contrast: solid background, no dots.
 - Flows list groups (M16, D-087): a header row per tray folder (chevron, folder glyph, name, "4 flows · 1 running", "n flows need fixing", `…` menu: Rename…, Ungroup, Turn all on/off, Move up/down); members 24 DIP in on a thin rail; the chevron or a click on the header collapses (per PC, `editor.json` `flowList.collapsedGroups`); card menu "Move to ›" = No group · each group · New group…. Header name "Audio, group, 4 flows, expanded".
 - M16 (checked 2026-11-05 by code and tests; the editor and tray were **not** run live, the user's installed engine holds the pipe): [x] drag, Alt+↑/↓/← and Move to reorder and regroup, one Undo each (`FlowReorderTests`, `GroupedListTests`); [x] sort, search, filter keep groups in place (`FlowViewTests`); [x] selection and bulk Group / Move / Turn on/off / Delete (`FlowSelectionTests`); [x] Duplicate = "X copy" after the original, shortcuts cleared, one Undo; "Show in tray menu" / "Line above in tray" write the flow and undo (`FlowDuplicateTrayTests`). **Open, for the user:** the tray menu changing live after those two toggles (engine running); drag insertion line and group look in light/dark/high contrast; "3 selected" read by Narrator is out of scope (D-091); 225 % text on rows and the command bar; long list scroll while dragging.
 - Light/dark/high contrast: every run state distinguishable without colour.
-- May-fail pill: dashed border + "May fail" chip + dashed incoming edge.
+- Failure-ignored pill: dashed border + "Failure ignored" chip + dashed incoming edge.
 - Dragging into a cycle shows the refusal tip and leaves no edge.
 - After any drop: columns aligned, gaps 64/16, no overlap.
 - 225 % text size: pills grow taller, nothing clips; pop-up grows too.

@@ -162,12 +162,12 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
 
     public static string Describe(FailurePolicy policy) => policy switch
     {
-        FailurePolicy.Skip => "Steps that wait for this one are skipped. Others carry on.",
-        FailurePolicy.Ignore => "This step may fail, and the flow carries on.",
-        _ => "Nothing after this runs.",
+        FailurePolicy.Skip => "If this fails, the steps after it are skipped. Steps on other paths carry on. Only an \"When it works\" follow-up is skipped; an \"Only if it fails\" step runs.",
+        FailurePolicy.Ignore => "If this fails, the steps after it still run, including the \"When it works\" ones, as if it had worked. Use it only when failure doesn't matter.",
+        _ => "If this fails, the whole flow stops.",
     };
 
-    /// <summary>0 Stop, 1 Skip, 2 Keep going (RadioButtons' SelectedIndex).</summary>
+    /// <summary>0 Stop, 1 Skip, 2 Run the next steps anyway (RadioButtons' SelectedIndex).</summary>
     [ObservableProperty]
     public partial int PolicyIndex { get; set; }
 
@@ -1034,7 +1034,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     /// <summary>
     /// What wouldn't run if <paramref name="id"/> failed (as <c>Scheduler</c> decides): Stop — everything except it and
     /// what it waits for, unless an "if it fails" edge handles it (then as Skip); Skip — what waits for it through "if it
-    /// works" edges, but not past "whatever happens" edges; Keep going — nothing. A card member fails into its card, whose
+    /// works" edges, but not past "whatever happens" edges; Run the next steps anyway — nothing. A card member fails into its card, whose
     /// policy decides. Cards bring their members.
     /// </summary>
     public static IReadOnlySet<string> Affected(Flow flow, string id, FailurePolicy policy)
