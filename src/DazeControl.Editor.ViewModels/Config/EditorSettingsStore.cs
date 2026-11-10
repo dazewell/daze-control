@@ -53,12 +53,27 @@ public sealed class FlowViewSettings
 
     public LayoutLines? Lines { get; set; }
 
+    /// <summary>Layout › Arrange (D-115).</summary>
+    public LayoutShape? Shape { get; set; }
+
+    /// <summary>Where the user dropped a step or card (its top-left corner), by step id (D-115).</summary>
+    public Dictionary<string, Point>? Pins { get; set; }
+
     [JsonIgnore]
-    public bool IsDefault => WrapAfter is null && Spacing is null && Align is null && Lines is null && Other is not { Count: > 0 };
+    public bool IsDefault => WrapAfter is null && Spacing is null && Align is null && Lines is null && Shape is null
+        && Pins is not { Count: > 0 } && Other is not { Count: > 0 };
 
     /// <summary>The layout these choices give.</summary>
-    public LayoutOptions ToOptions() => LayoutOptions.Of(WrapAfter ?? LayoutOptions.DefaultWrapAfter,
-        Spacing ?? LayoutSpacing.Normal, Align ?? LayoutAlign.Centre, Lines ?? LayoutLines.Curved);
+    public LayoutOptions ToOptions()
+    {
+        var options = LayoutOptions.Of(WrapAfter ?? LayoutOptions.DefaultWrapAfter,
+            Spacing ?? LayoutSpacing.Normal, Align ?? LayoutAlign.Centre, Lines ?? LayoutLines.Curved);
+        return Shape is null && Pins is not { Count: > 0 } ? options : options with
+        {
+            Shape = Shape ?? LayoutShape.Columns,
+            Pins = Pins is { Count: > 0 } ? new Dictionary<string, Point>(Pins, StringComparer.Ordinal) : null,
+        };
+    }
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Other { get; set; }

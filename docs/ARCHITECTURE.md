@@ -360,6 +360,9 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   `nodes` don't see the wrap. `EdgeCurve` is the Bézier + hit-test, or orthogonal (`IsOrthogonal`): the wrapped edge
   (`EdgeRoute.WrapLaneY` set on a row break and on the edge from a block's last box into the next line), or with
   Lines › Right angles every other edge (`BendX` = the gap's middle); `EdgeCurve.For(route, lines)` picks.
+  Arrange and hand placement (D-115): `LayoutOptions.Shape` (Columns / Tree / Circle: `TreeSpots`, `CircleSpots` replace the
+  column pass) and `Pins` (top-left per top-level id, applied after placement; members move with their card).
+  Edges touching a pin, and all on a circle, are `EdgeRoute.IsFloating` (facing sides, `EdgeCurve.Floating`, no detour or wrap lane).
   Layout menu (D-067): `LayoutOptions.Of(wrapAfter, spacing, align, lines)` (Compact 40/8, Normal 64/16, Roomy
   96/32 column/row gaps). The canvas VM reads this flow's `FlowViewSettings` at every `Sync` (`SetLayout`,
   `ResetLayout`: not flow edits, no undo); `ShellWindow` builds the flyout on `Opening` (radio items from the VM) and

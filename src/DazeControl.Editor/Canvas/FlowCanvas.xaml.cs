@@ -386,9 +386,11 @@ public sealed partial class FlowCanvas : UserControl
             curves[path].Figures.Add(figure);
 
             var arrows = accent ? SelectedArrows : edge.Style == EdgeStyle.IfFails ? IfFailsArrows : NormalArrows;
+            // The head's base is square to End → Tip: sideways into a port, or down/up into a hand-placed box (D-115).
             var arrow = new PathFigure { StartPoint = P(c.Tip), IsClosed = true, IsFilled = true };
-            arrow.Segments.Add(new LineSegment { Point = new(c.End.X, c.End.Y - 3.5) });
-            arrow.Segments.Add(new LineSegment { Point = new(c.End.X, c.End.Y + 3.5) });
+            var upright = Math.Abs(c.Tip.X - c.End.X) < Math.Abs(c.Tip.Y - c.End.Y);
+            arrow.Segments.Add(new LineSegment { Point = upright ? new(c.End.X - 3.5, c.End.Y) : new(c.End.X, c.End.Y - 3.5) });
+            arrow.Segments.Add(new LineSegment { Point = upright ? new(c.End.X + 3.5, c.End.Y) : new(c.End.X, c.End.Y + 3.5) });
             curves[arrows].Figures.Add(arrow);
 
             if (edge.Chip is { } chip)
@@ -677,6 +679,13 @@ public sealed partial class FlowCanvas : UserControl
                     ShowRefusal(_viewModel.Drop(node.Id, target.Id, zone), target);
                 else if (node.CardId is { } card && _viewModel.Find(card) is { } own && !own.Bounds.Contains(C(position)))
                     ShowRefusal(_viewModel.TakeOutOfCard(node.Id), own);
+                else if (node.CardId is null)
+                {
+                    // Dropped on empty canvas: it stays where it was put (D-115).
+                    var from = C(_pressContent);
+                    var to = C(position);
+                    _viewModel.PlaceAt(node.Id, new CorePoint(node.X + to.X - from.X, node.Y + to.Y - from.Y));
+                }
                 else
                     _viewModel.MoveToRow(node.Id, _viewModel.RowAt(node.Id, node.Bounds.CenterY + (position.Y - _pressContent.Y)));
                 break;
@@ -1036,6 +1045,8 @@ public sealed partial class FlowCanvas : UserControl
             menu.Items.Add(Item("Move up", "", () => vm.MoveInColumn(anchor.Id, -1), "Alt+Up", editable));
             menu.Items.Add(Item("Move down", "", () => vm.MoveInColumn(anchor.Id, 1), "Alt+Down", editable));
         }
+        if (selected.Any(vm.IsPlaced))
+            menu.Items.Add(Item("Put back in line", "", () => vm.Unplace(selected))); // placed by hand (D-115)
         if (vm.SelectedStepType is { } stepType)
             menu.Items.Add(Item($"Select all {ProviderCatalog.Find(stepType)?.Title ?? stepType} steps", "", () => vm.SelectAllOfType(stepType)));
         menu.Items.Add(Item("Delete", "", vm.DeleteSelection, "Del", editable));

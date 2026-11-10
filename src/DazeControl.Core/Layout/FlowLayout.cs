@@ -45,6 +45,28 @@ public enum LayoutLines
     RightAngles,
 }
 
+/// <summary>Layout menu › Arrange (D-115): where the automatic layout puts the boxes nobody placed by hand.</summary>
+public enum LayoutShape
+{
+    /// <summary>One column per layer, each centred on its line; long chains wrap (D-060).</summary>
+    Columns,
+
+    /// <summary>Columns too, but every box sits beside the step it waits for, branches fanning out from it.</summary>
+    Tree,
+
+    /// <summary>All boxes on one ring in run order, clockwise from the left.</summary>
+    Circle,
+}
+
+/// <summary>The side of a box an edge leaves from or enters at.</summary>
+public enum PortSide
+{
+    Right,
+    Left,
+    Top,
+    Bottom,
+}
+
 /// <summary>Spacing in DIP (UX §5.2, §5.3) and the Layout menu's choices (D-067).</summary>
 public sealed record LayoutOptions
 {
@@ -74,6 +96,14 @@ public sealed record LayoutOptions
 
     public LayoutLines Lines { get; init; } = LayoutLines.Curved;
 
+    public LayoutShape Shape { get; init; } = LayoutShape.Columns;
+
+    /// <summary>
+    /// Top-left corners of the top-level boxes the user dragged somewhere (D-115); everything else is laid out as
+    /// if they weren't. Null = none (so two default options stay equal).
+    /// </summary>
+    public IReadOnlyDictionary<string, Point>? Pins { get; init; }
+
     /// <summary>Column and row gap for a Spacing choice: Compact 40/8, Normal 64/16, Roomy 96/32 (D-067).</summary>
     public static (double Column, double Row) Gaps(LayoutSpacing spacing) => spacing switch
     {
@@ -98,7 +128,15 @@ public sealed record NodeBox(string Id, Rect Bounds, int Column, int Row, string
 /// <summary>An edge between two top-level boxes; an edge naming a card member is drawn from/to its card.</summary>
 /// <param name="WrapLaneY">Set on an edge from a wrapped row's end to the next row's start (D-060), or from a block's
 /// last box to the line under it (D-066): the gap's middle; or on a long edge that detours round the boxes it skips (D-111): the lane.</param>
-public sealed record EdgeRoute(string From, string To, EdgeWhen When, Point Start, Point End, double? WrapLaneY = null);
+/// <param name="Leaves">The side of the source the edge starts on: the right, except between boxes placed by hand
+/// or on a ring (D-115), where it is the side facing the target.</param>
+/// <param name="Enters">The side of the target the arrow points into.</param>
+public sealed record EdgeRoute(string From, string To, EdgeWhen When, Point Start, Point End, double? WrapLaneY = null,
+    PortSide Leaves = PortSide.Right, PortSide Enters = PortSide.Left)
+{
+    /// <summary>Not the usual right → left: drawn as a curve between the two facing sides.</summary>
+    public bool IsFloating => Leaves != PortSide.Right || Enters != PortSide.Left;
+}
 
 /// <param name="Columns">Top-level ids per column, top to bottom.</param>
 public sealed record FlowArrangement(
@@ -111,7 +149,8 @@ public sealed record FlowArrangement(
 }
 
 /// <summary>
-/// The canvas layout, always automatic (D-020): one column per layer left→right, a node's layer = 1 + the
+/// The canvas layout, automatic (D-020) except for boxes the user placed by hand and the Arrange choice (D-115,
+/// <see cref="LayoutOptions.Pins"/>, <see cref="LayoutOptions.Shape"/>). Columns: one column per layer left→right, a node's layer = 1 + the
 /// highest layer it waits for, order within a column = order in <see cref="Flow.Nodes"/>. Columns are centred on
 /// the tallest of their line (or hung from its top, <see cref="LayoutOptions.Align"/>); long simple chains wrap onto rows (D-060) and what follows starts a new line under the
 /// block (D-066). Works on invalid flows too (autosave keeps half-built ones): cycles and unknown ids are ignored.
@@ -262,10 +301,24 @@ public static class FlowLayout
         // Lines, read like text (D-066): a line is the columns up to and including the next wrapped block; the line
         // after a block starts at the block's x, one WrapRowGap under it, and its columns are centred among themselves.
         var wrapLanes = new Dictionary<(string, string), double>();
+        var spots = o.Shape switch
+        {
+            LayoutShape.Tree => TreeSpots(columns, edges, layers, sizes, o),
+            LayoutShape.Circle => CircleSpots(columns, sizes, o),
+            _ => null,
+        };
+        if (spots is not null)
+        {
+            for (var l = 0; l < columns.Count; l++)
+            {
+                for (var r = 0; r < columns[l].Count; r++)
+                    Place(columns[l][r], spots[columns[l][r]].X, spots[columns[l][r]].Y, l, r);
+            }
+        }
         double Offset(double room, double height) => o.Align == LayoutAlign.Top ? 0 : (room - height) / 2;
         var lineX = o.Padding;
         var lineTop = o.Padding;
-        for (var c = 0; c < columns.Count;)
+        for (var c = 0; spots is null && c < columns.Count;)
         {
             var end = c;
             while (end < columns.Count && !runs.ContainsKey(end))
@@ -317,6 +370,22 @@ public static class FlowLayout
             c += length;
         }
 
+        // Boxes placed by hand (D-115): moved, with their members, after everything else took its automatic place.
+        var pinned = new HashSet<string>(StringComparer.Ordinal);
+        if (o.Pins is { Count: > 0 } pins)
+        {
+            var laidOut = boxes.Where(b => b.Card is null).ToDictionary(b => b.Id, b => b.Bounds, StringComparer.Ordinal);
+            for (var i = 0; i < boxes.Count; i++)
+            {
+                var top = boxes[i].Card ?? boxes[i].Id;
+                if (!pins.TryGetValue(top, out var pin))
+                    continue;
+                var r = boxes[i].Bounds;
+                boxes[i] = boxes[i] with { Bounds = r with { X = r.X + Math.Max(0, pin.X) - laidOut[top].X, Y = r.Y + Math.Max(0, pin.Y) - laidOut[top].Y } };
+                pinned.Add(top);
+            }
+        }
+
         var byId = boxes.Where(b => b.Card is null).ToDictionary(b => b.Id, b => b.Bounds, StringComparer.Ordinal);
         var routes = new List<EdgeRoute>();
         var detourBottom = 0.0;
@@ -324,6 +393,11 @@ public static class FlowLayout
         {
             if (byId.TryGetValue(from, out var a) && byId.TryGetValue(to, out var b))
             {
+                if (o.Shape == LayoutShape.Circle || pinned.Contains(from) || pinned.Contains(to))
+                {
+                    routes.Add(Floating(from, to, when, a, b));
+                    continue;
+                }
                 var start = new Point(a.Right, a.CenterY);
                 var end = new Point(b.X, b.CenterY);
                 double? lane = wrapLanes.TryGetValue((from, to), out var wrapLane) ? wrapLane : DetourLane(byId, from, to, start, end, o);
@@ -336,6 +410,130 @@ public static class FlowLayout
         var right = boxes.Count == 0 ? o.Padding : boxes.Max(b => b.Bounds.Right);
         var bottom = Math.Max(boxes.Count == 0 ? o.Padding : boxes.Max(b => b.Bounds.Bottom), detourBottom);
         return new FlowArrangement(boxes, routes, columns, new Size(right + o.Padding, bottom + o.Padding));
+    }
+
+    /// <summary>
+    /// An edge between the two sides that face each other (D-115): sideways when the boxes are further apart
+    /// sideways than up and down, else from the bottom of one into the top of the other (or the reverse).
+    /// </summary>
+    private static EdgeRoute Floating(string from, string to, EdgeWhen when, Rect a, Rect b)
+    {
+        var gapX = Math.Max(b.X - a.Right, a.X - b.Right);
+        var gapY = Math.Max(b.Y - a.Bottom, a.Y - b.Bottom);
+        PortSide leaves, enters;
+        if (gapX >= gapY)
+            (leaves, enters) = b.X + b.Width / 2 >= a.X + a.Width / 2 ? (PortSide.Right, PortSide.Left) : (PortSide.Left, PortSide.Right);
+        else
+            (leaves, enters) = b.CenterY >= a.CenterY ? (PortSide.Bottom, PortSide.Top) : (PortSide.Top, PortSide.Bottom);
+        return new EdgeRoute(from, to, when, PortAt(a, leaves), PortAt(b, enters), null, leaves, enters);
+    }
+
+    /// <summary>The middle of a box's side.</summary>
+    public static Point PortAt(Rect box, PortSide side) => side switch
+    {
+        PortSide.Left => new(box.X, box.CenterY),
+        PortSide.Top => new(box.X + box.Width / 2, box.Y),
+        PortSide.Bottom => new(box.X + box.Width / 2, box.Bottom),
+        _ => new(box.Right, box.CenterY),
+    };
+
+    /// <summary>
+    /// Arrange › Tree (D-115): a box keeps its layer's column but sits in the band of the step it waits for (the
+    /// deepest one; the first on a tie), which is centred on its branches. Roots stack in <c>nodes</c> order.
+    /// </summary>
+    private static Dictionary<string, Point> TreeSpots(
+        List<List<string>> columns, IReadOnlyList<(string From, string To, EdgeWhen When)> edges, Dictionary<string, int> layers,
+        Dictionary<string, Size> sizes, LayoutOptions o)
+    {
+        var xs = new double[columns.Count];
+        var x = o.Padding;
+        for (var c = 0; c < columns.Count; c++)
+        {
+            xs[c] = x;
+            x += (columns[c].Count == 0 ? 0 : columns[c].Max(id => sizes[id].Width)) + o.ColumnGap;
+        }
+
+        var parent = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (from, to, _) in edges)
+        {
+            // Only edges that go a layer deeper: an edge of a cycle (a half-built flow) can't make a tree.
+            if (layers.TryGetValue(from, out var a) && layers.TryGetValue(to, out var b) && a < b
+                && (!parent.TryGetValue(to, out var known) || a > layers[known]))
+                parent[to] = from;
+        }
+        var children = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        var roots = new List<string>();
+        foreach (var id in columns.SelectMany(c => c))
+        {
+            if (!parent.TryGetValue(id, out var p))
+                roots.Add(id);
+            else if (children.TryGetValue(p, out var list))
+                list.Add(id);
+            else
+                children[p] = [id];
+        }
+
+        var spans = new Dictionary<string, double>(StringComparer.Ordinal);
+        double Branches(string id) => children.TryGetValue(id, out var list) ? list.Sum(Span) + o.RowGap * (list.Count - 1) : 0;
+        double Span(string id) => spans.TryGetValue(id, out var known) ? known : spans[id] = Math.Max(sizes[id].Height, Branches(id));
+
+        var spots = new Dictionary<string, Point>(StringComparer.Ordinal);
+        void Put(string id, double top)
+        {
+            var span = Span(id);
+            spots[id] = new Point(xs[layers[id]], top + (span - sizes[id].Height) / 2);
+            if (!children.TryGetValue(id, out var list))
+                return;
+            var y = top + (span - Branches(id)) / 2;
+            foreach (var child in list)
+            {
+                Put(child, y);
+                y += Span(child) + o.RowGap;
+            }
+            // Midway between its first and last branch (their bands may differ in height), not the band's middle.
+            var middle = (spots[list[0]].Y + sizes[list[0]].Height / 2 + spots[list[^1]].Y + sizes[list[^1]].Height / 2) / 2;
+            spots[id] = spots[id] with { Y = Math.Clamp(middle - sizes[id].Height / 2, top, top + span - sizes[id].Height) };
+        }
+        var rootTop = o.Padding;
+        foreach (var root in roots)
+        {
+            Put(root, rootTop);
+            rootTop += Span(root) + o.RowGap;
+        }
+        return spots;
+    }
+
+    /// <summary>
+    /// Arrange › Circle (D-115): every top-level box on one ellipse in run order (by column, then row), the first on
+    /// the left and the rest clockwise, so the upper half still reads left to right. The radii grow with the count:
+    /// wide enough that neighbours at the top and bottom clear each other sideways, tall enough at the sides.
+    /// </summary>
+    private static Dictionary<string, Point> CircleSpots(List<List<string>> columns, Dictionary<string, Size> sizes, LayoutOptions o)
+    {
+        var ids = columns.SelectMany(c => c).ToList();
+        var spots = new Dictionary<string, Point>(StringComparer.Ordinal);
+        if (ids.Count == 0)
+            return spots;
+        var width = ids.Max(id => sizes[id].Width);
+        var height = ids.Max(id => sizes[id].Height);
+        if (ids.Count == 1)
+        {
+            spots[ids[0]] = new Point(o.Padding, o.Padding);
+            return spots;
+        }
+        // √2: between the top and a side, neighbours are apart only partly sideways and partly up and down.
+        var k = Math.Sqrt(2) * ids.Count / (2 * Math.PI);
+        var rx = k * (width + o.ColumnGap);
+        var ry = Math.Max(k * (height + o.RowGap), height + 2 * o.RowGap);
+        var cx = o.Padding + rx + width / 2;
+        var cy = o.Padding + ry + height / 2;
+        for (var i = 0; i < ids.Count; i++)
+        {
+            var t = 2 * Math.PI * i / ids.Count;
+            var size = sizes[ids[i]];
+            spots[ids[i]] = new Point(cx - rx * Math.Cos(t) - size.Width / 2, cy - ry * Math.Sin(t) - size.Height / 2);
+        }
+        return spots;
     }
 
     private const double DetourClearance = 14;

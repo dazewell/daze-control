@@ -69,8 +69,8 @@ that is absent (no shortcut, no run, no dot, empty trigger) takes its separator 
 changing anyway). The slot rule above is for standalone status and buttons, not for parts of a sentence.
 
 ## 5.2 Canvas interaction
-- **Layout is always automatic** (D-020): left→right columns (one per layer), gaps 64 between columns, 16
-  between rows. Users choose connections and order within a column, never x/y; dragging regroups/reorders and
+- **Layout is automatic unless you place a step yourself** (D-020, D-115): left→right columns (one per layer), gaps 64 between columns, 16
+  between rows. Users choose connections and order within a column; dragging onto a step regroups/reorders, onto empty canvas places it, and
   nodes glide to their slot. Mind-map feel without chaos; no coordinates in YAML.
 - Create: drag from the palette · double-click empty canvas or `/` → search flyout at the pointer · "+" on a
   selected node's output port (adds connected after) · "+" on an edge midpoint (insert).
@@ -108,11 +108,11 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   side-by-side branches keep their own columns (D-060). Whatever follows a wrapped chain starts on a new line
   under it, at its left edge, joined like the wrapped rows (D-066).
 - **Layout** (M13, replaces Tidy up, D-067): a CommandBar flyout, per flow on this PC, applied at once (not a flow
-  edit, no undo): Wrap long chains (After 3 steps / After 5 steps / After 8 steps / Never) · Spacing (Compact /
+  edit, no undo): Arrange (In columns / As a tree / In a circle; a pick lays every step out afresh, D-115) · Wrap long chains (After 3 steps / After 5 steps / After 8 steps / Never) · Spacing (Compact /
   Normal / Roomy) · Line up (Centred / Along the top) · Lines (Curved / Right angles) · separator · **Untangle lines**
   (reorders steps within columns, a flow edit with undo; off with its reason when it can't help) · Reset layout.
   Radio items show the current choice; strings #63. Untangle off shows its reason where a shortcut would sit (a
-  disabled item has no tooltip). Reset layout is off while the flow has the default layout. After a pick the canvas
+  disabled item has no tooltip). Reset layout is off while the flow has the default layout and no step was placed by hand. A step or card dropped on empty canvas stays there (8-DIP grid, this PC only, D-115); its lines join the facing sides; its menu gets **Put back in line**. After a pick the canvas
   has focus, so Ctrl+Z undoes Untangle.
 
 ## 5.3 Visual language

@@ -36,6 +36,8 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
         ArgumentNullException.ThrowIfNull(route);
         if (route.WrapLaneY is { } lane)
             return Wrapped(route.Start, route.End, lane);
+        if (route.IsFloating)
+            return Floating(route.Start, route.End, route.Leaves, route.Enters); // a curve whatever Lines says (D-115)
         return lines == LayoutLines.RightAngles ? RightAngled(route.Start, route.End) : Between(route.Start, route.End);
     }
 
@@ -87,6 +89,28 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
         }
         yield return (p[^1], null, p[^1]);
     }
+
+    /// <summary>
+    /// A curve that leaves <paramref name="start"/> straight out of one side and points into another (D-115); the
+    /// arrowhead lies along the entering side's normal.
+    /// </summary>
+    public static EdgeCurve Floating(Point start, Point tip, PortSide leaves, PortSide enters)
+    {
+        var (ox, oy) = Outward(leaves);
+        var (ix, iy) = Outward(enters);
+        var end = new Point(tip.X + ix * ArrowLength, tip.Y + iy * ArrowLength);
+        var sideways = leaves is PortSide.Right or PortSide.Left;
+        var reach = Math.Max(32, (sideways ? Math.Abs(end.X - start.X) : Math.Abs(end.Y - start.Y)) / 2);
+        return new EdgeCurve(start, new Point(start.X + ox * reach, start.Y + oy * reach), new Point(end.X + ix * reach, end.Y + iy * reach), end, tip);
+    }
+
+    private static (double X, double Y) Outward(PortSide side) => side switch
+    {
+        PortSide.Left => (-1, 0),
+        PortSide.Top => (0, -1),
+        PortSide.Bottom => (0, 1),
+        _ => (1, 0),
+    };
 
     public static EdgeCurve Between(Point start, Point tip)
     {

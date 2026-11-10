@@ -58,6 +58,68 @@ public sealed class LayoutMenuTests : IDisposable
     }
 
     [Fact]
+    public void ADroppedStepStaysWhereItWasPutSnappedToTheGridAndIsNotAFlowEdit()
+    {
+        var bt = (Node("bt").X, Node("bt").Y);
+
+        Assert.True(_canvas.PlaceAt("out", new Point(403, 317)));
+
+        Assert.Equal((400, 320), (Node("out").X, Node("out").Y));
+        Assert.Equal(bt, (Node("bt").X, Node("bt").Y));
+        Assert.True(_canvas.IsPlaced("out"));
+        Assert.False(_session.HasUnsavedChanges);
+        Assert.False(_canvas.CanUndo);
+
+        Restart();
+
+        Assert.Equal((400, 320), (Node("out").X, Node("out").Y));
+    }
+
+    [Fact]
+    public void PutBackInLineAndResetLayoutLetTheLayoutPlaceAStepAgain()
+    {
+        var auto = (Node("out").X, Node("out").Y);
+        _canvas.PlaceAt("out", new Point(400, 320));
+
+        _canvas.Unplace(["out", "bt"]);
+
+        Assert.Equal(auto, (Node("out").X, Node("out").Y));
+        Assert.Empty(_store.Settings.Flows);
+
+        _canvas.PlaceAt("out", new Point(400, 320));
+        Assert.False(_canvas.LayoutChoices.IsDefault);
+        _canvas.ResetLayout();
+
+        Assert.Equal(auto, (Node("out").X, Node("out").Y));
+        Assert.Empty(_store.Settings.Flows);
+    }
+
+    [Fact]
+    public void PickingAnArrangementLaysEverythingOutAfreshAndIsRemembered()
+    {
+        _canvas.PlaceAt("out", new Point(400, 320));
+
+        _canvas.SetLayout(shape: LayoutShape.Circle);
+
+        Assert.False(_canvas.IsPlaced("out"));
+        Assert.Equal(LayoutShape.Circle, _canvas.LayoutOptions.Shape);
+        Assert.False(_session.HasUnsavedChanges);
+
+        Restart();
+
+        Assert.Equal(LayoutShape.Circle, _canvas.LayoutOptions.Shape);
+        _canvas.SetLayout(shape: LayoutShape.Columns);
+        Assert.Empty(_store.Settings.Flows);
+    }
+
+    [Fact]
+    public void AStepThatIsNotOnTheCanvasCannotBePlaced()
+    {
+        Assert.False(_canvas.PlaceAt("nope", new Point(10, 10)));
+        Assert.Empty(_store.Settings.Flows);
+    }
+
+    [Fact]
     public void AChoiceLaysTheFlowOutAgainAtOnceAndIsNotAFlowEdit()
     {
         var column = Node("out").X - Node("bt").X;

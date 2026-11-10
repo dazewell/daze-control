@@ -710,9 +710,11 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     public LayoutOptions LayoutOptions => LayoutChoices.ToOptions();
 
     /// <summary>Changes this flow's layout choices and lays it out again at once; a default value isn't stored.</summary>
-    public void SetLayout(int? wrapAfter = null, LayoutSpacing? spacing = null, LayoutAlign? align = null, LayoutLines? lines = null)
+    /// <remarks>Picking an Arrange shape lays everything out afresh: steps placed by hand go back into it (D-115).</remarks>
+    public void SetLayout(int? wrapAfter = null, LayoutSpacing? spacing = null, LayoutAlign? align = null, LayoutLines? lines = null,
+        LayoutShape? shape = null)
     {
-        void Change(FlowViewSettings v)
+        ChangeView(v =>
         {
             if (wrapAfter is { } w)
                 v.WrapAfter = w == LayoutOptions.DefaultWrapAfter ? null : Math.Max(0, w);
@@ -722,16 +724,26 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
                 v.Align = a == LayoutAlign.Centre ? null : a;
             if (lines is { } l)
                 v.Lines = l == LayoutLines.Curved ? null : l;
-        }
+            if (shape is { } sh)
+            {
+                v.Shape = sh == LayoutShape.Columns ? null : sh;
+                v.Pins = null;
+            }
+        });
+    }
+
+    /// <summary>Changes this flow's view choices (stored only while they differ from the default) and lays it out again.</summary>
+    private void ChangeView(Action<FlowViewSettings> change)
+    {
         if (_settings is null)
-            Change(_localView);
+            change(_localView);
         else
         {
             var id = FlowId;
             _settings.Update(s =>
             {
                 var view = s.Flows.GetValueOrDefault(id) ?? new FlowViewSettings();
-                Change(view);
+                change(view);
                 if (view.IsDefault)
                     s.Flows.Remove(id);
                 else
@@ -741,10 +753,54 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         Sync();
     }
 
+    /// <summary>Dropped steps snap to this grid, so hand-placed ones line up easily.</summary>
+    public const double PlaceGrid = 8;
+
+    /// <summary>
+    /// Puts a step or card (not a card's member) where it was dropped: <paramref name="topLeft"/> snapped to
+    /// <see cref="PlaceGrid"/> (D-115). A view choice like the rest of the Layout menu: this PC only, not a flow
+    /// edit, no undo; the lines follow. False when <paramref name="id"/> can't be placed.
+    /// </summary>
+    public bool PlaceAt(string id, Point topLeft)
+    {
+        if (Flow is not { } flow || Find(id) is not { CardId: null })
+            return false;
+        var spot = new Point(Math.Max(0, Math.Round(topLeft.X / PlaceGrid) * PlaceGrid), Math.Max(0, Math.Round(topLeft.Y / PlaceGrid) * PlaceGrid));
+        var known = flow.Nodes.Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
+        ChangeView(v =>
+        {
+            var pins = v.Pins ?? new Dictionary<string, Point>(StringComparer.Ordinal);
+            foreach (var gone in pins.Keys.Where(k => !known.Contains(k)).ToList())
+                pins.Remove(gone); // deleted or renamed steps
+            pins[id] = spot;
+            v.Pins = pins;
+        });
+        return true;
+    }
+
+    /// <summary>Whether the user placed this step or card by hand.</summary>
+    public bool IsPlaced(string id) => LayoutChoices.Pins?.ContainsKey(id) == true;
+
+    /// <summary>"Put back in line": the automatic layout places these again.</summary>
+    public void Unplace(IEnumerable<string> ids)
+    {
+        var back = ids.Where(IsPlaced).ToList();
+        if (back.Count == 0)
+            return;
+        ChangeView(v =>
+        {
+            foreach (var id in back)
+                v.Pins?.Remove(id);
+            if (v.Pins is { Count: 0 })
+                v.Pins = null;
+        });
+    }
+
     /// <summary>Layout › Reset layout: this flow back to the default choices; keys a newer editor wrote are kept.</summary>
     public void ResetLayout()
     {
-        static void Clear(FlowViewSettings v) => (v.WrapAfter, v.Spacing, v.Align, v.Lines) = (null, null, null, null);
+        static void Clear(FlowViewSettings v) =>
+            (v.WrapAfter, v.Spacing, v.Align, v.Lines, v.Shape, v.Pins) = (null, null, null, null, null, null);
         if (_settings is null)
             Clear(_localView);
         else if (_settings.Settings.Flows.ContainsKey(FlowId))

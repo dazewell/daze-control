@@ -1246,6 +1246,9 @@ public sealed partial class ShellWindow : Window
             return;
         var o = editor.LayoutOptions;
         var spacing = editor.LayoutChoices.Spacing ?? Core.Layout.LayoutSpacing.Normal;
+        LayoutMenu.Items.Add(LayoutChoice("Arrange", "shape", o.Shape,
+            [("In columns", Core.Layout.LayoutShape.Columns), ("As a tree", Core.Layout.LayoutShape.Tree), ("In a circle", Core.Layout.LayoutShape.Circle)],
+            v => editor.SetLayout(shape: v)));
         LayoutMenu.Items.Add(LayoutChoice("Wrap long chains", "wrap", o.WrapAfter,
             [("After 3 steps", 3), ("After 5 steps", 5), ("After 8 steps", 8), ("Never", 0)], v => editor.SetLayout(wrapAfter: v)));
         LayoutMenu.Items.Add(LayoutChoice("Spacing", "spacing", spacing,

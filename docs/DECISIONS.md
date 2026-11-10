@@ -1481,3 +1481,22 @@ Status: accepted (wording only; supersedes the names in D-024/D-025/D-059; YAML 
   happens to "When it works" and "Only if it fails" links: Skip drops only the first, Run anyway runs both (D-025).
 - Why: a user picked "Keep going" meaning "skip the dependents", and a failed check ran both messages on wake from sleep.
 - Revisit if: users still confuse the second and third option.
+
+## D-115 · 2026-11-09 · Steps can be placed by hand; Arrange offers columns, a tree or a circle
+Status: accepted (user, 2026-11-09: "does not allow moving the actions where I want… tree, circular, or some other structures";
+supersedes D-020's "never sets x/y" and D-067's "why not circular or tree"; the rest of both stands)
+- Decision: dropping a step or card on empty canvas keeps it there (`FlowCanvasViewModel.PlaceAt`, snapped to 8 DIP;
+  a member still reorders inside its card; drops on another step still mean Run after / before / together). Layout ›
+  **Arrange**: In columns (as before) / As a tree (same columns, each step beside the one it waits for) / In a circle
+  (run order, clockwise from the left). Picking an arrangement or Reset layout lets go of every hand-placed step;
+  "Put back in line" (step menu) lets go of the selected ones. Lines to a hand-placed step, and all lines on the circle,
+  join the two sides that face each other (`EdgeRoute.Leaves`/`Enters`, always curved). All of it is view state in
+  `editor.json` (`FlowViewSettings.Shape`, `Pins`, D-068): not a flow edit, no undo, never in YAML.
+- Why: the tools people know (n8n, Node-RED, Power Automate, draw.io) let you drag a box anywhere and pick a layout.
+  Tree and circle are deterministic here (layers and `nodes` order decide), which answers D-067's objection; a join
+  hangs under the deepest step it waits for and the other lines still reach it.
+- Why not coordinates in YAML (D-020's `pos`): every drag would hot-reload the engine and churn the file. Why not
+  move the ports with the lines: connect/drop zones and keyboard order stay left → right, so run order is still
+  readable from the flow, not the picture. Why not top-to-bottom: still a second canvas (D-067).
+- Revisit if: users want placement to follow the config to another PC, Ctrl+Z for a move, dragging several selected
+  steps at once, or right-angled lines between hand-placed steps.
