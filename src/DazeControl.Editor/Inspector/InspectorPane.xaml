@@ -632,7 +632,7 @@
                              IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" />
                 </Grid>
 
-                <ComboBox Header="Group" IsEditable="True" Text="{x:Bind ViewModel.TrayFolder, Mode=TwoWay}"
+                <ComboBox Header="Group" IsEditable="True" LostFocus="OnGroupLostFocus" Text="{x:Bind ViewModel.TrayFolder, Mode=TwoWay}"
                           AutomationProperties.HelpText="Also the folder in the tray menu"
                           ItemsSource="{x:Bind ViewModel.Folders, Mode=OneWay}" PlaceholderText="None" HorizontalAlignment="Stretch" />
                 <CheckBox Content="Line above it" IsChecked="{x:Bind ViewModel.LineAbove, Mode=TwoWay}" />
