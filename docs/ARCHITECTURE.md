@@ -557,9 +557,7 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
   Ctrl+L "Runs after…" (wait for the M8 inspector), the outline's live region for run results (M9),
   multi-select in the outline.
 
-- Long canvas edges (skipping a column) are a straight Bézier and can cross a pill in the skipped column; layered
-  layouts usually route them through dummy nodes. Fix if real flows look messy. The Layout menu's "Right angles"
-  (D-067) routes orthogonally but doesn't dodge pills either.
+- Long canvas edges that would cross a pill detour round it (D-111). Several detours may share a lane.
 
 - A value of the wrong *shape* (a list where a scalar belongs, e.g. `timeout: [5s]`, `hotkeys: Alt+Z`) still
   rejects the whole file; only `with:` and `after:` are shape-tolerant so far (D-023 covers bad scalar values).
