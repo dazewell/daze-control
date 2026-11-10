@@ -667,6 +667,23 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         PolicyIndex = (int)(card.OnFailure ?? FailurePolicy.Stop);
     }
 
+    private string? _foldersFlowId;
+
+    private void SetFolders(Flow flow, bool includeOwn)
+    {
+        var folders = _session.Current.Flows.Where(f => includeOwn || f.Id != flow.Id).Select(f => f.Tray.Folder).OfType<string>()
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.CurrentCulture).ToList();
+        if (!folders.SequenceEqual(Folders))
+            Folders = folders;
+    }
+
+    /// <summary>The Group box lost focus: its text is a choice now, so the list holds it and the box keeps showing it.</summary>
+    public void CommitFolder()
+    {
+        if (_canvas.Flow is { } flow)
+            SetFolders(flow, includeOwn: true);
+    }
+
     private void LoadFlow(Flow flow)
     {
         FlowName = flow.Name;
@@ -676,11 +693,11 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         if (TrayFolder.Trim() != (flow.Tray.Folder ?? ""))
             TrayFolder = flow.Tray.Folder ?? "";
         LineAbove = flow.Tray.Separator;
-        // Other flows' folders only: this flow's own text would grow the list with every typed letter.
-        var folders = _session.Current.Flows.Where(f => f.Id != flow.Id).Select(f => f.Tray.Folder).OfType<string>()
-            .Distinct(StringComparer.Ordinal).Order(StringComparer.CurrentCulture).ToList();
-        if (!folders.SequenceEqual(Folders))
-            Folders = folders;
+        // Other flows' folders only while typing: this flow's own text would grow the list with every typed letter.
+        // A different flow (or the box losing focus: CommitFolder) lists its own folder too, so the box can show it.
+        var own = _foldersFlowId != flow.Id;
+        _foldersFlowId = flow.Id;
+        SetFolders(flow, includeOwn: own);
         WhenRunningIndex = (int)flow.WhenRunning;
         ShowPopup = flow.Popup;
         LoadInputs(flow);

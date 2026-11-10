@@ -22,6 +22,8 @@ public sealed partial class InspectorPane : UserControl
         InitializeComponent();
     }
 
+    private void OnGroupLostFocus(object sender, RoutedEventArgs e) => _viewModel?.CommitFolder();
+
     /// <summary>The window the file picker belongs to (unpackaged apps must say).</summary>
     public nint WindowHandle { get; set; }
 

@@ -447,6 +447,16 @@ public sealed class InspectorViewModelTests : IDisposable
     }
 
     [Fact]
+    public void ANewlyTypedGroupStaysInTheListAndYamlAfterTheBoxLosesFocus()
+    {
+        _inspector.TrayFolder = "Brand New";
+        _inspector.CommitFolder(); // focus left the box
+        Assert.Contains("Brand New", _inspector.Folders);
+        Assert.Equal("Brand New", _inspector.TrayFolder);
+        Assert.Equal("Brand New", _canvas.Flow!.Tray.Folder);
+    }
+
+    [Fact]
     public void ShortcutsAreRecordedAddedAndRemoved()
     {
         _inspector.AddShortcutCommand.Execute(null);
