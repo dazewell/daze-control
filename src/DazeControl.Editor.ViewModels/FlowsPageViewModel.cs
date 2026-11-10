@@ -778,8 +778,14 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
     {
         _ = EndUndoAsync();
         var ids = _session.Current.Flows.Select(f => f.Id).ToHashSet(StringComparer.Ordinal);
-        Commit(c => c with { Flows = [.. c.Flows, new Flow(FlowIds.Unique("new-flow", ids), "New flow", [])] });
+        var id = FlowIds.Unique("new-flow", ids);
+        Commit(c => c with { Flows = [.. c.Flows, new Flow(id, "New flow", [])] });
+        if (_session.Current.Flows.Any(x => x.Id == id))
+            FlowCreated?.Invoke(id);
     }
+
+    /// <summary>A flow was just created from the list: the shell opens it in the editor.</summary>
+    public event Action<string>? FlowCreated;
 
     /// <summary>"Controller menu" (DESIGN §3.7): a large menu of the first four flows,. It has no trigger yet: give it a shortcut (D-086).</summary>
     public const string ControllerMenuName = "Controller menu";
@@ -803,6 +809,8 @@ public sealed partial class FlowsPageViewModel : ObservableObject, IDisposable
         var ids = _session.Current.Flows.Select(f => f.Id).ToHashSet(StringComparer.Ordinal);
         var flow = ControllerMenu(_session.Current, FlowIds.Unique("controller-menu", ids));
         Commit(c => c with { Flows = [.. c.Flows, flow] });
+        if (_session.Current.Flows.Any(x => x.Id == flow.Id))
+            FlowCreated?.Invoke(flow.Id);
     }
 
     /// <summary>The flows Undo would put back, and where they were (D-076).</summary>

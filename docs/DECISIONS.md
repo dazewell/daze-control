@@ -1447,7 +1447,18 @@ Status: accepted (user, 2026-11-09). Refines D-043/D-109 for the editor card.
   still applies (with D-109's re-check), so updates need no editor.
 - Why not install the newer one at once: the editor closes right after, so the notice would never be read.
 
-## D-111 · 2026-11-09 · Inspector value controls ignore the mouse wheel
+## D-111 · 2026-11-09 · A long edge detours round the steps it would strike through
+Status: accepted (fix for a user report: check → restore → show message plus check → show message drew through restore)
+- Decision: `FlowLayout` gives an edge that skips columns and would cross a pill (sampled along its drawn line, Curved or
+  Right angles) a lane just above or below every box between its ends (nearer side, 14 DIP clear). It reuses the wrapped
+  edge's orthogonal shape (`EdgeRoute.WrapLaneY`: out 16, along the lane, down 16 before the port), so hit-test, chip and
+  "+/×" controls need no new code; the extent grows to hold the lane. Clear lines stay Bézier curves.
+- Why: D-020 means steps can't be moved by hand and no Layout command could ever resolve it, so the router must.
+  Why not dummy-node layers: every long edge would widen the flow by a column of empty slots.
+- Revisit if: several detours stack on one lane and overlap (lane per edge), or lines should dodge other edges.
+
+
+## D-112 · 2026-11-09 · Inspector value controls ignore the mouse wheel
 - `WheelGuard.IsEnabled` (attached, no reflection) is set by implicit styles for ComboBox, NumberBox, Slider and ToggleSwitch in InspectorPane.xaml: the wheel is marked handled and scrolls the nearest scrollable ScrollViewer; an open combo box keeps it for its list. New config controls inherit it with no markup.
 - Group header right-click opens its menu at the pointer (Menu key / Shift+F10 still anchor to the "…" button). The nav hamburger (`TogglePaneButton`) is stretched in code after load, since the template has no knob for it.
 - Only checked by building: run `scripts/dev-run.ps1` to see the wheel, the menu position and the hamburger row.

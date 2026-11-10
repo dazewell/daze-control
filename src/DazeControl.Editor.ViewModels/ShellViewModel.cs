@@ -39,6 +39,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         Library = new LibraryPage.LibraryPageViewModel(session, engine, post);
         Runs = new Runs.RunsPageViewModel(session, engine, post);
         Library.FlowRequested += OnLibraryFlowRequested;
+        Flows.FlowCreated += OpenFlow;
         Session.FlowRenamed += OnFlowRenamed;
         _engine.StateChanged += OnEngineStateChanged;
         EngineRunning = engine.IsRunning;
@@ -267,6 +268,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     {
         _engine.StateChanged -= OnEngineStateChanged;
         Library.FlowRequested -= OnLibraryFlowRequested;
+        Flows.FlowCreated -= OpenFlow;
         Session.FlowRenamed -= OnFlowRenamed;
         Run?.Dispose();
         Inspector?.Dispose();
