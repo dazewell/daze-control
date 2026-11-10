@@ -159,7 +159,7 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   Number+unit: NumberBox + suffix ("s"; stored as ms). Key/value rows + "Add header". Script: monospace 8 lines
   + "Open in editor".
 - Failure policy: RadioButtons with descriptions — "Stop the flow" (default) "If this fails, the whole flow stops." ·
-  "Skip what follows" "If this fails, the steps after it are skipped. Steps on other paths carry on. Only a "When it works" follow-up is skipped; an "Only if it fails" step runs." · "Run the next steps anyway" "If this fails, the steps after it still run, including the "When it works" ones, as if it had worked. Use it only when failure doesn't matter." (D-112) Hover/focus previews: affected nodes dim on the canvas.
+  "Skip what follows" "If this fails, the steps after it are skipped. Steps on other paths carry on. Only a "When it works" follow-up is skipped; an "Only if it fails" step runs." · "Run the next steps anyway" "If this fails, the steps after it still run, including the "When it works" ones, as if it had worked. Use it only when failure doesn't matter." (D-114) Hover/focus previews: affected nodes dim on the canvas.
   Below it **"If it fails, run…"** (DropDownButton): "A new step ›" area › step (added after this step with
   `when: failure`, selected) or a step already in the flow (no loops; an existing edge becomes a fallback).
   Any new fallback (this menu, Connections, the edge menu) turns "Stop the flow" into "Skip what follows",
