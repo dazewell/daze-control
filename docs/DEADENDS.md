@@ -114,3 +114,10 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
   Readings on PC are only `GetCurrentReading`, a poll like XInput, and it adds the GameInputSvc service.
 - Evidence: T12.1 probe `spikes/GamepadProbe` (`gi` mode), 2026-11-04.
 - Retry only if: a newer GameInput (v1+ redist or inbox) implements reading callbacks on desktop.
+
+## X-012 · 2026-11-09 · `BasedOn="{StaticResource DefaultNumberBoxStyle}"` for an implicit NumberBox style
+- Tried: the inspector's wheel-guard styles (D-113) based each implicit style on WinUI's `Default<Control>Style`.
+- Failed because: ComboBox, Slider and ToggleSwitch have that key, NumberBox doesn't; the lookup throws when the
+  inspector is first measured, so opening any flow killed the editor (stowed exception 0xc000027b, no message).
+- Evidence: user's crash 2026-11-09 on main after PR #165; `editor.log` now gets `Unhandled: …` lines (`App` ctor).
+- Retry only if: never — an implicit style without `BasedOn` keeps the control's default style in WinUI 3.

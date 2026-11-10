@@ -18,6 +18,8 @@ public partial class App : Application
     {
         InitializeComponent();
         Instance = this;
+        // A crash leaves only a stowed-exception code in the event log: write what it was before the process ends.
+        UnhandledException += (_, e) => Log($"Unhandled: {e.Message} {e.Exception}");
     }
 
     public static App? Instance { get; private set; }

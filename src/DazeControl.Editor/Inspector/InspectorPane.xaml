@@ -25,7 +25,8 @@
         <Style TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
             <Setter Property="local:WheelGuard.IsEnabled" Value="True" />
         </Style>
-        <Style TargetType="NumberBox" BasedOn="{StaticResource DefaultNumberBoxStyle}">
+        <!-- No BasedOn: WinUI has no DefaultNumberBoxStyle key (looking it up crashed opening a flow); its default style still applies. -->
+        <Style TargetType="NumberBox">
             <Setter Property="local:WheelGuard.IsEnabled" Value="True" />
         </Style>
         <Style TargetType="Slider" BasedOn="{StaticResource DefaultSliderStyle}">
