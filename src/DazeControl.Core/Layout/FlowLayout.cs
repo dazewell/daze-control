@@ -45,6 +45,31 @@ public enum LayoutLines
     RightAngles,
 }
 
+/// <summary>Layout menu › Arrange (D-115): the structure the steps are laid out in.</summary>
+public enum LayoutShape
+{
+    /// <summary>Columns left to right in run order (D-020, D-060): the default.</summary>
+    LeftToRight,
+
+    /// <summary>Rows top to bottom in run order.</summary>
+    TopToBottom,
+
+    /// <summary>Each step under the step it follows, branches spread out beneath it.</summary>
+    Tree,
+
+    /// <summary>A ring in run order, clockwise from the top.</summary>
+    Circle,
+}
+
+/// <summary>The side of a box a line leaves or enters by (D-115).</summary>
+public enum PortSide
+{
+    Right,
+    Bottom,
+    Left,
+    Top,
+}
+
 /// <summary>Spacing in DIP (UX §5.2, §5.3) and the Layout menu's choices (D-067).</summary>
 public sealed record LayoutOptions
 {
@@ -74,6 +99,12 @@ public sealed record LayoutOptions
 
     public LayoutLines Lines { get; init; } = LayoutLines.Curved;
 
+    /// <summary>Arrange (D-115); anything but left to right goes through <see cref="FlowPlacement"/>.</summary>
+    public LayoutShape Shape { get; init; } = LayoutShape.LeftToRight;
+
+    /// <summary>Top-left corners of the steps and cards the user placed by hand (D-115), by id; null = none.</summary>
+    public IReadOnlyDictionary<string, Point>? Placed { get; init; }
+
     /// <summary>Column and row gap for a Spacing choice: Compact 40/8, Normal 64/16, Roomy 96/32 (D-067).</summary>
     public static (double Column, double Row) Gaps(LayoutSpacing spacing) => spacing switch
     {
@@ -98,7 +129,9 @@ public sealed record NodeBox(string Id, Rect Bounds, int Column, int Row, string
 /// <summary>An edge between two top-level boxes; an edge naming a card member is drawn from/to its card.</summary>
 /// <param name="WrapLaneY">Set on an edge from a wrapped row's end to the next row's start (D-060), or from a block's
 /// last box to the line under it (D-066): the gap's middle; or on a long edge that detours round the boxes it skips (D-111): the lane.</param>
-public sealed record EdgeRoute(string From, string To, EdgeWhen When, Point Start, Point End, double? WrapLaneY = null);
+/// <param name="StartSide">The side the line leaves its source by; <paramref name="EndSide"/> the side it enters by (D-115).</param>
+public sealed record EdgeRoute(string From, string To, EdgeWhen When, Point Start, Point End, double? WrapLaneY = null,
+    PortSide StartSide = PortSide.Right, PortSide EndSide = PortSide.Left);
 
 /// <param name="Columns">Top-level ids per column, top to bottom.</param>
 public sealed record FlowArrangement(

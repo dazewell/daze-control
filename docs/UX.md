@@ -114,6 +114,10 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   Radio items show the current choice; strings #63. Untangle off shows its reason where a shortcut would sit (a
   disabled item has no tooltip). Reset layout is off while the flow has the default layout. After a pick the canvas
   has focus, so Ctrl+Z undoes Untangle.
+- **Arrange and drag anywhere** (D-115): Layout › Arrange › Left to right / Top to bottom / Tree / Circle lays every
+  step out afresh. Dragging a step, card or the selection to empty canvas leaves it there (8-DIP grid); the other steps
+  stay put. While steps are placed by hand no shape is ticked, "Arrange again" lays them out in the shape, and Wrap,
+  Spacing, Line up and Untangle show "Placed by hand". Moves, Arrange and Reset layout undo with Ctrl+Z.
 
 ## 5.3 Visual language
 - Pill: min 232×56, max width 320, grows taller with text size. CornerRadius 28; the left cap is the status

@@ -386,6 +386,9 @@ section rewritten, FEATURES where behaviour changed).
   (resolve before resources), `Editor.ViewModels/.../LibraryEdits` rename. Done when: YAML round-trip of DESIGN §1 B;
   validator tests (unknown input, wrong kind, `$` outside a LibraryRef, bad default, bad passed value, pass-through);
   runtime test: scenario B with fakes runs Technics then Sony and locks per device; rename test.
+- [x] T13.11 **Arrange and drag anywhere** (feat/canvas-free-layout, D-115; user, 2026-11-09). Files: `Core/Layout/FlowPlacement`,
+  `EdgeCurve`, `FlowCanvasViewModel`, `FlowCanvas`, `ShellWindow` Layout menu. Done when: shape/placement tests; drag, Arrange
+  and undo seen in the editor.
 - [x] T13.10 P6c **Editor for flow calls and inputs** (feat/m13-flow-run-editor, PR #54; 0.38.0; after T13.9 and lane A). Files:
   `Editor.ViewModels/Inspector` + `Editor/Inspector` (Run a flow inspector, flow settings Inputs, device picker groups,
   #49–#61), `Canvas` pill (called flow's glyph, title, summary, live #59, InfoBar #64), `Runs` (nested lanes under a
