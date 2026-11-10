@@ -128,6 +128,28 @@ public class FlowPlacementTests
     }
 
     [Fact]
+    public void CircleLeavesRoomForATallCard()
+    {
+        var members = Enumerable.Range(1, 12).Select(i => $"m{i}").ToList();
+        var flow = FlowOf([Step("a"), Step("b", "a"), new GroupNode("g", [.. members]) { After = [new Edge("b")] }, Step("c", "g"),
+            .. members.Select(m => (Node)Step(m))]);
+        var a = Arrange(flow, LayoutShape.Circle);
+
+        Assert.True(B(a, "g").Height > 600);
+        NoOverlaps(a);
+    }
+
+    [Fact]
+    public void PlacesLeftByDeletedStepsDontCount()
+    {
+        var flow = Chain(8);
+        var stale = new Dictionary<string, Point> { ["gone"] = new(400, 400) };
+
+        Assert.False(FlowPlacement.HasPlaced(flow, stale));
+        Assert.Equal(FlowLayout.Arrange(flow, _ => Pill), Arrange(flow, placed: stale), new ArrangementComparer());
+    }
+
+    [Fact]
     public void APlacedStepStaysWhereItWasPut()
     {
         var a = Arrange(Diamond(), placed: new Dictionary<string, Point> { ["a"] = new(400, 304), ["b"] = new(48, 48), ["c"] = new(48, 200), ["d"] = new(800, 600) });

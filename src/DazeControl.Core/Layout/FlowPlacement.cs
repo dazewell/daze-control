@@ -21,7 +21,7 @@ public static class FlowPlacement
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(measure);
         var o = options ?? LayoutOptions.Default;
-        var placed = o.Placed is { Count: > 0 } p ? p : null;
+        var placed = HasPlaced(flow, o.Placed) ? o.Placed : null;
         if (o.Shape == LayoutShape.LeftToRight && placed is null)
             return FlowLayout.Arrange(flow, measure, o);
 
@@ -213,15 +213,32 @@ public static class FlowPlacement
             return at;
         }
         var gap = 3 * SiblingGap(o); // round the bottom, neighbours sit side by side and a line needs room between them
-        var shares = order.Select(id => top[id].Width + gap).ToList();
+        // A box's share is its larger side: on the ring's sides neighbours sit above each other, so a tall card needs its height.
+        var shares = order.Select(id => Math.Max(top[id].Width, top[id].Height) + gap).ToList();
         var total = shares.Sum();
-        var radius = Math.Max(total / (2 * Math.PI), order.Max(id => top[id].Width) * 0.75);
-        var angle = -Math.PI / 2;
-        for (var i = 0; i < order.Count; i++)
+        var radius = Math.Max(total / (2 * Math.PI), order.Max(id => Math.Max(top[id].Width, top[id].Height)) * 0.75);
+        // Each box sits in the middle of its share, the first one on top. A chord is shorter than its arc, so a ring of
+        // a few boxes (or very uneven ones) can still overlap: then it grows until nothing does.
+        for (var tries = 0; tries < 40; tries++)
         {
-            var r = top[order[i]];
-            at[order[i]] = new Point(radius * Math.Cos(angle) - r.Width / 2, radius * Math.Sin(angle) - r.Height / 2);
-            angle += 2 * Math.PI * shares[i] / total;
+            var angle = -Math.PI / 2 - Math.PI * shares[0] / total;
+            for (var i = 0; i < order.Count; i++)
+            {
+                var r = top[order[i]];
+                var middle = angle + Math.PI * shares[i] / total;
+                at[order[i]] = new Point(radius * Math.Cos(middle) - r.Width / 2, radius * Math.Sin(middle) - r.Height / 2);
+                angle += 2 * Math.PI * shares[i] / total;
+            }
+            var boxes = order.Select(id => new Rect(at[id].X, at[id].Y, top[id].Width, top[id].Height)).ToList();
+            var clear = true;
+            for (var i = 0; i < boxes.Count && clear; i++)
+            {
+                for (var j = i + 1; j < boxes.Count && clear; j++)
+                    clear = !Overlap(boxes[i], boxes[j], o.RowGap);
+            }
+            if (clear)
+                break;
+            radius *= 1.15;
         }
         return at;
     }
@@ -267,6 +284,19 @@ public static class FlowPlacement
             at[id] = new Point(Snap(spot.X), Snap(spot.Y));
         }
         return at;
+    }
+
+    /// <summary>
+    /// Whether any hand-placed id is still a top-level step or card of <paramref name="flow"/>: ids left behind by
+    /// deleted steps don't count, so a flow whose placed steps are all gone is laid out by its shape again.
+    /// </summary>
+    public static bool HasPlaced(Flow flow, IReadOnlyDictionary<string, Point>? placed)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        if (placed is not { Count: > 0 })
+            return false;
+        var members = FlowLayout.CardOf(flow);
+        return flow.Nodes.Any(n => !members.ContainsKey(n.Id) && placed.ContainsKey(n.Id));
     }
 
     private static bool Overlap(Rect a, Rect b, double gap) =>

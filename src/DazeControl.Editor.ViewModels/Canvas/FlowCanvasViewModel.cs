@@ -1047,7 +1047,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         FlowName = flow.Name;
         var options = LayoutOptions;
         _arrangement = FlowPlacement.Arrange(flow, id => _measured.GetValueOrDefault(id, DefaultPillSize), options);
-        IsPlacedByHand = options.Placed is not null;
+        IsPlacedByHand = FlowPlacement.HasPlaced(flow, options.Placed);
         ExtentWidth = _arrangement.Extent.Width;
         ExtentHeight = _arrangement.Extent.Height;
 

@@ -367,7 +367,7 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   `ChangeView`; the undo stack holds `UndoEntry(Flow, View?)`, so view steps and flow edits share one history.
   Layout menu (D-067): `LayoutOptions.Of(wrapAfter, spacing, align, lines)` (Compact 40/8, Normal 64/16, Roomy
   96/32 column/row gaps). The canvas VM reads this flow's `FlowViewSettings` at every `Sync` (`SetLayout`,
-  `ResetLayout`: not flow edits, no undo); `ShellWindow` builds the flyout on `Opening` (radio items from the VM) and
+  `ResetLayout`: not flow edits; Reset layout, Arrange and moves are undo steps, D-115); `ShellWindow` builds the flyout on `Opening` (radio items from the VM) and
   gives the canvas focus back after a pick, so Ctrl+Z undoes Untangle. Choices apply at once without the reflow
   animation (UX §5.3 motion's 200 ms reflow isn't built anywhere yet). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
   and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
