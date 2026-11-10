@@ -237,6 +237,57 @@ public sealed class LayoutMenuTests : IDisposable
     }
 
     [Fact]
+    public void UntangleIsOffWithItsReasonOnceAStepIsPlacedByHandOrTheFlowIsNotInColumns()
+    {
+        Cross();
+        _canvas.PlaceAt("out", new Point(400, 320));
+
+        Assert.False(_canvas.CanUntangle);
+        Assert.Equal("Only for steps arranged in columns", _canvas.UntangleReason);
+        Assert.False(_canvas.Untangle());
+        Assert.Equal(Crossed, _canvas.Flow!.Nodes.Select(n => n.Id));
+
+        _canvas.SetLayout(shape: LayoutShape.Tree); // lets go of the step, but a tree isn't columns either
+        Assert.False(_canvas.CanUntangle);
+        _canvas.SetLayout(shape: LayoutShape.Columns);
+        Assert.True(_canvas.CanUntangle);
+    }
+
+    [Fact]
+    public void ArrowKeysReachAStepPlacedBesideAnotherOfItsColumn()
+    {
+        _canvas.PlaceAt("both", new Point(Node("bt").X + 400, Node("bt").Y)); // same column as bt, same height
+        _canvas.Select("bt");
+
+        _canvas.MoveFocus(FocusMove.Down); // into the card: its first member is the nearest thing below
+        Assert.Equal("both", Node(_canvas.FocusedId!).CardId);
+        _canvas.MoveFocus(FocusMove.Up);
+        Assert.Equal("both", _canvas.FocusedId);
+        _canvas.MoveFocus(FocusMove.Up); // nothing above at this height: back through run order
+        Assert.Equal("bt", _canvas.FocusedId);
+    }
+
+    [Theory]
+    [InlineData(LayoutShape.Circle)]
+    [InlineData(LayoutShape.Tree)]
+    public void ArrowKeysReachEveryStepInAnyArrangement(LayoutShape shape)
+    {
+        _canvas.Edit(f => f with { Nodes = [.. f.Nodes.Select(n => n with { After = [] })] }); // all starts: one column
+        _canvas.SetLayout(shape: shape);
+        var top = _canvas.Nodes.Where(n => n.Kind != CanvasNodeKind.Member).Select(n => n.Id).ToHashSet();
+        _canvas.Select("bt");
+
+        var seen = new HashSet<string> { "bt" };
+        for (var i = 0; i < 20; i++)
+        {
+            _canvas.MoveFocus(FocusMove.Down);
+            seen.Add(_canvas.Find(_canvas.FocusedId!)!.CardId ?? _canvas.FocusedId!);
+        }
+
+        Assert.Superset(top, seen);
+    }
+
+    [Fact]
     public void UntangleIsOffWhileTheFlowCantBeEdited()
     {
         Cross();

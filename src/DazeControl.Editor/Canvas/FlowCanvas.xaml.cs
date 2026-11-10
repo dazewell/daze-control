@@ -678,15 +678,17 @@ public sealed partial class FlowCanvas : UserControl
                 if (target is not null && zone != DropZone.None)
                     ShowRefusal(_viewModel.Drop(node.Id, target.Id, zone), target);
                 else if (node.CardId is { } card && _viewModel.Find(card) is { } own && !own.Bounds.Contains(C(position)))
-                    ShowRefusal(_viewModel.TakeOutOfCard(node.Id), own);
-                else if (node.CardId is null)
                 {
-                    // Dropped on empty canvas: it stays where it was put (D-115).
-                    var from = C(_pressContent);
-                    var to = C(position);
-                    _viewModel.PlaceAt(node.Id, new CorePoint(node.X + to.X - from.X, node.Y + to.Y - from.Y));
+                    // Out of its card: onto empty canvas it also stays where it was dropped (D-115).
+                    var spot = DroppedAt(node, position);
+                    var refusal = _viewModel.TakeOutOfCard(node.Id);
+                    ShowRefusal(refusal, own);
+                    if (refusal == DazeControl.Core.Layout.ConnectRefusal.None && target is null)
+                        _viewModel.PlaceAt(node.Id, spot);
                 }
-                else
+                else if (target is null && node.CardId is null)
+                    _viewModel.PlaceAt(node.Id, DroppedAt(node, position)); // empty canvas: it stays where it was put (D-115)
+                else // inside its own card, or on another step's top/bottom band: reorder
                     _viewModel.MoveToRow(node.Id, _viewModel.RowAt(node.Id, node.Bounds.CenterY + (position.Y - _pressContent.Y)));
                 break;
             case Gesture.Marquee:
@@ -705,6 +707,14 @@ public sealed partial class FlowCanvas : UserControl
         Root.ReleasePointerCapture(e.Pointer);
         EndGesture();
         e.Handled = true;
+    }
+
+    /// <summary>The dragged node's top-left where the pointer let go of it.</summary>
+    private CorePoint DroppedAt(CanvasNodeViewModel node, Windows.Foundation.Point position)
+    {
+        var from = C(_pressContent);
+        var to = C(position);
+        return new CorePoint(node.X + to.X - from.X, node.Y + to.Y - from.Y);
     }
 
     private void ResetDragged()

@@ -355,20 +355,38 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         EnsureFocus();
         if (FocusedId is null || Find(FocusedId) is not { } from)
             return;
-        CanvasNodeViewModel? to = move switch
+        // On a ring a column is no place: Up/Down only walk a card's members there, and every arrow that finds
+        // nothing steps through run order below.
+        var ring = LayoutChoices.Shape == LayoutShape.Circle;
+        var ownCard = from.CardId ?? (from.Kind == CanvasNodeKind.Card ? from.Id : null);
+        bool Near(CanvasNodeViewModel n) => !ring || (ownCard is not null && (n.Id == ownCard || n.CardId == ownCard));
+        CanvasNodeViewModel? to = ring && move is FocusMove.Left or FocusMove.Right ? null : move switch
         {
-            FocusMove.Up => Nodes.Where(n => n.Column == from.Column && n.Y < from.Y - 0.5).OrderByDescending(n => n.Y).FirstOrDefault(),
-            FocusMove.Down => Nodes.Where(n => n.Column == from.Column && n.Y > from.Y + 0.5).OrderBy(n => n.Y).FirstOrDefault(),
+            FocusMove.Up => Nodes.Where(n => Near(n) && n.Column == from.Column && n.Y < from.Y - 0.5).OrderByDescending(n => n.Y).ThenBy(n => Math.Abs(n.X - from.X)).FirstOrDefault(), // hand-placed neighbours can share a height: the nearer one
+            FocusMove.Down => Nodes.Where(n => Near(n) && n.Column == from.Column && n.Y > from.Y + 0.5).OrderBy(n => n.Y).ThenBy(n => Math.Abs(n.X - from.X)).FirstOrDefault(), // hand-placed neighbours can share a height: the nearer one
             // Across columns land on a step or card, not inside a card; Up/Down then walks its members.
             _ => Nodes.Where(n => n.Column == from.Column + (move == FocusMove.Right ? 1 : -1) && n.Kind != CanvasNodeKind.Member)
                 .OrderBy(n => Math.Abs(n.Bounds.CenterY - from.Bounds.CenterY)).FirstOrDefault(),
         };
+        // Placed by hand or on a ring, a step's neighbours aren't where its column says (two starts side by side on a
+        // circle): an arrow that finds nothing steps through run order instead, so every step stays reachable (D-115).
+        if (to is null && !LaysOutInColumns)
+        {
+            var order = Nodes.Where(n => n.Kind != CanvasNodeKind.Member).OrderBy(n => n.Column).ThenBy(n => n.Row).ToList();
+            var at = order.FindIndex(n => n.Id == (from.CardId ?? from.Id));
+            var next = at + (move is FocusMove.Right or FocusMove.Down ? 1 : -1);
+            if (at >= 0 && next >= 0 && next < order.Count)
+                to = order[next];
+        }
         if (to is not null)
         {
             SetFocus(to.Id);
             Select(to.Id);
         }
     }
+
+    /// <summary>The automatic columns place every step: no Arrange shape and nothing placed by hand (D-115).</summary>
+    public bool LaysOutInColumns => LayoutChoices is { Shape: null or LayoutShape.Columns, Pins: not { Count: > 0 } };
 
     private void SetFocus(string? id)
     {
@@ -838,10 +856,11 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         }
     }
 
-    public bool CanUntangle => CanEdit && UntangleState == UntangleState.Helps;
+    public bool CanUntangle => CanEdit && LaysOutInColumns && UntangleState == UntangleState.Helps;
 
     /// <summary>Why Untangle lines is off (UX #63); null while it can help.</summary>
-    public string? UntangleReason => UntangleState switch
+    /// <remarks>It reorders steps within their columns, which moves nothing on a tree, a circle or a hand-placed step (D-115).</remarks>
+    public string? UntangleReason => !LaysOutInColumns ? "Only for steps arranged in columns" : UntangleState switch
     {
         UntangleState.NoCrossings => "No lines cross",
         UntangleState.NoBetterOrder => "Can't untangle these any further",
@@ -851,7 +870,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     /// <summary>Layout › "Untangle lines": reorders columns to cut crossings, a flow edit with undo; false when nothing changed.</summary>
     public bool Untangle()
     {
-        if (!CanEdit || Flow is not { } flow || FlowTidy.Tidy(flow, LayoutOptions.Align) is var tidy && ReferenceEquals(tidy, flow))
+        if (!CanEdit || !LaysOutInColumns || Flow is not { } flow || FlowTidy.Tidy(flow, LayoutOptions.Align) is var tidy && ReferenceEquals(tidy, flow))
             return false;
         Edit(_ => tidy);
         return true;

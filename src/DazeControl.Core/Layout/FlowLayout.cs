@@ -131,12 +131,10 @@ public sealed record NodeBox(string Id, Rect Bounds, int Column, int Row, string
 /// <param name="Leaves">The side of the source the edge starts on: the right, except between boxes placed by hand
 /// or on a ring (D-115), where it is the side facing the target.</param>
 /// <param name="Enters">The side of the target the arrow points into.</param>
+/// <param name="IsFloating">Between boxes placed by hand or on a ring: always a curve between the two facing sides,
+/// also when those happen to be right → left.</param>
 public sealed record EdgeRoute(string From, string To, EdgeWhen When, Point Start, Point End, double? WrapLaneY = null,
-    PortSide Leaves = PortSide.Right, PortSide Enters = PortSide.Left)
-{
-    /// <summary>Not the usual right → left: drawn as a curve between the two facing sides.</summary>
-    public bool IsFloating => Leaves != PortSide.Right || Enters != PortSide.Left;
-}
+    PortSide Leaves = PortSide.Right, PortSide Enters = PortSide.Left, bool IsFloating = false);
 
 /// <param name="Columns">Top-level ids per column, top to bottom.</param>
 public sealed record FlowArrangement(
@@ -425,7 +423,7 @@ public static class FlowLayout
             (leaves, enters) = b.X + b.Width / 2 >= a.X + a.Width / 2 ? (PortSide.Right, PortSide.Left) : (PortSide.Left, PortSide.Right);
         else
             (leaves, enters) = b.CenterY >= a.CenterY ? (PortSide.Bottom, PortSide.Top) : (PortSide.Top, PortSide.Bottom);
-        return new EdgeRoute(from, to, when, PortAt(a, leaves), PortAt(b, enters), null, leaves, enters);
+        return new EdgeRoute(from, to, when, PortAt(a, leaves), PortAt(b, enters), null, leaves, enters, IsFloating: true);
     }
 
     /// <summary>The middle of a box's side.</summary>

@@ -129,6 +129,20 @@ public class FlowArrangeTests
     }
 
     [Fact]
+    public void ALineToAPlacedStepIsACurveEvenWhenItRunsLeftToRightWithRightAngles()
+    {
+        var flow = FlowOf(Step("a"), Step("b", "a"), Step("c", "b"));
+        var a = Arrange(flow, LayoutOptions.Default).Find("a")!.Bounds;
+
+        var placed = Arrange(flow, Pinned("b", a.Right + 300, a.Y + 120) with { Lines = LayoutLines.RightAngles });
+        var beside = placed.Edges.Single(e => e.To == "b");
+
+        Assert.Equal((PortSide.Right, PortSide.Left), (beside.Leaves, beside.Enters));
+        Assert.True(beside.IsFloating);
+        Assert.False(EdgeCurve.For(beside, LayoutLines.RightAngles).IsOrthogonal);
+    }
+
+    [Fact]
     public void APlacedCardTakesItsMembersAlong()
     {
         var flow = FlowOf(Step("a"), Step("m1"), Step("m2"), new GroupNode("card", ["m1", "m2"]) { After = [new Edge("a")] });
