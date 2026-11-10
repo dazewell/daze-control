@@ -182,6 +182,21 @@ public sealed class CanvasPlacementTests : IDisposable
     }
 
     [Fact]
+    public void ArrowKeysFollowWhatIsDrawnInOtherShapes()
+    {
+        // Top to bottom: out and vol (both after bt) share a column, now drawn side by side in one row.
+        _canvas.Arrange(LayoutShape.TopToBottom);
+        _canvas.Select("bt");
+
+        _canvas.MoveFocus(FocusMove.Down);
+        var first = _canvas.FocusedId;
+        Assert.True(first is "out" or "vol", first);
+
+        _canvas.MoveFocus(Node("out").X < Node("vol").X == (first == "out") ? FocusMove.Right : FocusMove.Left);
+        Assert.Equal(first == "out" ? "vol" : "out", _canvas.FocusedId);
+    }
+
+    [Fact]
     public void LinesFollowTheSidesThatFaceEachOther()
     {
         // vol (after bt) dragged far left of and below bt: its line no longer leaves bt's right side.

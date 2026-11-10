@@ -358,7 +358,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         EnsureFocus();
         if (FocusedId is null || Find(FocusedId) is not { } from)
             return;
-        CanvasNodeViewModel? to = move switch
+        var o = LayoutOptions;
+        var columns = o.Shape == LayoutShape.LeftToRight && !IsPlacedByHand;
+        CanvasNodeViewModel? to = !columns ? Nearest(from, move) : move switch
         {
             FocusMove.Up => Nodes.Where(n => n.Column == from.Column && n.Y < from.Y - 0.5).OrderByDescending(n => n.Y).FirstOrDefault(),
             FocusMove.Down => Nodes.Where(n => n.Column == from.Column && n.Y > from.Y + 0.5).OrderBy(n => n.Y).FirstOrDefault(),
@@ -371,6 +373,30 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             SetFocus(to.Id);
             Select(to.Id);
         }
+    }
+
+    /// <summary>
+    /// Arrow keys in any other shape or with steps placed by hand (D-115): the nearest step or card that is drawn in
+    /// that direction (within 60° of it), as seen on screen. A card's own members count, so Down from a card walks
+    /// into it; other cards' members are reached through their card.
+    /// </summary>
+    private CanvasNodeViewModel? Nearest(CanvasNodeViewModel from, FocusMove move)
+    {
+        var (dx, dy) = move switch
+        {
+            FocusMove.Left => (-1, 0),
+            FocusMove.Right => (1, 0),
+            FocusMove.Up => (0, -1),
+            _ => (0, 1),
+        };
+        var fx = from.X + from.Width / 2;
+        var fy = from.Bounds.CenterY;
+        return Nodes
+            .Where(n => n.Id != from.Id && (n.CardId is null || n.CardId == from.Id || n.CardId == from.CardId))
+            .Select(n => (Node: n, X: n.X + n.Width / 2 - fx, Y: n.Bounds.CenterY - fy))
+            .Select(c => (c.Node, Ahead: c.X * dx + c.Y * dy, Side: Math.Abs(c.X * dy + c.Y * dx)))
+            .Where(c => c.Ahead > 0.5 && c.Side <= c.Ahead * 1.75)
+            .OrderBy(c => c.Ahead + 2 * c.Side).Select(c => c.Node).FirstOrDefault();
     }
 
     private void SetFocus(string? id)
