@@ -280,14 +280,44 @@ public class SchedulerTests
     [InlineData(true)]
     public void AJoinOfANormalStepAndAFallbackFollowsTheFallback(bool hpFails)
     {
-        // j waits for the success of a fallback, so it is one too (D-065).
+        // j follows a (always) or the fallback (D-112): alternatives, so it runs once either way.
         var scheduler = new Scheduler(Flow(
             Step("a"), Step("hp"), Step("buds", "after: [{ id: hp, when: failure }]"), Step("j", "after: [a, buds]")));
 
         Run(scheduler, hpFails ? [("hp", StepResult.Failed)] : []);
 
-        Assert.Equal(hpFails ? NodeOutcome.Succeeded : NodeOutcome.NotNeeded, scheduler.Outcomes["j"]);
+        Assert.Equal(NodeOutcome.Succeeded, scheduler.Outcomes["j"]);
         Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AStepAfterACheckAndItsFallbackRunsExactlyOnce(bool checkFails)
+    {
+        // check -success-> msg, check -failure-> restore -success-> msg (the user's flow).
+        var scheduler = new Scheduler(Flow(
+            Step("check"), Step("restore", "after: [{ id: check, when: failure }]"),
+            Step("msg", "after: [check, restore]")));
+
+        var waves = Run(scheduler, checkFails ? [("check", StepResult.Failed)] : []);
+
+        Assert.Equal(1, waves.SelectMany(w => w).Count(s => s == "msg"));
+        Assert.Equal(NodeOutcome.Succeeded, scheduler.Outcomes["msg"]);
+        Assert.Equal(checkFails ? NodeOutcome.Succeeded : NodeOutcome.NotNeeded, scheduler.Outcomes["restore"]);
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
+    }
+
+    [Fact]
+    public void AStepAfterAFailedFallbackAndItsCheckIsSkipped()
+    {
+        var scheduler = new Scheduler(Flow(
+            Step("check"), Step("restore", "after: [{ id: check, when: failure }]"),
+            Step("msg", "after: [check, restore]")));
+
+        Run(scheduler, ("check", StepResult.Failed), ("restore", StepResult.Failed));
+
+        Assert.NotEqual(NodeOutcome.Succeeded, scheduler.Outcomes["msg"]);
     }
 
     [Fact]

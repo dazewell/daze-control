@@ -1457,8 +1457,19 @@ Status: accepted (fix for a user report: check → restore → show message plus
   Why not dummy-node layers: every long edge would widen the flow by a column of empty slots.
 - Revisit if: several detours stack on one lane and overlap (lane per edge), or lines should dodge other edges.
 
+## D-112 · 2026-11-09 · A join after a check and its fallback runs once if either branch fires
+Status: accepted (user's bug: `show message` after `check` (success) and `restore layout` (the failure fallback) never ran)
+- Decision: in the Scheduler an incoming edge that can't fire because its source is an **untaken branch** (a failure handled
+  by a failure edge, a skip excused by it, or a NotNeeded fallback) no longer skips the step. Once every edge has settled the
+  step runs if at least one fired, and is skipped only when none did. Dead edges from real failures and plain skips still skip
+  at once (D-003 AND), so `bt` fails → its plain dependents skip as before.
+- Why: with AND, the two edges of such a join are mutually exclusive, so it could never run.
+- Why not OR for every edge: a failed or skipped upstream step must still skip what depends on it ("Skip what depends on it").
+- Open (not changed, needs the user): a "May fail" step with a failure edge fires BOTH its success and failure edges (D-025,
+  pinned by tests). A check set to "Keep going" therefore shows both messages when it fails, which matches the wake-from-sleep
+  report (devices not ready right after resume). Proposal: with a drawn failure edge, "May fail" fires only failure.
 
-## D-112 · 2026-11-09 · Inspector value controls ignore the mouse wheel
+## D-113 · 2026-11-09 · Inspector value controls ignore the mouse wheel
 - `WheelGuard.IsEnabled` (attached, no reflection) is set by implicit styles for ComboBox, NumberBox, Slider and ToggleSwitch in InspectorPane.xaml: the wheel is marked handled and scrolls the nearest scrollable ScrollViewer; an open combo box keeps it for its list. New config controls inherit it with no markup.
 - Group header right-click opens its menu at the pointer (Menu key / Shift+F10 still anchor to the "…" button). The nav hamburger (`TogglePaneButton`) is stretched in code after load, since the template has no knob for it.
 - Only checked by building: run `scripts/dev-run.ps1` to see the wheel, the menu position and the hamburger row.
