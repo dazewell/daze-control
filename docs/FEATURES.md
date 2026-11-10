@@ -6,7 +6,7 @@ What Daze Control does, stack-independent. Source: the 2026-10-31 plan §2. Stat
 - Nodes: *step* (one provider operation + params) and *group* (card: members start together; card finishes
   when all members finish). Edges connect cards/steps only (never into a member of a card).
 - Edge `when`: `success` (default) · `failure` (fallback branch, e.g. buds if headphones fail) · `always`.
-- A node runs when **all** incoming edges are satisfied; if one can never be satisfied it is **Skipped**,
+- A node runs when **all** incoming edges are satisfied (except edges from a branch that simply wasn't taken, a handled failure or a "Not needed" fallback: those are alternatives, so a step after a check and its fallback runs once if either fires, D-111); if one can never be satisfied it is **Skipped**,
   and skips propagate (only `always` edges fire from a skipped node).
 - Node failure policy: `stop` (default: cancel the flow) · `skip` (skip what depends on it, other branches
   go on) · `ignore` ("may fail": counts as done, dependents run). Retries (count, delay), timeout
