@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace DazeControl.Editor.ViewModels.Tests;
@@ -17,8 +18,8 @@ public sealed partial class XamlStyleKeyTests
             .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
                         && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
             .ToDictionary(f => f, File.ReadAllText);
-        var generic = GenericXaml();
-        Assert.True(generic is not null, "WinUI generic.xaml not found in the NuGet cache; restore the editor first.");
+        var generic = GenericXaml(editor);
+        Assert.True(generic is not null, "WinUI generic.xaml not found from the editor's restore assets; restore the editor first.");
         var known = new HashSet<string>(Keys().Matches(File.ReadAllText(generic!)).Select(m => m.Groups[1].Value));
         known.UnionWith(xaml.Values.SelectMany(t => Keys().Matches(t)).Select(m => m.Groups[1].Value));
 
@@ -30,15 +31,22 @@ public sealed partial class XamlStyleKeyTests
         Assert.Empty(missing);
     }
 
-    private static string? GenericXaml()
+    /// <summary>
+    /// The generic.xaml the editor builds against: the WinUI package (a dependency of Microsoft.WindowsAppSDK) at the
+    /// version and in the package folder the editor's own restore recorded, not whatever else sits in the cache.
+    /// </summary>
+    private static string? GenericXaml(string editor)
     {
-        var root = Environment.GetEnvironmentVariable("NUGET_PACKAGES")
-                   ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
-        var winui = Path.Combine(root, "microsoft.windowsappsdk.winui");
-        if (!Directory.Exists(winui)) return null;
-        return Directory.EnumerateDirectories(winui)
-            .OrderByDescending(d => Version.TryParse(Path.GetFileName(d).Split('-')[0], out var v) ? v : new Version())
-            .Select(d => Path.Combine(d, "lib", "native", "Microsoft.UI", "Themes", "generic.xaml"))
+        var assets = Path.Combine(editor, "obj", "project.assets.json");
+        if (!File.Exists(assets))
+            return null;
+        using var doc = JsonDocument.Parse(File.ReadAllText(assets));
+        var library = doc.RootElement.GetProperty("libraries").EnumerateObject()
+            .FirstOrDefault(p => p.Name.StartsWith("Microsoft.WindowsAppSDK.WinUI/", StringComparison.OrdinalIgnoreCase));
+        if (library.Value.ValueKind != JsonValueKind.Object || !library.Value.TryGetProperty("path", out var path))
+            return null;
+        return doc.RootElement.GetProperty("packageFolders").EnumerateObject()
+            .Select(folder => Path.Combine(folder.Name, path.GetString()!, "lib", "native", "Microsoft.UI", "Themes", "generic.xaml"))
             .FirstOrDefault(File.Exists);
     }
 
