@@ -396,7 +396,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             .Select(n => (Node: n, X: n.X + n.Width / 2 - fx, Y: n.Bounds.CenterY - fy))
             .Select(c => (c.Node, Ahead: c.X * dx + c.Y * dy, Side: Math.Abs(c.X * dy + c.Y * dx)))
             .Where(c => c.Ahead > 0.5 && c.Side <= c.Ahead * 1.75)
-            .OrderBy(c => c.Ahead + 2 * c.Side).Select(c => c.Node).FirstOrDefault();
+            // On a tie a member beats its card: a member centred on its card would otherwise never be reached.
+            .OrderBy(c => c.Ahead + 2 * c.Side).ThenBy(c => c.Node.CardId is null)
+            .Select(c => c.Node).FirstOrDefault();
     }
 
     private void SetFocus(string? id)
