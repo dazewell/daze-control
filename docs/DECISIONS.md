@@ -1472,6 +1472,7 @@ Status: accepted (user's bug: `show message` after `check` (success) and `restor
 ## D-113 · 2026-11-09 · Inspector value controls ignore the mouse wheel
 - `WheelGuard.IsEnabled` (attached, no reflection) is set by implicit styles for ComboBox, NumberBox, Slider and ToggleSwitch in InspectorPane.xaml: the wheel is marked handled and scrolls the nearest scrollable ScrollViewer; an open combo box keeps it for its list. New config controls inherit it with no markup.
 - Group header right-click opens its menu at the pointer (Menu key / Shift+F10 still anchor to the "…" button). The nav hamburger (`TogglePaneButton`) is stretched in code after load, since the template has no knob for it.
+- NumberBox has no keyed default style (`DefaultNumberBoxStyle` crashed the editor on opening a flow); its style has no BasedOn, and `XamlStyleKeyTests` checks every BasedOn key against WinUI's generic.xaml.
 - Only checked by building: run `scripts/dev-run.ps1` to see the wheel, the menu position and the hamburger row.
 
 ## D-114 · 2026-11-09 · Failure options renamed: "Skip what follows", "Run the next steps anyway"
