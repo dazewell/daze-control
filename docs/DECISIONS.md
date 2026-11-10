@@ -1446,3 +1446,8 @@ Status: accepted (user, 2026-11-09). Refines D-043/D-109 for the editor card.
   Offline, an already downloaded update still installs. The engine's daily check still downloads quietly and the engine start
   still applies (with D-109's re-check), so updates need no editor.
 - Why not install the newer one at once: the editor closes right after, so the notice would never be read.
+
+## D-111 · 2026-11-09 · Inspector value controls ignore the mouse wheel
+- `WheelGuard.IsEnabled` (attached, no reflection) is set by implicit styles for ComboBox, NumberBox, Slider and ToggleSwitch in InspectorPane.xaml: the wheel is marked handled and scrolls the nearest scrollable ScrollViewer; an open combo box keeps it for its list. New config controls inherit it with no markup.
+- Group header right-click opens its menu at the pointer (Menu key / Shift+F10 still anchor to the "…" button). The nav hamburger (`TogglePaneButton`) is stretched in code after load, since the template has no knob for it.
+- Only checked by building: run `scripts/dev-run.ps1` to see the wheel, the menu position and the hamburger row.
