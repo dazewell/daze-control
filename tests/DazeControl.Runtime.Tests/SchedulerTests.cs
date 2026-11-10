@@ -280,7 +280,7 @@ public class SchedulerTests
     [InlineData(true)]
     public void AJoinOfANormalStepAndAFallbackFollowsTheFallback(bool hpFails)
     {
-        // j follows a (always) or the fallback (D-111): alternatives, so it runs once either way.
+        // j follows a (always) or the fallback (D-112): alternatives, so it runs once either way.
         var scheduler = new Scheduler(Flow(
             Step("a"), Step("hp"), Step("buds", "after: [{ id: hp, when: failure }]"), Step("j", "after: [a, buds]")));
 

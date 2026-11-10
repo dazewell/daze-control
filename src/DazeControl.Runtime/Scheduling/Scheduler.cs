@@ -18,7 +18,7 @@ public enum StepResult
 /// </summary>
 /// <remarks>
 /// Units are steps outside cards and cards; edges connect units only (validated). A unit runs when all its
-/// incoming edges have fired; when one can never fire the unit is Skipped, and that propagates. Exception (D-111): edges
+/// incoming edges have fired; when one can never fire the unit is Skipped, and that propagates. Exception (D-112): edges
 /// from a branch that simply wasn't taken (a handled failure, a NotNeeded fallback) are alternatives, so a unit after
 /// both a check and its fallback runs once if at least one fires. Which edges a
 /// finished unit fires:
@@ -189,7 +189,7 @@ public sealed class Scheduler
         var dead = Enumerable.Range(0, states.Count).Where(i => states[i] == false).ToList();
         // A dead edge from a real failure or a plain skip kills the unit at once (AND, D-003). Dead edges from a branch
         // that was just not taken (a handled failure, an unneeded fallback) are alternatives: once every edge has
-        // settled the unit runs if any other edge fired, and is skipped only when none did (D-111).
+        // settled the unit runs if any other edge fired, and is skipped only when none did (D-112).
         if (dead.Any(i => !IsUntakenBranch(target.After[i].From)))
             Skip(target);
         else if (!states.Contains(null))

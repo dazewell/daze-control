@@ -179,7 +179,8 @@ public class FlowWrapTests
         var a = Arrange(FlowOf([Step("f"), .. Chain(8, "s", "f"), Step("j", "s8", "f")]));
 
         Assert.All(Enumerable.Range(1, 8), i => Assert.Equal(B(a, "s1").Y, B(a, $"s{i}").Y));
-        Assert.DoesNotContain(a.Edges, e => e.WrapLaneY is not null);
+        // Only the direct edge f → j detours round the arm (D-111); no chain edge is a wrap.
+        Assert.DoesNotContain(a.Edges.Where(e => e.From != "f" || e.To != "j"), e => e.WrapLaneY is not null);
     }
 
     [Fact]
@@ -233,5 +234,37 @@ public class FlowWrapTests
         Assert.Equal(flow.Nodes.Select(n => n.Id), FlowTidy.Tidy(flow).Nodes.Select(n => n.Id));
         var (moved, _) = FlowEdits.RunAfter(flow, "s10", "s2");
         Assert.Equal(flow.Nodes.Select(n => n.Id), moved.Nodes.Select(n => n.Id));
+    }
+
+    /// <summary>check → restore → show message, plus check → show message: the long edge detours round restore (D-111).</summary>
+    [Theory]
+    [InlineData(LayoutLines.Curved)]
+    [InlineData(LayoutLines.RightAngles)]
+    public void LongEdgeDetoursRoundTheStepItSkips(LayoutLines lines)
+    {
+        var flow = FlowOf(
+            Step("check"),
+            new StepNode("restore", "wait") { After = [new Edge("check", EdgeWhen.Failure)] },
+            Step("show", "restore") with { After = [new Edge("restore"), new Edge("check")] });
+        var a = FlowLayout.Arrange(flow, _ => Pill, LayoutOptions.Default with { Lines = lines });
+        AssertNoOverlap(a);
+        var skip = a.Edges.Single(e => e.From == "check" && e.To == "show");
+        Assert.NotNull(skip.WrapLaneY);
+        var restore = B(a, "restore");
+        Assert.True(skip.WrapLaneY < restore.Y || skip.WrapLaneY > restore.Bottom);
+        Assert.All(a.Edges.Where(e => e.From != "check" || e.To != "show"), e => Assert.Null(e.WrapLaneY));
+        var curve = EdgeCurve.For(skip, lines);
+        for (var t = 0.0; t <= 1; t += 0.02)
+            Assert.False(restore.Contains(curve.At(t)), $"strikes through restore at t={t}");
+        Assert.True(a.Extent.Height >= skip.WrapLaneY + LayoutOptions.Default.Padding - 1);
+    }
+
+    [Fact]
+    public void LongEdgeWithNothingInTheWayStaysACurve()
+    {
+        // a → b → c and a → c with b in another row: the straight line is clear only if b is off it; here b is on it.
+        var flow = FlowOf(Step("a"), Step("b", "a"), Step("c", "b"), Step("d", "c"));
+        var a = Arrange(flow);
+        Assert.All(a.Edges, e => Assert.Null(e.WrapLaneY));
     }
 }

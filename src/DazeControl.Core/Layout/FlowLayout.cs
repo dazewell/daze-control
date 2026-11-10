@@ -97,7 +97,7 @@ public sealed record NodeBox(string Id, Rect Bounds, int Column, int Row, string
 
 /// <summary>An edge between two top-level boxes; an edge naming a card member is drawn from/to its card.</summary>
 /// <param name="WrapLaneY">Set on an edge from a wrapped row's end to the next row's start (D-060), or from a block's
-/// last box to the line under it (D-066): the gap's middle.</param>
+/// last box to the line under it (D-066): the gap's middle; or on a long edge that detours round the boxes it skips (D-111): the lane.</param>
 public sealed record EdgeRoute(string From, string To, EdgeWhen When, Point Start, Point End, double? WrapLaneY = null);
 
 /// <param name="Columns">Top-level ids per column, top to bottom.</param>
@@ -319,17 +319,55 @@ public static class FlowLayout
 
         var byId = boxes.Where(b => b.Card is null).ToDictionary(b => b.Id, b => b.Bounds, StringComparer.Ordinal);
         var routes = new List<EdgeRoute>();
+        var detourBottom = 0.0;
         foreach (var (from, to, when) in edges)
         {
             if (byId.TryGetValue(from, out var a) && byId.TryGetValue(to, out var b))
-                routes.Add(new EdgeRoute(from, to, when, new Point(a.Right, a.CenterY), new Point(b.X, b.CenterY),
-                    wrapLanes.TryGetValue((from, to), out var lane) ? lane : null));
+            {
+                var start = new Point(a.Right, a.CenterY);
+                var end = new Point(b.X, b.CenterY);
+                double? lane = wrapLanes.TryGetValue((from, to), out var wrapLane) ? wrapLane : DetourLane(byId, from, to, start, end, o);
+                if (lane is { } y)
+                    detourBottom = Math.Max(detourBottom, y);
+                routes.Add(new EdgeRoute(from, to, when, start, end, lane));
+            }
         }
 
         var right = boxes.Count == 0 ? o.Padding : boxes.Max(b => b.Bounds.Right);
-        var bottom = boxes.Count == 0 ? o.Padding : boxes.Max(b => b.Bounds.Bottom);
+        var bottom = Math.Max(boxes.Count == 0 ? o.Padding : boxes.Max(b => b.Bounds.Bottom), detourBottom);
         return new FlowArrangement(boxes, routes, columns, new Size(right + o.Padding, bottom + o.Padding));
     }
+
+    private const double DetourClearance = 14;
+
+    /// <summary>
+    /// The lane an edge runs along to get round the boxes it would otherwise strike through (D-111), or null when its
+    /// line is clear. The lane sits just above or below every box between the two ends, whichever is nearer.
+    /// </summary>
+    private static double? DetourLane(Dictionary<string, Rect> byId, string from, string to, Point start, Point end, LayoutOptions o)
+    {
+        if (end.X - start.X <= 2 * EdgeCurve.WrapStep)
+            return null;
+        var between = byId.Where(kv => kv.Key != from && kv.Key != to && kv.Value.X >= start.X && kv.Value.Right <= end.X)
+            .Select(kv => kv.Value).ToList();
+        if (between.Count == 0)
+            return null;
+        var curve = EdgeCurve.Between(start, end);
+        var blocked = false;
+        for (var i = 1; i < 32 && !blocked; i++)
+        {
+            var p = o.Lines == LayoutLines.RightAngles ? RightAngledPoint(start, end, i / 32.0) : curve.At(i / 32.0);
+            blocked = between.Any(r => p.X >= r.X - 2 && p.X <= r.Right + 2 && p.Y >= r.Y - 2 && p.Y <= r.Bottom + 2);
+        }
+        if (!blocked)
+            return null;
+        var above = between.Min(r => r.Y) - DetourClearance;
+        var below = between.Max(r => r.Bottom) + DetourClearance;
+        var mid = (start.Y + end.Y) / 2;
+        return mid - above <= below - mid ? above : below;
+    }
+
+    private static Point RightAngledPoint(Point start, Point tip, double t) => EdgeCurve.RightAngled(start, tip).At(t);
 
     /// <summary>
     /// Spine runs longer than <paramref name="wrapAfter"/> as first layer → length (D-060): consecutive layers of one
