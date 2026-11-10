@@ -504,11 +504,11 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     private void Note(string text, string at) => Noted?.Invoke(this, new CanvasNote(text, at));
 
     public const string FallbackPolicyNote =
-        "If this fails, its fallback runs and the flow carries on, so it's set to \"Skip what depends on it\" now.";
+        "If this fails, its fallback runs and the flow carries on, so it's set to \"Skip what follows\" now.";
 
     /// <summary>
     /// A step or card with an "if it fails" link and "Stop the flow" runs the fallback and goes on (D-024), which is
-    /// what "Skip what depends on it" says, so the policy shows that (D-059). Skip and Keep going stay as chosen.
+    /// what "Skip what follows" says, so the policy shows that (D-059). Skip and Run the next steps anyway stay as chosen.
     /// </summary>
     public static Flow WithFallbackPolicy(Flow flow, string source, ValueDictionary<StepDefault>? defaults = null)
     {

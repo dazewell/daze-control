@@ -77,7 +77,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     [ObservableProperty]
     public partial string Glyph { get; private set; } = "";
 
-    /// <summary>"Keep going" policy: dashed border + "May fail" chip (UX §5.3).</summary>
+    /// <summary>"Run the next steps anyway" policy: dashed border + "Failure ignored" chip (UX §5.3).</summary>
     [ObservableProperty]
     public partial bool MayFail { get; private set; }
 
@@ -180,7 +180,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     private string _name = "";
 
-    /// <summary>Screen-reader name, e.g. "Set default output, Technics. Audio. Waits for Connect Technics. May fail."</summary>
+    /// <summary>Screen-reader name, e.g. "Set default output, Technics. Audio. Waits for Connect Technics. Failure ignored."</summary>
     [ObservableProperty]
     public partial string AutomationName { get; private set; } = "";
 
@@ -215,7 +215,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         MayFail = policy == FailurePolicy.Ignore;
         var badges = new List<Badge>();
         if (MayFail)
-            badges.Add(new Badge("", "May fail", policyInherited));
+            badges.Add(new Badge("", "Failure ignored", policyInherited));
         else if (policy == FailurePolicy.Skip)
             badges.Add(new Badge("", "Skip", policyInherited));
         if (node is GroupNode card)
@@ -263,7 +263,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         if (node is StepNode onlyStep && effective?.Only is { } cond && cond != StepNode.OnlyAlways)
             parts.Add($"Only if {OnlyLabel(onlyStep.Step, cond)}");
         if (MayFail)
-            parts.Add("May fail");
+            parts.Add("Failure ignored");
         if (hasProblem)
             parts.Add("Needs fixing");
         _name = string.Join(". ", parts) + ".";

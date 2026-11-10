@@ -16,7 +16,7 @@ public enum FailurePolicy
     /// <summary>Skip what depends on this node; other branches go on.</summary>
     Skip,
 
-    /// <summary>"May fail": counts as done, dependents run.</summary>
+    /// <summary>"Failure ignored": counts as done, dependents run.</summary>
     Ignore,
 }
 

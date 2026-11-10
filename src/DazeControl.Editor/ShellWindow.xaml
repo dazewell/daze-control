@@ -671,8 +671,8 @@
                                                                               SelectedIndex="{x:Bind PolicyIndex, Mode=TwoWay}">
                                                                         <!-- FailurePolicy's order -->
                                                                         <x:String>Stop the flow</x:String>
-                                                                        <x:String>Skip what depends on it</x:String>
-                                                                        <x:String>Keep going</x:String>
+                                                                        <x:String>Skip what follows</x:String>
+                                                                        <x:String>Run the next steps anyway</x:String>
                                                                     </ComboBox>
                                                                     <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Reset" Tag="{x:Bind}" Click="OnResetPolicy"
                                                                             AutomationProperties.Name="Reset if it fails to the built-in value" />

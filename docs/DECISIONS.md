@@ -1457,3 +1457,10 @@ Status: accepted (fix for a user report: check → restore → show message plus
   Why not dummy-node layers: every long edge would widen the flow by a column of empty slots.
 - Revisit if: several detours stack on one lane and overlap (lane per edge), or lines should dodge other edges.
 
+## D-112 · 2026-11-09 · Failure options renamed: "Skip what follows", "Run the next steps anyway"
+Status: accepted (wording only; supersedes the names in D-024/D-025/D-059; YAML `stop`/`skip`/`ignore` and runtime unchanged)
+- Decision: the per-step "If it fails" options read "Stop the flow" · "Skip what follows" (was "Skip what depends on it") ·
+  "Run the next steps anyway" (was "Keep going"); the canvas chip "May fail" is now "Failure ignored". Each description says what
+  happens to "When it works" and "Only if it fails" links: Skip drops only the first, Run anyway runs both (D-025).
+- Why: a user picked "Keep going" meaning "skip the dependents", and a failed check ran both messages on wake from sleep.
+- Revisit if: users still confuse the second and third option.

@@ -8,8 +8,8 @@ What Daze Control does, stack-independent. Source: the 2026-10-31 plan §2. Stat
 - Edge `when`: `success` (default) · `failure` (fallback branch, e.g. buds if headphones fail) · `always`.
 - A node runs when **all** incoming edges are satisfied; if one can never be satisfied it is **Skipped**,
   and skips propagate (only `always` edges fire from a skipped node).
-- Node failure policy: `stop` (default: cancel the flow) · `skip` (skip what depends on it, other branches
-  go on) · `ignore` ("may fail": counts as done, dependents run). Retries (count, delay), timeout
+- Node failure policy: `stop` (default: cancel the flow) · `skip` ("Skip what follows": skips the steps after it, other branches
+  go on) · `ignore` ("Run the next steps anyway": counts as done, so its "when it works" follow-ups run too). Retries (count, delay), timeout
   (provider default, overridable). A card fails if a member fails with `stop`/`skip`; its own policy then
   applies to what follows it. No nested cards.
 - A failed node with an outgoing `failure` edge has *handled* its failure: its `stop`/`skip` policy is not

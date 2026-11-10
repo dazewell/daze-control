@@ -294,7 +294,7 @@ public sealed class PageViewModelTests : IDisposable
         row.PolicyIndex = (int)FailurePolicy.Skip;
         var entry = _session.Current.Settings.StepDefaults["wait"];
         Assert.Equal(new StepDefault { Timeout = TimeSpan.FromSeconds(2), RetryCount = 2, OnFailure = FailurePolicy.Skip }, entry);
-        Assert.Equal("Give up after 2 s · Try again 2 times · Skip what depends on it", row.Summary);
+        Assert.Equal("Give up after 2 s · Try again 2 times · Skip what follows", row.Summary);
 
         row.ResetTimeout();
         row.ResetRetryCount();

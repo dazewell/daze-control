@@ -238,11 +238,11 @@ public sealed partial class StepDefaultRow : ObservableObject
     internal static string Policy(FailurePolicy policy) => policy switch
     {
         FailurePolicy.Stop => "Stop the flow",
-        FailurePolicy.Skip => "Skip what depends on it",
-        _ => "Keep going",
+        FailurePolicy.Skip => "Skip what follows",
+        _ => "Run the next steps anyway",
     };
 
-    /// <summary>"Give up after 30 s · Try again 2 times · Skip what depends on it".</summary>
+    /// <summary>"Give up after 30 s · Try again 2 times · Skip what follows".</summary>
     internal static string Describe(StepDefault value, string? stepId = null)
     {
         var parts = new List<string>();

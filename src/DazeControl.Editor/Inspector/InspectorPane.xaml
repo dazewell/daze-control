@@ -325,24 +325,24 @@
                 <RadioButtons x:Name="PolicyButtons" Opacity="{x:Bind local:InspectorPane.DimStep(ViewModel.IsStep, ViewModel.PolicyIsSet), Mode=OneWay}" SelectedIndex="{x:Bind ViewModel.PolicyIndex, Mode=TwoWay}" AutomationProperties.Name="{x:Bind ViewModel.PolicySectionTitle, Mode=OneWay}"
                               IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
                     <RadioButton Tag="0" PointerEntered="OnPolicyHover" PointerExited="OnPolicyLeave" GotFocus="OnPolicyHover" LostFocus="OnPolicyLeave"
-                                 AutomationProperties.Name="Stop the flow. Nothing after this runs.">
+                                 AutomationProperties.Name="Stop the flow. If this fails, the whole flow stops.">
                         <StackPanel>
                             <TextBlock Text="Stop the flow" />
-                            <TextBlock Text="Nothing after this runs." Style="{StaticResource SettingsCardDescription}" />
+                            <TextBlock Text="If this fails, the whole flow stops." Style="{StaticResource SettingsCardDescription}" />
                         </StackPanel>
                     </RadioButton>
                     <RadioButton Tag="1" PointerEntered="OnPolicyHover" PointerExited="OnPolicyLeave" GotFocus="OnPolicyHover" LostFocus="OnPolicyLeave"
-                                 AutomationProperties.Name="Skip what depends on it. Steps that wait for this one are skipped. Others carry on.">
+                                 AutomationProperties.Name="Skip what follows. If this fails, the steps after it are skipped. Steps on other paths carry on. Only an &quot;When it works&quot; follow-up is skipped; an &quot;Only if it fails&quot; step runs.">
                         <StackPanel>
-                            <TextBlock Text="Skip what depends on it" />
-                            <TextBlock Text="Steps that wait for this one are skipped. Others carry on." Style="{StaticResource SettingsCardDescription}" />
+                            <TextBlock Text="Skip what follows" />
+                            <TextBlock Text="If this fails, the steps after it are skipped. Steps on other paths carry on. Only an &quot;When it works&quot; follow-up is skipped; an &quot;Only if it fails&quot; step runs." Style="{StaticResource SettingsCardDescription}" />
                         </StackPanel>
                     </RadioButton>
                     <RadioButton Tag="2" PointerEntered="OnPolicyHover" PointerExited="OnPolicyLeave" GotFocus="OnPolicyHover" LostFocus="OnPolicyLeave"
-                                 AutomationProperties.Name="Keep going. This step may fail, and the flow carries on.">
+                                 AutomationProperties.Name="Run the next steps anyway. If this fails, the steps after it still run, including the &quot;When it works&quot; ones, as if it had worked. Use it only when failure doesn't matter.">
                         <StackPanel>
-                            <TextBlock Text="Keep going" />
-                            <TextBlock Text="This step may fail, and the flow carries on." Style="{StaticResource SettingsCardDescription}" />
+                            <TextBlock Text="Run the next steps anyway" />
+                            <TextBlock Text="If this fails, the steps after it still run, including the &quot;When it works&quot; ones, as if it had worked. Use it only when failure doesn't matter." Style="{StaticResource SettingsCardDescription}" />
                         </StackPanel>
                     </RadioButton>
                 </RadioButtons>
@@ -510,22 +510,22 @@
                 <TextBlock Text="{x:Bind ViewModel.ManyPolicyTitle, Mode=OneWay}" Style="{StaticResource InspectorSection}" />
                 <RadioButtons SelectedIndex="{x:Bind ViewModel.ManyPolicyIndex, Mode=TwoWay}" Opacity="{x:Bind local:InspectorPane.DimRow(ViewModel.ManyPolicyView), Mode=OneWay}"
                               AutomationProperties.Name="{x:Bind ViewModel.ManyPolicyView.Name, Mode=OneWay}">
-                    <RadioButton AutomationProperties.Name="Stop the flow. Nothing after this runs.">
+                    <RadioButton AutomationProperties.Name="Stop the flow. If this fails, the whole flow stops.">
                         <StackPanel>
                             <TextBlock Text="Stop the flow" />
-                            <TextBlock Text="Nothing after this runs." Style="{StaticResource SettingsCardDescription}" />
+                            <TextBlock Text="If this fails, the whole flow stops." Style="{StaticResource SettingsCardDescription}" />
                         </StackPanel>
                     </RadioButton>
-                    <RadioButton AutomationProperties.Name="Skip what depends on it. Steps that wait for this one are skipped. Others carry on.">
+                    <RadioButton AutomationProperties.Name="Skip what follows. If this fails, the steps after it are skipped. Steps on other paths carry on. Only an &quot;When it works&quot; follow-up is skipped; an &quot;Only if it fails&quot; step runs.">
                         <StackPanel>
-                            <TextBlock Text="Skip what depends on it" />
-                            <TextBlock Text="Steps that wait for this one are skipped. Others carry on." Style="{StaticResource SettingsCardDescription}" />
+                            <TextBlock Text="Skip what follows" />
+                            <TextBlock Text="If this fails, the steps after it are skipped. Steps on other paths carry on. Only an &quot;When it works&quot; follow-up is skipped; an &quot;Only if it fails&quot; step runs." Style="{StaticResource SettingsCardDescription}" />
                         </StackPanel>
                     </RadioButton>
-                    <RadioButton AutomationProperties.Name="Keep going. This step may fail, and the flow carries on.">
+                    <RadioButton AutomationProperties.Name="Run the next steps anyway. If this fails, the steps after it still run, including the &quot;When it works&quot; ones, as if it had worked. Use it only when failure doesn't matter.">
                         <StackPanel>
-                            <TextBlock Text="Keep going" />
-                            <TextBlock Text="This step may fail, and the flow carries on." Style="{StaticResource SettingsCardDescription}" />
+                            <TextBlock Text="Run the next steps anyway" />
+                            <TextBlock Text="If this fails, the steps after it still run, including the &quot;When it works&quot; ones, as if it had worked. Use it only when failure doesn't matter." Style="{StaticResource SettingsCardDescription}" />
                         </StackPanel>
                     </RadioButton>
                 </RadioButtons>
