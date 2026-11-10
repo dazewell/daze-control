@@ -207,6 +207,8 @@ public static class FlowPlacement
     private static Dictionary<string, Point> Circle(List<string> order, Dictionary<string, Rect> top, LayoutOptions o)
     {
         var at = new Dictionary<string, Point>(StringComparer.Ordinal);
+        if (order.Count == 0)
+            return at;
         if (order.Count == 1)
         {
             at[order[0]] = default;

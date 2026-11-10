@@ -149,6 +149,19 @@ public class FlowPlacementTests
         Assert.Equal(FlowLayout.Arrange(flow, _ => Pill), Arrange(flow, placed: stale), new ArrangementComparer());
     }
 
+    [Theory]
+    [InlineData(LayoutShape.TopToBottom)]
+    [InlineData(LayoutShape.Tree)]
+    [InlineData(LayoutShape.Circle)]
+    public void AnEmptyFlowHasNothingToArrange(LayoutShape shape)
+    {
+        var a = Arrange(FlowOf(), shape);
+
+        Assert.Empty(a.Boxes);
+        Assert.Empty(a.Edges);
+        Assert.Empty(Arrange(FlowOf(), shape, new Dictionary<string, Point> { ["gone"] = new(96, 96) }).Boxes);
+    }
+
     [Fact]
     public void APlacedStepStaysWhereItWasPut()
     {
