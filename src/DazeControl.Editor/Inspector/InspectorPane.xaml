@@ -25,7 +25,8 @@
         <Style TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
             <Setter Property="local:WheelGuard.IsEnabled" Value="True" />
         </Style>
-        <Style TargetType="NumberBox" BasedOn="{StaticResource DefaultNumberBoxStyle}">
+        <!-- NumberBox has no keyed default style; a style without BasedOn still layers on its theme style. -->
+        <Style TargetType="NumberBox">
             <Setter Property="local:WheelGuard.IsEnabled" Value="True" />
         </Style>
         <Style TargetType="Slider" BasedOn="{StaticResource DefaultSliderStyle}">
