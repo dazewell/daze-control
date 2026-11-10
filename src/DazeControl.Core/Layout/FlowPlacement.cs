@@ -37,7 +37,7 @@ public static class FlowPlacement
         {
             LayoutShape.TopToBottom => Rows(auto.Columns, top, o),
             LayoutShape.Tree => Tree(order, top, edges, layers, o),
-            LayoutShape.Circle => Circle(order, top, o),
+            LayoutShape.Circle => Circle(Preorder(order, Children(order, edges, layers)), top, o),
             _ => top.ToDictionary(kv => kv.Key, kv => new Point(kv.Value.X, kv.Value.Y), StringComparer.Ordinal),
         };
         at = Pad(at, o.Padding);
@@ -123,21 +123,8 @@ public static class FlowPlacement
     private static Dictionary<string, Point> Tree(List<string> order, Dictionary<string, Rect> top,
         List<(string From, string To, EdgeWhen When)> edges, Dictionary<string, int> layers, LayoutOptions o)
     {
-        var rank = order.Select((id, i) => (id, i)).ToDictionary(x => x.id, x => x.i, StringComparer.Ordinal);
-        var parent = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var id in order)
-        {
-            var from = edges.Where(e => e.To == id && layers.GetValueOrDefault(e.From) < layers.GetValueOrDefault(id))
-                .Select(e => e.From).OrderByDescending(f => layers.GetValueOrDefault(f)).ThenBy(f => rank[f]).FirstOrDefault();
-            if (from is not null)
-                parent[id] = from;
-        }
-        var children = order.ToDictionary(id => id, _ => new List<string>(), StringComparer.Ordinal);
-        foreach (var id in order)
-        {
-            if (parent.TryGetValue(id, out var p))
-                children[p].Add(id);
-        }
+        var children = Children(order, edges, layers);
+        var hasParent = children.Values.SelectMany(c => c).ToHashSet(StringComparer.Ordinal);
 
         var levels = order.Select(id => layers.GetValueOrDefault(id)).DefaultIfEmpty(0).Max() + 1;
         var levelHeight = new double[levels];
@@ -173,7 +160,7 @@ public static class FlowPlacement
             }
         }
         var cursor = 0.0;
-        foreach (var root in order.Where(id => !parent.ContainsKey(id)))
+        foreach (var root in order.Where(id => !hasParent.Contains(id)))
         {
             Lay(root, cursor);
             cursor += Span(root) + 2 * gap;
@@ -181,7 +168,42 @@ public static class FlowPlacement
         return at;
     }
 
-    /// <summary>A ring in run order, clockwise from the top; each step's share of the ring is its width plus a gap.</summary>
+    /// <summary>
+    /// The tree's children per step: a step hangs under the step it waits for that runs last (ties: the first in run
+    /// order); steps waiting for nothing (or only in a cycle) are roots.
+    /// </summary>
+    private static Dictionary<string, List<string>> Children(List<string> order,
+        List<(string From, string To, EdgeWhen When)> edges, Dictionary<string, int> layers)
+    {
+        var rank = order.Select((id, i) => (id, i)).ToDictionary(x => x.id, x => x.i, StringComparer.Ordinal);
+        var children = order.ToDictionary(id => id, _ => new List<string>(), StringComparer.Ordinal);
+        foreach (var id in order)
+        {
+            var from = edges.Where(e => e.To == id && layers.GetValueOrDefault(e.From) < layers.GetValueOrDefault(id))
+                .Select(e => e.From).OrderByDescending(f => layers.GetValueOrDefault(f)).ThenBy(f => rank[f]).FirstOrDefault();
+            if (from is not null)
+                children[from].Add(id);
+        }
+        return children;
+    }
+
+    /// <summary>Each root, then its branches one after another depth first: a chain stays together round the ring.</summary>
+    private static List<string> Preorder(List<string> order, Dictionary<string, List<string>> children)
+    {
+        var hasParent = children.Values.SelectMany(c => c).ToHashSet(StringComparer.Ordinal);
+        var result = new List<string>(order.Count);
+        void Walk(string id)
+        {
+            result.Add(id);
+            foreach (var kid in children[id])
+                Walk(kid);
+        }
+        foreach (var root in order.Where(id => !hasParent.Contains(id)))
+            Walk(root);
+        return result;
+    }
+
+    /// <summary>A ring in tree order (<see cref="Preorder"/>), clockwise from the top; each step's share of the ring is its width plus a gap.</summary>
     private static Dictionary<string, Point> Circle(List<string> order, Dictionary<string, Rect> top, LayoutOptions o)
     {
         var at = new Dictionary<string, Point>(StringComparer.Ordinal);
@@ -190,7 +212,7 @@ public static class FlowPlacement
             at[order[0]] = default;
             return at;
         }
-        var gap = SiblingGap(o);
+        var gap = 3 * SiblingGap(o); // round the bottom, neighbours sit side by side and a line needs room between them
         var shares = order.Select(id => top[id].Width + gap).ToList();
         var total = shares.Sum();
         var radius = Math.Max(total / (2 * Math.PI), order.Max(id => top[id].Width) * 0.75);

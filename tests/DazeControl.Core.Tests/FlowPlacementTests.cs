@@ -116,6 +116,18 @@ public class FlowPlacementTests
     }
 
     [Fact]
+    public void CircleKeepsABranchTogetherRoundTheRing()
+    {
+        // a forks to b and c; b goes on to d. Round the ring: a, b, d, c (not column by column: a, b, c, d).
+        var a = Arrange(FlowOf(Step("a"), Step("b", "a"), Step("c", "a"), Step("d", "b")), LayoutShape.Circle);
+        var centre = new Point(a.Boxes.Average(x => CentreX(x.Bounds)), a.Boxes.Average(x => x.Bounds.CenterY));
+        double Angle(string id) => (Math.Atan2(B(a, id).CenterY - centre.Y, CentreX(B(a, id)) - centre.X) + 2.5 * Math.PI) % (2 * Math.PI);
+
+        List<string> ids = ["a", "b", "c", "d"];
+        Assert.Equal(["a", "b", "d", "c"], ids.OrderBy(Angle));
+    }
+
+    [Fact]
     public void APlacedStepStaysWhereItWasPut()
     {
         var a = Arrange(Diamond(), placed: new Dictionary<string, Point> { ["a"] = new(400, 304), ["b"] = new(48, 48), ["c"] = new(48, 200), ["d"] = new(800, 600) });
