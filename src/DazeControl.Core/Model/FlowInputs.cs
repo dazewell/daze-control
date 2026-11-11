@@ -8,7 +8,7 @@ public static class FlowInputs
 
     /// <summary>The input a setting names (<c>$output</c> → "output"), or null for a plain value.</summary>
     public static string? NameIn(ParamValue value) =>
-        value is ScalarParam { Text: var text } && text.Trim() is ['$', .. var name] ? name : null;
+        value is ScalarParam { Text: var text } && text.Trim() is ['$', .. var name] && PickResults.StepIn(text) is null ? name : null;
 
     /// <summary>What a <c>flow.run</c> step passes: input name → value as written (keys or <c>$name</c>).</summary>
     public static IReadOnlyDictionary<string, string> Given(StepNode call)

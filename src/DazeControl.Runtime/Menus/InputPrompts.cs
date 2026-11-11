@@ -59,7 +59,8 @@ public sealed class InputPrompts(IMenuPresenter presenter)
         return new(FlowInputs.Apply(flow, answers), null);
     }
 
-    private static List<MenuItem> ItemsOf(Library library, LibraryKind kind) => kind switch
+    /// <summary>The Library's items of a kind as menu rows (key, name); also what a Pick step offers (D-117).</summary>
+    internal static List<MenuItem> ItemsOf(Library library, LibraryKind kind) => kind switch
     {
         LibraryKind.Audio => [.. library.Audio.Select(d => new MenuItem(d.Key, d.Key, MenuItemState.Ready)), .. BoundItems(library, kind)],
         LibraryKind.Bluetooth => [.. library.Bluetooth.Select(d => new MenuItem(d.Key, d.Name ?? d.Key, MenuItemState.Ready)), .. BoundItems(library, kind)],

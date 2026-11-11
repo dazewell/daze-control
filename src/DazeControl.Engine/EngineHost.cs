@@ -107,6 +107,7 @@ internal sealed class EngineHost : IDisposable
         // prompt.ask and ask-at-start inputs (M20, D-107) use the same window, so they never take focus either.
         var flagStore = stepProviders.OfType<DazeControl.Providers.Basic.FlagSetProvider>().FirstOrDefault()?.Flags;
         stepProviders.Add(new PromptProvider(menus, flagStore is null ? null : flagStore.Set));
+        stepProviders.Add(new PickProvider(menus));
         var runner = new FlowRunner(stepProviders, TimeProvider.System, locks, events: OnRunEvent, probes: probes) { Flows = calls };
         _launcher = new FlowLauncher(runner, _history);
         calls.Launcher = _launcher;

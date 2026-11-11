@@ -8,7 +8,7 @@ namespace DazeControl.Core.Catalog;
 public static class ProviderCatalog
 {
     private const string Audio = "E767", Bluetooth = "E702", Display = "E7F4", Process = "E756", Script = "E943",
-        Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", File = "E8A5", RunFlow = "E768", MenuGlyph = "E700", AskGlyph = "E897";
+        Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", File = "E8A5", RunFlow = "E768", MenuGlyph = "E700", AskGlyph = "E897", PickGlyph = "E8FD";
 
     /// <summary>The fact id of <c>BluetoothConnectedProbe</c> (D-081).</summary>
     public const string BluetoothConnected = "bluetooth.connected";
@@ -366,7 +366,33 @@ public static class ProviderCatalog
                 Help = "Used when nobody answers and \"No answer\" says so: yes or no, or one of the answers.",
             },
         ]),
+        // A person picks a Library item; later steps use it as "$result:<id>" (D-117). No resources, like Ask.
+        new(PromptPickId, "Pick device", PickGlyph, TimeSpan.FromMinutes(11),
+        [
+            new("kind", ParamKind.Choice, "Pick")
+            {
+                Choices = [.. PickResults.KindWords], Captions = ["Audio device", "Bluetooth device", "Screen layout", "Android device", "Bound device"],
+                Default = "audio", Help = "Lists your Library's items of this kind. Later steps can use the one picked.",
+            },
+            new("question", ParamKind.Text, "Question") { Help = "Empty = \"Pick an audio device\" (or the kind you chose)." },
+            new("timeout", ParamKind.Duration, "Wait")
+            {
+                Default = "30s", Help = "5 s to 10 min for an answer.",
+            },
+            new("onTimeout", ParamKind.Choice, "No answer")
+            {
+                Choices = [Prompts.Stop, Prompts.UseDefault], Captions = ["Stop the flow", "Use the default"],
+                Help = "Empty = stop the flow (its history says \"No answer\"), so a run nobody is there for never waits.",
+            },
+            new("default", ParamKind.Text, "Default")
+            {
+                Help = "The Library name to use when nobody answers, and the one shown first.",
+            },
+        ]),
     ];
+
+    /// <summary>The <c>prompt.pick</c> step type (D-117).</summary>
+    public const string PromptPickId = "prompt.pick";
 
     /// <summary>The <c>prompt.ask</c> step type (M20, D-107).</summary>
     public const string PromptAskId = "prompt.ask";

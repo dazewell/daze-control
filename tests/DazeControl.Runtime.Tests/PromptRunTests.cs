@@ -273,7 +273,7 @@ public sealed class PromptRunTests : IDisposable
         Assert.Equal(["technics", "technics"], _devices);
     }
 
-    private sealed class Recorder(string id, Action<StepContext> run) : IStepProvider
+    internal sealed class Recorder(string id, Action<StepContext> run) : IStepProvider
     {
         public string Id => id;
 
@@ -284,7 +284,7 @@ public sealed class PromptRunTests : IDisposable
         }
     }
 
-    private sealed class FakePrompt : IMenuPresenter
+    internal sealed class FakePrompt : IMenuPresenter
     {
         public Func<MenuRequest, MenuOutcome>? Script { get; set; }
 
