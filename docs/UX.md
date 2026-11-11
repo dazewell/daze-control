@@ -126,7 +126,11 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   CardStrokeColorDefault; selected 2 px AccentFillColorDefault; system focus visual. Ports 10-DIP dots, 24-DIP
   hit (40 touch), on hover/selection, always on touch.
 - Glyphs (Segoe Fluent Icons; verify in the gallery): Audio E767, Bluetooth E702, Display E7F4, Process E756,
-  Script E943, HTTP E774, Android E8B2, Service E912, Wait E823, Message E8BD, Flag E7C1.
+  Script E943, HTTP E774, Android E8B2, Service E912, Wait E823, Message E8BD, Flag E7C1, Network (Wi-Fi, cable, internet,
+  metered, VPN) E701, Power E83F, This PC (idle, locked) E7F8, Time E787, Free space EDA2 (D-117).
+- Palette groups, in order: Audio, Bluetooth, Displays, Android, Programs, Services, Files, Web, Network, This PC
+  (power, idle, locked, time), Flow; checks last in each group. Check settings read as plain choices ("Is: Plugged in /
+  On battery"); the result line shows the check's own sentence ("On Wi-Fi Home", "The battery is at 35%").
 - Badges: "Stop the flow" = default, no badge · "Skip what follows" E893 · "Run the next steps anyway" = **dashed 4/2
   border + "Failure ignored" text chip** · retries E72C "×3" · timeout E916 "30 s" · problem E7BA caution + underline.
 - Card: radius 12, padding 12, member spacing 8, CardBackgroundFillColorSecondary; header 32 (E8FD, editable

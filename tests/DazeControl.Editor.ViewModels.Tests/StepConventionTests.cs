@@ -22,7 +22,7 @@ public class StepConventionTests
             Assert.Contains(words[0], Verbs);
             Assert.DoesNotContain(words.Skip(1), w => w is "a" or "an" or "the");
             // Sentence case: only the first word and proper names (PowerShell, Android, Bluetooth) have capitals.
-            Assert.All(words.Skip(1), w => Assert.True(!char.IsUpper(w[0]) || w is "PowerShell" or "Android" or "Bluetooth", $"{d.Id}: \"{d.Title}\""));
+            Assert.All(words.Skip(1), w => Assert.True(!char.IsUpper(w[0]) || w is "PowerShell" or "Android" or "Bluetooth" or "Wi-Fi" or "VPN", $"{d.Id}: \"{d.Title}\""));
         }
     }
 
@@ -30,7 +30,12 @@ public class StepConventionTests
     public void ChecksAreNamedCheckNounAndOnlyChecks()
     {
         foreach (var d in ProviderCatalog.All)
-            Assert.Equal(d.Id.EndsWith(".check", StringComparison.Ordinal), d.Title.StartsWith("Check ", StringComparison.Ordinal));
+        {
+            Assert.Equal(ProviderCatalog.Checks.Contains(d.Id), d.Title.StartsWith("Check ", StringComparison.Ordinal));
+            if (d.Id.EndsWith(".check", StringComparison.Ordinal))
+                Assert.Contains(d.Id, ProviderCatalog.Checks);
+        }
+        Assert.All(ProviderCatalog.Checks, id => Assert.NotNull(ProviderCatalog.Find(id)));
     }
 
     [Fact]

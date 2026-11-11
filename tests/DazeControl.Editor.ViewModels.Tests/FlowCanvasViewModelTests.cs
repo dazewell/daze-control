@@ -748,10 +748,10 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     // ---- T7.5: palette ----
 
     [Fact]
-    public void PaletteHasNineGroupsInOrderWithChecksLastAndEveryStepInOne()
+    public void PaletteHasElevenGroupsInOrderWithChecksLastAndEveryStepInOne()
     {
         var palette = new StepPaletteViewModel();
-        var expected = new[] { "Audio", "Bluetooth", "Displays", "Android", "Programs", "Services", "Files", "Web", "Flow" };
+        var expected = new[] { "Audio", "Bluetooth", "Displays", "Android", "Programs", "Services", "Files", "Web", "Network", "This PC", "Flow" };
         Assert.Equal(expected, CanvasNodeViewModel.Groups);
         Assert.Equal(expected.Where(g => palette.Groups.Any(p => p.Area == g)), palette.Groups.Select(g => g.Area));
         Assert.Equal(Core.Catalog.ProviderCatalog.All.Select(d => d.Id).Order(), palette.Groups.SelectMany(g => g.Items).Select(i => i.Step).Order());

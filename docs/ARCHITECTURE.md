@@ -468,6 +468,8 @@ saved file. Footprint: editor only, no timers.
 No change to Runner, YAML mapper or editor: the inspector renders from `ParamSpec`. A free-text param should say
 where its values come from (`Suggest`) or show `Examples` (D-050); a `Devices(kind)` source needs a kind in
 `IDeviceQueries` (`Providers/SystemDevices`), a `Static` table lives in Core and is shared with the provider.
+A read-only check = an `IFactProbe` + `FactCheckProvider` registration (`BuiltInProviders.StateChecks`) + its id in
+`ProviderCatalog.Checks` (D-117); network/PC reads sit behind `INetworkState` / `IPcState` with fakes.
 
 As built (M4): the composition root is `Providers/BuiltInProviders.Create`. Params are read with `StepParams`
 (written value, else the descriptor default). COM providers (Audio, Bluetooth) use CsWin32 without marshalling
