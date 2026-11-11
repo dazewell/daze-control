@@ -22,7 +22,7 @@ public sealed record StepContext(Flow Flow, StepNode Node, ProviderDescriptor De
     /// <summary>Words for <c>NodeResult.Summary</c> and the node's finish event ("Picked Couch TV"); the last call wins.</summary>
     public void SetSummary(string summary) => Summary = summary;
 
-    /// <summary>The Library key a pick step picked (D-116), read by the runner after the attempt; later steps use it as <c>$result:id</c>.</summary>
+    /// <summary>The Library key a pick step picked (D-117), read by the runner after the attempt; later steps use it as <c>$result:id</c>.</summary>
     public string? Result { get; private set; }
 
     public void SetResult(string key) => Result = key;

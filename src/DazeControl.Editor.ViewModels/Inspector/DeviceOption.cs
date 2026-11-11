@@ -20,7 +20,7 @@ public enum DeviceSource
     Capture,
 
     /// <summary>One of this flow's inputs (D-064): stores <c>$name</c>, so a caller can pick the device.
-    /// Also a Pick step's result (D-116): stores <c>$result:id</c>.</summary>
+    /// Also a Pick step's result (D-117): stores <c>$result:id</c>.</summary>
     Input,
 
     /// <summary>A group's heading ("This flow's inputs"): shown, never picked.</summary>
@@ -54,6 +54,9 @@ public static class LibraryDevices
 {
     public const string NotFound = "Not found on this PC";
 
+    /// <summary>The caption of a bound device in a Bluetooth or audio picker (D-116).</summary>
+    public const string BoundCaption = "Bound device";
+
     /// <summary>The caption of a <c>$name</c> the flow has no input for (the validator's message says the rest).</summary>
     public const string NotAnInput = "Not one of this flow's inputs";
 
@@ -66,6 +69,7 @@ public static class LibraryDevices
         LibraryKind.Audio => "audio",
         LibraryKind.Bluetooth => "bluetooth",
         LibraryKind.Display => "displays",
+        LibraryKind.Bound => "bluetooth",
         _ => "adb",
     };
 
@@ -74,6 +78,7 @@ public static class LibraryDevices
         LibraryKind.Audio => "E767",
         LibraryKind.Bluetooth => "E702",
         LibraryKind.Display => "E7F4",
+        LibraryKind.Bound => "E71B",
         _ => "E8B2",
     });
 
@@ -83,16 +88,17 @@ public static class LibraryDevices
         LibraryKind.Audio => library.Audio.Select(d => (d.Key, d.Match)),
         LibraryKind.Bluetooth => library.Bluetooth.Select(d => (d.Key, d.Name ?? d.Key)),
         LibraryKind.Display => library.Displays.Select(d => (d.Key, d.Key)),
+        LibraryKind.Bound => library.Bound.Select(d => (d.Key, d.Name ?? d.Key)),
         _ => library.Android.Select(d => (d.Key, d.Key)),
     };
 
     /// <summary>The live device a Library item is, or null.</summary>
     public static DeviceInfo? Match(Library library, LibraryKind kind, string key, IReadOnlyList<DeviceInfo> live) => kind switch
     {
-        LibraryKind.Audio when library.Audio.FirstOrDefault(d => d.Key == key) is { } audio => live.FirstOrDefault(d =>
+        LibraryKind.Audio when library.ResolveAudio(key) is { } audio => live.FirstOrDefault(d =>
             d.Name.Contains(audio.Match, StringComparison.OrdinalIgnoreCase)
             && (d.Detail ?? "").StartsWith(audio.Flow == AudioFlow.Input ? "Input" : "Output", StringComparison.Ordinal)),
-        LibraryKind.Bluetooth when library.Bluetooth.FirstOrDefault(d => d.Key == key) is { } bt =>
+        LibraryKind.Bluetooth when library.ResolveBluetooth(key) is { } bt =>
             live.FirstOrDefault(d => string.Equals(d.Name, bt.Address, StringComparison.OrdinalIgnoreCase)),
         LibraryKind.Android when library.Android.FirstOrDefault(d => d.Key == key) is { } tv =>
             live.FirstOrDefault(d => string.Equals(d.Name, tv.Serial, StringComparison.OrdinalIgnoreCase)),
@@ -126,7 +132,7 @@ public static class LibraryDevices
     /// <summary>UX §5.4: the group of a flow's own inputs in its device pickers.</summary>
     public const string InputsGroup = "This flow's inputs";
 
-    /// <summary>D-116: the group of earlier Pick steps' results in a step's device pickers.</summary>
+    /// <summary>D-117: the group of earlier Pick steps' results in a step's device pickers.</summary>
     public const string PicksGroup = "Picked earlier in this flow";
 
     /// <summary>The caption of a <c>$result:id</c> that isn't an earlier Pick step of this kind (the validator's message says why).</summary>
@@ -138,7 +144,8 @@ public static class LibraryDevices
 
     /// <summary>The Library item's name ("Technics"), else the key as written.</summary>
     public static string NameOf(Library library, LibraryKind kind, string key) =>
-        Items(library, kind).FirstOrDefault(i => i.Key == key).Title ?? key;
+        Items(library, kind).FirstOrDefault(i => i.Key == key).Title
+        ?? library.Bound.FirstOrDefault(b => b.Key == key)?.Name ?? key;
 
     /// <summary>"$output" → the input's row: "Output" / "Technics unless the caller picks another".</summary>
     public static DeviceOption InputRow(Library library, string name, FlowInput input) =>
@@ -167,7 +174,7 @@ public static class LibraryDevices
             options.Add(Header(inputsGroup));
             options.AddRange(own.Select(i => InputRow(library, i.Key, i.Value)));
         }
-        var picked = (picks ?? []).Where(p => PickResults.KindOf(p) == kind).ToList();
+        var picked = (picks ?? []).Where(p => PickResults.KindOf(p) is { } k && PickResults.Fits(k, kind)).ToList();
         if (picked.Count > 0)
         {
             options.Add(Header(PicksGroup));
@@ -183,6 +190,21 @@ public static class LibraryDevices
             {
                 IsEnabled = !notConnectable,
             });
+        }
+        // A bound device whose side of this kind is in the Library is one of its devices too (D-116).
+        if (kind is LibraryKind.Audio or LibraryKind.Bluetooth)
+        {
+            foreach (var bound in library.Bound.Where(b => library.Contains(kind, b.Key)))
+            {
+                var state = State(library, kind, bound.Key, live);
+                // Its Bluetooth side may be a paired keyboard: it can't be connected either (D-052).
+                var notConnectable = live is not null && Match(library, kind, bound.Key, live) is { NotConnectable: true };
+                options.Add(new(DeviceSource.Library, bound.Key, bound.Name ?? bound.Key,
+                    notConnectable ? NotConnectable : state.Length == 0 ? BoundCaption : $"{BoundCaption} · {state}", Glyph(LibraryKind.Bound))
+                {
+                    IsEnabled = !notConnectable,
+                });
+            }
         }
         if (!string.IsNullOrEmpty(current) && !library.Contains(kind, current) && own.All(i => "$" + i.Key != current)
             && picked.All(p => PickResults.Ref(p.Id) != current))
@@ -239,7 +261,7 @@ public static class LibraryDevices
         if (stem.Length == 0)
             stem = "device";
         var key = stem;
-        for (var n = 2; library.Contains(kind, key); n++)
+        for (var n = 2; library.Contains(kind, key) || LibraryEdits.KeyClashes(library, kind, key); n++)
             key = string.Create(CultureInfo.InvariantCulture, $"{stem}-{n}");
         return key;
     }

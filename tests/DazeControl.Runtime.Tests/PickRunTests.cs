@@ -8,7 +8,7 @@ using static DazeControl.Runtime.Tests.FlowRunnerTests;
 
 namespace DazeControl.Runtime.Tests;
 
-/// <summary><c>prompt.pick</c> and <c>$result:id</c> at run time (D-116), with a fake presenter: no window.</summary>
+/// <summary><c>prompt.pick</c> and <c>$result:id</c> at run time (D-117), with a fake presenter: no window.</summary>
 public sealed class PickRunTests : IDisposable
 {
     private const string TwoOutputs = """

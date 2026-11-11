@@ -4,7 +4,7 @@ using DazeControl.Core.Yaml;
 
 namespace DazeControl.Core.Tests;
 
-/// <summary>Pick steps (<c>prompt.pick</c>, D-116) and <c>$result:id</c> in YAML and validation.</summary>
+/// <summary>Pick steps (<c>prompt.pick</c>, D-117) and <c>$result:id</c> in YAML and validation.</summary>
 public class PickTests
 {
     private const string Library = """
@@ -90,6 +90,19 @@ public class PickTests
 
         Assert.Null(missing);
         Assert.Same(step, resolved);
+    }
+
+    [Fact]
+    public void ABoundDevicePickFillsBluetoothAndAudioSettingsButNotDisplays()
+    {
+        var yaml = Flow("""
+                  - { id: pick, step: prompt.pick, with: { kind: bound } }
+                  - { id: a, step: audio.setDefault, with: { device: "$result:pick" }, after: [pick] }
+                  - { id: b, step: bluetooth.connect, with: { device: "$result:pick" }, after: [pick] }
+                  - { id: d, step: display.layout, with: { layout: "$result:pick" }, after: [pick] }
+            """);
+        var error = Assert.Single(Errors(yaml));
+        Assert.StartsWith("flows.f.nodes.d.with.", error.Path, StringComparison.Ordinal);
     }
 
     [Fact]

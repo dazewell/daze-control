@@ -3,7 +3,7 @@ using DazeControl.Core.Catalog;
 namespace DazeControl.Core.Model;
 
 /// <summary>
-/// Pick steps (<c>prompt.pick</c>, D-116): the Library item a person picks while the flow runs, and the steps that use it.
+/// Pick steps (<c>prompt.pick</c>, D-117): the Library item a person picks while the flow runs, and the steps that use it.
 /// A device setting (or a value <c>flow.run</c> passes) holds <c>$result:&lt;step id&gt;</c>; the runner swaps in the picked
 /// key just before that step runs, so its lock and provider only ever see a Library key (as with inputs, D-064).
 /// </summary>
@@ -11,8 +11,14 @@ public static class PickResults
 {
     public const string Prefix = "$result:";
 
-    /// <summary>The <c>kind</c> setting's words, in <see cref="LibraryKind"/> order.</summary>
-    public static readonly IReadOnlyList<string> KindWords = ["audio", "bluetooth", "display", "android"];
+    /// <summary>The <c>kind</c> setting's words, matching <see cref="Kinds"/>.</summary>
+    public static readonly IReadOnlyList<string> KindWords = ["audio", "bluetooth", "display", "android", "bound"];
+
+    private static readonly LibraryKind[] Kinds = [LibraryKind.Audio, LibraryKind.Bluetooth, LibraryKind.Display, LibraryKind.Android, LibraryKind.Bound];
+
+    /// <summary>Whether a pick of <paramref name="picked"/> fills a setting needing <paramref name="setting"/>: the same kind, or a bound device (D-116) in a Bluetooth or audio setting.</summary>
+    public static bool Fits(LibraryKind picked, LibraryKind setting) =>
+        picked == setting || picked == LibraryKind.Bound && setting is LibraryKind.Audio or LibraryKind.Bluetooth;
 
     /// <summary>The value a step stores to use a pick step's result.</summary>
     public static string Ref(string pickId) => Prefix + pickId;
@@ -35,7 +41,7 @@ public static class PickResults
         for (var i = 0; i < KindWords.Count; i++)
         {
             if (KindWords[i] == word)
-                return (LibraryKind)i;
+                return Kinds[i];
         }
         return null;
     }
@@ -82,7 +88,7 @@ public static class PickResults
         ArgumentNullException.ThrowIfNull(flow);
         if (flow.FindNode(pickId) is not StepNode pick || !IsPick(pick))
             return $"There's no Pick step called \"{pickId}\" in this flow.";
-        if (KindOf(pick) is { } picked && picked != kind)
+        if (KindOf(pick) is { } picked && !Fits(picked, kind))
             return $"\"{NameOf(pick)}\" picks {Article(picked)}; this setting needs {Article(kind)}.";
         if (Before(flow, nodeId).All(p => p.Id != pickId))
             return $"\"{NameOf(pick)}\" must run before this step: connect it so this step comes after.";

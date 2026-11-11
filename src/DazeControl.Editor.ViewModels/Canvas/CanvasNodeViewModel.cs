@@ -290,7 +290,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             values.Add(spec.Kind switch
             {
                 // "$output" shows as the input's name, like the picker (D-064).
-                // "$result:pick" shows as "Result of Pick device" (D-116).
+                // "$result:pick" shows as "Result of Pick device" (D-117).
                 ParamKind.LibraryRef when PickResults.StepIn(value) is { } pick =>
                     OwnerOf(step, config)?.FindNode(pick) is StepNode picker ? "Result of " + PickResults.NameOf(picker) : text,
                 ParamKind.LibraryRef when FlowInputs.NameIn(value) is { } input =>
@@ -333,6 +333,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     private static string LibraryName(Library library, LibraryKind? kind, string key) => kind switch
     {
+        LibraryKind.Bluetooth or LibraryKind.Audio when library.Bound.FirstOrDefault(d => d.Key == key) is { } bound => bound.Name ?? key,
         LibraryKind.Bluetooth => library.Bluetooth.FirstOrDefault(d => d.Key == key)?.Name ?? key,
         LibraryKind.Audio => library.Audio.FirstOrDefault(d => d.Key == key)?.Match ?? key,
         _ => key,

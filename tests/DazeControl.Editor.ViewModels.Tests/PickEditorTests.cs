@@ -7,7 +7,7 @@ using DazeControl.Ipc;
 
 namespace DazeControl.Editor.ViewModels.Tests;
 
-/// <summary>D-116: "Result of: &lt;Pick step&gt;" in device pickers, only for earlier Pick steps of the same kind.</summary>
+/// <summary>D-117: "Result of: &lt;Pick step&gt;" in device pickers, only for earlier Pick steps of the same kind.</summary>
 public sealed class PickEditorTests : IDisposable
 {
     private const string Yaml = """

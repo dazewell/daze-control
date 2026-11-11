@@ -366,12 +366,12 @@ public static class ProviderCatalog
                 Help = "Used when nobody answers and \"No answer\" says so: yes or no, or one of the answers.",
             },
         ]),
-        // A person picks a Library item; later steps use it as "$result:<id>" (D-116). No resources, like Ask.
+        // A person picks a Library item; later steps use it as "$result:<id>" (D-117). No resources, like Ask.
         new(PromptPickId, "Pick device", PickGlyph, TimeSpan.FromMinutes(11),
         [
             new("kind", ParamKind.Choice, "Pick")
             {
-                Choices = [.. PickResults.KindWords], Captions = ["Audio device", "Bluetooth device", "Screen layout", "Android device"],
+                Choices = [.. PickResults.KindWords], Captions = ["Audio device", "Bluetooth device", "Screen layout", "Android device", "Bound device"],
                 Default = "audio", Help = "Lists your Library's items of this kind. Later steps can use the one picked.",
             },
             new("question", ParamKind.Text, "Question") { Help = "Empty = \"Pick an audio device\" (or the kind you chose)." },
@@ -391,7 +391,7 @@ public static class ProviderCatalog
         ]),
     ];
 
-    /// <summary>The <c>prompt.pick</c> step type (D-116).</summary>
+    /// <summary>The <c>prompt.pick</c> step type (D-117).</summary>
     public const string PromptPickId = "prompt.pick";
 
     /// <summary>The <c>prompt.ask</c> step type (M20, D-107).</summary>

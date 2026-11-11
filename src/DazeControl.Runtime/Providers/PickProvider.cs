@@ -5,7 +5,7 @@ using DazeControl.Runtime.Menus;
 namespace DazeControl.Runtime.Providers;
 
 /// <summary>
-/// <c>prompt.pick</c> (D-116): offers the Library's items of one kind on the no-activate menu window (as <c>prompt.ask</c>,
+/// <c>prompt.pick</c> (D-117): offers the Library's items of one kind on the no-activate menu window (as <c>prompt.ask</c>,
 /// so it never takes focus) and keeps the one picked as the step's result; later steps use it as <c>$result:id</c>.
 /// One item is picked without asking; none fails the step. No answer in time follows <c>onTimeout</c>: <c>stop</c>
 /// (default, "No answer" in history) or <c>use-default</c>. Closing it without a pick ends the run quietly.

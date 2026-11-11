@@ -36,6 +36,7 @@ public static partial class ConfigValidator
                     $"\"{device.Address}\" isn't a Bluetooth address (like B8:20:8E:ED:48:FC)."));
             }
         }
+        CheckBound(config.Library, badLibraryItems, problems);
         var checkers = config.Flows.Select(f => new FlowChecker(f, config.Library, badLibraryItems, catalog, problems)).ToList();
         foreach (var checker in checkers)
             checker.Check();
@@ -270,7 +271,7 @@ public static partial class ConfigValidator
         }
     }
 
-    /// <summary><c>prompt.pick</c> rules (D-116): a known kind, a default from the Library, the wait against the step's time limit.</summary>
+    /// <summary><c>prompt.pick</c> rules (D-117): a known kind, a default from the Library, the wait against the step's time limit.</summary>
     private static void CheckPicks(IReadOnlyList<Flow> flows, Library library, ValueDictionary<StepDefault> defaults, List<Problem> problems)
     {
         foreach (var flow in flows)
@@ -283,7 +284,9 @@ public static partial class ConfigValidator
                 var fallback = Text("default");
                 if (PickResults.KindOf(step) is { } kind)
                 {
-                    if (!string.IsNullOrEmpty(fallback) && !library.Contains(kind, fallback))
+                    // An audio or Bluetooth pick also offers bound devices (D-116).
+                    if (!string.IsNullOrEmpty(fallback) && !library.Contains(kind, fallback)
+                        && !(kind is LibraryKind.Audio or LibraryKind.Bluetooth && library.Contains(LibraryKind.Bound, fallback)))
                         Bad("default", Library.Missing(kind, fallback));
                 }
                 if (Text("onTimeout") == Prompts.UseDefault && string.IsNullOrEmpty(fallback))
@@ -330,6 +333,30 @@ public static partial class ConfigValidator
         return null;
     }
 
+    /// <summary>
+    /// Bound devices (D-116): a key a Bluetooth or audio device also has is an error (a step couldn't tell which it
+    /// means); a missing side is only a warning, so steps using the other side still run (fail-soft, D-021).
+    /// </summary>
+    private static void CheckBound(Library library, HashSet<(LibraryKind, string)> badLibraryItems, List<Problem> problems)
+    {
+        foreach (var bound in library.Bound)
+        {
+            var path = $"library.bound.{bound.Key}";
+            if (LibraryEdits.KeyClashes(library, LibraryKind.Bound, bound.Key))
+            {
+                badLibraryItems.Add((LibraryKind.Bound, bound.Key));
+                problems.Add(new(Severity.Error, path, $"\"{bound.Key}\" is also the name of a device in your Library; give the bound device its own name."));
+                continue;
+            }
+            if (!library.Bluetooth.Any(d => d.Key == bound.Bluetooth))
+                problems.Add(new(Severity.Warning, path + ".bluetooth", Library.Missing(LibraryKind.Bluetooth, bound.Bluetooth)));
+            else if (badLibraryItems.Contains((LibraryKind.Bluetooth, bound.Bluetooth)))
+                badLibraryItems.Add((LibraryKind.Bluetooth, bound.Key));
+            if (!library.Audio.Any(d => d.Key == bound.Audio))
+                problems.Add(new(Severity.Warning, path + ".audio", Library.Missing(LibraryKind.Audio, bound.Audio)));
+        }
+    }
+
     private static string LibraryName(LibraryKind kind) => Library.KindName(kind);
 
     /// <summary>"an audio device", "a Bluetooth device".</summary>
@@ -337,8 +364,11 @@ public static partial class ConfigValidator
 
     /// <summary>Why <paramref name="key"/> can't be a <paramref name="kind"/> from the library, or null.</summary>
     private static string? LibraryKeyProblem(Library library, HashSet<(LibraryKind, string)> badLibraryItems, LibraryKind kind, string key) =>
-        !library.Contains(kind, key) ? Library.Missing(kind, key)
-        : badLibraryItems.Contains((kind, key)) ? $"The {LibraryName(kind)} \"{key}\" needs fixing in your Library first."
+        library.Bound.Any(b => b.Key == key) && kind is LibraryKind.Audio or LibraryKind.Bluetooth && !library.Contains(kind, key)
+            ? $"The bound device \"{key}\" has no {LibraryName(kind)} in your Library."
+        : !library.Contains(kind, key) ? Library.Missing(kind, key)
+        : badLibraryItems.Contains((kind, key)) || badLibraryItems.Contains((LibraryKind.Bound, key))
+            ? $"The {LibraryName(kind)} \"{key}\" needs fixing in your Library first."
         : null;
 
     /// <summary>
@@ -364,7 +394,7 @@ public static partial class ConfigValidator
                         message = PickResults.Problem(flow, step.Id, pick, input.Kind);
                     else if (FlowInputs.NameIn(value) is { } own)
                         message = !flow.Inputs.TryGetValue(own, out var mine) ? $"This flow has no input called \"{own}\"."
-                            : mine.Kind != input.Kind ? $"{mine.Label} is {WithArticle(mine.Kind)}; {input.Label} needs {WithArticle(input.Kind)}."
+                            : !LibraryEdits.Refers(mine.Kind, input.Kind) ? $"{mine.Label} is {WithArticle(mine.Kind)}; {input.Label} needs {WithArticle(input.Kind)}."
                             : null;
                     else
                         message = LibraryKeyProblem(library, badLibraryItems, input.Kind, value);
@@ -635,7 +665,7 @@ public static partial class ConfigValidator
                 var kind = spec.Library!.Value;
                 if (!flow.Inputs.TryGetValue(name, out var input))
                     Error(path, $"This flow has no input called \"{name}\".");
-                else if (input.Kind != kind)
+                else if (!LibraryEdits.Refers(input.Kind, kind))
                     Error(path, $"{input.Label} is {WithArticle(input.Kind)}; this setting needs {WithArticle(kind)}.");
                 return;
             }

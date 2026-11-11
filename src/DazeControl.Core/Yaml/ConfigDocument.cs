@@ -59,6 +59,9 @@ public sealed class LibraryDocument
 
     public Dictionary<string, AndroidDocument>? Android { get; set; }
 
+    /// <summary>Bound devices (D-116): a Bluetooth key and an audio key used as one device.</summary>
+    public Dictionary<string, BoundDocument>? Bound { get; set; }
+
     /// <summary>The old name of <see cref="Android"/>: read only to point at the new one, never written (D-045).</summary>
     public Dictionary<string, AndroidDocument>? Firetv { get; set; }
 }
@@ -88,6 +91,16 @@ public sealed class DisplayLayoutDocument
     public List<string>? Monitors { get; set; }
 
     public string? Ccd { get; set; }
+}
+
+[YamlSerializable]
+public sealed class BoundDocument
+{
+    public string? Bluetooth { get; set; }
+
+    public string? Audio { get; set; }
+
+    public string? Name { get; set; }
 }
 
 [YamlSerializable]

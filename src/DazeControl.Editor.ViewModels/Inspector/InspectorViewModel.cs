@@ -739,7 +739,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         LibraryDevices.Options(kind, _session.Current.Library, _live.GetValueOrDefault(kind), current, field.Spec.Required,
             canCapture: EngineRunning && CanEdit, Flow?.Inputs, picks: PicksBefore());
 
-    /// <summary>The Pick steps that finish before the selected step (D-116): their results can fill its device settings.</summary>
+    /// <summary>The Pick steps that finish before the selected step (D-117): their results can fill its device settings.</summary>
     private IReadOnlyList<StepNode> PicksBefore() =>
         Mode != InspectorMode.Many && Flow is { } flow && Node is StepNode step ? PickResults.Before(flow, step.Id) : [];
 

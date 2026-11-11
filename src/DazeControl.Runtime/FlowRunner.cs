@@ -119,7 +119,7 @@ public sealed class FlowRunner
         var results = new Dictionary<string, StepRun>();
         var order = new Dictionary<string, int>();
         var quiet = false;
-        var picked = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(StringComparer.Ordinal); // D-116
+        var picked = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(StringComparer.Ordinal); // D-117
 
         void Launch(IEnumerable<string> ids)
         {
@@ -226,7 +226,7 @@ public sealed class FlowRunner
         string? skipped = null;
         StepRun Done(StepResult result, int attempts, string? error) =>
             new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet, summary, skipped);
-        // A pick step's result goes in now (D-116): the lock, the provider and a called flow see the Library key.
+        // A pick step's result goes in now (D-117): the lock, the provider and a called flow see the Library key.
         node = PickResults.Resolve(node, picked, out var unpicked, _catalog.FirstOrDefault(d => d.Id == node.Step));
         if (unpicked is not null)
         {
@@ -476,7 +476,7 @@ public sealed class FlowRunner
     private static string Identity(ParamSpec? spec, string text, Library library) => spec switch
     {
         { Kind: ParamKind.LibraryRef, Library: LibraryKind.Bluetooth }
-            when library.Bluetooth.FirstOrDefault(d => d.Key == text) is { } device => device.Address.ToUpperInvariant(),
+            when library.ResolveBluetooth(text) is { } device => device.Address.ToUpperInvariant(),
         { Kind: ParamKind.LibraryRef, Library: LibraryKind.Android }
             when library.Android.FirstOrDefault(d => d.Key == text) is { } tv => tv.Serial.ToUpperInvariant(),
         _ => text,
