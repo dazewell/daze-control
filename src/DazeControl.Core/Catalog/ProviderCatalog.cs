@@ -8,7 +8,8 @@ namespace DazeControl.Core.Catalog;
 public static class ProviderCatalog
 {
     private const string Audio = "E767", Bluetooth = "E702", Display = "E7F4", Process = "E756", Script = "E943",
-        Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", File = "E8A5", RunFlow = "E768", MenuGlyph = "E700", AskGlyph = "E897", PickGlyph = "E8FD";
+        Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", File = "E8A5", RunFlow = "E768", MenuGlyph = "E700", AskGlyph = "E897", PickGlyph = "E8FD",
+        Network = "E701", Power = "E83F", Pc = "E7F8", Clock = "E787", Drive = "EDA2";
 
     /// <summary>The fact id of <c>BluetoothConnectedProbe</c> (D-081).</summary>
     public const string BluetoothConnected = "bluetooth.connected";
@@ -106,6 +107,11 @@ public static class ProviderCatalog
             new("is", ParamKind.Choice, "Is") { Choices = ["matches", "differs"], Captions = ["The screens match it", "The screens differ from it"], Default = "matches", Help = WaitUntilHelp },
         ])
         { Resources = ["display"] },
+        new("display.count", "Check screen count", Display, Short,
+        [
+            new("count", ParamKind.WholeNumber, "Screens") { Default = "2", Min = 1, Max = 16 },
+            new("is", ParamKind.Choice, "Is") { Choices = ["atLeast", "fewer"], Captions = ["At least this many are on", "Fewer are on"], Default = "atLeast", Help = WaitUntilHelp },
+        ]) { Keywords = "monitor external second screens how many" },
         new("process.run", "Run program", Process, TimeSpan.FromSeconds(30),
         [
             new("path", ParamKind.FilePath, "Program") { Required = true },
@@ -277,6 +283,68 @@ public static class ProviderCatalog
             new("path", ParamKind.Text, "File or folder") { Required = true, Help = "A full path; %VARIABLES% work." },
             new("is", ParamKind.Choice, "Is") { Choices = ["exists", "missing"], Captions = ["It exists", "It's missing"], Default = "exists", Help = WaitUntilHelp },
         ]) { Keywords = "folder exists" },
+        new("file.space", "Check free space", Drive, Short,
+        [
+            new("drive", ParamKind.Text, "Drive or folder") { Default = "C:", Help = "Like C: or D:\\Backups; %VARIABLES% work." },
+            new("gb", ParamKind.WholeNumber, "Free space (GB)") { Default = "10", Min = 1, Max = 1_000_000 },
+            new("is", ParamKind.Choice, "Is") { Choices = ["atLeast", "below"], Captions = ["At least this much is free", "Less is free"], Default = "atLeast", Help = WaitUntilHelp },
+        ]) { Keywords = "disk drive storage full" },
+        // Network, power, PC and time checks (D-118): read-only, one read when the step runs.
+        new("network.wifi", "Check Wi-Fi", Network, Short,
+        [
+            new("network", ParamKind.Text, "Network") { Suggest = ParamSuggest.Devices("wifi"), Help = "The Wi-Fi network's name. Empty = any Wi-Fi network." },
+            new("is", ParamKind.Choice, "Is") { Choices = ["connected", "notConnected"], Captions = ["Connected", "Not connected"], Default = "connected", Help = WaitUntilHelp },
+        ]) { Keywords = "wifi wlan ssid wireless home office" },
+        new("network.cable", "Check network cable", Network, Short,
+        [
+            new("is", ParamKind.Choice, "Is") { Choices = ["connected", "notConnected"], Captions = ["Connected", "Not connected"], Default = "connected", Help = WaitUntilHelp },
+        ]) { Keywords = "ethernet lan wired dock" },
+        new("network.internet", "Check internet", Network, Short,
+        [
+            new("is", ParamKind.Choice, "Is")
+            {
+                Choices = ["online", "offline"], Captions = ["Reachable", "Not reachable"], Default = "online",
+                Help = "Uses Windows' own internet check; nothing is sent. " + WaitUntilHelp,
+            },
+        ]) { Keywords = "online offline connected web" },
+        new("network.metered", "Check metered connection", Network, Short,
+        [
+            new("is", ParamKind.Choice, "Is")
+            {
+                Choices = ["metered", "notMetered"], Captions = ["Metered", "Not metered"], Default = "metered",
+                Help = "Metered as set in Windows, or roaming, or over the data limit. " + WaitUntilHelp,
+            },
+        ]) { Keywords = "data limit hotspot mobile roaming" },
+        new("network.vpn", "Check VPN", Network, Short,
+        [
+            new("name", ParamKind.Text, "VPN") { Help = "Part of the VPN adapter's name, like WireGuard. Empty = any VPN." },
+            new("is", ParamKind.Choice, "Is") { Choices = ["connected", "notConnected"], Captions = ["Connected", "Not connected"], Default = "connected", Help = WaitUntilHelp },
+        ]) { Keywords = "tunnel work remote" },
+        new("power.source", "Check power", Power, Short,
+        [
+            new("is", ParamKind.Choice, "Is") { Choices = ["pluggedIn", "onBattery"], Captions = ["Plugged in", "On battery"], Default = "pluggedIn", Help = WaitUntilHelp },
+        ]) { Keywords = "ac charger plugged battery laptop" },
+        new("power.battery", "Check battery", Power, Short,
+        [
+            new("percent", ParamKind.WholeNumber, "Charge (%)") { Default = "20", Min = 1, Max = 100 },
+            new("is", ParamKind.Choice, "Is") { Choices = ["atLeast", "below"], Captions = ["At least this much", "Below this"], Default = "atLeast", Help = WaitUntilHelp },
+        ]) { Keywords = "charge level low laptop" },
+        new("pc.idle", "Check idle time", Pc, Short,
+        [
+            new("for", ParamKind.Duration, "No input for") { Default = "5m", Help = "Time since the last key press or mouse move." },
+            new("is", ParamKind.Choice, "Is") { Choices = ["idle", "active"], Captions = ["Idle at least this long", "Used more recently"], Default = "idle", Help = WaitUntilHelp },
+        ]) { Keywords = "away inactive afk keyboard mouse" },
+        new("pc.locked", "Check locked", Pc, Short,
+        [
+            new("is", ParamKind.Choice, "Is") { Choices = ["locked", "unlocked"], Captions = ["Locked", "Unlocked"], Default = "locked", Help = WaitUntilHelp },
+        ]) { Keywords = "lock screen signed away" },
+        new("time.check", "Check time", Clock, Short,
+        [
+            new("days", ParamKind.Choice, "Days") { Choices = ["daily", "weekdays", "weekends"], Captions = ["Every day", "Monday to Friday", "Saturday and Sunday"], Default = "daily" },
+            new("from", ParamKind.Text, "From") { Help = "Like 07:00. Empty, with To empty = all day." },
+            new("to", ParamKind.Text, "To") { Help = "Like 22:30. Earlier than From = past midnight." },
+            new("is", ParamKind.Choice, "Is") { Choices = ["inside", "outside"], Captions = ["Now is in this time", "Now is outside it"], Default = "inside" },
+        ]) { Keywords = "time of day weekday weekend night morning hours schedule" },
         new("wait", "Wait", Wait, TimeSpan.FromHours(1),
             [new("duration", ParamKind.Duration, "How long") { Required = true }]),
         new("notify", "Show message", Message, Short,
@@ -407,6 +475,17 @@ public static class ProviderCatalog
 
     /// <summary>The <c>flow.run</c> step type (D-061, D-062).</summary>
     public const string RunFlowId = "flow.run";
+
+    /// <summary>
+    /// The read-only check steps (D-081, D-118): they change nothing and fail when the fact isn't what was chosen.
+    /// <c>dctl check</c> runs only these.
+    /// </summary>
+    public static IReadOnlySet<string> Checks { get; } = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "audio.check", "bluetooth.check", "display.check", "display.count", "process.check", "android.check", "service.check",
+        "file.check", "file.space", "flag.check", "network.wifi", "network.cable", "network.internet", "network.metered",
+        "network.vpn", "power.source", "power.battery", "pc.idle", "pc.locked", "time.check",
+    };
 
     public static ProviderDescriptor? Find(string id) => All.FirstOrDefault(d => d.Id == id);
 

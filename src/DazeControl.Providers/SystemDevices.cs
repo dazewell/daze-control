@@ -14,7 +14,7 @@ namespace DazeControl.Providers;
 /// <summary>The real PC's devices, read-only, for <c>dctl devices</c> and <c>dctl capture-display-layout</c>.</summary>
 public sealed class SystemDevices(IDisplays displays, IAdb adb, IPairedBluetooth paired, AndroidAppLister? apps = null) : IDeviceQueries
 {
-    public IReadOnlyList<string> Kinds { get; } = ["audio", "bluetooth", "displays", "adb", "services", "credentials"];
+    public IReadOnlyList<string> Kinds { get; } = ["audio", "bluetooth", "displays", "adb", "services", "credentials", "wifi"];
 
     public async Task<IReadOnlyList<DeviceInfo>> ListAsync(string kind, CancellationToken cancellationToken)
     {
@@ -48,6 +48,9 @@ public sealed class SystemDevices(IDisplays displays, IAdb adb, IPairedBluetooth
                 })];
             case "services":
                 return await Task.Run(ServiceList.List, cancellationToken).ConfigureAwait(false);
+            case "wifi":
+                return [.. (await Task.Run(Network.WindowsNetworkState.WifiNetworks, cancellationToken).ConfigureAwait(false))
+                    .Select(n => new DeviceInfo { Name = n.Name, Detail = n.Connected ? "Connected now" : "Saved on this PC", Value = n.Name })];
             case "credentials":
                 return [.. (await Task.Run(WindowsCredentials.Names, cancellationToken).ConfigureAwait(false))
                     .Select(name => new DeviceInfo { Name = name, Detail = "Saved in Windows", Value = name })];

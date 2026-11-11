@@ -33,7 +33,7 @@ public static class Program
           status                            what the engine is doing
           history [flow] [--limit n]        recent runs, newest first
           autostart [on|off]                start the engine with Windows
-          devices audio|bluetooth|displays|adb|services|credentials
+          devices audio|bluetooth|displays|adb|services|credentials|wifi
                                             what steps can name on this PC
           capture-display-layout <name>     the screens as they are now, as YAML for library.displays
           shortcut <flow> [--remove]        put a desktop shortcut that runs the flow (or take it away)
@@ -41,6 +41,7 @@ public static class Program
                                             save config.yaml (and the editor layout / run history if asked) to a .dcbackup file
           restore <file> [--merge|--replace] [--yes] [--dry-run] [--editor] [--config <path>]
                                             --dry-run shows what would change; --yes applies it (--replace is the default)
+          check <check> [name=value...]     read one fact now, like: check network.wifi network=Home (0 = yes, 1 = no)
           update [--channel stable|rc]      download a newer version (release candidates with rc); it installs at the next start
         Exit codes: 0 ok, 1 failed, 2 usage (restore: also refused without --yes), 3 the engine isn't running.
         """;
@@ -134,6 +135,8 @@ public static class Program
                 return Commands(line).Restore(line.Word!, line.Merge ? RestoreMode.AddMissing : RestoreMode.Replace, line.Yes, line.DryRun, line.Editor);
             case "update":
                 return await UpdateAsync(line.Channel).ConfigureAwait(false);
+            case "check":
+                return await CheckAsync(line.Words).ConfigureAwait(false);
             default:
                 throw new UnreachableException();
         }
@@ -349,6 +352,36 @@ public static class Program
 
     private static string Seconds(TimeSpan duration) =>
         string.Create(CultureInfo.InvariantCulture, $"{duration.TotalSeconds:0.0} s");
+
+    /// <summary>
+    /// <c>dctl check &lt;check&gt; [name=value...]</c> (D-118): runs one check step through the engine's "Test this step",
+    /// with the Library of config.yaml (so audio and Bluetooth checks can name its devices). Prints the check's
+    /// sentence; exit 0 when the fact is as asked, 1 when not, so scripts can branch on it.
+    /// </summary>
+    private static async Task<int> CheckAsync(IReadOnlyList<string> words)
+    {
+        var path = DefaultConfigPath();
+        var (request, error) = CheckCommand.Request(words, File.Exists(path) ? File.ReadAllText(path) : null);
+        if (request is null)
+        {
+            Console.Error.WriteLine(error);
+            return Usage;
+        }
+        return await SendAsync(request, PrintCheck).ConfigureAwait(false);
+    }
+
+    private static int PrintCheck(PipeMessage message)
+    {
+        if (message.Run?.Nodes is not [var node, ..])
+            return Failed;
+        if (node.Outcome == NodeOutcome.Succeeded)
+        {
+            Console.Out.WriteLine(node.Summary ?? "Yes");
+            return Ok;
+        }
+        Console.Out.WriteLine(node.Error ?? node.Outcome.ToString());
+        return Failed;
+    }
 
     private static string DefaultConfigPath() =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppInfo.FolderName, "config.yaml");

@@ -43,6 +43,7 @@ public static partial class ConfigValidator
         CheckMenus(config.Flows, config.Settings.StepDefaults, problems);
         CheckPrompts(config.Flows, config.Settings.StepDefaults, problems);
         CheckPicks(config.Flows, config.Library, config.Settings.StepDefaults, problems);
+        CheckTimeWindows(config.Flows, problems);
         CheckWaits(config.Flows, config.Settings.StepDefaults, problems);
         CheckCalls(config.Flows, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, problems);
@@ -213,6 +214,33 @@ public static partial class ConfigValidator
                 if (ResolvedTimeout(step, defaults) <= closeAfter)
                     problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.timeout",
                         "The step's time limit must be longer than \"close after\", or it ends the menu first.", flow.Id));
+            }
+        }
+    }
+
+    /// <summary><c>time.check</c> (D-118): From and To are times of day, both given or both empty, and not the same.</summary>
+    private static void CheckTimeWindows(IReadOnlyList<Flow> flows, List<Problem> problems)
+    {
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == "time.check"))
+            {
+                var path = $"flows.{flow.Id}.nodes.{step.Id}.with";
+                string? Text(string name) => step.With.TryGetValue(name, out var v) && v is ScalarParam s && s.Text.Trim() is { Length: > 0 } t ? t : null;
+                TimeOnly? Time(string name)
+                {
+                    if (Text(name) is not { } text)
+                        return null;
+                    if (TriggerText.TryParseTime(text, out var time))
+                        return time;
+                    problems.Add(new(Severity.Error, $"{path}.{name}", $"\"{text}\" isn't a time of day (like 07:00 or 22:30).", flow.Id));
+                    return null;
+                }
+                var (from, to) = (Time("from"), Time("to"));
+                if ((Text("from") is null) != (Text("to") is null))
+                    problems.Add(new(Severity.Error, $"{path}.{(Text("from") is null ? "from" : "to")}", "Give both From and To, or neither for all day.", flow.Id));
+                else if (from is not null && from == to)
+                    problems.Add(new(Severity.Error, $"{path}.to", "To must differ from From.", flow.Id));
             }
         }
     }

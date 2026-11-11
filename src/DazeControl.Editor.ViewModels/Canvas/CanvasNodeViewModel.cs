@@ -339,8 +339,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         _ => key,
     };
 
-    /// <summary>The nine themed palette groups, in palette order (D-102 choice 3). Display only: step ids and areas are unchanged.</summary>
-    public static IReadOnlyList<string> Groups { get; } = ["Audio", "Bluetooth", "Displays", "Android", "Programs", "Services", "Files", "Web", "Flow"];
+    /// <summary>The eleven themed palette groups, in palette order (D-102 choice 3). Display only: step ids and areas are unchanged.</summary>
+    public static IReadOnlyList<string> Groups { get; } = ["Audio", "Bluetooth", "Displays", "Android", "Programs", "Services", "Files", "Web", "Network", "This PC", "Flow"];
 
     /// <summary>The palette group of a step area ("script" and "process" are both Programs; "wait", "notify", "flag", "flow", "menu" are Flow).</summary>
     internal static string Group(string area) => area switch
@@ -353,6 +353,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         "service" => "Services",
         "file" => "Files",
         "http" => "Web",
+        "network" => "Network",
+        "power" or "pc" or "time" => "This PC",
         _ => "Flow",
     };
 
@@ -373,6 +375,10 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         "flow" => "Flows",
         "menu" => "Menu",
         "prompt" => "Questions",
+        "network" => "Network",
+        "power" => "Power",
+        "pc" => "This PC",
+        "time" => "Time",
         _ => area,
     };
 }

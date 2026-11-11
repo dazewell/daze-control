@@ -1538,3 +1538,25 @@ Status: accepted (user, 2026-11-11: "selecting items from the library that can b
 - Bound devices (D-116): an audio or Bluetooth pick also lists bound devices; `kind: bound` picks only those, and its
   result fits audio and Bluetooth settings (`PickResults.Fits`). Another Library kind joins with a `kind` word in
   `PickResults.KindWords` and rows in `InputPrompts.ItemsOf`.
+
+## D-118 · 2026-11-11 · Twelve PC-state checks on the D-081 probe model; `dctl check` runs one
+Status: accepted (user asked 2026-11-11: "different device checks, like what wifi is connected … at least 10")
+- Decision: new read-only check steps, each a `FactCheckProvider` over a one-shot probe: `network.wifi` (any Wi-Fi or a
+  named network), `network.cable`, `network.internet` and `network.metered` (Windows' own NLM hint via
+  `GetNetworkConnectivityHint`: nothing sent, no polling), `network.vpn` (an up adapter: PPP or a known VPN driver word, or
+  a given name), `power.source`, `power.battery` (`GetSystemPowerStatus`), `pc.idle` (`GetLastInputInfo`), `pc.locked`
+  (`WTSQuerySessionInformation` SessionInfoEx), `display.count` (`SM_CMONITORS`), `file.space` (`DriveInfo`),
+  `time.check` (days + optional From/To window, past midnight belongs to the start day). Their outcome is pass/fail, so
+  branching, "wait until" (retries) and "skip what depends on it" work unchanged (D-082). `ProviderCatalog.Checks` is now
+  what makes a step a check (palette order, Test result wording), not the `.check` id suffix: one area has several.
+  Palette groups Network and This PC (power, pc, time). `dctl check <check> [name=value…]` sends one check as a
+  test-step with config.yaml's Library; exit 0 = as asked, 1 = not. Wi-Fi names come from the WLAN API, shared with
+  the network trigger (`Providers/Network/WindowsNetworkState`); the Wi-Fi setting suggests connected + saved networks.
+- Why these: the conditions automation tools most often gate on (Home Assistant/Tasker/Shortcuts/Power Automate style:
+  network, power, presence/idle, lock, time, screens, disk) that are readable without admin, COM residency or polling.
+- Why not Bluetooth/audio/process again: they exist (D-081). Why not USB device present, lid/dock, foreground app,
+  volume level: need CfgMgr name matching or COM reads with unclear user value; add when a flow needs them. Why not a
+  `$result:` value for checks (D-117 style): a check answers yes/no, which failure edges already carry. Why not
+  pinging a host for "internet": a request per run and a host to choose; Windows already knows.
+- Revisit if: Windows 11 hides the SSID (location off) for many users: the Wi-Fi check then fails with that advice;
+  an "Only if" on any step from these context-free facts (extend `only` as D-081 foresaw).

@@ -33,12 +33,13 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         ["status"] = new(0, 0, "status takes no arguments."),
         ["history"] = new(0, 1, "history takes at most one flow.", "--limit"),
         ["autostart"] = new(0, 1, "autostart takes on or off."),
-        ["devices"] = new(1, 1, "devices needs one kind: audio, bluetooth, displays, adb or gamepads."),
+        ["devices"] = new(1, 1, "devices needs one kind: audio, bluetooth, displays, adb, services, credentials, wifi or gamepads."),
         ["capture-display-layout"] = new(1, 1, "capture-display-layout needs a name for the layout."),
         ["update"] = new(0, 0, "update takes no arguments but --channel stable|rc.", "--channel"),
         ["backup"] = new(0, 1, "backup takes at most one file.", "--config", "--editor", "--history"),
         ["restore"] = new(1, 1, "restore needs one backup file.", "--config", "--merge", "--replace", "--yes", "--dry-run", "--editor"),
         ["shortcut"] = new(1, 1, "shortcut needs one flow.", "--remove"),
+        ["check"] = new(1, 16, "check needs a check, like network.wifi, then its settings as name=value."),
     };
 
     /// <exception cref="CommandLineException">The command, a flag or the words don't fit.</exception>

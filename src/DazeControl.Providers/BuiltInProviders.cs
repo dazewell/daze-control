@@ -5,6 +5,8 @@ using DazeControl.Providers.Display;
 using DazeControl.Providers.Files;
 using DazeControl.Providers.Android;
 using DazeControl.Providers.Http;
+using DazeControl.Providers.Network;
+using DazeControl.Providers.Pc;
 using DazeControl.Providers.Process;
 using DazeControl.Providers.Service;
 using DazeControl.Runtime.Control;
@@ -29,14 +31,44 @@ public static class BuiltInProviders
     /// queries as the steps; nothing is held between runs (idle = zero).
     /// </summary>
     public static IReadOnlyList<IFactProbe> Probes() =>
-        [new BluetoothConnectedProbe(new SystemBluetoothState(new CfgMgrPairedBluetooth())), .. Probes(new CoreAudioEndpoints(), new WindowsProcesses(), new WindowsServices())];
+        [new BluetoothConnectedProbe(new SystemBluetoothState(new CfgMgrPairedBluetooth())), .. Probes(new CoreAudioEndpoints(), new WindowsProcesses(), new WindowsServices(), new WindowsNetworkState(), new WindowsPcState(), TimeProvider.System)];
 
-    internal static IReadOnlyList<IFactProbe> Probes(IAudioEndpoints audio, IProcesses processes, IServices services) =>
+    internal static IReadOnlyList<IFactProbe> Probes(IAudioEndpoints audio, IProcesses processes, IServices services,
+        INetworkState network, IPcState pc, TimeProvider time) =>
     [
         new AudioDefaultProbe(audio),
         new ProcessRunningProbe(processes),
         new ServiceRunningProbe(services),
         new FileExistsProbe(),
+        new WifiProbe(network),
+        new CableProbe(network),
+        new InternetProbe(network),
+        new MeteredProbe(network),
+        new VpnProbe(network),
+        new PluggedInProbe(pc),
+        new BatteryProbe(pc),
+        new IdleProbe(pc),
+        new LockedProbe(pc),
+        new ScreenCountProbe(pc),
+        new FreeSpaceProbe(pc),
+        new TimeWindowProbe(time),
+    ];
+
+    /// <summary>The D-118 checks: step id → (fact, the <c>is</c> choice that means the fact is true).</summary>
+    internal static readonly (string Step, string Fact, string Positive)[] StateChecks =
+    [
+        ("network.wifi", "network.wifi", "connected"),
+        ("network.cable", "network.cable", "connected"),
+        ("network.internet", "network.internet", "online"),
+        ("network.metered", "network.metered", "metered"),
+        ("network.vpn", "network.vpn", "connected"),
+        ("power.source", "power.ac", "pluggedIn"),
+        ("power.battery", "power.battery", "atLeast"),
+        ("pc.idle", "pc.idle", "idle"),
+        ("pc.locked", "pc.locked", "locked"),
+        ("display.count", "display.count", "atLeast"),
+        ("file.space", "file.space", "atLeast"),
+        ("time.check", "time.window", "inside"),
     ];
 
     public static IReadOnlyList<IStepProvider> Create(TimeProvider time, INotifier notifier)
@@ -47,7 +79,7 @@ public static class BuiltInProviders
         var displays = new CcdDisplays();
         var android = new AndroidRemote(new AdbProcess(), time);
         var services = new WindowsServices();
-        var probes = Probes(audio, new WindowsProcesses(), services).ToDictionary(p => p.Fact);
+        var probes = Probes(audio, new WindowsProcesses(), services, new WindowsNetworkState(), new WindowsPcState(), time).ToDictionary(p => p.Fact);
         return
         [
             new WaitProvider(time),
@@ -89,6 +121,7 @@ public static class BuiltInProviders
             new FactCheckProvider("process.check", probes["process.running"], "running"),
             new FactCheckProvider("service.check", probes["service.running"], "running"),
             new FactCheckProvider("file.check", probes["file.exists"], "exists"),
+            .. StateChecks.Select(c => new FactCheckProvider(c.Step, probes[c.Fact], c.Positive)),
         ];
     }
 }

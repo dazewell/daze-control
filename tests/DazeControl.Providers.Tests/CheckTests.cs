@@ -174,7 +174,7 @@ public class CheckTests
         foreach (var condition in ProviderCatalog.All.SelectMany(d => d.Conditions))
             Assert.Contains(condition.Fact, probes);
         var providers = BuiltInProviders.Create(TimeProvider.System, new NoNotifier()).Select(p => p.Id).ToList();
-        foreach (var id in new[] { "audio.check", "process.check", "service.check", "file.check" })
+        foreach (var id in BuiltInProviders.StateChecks.Select(c => c.Step).Concat(["audio.check", "process.check", "service.check", "file.check"]))
             Assert.Single(providers, id);
     }
 

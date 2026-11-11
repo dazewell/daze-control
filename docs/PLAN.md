@@ -143,6 +143,7 @@ One PR per task (D-079). T20.2 amends D-009 (done in D-107). `ifMissed` is set p
 - [ ] T20.14 Update channel selector: Stable / Release candidates in About › Updates and `dctl update --channel stable|rc`, per-user `update-channel.txt`, no automatic downgrade (D-108). (feat/update-channel, #158)
 - [ ] T20.11 The user's live check on real hardware with `scripts/dev-run.ps1` (#153; dev config `%LOCALAPPDATA%\DazeControl\dev\config.yaml`): wake from Modern Standby runs the flow, Wi-Fi/network events, USB/audio/display events, a schedule after sleep (`ifMissed`), a prompt over a game or app without taking focus, the "When this runs" card and multi-event picker. Anything wrong becomes a `fix/` PR.
 - [x] T20.15 Pick device step: pick a Library item mid-run, later steps use "Result of: <Pick step>" in device settings (user, 2026-11-11; D-117). (feat/pick-step) Not seen live in the editor or on screen yet.
+- [x] T20.17 PC-state checks (D-118): Wi-Fi, cable, internet, metered, VPN, power, battery, idle, locked, screen count, free space, time; `dctl check`. (feat/system-checks)
 - Rule learned (user, 2026-11-09): no PR with code merges before its Copilot review landed and every review thread is replied to AND resolved (repo-workflow); child sessions must turn on auto-fix themselves.
 
 ## M19 Backup and restore (user, 2026-11-06; design docs/backup-restore/DESIGN.md, D-103, accepted 2026-11-06)
