@@ -32,6 +32,7 @@ Don't re-read whole docs: GOALS + the task's files + grep DECISIONS/DEADENDS for
 - `repo-workflow` — orient → branch → work → record → commit → definition of done. Use for every task.
 - `build` — prerequisites, build/run/test/publish/measure commands, troubleshooting.
 - `release` — cut a release with `scripts/cut-release.ps1`; only when the user asks.
+- `daze-coordinator` — run a coordinator session: route tasks to child sessions, track PRs, cut releases on request; use only in coordinator sessions.
 - `knowledge-log` — what goes into which doc, entry formats, brevity rules.
 
 If a skill or this file is wrong, fix it in the same change that found the problem.
