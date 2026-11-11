@@ -227,7 +227,7 @@ public sealed class FlowRunner
         StepRun Done(StepResult result, int attempts, string? error) =>
             new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet, summary, skipped);
         // A pick step's result goes in now (D-116): the lock, the provider and a called flow see the Library key.
-        node = PickResults.Resolve(node, picked, out var unpicked);
+        node = PickResults.Resolve(node, picked, out var unpicked, _catalog.FirstOrDefault(d => d.Id == node.Step));
         if (unpicked is not null)
         {
             var pick = flow.FindNode(unpicked) as StepNode;

@@ -89,11 +89,19 @@ public static class PickResults
         return null;
     }
 
-    /// <summary>The step with every <c>$result:id</c> replaced by its picked key; <paramref name="missing"/> names a pick that has no result.</summary>
-    public static StepNode Resolve(StepNode step, IReadOnlyDictionary<string, string> picked, out string? missing)
+    /// <summary>
+    /// The step with every <c>$result:id</c> in a device setting (or <c>flow.run</c>'s <c>inputs</c>) replaced by its picked
+    /// key; other settings keep the text as written. <paramref name="missing"/> names a pick that has no result.
+    /// </summary>
+    /// <param name="descriptor">The step's type; null = the compiled-in catalog's.</param>
+    public static StepNode Resolve(StepNode step, IReadOnlyDictionary<string, string> picked, out string? missing,
+        ProviderDescriptor? descriptor = null)
     {
         ArgumentNullException.ThrowIfNull(step);
         ArgumentNullException.ThrowIfNull(picked);
+        descriptor ??= ProviderCatalog.Find(step.Step);
+        bool IsDevice(string name) => descriptor?.FindParam(name)?.Kind == ParamKind.LibraryRef;
+        bool IsCallInputs(string name) => name == FlowInputs.Param && step.Step == ProviderCatalog.RunFlowId;
         string? lost = null;
         ParamValue Swap(ParamValue value)
         {
@@ -104,16 +112,17 @@ public static class PickResults
             lost ??= id;
             return value;
         }
-        if (!step.With.Values.Any(v => StepIn(v) is not null || v is MapParam m && m.Entries.Values.Any(e => StepIn(e) is not null)))
+        if (!step.With.Any(e => IsDevice(e.Key) && StepIn(e.Value) is not null
+            || IsCallInputs(e.Key) && e.Value is MapParam m && m.Entries.Values.Any(v => StepIn(v) is not null)))
         {
             missing = null;
             return step;
         }
         var resolved = step with
         {
-            With = new(step.With.Select(e => KeyValuePair.Create(e.Key, e.Value is MapParam map && e.Key == FlowInputs.Param
+            With = new(step.With.Select(e => KeyValuePair.Create(e.Key, e.Value is MapParam map && IsCallInputs(e.Key)
                 ? new MapParam(new(map.Entries.Select(m => KeyValuePair.Create(m.Key, Swap(m.Value)))))
-                : Swap(e.Value)))),
+                : IsDevice(e.Key) ? Swap(e.Value) : e.Value))),
         };
         missing = lost;
         return resolved;

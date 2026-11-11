@@ -82,6 +82,17 @@ public class PickTests
         Assert.Contains(path, Errors(Flow($"      - {{ id: pick, step: prompt.pick, with: {{ {with} }} }}")).Select(p => p.Path));
 
     [Fact]
+    public void OnlyDeviceSettingsTakeTheResultTextStaysAsWritten()
+    {
+        var step = new StepNode("n", "notify") { With = new([KeyValuePair.Create<string, ParamValue>("text", new ScalarParam("$result:pick"))]) };
+
+        var resolved = PickResults.Resolve(step, new Dictionary<string, string> { ["pick"] = "technics" }, out var missing);
+
+        Assert.Null(missing);
+        Assert.Same(step, resolved);
+    }
+
+    [Fact]
     public void AFlowRunCanPassAPickedDeviceToTheCalledFlowsInput()
     {
         var yaml = Library + """
