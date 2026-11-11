@@ -608,6 +608,18 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                 context.SetSummary(PromptProvider.DrySummary(context.Node));
                 return Task.CompletedTask;
             }
+            if (context.Node.Step == ProviderCatalog.PromptPickId)
+            {
+                try
+                {
+                    context.SetSummary(PickProvider.DryRun(context));
+                }
+                catch (StepFailedException e)
+                {
+                    return Task.FromException(e);
+                }
+                return Task.CompletedTask;
+            }
             foreach (var spec in context.Descriptor.Params.Where(p => p.Kind == ParamKind.LibraryRef && p.Library is not null))
             {
                 var key = context.Node.With.TryGetValue(spec.Name, out var value) && value is ScalarParam s ? s.Text : "";

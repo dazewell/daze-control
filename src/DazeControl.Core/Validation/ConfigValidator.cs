@@ -41,6 +41,7 @@ public static partial class ConfigValidator
             checker.Check();
         CheckMenus(config.Flows, config.Settings.StepDefaults, problems);
         CheckPrompts(config.Flows, config.Settings.StepDefaults, problems);
+        CheckPicks(config.Flows, config.Library, config.Settings.StepDefaults, problems);
         CheckWaits(config.Flows, config.Settings.StepDefaults, problems);
         CheckCalls(config.Flows, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, problems);
@@ -269,6 +270,38 @@ public static partial class ConfigValidator
         }
     }
 
+    /// <summary><c>prompt.pick</c> rules (D-116): a known kind, a default from the Library, the wait against the step's time limit.</summary>
+    private static void CheckPicks(IReadOnlyList<Flow> flows, Library library, ValueDictionary<StepDefault> defaults, List<Problem> problems)
+    {
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.Nodes.OfType<StepNode>().Where(PickResults.IsPick))
+            {
+                var path = $"flows.{flow.Id}.nodes.{step.Id}.with";
+                string? Text(string name) => step.With.TryGetValue(name, out var v) && v is ScalarParam s ? s.Text.Trim() : null;
+                void Bad(string name, string message) => problems.Add(new(Severity.Error, $"{path}.{name}", message, flow.Id));
+                var fallback = Text("default");
+                if (PickResults.KindOf(step) is { } kind)
+                {
+                    if (!string.IsNullOrEmpty(fallback) && !library.Contains(kind, fallback))
+                        Bad("default", Library.Missing(kind, fallback));
+                }
+                if (Text("onTimeout") == Prompts.UseDefault && string.IsNullOrEmpty(fallback))
+                    Bad("default", "Give the default to use when nobody answers.");
+                var wait = Prompts.DefaultTimeout;
+                if (Text("timeout") is { } text && Duration.TryParse(text, out var parsed))
+                {
+                    wait = parsed;
+                    if (parsed < Prompts.MinTimeout || parsed > Prompts.MaxTimeout)
+                        Bad("timeout", "Wait 5s to 10m for an answer.");
+                }
+                if (ResolvedTimeout(step, defaults) <= wait)
+                    problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.timeout",
+                        "The step's time limit must be longer than the wait, or it ends the question first.", flow.Id));
+            }
+        }
+    }
+
     /// <summary>The flow a <c>flow.run</c> step names, or null when it names none (that is the param check's error).</summary>
     public static string? CalledFlow(StepNode step) =>
         step.With.TryGetValue("flow", out var value) && value is ScalarParam { Text: var text } ? text.Trim() : null;
@@ -327,6 +360,8 @@ public static partial class ConfigValidator
                     string? message;
                     if (!called.Inputs.TryGetValue(name, out var input))
                         message = $"{called.Name} has no input called \"{name}\".";
+                    else if (PickResults.StepIn(value) is { } pick)
+                        message = PickResults.Problem(flow, step.Id, pick, input.Kind);
                     else if (FlowInputs.NameIn(value) is { } own)
                         message = !flow.Inputs.TryGetValue(own, out var mine) ? $"This flow has no input called \"{own}\"."
                             : mine.Kind != input.Kind ? $"{mine.Label} is {WithArticle(mine.Kind)}; {input.Label} needs {WithArticle(input.Kind)}."
@@ -354,6 +389,7 @@ public static partial class ConfigValidator
     {
         private readonly string _path = $"flows.{flow.Id}";
         private readonly Dictionary<string, Node> _nodes = [];
+        private string _step = ""; // the step whose settings CheckParam is reading
         private readonly Dictionary<string, string> _cardOf = []; // member id → card id
 
         public void Check()
@@ -534,6 +570,7 @@ public static partial class ConfigValidator
                     ? $"{descriptor.Title} has no \"only\" condition."
                     : $"{descriptor.Title} can't be \"only: {only}\" ({string.Join(", ", descriptor.Conditions.Select(c => c.Id))}, {StepNode.OnlyAlways}).");
             }
+            _step = step.Id;
             foreach (var (name, value) in step.With)
             {
                 if (descriptor.FindParam(name) is { } spec)
@@ -558,6 +595,12 @@ public static partial class ConfigValidator
         /// <param name="passThrough"><c>flow.run</c>'s <c>inputs</c>: its values may be this flow's <c>$name</c> (checked by CheckPassedInputs).</param>
         private void CheckParam(ParamSpec spec, ParamValue value, string path, bool passThrough = false)
         {
+            if (spec.Kind == ParamKind.LibraryRef && PickResults.StepIn(value) is { } pick)
+            {
+                if (PickResults.Problem(flow, _step, pick, spec.Library!.Value) is { } problem)
+                    Error(path, problem);
+                return;
+            }
             switch (spec.Kind)
             {
                 case ParamKind.TextList:

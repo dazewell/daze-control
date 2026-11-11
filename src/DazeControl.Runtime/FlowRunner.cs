@@ -119,6 +119,7 @@ public sealed class FlowRunner
         var results = new Dictionary<string, StepRun>();
         var order = new Dictionary<string, int>();
         var quiet = false;
+        var picked = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(StringComparer.Ordinal); // D-116
 
         void Launch(IEnumerable<string> ids)
         {
@@ -126,7 +127,7 @@ public sealed class FlowRunner
             {
                 // Numbered here, on the scheduler's thread, so parallel steps get a stable start order (dry run).
                 order[id] = order.Count + 1;
-                running.Add(RunStepAsync(scope, flow, library, (StepNode)flow.FindNode(id)!, startedTicks, stepsCancel.Token), id);
+                running.Add(RunStepAsync(scope, flow, library, (StepNode)flow.FindNode(id)!, picked, startedTicks, stepsCancel.Token), id);
             }
         }
 
@@ -211,8 +212,8 @@ public sealed class FlowRunner
     private readonly record struct CallTry(string? Error, CalledRun? Called, bool Quiet);
 
     /// <summary>All attempts of one step. Never throws: every failure becomes a <see cref="StepRun"/>.</summary>
-    private async Task<StepRun> RunStepAsync(RunScope scope, Flow flow, Library library, StepNode node, long runTicks,
-        CancellationToken flowToken)
+    private async Task<StepRun> RunStepAsync(RunScope scope, Flow flow, Library library, StepNode node,
+        System.Collections.Concurrent.ConcurrentDictionary<string, string> picked, long runTicks, CancellationToken flowToken)
     {
         var runId = scope.RunId;
         await Task.Yield(); // run on the pool, never inline in the scheduler loop
@@ -225,6 +226,14 @@ public sealed class FlowRunner
         string? skipped = null;
         StepRun Done(StepResult result, int attempts, string? error) =>
             new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet, summary, skipped);
+        // A pick step's result goes in now (D-116): the lock, the provider and a called flow see the Library key.
+        node = PickResults.Resolve(node, picked, out var unpicked);
+        if (unpicked is not null)
+        {
+            var pick = flow.FindNode(unpicked) as StepNode;
+            return new(StepResult.Failed, 1, $"Nothing was picked in \"{(pick is null ? unpicked : PickResults.NameOf(pick))}\".",
+                TimeSpan.Zero, offset, retries);
+        }
         var descriptor = _catalog.FirstOrDefault(d => d.Id == node.Step);
         var waits = Flows is not null && node.Step == ProviderCatalog.RunFlowId && !IsOff(node, "wait");
         IStepProvider? provider = null;
@@ -273,6 +282,8 @@ public sealed class FlowRunner
                 var attemptResult = await AttemptAsync(provider!, context, timeout, flowToken).ConfigureAwait(false);
                 error = attemptResult.Error;
                 summary = context.Summary;
+                if (error is null && context.Result is { } result)
+                    picked[node.Id] = result;
                 skipped = attemptResult.SkippedBecause;
                 called = context.Called ?? called;
                 if (attemptResult.EndsFlow)
