@@ -21,6 +21,12 @@ public sealed record FlowLink(string Id, string Name)
     public override string ToString() => Name;
 }
 
+/// <summary>A Library item in a bound device's side pickers (D-116).</summary>
+public sealed record LibraryChoice(string Key, string Title)
+{
+    public override string ToString() => Title;
+}
+
 /// <summary>One screen of a saved layout, as the Displays details show it.</summary>
 public sealed record ScreenDetail(string Name, string Port, string Resolution, string Position, string Refresh, bool Primary)
 {
@@ -53,7 +59,7 @@ public sealed partial class LibraryItemViewModel : ObservableObject
     public string Glyph { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AutomationName), nameof(TestName), nameof(RemoveName), nameof(RenameName), nameof(DetailsName), nameof(OpenLocationName), nameof(InputsName))]
+    [NotifyPropertyChangedFor(nameof(AutomationName), nameof(TestName), nameof(RemoveName), nameof(RenameName), nameof(SidesName), nameof(DetailsName), nameof(OpenLocationName), nameof(InputsName))]
     public partial string Title { get; internal set; } = "";
 
     public string TestName => $"Test {Title}";
@@ -111,11 +117,74 @@ public sealed partial class LibraryItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanRemove))]
     public partial bool Removable { get; internal set; }
 
-    public bool CanRemove => Removable && UsedBy == 0;
+    public bool CanRemove => Removable && UsedBy == 0 && BoundIn is null;
+
+    /// <summary>A Bluetooth or audio device that is a side of a bound device: that device's name (D-116).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRemove), nameof(RemoveTip))]
+    public partial string? BoundIn { get; internal set; }
+
+    // ---- Bound devices (D-116): which Bluetooth and audio devices it binds, changed in place ----
+
+    /// <summary>Set for a bound device's card; called when a side picker changes.</summary>
+    internal Action<LibraryItemViewModel>? SidesChanged { get; init; }
+
+    public bool IsBound => SidesChanged is not null;
+
+    private bool _syncingSides;
+
+    [ObservableProperty]
+    public partial bool ShowSides { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanEditSides { get; internal set; }
+
+    [ObservableProperty]
+    public partial IReadOnlyList<LibraryChoice> BluetoothChoices { get; internal set; } = [];
+
+    [ObservableProperty]
+    public partial IReadOnlyList<LibraryChoice> AudioChoices { get; internal set; } = [];
+
+    [ObservableProperty]
+    public partial LibraryChoice? BoundBluetooth { get; set; }
+
+    [ObservableProperty]
+    public partial LibraryChoice? BoundAudio { get; set; }
+
+    public string SidesName => $"Devices of {Title}";
+
+    internal void LoadSides(IReadOnlyList<LibraryChoice> bluetooth, IReadOnlyList<LibraryChoice> audio, LibraryChoice? boundBluetooth,
+        LibraryChoice? boundAudio, bool canEdit)
+    {
+        _syncingSides = true;
+        try
+        {
+            BluetoothChoices = bluetooth;
+            AudioChoices = audio;
+            BoundBluetooth = boundBluetooth;
+            BoundAudio = boundAudio;
+            CanEditSides = canEdit;
+        }
+        finally
+        {
+            _syncingSides = false;
+        }
+    }
+
+    partial void OnBoundBluetoothChanged(LibraryChoice? value) => OnSideChanged(value);
+
+    partial void OnBoundAudioChanged(LibraryChoice? value) => OnSideChanged(value);
+
+    private void OnSideChanged(LibraryChoice? value)
+    {
+        if (!_syncingSides && value is not null)
+            SidesChanged?.Invoke(this);
+    }
 
     /// <summary>Why Remove is off while a flow uses it (UX §5.7 voice); the button always shows, so rows line up.</summary>
     public string RemoveTip => UsedBy switch
     {
+        0 when BoundIn is not null => $"Part of {BoundIn}. Remove that bound device first.",
         0 => "Remove from Library",
         1 => "Used by 1 flow. Remove it from that flow first.",
         _ => $"Used by {UsedBy} flows. Remove it from those flows first.",

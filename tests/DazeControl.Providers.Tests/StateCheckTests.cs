@@ -7,7 +7,7 @@ using DazeControl.Runtime.Triggers;
 
 namespace DazeControl.Providers.Tests;
 
-/// <summary>The D-117 checks: network, power, PC and time facts, with fakes; the real readers once against this PC.</summary>
+/// <summary>The D-118 checks: network, power, PC and time facts, with fakes; the real readers once against this PC.</summary>
 public class StateCheckTests
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;

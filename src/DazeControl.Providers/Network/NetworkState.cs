@@ -28,7 +28,7 @@ public interface INetworkState
 /// Reads the network on demand. A connection = an adapter that is up and has a gateway: Wi-Fi (named by its network,
 /// read from the WLAN API at that moment, no resident handle) or an Ethernet-type adapter ("cable"). Loopback, tunnels
 /// and adapters without a gateway (filter drivers, WAN miniports, Hyper-V/WSL internal switches) are not connections.
-/// Shared by the network trigger (<c>NetworkSource</c>) and the network checks (D-117).
+/// Shared by the network trigger (<c>NetworkSource</c>) and the network checks (D-118).
 /// </summary>
 public sealed unsafe partial class WindowsNetworkState : INetworkState
 {

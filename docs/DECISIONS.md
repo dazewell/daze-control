@@ -1505,7 +1505,41 @@ Status: accepted (user, 2026-11-09: "moving the actions where I want… tree, ci
   diffs churn. Why not force/organic layouts: not deterministic, so a flow would look different on each open.
 - Revisit if: users want positions to follow the config to another PC, or right-angled lines that route round steps between hand-placed ones.
 
-## D-117 · 2026-11-11 · Twelve PC-state checks on the D-081 probe model; `dctl check` runs one
+## D-116 · 2026-11-11 · Bound devices: a Bluetooth key + an audio key used as one device
+Status: accepted (user, 2026-11-11: "binding audio and BT devices - so that they could then be used as one device in the BT/audio steps")
+- Decision: a new Library kind `LibraryKind.Bound` (`library.bound.<key>: { bluetooth, audio, name? }`, both are Library
+  keys). Step settings keep one string: a Bluetooth setting takes a Bluetooth key **or** a bound key, an audio setting an
+  audio key or a bound key; `Library.ResolveBluetooth/ResolveAudio` pick the side, so providers, locks (`FlowRunner`
+  resolves the address) and `Contains` stay one code path. A bound key may not equal a Bluetooth or audio key (error on
+  the bound item; Rename and new keys refuse it), so a key always means one thing.
+- Fail-soft: a missing side is a **warning** on the bound item; only steps that need that side fail validation ("The
+  bound device "x" has no audio device…"), the other side's steps still run. The editor keeps a side from being removed
+  while bound; renaming a side follows into the binding; renaming the binding follows into steps and inputs.
+- Reference model stays generic (kind + key): a run-time pick of a Bluetooth or audio item can return a bound key and
+  every step resolves it the same way.
+- Why not a flag on the Bluetooth item (`audio: technics`): the audio item then has no single owner and the audio
+  pickers would need a second lookup. Why not new step params (`bound:`): every Bluetooth/audio step and every picker
+  would grow a second setting. Why not one combined device type replacing both: Library Test, Add from Windows and the
+  live lists are per kind, and other flows use the sides alone.
+- Revisit if: users want more than two sides (a dock = display + audio + USB), or a bound flow input kind in the editor.
+
+## D-117 · 2026-11-11 · Pick device step: its result fills later steps' device settings as `$result:<step id>`
+Status: accepted (user, 2026-11-11: "selecting items from the library that can be then used in other steps")
+- Decision: a `prompt.pick` step ("Pick device", Questions group) offers the Library's items of one `kind`
+  (audio/bluetooth/display/android) on the prompt window (D-107: never takes focus, timeout, `onTimeout: stop|use-default`).
+  Any `LibraryRef` setting, and a value `flow.run` passes as `inputs`, may hold `$result:<id>`; the runner substitutes the
+  picked key just before that step runs (lock included). Validation: the id is a Pick step of the same kind that the step
+  waits for (any edge, through cards). Result missing at run time (pick failed and was ignored) = the step fails.
+- Why a step and not more `ask: true` inputs: inputs are asked before the run starts; the user wants to ask mid-flow
+  (after a check or a connect) and possibly twice. Why the same `$` prefix as inputs (D-064): one place in validation,
+  pickers and the runner already treats `$…` in device settings; `:` can't occur in input names, so no clash.
+- Why not a generic result/variable system (text outputs, any step): nobody asked; device settings are typed and checkable
+  before a run, free text isn't (D-064's reason). Revisit with text prompts (D-107 "later").
+- Bound devices (D-116): an audio or Bluetooth pick also lists bound devices; `kind: bound` picks only those, and its
+  result fits audio and Bluetooth settings (`PickResults.Fits`). Another Library kind joins with a `kind` word in
+  `PickResults.KindWords` and rows in `InputPrompts.ItemsOf`.
+
+## D-118 · 2026-11-11 · Twelve PC-state checks on the D-081 probe model; `dctl check` runs one
 Status: accepted (user asked 2026-11-11: "different device checks, like what wifi is connected … at least 10")
 - Decision: new read-only check steps, each a `FactCheckProvider` over a one-shot probe: `network.wifi` (any Wi-Fi or a
   named network), `network.cable`, `network.internet` and `network.metered` (Windows' own NLM hint via
@@ -1522,7 +1556,7 @@ Status: accepted (user asked 2026-11-11: "different device checks, like what wif
   network, power, presence/idle, lock, time, screens, disk) that are readable without admin, COM residency or polling.
 - Why not Bluetooth/audio/process again: they exist (D-081). Why not USB device present, lid/dock, foreground app,
   volume level: need CfgMgr name matching or COM reads with unclear user value; add when a flow needs them. Why not a
-  `$result:` value for checks (D-116 style): a check answers yes/no, which failure edges already carry. Why not
+  `$result:` value for checks (D-117 style): a check answers yes/no, which failure edges already carry. Why not
   pinging a host for "internet": a request per run and a host to choose; Windows already knows.
 - Revisit if: Windows 11 hides the SSID (location off) for many users: the Wi-Fi check then fails with that advice;
   an "Only if" on any step from these context-free facts (extend `only` as D-081 foresaw).

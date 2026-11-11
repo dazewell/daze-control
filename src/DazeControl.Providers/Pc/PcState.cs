@@ -5,7 +5,7 @@ namespace DazeControl.Providers.Pc;
 /// <summary>Power as Windows reports it: plugged in (null = unknown) and the battery's charge (null = no battery or unknown).</summary>
 public readonly record struct PowerReading(bool? PluggedIn, int? BatteryPercent);
 
-/// <summary>The PC's own state for the checks (D-117), behind a seam (D-033). Each member is one read when asked; nothing is held.</summary>
+/// <summary>The PC's own state for the checks (D-118), behind a seam (D-033). Each member is one read when asked; nothing is held.</summary>
 public interface IPcState
 {
     PowerReading Power();

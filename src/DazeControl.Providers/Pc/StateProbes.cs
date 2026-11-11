@@ -6,7 +6,7 @@ using DazeControl.Runtime.Providers;
 
 namespace DazeControl.Providers.Pc;
 
-// The PC-state probes behind the D-117 checks. Each reads once when its step runs (D-081); a probe that can't
+// The PC-state probes behind the D-118 checks. Each reads once when its step runs (D-081); a probe that can't
 // answer throws, so a check fails with that sentence instead of guessing.
 
 /// <summary><c>network.wifi</c>: on Wi-Fi at all, or on the network named in <c>network</c>.</summary>

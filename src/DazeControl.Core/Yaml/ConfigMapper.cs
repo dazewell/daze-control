@@ -61,6 +61,12 @@ public static class ConfigMapper
                 Inputs = d.Inputs.Count == 0 ? null : new ParamDocument(new MapParam(new(d.Inputs.Select(i =>
                     KeyValuePair.Create(i.Key, (ParamValue)new ListParam(new(i.Value.Select(m => (ParamValue)m)))))))),
             })),
+            Bound = NullIfEmpty(config.Library.Bound.ToDictionary(d => d.Key, d => new BoundDocument
+            {
+                Bluetooth = d.Bluetooth,
+                Audio = d.Audio,
+                Name = d.Name,
+            })),
         },
         Flows = NullIfEmpty(config.Flows.ToDictionary(f => f.Id, ToDocument)),
     };
@@ -310,7 +316,21 @@ public static class ConfigMapper
                 if (ok)
                     android.Add(new AndroidDevice(key, item.Address, new(inputs), string.IsNullOrWhiteSpace(item.Adb) ? null : item.Adb));
             }
-            return new Library { Audio = new(audio), Bluetooth = new(bluetooth), Displays = new(displays), Android = new(android) };
+            var bound = new List<BoundDevice>();
+            foreach (var (key, item) in document?.Bound ?? [])
+            {
+                var path = $"library.bound.{key}";
+                if (string.IsNullOrWhiteSpace(item?.Bluetooth))
+                    Error(path + ".bluetooth", "Say which Bluetooth device of your Library it binds (bluetooth: technics).");
+                else if (string.IsNullOrWhiteSpace(item.Audio))
+                    Error(path + ".audio", "Say which audio device of your Library it binds (audio: technics).");
+                else
+                    bound.Add(new BoundDevice(key, item.Bluetooth, item.Audio, string.IsNullOrWhiteSpace(item.Name) ? null : item.Name));
+            }
+            return new Library
+            {
+                Audio = new(audio), Bluetooth = new(bluetooth), Displays = new(displays), Android = new(android), Bound = new(bound),
+            };
         }
 
         private Flow ReadFlow(string id, FlowDocument? document)
@@ -355,7 +375,10 @@ public static class ConfigMapper
             {
                 if (item?.Kind is null)
                     Error($"{path}.{name}.kind", "Say what kind of device it takes (kind: audio, bluetooth, android or display).");
-                else if (TryEnum(item.Kind, $"{path}.{name}.kind", LibraryKind.Audio, out var kind))
+                else if (TryEnum(item.Kind, $"{path}.{name}.kind", LibraryKind.Audio, out var kind) is var known && known && kind == LibraryKind.Bound)
+                    // A bound device feeds two kinds of step; an audio or bluetooth input already takes one (D-116).
+                    Error($"{path}.{name}.kind", "An input takes audio, bluetooth, android or display; a bound device can be the value of an audio or Bluetooth input.");
+                else if (known)
                 {
                     TimeSpan? timeout = null;
                     if (item.Timeout is { } written)

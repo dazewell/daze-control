@@ -354,7 +354,7 @@ public static class Program
         string.Create(CultureInfo.InvariantCulture, $"{duration.TotalSeconds:0.0} s");
 
     /// <summary>
-    /// <c>dctl check &lt;check&gt; [name=value...]</c> (D-117): runs one check step through the engine's "Test this step",
+    /// <c>dctl check &lt;check&gt; [name=value...]</c> (D-118): runs one check step through the engine's "Test this step",
     /// with the Library of config.yaml (so audio and Bluetooth checks can name its devices). Prints the check's
     /// sentence; exit 0 when the fact is as asked, 1 when not, so scripts can branch on it.
     /// </summary>

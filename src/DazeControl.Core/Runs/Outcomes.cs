@@ -96,7 +96,7 @@ public static class Outcomes
         return all.Exists(n => n.Outcome == NodeOutcome.Succeeded) ? FlowOutcome.PartiallySucceeded : FlowOutcome.Failed;
     }
 
-    /// <summary>A check step (D-081, D-117; <see cref="Catalog.ProviderCatalog.Checks"/>). Unmet it fails, so its words are the probe's, not "didn't work".</summary>
+    /// <summary>A check step (D-081, D-118; <see cref="Catalog.ProviderCatalog.Checks"/>). Unmet it fails, so its words are the probe's, not "didn't work".</summary>
     public static bool IsCheck(string stepId) => Catalog.ProviderCatalog.Checks.Contains(stepId);
 
     /// <summary>

@@ -4,7 +4,7 @@ using DazeControl.Ipc;
 
 namespace DazeControl.Runtime.Tests;
 
-/// <summary><c>dctl check</c> (D-117): one check step as a test-step request, with the user's Library.</summary>
+/// <summary><c>dctl check</c> (D-118): one check step as a test-step request, with the user's Library.</summary>
 public class CheckCommandTests
 {
     [Fact]

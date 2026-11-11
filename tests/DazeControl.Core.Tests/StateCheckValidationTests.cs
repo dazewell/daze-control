@@ -4,7 +4,7 @@ using DazeControl.Core.Yaml;
 
 namespace DazeControl.Core.Tests;
 
-/// <summary>D-117 checks in config.yaml: they load, save and validate like any step; Check time's window rules.</summary>
+/// <summary>D-118 checks in config.yaml: they load, save and validate like any step; Check time's window rules.</summary>
 public class StateCheckValidationTests
 {
     private static string Flow(string step, string with) => $$"""

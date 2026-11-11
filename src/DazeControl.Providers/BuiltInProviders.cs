@@ -54,7 +54,7 @@ public static class BuiltInProviders
         new TimeWindowProbe(time),
     ];
 
-    /// <summary>The D-117 checks: step id → (fact, the <c>is</c> choice that means the fact is true).</summary>
+    /// <summary>The D-118 checks: step id → (fact, the <c>is</c> choice that means the fact is true).</summary>
     internal static readonly (string Step, string Fact, string Positive)[] StateChecks =
     [
         ("network.wifi", "network.wifi", "connected"),

@@ -5,7 +5,7 @@ using DazeControl.Core.Yaml;
 namespace DazeControl.Ipc;
 
 /// <summary>
-/// <c>dctl check &lt;check&gt; [name=value...]</c> (D-117): one check step, sent as a "Test this step" request with the
+/// <c>dctl check &lt;check&gt; [name=value...]</c> (D-118): one check step, sent as a "Test this step" request with the
 /// Library of config.yaml, so audio and Bluetooth checks can name its devices.
 /// </summary>
 public static class CheckCommand
