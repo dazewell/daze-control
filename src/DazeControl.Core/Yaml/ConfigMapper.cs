@@ -374,8 +374,11 @@ public static class ConfigMapper
             foreach (var (name, item) in document ?? [])
             {
                 if (item?.Kind is null)
-                    Error($"{path}.{name}.kind", "Say what kind of device it takes (kind: audio, bluetooth, bound, android or display).");
-                else if (TryEnum(item.Kind, $"{path}.{name}.kind", LibraryKind.Audio, out var kind))
+                    Error($"{path}.{name}.kind", "Say what kind of device it takes (kind: audio, bluetooth, android or display).");
+                else if (TryEnum(item.Kind, $"{path}.{name}.kind", LibraryKind.Audio, out var kind) is var known && known && kind == LibraryKind.Bound)
+                    // A bound device feeds two kinds of step; an audio or bluetooth input already takes one (D-116).
+                    Error($"{path}.{name}.kind", "An input takes audio, bluetooth, android or display; a bound device can be the value of an audio or Bluetooth input.");
+                else if (known)
                 {
                     TimeSpan? timeout = null;
                     if (item.Timeout is { } written)

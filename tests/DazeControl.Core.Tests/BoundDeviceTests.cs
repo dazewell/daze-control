@@ -93,4 +93,12 @@ public class BoundDeviceTests
         Assert.All(config.Flows[0].Nodes.OfType<StepNode>(), s => Assert.Equal("headphones", ((ScalarParam)s.With["device"]).Text));
         Assert.Equal(RenameRefusal.Taken, LibraryEdits.Rename(before, LibraryKind.Bound, "technics", "technics-out").Refusal);
     }
+
+    [Fact]
+    public void AnInputCantBeOfKindBound()
+    {
+        var load = ConfigYaml.Load(Library.Replace("    nodes:", "    inputs: { hp: { kind: bound, default: technics } }\n    nodes:", StringComparison.Ordinal));
+
+        Assert.Contains(load.Problems, p => p.Path == "flows.f.inputs.hp.kind");
+    }
 }

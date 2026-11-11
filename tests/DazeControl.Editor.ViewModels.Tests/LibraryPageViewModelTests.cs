@@ -698,4 +698,16 @@ public sealed class LibraryPageViewModelTests : IDisposable
         Assert.Equal(TestOutcome.Failed, noAudio.Outcome);
         Assert.Contains("Found Sony", noAudio.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void ABoundDeviceWithAPairedKeyboardCantBePickedForBluetooth()
+    {
+        BindSonyToTechnicsAudio();
+        DeviceInfo[] live = [new DeviceInfo { Name = "80:99:E7:2A:AB:A1", Detail = "Sony", State = "not connected", NotConnectable = true }];
+
+        var row = LibraryDevices.Options(LibraryKind.Bluetooth, _session.Current.Library, live, null, true, false).Single(o => o.Key == "sony-headphones");
+
+        Assert.False(row.IsEnabled);
+        Assert.Equal(LibraryDevices.NotConnectable, row.Caption);
+    }
 }

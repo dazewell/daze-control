@@ -178,8 +178,13 @@ public static class LibraryDevices
             foreach (var bound in library.Bound.Where(b => library.Contains(kind, b.Key)))
             {
                 var state = State(library, kind, bound.Key, live);
+                // Its Bluetooth side may be a paired keyboard: it can't be connected either (D-052).
+                var notConnectable = live is not null && Match(library, kind, bound.Key, live) is { NotConnectable: true };
                 options.Add(new(DeviceSource.Library, bound.Key, bound.Name ?? bound.Key,
-                    state.Length == 0 ? BoundCaption : $"{BoundCaption} · {state}", Glyph(LibraryKind.Bound)));
+                    notConnectable ? NotConnectable : state.Length == 0 ? BoundCaption : $"{BoundCaption} · {state}", Glyph(LibraryKind.Bound))
+                {
+                    IsEnabled = !notConnectable,
+                });
             }
         }
         if (!string.IsNullOrEmpty(current) && !library.Contains(kind, current) && own.All(i => "$" + i.Key != current))
