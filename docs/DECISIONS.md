@@ -1504,3 +1504,22 @@ Status: accepted (user, 2026-11-09: "moving the actions where I want… tree, ci
   move under a pinned step and overlap it. Why not YAML `pos`: every drag would hot-reload the engine, and
   diffs churn. Why not force/organic layouts: not deterministic, so a flow would look different on each open.
 - Revisit if: users want positions to follow the config to another PC, or right-angled lines that route round steps between hand-placed ones.
+
+## D-116 · 2026-11-11 · Bound devices: a Bluetooth key + an audio key used as one device
+Status: accepted (user, 2026-11-11: "binding audio and BT devices - so that they could then be used as one device in the BT/audio steps")
+- Decision: a new Library kind `LibraryKind.Bound` (`library.bound.<key>: { bluetooth, audio, name? }`, both are Library
+  keys). Step settings keep one string: a Bluetooth setting takes a Bluetooth key **or** a bound key, an audio setting an
+  audio key or a bound key; `Library.ResolveBluetooth/ResolveAudio` pick the side, so providers, locks (`FlowRunner`
+  resolves the address) and `Contains` stay one code path. A bound key may not equal a Bluetooth or audio key (error on
+  the bound item; Rename and new keys refuse it), so a key always means one thing.
+- Fail-soft: a missing side is a **warning** on the bound item; only steps that need that side fail validation ("The
+  bound device "x" has no audio device…"), the other side's steps still run. The editor keeps a side from being removed
+  while bound; renaming a side follows into the binding; renaming the binding follows into steps and inputs.
+- Reference model stays generic (kind + key): a run-time pick of a Bluetooth or audio item can return a bound key and
+  every step resolves it the same way.
+- Why not a flag on the Bluetooth item (`audio: technics`): the audio item then has no single owner and the audio
+  pickers would need a second lookup. Why not new step params (`bound:`): every Bluetooth/audio step and every picker
+  would grow a second setting. Why not one combined device type replacing both: Library Test, Add from Windows and the
+  live lists are per kind, and other flows use the sides alone.
+- Revisit if: users want more than two sides (a dock = display + audio + USB), or a bound flow input kind in the editor.
+

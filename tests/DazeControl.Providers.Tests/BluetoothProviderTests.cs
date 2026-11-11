@@ -33,6 +33,21 @@ public class BluetoothProviderTests
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public async Task ABoundDeviceConnectsItsBluetoothSide()
+    {
+        var bluetooth = new FakeBluetooth();
+        var provider = new BluetoothConnectProvider(bluetooth);
+        var context = Steps.Context(provider.Id, ("device", "headphones")) with
+        {
+            Library = new Library { Bluetooth = [Technics], Bound = [new BoundDevice("headphones", "technics", "gone")] },
+        };
+
+        await provider.ExecuteAsync(context, TestContext.Current.CancellationToken);
+
+        Assert.Equal(["connect B8:20:8E:ED:48:FC"], bluetooth.Calls); // the missing audio side doesn't matter here
+    }
+
+    [Fact]
     public async Task ConnectResolvesTheLibraryDevice()
     {
         var bluetooth = new FakeBluetooth();

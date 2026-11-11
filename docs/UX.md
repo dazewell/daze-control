@@ -11,10 +11,12 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 - Editor window: WinUI 3, Mica, TitleBar (page name as subtitle), NavigationView Left 200 wide, collapsible to a 48-wide icon strip.
   Pages: **Flows** (cards: glyph, name, shortcut, last result, On toggle, Run; a click on the card (not the toggle or Run) → flow editor with
   BreadcrumbBar "Flows › Connect Technics"; New flow: Blank / TV only / Audio → Headphones templates) ·
-  **Library** (Pivot: Audio, Bluetooth, Displays, Android, Programs; settings cards with Test and "Used by 2
+  **Library** (Pivot: Audio, Bluetooth, Bound devices, Displays, Android, Programs; settings cards with Test and "Used by 2
   flows", which lists the flows and opens one; layouts and Android devices Rename (their flows follow), a layout's
   Details list its screens; an Android card's Inputs panel adds, renames (steps follow), removes (off while used) inputs
-  and edits each one's moves as Up/Down chips in order (D-078); Programs add Open file location) · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, step defaults, Backup and restore card),
+  and edits each one's moves as Up/Down chips in order (D-078); Bound devices (D-116): "Bind devices" flyout (Bluetooth
+  device, Audio device, Name), a card's Devices panel changes either side, Test checks both, and a Bluetooth or audio
+  device that is a side can't be removed ("Part of Sony headphones. Remove that bound device first."); Programs add Open file location) · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, step defaults, Backup and restore card),
   **About** (version + Copy details, Updates: "Updates to follow" Stable / Release candidates (D-108, shots in `docs/update-channel/`: dark, light, high contrast, 225 % text), status + Check for updates, Files: config, logs and app folders). Save errors: InfoBar on top of every page.
 - Flow editor: an unsaved-changes dot (fixed slot, tooltip "Unsaved changes", D-104) + **Save** (accent, Ctrl+S) + **Cancel** beside the breadcrumb (D-047): edits are a
   draft until Save; Cancel throws it away; leaving the flow (breadcrumb, nav pane, closing the window) with a draft
@@ -155,7 +157,7 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   Flows list: clock and bolt slots. Flow inputs: "Ask me when it runs" + seconds to wait + "If nobody answers". The
   Ask step's inspector is the catalog's own fields. Screenshots: docs/triggers/t20.6 (dark) and docs/triggers/t20.7 (light, high contrast, 225% text).
 - Device picker: ComboBox items glyph + name + Caption state ("Connected" / "Not connected" / "Unplugged");
-  Library items first, then "From Windows" live group (picking adds to Library silently); missing ref stays
+  Library items first (Bluetooth and audio pickers also list bound devices, caption "Bound device"), then "From Windows" live group (picking adds to Library silently); missing ref stays
   selected as "Not found on this PC"; refreshes live while open.
 - Hotkey: OSD HotkeyRecorder with its conflict note. M13b (D-071..D-073): it also takes [ ] \ ; ' , . / ` - = and
   Num0–Num9 and Num* Num+ Num- Num. Num/ (alone or with Win/Ctrl/Alt); a refused or taken key shows why under the box (§5.7 H1–H7), and a

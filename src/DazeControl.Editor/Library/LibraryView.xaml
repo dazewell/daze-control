@@ -56,6 +56,28 @@
                                 <ProgressRing IsActive="{x:Bind IsCapturing, Mode=OneWay}" Width="14" Height="14" />
                             </StackPanel>
                         </Button>
+                        <!-- Bound devices (D-116): pick a Bluetooth device and its audio device, name the pair. -->
+                        <Button Visibility="{x:Bind CanBind}" IsEnabled="{x:Bind HasBindChoices, Mode=OneWay}" AutomationProperties.Name="Bind devices"
+                                ToolTipService.ToolTip="Use a Bluetooth device and its audio device as one device in steps">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE710;" FontSize="14" />
+                                <TextBlock Text="Bind devices" />
+                            </StackPanel>
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <StackPanel Spacing="8" MinWidth="300">
+                                        <ComboBox Header="Bluetooth device" ItemsSource="{x:Bind BindBluetoothChoices, Mode=OneWay}"
+                                                  SelectedItem="{x:Bind BindBluetooth, Mode=TwoWay}" HorizontalAlignment="Stretch" />
+                                        <ComboBox Header="Audio device" ItemsSource="{x:Bind BindAudioChoices, Mode=OneWay}"
+                                                  SelectedItem="{x:Bind BindAudio, Mode=TwoWay}" HorizontalAlignment="Stretch" />
+                                        <TextBox Header="Name" Text="{x:Bind BindName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Technics headphones" />
+                                        <TextBlock Text="{x:Bind BindError, Mode=OneWay}" Visibility="{x:Bind HasBindError, Mode=OneWay}"
+                                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" />
+                                        <Button Content="Bind" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Right" Click="OnBindSave" />
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
                         <Button Click="OnRefresh" ToolTipService.ToolTip="Check what's connected now" AutomationProperties.Name="Refresh"
                                 Visibility="{x:Bind CanAdd}">
                             <FontIcon Glyph="&#xE72C;" FontSize="14" />
@@ -121,6 +143,13 @@
                                                           ToolTipService.ToolTip="What the layout saved" AutomationProperties.Name="{x:Bind DetailsName, Mode=OneWay}">
                                                 <FontIcon Glyph="&#xE946;" FontSize="14" />
                                             </ToggleButton>
+                                            <ToggleButton IsChecked="{x:Bind ShowSides, Mode=TwoWay}" Visibility="{x:Bind IsBound}"
+                                                          ToolTipService.ToolTip="Which devices it binds" AutomationProperties.Name="{x:Bind SidesName, Mode=OneWay}">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <FontIcon Glyph="&#xE71B;" FontSize="14" />
+                                                    <TextBlock Text="Devices" />
+                                                </StackPanel>
+                                            </ToggleButton>
                                             <ToggleButton IsChecked="{x:Bind ShowInputs, Mode=TwoWay}" Visibility="{x:Bind HasInputs}"
                                                           ToolTipService.ToolTip="Inputs" AutomationProperties.Name="{x:Bind InputsName, Mode=OneWay}">
                                                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -185,6 +214,18 @@
                                                 </DataTemplate>
                                             </ItemsRepeater.ItemTemplate>
                                         </ItemsRepeater>
+                                    </Border>
+                                    <!-- Bound devices › Devices (D-116): change either side; steps using it follow. -->
+                                    <Border Visibility="{x:Bind ShowSides, Mode=OneWay}" Padding="58,8,16,12" Margin="0,1,0,0" CornerRadius="0,0,4,4"
+                                            Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                                        <StackPanel Spacing="8" AutomationProperties.Name="{x:Bind SidesName, Mode=OneWay}">
+                                            <TextBlock Text="Bluetooth steps connect the Bluetooth device; audio steps use the audio device."
+                                                       Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
+                                            <ComboBox Header="Bluetooth device" ItemsSource="{x:Bind BluetoothChoices, Mode=OneWay}" MinWidth="260"
+                                                      SelectedItem="{x:Bind BoundBluetooth, Mode=TwoWay}" IsEnabled="{x:Bind CanEditSides, Mode=OneWay}" />
+                                            <ComboBox Header="Audio device" ItemsSource="{x:Bind AudioChoices, Mode=OneWay}" MinWidth="260"
+                                                      SelectedItem="{x:Bind BoundAudio, Mode=TwoWay}" IsEnabled="{x:Bind CanEditSides, Mode=OneWay}" />
+                                        </StackPanel>
                                     </Border>
                                     <!-- Android › Inputs (L1): each input's D-pad moves in order; rename (steps follow), remove (off while used). -->
                                     <Border Visibility="{x:Bind ShowInputs, Mode=OneWay}" Padding="58,8,16,12" Margin="0,1,0,0" CornerRadius="0,0,4,4"

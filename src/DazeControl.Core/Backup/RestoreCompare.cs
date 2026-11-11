@@ -21,6 +21,7 @@ internal static class RestoreCompare
         Library("bluetooth", backup.Library.Bluetooth, current.Library.Bluetooth, d => d.Key, items);
         Library("display", backup.Library.Displays, current.Library.Displays, d => d.Key, items);
         Library("android", backup.Library.Android, current.Library.Android, d => d.Key, items);
+        Library("bound", backup.Library.Bound, current.Library.Bound, d => d.Key, items);
         return (items, backup.Settings != current.Settings);
     }
 
@@ -63,6 +64,7 @@ internal static class RestoreCompare
             Bluetooth = Add(current.Library.Bluetooth, backup.Library.Bluetooth, d => d.Key, "Bluetooth device", kept),
             Displays = Add(current.Library.Displays, backup.Library.Displays, d => d.Key, "screen layout", kept),
             Android = Add(current.Library.Android, backup.Library.Android, d => d.Key, "Android device", kept),
+            Bound = Add(current.Library.Bound, backup.Library.Bound, d => d.Key, "bound device", kept),
         };
         var defaults = current.Settings.StepDefaults.ToList();
         defaults.AddRange(backup.Settings.StepDefaults.Where(d => !current.Settings.StepDefaults.ContainsKey(d.Key)));
