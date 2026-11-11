@@ -45,6 +45,14 @@ public class CheckCommandTests
     }
 
     [Fact]
+    public void AnUnreadableConfigIsAnErrorNotAnEmptyLibrary()
+    {
+        var (request, error) = CheckCommand.Request(["audio.check", "device=tv"], "library: [unclosed");
+        Assert.Null(request);
+        Assert.StartsWith("Can't read config.yaml", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ParsesUpToSixteenWords()
     {
         Assert.Equal(["power.battery", "percent=30"], CommandLine.Parse("check", ["power.battery", "percent=30"]).Words);

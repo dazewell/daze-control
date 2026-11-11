@@ -183,7 +183,7 @@ public class StateCheckTests
         var network = new WindowsNetworkState();
         _ = network.Connections();
         _ = network.Adapters();
-        _ = network.Connectivity();
+        _ = network.Connectivity(); // level/struct layout checked against the raw API on 2026-11-11: online = 3, 12 bytes written
         _ = WindowsNetworkState.WifiNetworks();
     }
 }

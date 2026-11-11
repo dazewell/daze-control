@@ -217,7 +217,10 @@ public sealed unsafe partial class WindowsNetworkState : INetworkState
         return names;
     }
 
-    /// <summary>NL_NETWORK_CONNECTIVITY_HINT.</summary>
+    /// <summary>
+    /// NL_NETWORK_CONNECTIVITY_HINT (nldef.h): two enums, then three 1-byte BOOLEANs (not 4-byte BOOL), 12 bytes in all.
+    /// The level enum starts at Unknown = 0, so internet access is 3; both checked on a live PC (2026-11-11).
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     private struct ConnectivityHint
     {

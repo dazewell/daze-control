@@ -28,7 +28,14 @@ public static class CheckCommand
                 return (null, $"{step} takes {string.Join(", ", descriptor.Params.Select(p => p.Name + "=…"))}; not \"{word}\".");
             with.Add(KeyValuePair.Create(name, (ParamValue)new ScalarParam(word[(equals + 1)..])));
         }
-        var config = configYaml is null ? Configuration.Empty : ConfigYaml.Load(configYaml).Config ?? Configuration.Empty;
+        var config = Configuration.Empty;
+        if (configYaml is not null)
+        {
+            var load = ConfigYaml.Load(configYaml);
+            if (load.Config is null)
+                return (null, $"Can't read config.yaml, so its Library isn't there to check against: {(load.Problems.Count > 0 ? load.Problems[0].Message : "unknown problem")}");
+            config = load.Config;
+        }
         var node = new StepNode(Node, step) { With = new ValueDictionary<ParamValue>(with) };
         var yaml = ConfigYaml.Save(new Configuration { Library = config.Library, Flows = [new Flow(Flow, "dctl check", [node])] });
         return (new PipeRequest { Op = Ops.TestStep, Flow = Flow, Node = Node, Config = yaml }, null);
