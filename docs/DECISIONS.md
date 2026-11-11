@@ -1504,3 +1504,18 @@ Status: accepted (user, 2026-11-09: "moving the actions where I want… tree, ci
   move under a pinned step and overlap it. Why not YAML `pos`: every drag would hot-reload the engine, and
   diffs churn. Why not force/organic layouts: not deterministic, so a flow would look different on each open.
 - Revisit if: users want positions to follow the config to another PC, or right-angled lines that route round steps between hand-placed ones.
+
+## D-116 · 2026-11-11 · Pick device step: its result fills later steps' device settings as `$result:<step id>`
+Status: accepted (user, 2026-11-11: "selecting items from the library that can be then used in other steps")
+- Decision: a `prompt.pick` step ("Pick device", Questions group) offers the Library's items of one `kind`
+  (audio/bluetooth/display/android) on the prompt window (D-107: never takes focus, timeout, `onTimeout: stop|use-default`).
+  Any `LibraryRef` setting, and a value `flow.run` passes as `inputs`, may hold `$result:<id>`; the runner substitutes the
+  picked key just before that step runs (lock included). Validation: the id is a Pick step of the same kind that the step
+  waits for (any edge, through cards). Result missing at run time (pick failed and was ignored) = the step fails.
+- Why a step and not more `ask: true` inputs: inputs are asked before the run starts; the user wants to ask mid-flow
+  (after a check or a connect) and possibly twice. Why the same `$` prefix as inputs (D-064): one place in validation,
+  pickers and the runner already treats `$…` in device settings; `:` can't occur in input names, so no clash.
+- Why not a generic result/variable system (text outputs, any step): nobody asked; device settings are typed and checkable
+  before a run, free text isn't (D-064's reason). Revisit with text prompts (D-107 "later").
+- Generic over kinds: a new Library kind (e.g. device bindings) works once it is a `LibraryKind` with a `kind` word in
+  `PickResults.KindWords` and rows in `InputPrompts.ItemsOf`.

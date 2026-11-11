@@ -19,7 +19,8 @@ public enum DeviceSource
     /// <summary>Displays: capture the screens as they are now into a new layout.</summary>
     Capture,
 
-    /// <summary>One of this flow's inputs (D-064): stores <c>$name</c>, so a caller can pick the device.</summary>
+    /// <summary>One of this flow's inputs (D-064): stores <c>$name</c>, so a caller can pick the device.
+    /// Also a Pick step's result (D-116): stores <c>$result:id</c>.</summary>
     Input,
 
     /// <summary>A group's heading ("This flow's inputs"): shown, never picked.</summary>
@@ -125,6 +126,16 @@ public static class LibraryDevices
     /// <summary>UX §5.4: the group of a flow's own inputs in its device pickers.</summary>
     public const string InputsGroup = "This flow's inputs";
 
+    /// <summary>D-116: the group of earlier Pick steps' results in a step's device pickers.</summary>
+    public const string PicksGroup = "Picked earlier in this flow";
+
+    /// <summary>The caption of a <c>$result:id</c> that isn't an earlier Pick step of this kind (the validator's message says why).</summary>
+    public const string NotAnEarlierPick = "Not an earlier Pick step";
+
+    /// <summary>"$result:pick" → "Result of: Pick device" / "Picked when the flow runs".</summary>
+    public static DeviceOption PickRow(StepNode pick, LibraryKind kind) =>
+        new(DeviceSource.Input, PickResults.Ref(pick.Id), "Result of: " + PickResults.NameOf(pick), "Picked when the flow runs", Glyph(kind));
+
     /// <summary>The Library item's name ("Technics"), else the key as written.</summary>
     public static string NameOf(Library library, LibraryKind kind, string key) =>
         Items(library, kind).FirstOrDefault(i => i.Key == key).Title ?? key;
@@ -143,7 +154,8 @@ public static class LibraryDevices
     /// items, a missing key, then this PC's other devices.
     /// </summary>
     public static List<DeviceOption> Options(LibraryKind kind, Library library, IReadOnlyList<DeviceInfo>? live, string? current,
-        bool required, bool canCapture, IEnumerable<KeyValuePair<string, FlowInput>>? inputs = null, string inputsGroup = InputsGroup)
+        bool required, bool canCapture, IEnumerable<KeyValuePair<string, FlowInput>>? inputs = null, string inputsGroup = InputsGroup,
+        IEnumerable<StepNode>? picks = null)
     {
         var glyph = Glyph(kind);
         var options = new List<DeviceOption>();
@@ -154,8 +166,15 @@ public static class LibraryDevices
         {
             options.Add(Header(inputsGroup));
             options.AddRange(own.Select(i => InputRow(library, i.Key, i.Value)));
-            options.Add(Header("Library"));
         }
+        var picked = (picks ?? []).Where(p => PickResults.KindOf(p) == kind).ToList();
+        if (picked.Count > 0)
+        {
+            options.Add(Header(PicksGroup));
+            options.AddRange(picked.Select(p => PickRow(p, kind)));
+        }
+        if (own.Count > 0 || picked.Count > 0)
+            options.Add(Header("Library"));
         foreach (var (key, title) in Items(library, kind))
         {
             // A paired keyboard put in the Library by hand still can't be connected (D-052).
@@ -165,8 +184,12 @@ public static class LibraryDevices
                 IsEnabled = !notConnectable,
             });
         }
-        if (!string.IsNullOrEmpty(current) && !library.Contains(kind, current) && own.All(i => "$" + i.Key != current))
-            options.Add(new(DeviceSource.Missing, current, current, current.StartsWith('$') ? NotAnInput : NotFound, glyph));
+        if (!string.IsNullOrEmpty(current) && !library.Contains(kind, current) && own.All(i => "$" + i.Key != current)
+            && picked.All(p => PickResults.Ref(p.Id) != current))
+        {
+            options.Add(new(DeviceSource.Missing, current, current,
+                PickResults.StepIn(current) is not null ? NotAnEarlierPick : current.StartsWith('$') ? NotAnInput : NotFound, glyph));
+        }
         if (live is not null && kind != LibraryKind.Display)
         {
             foreach (var device in live)

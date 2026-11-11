@@ -737,7 +737,11 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
 
     private List<DeviceOption> Options(ParamFieldViewModel field, LibraryKind kind, string? current) =>
         LibraryDevices.Options(kind, _session.Current.Library, _live.GetValueOrDefault(kind), current, field.Spec.Required,
-            canCapture: EngineRunning && CanEdit, Flow?.Inputs);
+            canCapture: EngineRunning && CanEdit, Flow?.Inputs, picks: PicksBefore());
+
+    /// <summary>The Pick steps that finish before the selected step (D-116): their results can fill its device settings.</summary>
+    private IReadOnlyList<StepNode> PicksBefore() =>
+        Mode != InspectorMode.Many && Flow is { } flow && Node is StepNode step ? PickResults.Before(flow, step.Id) : [];
 
     /// <summary>Asks the engine what's on this PC now (on load and each time a picker opens, UX §5.4).</summary>
     public async Task RefreshDevicesAsync(LibraryKind kind)

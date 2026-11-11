@@ -202,7 +202,7 @@ public sealed partial class InspectorViewModel
             [
                 new(DeviceSource.None, null, "Its default: " + LibraryDevices.NameOf(library, kind, row.Input.Default), "", LibraryDevices.Glyph(kind)),
                 .. LibraryDevices.Options(kind, library, _live.GetValueOrDefault(kind), current, required: true, canCapture: false,
-                    Flow?.Inputs, FromThisFlowsInputs),
+                    Flow?.Inputs, FromThisFlowsInputs, PicksBefore()),
             ];
             row.SetDevices(options, current);
             row.Error = errors.FirstOrDefault(p => p.Path == path + row.Name)?.Message;
