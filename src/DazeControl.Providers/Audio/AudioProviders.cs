@@ -40,9 +40,15 @@ internal static class AudioSteps
     {
         if (context.Text("device") is not { Length: > 0 } key)
             return null;
-        return context.Library.Audio.FirstOrDefault(d => d.Key == key)
-            ?? throw new StepFailedException(Library.Missing(LibraryKind.Audio, key));
+        return context.Library.ResolveAudio(key)
+            ?? throw new StepFailedException(MissingSide(context.Library, key));
     }
+
+    /// <summary>A bound device whose audio side is gone says so; else the usual missing item (D-116).</summary>
+    private static string MissingSide(Library library, string key) =>
+        library.Bound.FirstOrDefault(b => b.Key == key) is { } bound
+            ? $"The bound device \"{key}\" has no audio device \"{bound.Audio}\" in your Library."
+            : Library.Missing(LibraryKind.Audio, key);
 
     public static AudioRoles Roles(StepContext context) => context.Text("roles") switch
     {

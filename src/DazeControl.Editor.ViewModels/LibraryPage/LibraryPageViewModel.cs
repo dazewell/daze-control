@@ -58,6 +58,43 @@ public sealed partial class LibrarySectionViewModel : ObservableObject
 
     public bool HasNote => Note is not null;
 
+    // ---- Bound devices (D-116): the "Bind devices" form ----
+
+    public bool CanBind => Kind == LibraryKind.Bound;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBindChoices))]
+    public partial IReadOnlyList<LibraryChoice> BindBluetoothChoices { get; internal set; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBindChoices))]
+    public partial IReadOnlyList<LibraryChoice> BindAudioChoices { get; internal set; } = [];
+
+    /// <summary>Binding needs a Bluetooth device and an audio device in the Library.</summary>
+    public bool HasBindChoices => BindBluetoothChoices.Count > 0 && BindAudioChoices.Count > 0;
+
+    [ObservableProperty]
+    public partial LibraryChoice? BindBluetooth { get; set; }
+
+    [ObservableProperty]
+    public partial LibraryChoice? BindAudio { get; set; }
+
+    [ObservableProperty]
+    public partial string BindName { get; set; } = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBindError))]
+    public partial string? BindError { get; internal set; }
+
+    public bool HasBindError => BindError is not null;
+
+    /// <summary>A new name follows the Bluetooth device picked, until the user types their own.</summary>
+    partial void OnBindBluetoothChanged(LibraryChoice? oldValue, LibraryChoice? newValue)
+    {
+        if (newValue is not null && (BindName.Length == 0 || BindName == oldValue?.Title))
+            BindName = newValue.Title;
+    }
+
     /// <summary>The Pivot header's name for screen readers.</summary>
     public override string ToString() => Title;
 }
@@ -97,6 +134,8 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
                 "No audio devices yet. Add one from Windows, or pick one in a step."),
             new(LibraryKind.Bluetooth, "Bluetooth", LibraryDevices.Glyph(LibraryKind.Bluetooth),
                 "No Bluetooth devices yet. Add a paired one from Windows."),
+            new(LibraryKind.Bound, "Bound devices", LibraryDevices.Glyph(LibraryKind.Bound),
+                "No bound devices yet. Bind a Bluetooth device to its audio device to use the pair as one device in Bluetooth and audio steps."),
             new(LibraryKind.Display, "Displays", LibraryDevices.Glyph(LibraryKind.Display),
                 "No screen layouts yet. Set your screens up the way you like, then capture the layout."),
             new(LibraryKind.Android, "Android", LibraryDevices.Glyph(LibraryKind.Android),
@@ -122,7 +161,8 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     public event Action<string>? FlowRequested;
 
     /// <summary>Asks the engine what this PC has now, for every device kind (pipe <c>devices</c>).</summary>
-    public Task RefreshAsync() => Task.WhenAll(Sections.Where(s => s.Kind is not null).Select(s => RefreshAsync(s.Kind!.Value)));
+    public Task RefreshAsync() =>
+        Task.WhenAll(Sections.Where(s => s.Kind is { } k && k != LibraryKind.Bound).Select(s => RefreshAsync(s.Kind!.Value)));
 
     public async Task RefreshAsync(LibraryKind kind)
     {
@@ -134,6 +174,8 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
             else
                 _live[kind] = list;
             Sync(kind);
+            if (kind == LibraryKind.Bluetooth)
+                Sync(LibraryKind.Bound);
         });
     }
 
@@ -181,11 +223,14 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         var section = Section(kind);
         var config = _session.Current;
         List<(string Key, string Title, string Detail, string State, IReadOnlyList<FlowLink> Users, string? Problem)> rows;
-        var live = kind is { } liveKind ? _live.GetValueOrDefault(liveKind) : null;
+        // A bound device's state is its Bluetooth side's (D-116).
+        var live = kind is { } liveKind ? _live.GetValueOrDefault(liveKind == LibraryKind.Bound ? LibraryKind.Bluetooth : liveKind) : null;
         if (kind is { } k)
         {
             rows = [.. LibraryDevices.Items(config.Library, k).Select(i => (i.Key, i.Title, Detail(config.Library, k, i.Key),
-                k == LibraryKind.Display ? "" : LibraryDevices.State(config.Library, k, i.Key, live),
+                k == LibraryKind.Display ? ""
+                : k == LibraryKind.Bound ? LibraryDevices.State(config.Library, LibraryKind.Bluetooth, i.Key, live)
+                : LibraryDevices.State(config.Library, k, i.Key, live),
                 Users(config, k, i.Key), ProblemOf(k, i.Key)))];
             section.Available = live is null || !section.CanAdd
                 ? []
@@ -206,6 +251,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
                 {
                     CanOpenLocation = kind is null,
                     HasInputs = kind == LibraryKind.Android,
+                    SidesChanged = kind == LibraryKind.Bound ? SetSides : null,
                 };
             item.Title = row.Title;
             item.Detail = row.Detail;
@@ -214,13 +260,76 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
             item.UsedByFlows = row.Users;
             item.Problem = row.Problem;
             item.Removable = kind is not null && CanEdit;
-            item.CanRename = kind is LibraryKind.Display or LibraryKind.Android && CanEdit;
+            item.CanRename = kind is LibraryKind.Display or LibraryKind.Android or LibraryKind.Bound && CanEdit;
+            item.BoundIn = kind is { } side && config.Library.BoundWith(side, row.Key).FirstOrDefault() is { } binding
+                ? binding.Name ?? binding.Key
+                : null;
+            if (kind == LibraryKind.Bound)
+            {
+                var bound = config.Library.Bound.First(d => d.Key == row.Key);
+                var (bluetooth, audio) = (Choices(config.Library, LibraryKind.Bluetooth), Choices(config.Library, LibraryKind.Audio));
+                item.LoadSides(bluetooth, audio, bluetooth.FirstOrDefault(c => c.Key == bound.Bluetooth),
+                    audio.FirstOrDefault(c => c.Key == bound.Audio), CanEdit);
+            }
             if (kind == LibraryKind.Display)
                 item.Screens = ScreenDetails(config.Library.Displays.First(d => d.Key == row.Key), live);
             if (kind == LibraryKind.Android)
                 SyncInputs(item, config, config.Library.Android.First(d => d.Key == row.Key));
             section.Items.Add(item);
         }
+        if (kind == LibraryKind.Bound)
+        {
+            section.BindBluetoothChoices = Choices(config.Library, LibraryKind.Bluetooth);
+            section.BindAudioChoices = Choices(config.Library, LibraryKind.Audio);
+        }
+    }
+
+    private static List<LibraryChoice> Choices(Library library, LibraryKind kind) =>
+        [.. LibraryDevices.Items(library, kind).Select(i => new LibraryChoice(i.Key, kind == LibraryKind.Audio ? AudioTitle(library, i.Key) : i.Title))];
+
+    /// <summary>"Technics (Input)": an audio device's match, with its direction when it's an input.</summary>
+    private static string AudioTitle(Library library, string key) =>
+        library.Audio.First(d => d.Key == key) is var a && a.Flow == AudioFlow.Input ? $"{a.Match} (Input)" : a.Match;
+
+    // ---- Bound devices (D-116) ----
+
+    /// <summary>Library › Bound devices › Bind: a new bound device of the section's picks. False, with
+    /// <see cref="LibrarySectionViewModel.BindError"/> saying why, when a side or the name is missing.</summary>
+    public bool Bind()
+    {
+        var section = Section(LibraryKind.Bound);
+        var name = section.BindName.Trim();
+        section.BindError = !CanEdit ? "The Library can't be changed right now."
+            : section.BindBluetooth is null ? "Pick a Bluetooth device."
+            : section.BindAudio is null ? "Pick an audio device."
+            : name.Length == 0 ? "Give it a name."
+            : null;
+        if (section.BindError is not null)
+            return false;
+        var (bluetooth, audio) = (section.BindBluetooth!.Key, section.BindAudio!.Key);
+        var key = LibraryDevices.NewKey(_session.Current.Library, LibraryKind.Bound, name);
+        _session.Update(c => c with
+        {
+            Library = c.Library with { Bound = [.. c.Library.Bound, new BoundDevice(key, bluetooth, audio, name == key ? null : name)] },
+        });
+        section.BindBluetooth = null;
+        section.BindAudio = null;
+        section.BindName = "";
+        return true;
+    }
+
+    /// <summary>A bound device's card changed a side: steps using it follow at once (autosaved like the rest of the Library).</summary>
+    private void SetSides(LibraryItemViewModel item)
+    {
+        if (!CanEdit || item.BoundBluetooth is not { } bluetooth || item.BoundAudio is not { } audio)
+            return;
+        _session.Update(c => c with
+        {
+            Library = c.Library with
+            {
+                Bound = [.. c.Library.Bound.Select(d => d.Key == item.Key ? d with { Bluetooth = bluetooth.Key, Audio = audio.Key } : d)],
+            },
+        });
     }
 
     /// <summary>Android: the inputs in file order; rows of unchanged names stay (an open rename keeps its box).</summary>
@@ -245,8 +354,13 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         LibraryKind.Audio => library.Audio.First(d => d.Key == key) is var a && a.Flow == AudioFlow.Input ? "Input" : "Output",
         LibraryKind.Bluetooth => library.Bluetooth.First(d => d.Key == key).Address,
         LibraryKind.Display => LibraryDevices.State(library, kind, key, null),
+        LibraryKind.Bound => BoundDetail(library, library.Bound.First(d => d.Key == key)),
         _ => AndroidDetail(library.Android.First(d => d.Key == key)),
     };
+
+    /// <summary>"Technics EAH-AZ80 + Technics": its Bluetooth device and its audio device.</summary>
+    private static string BoundDetail(Library library, BoundDevice bound) =>
+        $"{LibraryDevices.NameOf(library, LibraryKind.Bluetooth, bound.Bluetooth)} + {library.Audio.FirstOrDefault(d => d.Key == bound.Audio)?.Match ?? bound.Audio}";
 
     /// <summary>"192.168.1.50 · 2 inputs".</summary>
     private static string AndroidDetail(AndroidDevice device) => device.Inputs.Count switch
@@ -293,6 +407,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         LibraryKind.Audio => "audio",
         LibraryKind.Bluetooth => "bluetooth",
         LibraryKind.Display => "displays",
+        LibraryKind.Bound => "bound",
         _ => "android",
     };
 
@@ -306,6 +421,8 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         if (kind is not { } k)
             return await Task.Run(() => TestProgram(key), cancellationToken).ConfigureAwait(false); // a network path can stall for seconds
         var library = _session.Current.Library;
+        if (k == LibraryKind.Bound)
+            return await TestBoundAsync(key, cancellationToken).ConfigureAwait(false);
         if (k == LibraryKind.Display && library.Displays.FirstOrDefault(d => d.Key == key) is { } bad && !bad.IsWellFormed())
             return new(TestOutcome.Failed, "This layout is damaged. Capture it again.");
         var answer = await ListAsync(k, cancellationToken).ConfigureAwait(false);
@@ -315,8 +432,49 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
             if (answer is { Ok: true, Devices: { } list })
                 _live[k] = list;
             Sync(k);
+            if (k == LibraryKind.Bluetooth)
+                Sync(LibraryKind.Bound);
         });
         return result;
+    }
+
+    /// <summary>A bound device's Test: each side's (D-116). Read-only like every Test.</summary>
+    private async Task<TestResult> TestBoundAsync(string key, CancellationToken cancellationToken)
+    {
+        var bluetooth = ListAsync(LibraryKind.Bluetooth, cancellationToken);
+        var audio = ListAsync(LibraryKind.Audio, cancellationToken);
+        await Task.WhenAll(bluetooth, audio).ConfigureAwait(false);
+        var (bt, au) = (await bluetooth.ConfigureAwait(false), await audio.ConfigureAwait(false));
+        var result = JudgeBound(_session.Current.Library, key, bt, au);
+        _post(() =>
+        {
+            if (bt is { Ok: true, Devices: { } btList })
+                _live[LibraryKind.Bluetooth] = btList;
+            if (au is { Ok: true, Devices: { } auList })
+                _live[LibraryKind.Audio] = auList;
+            Sync();
+        });
+        return result;
+    }
+
+    /// <summary>What a bound device's Test says: its Bluetooth side's result, then its audio side's; the worse outcome wins.</summary>
+    public static TestResult JudgeBound(Library library, string key, PipeMessage? bluetooth, PipeMessage? audio)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+        if (library.Bound.FirstOrDefault(d => d.Key == key) is not { } bound)
+            return new(TestOutcome.Failed, $"\"{key}\" isn't in your Library anymore.");
+        if (bluetooth is null && audio is null)
+            return new(TestOutcome.Failed, "Start Daze Control to test this.");
+        TestResult[] sides =
+        [
+            library.Bluetooth.Any(d => d.Key == bound.Bluetooth)
+                ? Judge(library, LibraryKind.Bluetooth, bound.Bluetooth, bluetooth)
+                : new(TestOutcome.Failed, Library.Missing(LibraryKind.Bluetooth, bound.Bluetooth)),
+            library.Audio.Any(d => d.Key == bound.Audio)
+                ? Judge(library, LibraryKind.Audio, bound.Audio, audio)
+                : new(TestOutcome.Failed, Library.Missing(LibraryKind.Audio, bound.Audio)),
+        ];
+        return new(sides.Max(s => s.Outcome), string.Join(" ", sides.Select(s => s.Message).Distinct(StringComparer.Ordinal)));
     }
 
     /// <summary>What a Test says about a Library item, given the engine's live list (null: no engine).</summary>
@@ -417,7 +575,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(newKey);
-        if (!CanEdit || Sections.FirstOrDefault(s => s.Items.Contains(item))?.Kind is not ({ } kind and (LibraryKind.Display or LibraryKind.Android)))
+        if (!CanEdit || Sections.FirstOrDefault(s => s.Items.Contains(item))?.Kind is not ({ } kind and (LibraryKind.Display or LibraryKind.Android or LibraryKind.Bound)))
             return false;
         var refusal = LibraryEdits.Rename(_session.Current, kind, item.Key, newKey).Refusal;
         item.RenameError = refusal switch
@@ -564,7 +722,8 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     private void Remove(LibraryItemViewModel item)
     {
         var kind = Sections.FirstOrDefault(s => s.Items.Contains(item))?.Kind;
-        if (!CanEdit || kind is not { } k || UsedBy(_session.Current, k, item.Key) > 0)
+        // A side of a bound device stays until that bound device goes (D-116): its steps would lose half the device.
+        if (!CanEdit || kind is not { } k || UsedBy(_session.Current, k, item.Key) > 0 || _session.Current.Library.BoundWith(k, item.Key).Any())
             return;
         _session.Update(c => c with
         {
@@ -573,6 +732,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
                 LibraryKind.Audio => c.Library with { Audio = [.. c.Library.Audio.Where(d => d.Key != item.Key)] },
                 LibraryKind.Bluetooth => c.Library with { Bluetooth = [.. c.Library.Bluetooth.Where(d => d.Key != item.Key)] },
                 LibraryKind.Display => c.Library with { Displays = [.. c.Library.Displays.Where(d => d.Key != item.Key)] },
+                LibraryKind.Bound => c.Library with { Bound = [.. c.Library.Bound.Where(d => d.Key != item.Key)] },
                 _ => c.Library with { Android = [.. c.Library.Android.Where(d => d.Key != item.Key)] },
             },
         });

@@ -61,9 +61,15 @@ public sealed class InputPrompts(IMenuPresenter presenter)
 
     private static List<MenuItem> ItemsOf(Library library, LibraryKind kind) => kind switch
     {
-        LibraryKind.Audio => [.. library.Audio.Select(d => new MenuItem(d.Key, d.Key, MenuItemState.Ready))],
-        LibraryKind.Bluetooth => [.. library.Bluetooth.Select(d => new MenuItem(d.Key, d.Name ?? d.Key, MenuItemState.Ready))],
+        LibraryKind.Audio => [.. library.Audio.Select(d => new MenuItem(d.Key, d.Key, MenuItemState.Ready)), .. BoundItems(library, kind)],
+        LibraryKind.Bluetooth => [.. library.Bluetooth.Select(d => new MenuItem(d.Key, d.Name ?? d.Key, MenuItemState.Ready)), .. BoundItems(library, kind)],
+        LibraryKind.Bound => [.. BoundItems(library, kind)],
         LibraryKind.Display => [.. library.Displays.Select(d => new MenuItem(d.Key, d.Key, MenuItemState.Ready))],
         _ => [.. library.Android.Select(d => new MenuItem(d.Key, d.Key, MenuItemState.Ready))],
     };
+
+    /// <summary>Bound devices whose side of this kind is in the Library (D-116).</summary>
+    private static IEnumerable<MenuItem> BoundItems(Library library, LibraryKind kind) => library.Bound
+        .Where(b => library.Contains(kind, b.Key))
+        .Select(b => new MenuItem(b.Key, b.Name ?? b.Key, MenuItemState.Ready));
 }

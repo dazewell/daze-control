@@ -330,6 +330,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     private static string LibraryName(Library library, LibraryKind? kind, string key) => kind switch
     {
+        LibraryKind.Bluetooth or LibraryKind.Audio when library.Bound.FirstOrDefault(d => d.Key == key) is { } bound => bound.Name ?? key,
         LibraryKind.Bluetooth => library.Bluetooth.FirstOrDefault(d => d.Key == key)?.Name ?? key,
         LibraryKind.Audio => library.Audio.FirstOrDefault(d => d.Key == key)?.Match ?? key,
         _ => key,

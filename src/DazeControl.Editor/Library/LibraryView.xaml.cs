@@ -72,6 +72,18 @@ public sealed partial class LibraryView : UserControl
 
     private void OnRefresh(object sender, RoutedEventArgs e) => _ = _viewModel?.RefreshAsync();
 
+    private void OnBindSave(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || _viewModel is null)
+            return;
+        var popups = VisualTreeHelperPopups(element).ToList(); // before the edit, which rebuilds the list
+        if (_viewModel.Bind())
+        {
+            foreach (var popup in popups)
+                popup.IsOpen = false;
+        }
+    }
+
     private void OnUsedByOpen(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement element)

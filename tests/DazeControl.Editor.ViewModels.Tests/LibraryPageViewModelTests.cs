@@ -96,8 +96,8 @@ public sealed class LibraryPageViewModelTests : IDisposable
     private LibraryItemViewModel Item(LibraryKind? kind, string key) => _page.Section(kind).Items.Single(i => i.Key == key);
 
     [Fact]
-    public void SectionsAreTheFiveLibraryKindsInPivotOrder() =>
-        Assert.Equal(["Audio", "Bluetooth", "Displays", "Android", "Programs"], _page.Sections.Select(s => s.Title));
+    public void SectionsAreTheLibraryKindsInPivotOrder() =>
+        Assert.Equal(["Audio", "Bluetooth", "Bound devices", "Displays", "Android", "Programs"], _page.Sections.Select(s => s.Title));
 
     [Fact]
     public void ItemsCountTheFlowsThatUseThem()
@@ -602,5 +602,112 @@ public sealed class LibraryPageViewModelTests : IDisposable
         Assert.Equal(["game"], _session.Current.Library.Android[0].Inputs.Keys);
         Assert.Equal(["down"], _session.Current.Library.Android[0].Inputs["game"]);
         Assert.Equal("game", ((ScalarParam)((StepNode)_session.SavedFlow("b")!.FindNode("tv")!).With["input"]).Text);
+    }
+
+    // ---- Bound devices (D-116) ----
+
+    private LibraryItemViewModel BindSonyToTechnicsAudio()
+    {
+        var section = _page.Section(LibraryKind.Bound);
+        section.BindBluetooth = section.BindBluetoothChoices.Single(c => c.Key == "sony");
+        section.BindAudio = section.BindAudioChoices.Single(c => c.Key == "technics");
+        Assert.Equal("Sony", section.BindName); // the name follows the Bluetooth device picked
+        section.BindName = "Sony headphones";
+        Assert.True(_page.Bind());
+        return Item(LibraryKind.Bound, "sony-headphones");
+    }
+
+    [Fact]
+    public void BindAddsABoundDeviceOfTheTwoPicks()
+    {
+        Assert.True(_page.Section(LibraryKind.Bound).HasBindChoices);
+        var item = BindSonyToTechnicsAudio();
+
+        Assert.Equal(new BoundDevice("sony-headphones", "sony", "technics", "Sony headphones"), Assert.Single(_session.Current.Library.Bound));
+        Assert.Equal("Sony headphones", item.Title);
+        Assert.Equal("Sony + Technics EAH-AZ80", item.Detail);
+        Assert.True(item.IsBound);
+        Assert.Equal("sony", item.BoundBluetooth?.Key);
+        Assert.True(item.CanRename);
+        Assert.Equal("", _page.Section(LibraryKind.Bound).BindName); // the form starts over
+    }
+
+    [Fact]
+    public void BindSaysWhatIsMissing()
+    {
+        var section = _page.Section(LibraryKind.Bound);
+        section.BindAudio = section.BindAudioChoices[0];
+
+        Assert.False(_page.Bind());
+        Assert.Equal("Pick a Bluetooth device.", section.BindError);
+        Assert.Empty(_session.Current.Library.Bound);
+    }
+
+    [Fact]
+    public void ASideOfABoundDeviceCantBeRemovedUntilTheBindingGoes()
+    {
+        var bound = BindSonyToTechnicsAudio();
+        var sony = Item(LibraryKind.Bluetooth, "sony");
+
+        Assert.False(sony.CanRemove);
+        Assert.Equal("Part of Sony headphones. Remove that bound device first.", sony.RemoveTip);
+        _page.RemoveCommand.Execute(sony);
+        Assert.Contains(_session.Current.Library.Bluetooth, d => d.Key == "sony");
+
+        _page.RemoveCommand.Execute(bound);
+        Assert.Empty(_session.Current.Library.Bound);
+        Assert.True(Item(LibraryKind.Bluetooth, "sony").CanRemove);
+    }
+
+    [Fact]
+    public void ChangingASideUpdatesTheBinding()
+    {
+        var item = BindSonyToTechnicsAudio();
+
+        item.BoundBluetooth = item.BluetoothChoices.Single(c => c.Key == "technics");
+
+        Assert.Equal("technics", _session.Current.Library.Bound[0].Bluetooth);
+    }
+
+    [Fact]
+    public void BluetoothAndAudioPickersListBoundDevices()
+    {
+        BindSonyToTechnicsAudio();
+        var library = _session.Current.Library;
+
+        foreach (var kind in new[] { LibraryKind.Bluetooth, LibraryKind.Audio })
+        {
+            var row = LibraryDevices.Options(kind, library, null, null, required: true, canCapture: false).Single(o => o.Key == "sony-headphones");
+            Assert.Equal(DeviceSource.Library, row.Source);
+            Assert.Equal("Sony headphones", row.Title);
+            Assert.Equal(LibraryDevices.BoundCaption, row.Caption);
+        }
+        Assert.DoesNotContain(LibraryDevices.Options(LibraryKind.Android, library, null, null, true, false), o => o.Key == "sony-headphones");
+    }
+
+    [Fact]
+    public void ABoundDevicesTestChecksBothSides()
+    {
+        BindSonyToTechnicsAudio();
+        var library = _session.Current.Library;
+        var bt = new PipeMessage { Ok = true, Devices = [new DeviceInfo { Name = "80:99:E7:2A:AB:A1", Detail = "Sony", State = "connected" }] };
+        var audio = new PipeMessage { Ok = true, Devices = [new DeviceInfo { Name = "Speakers (Technics EAH-AZ80)", Detail = "Output" }] };
+
+        Assert.Equal(TestOutcome.Worked, LibraryPageViewModel.JudgeBound(library, "sony-headphones", bt, audio).Outcome);
+        var noAudio = LibraryPageViewModel.JudgeBound(library, "sony-headphones", bt, new PipeMessage { Ok = true, Devices = [] });
+        Assert.Equal(TestOutcome.Failed, noAudio.Outcome);
+        Assert.Contains("Found Sony", noAudio.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ABoundDeviceWithAPairedKeyboardCantBePickedForBluetooth()
+    {
+        BindSonyToTechnicsAudio();
+        DeviceInfo[] live = [new DeviceInfo { Name = "80:99:E7:2A:AB:A1", Detail = "Sony", State = "not connected", NotConnectable = true }];
+
+        var row = LibraryDevices.Options(LibraryKind.Bluetooth, _session.Current.Library, live, null, true, false).Single(o => o.Key == "sony-headphones");
+
+        Assert.False(row.IsEnabled);
+        Assert.Equal(LibraryDevices.NotConnectable, row.Caption);
     }
 }

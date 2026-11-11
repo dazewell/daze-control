@@ -28,21 +28,30 @@ public static class LibraryEdits
             return (config, RenameRefusal.Empty);
         if (newKey == key)
             return (config, RenameRefusal.None);
-        if (config.Library.Contains(kind, newKey))
+        if (config.Library.Contains(kind, newKey) || KeyClashes(config.Library, kind, newKey))
             return (config, RenameRefusal.Taken);
 
         var library = config.Library;
         library = kind switch
         {
-            LibraryKind.Audio => library with { Audio = [.. library.Audio.Select(d => d.Key == key ? d with { Key = newKey } : d)] },
-            LibraryKind.Bluetooth => library with { Bluetooth = [.. library.Bluetooth.Select(d => d.Key == key ? d with { Key = newKey } : d)] },
+            LibraryKind.Audio => library with
+            {
+                Audio = [.. library.Audio.Select(d => d.Key == key ? d with { Key = newKey } : d)],
+                Bound = [.. library.Bound.Select(b => b.Audio == key ? b with { Audio = newKey } : b)],
+            },
+            LibraryKind.Bluetooth => library with
+            {
+                Bluetooth = [.. library.Bluetooth.Select(d => d.Key == key ? d with { Key = newKey } : d)],
+                Bound = [.. library.Bound.Select(b => b.Bluetooth == key ? b with { Bluetooth = newKey } : b)],
+            },
+            LibraryKind.Bound => library with { Bound = [.. library.Bound.Select(d => d.Key == key ? d with { Key = newKey } : d)] },
             LibraryKind.Display => library with { Displays = [.. library.Displays.Select(d => d.Key == key ? d with { Key = newKey } : d)] },
             _ => library with { Android = [.. library.Android.Select(d => d.Key == key ? d with { Key = newKey } : d)] },
         };
         var flows = config.Flows.Select(f => Uses(f, config, kind, key)
             ? f with
             {
-                Inputs = new(f.Inputs.Select(i => i.Value.Kind == kind && i.Value.Default == key
+                Inputs = new(f.Inputs.Select(i => Refers(kind, i.Value.Kind) && i.Value.Default == key
                     ? KeyValuePair.Create(i.Key, i.Value with { Default = newKey })
                     : i)),
                 Nodes = [.. f.Nodes.Select(n => n is StepNode s ? RenamedPassed(Renamed(s, kind, key, newKey), config, kind, key, newKey) : n)],
@@ -59,7 +68,7 @@ public static class LibraryEdits
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(config);
-        return flow.Inputs.Values.Any(i => i.Kind == kind && i.Default == key)
+        return flow.Inputs.Values.Any(i => Refers(kind, i.Kind) && i.Default == key)
             || flow.Nodes.OfType<StepNode>().Any(s => Names(s, kind, key) is not null || Passed(s, config, kind).Any(e => e.Value == key));
     }
 
@@ -70,7 +79,7 @@ public static class LibraryEdits
             || Validation.ConfigValidator.CalledFlow(step) is not { } target
             || config.Flows.FirstOrDefault(f => f.Id == target) is not { } called)
             return [];
-        return FlowInputs.Given(step).Where(e => called.Inputs.TryGetValue(e.Key, out var input) && input.Kind == kind);
+        return FlowInputs.Given(step).Where(e => called.Inputs.TryGetValue(e.Key, out var input) && Refers(kind, input.Kind));
     }
 
     private static StepNode RenamedPassed(StepNode step, Configuration config, LibraryKind kind, string key, string newKey)
@@ -86,7 +95,7 @@ public static class LibraryEdits
     public static string? Names(StepNode step, LibraryKind kind, string key)
     {
         ArgumentNullException.ThrowIfNull(step);
-        return ProviderCatalog.Find(step.Step)?.Params.FirstOrDefault(p => p.Kind == ParamKind.LibraryRef && p.Library == kind
+        return ProviderCatalog.Find(step.Step)?.Params.FirstOrDefault(p => p.Kind == ParamKind.LibraryRef && p.Library is { } k && Refers(kind, k)
             && step.With.TryGetValue(p.Name, out var value) && value is ScalarParam { Text: var text } && text == key)?.Name;
     }
 
@@ -95,12 +104,31 @@ public static class LibraryEdits
         if (Names(step, kind, key) is null)
             return step;
         var refs = ProviderCatalog.Find(step.Step)!.Params
-            .Where(p => p.Kind == ParamKind.LibraryRef && p.Library == kind).Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
+            .Where(p => p.Kind == ParamKind.LibraryRef && p.Library is { } k && Refers(kind, k)).Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
         return step with
         {
             With = new(step.With.Select(e => refs.Contains(e.Key) && e.Value is ScalarParam { Text: var text } && text == key
                 ? KeyValuePair.Create(e.Key, (ParamValue)newKey)
                 : e)),
+        };
+    }
+
+    /// <summary>
+    /// Whether a setting or input of kind <paramref name="refKind"/> can hold a <paramref name="kind"/> key: its own kind,
+    /// and a bound device's key in Bluetooth and audio settings (D-116).
+    /// </summary>
+    public static bool Refers(LibraryKind kind, LibraryKind refKind) =>
+        refKind == kind || (kind == LibraryKind.Bound && refKind is LibraryKind.Audio or LibraryKind.Bluetooth);
+
+    /// <summary>Bound devices share the key space of Bluetooth and audio devices: a step setting holds either (D-116).</summary>
+    public static bool KeyClashes(Library library, LibraryKind kind, string key)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+        return kind switch
+        {
+            LibraryKind.Bound => library.Audio.Any(d => d.Key == key) || library.Bluetooth.Any(d => d.Key == key),
+            LibraryKind.Audio or LibraryKind.Bluetooth => library.Bound.Any(d => d.Key == key),
+            _ => false,
         };
     }
 }

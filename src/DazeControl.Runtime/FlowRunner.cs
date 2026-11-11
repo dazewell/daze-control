@@ -465,7 +465,7 @@ public sealed class FlowRunner
     private static string Identity(ParamSpec? spec, string text, Library library) => spec switch
     {
         { Kind: ParamKind.LibraryRef, Library: LibraryKind.Bluetooth }
-            when library.Bluetooth.FirstOrDefault(d => d.Key == text) is { } device => device.Address.ToUpperInvariant(),
+            when library.ResolveBluetooth(text) is { } device => device.Address.ToUpperInvariant(),
         { Kind: ParamKind.LibraryRef, Library: LibraryKind.Android }
             when library.Android.FirstOrDefault(d => d.Key == text) is { } tv => tv.Serial.ToUpperInvariant(),
         _ => text,
