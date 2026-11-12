@@ -276,12 +276,10 @@
                                 <Grid Visibility="{x:Bind TakesValues, Mode=OneWay}" MinHeight="28" Margin="0,4,0,0">
                                     <TextBlock Text="{x:Bind Help}" Visibility="{x:Bind ShowsHelp, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
                                                VerticalAlignment="Center" TextWrapping="Wrap" />
-                                    <TextBlock Text="Not a value from this flow" Visibility="{x:Bind HasUnknownValue, Mode=OneWay}" Style="{StaticResource FieldError}"
-                                               VerticalAlignment="Center" Margin="0" />
-                                    <ScrollViewer Visibility="{x:Bind HasPills, Mode=OneWay}" HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Hidden"
+                                    <ScrollViewer Visibility="{x:Bind ShowsRow, Mode=OneWay}" HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Hidden"
                                                   VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" IsTabStop="False">
                                         <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                            <TextBlock Text="Shows:" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
+                                            <TextBlock Text="Shows:" Visibility="{x:Bind HasPills, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                                        AutomationProperties.AccessibilityView="Raw" />
                                             <ItemsControl ItemsSource="{x:Bind Pills, Mode=OneWay}" IsTabStop="False" AutomationProperties.Name="{x:Bind PillsName, Mode=OneWay}">
                                                 <ItemsControl.ItemsPanel>
@@ -307,6 +305,9 @@
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
+                                            <!-- Beside the pills, never under them: a field can hold both. -->
+                                            <TextBlock Text="Not a value from this flow" Visibility="{x:Bind HasUnknownValue, Mode=OneWay}" Style="{StaticResource FieldError}"
+                                                       VerticalAlignment="Center" Margin="0" TextWrapping="NoWrap" />
                                         </StackPanel>
                                     </ScrollViewer>
                                 </Grid>

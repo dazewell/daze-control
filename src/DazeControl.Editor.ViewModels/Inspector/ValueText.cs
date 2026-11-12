@@ -178,9 +178,16 @@ public static class ValueText
         {
             if (shown[i] != '{')
                 continue;
-            if (names.TryDisplayToken(shown, i, out var length, out _))
+            // "{{Connect Technics: Nope}" is written literally (FromDisplay): not a typo.
+            var escaped = i + 1 < shown.Length && shown[i + 1] == '{';
+            if (names.TryDisplayToken(shown, escaped ? i + 1 : i, out var length, out _))
             {
-                i += length - 1;
+                i += escaped ? length : length - 1;
+                continue;
+            }
+            if (escaped)
+            {
+                i++;
                 continue;
             }
             var close = shown.IndexOf('}', i + 1);

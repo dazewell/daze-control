@@ -77,8 +77,11 @@ public sealed partial class ParamFieldViewModel
     /// <summary>The help line below a setting that takes no values; with values it lives in the pills row instead.</summary>
     public bool ShowsPlainHelp => HasHelp && !TakesValues;
 
+    /// <summary>The row has something to say: pills, or "Not a value from this flow".</summary>
+    public bool ShowsRow => HasPills || HasUnknownValue;
+
     /// <summary>With no value to show the row holds the setting's help (or stays empty), so the slot never changes height (D-104).</summary>
-    public bool ShowsHelp => !HasPills && HasHelp && !HasUnknownValue;
+    public bool ShowsHelp => !ShowsRow && HasHelp;
 
     /// <summary>"Not a value from this flow" under the box while a typed token names nothing.</summary>
     [ObservableProperty]
@@ -96,6 +99,8 @@ public sealed partial class ParamFieldViewModel
             if (_pills.Count > 0)
                 Pills = [];
             HasUnknownValue = false;
+            OnPropertyChanged(nameof(ShowsRow));
+            OnPropertyChanged(nameof(ShowsHelp));
             return;
         }
         var stored = Stored(Text);
@@ -121,6 +126,7 @@ public sealed partial class ParamFieldViewModel
             segments.Clear();
         Pills = segments;
         HasUnknownValue = ValueText.HasUnknownValue(c.Flow, Text, _catalog);
+        OnPropertyChanged(nameof(ShowsRow));
         OnPropertyChanged(nameof(ShowsHelp));
     }
 
@@ -141,12 +147,19 @@ public sealed partial class ParamFieldViewModel
     /// <summary>"Remove" and Delete on a focused pill.</summary>
     public void RemovePill(PillSegment pill) => ReplacePill(pill, "");
 
-    /// <summary>"Change value…": the same reference slot, another value (its fallback is kept).</summary>
+    /// <summary>The pill's reference as the text holds it now: the pill may be older than the last change (a flyout outlives the rebuild).</summary>
+    private ValueRef? Current(PillSegment pill)
+    {
+        var refs = StepValues.Parse(Stored(Text));
+        return pill.Index >= 0 && pill.Index < refs.Count ? refs[pill.Index] : null;
+    }
+
+    /// <summary>"Change value…": the same reference slot, another value (the fallback written now is kept).</summary>
     public void ChangePill(PillSegment pill, ValueChoice choice)
     {
         ArgumentNullException.ThrowIfNull(choice);
         var stored = choice.Stored;
-        if (pill.Ref?.Fallback is { } fallback && StepValues.Parse(stored) is [{ } only])
+        if (Current(pill)?.Fallback is { } fallback && StepValues.Parse(stored) is [{ } only])
             stored = (only with { Fallback = fallback }).ToString();
         ReplacePill(pill, stored);
     }
@@ -154,9 +167,9 @@ public sealed partial class ParamFieldViewModel
     /// <summary>"If it has no value, show": the words after the bar; empty takes them away. Braces and line breaks can't be part of it.</summary>
     public void SetPillFallback(PillSegment pill, string? words)
     {
-        if (pill.Ref is not { } r)
+        if (Current(pill) is not { } r)
             return;
-        var clean = string.Concat((words ?? "").Where(ch => ch is not ('{' or '}' or '\r' or '\n'))).Trim();
+        var clean = string.Concat((words ?? "").Where(ch => ch is not ('{' or '}' or (char)13 or (char)10))).Trim();
         ReplacePill(pill, (r with { Fallback = clean.Length > 0 ? clean : null }).ToString());
     }
 }

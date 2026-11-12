@@ -233,4 +233,31 @@ public sealed class StepValuesEditingTests : IDisposable
 
         Assert.Equal("Connected to Device at Time", summary);
     }
+
+    [Fact]
+    public void EscapedTokenIsLiteralAndPillsAndTheWarningCanShowTogether()
+    {
+        var field = Field(_canvas.Flow!, "note", "x");
+
+        field.Text = "{{Connect Technics: Nope}";
+        Assert.False(field.HasUnknownValue);
+
+        field.Text = "{Connect Technics: Device} {Connect Technics: Nope}";
+        Assert.True(field.HasPills);
+        Assert.True(field.HasUnknownValue);
+        Assert.True(field.ShowsRow);
+    }
+
+    [Fact]
+    public void ChangingAValueAfterEditingItsFallbackWithTheOldPillKeepsTheNewFallback()
+    {
+        var field = Field(_canvas.Flow!, "note", "On {bt.device|old}");
+        var stale = field.Pills.First(p => p.IsPill);
+
+        field.SetPillFallback(stale, "new");
+        var time = field.ValueGroups.SelectMany(g => g.Rows).First(r => r.Title == "Time");
+        field.ChangePill(stale, time);
+
+        Assert.Equal("On {This run: Time|new}", field.Text);
+    }
 }
