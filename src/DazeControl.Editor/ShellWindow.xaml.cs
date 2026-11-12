@@ -226,6 +226,8 @@ public sealed partial class ShellWindow : Window
     private void OnFirstActivated(object sender, WindowActivatedEventArgs args)
     {
         Activated -= OnFirstActivated;
+        if (Program.MemoryProbe is var (flowId, log))
+            _ = RunMemoryProbeAsync(flowId, log);
         _ = ViewModel.Flows.RefreshRunsAsync();
         _ = ViewModel.Settings.RefreshAutostartAsync();
     }

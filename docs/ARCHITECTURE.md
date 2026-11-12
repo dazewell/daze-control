@@ -160,8 +160,7 @@ once. Fallbacks (D-065): a fallback unit that would be skipped ends `NotNeeded` 
 Failed/FailedIgnored unit with a failure edge is *handled*, and a skip whose dead edges all come from handled
 failures (or such skips) is *excused*; `Summarize((outcome, handled))` is Succeeded when every node is
 Succeeded, NotNeeded, handled or excused. `Outcomes.Fix(flow, results)` names the first Failed step (not may-fail: its success edges fired too) and the
-first fallback step that started (`Fixes` also drives the Runs timeline's dashed bar), for #48 in the pop-up (`RunPopupModel`, whose "n of m" counts a fallback once it
-starts), the Runs sentence (`RunWords.Sentence(run, title, flow)`) and the canvas InfoBar.
+first fallback step that started (`Fixes` also drives the Runs timeline's dashed bar), for #48 in the pop-up (`RunPopupModel`; its "n of m" and the canvas's are one `Core/Runs/RunProgress`: every step, fixed at start, D-126), the Runs sentence (`RunWords.Sentence(run, title, flow)`) and the canvas InfoBar.
 `Runtime/FlowRunner.RunAsync(flow, library, ct)` (one runner per engine) drives it: each step runs on the pool through its `IStepProvider`
 (`Runtime/Providers`) with `1 + retry.count` attempts `retry.delay` apart, each with a timeout (node's, else the
 descriptor's) on the injected `TimeProvider`. `WaitAsync` ends an attempt on time even if a provider ignores

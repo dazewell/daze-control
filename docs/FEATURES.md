@@ -17,8 +17,8 @@ What Daze Control does, stack-independent. Source: the 2026-10-31 plan §2. Stat
   replaced them). A failure its fallback fixed ends the flow **Succeeded** ("Done", the pop-up says "Connect
   Technics didn't work, so Connect Sony ran instead.") (D-065).
 - A **fallback step** (an incoming `failure` edge, or an incoming `success` edge from a fallback step) that wasn't
-  needed ends **Not needed**: no warning, no bar on the Runs timeline, and the pop-up's "n of m" leaves it out until
-  it starts (D-065).
+  needed ends **Not needed**: no warning, no bar on the Runs timeline, and in the pop-up's "n of m" it simply
+  finishes (D-065; the total is every step and never moves, D-126).
 - Outcomes: node Succeeded / Failed / FailedIgnored / Skipped / Cancelled / NotNeeded; flow Succeeded /
   PartiallySucceeded / Failed / Cancelled.
 - Flow settings: name, glyph, tray (show, folder, separator), hotkeys, `whenRunning` (ignore / queue /

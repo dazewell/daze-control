@@ -46,6 +46,7 @@ Try a checkout on the user's PC: `pwsh scripts/dev-run.ps1` stops the running en
 pwsh scripts/measure.ps1                       # publishes, starts, settles 30 s, samples 60 s, stops
 pwsh scripts/measure.ps1 -IdleSeconds 600      # the 10-minute CPU check
 pwsh scripts/measure.ps1 -NoPublish -Exe <path>
+pwsh scripts/editor-memory.ps1                 # editor: Probe 100 copy/paste/undo, open/close; MB per step (F-036)
 ```
 
 It prints private bytes, working set and CPU time used during the window, and a Markdown row to paste

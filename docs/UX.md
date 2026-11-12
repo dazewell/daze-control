@@ -301,9 +301,9 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   didn't work, so it went on without it." Failure: critical glyph, "Didn't finish", first failure in plain
   words (≤ 2 lines), Row 4 "Select to see what happened" (opens the run),
   stays 6 s and is clickable (still never activates on show).
-- Fallbacks (D-065, built): "n of m" leaves out fallbacks until one starts (then m grows by it); a fallback that
-  wasn't needed counts for nothing. A failure its fallback fixed ends "Done" with #48 on row 3, in the normal tone.
-  The canvas's live "Running · n of m" counts the same way and its pills say "Not needed" (#47). M13 (D-062): a flow
+- Fallbacks (D-065, built): "n of m" is every step of the flow, fixed when the run starts (D-126, F-012); a
+  fallback that wasn't needed finishes as "Not needed", so n still reaches m. A failure its fallback fixed ends "Done" with #48 on row 3, in the normal tone.
+  The canvas's live "Running · n of m" is the same number (one `RunProgress`) and its pills say "Not needed" (#47). M13 (D-062): a flow
   run by "Run flow" (waiting) is one step of its caller: row 3 shows "Make it the default · Connecting Sony…"
   (#59) and the bar moves within that step; the called flow shows no pop-up of its own.
 
@@ -414,8 +414,8 @@ contrast: solid background, no dots.
 - M13: right-drag pans and a still right click opens the menu; a 7-step chain then a fork leaves no long empty line
   (the fork starts under the chain); every Layout choice changes the canvas visibly on a sample flow; the Flows card
   shows the flow's icon and runs it with Run (keyboard: Tab to the card, Enter opens); nav Flows leaves the editor;
-  the collapsed nav pane survives a restart; Connect Technics with Technics on says "Done" and "n of m" never counts
-  the Sony branch; "Run flow" shows one pop-up and one Runs entry with the nested lanes.
+  the collapsed nav pane survives a restart; Connect Technics with Technics on says "Done" and "n of m" never moves
+  backwards (the Sony branch finishes as Not needed); "Run flow" shows one pop-up and one Runs entry with the nested lanes.
 - M13 fixes: the wheel zooms with the point under the pointer staying put, and a 2-step flow moves with right-drag;
   resting the pointer anywhere in the flow editor never shows a "Ctrl+S" tip; the Steps panel's "Run flow" sits
   under "Flows", and its Flow picker lists the other flows by name; Delete on a card, then Undo, brings it back with

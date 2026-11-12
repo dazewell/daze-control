@@ -825,8 +825,8 @@ Status: accepted (M13 design; user, 2026-11-03; supersedes D-024's "a handled fa
 PartiallySucceeded")
 - Decision: a **fallback step** is a unit with an incoming `when: failure` edge, or an incoming `when: success` edge
   from a fallback step (members follow their card), computed in Core (`FlowShape.Fallbacks`). When the Scheduler
-  would skip one, it ends **NotNeeded** (new `NodeOutcome`; fires `always` like Skipped). Counting: "n of m" leaves
-  fallback steps out of m until one starts. Summary: Succeeded when every unit is Succeeded, NotNeeded, or Failed /
+  would skip one, it ends **NotNeeded** (new `NodeOutcome`; fires `always` like Skipped). Counting (superseded by
+  D-126): "n of m" leaves fallback steps out of m until one starts. Summary: Succeeded when every unit is Succeeded, NotNeeded, or Failed /
   FailedIgnored with an outgoing failure edge (handled); otherwise as before. Pop-up: "Done" + #48 when a fallback
   fixed it. Runs: "Worked", the handled bar caution-dashed, NotNeeded rows "Not needed" (#47). The tray's problem
   notification follows the outcome.
@@ -1705,3 +1705,16 @@ Status: accepted (user, 2026-11-12: "let's add bound devices as inputs for the F
 - Why not keep "use an audio or Bluetooth input with a bound value" (the old refusal): one input then can't feed both a
   Bluetooth and an audio step, which is what a bound device is for. Why no "disabled input" state for a missing
   default: no other kind has one; a disabled input would leave its steps with no device anyway.
+
+## D-126 · 2026-11-12 · "n of m" is every step, fixed at the start, one counter for the pop-up and the canvas
+Status: accepted (F-012, M22 batch 13; supersedes D-065's counting sentence)
+- Decision: `Core/Runs/RunProgress` is the only "n of m": m = the flow's `StepNode`s when the run starts (fallbacks
+  included, cards not: their members count), n = steps with a `NodeFinished` (any outcome, each once). The pop-up
+  (`RunPopupModel`) and the canvas (`RunOverlayViewModel`) both use it; a nested call's progress only fills its
+  call step's share.
+- Why: the user saw "18 of 20" on the canvas and "18 of 21" in the pop-up (the pop-up counted cards, the canvas
+  didn't) and totals that grew mid-run as fallbacks started, so the bar jumped backwards. An unneeded fallback is
+  skipped (NotNeeded) right after its source succeeds, so n still reaches m without counting anything twice.
+- Why not keep "fallbacks join m when they start": any growing m moves the bar back. Why not leave fallbacks out for
+  good: a fallback that runs would then do work the bar doesn't show. Why not send m from the engine on the pipe:
+  both sides already hold the same flow (the canvas the saved one, D-047), and one Core class is one definition.
