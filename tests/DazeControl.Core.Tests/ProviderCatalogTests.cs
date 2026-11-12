@@ -159,4 +159,8 @@ public class ProviderCatalogTests
         Assert.Equal("home", AndroidKeys.Names[0]);
         Assert.Equal("tv_input", AndroidKeys.Names[19]);
     }
+
+    [Fact]
+    public void CheckTimeExplainsWhenItFails() =>
+        Assert.False(string.IsNullOrWhiteSpace(ProviderCatalog.Find("time.check")!.Params.Single(p => p.Name == "is").Help)); // F-041
 }

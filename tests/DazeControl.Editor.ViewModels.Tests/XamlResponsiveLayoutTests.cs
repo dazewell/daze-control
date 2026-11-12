@@ -38,7 +38,17 @@ public sealed class XamlResponsiveLayoutTests
     public void CardCaptionTrimsWithEllipsisInsteadOfClipping()
     {
         var xaml = Src("ShellWindow.xaml");
-        Assert.Contains("Text=\"{x:Bind CaptionLead, Mode=OneWay}\" Style=\"{StaticResource SettingsCardDescription}\" TextWrapping=\"NoWrap\" TextTrimming=\"CharacterEllipsis\" MaxWidth=\"200\"", xaml);
+        Assert.Contains("Text=\"{x:Bind CaptionLead, Mode=OneWay}\" Style=\"{StaticResource SettingsCardDescription}\" TextWrapping=\"NoWrap\" TextTrimming=\"CharacterEllipsis\" MaxWidth=\"150\"", xaml);
+    }
+
+    [Fact]
+    public void ShellPolishGuards()
+    {
+        var xaml = Src("ShellWindow.xaml");
+        Assert.Contains("<TitleBar x:Name=\"AppTitleBar\" IsTabStop=\"False\"", xaml); // F-038
+        Assert.Contains("AutomationProperties.Name=\"{x:Bind ToggleName, Mode=OneWay}\"", xaml); // F-041
+        Assert.DoesNotContain("Title=\"config.yaml changed outside", xaml); // F-035: named in code
+        Assert.Contains("Text=\"{x:Bind ViewModel.ManyHint, Mode=OneWay}\"", Src("Inspector/InspectorPane.xaml")); // F-032
     }
 
     [Fact]

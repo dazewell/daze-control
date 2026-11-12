@@ -92,6 +92,9 @@ public sealed partial class ShellWindow : Window
         PaletteList.ItemsSource = new CollectionViewSource { Source = _palette.Groups, IsSourceGrouped = true, ItemsPath = new PropertyPath(nameof(PaletteGroup.Items)) }.View;
         FlowCanvasControl.FallbackTarget = OutlineTree;
         ShowOutsideChange();
+        ApplyCaptionColors();
+        if (Content is FrameworkElement themed)
+            themed.ActualThemeChanged += (_, _) => ApplyCaptionColors();
 
         // Debounced: one save by another editor raises several events.
         _watchDelay = DispatcherQueue.CreateTimer();
@@ -206,7 +209,7 @@ public sealed partial class ShellWindow : Window
                 XamlRoot = Content.XamlRoot,
                 Title = "Your latest changes aren't saved",
                 Content = ViewModel.Session.OutsideChange == OutsideChange.Conflict
-                    ? "config.yaml changed outside the editor. Keep yours or reload the file first, or close and lose your changes."
+                    ? ViewModel.Session.FileName + " changed outside the editor. Keep yours or reload the file first, or close and lose your changes."
                     : ViewModel.Session.SaveError,
                 PrimaryButtonText = "Close without saving",
                 CloseButtonText = "Stay",
@@ -278,6 +281,7 @@ public sealed partial class ShellWindow : Window
         }
         if (page != EditorPage.Flows)
             _ = ViewModel.Flows.EndUndoAsync(); // leaving the page ends the chance to undo a Delete (D-076)
+        ViewModel.Session.DismissOutsideChangeCommand.Execute(null); // the "reloaded" note is read by now (F-035)
         ViewModel.Page = page;
         ViewModel.CloseFlow(); // Flows in the pane always means the list
         ShowPage(page);
@@ -1403,7 +1407,7 @@ public sealed partial class ShellWindow : Window
         var narrow = width < NarrowWidth;
         // The Steps pane follows the toggle, but auto-hides when narrow; the toggle itself is left as the user set it.
         PalettePane.Visibility = Show(PaletteToggle.IsChecked == true && !narrow);
-        var inspectorWidth = width < VeryNarrowWidth ? 260 : 320;
+        var inspectorWidth = width < VeryNarrowWidth ? 240 : 320; // F-039: the canvas keeps more of a narrow window
         InspectorPaneControl.Width = inspectorWidth;
         var left = PalettePane.Visibility == Visibility.Visible ? 252 : 12;
         RunInfoHost.Margin = new Thickness(left, 8, inspectorWidth + 12, 0);
@@ -1579,8 +1583,29 @@ public sealed partial class ShellWindow : Window
             ShowOutsideChange();
     }
 
+    /// <summary>The caption buttons follow the app theme, not the system's: light grey glyphs on a light title bar were invisible (F-034).</summary>
+    private void ApplyCaptionColors()
+    {
+        if (!AppWindowTitleBar.IsCustomizationSupported())
+            return;
+        var dark = (Content as FrameworkElement)?.ActualTheme == ElementTheme.Dark;
+        var bar = AppWindow.TitleBar;
+        var fore = dark ? Colors.White : Colors.Black;
+        bar.ButtonBackgroundColor = Colors.Transparent;
+        bar.ButtonInactiveBackgroundColor = Colors.Transparent;
+        bar.ButtonForegroundColor = fore;
+        bar.ButtonInactiveForegroundColor = dark ? Windows.UI.Color.FromArgb(0xFF, 0x9A, 0x9A, 0x9A) : Windows.UI.Color.FromArgb(0xFF, 0x70, 0x70, 0x70);
+        bar.ButtonHoverForegroundColor = fore;
+        bar.ButtonPressedForegroundColor = fore;
+        bar.ButtonHoverBackgroundColor = dark ? Windows.UI.Color.FromArgb(0x19, 0xFF, 0xFF, 0xFF) : Windows.UI.Color.FromArgb(0x19, 0x00, 0x00, 0x00);
+        bar.ButtonPressedBackgroundColor = dark ? Windows.UI.Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF) : Windows.UI.Color.FromArgb(0x33, 0x00, 0x00, 0x00);
+    }
+
     private void ShowOutsideChange()
     {
+        var name = ViewModel.Session.FileName;
+        ConflictBar.Title = name + " changed outside the editor";
+        ReloadedBar.Title = name + " changed outside the editor";
         ConflictBar.IsOpen = ViewModel.Session.OutsideChange == OutsideChange.Conflict;
         ReloadedBar.IsOpen = ViewModel.Session.OutsideChange == OutsideChange.Reloaded;
     }

@@ -488,7 +488,7 @@
             <ContentControl IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" IsTabStop="False" HorizontalContentAlignment="Stretch">
             <StackPanel Visibility="{x:Bind ViewModel.IsMany, Mode=OneWay, FallbackValue=Collapsed}" Spacing="8" Margin="0,8,0,0" motion:Motion.Animate="True">
                 <TextBlock Text="{x:Bind ViewModel.ManyHeader, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" AutomationProperties.HeadingLevel="Level2" />
-                <TextBlock Text="{x:Bind ViewModel.ManyHint}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
+                <TextBlock Text="{x:Bind ViewModel.ManyHint, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
                 <InfoBar IsOpen="{x:Bind ViewModel.HasManyProblem, Mode=OneWay}" Severity="Warning" IsClosable="False" Message="{x:Bind ViewModel.ManyProblem, Mode=OneWay}" />
 
                 <!-- Params every selected step has (T15.3): the same controls as for one step; differing values read "Mixed". -->

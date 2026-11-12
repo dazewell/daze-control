@@ -47,6 +47,9 @@ public sealed partial class ConfigSession : ObservableObject, IDisposable
 
     public string Path => _store.Path;
 
+    /// <summary>The config file's own name, for messages ("showcase.yaml changed outside the editor", F-035).</summary>
+    public string FileName => System.IO.Path.GetFileName(_store.Path) is { Length: > 0 } n ? n : "config.yaml";
+
     [ObservableProperty]
     public partial Configuration Current { get; private set; } = Configuration.Empty;
 

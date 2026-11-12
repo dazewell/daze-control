@@ -29,6 +29,9 @@ public sealed class ConfigSessionTests : IDisposable
         _session = new ConfigSession(new ConfigStore(ConfigPath, BackupFolder, _time), _time, action => action());
     }
 
+    [Fact]
+    public void FileNameIsTheConfigFilesOwnName() => Assert.Equal("config.yaml", _session.FileName); // F-035
+
     private string ConfigPath => Path.Combine(_folder, "config.yaml");
 
     private string BackupFolder => Path.Combine(_folder, "backups");
