@@ -16,7 +16,11 @@ public sealed record PaletteItem(string Step, string Title, string Glyph, string
     public override string ToString() => Name;
 }
 
-public sealed record PaletteGroup(string Area, IReadOnlyList<PaletteItem> Items);
+public sealed record PaletteGroup(string Area, IReadOnlyList<PaletteItem> Items)
+{
+    /// <summary>The group header's UIA name when nothing sets one: the area, not the record dump (F-004).</summary>
+    public override string ToString() => Area;
+}
 
 /// <summary>
 /// The left palette: every step type grouped by area, filtered by <see cref="Query"/>. The quick-add flyout uses
