@@ -29,6 +29,9 @@ public sealed class PadPoller(IXInput api)
     public const int Slots = 4;
     public static readonly TimeSpan FastInterval = TimeSpan.FromMilliseconds(16);
 
+    /// <summary>The wait while a button is down or the stick is off centre (the engine holds a 1 ms timer tick, so this is real).</summary>
+    public static readonly TimeSpan ActiveInterval = TimeSpan.FromMilliseconds(8);
+
     private const byte TriggerOn = 100;
     private const byte TriggerOff = 60;
 
@@ -101,7 +104,8 @@ public sealed class PadPoller(IXInput api)
             return null;
         }
         Reading?.Invoke(new PadReading(buttons, x, y));
-        return FastInterval;
+        // Input in progress: poll faster so a press or a stick flick shows within one frame; neutral: back to 60 Hz.
+        return buttons != GamepadButtons.None || Math.Max(Math.Abs(x), Math.Abs(y)) > 0.1f ? ActiveInterval : FastInterval;
     }
 
     /// <summary>The pads now connected (one scan; the reader needn't run).</summary>

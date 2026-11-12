@@ -114,8 +114,10 @@ internal sealed class GamepadSource : IPadBackend
 
     private void Run()
     {
+        var fine = new Interop.FineTimer(); // 1 ms tick so the 8/16 ms poll waits are not rounded up to 16/31 ms
         try
         {
+            fine.Begin();
             _poller.Scan();
             while (!_stop)
             {
@@ -135,6 +137,10 @@ internal sealed class GamepadSource : IPadBackend
         catch (Exception e) when (e is not OutOfMemoryException)
         {
             Log.Error("gamepad: reader stopped", e);
+        }
+        finally
+        {
+            fine.End();
         }
     }
 }

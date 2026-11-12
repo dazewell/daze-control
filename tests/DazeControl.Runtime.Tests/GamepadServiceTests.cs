@@ -169,6 +169,26 @@ public sealed class GamepadServiceTests : IDisposable
     }
 
     [Fact]
+    public void ThePollerSpeedsUpWhileInputIsActiveAndRelaxesWhenNeutral()
+    {
+        // Measurement (no real pad here): worst-case event-to-reading latency is one wait. Neutral 16 ms, input active 8 ms.
+        Assert.Equal(16, PadPoller.FastInterval.TotalMilliseconds);
+        Assert.Equal(8, PadPoller.ActiveInterval.TotalMilliseconds);
+        var api = new FakeXInput();
+        api.Pads[0] = default;
+        var poller = new PadPoller(api);
+        poller.Scan();
+
+        Assert.Equal(PadPoller.FastInterval, poller.Step());
+        api.Pads[0] = new XInputState(0x0002, 0, 0, 0, 0); // D-pad down
+        Assert.Equal(PadPoller.ActiveInterval, poller.Step());
+        api.Pads[0] = new XInputState(0, 0, 0, 0, -20000); // stick pushed
+        Assert.Equal(PadPoller.ActiveInterval, poller.Step());
+        api.Pads[0] = new XInputState(0, 0, 0, 500, 500); // drift only
+        Assert.Equal(PadPoller.FastInterval, poller.Step());
+    }
+
+    [Fact]
     public void ThePollerMapsTriggersWithHysteresisAndTheLeftStick()
     {
         var api = new FakeXInput();
