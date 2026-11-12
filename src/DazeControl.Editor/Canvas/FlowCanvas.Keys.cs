@@ -82,7 +82,10 @@ public sealed partial class FlowCanvas
                 vm.Duplicate();
                 break;
             case VirtualKey.Delete or VirtualKey.Back when vm.CanEdit:
-                vm.DeleteSelection();
+                if (vm.DeleteNeedsConfirm)
+                    _ = ConfirmDeleteAsync(vm);
+                else
+                    vm.DeleteSelection();
                 break;
             case (VirtualKey)191 or VirtualKey.Divide when vm.CanEdit: // "/" (VK_OEM_2)
                 ShowQuickAdd(null, [.. vm.SelectedIds], null);
@@ -91,6 +94,34 @@ public sealed partial class FlowCanvas
                 return false;
         }
         return true;
+    }
+
+    private bool _confirming;
+
+    /// <summary>F-003: a big Delete asks first; Undo stays available either way.</summary>
+    private async Task ConfirmDeleteAsync(FlowCanvasViewModel vm)
+    {
+        if (_confirming || XamlRoot is null)
+            return;
+        _confirming = true;
+        try
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = $"Delete {vm.DeleteCount} items?",
+                Content = "You can undo this with Ctrl+Z.",
+                PrimaryButtonText = "Delete",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+            };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary && vm.CanEdit)
+                vm.DeleteSelection();
+        }
+        finally
+        {
+            _confirming = false;
+        }
     }
 
     protected override void OnKeyDown(KeyRoutedEventArgs e)

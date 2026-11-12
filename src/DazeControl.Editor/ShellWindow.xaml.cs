@@ -1151,7 +1151,31 @@ public sealed partial class ShellWindow : Window
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => editor.Save());
     }
 
-    private void OnCancelFlow(object sender, RoutedEventArgs e) => _editor?.Discard();
+    private async void OnCancelFlow(object sender, RoutedEventArgs e)
+    {
+        if (_editor is not { HasChanges: true } editor || _asking)
+            return;
+        _asking = true;
+        try
+        {
+            var count = editor.EditCount;
+            var dialog = new ContentDialog
+            {
+                XamlRoot = Content.XamlRoot,
+                Title = count > 0 ? $"Discard {(count == 1 ? "1 change" : $"{count} changes")} to {editor.FlowName}?" : $"Discard your changes to {editor.FlowName}?",
+                Content = "The flow goes back to how you last saved it. Layout and view choices stay.",
+                PrimaryButtonText = "Discard",
+                CloseButtonText = "Keep editing",
+                DefaultButton = ContentDialogButton.Close,
+            };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+                editor.Discard();
+        }
+        finally
+        {
+            _asking = false;
+        }
+    }
 
     private void UpdateDraft()
     {
@@ -1167,6 +1191,7 @@ public sealed partial class ShellWindow : Window
         ToolTipService.SetToolTip(SaveButton, showDot
             ? "You have unsaved changes. Save them (Ctrl+S)"
             : "Save your changes to this flow (Ctrl+S)");
+        ToolTipService.SetToolTip(CancelButton, "Throw away your changes since the last save. Layout and view choices stay.");
         ToolTipService.SetToolTip(RunButton, changed
             ? "Run this flow as last saved. Save first to run your changes, or try them with Dry run."
             : "Run this flow now");

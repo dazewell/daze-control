@@ -855,7 +855,7 @@
                             <Button x:Name="SaveButton" Content="Save" Style="{StaticResource PrimaryButton}" IsEnabled="False" Click="OnSaveFlow"
                                     ToolTipService.ToolTip="Save your changes to this flow (Ctrl+S)" AutomationProperties.AcceleratorKey="Control+S" />
                             <Button x:Name="CancelButton" Content="Cancel" IsEnabled="False" Click="OnCancelFlow"
-                                    ToolTipService.ToolTip="Throw away your changes since the last save" />
+                                    ToolTipService.ToolTip="Throw away your changes since the last save. Layout and view choices stay." />
                         </StackPanel>
                         <CommandBar Grid.Column="2" HorizontalAlignment="Right" DefaultLabelPosition="Right" Background="Transparent" IsDynamicOverflowEnabled="True">
                             <!-- Runs (UX §5.5): Run / Dry run, or "Running · 2 of 4" + Stop while it runs. -->
