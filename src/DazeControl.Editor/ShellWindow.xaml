@@ -370,12 +370,12 @@
                                                                 </MenuFlyoutItem.Icon>
                                                             </MenuFlyoutItem>
                                                             <MenuFlyoutSeparator />
-                                                            <MenuFlyoutItem Text="Move up" AutomationProperties.AutomationId="OneFlowOnly" Tag="{x:Bind Id}" Click="OnFlowMoveUpClick" IsEnabled="{x:Bind CanReorder, Mode=OneWay}">
+                                                            <MenuFlyoutItem Text="Move up" AutomationProperties.AutomationId="OneFlowOnly" Tag="{x:Bind Id}" Click="OnFlowMoveUpClick" IsEnabled="{x:Bind CanReorder, Mode=OneWay}" KeyboardAcceleratorTextOverride="Alt+Up">
                                                                 <MenuFlyoutItem.Icon>
                                                                     <FontIcon Glyph="&#xE74A;" />
                                                                 </MenuFlyoutItem.Icon>
                                                             </MenuFlyoutItem>
-                                                            <MenuFlyoutItem Text="Move down" AutomationProperties.AutomationId="OneFlowOnly" Tag="{x:Bind Id}" Click="OnFlowMoveDownClick" IsEnabled="{x:Bind CanReorder, Mode=OneWay}">
+                                                            <MenuFlyoutItem Text="Move down" AutomationProperties.AutomationId="OneFlowOnly" Tag="{x:Bind Id}" Click="OnFlowMoveDownClick" IsEnabled="{x:Bind CanReorder, Mode=OneWay}" KeyboardAcceleratorTextOverride="Alt+Down">
                                                                 <MenuFlyoutItem.Icon>
                                                                     <FontIcon Glyph="&#xE74B;" />
                                                                 </MenuFlyoutItem.Icon>
@@ -491,7 +491,8 @@
                                                             <FontIcon Glyph="&#xE8A7;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                                       Opacity="{x:Bind local:RowFormat.Show(HasDesktopShortcut), Mode=OneWay}" />
                                                         </Grid>
-                                                        <Grid Width="28" Height="28" IsHitTestVisible="{x:Bind HasUsedBy, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind UsedBy, Mode=OneWay}">
+                                                        <Grid Width="28" Height="28" IsHitTestVisible="{x:Bind HasUsedBy, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind UsedBy, Mode=OneWay}"
+                                                              AutomationProperties.Name="{x:Bind UsedBy, Mode=OneWay}" AutomationProperties.AccessibilityView="{x:Bind local:RowFormat.View(HasUsedBy), Mode=OneWay}">
                                                             <FontIcon Glyph="&#xE71B;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                                       Opacity="{x:Bind local:RowFormat.Show(HasUsedBy), Mode=OneWay}" />
                                                         </Grid>
@@ -970,11 +971,11 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <!-- Inspector (UX §5.4): 320 wide right of the canvas. -->
-                        <inspector:InspectorPane x:Name="InspectorPaneControl" Grid.Column="2" Width="320"
+                        <inspector:InspectorPane x:Name="InspectorPaneControl" Grid.Column="2" Width="320" TabIndex="3"
                                                  GotFocus="OnInspectorGotFocus" LostFocus="OnInspectorLostFocus" />
 
                         <!-- Palette (UX §5.1): 240 wide, search, step types by area; click or drag onto the canvas. -->
-                        <Grid x:Name="PalettePane" Width="240" Padding="12,4,12,0" RowSpacing="8">
+                        <Grid x:Name="PalettePane" TabIndex="1" Width="240" Padding="12,4,12,0" RowSpacing="8">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
@@ -987,7 +988,7 @@
                                     <GroupStyle>
                                         <GroupStyle.HeaderTemplate>
                                             <DataTemplate x:DataType="vmc:PaletteGroup">
-                                                <TextBlock Text="{x:Bind Area}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                <TextBlock Text="{x:Bind Area}" Style="{StaticResource BodyStrongTextBlockStyle}" AutomationProperties.Name="{x:Bind Area}" />
                                             </DataTemplate>
                                         </GroupStyle.HeaderTemplate>
                                     </GroupStyle>
@@ -1005,7 +1006,7 @@
                             <TextBlock x:Name="PaletteEmpty" Grid.Row="1" Visibility="Collapsed" Text="No steps match." Margin="4,8"
                                        Style="{StaticResource SettingsCardDescription}" />
                         </Grid>
-                        <Border Grid.Column="1" BorderThickness="1,1,0,0" CornerRadius="8,0,0,0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                        <Border Grid.Column="1" TabIndex="2" BorderThickness="1,1,0,0" CornerRadius="8,0,0,0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                             <Grid>
                                 <canvas:FlowCanvas x:Name="FlowCanvasControl" />
                                 <!-- Outline (UX §5.2): the keyboard and screen-reader equivalent of the canvas. -->

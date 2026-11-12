@@ -376,7 +376,7 @@ contrast: solid background, no dots.
 - After any drop: columns aligned, gaps 64/16, no overlap.
 - 225 % text size: pills grow taller, nothing clips; pop-up grows too.
 - Outline lists every node with "Waits for …"; Narrator reads name, provider, policy.
-- Tab: palette → canvas → inspector; arrows move between nodes.
+- Tab: palette → canvas → inspector; arrows move between nodes. Enforced by `TabIndex` 1/2/3 on the three panes (M22 F-020); the card menu shows Alt+Up/Down on Move up/down; palette group headers and the "used by" chip carry real UIA names.
 - Empty flow / no flows / no runs each show their empty state with an action.
 - Runs page: "TV only" parallel steps on separate lanes; "Audio → Headphones" one caution bar, "Done, with a
   problem".
