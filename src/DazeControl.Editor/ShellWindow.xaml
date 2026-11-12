@@ -452,7 +452,7 @@
                                                                 <ColumnDefinition Width="Auto" />
                                                                 <ColumnDefinition Width="*" />
                                                             </Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{x:Bind CaptionLead, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                                            <TextBlock Text="{x:Bind CaptionLead, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxWidth="200"
                                                                        ToolTipService.ToolTip="{x:Bind ShortcutTip, Mode=OneWay}" />
                                                             <!-- Status dot: one ellipse per state, faded in or out, so the colours follow the theme and high contrast. -->
                                                             <Grid Grid.Column="1" Width="8" Height="8" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw" Visibility="{x:Bind HasDot, Mode=OneWay}">

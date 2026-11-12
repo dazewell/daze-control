@@ -77,7 +77,15 @@ public sealed partial class ShellWindow : Window
         WindowPlacementInterop.Apply(this, ViewModel.EditorSettings?.Settings.Window); // D-098
         WindowPlacementInterop.ApplyMinimumSize(this);
         if (Content is FrameworkElement root)
+        {
             root.SizeChanged += OnRootSizeChanged;
+            // The minimum is in physical pixels: reapply it when the window lands on a monitor with another scale.
+            root.Loaded += (_, _) =>
+            {
+                if (root.XamlRoot is { } xamlRoot)
+                    xamlRoot.Changed += (_, _) => WindowPlacementInterop.ApplyMinimumSize(this);
+            };
+        }
 
         ViewModel.Session.PropertyChanged += OnSessionChanged;
         ViewModel.PropertyChanged += OnShellChanged;

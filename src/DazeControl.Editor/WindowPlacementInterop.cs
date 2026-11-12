@@ -69,10 +69,10 @@ internal static partial class WindowPlacementInterop
         }
     }
 
-    /// <summary>The smallest window the layout works in, in DIPs (F-005): the Flows cards need about 640 across.</summary>
-    internal const int MinWidthDips = 640;
+    /// <summary>The smallest window the layout works in (F-005): the same limits the saved placement is clamped to.</summary>
+    internal const int MinWidthDips = WindowPlacementLogic.MinWidthDip;
 
-    internal const int MinHeightDips = 480;
+    internal const int MinHeightDips = WindowPlacementLogic.MinHeightDip;
 
     /// <summary>Sets the minimum size, so the window can't be dragged narrower than the layout copes with.</summary>
     public static void ApplyMinimumSize(Window window)

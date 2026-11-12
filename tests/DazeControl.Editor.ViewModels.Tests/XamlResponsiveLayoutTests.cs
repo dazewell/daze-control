@@ -38,7 +38,7 @@ public sealed class XamlResponsiveLayoutTests
     public void CardCaptionTrimsWithEllipsisInsteadOfClipping()
     {
         var xaml = Src("ShellWindow.xaml");
-        Assert.Contains("Text=\"{x:Bind CaptionLead, Mode=OneWay}\" Style=\"{StaticResource SettingsCardDescription}\" TextWrapping=\"NoWrap\" TextTrimming=\"CharacterEllipsis\"", xaml);
+        Assert.Contains("Text=\"{x:Bind CaptionLead, Mode=OneWay}\" Style=\"{StaticResource SettingsCardDescription}\" TextWrapping=\"NoWrap\" TextTrimming=\"CharacterEllipsis\" MaxWidth=\"200\"", xaml);
     }
 
     [Fact]

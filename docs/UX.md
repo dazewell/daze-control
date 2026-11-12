@@ -59,7 +59,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
 
 ### Narrow windows (M22 F-005, F-014)
 
-The editor window has a minimum size (640 × 480 DIP). Below 900 DIP wide the Steps pane hides on its own (the Steps
+The editor window has a minimum size (640 × 420 DIP). Below 900 DIP wide the Steps pane hides on its own (the Steps
 toggle keeps the user's choice), the Flows page margins shrink to 16 and the command bar wraps to three rows (search; sort and show;
 Make this my order and Select); below 760 the inspector narrows to 260. Card captions trim with an ellipsis. Dragging a Flows row shows
 only the drop cues and the dimmed source row: no system ghost or "Move" label.
