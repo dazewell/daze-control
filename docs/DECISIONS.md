@@ -1560,3 +1560,68 @@ Status: accepted (user asked 2026-11-11: "different device checks, like what wif
   pinging a host for "internet": a request per run and a host to choose; Windows already knows.
 - Revisit if: Windows 11 hides the SSID (location off) for many users: the Wi-Fi check then fails with that advice;
   an "Only if" on any step from these context-free facts (extend `only` as D-081 foresaw).
+
+## D-119 · 2026-11-11 · Canvas: keep XAML views, add a live scene layer and a camera; no custom-drawn surface
+Status: accepted (user, 2026-11-11: "as smooth as butter… as Miro"; investigation only, built in M21). Supersedes D-074's
+"Why not an unbounded canvas" once T21.7's camera spike passes; D-013 and D-037 stand.
+- Verdict: the drawing stack is not the problem (a pill is 10 elements, flows are 5–80 steps, a re-layout of 80 steps
+  costs ~2 ms in the VM). The **interaction architecture** is: the canvas knows only committed layout, so nothing derived
+  follows a gesture, and a commit is a full rebuild. Root causes (code as of fb3e371):
+  1. Drag moves only the views: `FlowCanvas.OnPointerMoved` sets a new `TranslateTransform` per view; edges, ports, chips,
+     focus ring and "+/×" read the VM's committed rects, which change only in `MoveBy` on release (symptoms 2, 3).
+  2. Drop jumps: `OnPointerReleased` calls `ResetDragged()` (transform off: the pill is back at its old slot) **before**
+     `MoveBy`; then `Canvas.Left/Top` change under `NodeLayer`'s `RepositionThemeTransition`, which slides it from the
+     old slot. The preview isn't snapped, the commit is (8-DIP grid), so even the end point differs (symptom 1).
+  3. Library drop ignores the pointer: `OnPaletteDrop` uses the drop point only to hit-test; `AddStep(step, after)` has no
+     position, so the step lands where `FlowPlacement` puts unplaced steps; no landing ghost while dragging (symptom 4).
+  4. A commit re-raises everything: `Sync()` re-arranges, recreates every edge VM and the outline, and calls
+     `Update(…, "")` then `Update(…, waits)`, so each node raises `Badges` (new list) and `AutomationName` twice; each
+     event runs a full `PillView.Refresh` (≈25 property sets, brush lookups). Measured: per drop, 18 node events on the
+     7-step test flow, 319 on an 80-step flow (only 2 were real moves). Hover and selection rebuild every edge figure
+     and recreate every chip (`DrawEdges`).
+  5. Semantic zoom changes layout: below 60 % the summary/badge collapse, pills shrink, `ReportSize` re-lays out: steps
+     shift while zooming (the code already fights the resulting re-fit flicker in `OnViewChanged`).
+  6. Camera is a `ScrollViewer` + padding wrapper: async `ChangeView` with a pending view and a low-priority retry,
+     a synchronous `UpdateLayout` per wheel notch, bounded pan; works, but every pan/zoom is a layout-and-scroll round trip.
+- Decision: keep XAML pills/cards (UIA names, theme and high-contrast brushes, text) and batched edge paths, and add:
+  (a) a pure **scene** in `Editor.ViewModels/Canvas` — item rects by id (dictionary + uniform-grid index for hit tests),
+  ports, edge routes, and a **transient** layer (drag offset for a set of ids, palette ghost, connect preview) from which
+  moved rects, ports and the routes of touching edges are derived (on a flow not yet placed by hand, from the frozen
+  arrangement the first move commits, so wrap and detour lanes go at drag start, not on release) with the same `FlowPlacement.Sides/Port` +
+  `EdgeCurve.For` code the commit uses, so **preview == commit**; (b) per-frame updates during a gesture only:
+  pointer moves are coalesced to one update per frame (`CompositionTarget.Rendering`, subscribed for the gesture,
+  removed at its end: idle stays zero), views move by `UIElement.Translation`, edges touching moving items go to a
+  separate "live" path set rebuilt each frame, the rest stay untouched; (c) commit without a jump: commit first, then
+  zero the translation in the same tick, no theme transition on hand-moved items; geometry changes call `Place()`
+  only; (d) layout-driven moves (Arrange, insert, undo) animate by FLIP: the scene tweens rects for 200 ms
+  (UX §5.3 reflow token) and views and edges read the same tween, so lines stay attached; off with Animation effects;
+  (e) a **camera** (offset, zoom) applied as one transform on the world layer, pure `Camera` maths (screen↔world,
+  zoom at point, fit, reveal rect, a 48-DIP keep-on-screen clamp); wheel/drag pans are synchronous; touchpad (wheel
+  events with `PointerDeviceType.Touchpad`) pans, Ctrl/pinch zooms; touch via manipulation events with inertia.
+- UIA: unchanged. Pills/cards stay `NodePeer`s with their names; the Outline view stays the screen-reader equivalent;
+  the camera transform doesn't change the peers' tree; bounding rects follow the transform.
+- Why not Win2D `CanvasControl`/`CanvasVirtualControl` or Skia: text layout, theme/high-contrast brushes, focus visuals
+  and every UIA peer (a fragment-root provider for each pill and edge) would be rebuilt by hand, plus a native
+  dependency in the editor package, for element counts XAML handles easily; they fix none of root causes 1–6.
+  Why not Composition `ShapeVisual` edges now: D-037 still holds; only the live subset is rebuilt per frame.
+  Why not a WebView2 board (React Flow/tldraw): D-013. Why not keep the `ScrollViewer` with InteractionTracker
+  tricks: the padding wrapper and async `ChangeView` remain, and pan stays bounded by extent.
+- Revisit if: T21.8's frame probe shows > 8 ms per gesture frame on a 100-step flow (then edges to a `ShapeVisual`
+  with D2D geometry, D-037's own revisit); the camera spike can't get touchpad pan/pinch (then keep the
+  `ScrollViewer`, record an X-entry, and do only (a)–(d)).
+
+## D-120 · 2026-11-11 · Canvas gestures: what you see while dragging is what you get
+Status: accepted (user, 2026-11-11, same report as D-119); built in M21.
+- Decision: a drag shows its result live: the dragged steps, their ports, lines, chips and arrowheads move together,
+  snapped to the 8-DIP grid while moving, so the drop changes nothing visible. A step dragged from the library lands
+  centred under the pointer (snapped) on empty canvas, as a hand placement (D-115: the first placement freezes the rest);
+  dropped on a step it uses the same zones as a step drag (left third Run before, right third Run after, body Run
+  together); a dashed landing outline shows where it will go. Zoom never changes layout: below 60 % summaries and
+  badges are hidden by opacity, so a pill keeps its size. Steps moved by layout (Arrange, insert, delete, undo) glide
+  200 ms with their lines attached.
+- Why: the user's report: steps that "cut and paste", dots and lines that update only on drop, library drops in the
+  wrong place; Miro, Figma and n8n all work this way.
+- Why not a library drop on empty canvas that keeps auto layout ("Add a step" where the layout puts it): the user
+  explicitly drops at a place; keyboard and double-click adding still use the layout. Why not live snapping off
+  (snap only on drop): the drop then visibly jumps up to 4 DIP.
+- Revisit if: users want auto layout kept after library drops (then a drop on empty canvas adds without placing).

@@ -71,9 +71,14 @@ that is absent (no shortcut, no run, no dot, empty trigger) takes its separator 
 changing anyway). The slot rule above is for standalone status and buttons, not for parts of a sentence.
 
 ## 5.2 Canvas interaction
-- **Layout is always automatic** (D-020): left→right columns (one per layer), gaps 64 between columns, 16
-  between rows. Users choose connections and order within a column, never x/y; dragging regroups/reorders and
-  nodes glide to their slot. Mind-map feel without chaos; no coordinates in YAML.
+- **Layout is automatic until a step is placed by hand** (D-020, D-115): left→right columns (one per layer), gaps 64
+  between columns, 16 between rows; a drag to empty canvas places by hand ("Arrange and drag anywhere" below). No
+  coordinates in YAML.
+- **Direct manipulation** (D-119, D-120; M21, not built yet): what you see while dragging is what you get. Dragged
+  steps, their ports, lines, chips and arrowheads move together every frame, snapped to the 8-DIP grid, so the drop
+  changes nothing visible. A library step lands centred under the pointer (dashed landing outline while dragging; on a
+  step, the step-drag zones). Zoom never changes layout (summaries and badges fade below 60 %, pills keep their size).
+  Steps moved by layout glide 200 ms with their lines attached; Animation effects off = they jump, lines too.
 - Create: drag from the palette · double-click empty canvas or `/` → search flyout at the pointer · "+" on a
   selected node's output port (adds connected after) · "+" on an edge midpoint (insert).
 - Connect: drag from output port (right) to an input port / node body (left); valid targets glow accent; a
@@ -372,6 +377,11 @@ contrast: solid background, no dots.
   New/Changed/Same/Only here as words, not colour alone, before anything is written; a damaged or newer file shows one InfoBar sentence and changes nothing; an unreadable backup config disables Restore;
   Undo restore puts the old flows back; Restore is refused with "Save or discard the open flow first" while a flow is open; Tab/Enter reach every action, Esc cancels the dialog; high contrast and 225 % text
   don't clip the card, dialog or rows; real run: back up, change a flow, restore, flows reload without a restart; Keep and the Automatic backups switch survive a restart.
+- M21 (D-119, D-120; **open, for the user**, live with `scripts/dev-run.ps1`): [ ] dragging a step, a card and a
+  3-step selection keeps its dots, lines, chips and arrowheads attached every frame, and releasing moves nothing; a
+  library step dropped at 50 %, 100 % and 200 % zoom, scrolled, lands under the pointer, and on a step shows and uses
+  the zone it showed; zooming across 60 % moves nothing; Arrange and Undo glide with lines attached; Animation effects
+  off = no motion, still correct; touchpad two-finger pan and pinch, mouse wheel zoom, right/middle/Space drag pan.
 - M13: right-drag pans and a still right click opens the menu; a 7-step chain then a fork leaves no long empty line
   (the fork starts under the chain); every Layout choice changes the canvas visibly on a sample flow; the Flows card
   shows the flow's icon and runs it with Run (keyboard: Tab to the card, Enter opens); nav Flows leaves the editor;
