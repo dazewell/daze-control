@@ -39,6 +39,16 @@ public sealed class InspectorManyTests : IDisposable
     private StepNode Step(string id) => (StepNode)_canvas.Flow!.FindNode(id)!;
 
     [Fact]
+    public void HintIsAnnouncedWhenTheSelectionBecomesMany()
+    {
+        var raised = new List<string?>();
+        _inspector.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+        _canvas.SelectOnly(["w1", "w2"]);
+        Assert.Contains(nameof(InspectorViewModel.ManyHint), raised); // F-032: the OneWay binding needs it
+        Assert.Contains("Del deletes them all", _inspector.ManyHint);
+    }
+
+    [Fact]
     public void HeaderCountsAndNamesTheType()
     {
         _canvas.SelectOnly(["w1", "w2"]);

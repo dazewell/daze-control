@@ -1184,6 +1184,9 @@ public sealed partial class FlowItemViewModel : ObservableObject
     public string Caption => Captions.Join(Shortcut, Steps, CaptionRun);
 
     /// <summary>The first part of line 2 ("Alt+Z · 5 steps ·"); the status dot sits between it and <see cref="CaptionRun"/>.</summary>
+    /// <summary>The on/off switch's accessible name: says what it does, not just whose it is (F-041).</summary>
+    public string ToggleName => $"Turn {Name} {(IsEnabled ? "off" : "on")}";
+
     public string CaptionLead => Captions.Join(Shortcut, Steps) + " ·";
 
     /// <summary>The status dot shows only when there is a state: no dot, no reserved gap.</summary>
@@ -1219,6 +1222,7 @@ public sealed partial class FlowItemViewModel : ObservableObject
     public partial bool HasProblems { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ToggleName))]
     public partial bool IsEnabled { get; set; }
 
     [ObservableProperty]

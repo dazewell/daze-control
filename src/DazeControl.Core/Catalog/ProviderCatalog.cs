@@ -343,7 +343,7 @@ public static class ProviderCatalog
             new("days", ParamKind.Choice, "Days") { Choices = ["daily", "weekdays", "weekends"], Captions = ["Every day", "Monday to Friday", "Saturday and Sunday"], Default = "daily" },
             new("from", ParamKind.Text, "From") { Help = "Like 07:00. Empty, with To empty = all day." },
             new("to", ParamKind.Text, "To") { Help = "Like 22:30. Earlier than From = past midnight." },
-            new("is", ParamKind.Choice, "Is") { Choices = ["inside", "outside"], Captions = ["Now is in this time", "Now is outside it"], Default = "inside" },
+            new("is", ParamKind.Choice, "Is") { Choices = ["inside", "outside"], Captions = ["Now is in this time", "Now is outside it"], Default = "inside", Help = "Fails when it isn't. To wait until it is, set Try again and Wait between tries." },
         ]) { Keywords = "time of day weekday weekend night morning hours schedule" },
         new("wait", "Wait", Wait, TimeSpan.FromHours(1),
             [new("duration", ParamKind.Duration, "How long") { Required = true }]),

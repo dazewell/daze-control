@@ -114,7 +114,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     public string FlowId => _canvas.FlowId;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsFlow), nameof(IsStep), nameof(IsCard), nameof(IsMany), nameof(IsNode))]
+    [NotifyPropertyChangedFor(nameof(IsFlow), nameof(IsStep), nameof(IsCard), nameof(IsMany), nameof(ManyHint), nameof(IsNode))]
     public partial InspectorMode Mode { get; private set; }
 
     public bool IsFlow => Mode == InspectorMode.Flow;

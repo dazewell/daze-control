@@ -79,6 +79,10 @@ that is absent (no shortcut, no run, no dot, empty trigger) takes its separator 
 " · " line with `Captions.Join`, and collapse an inline dot/icon that has no state (the text of that line is
 changing anyway). The slot rule above is for standalone status and buttons, not for parts of a sentence.
 
+- Shell polish (M22 batch 10): caption buttons follow the app theme; Tab from the canvas goes straight to the inspector (the title bar is no
+  tab stop); the "<file> changed outside the editor" note names the real file and goes away on the next page change; a flow's On switch is named
+  "Turn <flow> on/off"; at the minimum width the inspector is 240 wide and the card's shortcut/step text trims at 150 so the last-run text stays.
+
 ## 5.2 Canvas interaction
 - **Layout is automatic until a step is placed by hand** (D-020, D-115): left→right columns (one per layer), gaps 64
   between columns, 16 between rows; a drag to empty canvas places by hand ("Arrange and drag anywhere" below). No

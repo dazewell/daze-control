@@ -52,6 +52,19 @@ public sealed class FlowRowTests : IDisposable
     }
 
     [Fact]
+    public void ToggleNameSaysWhatTheSwitchDoes()
+    {
+        using var page = Page();
+        var item = page.Rows.OfType<FlowItemViewModel>().First();
+        var raised = new List<string?>();
+        item.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+        var was = item.IsEnabled;
+        Assert.Equal($"Turn {item.Name} {(was ? "off" : "on")}", item.ToggleName); // F-041
+        item.IsEnabled = !was;
+        Assert.Contains(nameof(FlowItemViewModel.ToggleName), raised);
+    }
+
+    [Fact]
     public void ShortcutShowsTheFirstWithAPlusForTheRestAndNoShortcutWithoutOne()
     {
         Assert.Equal("No shortcut", FlowRowFacts.Shortcut([]));

@@ -177,7 +177,7 @@ Counts: fixed 11 (F-003, F-004, F-009, F-013, F-014, F-015, F-017, F-019, F-024,
 
 Run after Opus batch 1 (T22.1) where they share canvas files.
 
-10. **Shell and inspector polish** (Sonnet): F-032, F-034, F-035, F-038, F-039, F-041. Files: `InspectorPane.xaml`, `InspectorViewModel.Many.cs`, `ShellWindow.xaml(.cs)`, `ProviderCatalog.cs` (help line).
+10. **Shell and inspector polish** (Sonnet, done: F-032/034/035/038/039/041; F-039 only narrowed, not live-checked): F-032, F-034, F-035, F-038, F-039, F-041. Files: `InspectorPane.xaml`, `InspectorViewModel.Many.cs`, `ShellWindow.xaml(.cs)`, `ProviderCatalog.cs` (help line).
 11. **Silent notices and the flaky test** (Sonnet): F-037, F-042. Files: `TrayIcon.cs`, `TrayNotifier.cs`, `TriggerServiceTests.cs`. Disjoint from everything else.
 12. **Canvas input, routing and automation** (Opus, after T22.1): F-033 (verify by hand with a real mouse and touchpad first), F-040, F-043. Files: `Canvas/FlowCanvas.Pointer.cs`, `Motion.cs`, `NodeViews.cs`.
 13. **Editor memory and run counters** (Opus): F-036 and F-012. Files: undo stack, scene rebuild, runtime progress events.

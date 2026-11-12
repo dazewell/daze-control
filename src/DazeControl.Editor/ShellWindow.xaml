@@ -20,7 +20,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TitleBar x:Name="AppTitleBar" Title="Daze Control" Subtitle="{x:Bind ViewModel.Subtitle, Mode=OneWay}" />
+        <TitleBar x:Name="AppTitleBar" IsTabStop="False" Title="Daze Control" Subtitle="{x:Bind ViewModel.Subtitle, Mode=OneWay}" />
 
         <NavigationView x:Name="Navigation" Grid.Row="1"
                         PaneDisplayMode="Left" IsSettingsVisible="False" IsBackButtonVisible="Collapsed"
@@ -80,7 +80,7 @@
                              IsOpen="{x:Bind ViewModel.Session.HasSaveError, Mode=OneWay}"
                              Message="{x:Bind ViewModel.Session.SaveError, Mode=OneWay}" />
                     <InfoBar x:Name="ConflictBar" Severity="Warning" IsClosable="False"
-                             Title="config.yaml changed outside the editor"
+                             Title="The file changed outside the editor"
                              Message="Your recent edits here aren't saved. Keep yours or take the file's version.">
                         <InfoBar.ActionButton>
                             <Button Content="Keep mine" Command="{x:Bind ViewModel.Session.KeepMineCommand}" />
@@ -91,7 +91,7 @@
                         </InfoBar.Content>
                     </InfoBar>
                     <InfoBar x:Name="ReloadedBar" Severity="Informational"
-                             Title="config.yaml changed outside the editor" Message="The editor now shows the file's version."
+                             Message="The editor now shows the file's version."
                              CloseButtonCommand="{x:Bind ViewModel.Session.DismissOutsideChangeCommand}" />
                     <InfoBar Severity="Informational" Title="Daze Control isn't running" IsClosable="False"
                              IsOpen="{x:Bind ViewModel.EngineMissing, Mode=OneWay}"
@@ -452,7 +452,7 @@
                                                                 <ColumnDefinition Width="Auto" />
                                                                 <ColumnDefinition Width="*" />
                                                             </Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{x:Bind CaptionLead, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxWidth="200"
+                                                            <TextBlock Text="{x:Bind CaptionLead, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxWidth="150"
                                                                        ToolTipService.ToolTip="{x:Bind ShortcutTip, Mode=OneWay}" />
                                                             <!-- Status dot: one ellipse per state, faded in or out, so the colours follow the theme and high contrast. -->
                                                             <Grid Grid.Column="1" Width="8" Height="8" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw" Visibility="{x:Bind HasDot, Mode=OneWay}">
@@ -499,7 +499,7 @@
                                                         </StackPanel>
                                                     </StackPanel>
                                                     <ToggleSwitch Grid.Column="5" IsOn="{x:Bind IsEnabled, Mode=TwoWay}" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" MinWidth="0" HorizontalAlignment="Left"
-                                                                  OnContent="On" OffContent="Off" AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" />
+                                                                  OnContent="On" OffContent="Off" AutomationProperties.Name="{x:Bind ToggleName, Mode=OneWay}" />
                                                     <!-- The host carries the tooltip, so the reason shows while Run is off (#62), and keeps a
                                                          click on the off button from opening the flow. -->
                                                     <Border Grid.Column="6" Background="Transparent" VerticalAlignment="Center" Tapped="OnRunHostTapped"
