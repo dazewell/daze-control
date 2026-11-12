@@ -372,7 +372,8 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   gives the canvas focus back after a pick, so Ctrl+Z undoes Untangle. Choices apply at once without the reflow
   animation (UX §5.3 motion's 200 ms reflow isn't built anywhere yet). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
   and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
-  edges batched by style, D-037) and maps pointer/keys to VM calls; zoom/scroll is a `ScrollViewer` (50–200 %).
+  edges batched by style, D-037) and maps pointer/keys to VM calls (partials: main = constructor + VM sync, `.Camera`, `.Pointer`, `.Edges`,
+  `.Palette`, `.Menus`, `.Keys`); zoom/scroll is a `ScrollViewer` (50–200 %).
   Wheel zoom and pan room (D-074): the `ScrollViewer`'s content is a transparent `Wrapper` Grid around `Host`, padded
   per side by viewport − 48 DIP (screen) less the layout's 48-DIP margin, in content DIP at the current zoom, so any
   flow can be moved and `Host`'s coordinates never change. `Canvas/CanvasViewport` (pure, tested) holds the maths:
