@@ -757,3 +757,28 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 - [ ] T22.11 Silent notices and the flaky trigger test (F-037, F-042)
 - [ ] T22.12 Canvas input, routing, automation (F-033 after a human check, F-040, F-043; Opus, after T22.1)
 - [x] T22.13 Editor memory and run counters (F-036: pills measured in one pass re-lay out once, `scripts/editor-memory.ps1`; F-012: one `RunProgress`, D-127; Opus)
+
+## M23 Step values: steps give values that later steps' text uses (user, 2026-11-12; design docs/step-values/DESIGN.md, D-129 proposed)
+Waits for the user to accept D-129 and answer the PR's open questions. One PR per task (D-079). Each stage ships alone.
+- [ ] T23.1 Core (Opus, M): `ValueSpec`/`ValueKind`, `ProviderDescriptor.Values`, `ParamSpec.TakesValues`, `Core/Model/StepValues`
+  (scanner, `Before` (PickResults delegates), `Problems`, `MayBeMissing`, `Fill`, `Wanted`), `Core/Runs/RunValues`, `ConfigValidator`
+  checks (DESIGN §4.6). Files: Core/Catalog, Core/Model, Core/Runs, Core/Validation. Done when: Core tests for the grammar (JSON,
+  PowerShell, `%VAR%`, `{{` escape, fallback), every §4.6 sentence, card siblings, may-be-missing; samples/fixtures round-trip byte-identical.
+- [ ] T23.2 Runtime and the first producers (Sonnet, M; after T23.1): runner fills before the lock, clears per attempt, keeps OnFailure
+  values and `error`; `StepContext.SetValue/SetDevice/Wants` (`SetResult` kept); values for `prompt.pick`, `bluetooth.connect/disconnect`,
+  `audio.setDefault` (`device`), `power.battery`, `network.wifi`, `prompt.ask`, `process.run`/`script.powershell` (`exitCode`); takes
+  values: `notify.text`, both prompt questions, `menu.show.title`; run values and `{$input}`; dry run shows titles. Files: Runtime/FlowRunner,
+  Runtime/Providers, Providers/*, Runtime/Control (dry run). Done when: Runtime tests (parallel branches, retries, failure edge with
+  `error`, skipped producer → fallback/empty) and Providers tests; engine AOT publish 0 warnings; image delta noted.
+- [ ] T23.3 Editor: Insert value and display form (Sonnet, M; after T23.1, parallel with T23.2): `Inspector/ValueText` codec, grouped
+  Flyout, caret insert, focus back to the box, names. Files: Editor.ViewModels/Inspector, Editor text param control. Done when: codec
+  tests (duplicate names, rename, unmapped token); screenshots light/dark/high contrast/225 % text.
+- [ ] T23.4 Editor: pills row, "Values it gives", delete/duplicate/paste remap, canvas summary (Sonnet, M; after T23.3): DESIGN §5.3-5.7.
+  Done when: view-model tests for remap and delete-to-fallback (one Undo); reserved row shows no jump (D-104); Narrator names checked.
+- [ ] T23.5 More values and fields (Sonnet, M; after T23.2): `output` (stdout only when referenced, Sensitive), `http.request`
+  `status`/`body`, `menu.show` `picked`, checks' `result`, `idle`/`free`/`count`; fill rules Url/Argument for http url, `android.open`,
+  `process.run` args; `DAZE_*` environment variables for PowerShell. Done when: Providers tests incl. an injection-shaped device name.
+- [ ] T23.6 Device values beyond Pick (Opus, M; after T23.2): `$result:<id>.<value>`, `audio.setDefault` `previous`, device picker
+  group "From earlier steps" replaces "Picked earlier in this flow"; locks use the filled key. Supersedes D-117's Pick-only rule (new D-xxx).
+- [ ] T23.7 Text inputs, flow outputs, Make text (Opus, L; after T23.5; confirm DESIGN §9 with the user first).
+- [ ] T23.8 Gate (Sonnet, S): ARCHITECTURE/FEATURES/UX take what was built, DESIGN cut (D-053), release-notes line.
