@@ -1689,4 +1689,6 @@ line from check ran through connect; then "this must work in every layout mode",
   A drag re-routes still lines the moved step would hit, so the drop shows what the commit draws.
 - Why not move steps in Top to bottom, Circle or hand placement: their places are the shape's (rows = columns, ring =
   run order) or the user's. Why not dummy-node layers: a column/row of empty slots per long line (D-111).
+- Known limit: steps placed by hand closer than 16 DIP to a port (the detour's first step) can't be cleared by any lane;
+  the line then stays as it was (fewest crossings). Auto shapes always leave more room than that.
 - Revisit if: lanes of several lines overlap (lane per line), or lines should dodge other lines.
