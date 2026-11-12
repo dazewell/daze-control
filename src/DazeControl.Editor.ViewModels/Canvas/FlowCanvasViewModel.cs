@@ -1103,16 +1103,14 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             {
                 Nodes.Move(Nodes.IndexOf(vm), i);
             }
-            vm.Update(nodes[box.Id], _session.Current, problems.Contains(box.Id), "");
+            vm.Update(nodes[box.Id], _session.Current, problems.Contains(box.Id));
             vm.Place(box);
             titles[box.Id] = vm.Title;
         }
+        // Once every title is known; a node whose waits didn't change raises nothing (T21.1: a drop used to re-raise
+        // every node's name, each a full pill refresh).
         foreach (var vm in Nodes)
-        {
-            var waits = string.Join(", ", _arrangement.Edges.Where(e => e.To == vm.Id).Select(e => titles.GetValueOrDefault(e.From, e.From)));
-            if (waits.Length > 0)
-                vm.Update(nodes[vm.Id], _session.Current, problems.Contains(vm.Id), waits);
-        }
+            vm.SetWaitsFor(string.Join(", ", _arrangement.Edges.Where(e => e.To == vm.Id).Select(e => titles.GetValueOrDefault(e.From, e.From))));
 
         var mayFail = flow.Nodes.Where(n => EffectivePolicy(n, _session.Current.Settings.StepDefaults) == FailurePolicy.Ignore).Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
         Edges.Clear();

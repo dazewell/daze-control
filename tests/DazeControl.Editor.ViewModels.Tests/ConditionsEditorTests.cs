@@ -69,10 +69,10 @@ public sealed class ConditionsEditorTests : IDisposable
     {
         var bt = (StepNode)_canvas.Flow!.FindNode("bt")!;
         var node = new CanvasNodeViewModel("bt");
-        node.Update(bt with { Only = "disconnected" }, _session.Current, false, "");
+        node.Update(bt with { Only = "disconnected" }, _session.Current, false);
         Assert.Contains(node.Badges, b => b.Text == "Only if…" && b.Glyph == "");
 
-        node.Update(bt with { Only = StepNode.OnlyAlways }, _session.Current, false, "");
+        node.Update(bt with { Only = StepNode.OnlyAlways }, _session.Current, false);
         Assert.DoesNotContain(node.Badges, b => b.Text == "Only if…");
     }
 

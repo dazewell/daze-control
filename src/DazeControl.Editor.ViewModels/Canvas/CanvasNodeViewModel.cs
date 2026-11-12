@@ -159,13 +159,18 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         RunText = run?.Text ?? "";
         RunConditionSkipped = run?.ConditionSkipped == true;
         OrderText = run is { Order: > 0 } ? run.Order.ToString(System.Globalization.CultureInfo.CurrentCulture) : "";
-        // Screen readers hear the run too: "Connect, Technics. Bluetooth. Step 1. Done in 1.2 s."
+        AutomationName = NameWithRun();
+    }
+
+    /// <summary>Screen readers hear the run too: "Connect, Technics. Bluetooth. Step 1. Done in 1.2 s."</summary>
+    private string NameWithRun()
+    {
         var said = new List<string>();
         if (OrderText.Length > 0)
             said.Add($"Step {OrderText}");
         if (RunState != NodeRunState.None)
             said.Add(RunConditionSkipped ? RunText : RunWords(RunState, RunText));
-        AutomationName = said.Count == 0 ? _name : $"{_name} {string.Join(". ", said)}.";
+        return said.Count == 0 ? _name : $"{_name} {string.Join(". ", said)}.";
     }
 
     private static string RunWords(NodeRunState state, string text) => state switch
@@ -198,7 +203,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         Kind = box.Card is not null ? CanvasNodeKind.Member : Kind == CanvasNodeKind.Card ? CanvasNodeKind.Card : CanvasNodeKind.Step;
     }
 
-    internal void Update(Node node, Configuration config, bool hasProblem, string waitsFor)
+    internal void Update(Node node, Configuration config, bool hasProblem)
     {
         HasProblem = hasProblem;
         // A step shows its effective policy, retries and timeout (own > its type's default > built-in), dimmer when
@@ -249,25 +254,49 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         var allInherited = badges.Count > 0 && badges.All(b => b.Inherited);
         if (badges.Count > MaxBadges)
             badges = [.. badges.Take(MaxBadges), new Badge("", $"+{badges.Count - MaxBadges}")];
-        Badges = badges;
+        if (!badges.SequenceEqual(Badges))
+            Badges = badges; // a new list every Sync: set only when it says something else
         BadgesInherited = allInherited;
         BadgeText = string.Join("   ", badges.Select(b => b.Glyph.Length > 0 ? $"{b.Glyph} {b.Text}" : b.Text));
 
-        var parts = new List<string> { Summary.Length == 0 ? Title : $"{Title}, {Summary}" };
+        var head = new List<string> { Summary.Length == 0 ? Title : $"{Title}, {Summary}" };
         if (node is StepNode s && ProviderCatalog.Find(s.Step) is { } d)
-            parts.Add(Area(d.Area));
+            head.Add(Area(d.Area));
         if (node is GroupNode)
-            parts.Add($"Runs together, {Count}");
-        if (waitsFor.Length > 0)
-            parts.Add($"Waits for {waitsFor}");
+            head.Add($"Runs together, {Count}");
+        var tail = new List<string>();
         if (node is StepNode onlyStep && effective?.Only is { } cond && cond != StepNode.OnlyAlways)
-            parts.Add($"Only if {OnlyLabel(onlyStep.Step, cond)}");
+            tail.Add($"Only if {OnlyLabel(onlyStep.Step, cond)}");
         if (MayFail)
-            parts.Add("Failure ignored");
+            tail.Add("Failure ignored");
         if (hasProblem)
-            parts.Add("Needs fixing");
+            tail.Add("Needs fixing");
+        (_nameHead, _nameTail) = (head, tail);
+        ApplyName();
+    }
+
+    private List<string> _nameHead = [];
+    private List<string> _nameTail = [];
+    private string _waitsFor = "";
+
+    /// <summary>The steps this one waits for ("Connect Technics, Wait"), said in its name; set once every title is known.</summary>
+    internal void SetWaitsFor(string waitsFor)
+    {
+        if (waitsFor == _waitsFor)
+            return;
+        _waitsFor = waitsFor;
+        ApplyName();
+    }
+
+    /// <summary>Builds the name from its parts and sets it with the run words, so an unchanged name raises nothing.</summary>
+    private void ApplyName()
+    {
+        var parts = new List<string>(_nameHead);
+        if (_waitsFor.Length > 0)
+            parts.Add($"Waits for {_waitsFor}");
+        parts.AddRange(_nameTail);
         _name = string.Join(". ", parts) + ".";
-        AutomationName = _name;
+        AutomationName = NameWithRun();
     }
 
     /// <summary>The chosen condition in the user's words ("it isn't connected"), else the id.</summary>
