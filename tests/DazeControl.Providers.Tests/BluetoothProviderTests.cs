@@ -1,5 +1,6 @@
 using DazeControl.Core.Catalog;
 using DazeControl.Core.Model;
+using DazeControl.Core.Runs;
 using DazeControl.Providers.Bluetooth;
 using DazeControl.Runtime.Providers;
 
@@ -31,6 +32,21 @@ public class BluetoothProviderTests
         {
             Library = new Library { Bluetooth = [Technics] },
         }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ConnectAndDisconnectGiveTheDeviceAsAValue(bool connect)
+    {
+        IStepProvider provider = connect ? new BluetoothConnectProvider(new FakeBluetooth()) : new BluetoothDisconnectProvider(new FakeBluetooth());
+        var context = Steps.Context(provider.Id, ("device", "technics")) with { Library = new Library { Bluetooth = [Technics] } };
+
+        await provider.ExecuteAsync(context, TestContext.Current.CancellationToken);
+
+        var given = Assert.Single(context.Values);
+        Assert.Equal(("device", new StepValue(ValueKind.Device, "technics", LibraryKind.Bluetooth)), (given.Key, given.Value));
+        Assert.Equal(ValueKind.Device, ProviderCatalog.Find(provider.Id)!.Values.Single(v => v.Name == "device").Kind);
+    }
 
     [Fact]
     public async Task ABoundDeviceConnectsItsBluetoothSide()

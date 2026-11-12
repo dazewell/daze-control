@@ -32,6 +32,10 @@ public static class ProviderCatalog
         new("Fail unless an app is running", "if (-not (Get-Process steam -ErrorAction SilentlyContinue)) { exit 1 }"),
     ];
 
+    /// <summary>What a program or script gives even when it fails (D-129).</summary>
+    private static readonly ValueSpec ExitCode = new("exitCode", ValueKind.Number, "Exit code") { OnFailure = true, Help = "The number it ended with; 0 usually means it worked" };
+
+
     public static ValueList<ProviderDescriptor> All { get; } =
     [
         new("audio.setDefault", "Set default device", Audio, Short,
@@ -42,6 +46,7 @@ public static class ProviderCatalog
         {
             Resources = ["audio"],
             Conditions = [new ConditionSpec("notDefault", "It isn't the default", "audio.isDefault", false)],
+            Values = [new ValueSpec("device", ValueKind.Device, "Device") { Library = LibraryKind.Audio, Help = "The Library name of the device it made the default" }],
         },
         new("audio.check", "Check default device", Audio, Short,
         [
@@ -65,12 +70,14 @@ public static class ProviderCatalog
         {
             Resources = ["bluetooth:{device}"],
             Conditions = [new ConditionSpec("disconnected", "It isn't connected", BluetoothConnected, false)],
+            Values = [new ValueSpec("device", ValueKind.Device, "Device") { Library = LibraryKind.Bluetooth, Help = "The Library name of the device it connected" }],
         },
         new("bluetooth.disconnect", "Disconnect", Bluetooth, TimeSpan.FromSeconds(20),
             [Ref("device", "Bluetooth device", LibraryKind.Bluetooth)])
         {
             Resources = ["bluetooth:{device}"],
             Conditions = [new ConditionSpec("connected", "It's connected", BluetoothConnected, true)],
+            Values = [new ValueSpec("device", ValueKind.Device, "Device") { Library = LibraryKind.Bluetooth, Help = "The Library name of the device it disconnected" }],
         },
         // Read-only: takes the device's lock so it answers after a Connect that is still running.
         new("bluetooth.check", "Check connection", Bluetooth, Short,
@@ -122,6 +129,7 @@ public static class ProviderCatalog
         ])
         {
             Conditions = [new ConditionSpec("notRunning", "It isn't running", "process.running", false)],
+            Values = [ExitCode],
         },
         new("process.close", "Close program", Process, TimeSpan.FromSeconds(30),
         [
@@ -137,7 +145,10 @@ public static class ProviderCatalog
             new("is", ParamKind.Choice, "Is") { Choices = ["running", "notRunning"], Captions = ["Running", "Not running"], Default = "running", Help = WaitUntilHelp },
         ]) { Keywords = "running is" },
         new("script.powershell", "Run PowerShell", Script, TimeSpan.FromSeconds(60),
-            [new("script", ParamKind.MultilineText, "Script") { Required = true, Examples = PowerShellExamples }]),
+            [new("script", ParamKind.MultilineText, "Script") { Required = true, Examples = PowerShellExamples }])
+        {
+            Values = [ExitCode],
+        },
         new("http.request", "Send web request", Http, Short,
         [
             new("url", ParamKind.Text, "Address")
@@ -294,7 +305,11 @@ public static class ProviderCatalog
         [
             new("network", ParamKind.Text, "Network") { Suggest = ParamSuggest.Devices("wifi"), Help = "The Wi-Fi network's name. Empty = any Wi-Fi network." },
             new("is", ParamKind.Choice, "Is") { Choices = ["connected", "notConnected"], Captions = ["Connected", "Not connected"], Default = "connected", Help = WaitUntilHelp },
-        ]) { Keywords = "wifi wlan ssid wireless home office" },
+        ])
+        {
+            Keywords = "wifi wlan ssid wireless home office",
+            Values = [new ValueSpec("network", ValueKind.Text, "Wi-Fi network") { OnFailure = true, Help = "The name of the Wi-Fi network it is connected to" }],
+        },
         new("network.cable", "Check network cable", Network, Short,
         [
             new("is", ParamKind.Choice, "Is") { Choices = ["connected", "notConnected"], Captions = ["Connected", "Not connected"], Default = "connected", Help = WaitUntilHelp },
@@ -328,7 +343,11 @@ public static class ProviderCatalog
         [
             new("percent", ParamKind.WholeNumber, "Charge (%)") { Default = "20", Min = 1, Max = 100 },
             new("is", ParamKind.Choice, "Is") { Choices = ["atLeast", "below"], Captions = ["At least this much", "Below this"], Default = "atLeast", Help = WaitUntilHelp },
-        ]) { Keywords = "charge level low laptop" },
+        ])
+        {
+            Keywords = "charge level low laptop",
+            Values = [new ValueSpec("percent", ValueKind.Number, "Battery (%)") { OnFailure = true, Help = "The charge it read" }],
+        },
         new("pc.idle", "Check idle time", Pc, Short,
         [
             new("for", ParamKind.Duration, "No input for") { Default = "5m", Help = "Time since the last key press or mouse move." },
@@ -349,7 +368,7 @@ public static class ProviderCatalog
             [new("duration", ParamKind.Duration, "How long") { Required = true }]),
         new("notify", "Show message", Message, Short,
         [
-            new("text", ParamKind.Text, "Message") { Required = true },
+            new("text", ParamKind.Text, "Message") { Required = true, TakesValues = true },
             new("sound", ParamKind.Boolean, "Play the notification sound") { Default = "true" },
         ]),
         new("flag.set", "Set flag", Flag, Short,
@@ -389,7 +408,7 @@ public static class ProviderCatalog
                 Required = true, Ordered = true, Suggest = ParamSuggest.Config(ParamSuggest.Flows), RefersTo = ConfigRef.Flow,
                 Help = "1 to 12 flows, in menu order. Keys 1 to 9 pick the first nine.",
             },
-            new("title", ParamKind.Text, "Title") { Help = "Empty = this flow's name." },
+            new("title", ParamKind.Text, "Title") { TakesValues = true, Help = "Empty = this flow's name." },
             new("layout", ParamKind.Choice, "Layout") { Choices = ["list", "grid"], Captions = ["List", "Grid"], Default = "list" },
             new("size", ParamKind.Choice, "Size")
             {
@@ -413,7 +432,7 @@ public static class ProviderCatalog
                 Choices = [Prompts.Confirm, Prompts.Choose], Captions = ["Yes or No", "Choose"], Default = Prompts.Confirm,
                 Help = "Yes or No: Yes goes on, No fails the step (a \"when it fails\" branch can follow). Choose: pick one of 2 to 12 answers.",
             },
-            new("question", ParamKind.Text, "Question") { Required = true },
+            new("question", ParamKind.Text, "Question") { Required = true, TakesValues = true },
             new("choices", ParamKind.TextList, "Answers")
             {
                 Ordered = true, Help = "Choose only: 2 to 12 answers, in order. Keys 1 to 9 pick the first nine.",
@@ -436,7 +455,10 @@ public static class ProviderCatalog
             {
                 Help = "Used when nobody answers and \"No answer\" says so: yes or no, or one of the answers.",
             },
-        ]),
+        ])
+        {
+            Values = [new ValueSpec("answer", ValueKind.Text, "Answer") { Help = "Yes or No, or the answer chosen" }],
+        },
         // A person picks a Library item; later steps use it as "$result:<id>" (D-117). No resources, like Ask.
         new(PromptPickId, "Pick device", PickGlyph, TimeSpan.FromMinutes(11),
         [
@@ -445,7 +467,7 @@ public static class ProviderCatalog
                 Choices = [.. PickResults.KindWords], Captions = ["Audio device", "Bluetooth device", "Screen layout", "Android device", "Bound device"],
                 Default = "audio", Help = "Lists your Library's items of this kind. Later steps can use the one picked.",
             },
-            new("question", ParamKind.Text, "Question") { Help = "Empty = \"Pick an audio device\" (or the kind you chose)." },
+            new("question", ParamKind.Text, "Question") { TakesValues = true, Help = "Empty = \"Pick an audio device\" (or the kind you chose)." },
             new("timeout", ParamKind.Duration, "Wait")
             {
                 Default = "30s", Help = "5 s to 10 min for an answer.",
@@ -459,7 +481,10 @@ public static class ProviderCatalog
             {
                 LibraryFrom = "kind", Help = "The Library item to use when nobody answers, and the one shown first.",
             },
-        ]),
+        ])
+        {
+            Values = [new ValueSpec("device", ValueKind.Device, "Device") { Help = "The Library name of the one picked" }],
+        },
     ];
 
     /// <summary>The <c>prompt.pick</c> step type (D-117).</summary>

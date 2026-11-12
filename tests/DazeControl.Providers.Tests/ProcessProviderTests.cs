@@ -8,6 +8,30 @@ public class ProcessProviderTests
 {
     private static readonly string Cmd = Path.Combine(Environment.SystemDirectory, "cmd.exe");
 
+    [Theory]
+    [InlineData("0", true)]
+    [InlineData("3", false)]
+    public async Task TheExitCodeIsAValueEvenWhenTheStepFails(string code, bool succeeds)
+    {
+        var context = Steps.Context("process.run", ("path", Cmd), ("args", "/c exit " + code)).WithList("args", "/c", "exit " + code);
+        var run = new ProcessRunProvider().ExecuteAsync(context, TestContext.Current.CancellationToken);
+
+        if (succeeds)
+            await run;
+        else
+            await Assert.ThrowsAsync<StepFailedException>(() => run);
+        Assert.Equal(code, context.Values["exitCode"].Text);
+    }
+
+    [Fact]
+    public async Task PowerShellGivesItsExitCode()
+    {
+        var context = Steps.Context("script.powershell", ("script", "exit 4"));
+        await Assert.ThrowsAsync<StepFailedException>(() => new PowerShellProvider().ExecuteAsync(context, TestContext.Current.CancellationToken));
+
+        Assert.Equal("4", context.Values["exitCode"].Text);
+    }
+
     [Fact]
     public async Task ZeroExitSucceeds() =>
         await new ProcessRunProvider().RunAsync(("path", Cmd), ("args", "/c exit 0"));

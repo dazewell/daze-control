@@ -119,7 +119,12 @@ public sealed class FlowRunner
         var results = new Dictionary<string, StepRun>();
         var order = new Dictionary<string, int>();
         var quiet = false;
-        var picked = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(StringComparer.Ordinal); // D-117
+        // D-117, D-129: what steps give, only what some setting references; thread-safe for parallel branches.
+        var values = new RunValues(StepValues.Wanted(flow, _catalog), _time) { FlowName = flow.Name, Trigger = trigger };
+        foreach (var (name, input) in flow.Inputs)
+        {
+            values.SetInput(name, input.Kind, (inputs.TryGetValue(name, out var key) ? key : input.Default).Trim());
+        }
 
         void Launch(IEnumerable<string> ids)
         {
@@ -127,7 +132,7 @@ public sealed class FlowRunner
             {
                 // Numbered here, on the scheduler's thread, so parallel steps get a stable start order (dry run).
                 order[id] = order.Count + 1;
-                running.Add(RunStepAsync(scope, flow, library, (StepNode)flow.FindNode(id)!, picked, startedTicks, stepsCancel.Token), id);
+                running.Add(RunStepAsync(scope, flow, library, (StepNode)flow.FindNode(id)!, values, startedTicks, stepsCancel.Token), id);
             }
         }
 
@@ -215,7 +220,7 @@ public sealed class FlowRunner
 
     /// <summary>All attempts of one step. Never throws: every failure becomes a <see cref="StepRun"/>.</summary>
     private async Task<StepRun> RunStepAsync(RunScope scope, Flow flow, Library library, StepNode node,
-        System.Collections.Concurrent.ConcurrentDictionary<string, string> picked, long runTicks, CancellationToken flowToken)
+        RunValues values, long runTicks, CancellationToken flowToken)
     {
         var runId = scope.RunId;
         await Task.Yield(); // run on the pool, never inline in the scheduler loop
@@ -228,8 +233,9 @@ public sealed class FlowRunner
         string? skipped = null;
         StepRun Done(StepResult result, int attempts, string? error) =>
             new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet, summary, skipped);
-        // A pick step's result goes in now (D-117): the lock, the provider and a called flow see the Library key.
-        node = PickResults.Resolve(node, picked, out var unpicked, _catalog.FirstOrDefault(d => d.Id == node.Step));
+        string? unpicked = null;
+        // Values go in now (D-117, D-129): the lock, the provider and a called flow see plain text and Library keys.
+        node = DryRun ? Describe(flow, node, values, out unpicked) : StepValues.Fill(flow, node, values, library, out unpicked, _catalog.FirstOrDefault(d => d.Id == node.Step));
         if (unpicked is not null)
         {
             var pick = flow.FindNode(unpicked) as StepNode;
@@ -263,6 +269,7 @@ public sealed class FlowRunner
             }
             if (attempt > 1)
                 retries.Add(_time.GetElapsedTime(runTicks));
+            values.Clear(node.Id); // an attempt starts: the last attempt's values stand (D-129)
             Raise(new NodeStarted(runId, flow.Id, _time.GetUtcNow(), node.Id, attempt)
                 { ParentRunId = scope.ParentRunId, ParentNodeId = scope.ParentNodeId });
             if (waits)
@@ -279,13 +286,13 @@ public sealed class FlowRunner
                 {
                     Chain = scope.Chain,
                     Trigger = scope.Trigger,
+                    WantsValue = name => values.Wants(node.Id, name),
                     RunNested = Flows is null ? null : (target, token) => NestedAsync(scope, flow, node, target, c => called = c, token),
                 };
                 var attemptResult = await AttemptAsync(provider!, context, timeout, flowToken).ConfigureAwait(false);
                 error = attemptResult.Error;
                 summary = context.Summary;
-                if (error is null && context.Result is { } result)
-                    picked[node.Id] = result;
+                GiveValues(values, node.Id, descriptor, context, error is null);
                 skipped = attemptResult.SkippedBecause;
                 called = context.Called ?? called;
                 if (attemptResult.EndsFlow)
@@ -296,10 +303,47 @@ public sealed class FlowRunner
             }
             if (error is null)
                 return Done(StepResult.Succeeded, attempt, null);
+            values.SetError(node.Id, error);
             if (flowToken.IsCancellationRequested)
                 return Done(StepResult.Cancelled, attempt, error);
         }
         return Done(StepResult.Failed, attempts, error);
+    }
+
+    /// <summary>A dry run (D-042) fills text with each value's title ("Connected to ‹Device›"), never a real or sample device; the Pick's key still goes into device settings.</summary>
+    public bool DryRun { get; init; }
+
+    private StepNode Describe(Flow flow, StepNode step, RunValues values, out string? missing)
+    {
+        var descriptor = _catalog.FirstOrDefault(d => d.Id == step.Step);
+        var shown = descriptor is null ? step : step with
+        {
+            With = new(step.With.Select(e => KeyValuePair.Create(e.Key,
+                e.Value is ScalarParam { Text: var text } && descriptor.FindParam(e.Key) is { } spec && StepValues.Takes(spec)
+                    ? new ScalarParam(StepValues.Describe(flow, text, _catalog))
+                    : e.Value))),
+        };
+        return PickResults.Resolve(shown, values.Picked(), out missing, descriptor);
+    }
+
+    /// <summary>
+    /// Copies what the attempt gave into the run (D-129): all of it on success, only <see cref="ValueSpec.OnFailure"/> values
+    /// when it failed. Undeclared names are dropped; a Device value without a kind takes the step type's or the Pick's.
+    /// </summary>
+    private static void GiveValues(RunValues values, string step, ProviderDescriptor descriptor, StepContext context, bool succeeded)
+    {
+        foreach (var (name, given) in context.Values)
+        {
+            if (descriptor.Values.FirstOrDefault(v => v.Name == name) is not { } spec || !succeeded && !spec.OnFailure)
+                continue;
+            var kind = given.Library ?? spec.Library ?? (PickResults.IsPick(context.Node) ? PickResults.KindOf(context.Node) : null);
+            if (given.Kind == ValueKind.Text)
+                values.SetText(step, name, given.Text); // trimmed and cut
+            else if (given.Kind == ValueKind.Device)
+                values.SetDevice(step, name, given.Text, kind);
+            else
+                values.Set(step, name, given);
+        }
     }
 
     private static bool IsOff(StepNode node, string param) =>

@@ -27,6 +27,7 @@ public sealed class ProcessRunProvider : IStepProvider
 
         var allowed = ExitCodes(context);
         var (exitCode, lastError) = await ProcessRunner.RunAsync(start, stdin: null, cancellationToken).ConfigureAwait(false);
+        context.SetNumber("exitCode", exitCode);
         if (!allowed.Contains(exitCode))
             throw new StepFailedException(Failure(Path.GetFileName(path), exitCode, lastError));
     }
