@@ -770,9 +770,9 @@ The user accepted all five open points as recommended (PR #217). One PR per task
   values: `notify.text`, both prompt questions, `menu.show.title`; run values and `{$input}`; dry run shows titles. Files: Runtime/FlowRunner,
   Runtime/Providers, Providers/*, Runtime/Control (dry run). Done when: Runtime tests (parallel branches, retries, failure edge with
   `error`, skipped producer → fallback/empty) and Providers tests; engine AOT publish 0 warnings; image delta noted.
-- [ ] T23.3 Editor: Insert value and display form (Sonnet, M; after T23.1, parallel with T23.2): `Inspector/ValueText` codec, grouped
+- [x] T23.3 Editor: Insert value and display form (Sonnet, M; after T23.1, parallel with T23.2): `Inspector/ValueText` codec, grouped
   Flyout, caret insert, focus back to the box, names. Files: Editor.ViewModels/Inspector, Editor text param control. Done when: codec
-  tests (duplicate names, rename, unmapped token); screenshots light/dark/high contrast/225 % text.
+  tests (duplicate names, rename, unmapped token); screenshots light/dark/high contrast/225 % text. Branch feat/m23-insert-value (live look not done: no provider marks `TakesValues` until T23.2).
 - [ ] T23.4 Editor: pills row, "Values it gives", delete/duplicate/paste remap, canvas summary (Sonnet, M; after T23.3): DESIGN §5.3-5.7.
   Done when: view-model tests for remap and delete-to-fallback (one Undo); reserved row shows no jump (D-104); Narrator names checked.
 - [ ] T23.5 More values and fields (Sonnet, M; after T23.2): `output` (stdout only when referenced, Sensitive), `http.request`
