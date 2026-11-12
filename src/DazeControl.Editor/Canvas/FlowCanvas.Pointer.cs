@@ -120,6 +120,11 @@ public sealed partial class FlowCanvas
         double dx = position.X - _pressContent.X, dy = position.Y - _pressContent.Y;
         switch (_gesture)
         {
+            case Gesture.DragNode or Gesture.Connect or Gesture.Marquee:
+                // Coalesced: a mouse can report several moves per frame; only the latest is drawn (D-119 b).
+                _pendingMove = position;
+                OnFrames(true);
+                break;
             case Gesture.RightPan:
                 var started = _rightPan!.IsPanning;
                 if (!_rightPan.Move(screen.X, screen.Y))
@@ -138,20 +143,42 @@ public sealed partial class FlowCanvas
                     _dragViews = [.. DragGroup()];
                     foreach (var view in _dragViews)
                         XamlCanvas.SetZIndex(view, view.Node.CardId is null ? 1 : 2); // members above their card
+                    // A free move previews what the drop commits: lines between steps that stay put are drawn once
+                    // now, from the frozen arrangement (a first drag drops wrap lanes here, not on release).
+                    if (_dragged.Node.CardId is null && _viewModel.BeginMove(DragIds()) is { } preview)
+                    {
+                        _preview = preview;
+                        DrawEdges();
+                    }
+                    _pendingMove = position;
+                    OnFrames(true);
                 }
                 break;
+        }
+    }
+
+    /// <summary>Subscribes the per-frame update for a gesture, or removes it (nothing runs per frame while idle).</summary>
+    private void OnFrames(bool on)
+    {
+        if (on == _onFrames)
+            return;
+        _onFrames = on;
+        if (on)
+            CompositionTarget.Rendering += OnGestureFrame;
+        else
+            CompositionTarget.Rendering -= OnGestureFrame;
+    }
+
+    /// <summary>Draws the latest pointer position of a drag, connect or marquee: once per frame, whatever the move rate.</summary>
+    private void OnGestureFrame(object? sender, object e)
+    {
+        if (_viewModel is null || _pendingMove is not { } position)
+            return;
+        _pendingMove = null;
+        switch (_gesture)
+        {
             case Gesture.DragNode:
-                // A free move shows the offset MoveBy will commit (snapped lead, padding clamp), so the drop moves
-                // nothing (D-120); a member reorders in its card, so it follows the pointer as is.
-                var offset = _dragged!.Node.CardId is null ? _viewModel.SnappedOffset(DragIds(), dx, dy) : new CorePoint(dx, dy);
-                foreach (var view in _dragViews)
-                {
-                    if (view.RenderTransform is TranslateTransform shift)
-                        (shift.X, shift.Y) = (offset.X, offset.Y);
-                    else
-                        view.RenderTransform = new TranslateTransform { X = offset.X, Y = offset.Y };
-                }
-                PreviewDrop(position);
+                DragFrame(position);
                 break;
             case Gesture.Connect:
                 PreviewConnect(position);
@@ -166,6 +193,48 @@ public sealed partial class FlowCanvas
                 break;
         }
     }
+
+    /// <summary>
+    /// One drag frame: a free move shows the offset MoveBy will commit (snapped lead, padding clamp) with its lines,
+    /// chips, arrowheads, ports, focus ring and "+/×" (D-120); a member reorders in its card, so it follows the pointer as is.
+    /// </summary>
+    private void DragFrame(Windows.Foundation.Point position)
+    {
+        double dx = position.X - _pressContent.X, dy = position.Y - _pressContent.Y;
+        if (_preview is null)
+        {
+            Translate(new CorePoint(dx, dy));
+        }
+        else
+        {
+            var offset = _preview.Offset(dx, dy);
+            if (_frame is null || _frame.Offset != offset) // the snap holds most frames still: nothing to redraw
+            {
+                _frame = _preview.At(offset);
+                _liveCurves.Clear();
+                for (var i = 0; i < _frame.Routes.Count; i++)
+                    _liveCurves[(_frame.Routes[i].From, _frame.Routes[i].To)] = _frame.Curves[i];
+                Translate(offset);
+                DrawLiveEdges();
+                ShowEdgeControls(EdgeWithControls());
+                if (_dragged is not null && (InPortDot.Visibility == Visibility.Visible || OutPortDot.Visibility == Visibility.Visible))
+                    ShowPorts(_dragged.Node);
+                UpdateFocusRing();
+            }
+        }
+        PreviewDrop(position);
+    }
+
+    private void Translate(CorePoint offset)
+    {
+        var shift = new System.Numerics.Vector3((float)offset.X, (float)offset.Y, 0);
+        foreach (var view in _dragViews)
+            view.Translation = shift;
+    }
+
+    /// <summary>Where a node is drawn now: its live rect during a drag, else its committed bounds.</summary>
+    private DazeControl.Core.Layout.Rect BoundsOf(CanvasNodeViewModel node) =>
+        _frame is not null && _frame.Rects.TryGetValue(node.Id, out var live) ? live : node.Bounds;
 
     private void OnPointerReleased(object sender, PointerRoutedEventArgs e)
     {
@@ -197,7 +266,7 @@ public sealed partial class FlowCanvas
                 var (target, zone) = DropAt(position);
                 var moving = DragIds();
                 // Commit first: the views take their new place in this same tick and EndGesture then clears the
-                // preview offset, so nothing is drawn in between (D-120).
+                // preview offset and redraws the lines as committed, so nothing is drawn in between (D-120).
                 if (target is not null && zone != DropZone.None)
                     ShowRefusal(_viewModel.Drop(node.Id, target.Id, zone), target);
                 else if (node.CardId is { } card && _viewModel.Find(card) is { } own && !own.Bounds.Contains(C(position)))
@@ -230,7 +299,7 @@ public sealed partial class FlowCanvas
     {
         foreach (var view in _dragViews)
         {
-            view.RenderTransform = null;
+            view.Translation = System.Numerics.Vector3.Zero;
             XamlCanvas.SetZIndex(view, view.Node.Kind == CanvasNodeKind.Member ? 1 : 0); // as SyncNodes sets it
         }
         _dragViews = [];
@@ -276,8 +345,9 @@ public sealed partial class FlowCanvas
             InPortDot.Visibility = OutPortDot.Visibility = Visibility.Collapsed;
             return;
         }
-        Dot(InPortDot, _viewModel.InPortOf(hovered));
-        Dot(OutPortDot, _viewModel.OutPortOf(hovered));
+        var bounds = BoundsOf(hovered); // follows a live drag
+        Dot(InPortDot, FlowPlacement.Port(bounds, _viewModel.InSide));
+        Dot(OutPortDot, FlowPlacement.Port(bounds, _viewModel.OutSide));
     }
 
     private static void Dot(Microsoft.UI.Xaml.Shapes.Ellipse dot, CorePoint at)
@@ -394,6 +464,20 @@ public sealed partial class FlowCanvas
 
     private void EndGesture()
     {
+        OnFrames(false);
+        _pendingMove = null;
+        if (_preview is not null || _liveCurves.Count > 0)
+        {
+            // After the commit (or none: no move, a refused drop, capture lost) every line is drawn as it now is.
+            _preview = null;
+            _frame = null;
+            ClearLiveEdges();
+            DrawEdges();
+            UpdateFocusRing();
+            if (_dragged is not null && _viewModel?.Find(_dragged.Node.Id) is { } node
+                && (InPortDot.Visibility == Visibility.Visible || OutPortDot.Visibility == Visibility.Visible))
+                ShowPorts(node);
+        }
         ConnectPreview.Visibility = DropTarget.Visibility = DropLabel.Visibility = Visibility.Collapsed;
         ProtectedCursor = null;
         _connectFrom = null;
