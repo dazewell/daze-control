@@ -16,6 +16,9 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
+      - name: PR script tests
+        shell: pwsh
+        run: ./scripts/tests/pr-lib.tests.ps1
       - name: Build
         run: dotnet build DazeControl.slnx -c Release -nologo
       - name: Test
