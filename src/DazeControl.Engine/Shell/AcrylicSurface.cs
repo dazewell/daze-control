@@ -246,10 +246,18 @@ internal abstract unsafe class AcrylicSurface : IDisposable
         if (_hwnd == HWND.Null)
             return;
         if (Fading || Visible && Animating)
+        {
+            _fineTimer.Begin(); // a 16 ms WM_TIMER is really 16 or 31 ms on the default 15.6 ms tick
             PInvoke.SetTimer(_hwnd, FrameTimer, 16, null);
+        }
         else
+        {
             PInvoke.KillTimer(_hwnd, FrameTimer);
+            _fineTimer.End();
+        }
     }
+
+    private readonly Interop.FineTimer _fineTimer = new();
 
     private void Frame()
     {
