@@ -7,7 +7,7 @@ using DazeControl.Ipc;
 
 namespace DazeControl.Editor.ViewModels.Tests;
 
-/// <summary>D-117: "Result of: &lt;Pick step&gt;" in device pickers, only for earlier Pick steps of the same kind.</summary>
+/// <summary>D-117, D-130: "From earlier steps" in device pickers: Device values of earlier steps that fit the setting's kind.</summary>
 public sealed class PickEditorTests : IDisposable
 {
     private const string Yaml = """
@@ -28,6 +28,7 @@ public sealed class PickEditorTests : IDisposable
               - { id: connect, step: bluetooth.connect, with: { device: technics }, after: [set] }
               - { id: legacy, step: prompt.pick, with: { kind: bluetooth, default: Technics } }
               - { id: keyed, step: prompt.pick, with: { kind: audio, default: sony } }
+              - { id: louder, step: audio.setVolume, with: { percent: 20 }, after: [set] }
         """;
 
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "DazeControl.Tests-" + Guid.NewGuid().ToString("N"));
@@ -144,6 +145,28 @@ public sealed class PickEditorTests : IDisposable
         _canvas.Select("legacy");
         _inspector.Fields.Single(f => f.Name == "kind").Choice = "audio"; // "Technics" is a name, not an audio key: gone
         Assert.False(Step("legacy").With.ContainsKey("default"));
+    }
+
+    [Fact]
+    public void FromEarlierStepsListsEveryDeviceThatFitsAndSavesTheValue()
+    {
+        // D-130: the Pick's result and Set default device's Device and Previous default, in flow order.
+        _canvas.Select("louder");
+
+        var devices = Device().Devices;
+        Assert.Equal(DeviceSource.None, devices[0].Source);
+        Assert.Equal(LibraryDevices.EarlierGroup, devices[1].Title);
+        Assert.Equal(
+            [("Result of: Pick speakers", "$result:pick"), ("Device from: Set default device", "$result:set"),
+                ("Previous default from: Set default device", "$result:set.previous")],
+            devices.Skip(2).TakeWhile(d => !d.IsHeader).Select(d => (d.Title, d.Key)));
+        Assert.Equal("The device that was the default before, if it's in your Library", devices[4].Caption);
+
+        Device().Device = devices[4];
+
+        Assert.Equal(new ScalarParam("$result:set.previous"), ((StepNode)_canvas.Flow!.FindNode("louder")!).With["device"]);
+        Assert.Equal("Previous default from Set default device · 20", _canvas.Nodes.Single(n => n.Id == "louder").Summary);
+        Assert.DoesNotContain(_session.Problems, p => p.Severity == Severity.Error);
     }
 
     [Theory]
