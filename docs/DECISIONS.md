@@ -981,6 +981,9 @@ Status: accepted (user, 2026-11-03, v0.29.0 feedback); built F1. Changes UX §5.
   diagram tools (Miro, Figma) zoom on the wheel. Why not an unbounded canvas (render transform instead of a
   `ScrollViewer`): loses the `ScrollViewer`'s pinch, touchpad and keyboard scrolling and `BringIntoView` for focus.
   (Superseded by D-119 e, T21.7: the camera does those itself; the wrapper padding is now `Camera.Clamp`.)
+  Revisit hit (live, 2026-11-12): touchpad vertical scroll arrives as mouse wheel (device type Mouse; sideways as a
+  horizontal wheel), so `WheelInput` tells it by message source and delta size. A smooth-scrolling mouse whose deltas
+  aren't whole notches pans instead of zooming; Ctrl+wheel still zooms.
 - Revisit if: mouse users miss vertical scrolling on tall flows (then wheel scrolls when the flow is taller than the
   window), or the touchpad's two-finger scroll turns out to arrive as wheel input (then tell it by device type).
 

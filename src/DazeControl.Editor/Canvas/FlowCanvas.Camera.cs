@@ -16,6 +16,7 @@ public sealed partial class FlowCanvas
 {
     private Camera _camera = Camera.Identity;
     private Camera _panStart; // the camera when a drag pan was pressed
+    private readonly WheelInput _wheel = new();
     private bool _pressedSinceGlide; // any press after a touch glide began: the glide stops on its next frame
 
     private double ViewportWidth => Viewport.ActualWidth;
@@ -96,8 +97,8 @@ public sealed partial class FlowCanvas
 
     /// <summary>
     /// The mouse wheel and Ctrl+wheel zoom at the pointer; Shift+wheel and a tilt wheel pan sideways. A precision
-    /// touchpad's two-finger scroll arrives as wheel input from a <see cref="PointerDeviceType.Touchpad"/> and pans
-    /// both ways; its pinch arrives as Ctrl+wheel and zooms at the pointer (D-074, D-119 e).
+    /// touchpad's two-finger scroll pans both ways and its pinch (Ctrl+wheel) zooms at the pointer; Windows reports its
+    /// vertical scroll as mouse wheel input, so <see cref="WheelInput"/> tells them apart (D-074, D-119 e).
     /// </summary>
     private void OnWheel(object sender, PointerRoutedEventArgs e)
     {
@@ -108,26 +109,26 @@ public sealed partial class FlowCanvas
         if (delta == 0)
             return;
         _autoFit = false;
-        var horizontal = point.Properties.IsHorizontalMouseWheel;
         // KeyModifiers carries the Ctrl the system adds to a touchpad pinch; the keyboard state doesn't.
         var ctrl = e.KeyModifiers.HasFlag(VirtualKeyModifiers.Control) || CtrlDown();
-        if (e.Pointer.PointerDeviceType == PointerDeviceType.Touchpad && !ctrl)
+        var fromTouchpad = e.Pointer.PointerDeviceType == PointerDeviceType.Touchpad || MessageFromTouchpad();
+        var action = _wheel.Classify(delta, point.Properties.IsHorizontalMouseWheel, ctrl, ShiftDown(), point.Timestamp, fromTouchpad);
+        // A touchpad's deltas follow the fingers (1 DIP a unit); a notched wheel moves PanPerNotch a notch.
+        var pan = _wheel.LastWasTouchpad ? delta * Camera.TouchpadPanPerUnit : delta * Camera.PanPerNotch / WheelInput.Notch;
+        switch (action)
         {
-            // The content follows the fingers: up (positive delta) moves it down, right (horizontal) moves it left.
-            var pan = delta * Camera.TouchpadPanPerUnit;
-            ApplyCamera(horizontal ? _camera.PanBy(-pan, 0) : _camera.PanBy(0, pan));
-        }
-        else if (horizontal)
-        {
-            ApplyCamera(_camera.PanBy(-delta * Camera.PanPerNotch / 120, 0));
-        }
-        else if (ShiftDown() && !ctrl)
-        {
-            ApplyCamera(_camera.PanBy(delta * Camera.PanPerNotch / 120, 0));
-        }
-        else
-        {
-            ZoomAround(_camera.Zoom * Camera.WheelFactor(delta), point.Position.X, point.Position.Y);
+            case WheelAction.PanVertical:
+                ApplyCamera(_camera.PanBy(0, pan)); // up (positive) moves the content down, as a scroll up does
+                break;
+            case WheelAction.PanSideways when point.Properties.IsHorizontalMouseWheel:
+                ApplyCamera(_camera.PanBy(-pan, 0)); // right (positive) moves the content left
+                break;
+            case WheelAction.PanSideways:
+                ApplyCamera(_camera.PanBy(pan, 0)); // Shift+wheel: a notch up moves the content right
+                break;
+            default:
+                ZoomAround(_camera.Zoom * Camera.WheelFactor(delta), point.Position.X, point.Position.Y);
+                break;
         }
         e.Handled = true;
     }
@@ -165,4 +166,21 @@ public sealed partial class FlowCanvas
         ApplyCamera(camera);
         e.Handled = true;
     }
+
+    /// <summary>True when the wheel message being handled came from a touchpad (Windows 8+; false when it can't tell).</summary>
+    private static bool MessageFromTouchpad() =>
+        GetCurrentInputMessageSource(out var source) && source.DeviceType == ImdtTouchpad;
+
+    private const int ImdtTouchpad = 0x10; // INPUT_MESSAGE_DEVICE_TYPE.IMDT_TOUCHPAD
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct InputMessageSource
+    {
+        public int DeviceType;
+        public int OriginId;
+    }
+
+    [System.Runtime.InteropServices.LibraryImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static partial bool GetCurrentInputMessageSource(out InputMessageSource source);
 }
