@@ -210,9 +210,11 @@ public sealed partial class FlowCanvas
         _pendingMove = new Windows.Foundation.Point(world.X, world.Y);
     }
 
-    /// <summary>Escape mid-gesture: nothing is committed, a marquee gives back the selection it started from.</summary>
+    /// <summary>Escape mid-gesture: nothing is committed, a marquee gives back the selection it started from, a pan its camera.</summary>
     private void CancelGesture()
     {
+        if (_gesture is Gesture.Pan || _gesture is Gesture.RightPan && _rightPan is { IsPanning: true })
+            ApplyCamera(_panStart); // a cancelled pan goes back to where it started
         Root.ReleasePointerCaptures();
         EndGesture();
     }
