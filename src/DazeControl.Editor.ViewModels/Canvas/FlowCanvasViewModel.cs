@@ -30,6 +30,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     public static readonly Size DefaultPillSize = new(232, 56);
 
+    /// <summary>The widest a pill grows to fit its title (the canvas clamps its measured width to this).</summary>
+    public const double MaxPillWidth = 320;
+
     private readonly ConfigSession _session;
     private readonly Dictionary<string, Size> _measured = new(StringComparer.Ordinal);
     private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
@@ -1049,17 +1052,23 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// Where a step of <paramref name="size"/> dropped from the library at content point <paramref name="p"/> lands on
-    /// empty canvas: centred on the point, its top left snapped to the grid, never above or left of the padding (D-120).
-    /// The canvas draws its dashed landing outline from this, so the outline is exactly where the step goes.
+    /// empty canvas: centred on the point, its top left snapped to the grid, or the nearest spot that covers no step,
+    /// keeping room for the pill to widen to <see cref="MaxPillWidth"/> (D-120). Anywhere, above or left of the flow too
+    /// (the drop then moves the flow's origin and raises <see cref="OriginShifted"/>). The canvas draws its dashed landing
+    /// outline from this, so the outline is exactly where the step goes.
     /// </summary>
     public Rect LandingAt(Point p, Size size)
     {
-        var padding = LayoutOptions.Padding;
-        return new Rect(
-            Math.Max(padding, FlowPlacement.Snap(p.X - size.Width / 2)),
-            Math.Max(padding, FlowPlacement.Snap(p.Y - size.Height / 2)),
-            size.Width, size.Height);
+        var want = new Rect(FlowPlacement.Snap(p.X - size.Width / 2), FlowPlacement.Snap(p.Y - size.Height / 2), size.Width, size.Height);
+        var taken = Nodes.Where(n => n.CardId is null).Select(n => n.Bounds).ToList();
+        return FreeSpot.Nearest(want, MaxPillWidth, taken, LayoutOptions.RowGap);
     }
+
+    /// <summary>
+    /// Raised when an edit moved every step by the same amount (content DIP) because something went above or left of
+    /// the layout's margin: the canvas pans its camera back by it, so nothing moves on screen.
+    /// </summary>
+    public event EventHandler<Point>? OriginShifted;
 
     /// <summary>
     /// A step dropped from the library at content point <paramref name="p"/> (D-120). On <paramref name="targetId"/>'s
@@ -1095,6 +1104,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         _redo.Clear();
         UpdateHistory();
         SelectOnly([id]);
+        // Above or left of the margin: the layout moved everything so the new step sits at the margin.
+        if (Find(id) is { } node && (node.X != at.X || node.Y != at.Y))
+            OriginShifted?.Invoke(this, new Point(node.X - at.X, node.Y - at.Y));
         return (id, ConnectRefusal.None);
     }
 

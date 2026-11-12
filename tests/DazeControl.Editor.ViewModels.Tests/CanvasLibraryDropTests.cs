@@ -84,11 +84,59 @@ public sealed class CanvasLibraryDropTests : IDisposable
     }
 
     [Fact]
-    public void NeverAboveOrLeftOfThePadding()
+    public void AboveAndLeftOfTheFlowItStillLandsAtThePointerAndTheFlowShiftsWithIt()
     {
-        var (id, _) = _canvas.AddStepAt("wait", new Point(-500, -500));
+        var before = Everything();
+        var p = new Point(-500, -300);
+        var landing = _canvas.LandingAt(p, FlowCanvasViewModel.DefaultPillSize);
+        Point? shift = null;
+        _canvas.OriginShifted += (_, s) => shift = s;
 
-        Assert.Equal(new Point(LayoutOptions.Default.Padding, LayoutOptions.Default.Padding), new Point(Node(id!).X, Node(id!).Y));
+        var (id, _) = _canvas.AddStepAt("wait", p);
+
+        // The layout keeps its margin by moving everything; the canvas pans back by the shift, so on screen the new step
+        // is where the outline was and nothing else moved.
+        var node = Node(id!);
+        Assert.Equal(new Point(LayoutOptions.Default.Padding, LayoutOptions.Default.Padding), new Point(node.X, node.Y));
+        Assert.NotNull(shift);
+        Assert.Equal(new Point(landing.X, landing.Y), new Point(node.X - shift.Value.X, node.Y - shift.Value.Y));
+        foreach (var (other, at) in before)
+            Assert.Equal(at, new Point(Node(other).X - shift.Value.X, Node(other).Y - shift.Value.Y));
+    }
+
+    [Fact]
+    public void ADropOnEmptyCanvasDoesNotShiftTheFlow()
+    {
+        var shifted = false;
+        _canvas.OriginShifted += (_, _) => shifted = true;
+        _canvas.AddStepAt("wait", Empty);
+        Assert.False(shifted);
+    }
+
+    [Theory]
+    [InlineData("vol", 0.5, 0.05)] // a pill's thin top band (no zone)
+    [InlineData("vol", 0.5, 0.95)] // its bottom band
+    [InlineData("vol", 0.5, -0.3)] // just above it, half covering it
+    [InlineData("vol", 1.15, 0.5)] // just right of it, where the new pill would cover it
+    public void ItNeverLandsOnTopOfAnotherStep(string near, double fx, double fy)
+    {
+        var n = Node(near);
+        var p = new Point(n.X + n.Width * fx, n.Y + n.Height * fy);
+        var (target, zone) = (n.Bounds.Contains(p) ? n.Id : null, n.Bounds.Contains(p) ? FlowCanvasViewModel.ZoneAt(n, p) : DropZone.None);
+        if (zone != DropZone.None)
+            return; // a zone drop is an edit, not a placement
+        var outline = _canvas.LandingAt(p, FlowCanvasViewModel.DefaultPillSize);
+        var others = Everything().Keys.ToList();
+        var shift = new Point(0, 0); // landing above the flow moves its origin (the canvas pans back)
+        _canvas.OriginShifted += (_, s) => shift = s;
+
+        var (id, _) = _canvas.AddStepAt("wait", p, target, zone);
+
+        var mine = Node(id!).Bounds;
+        Assert.Equal(new Point(outline.X, outline.Y), new Point(mine.X - shift.X, mine.Y - shift.Y));
+        var room = new Rect(mine.X, mine.Y, FlowCanvasViewModel.MaxPillWidth, mine.Height); // as wide as it may grow
+        foreach (var other in others)
+            Assert.False(room.Intersects(Node(other).Bounds), $"covers {other}");
     }
 
     [Fact]

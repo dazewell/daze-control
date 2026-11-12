@@ -427,7 +427,9 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   (`/`, double-click, the empty state's button, "Add a step…" menus) share `StepPaletteViewModel.Search`; the palette
   drags into the canvas with OLE drag-drop (text `daze-step:<id>`), the only drag that crosses controls; it lands at
   the pointer (`AddStepAt`, D-120): on a step's zone (`ZoneAt`) it is the step drag's edit, elsewhere it is centred
-  there as a hand placement (`LandingAt`, the same rect the dashed `LandingOutline` shows), one undo entry restoring
+  there as a hand placement (`LandingAt`, the same rect the dashed `LandingOutline` shows; `FreeSpot.Nearest` moves it
+  clear of every step with room for a `MaxPillWidth` pill; a landing above/left of the margin lets `FlowPlacement.Pad`
+  move every step and `OriginShifted` tells the canvas to pan back by it), one undo entry restoring
   flow and view together (`UndoEntry.WithFlow`). The
   Outline view (`FlowCanvasViewModel.Outline`, a TreeView) is the screen-reader equivalent: same selection (one row:
   showing it narrows a canvas multi-selection to the focused step, since TreeView multi-select didn't redraw its check

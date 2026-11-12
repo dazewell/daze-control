@@ -115,6 +115,7 @@ public sealed partial class FlowCanvas : UserControl
                 _viewModel.PropertyChanged -= OnViewModelChanged;
                 _viewModel.Nodes.CollectionChanged -= OnNodesChanged;
                 _viewModel.Noted -= OnNoted;
+                _viewModel.OriginShifted -= OnOriginShifted;
             }
             _viewModel = value;
             ForgetChips();
@@ -127,6 +128,7 @@ public sealed partial class FlowCanvas : UserControl
             _viewModel.PropertyChanged += OnViewModelChanged;
             _viewModel.Nodes.CollectionChanged += OnNodesChanged;
             _viewModel.Noted += OnNoted;
+            _viewModel.OriginShifted += OnOriginShifted;
             SyncNodes();
             DrawEdges();
             UpdateExtent();
