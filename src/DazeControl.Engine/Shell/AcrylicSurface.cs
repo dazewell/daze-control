@@ -247,15 +247,27 @@ internal abstract unsafe class AcrylicSurface : IDisposable
             return;
         if (Fading || Visible && Animating)
         {
-            _fineTimer.Begin(); // a 16 ms WM_TIMER is really 16 or 31 ms on the default 15.6 ms tick
-            PInvoke.SetTimer(_hwnd, FrameTimer, 16, null);
+            if (_frames is null)
+            {
+                // Not SetTimer: WM_TIMER is tied to the 15.6 ms system tick (frames alternated 14 and 30 ms, measured), and it is
+                // the lowest-priority message. A 1 ms tick + a real timer that posts the same message gives even 16 ms frames.
+                _fineTimer.Begin();
+                var hwnd = (nint)_hwnd.Value;
+                _frames = new Timer(_ => PInvoke.PostMessage(new HWND(hwnd), PInvoke.WM_TIMER, FrameTimer, 0), null, 16, 16);
+            }
         }
         else
-        {
-            PInvoke.KillTimer(_hwnd, FrameTimer);
-            _fineTimer.End();
-        }
+            StopFrames();
     }
+
+    private void StopFrames()
+    {
+        _frames?.Dispose();
+        _frames = null;
+        _fineTimer.End();
+    }
+
+    private Timer? _frames;
 
     private readonly Interop.FineTimer _fineTimer = new();
 
@@ -287,7 +299,7 @@ internal abstract unsafe class AcrylicSurface : IDisposable
 
     protected void Hidden()
     {
-        PInvoke.KillTimer(_hwnd, FrameTimer);
+        StopFrames();
         PInvoke.ShowWindow(_hwnd, SHOW_WINDOW_CMD.SW_HIDE);
         Visible = false;
         _fadeLength = TimeSpan.Zero;
@@ -380,6 +392,7 @@ internal abstract unsafe class AcrylicSurface : IDisposable
     protected ID2D1Brush* Brush => (ID2D1Brush*)_brush;
 
     protected void SetColour(D2D1_COLOR_F colour) => _brush->SetColor(&colour);
+
 
     private void Paint()
     {
@@ -532,6 +545,7 @@ internal abstract unsafe class AcrylicSurface : IDisposable
 
     public virtual void Dispose()
     {
+        StopFrames();
         ReleaseGraphics();
         if (_hwnd != HWND.Null)
         {
