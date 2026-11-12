@@ -805,7 +805,7 @@ Status: accepted, built (T13.8; user, 2026-11-03: "no infinite loops")
 - Revisit if: someone needs recursion on purpose (retry-until loops); then a bounded "repeat" step, not calls.
 
 ## D-064 · 2026-11-03 · Flow inputs are Library devices with defaults; steps use `$name`; calls pass `inputs:`
-Status: accepted (M13 design; user, 2026-11-03: inputs ship inside P6)
+Status: accepted (M13 design; user, 2026-11-03: inputs ship inside P6); amended by D-129 (values in text settings)
 - Decision: `Flow.Inputs` = name → (`LibraryKind`, label, default key); the default is always given (YAML `kind`,
   `name`, `default`; no "required" flag, every input is optional for a caller). A `LibraryRef` param of the same
   kind may hold `$name`; the runner resolves it (caller's value, else the default) before resources are filled.
@@ -1529,7 +1529,7 @@ Status: accepted (user, 2026-11-11: "binding audio and BT devices - so that they
 - Revisit if: users want more than two sides (a dock = display + audio + USB). A bound flow input kind: D-125.
 
 ## D-117 · 2026-11-11 · Pick device step: its result fills later steps' device settings as `$result:<step id>`
-Status: accepted (user, 2026-11-11: "selecting items from the library that can be then used in other steps")
+Status: accepted (user, 2026-11-11: "selecting items from the library that can be then used in other steps"); amended by D-129 (step values)
 - Decision: a `prompt.pick` step ("Pick device", Questions group) offers the Library's items of one `kind`
   (audio/bluetooth/display/android) on the prompt window (D-107: never takes focus, timeout, `onTimeout: stop|use-default`).
   Any `LibraryRef` setting, and a value `flow.run` passes as `inputs`, may hold `$result:<id>`; the runner substitutes the
@@ -1747,3 +1747,20 @@ Status: accepted (F-029, M22 T22.6; user chose option A; supersedes nothing, D-1
   A Library rename rewrites a default that is the renamed key and "Used by" counts it (`LibraryEdits.Holders`); a hand-typed name is left alone.
 - Why: the other device params are pickers; a free-text name drifted from the Library (renames, two items with one name).
 - Rejected: a new `LibraryRef` kind with a dynamic `Library` (every `spec.Library!` site would need a null path); rewriting names to keys on load.
+
+## D-129 · 2026-11-12 · Step values: typed values declared per step type, `{step.value}` in text settings that take them
+Status: accepted (user, 2026-11-12: all five PR #217 questions as recommended; design docs/step-values/DESIGN.md). Amends D-064, D-117
+- Decision: `ProviderDescriptor.Values` (`ValueSpec`: name, Text/Number/Device kind, title, Sensitive, OnFailure) + `error`
+  on every step + run values (`@flow`, `@trigger`, `@time`, `@date`) + `{$input}`. Text settings opt in
+  (`ParamSpec.TakesValues`) and hold `{step.value|fallback}`; device settings keep `$result:<id>` (widened later to
+  `$result:<id>.<value>`). One resolver `Core/Model/StepValues` (parse, must-wait-for, problems, fill) for validator,
+  runner, dry run and editor. Missing value: fallback, else empty in text; a device setting fails (D-117). Scripts get
+  values as `DAZE_<STEP>_<VALUE>` environment variables, never spliced into code. Editor word: "value".
+- Why: the user asked (2026-11-12) for step information as placeholders with pills; typed, catalog-declared values keep
+  every reference checkable before a run (D-064's reason), and opt-in fields leave scripts, JSON and `%VAR%` untouched.
+- Why not one free-text result per step: a sentence, not a value; can't fill typed settings or be checked. Why not
+  mutable flow variables: races between parallel branches, unknowable "is it set yet", a second rename system;
+  single-assignment "Make text" and flow outputs cover the need. Why not Scriban/Fluid: reflection, AOT warnings.
+  Why not `${x}` / `%x%` / `{{x}}`: PowerShell, Windows environment variables, noise; `{x.y}` with a strict grammar
+  leaves other braces as text.
+- Revisit if: a value must survive a restart (flags, D-029), or format specifiers are asked for.

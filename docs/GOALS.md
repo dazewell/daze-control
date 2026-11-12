@@ -33,6 +33,9 @@ lives in [DECISIONS.md](DECISIONS.md).
   that runs another flow (no loops), with device inputs so one chain serves several devices (in P6 itself). Fallback
   steps that weren't needed count as neither progress nor a warning, and a failure its fallback fixed ends "Done"
   (all user answers 2026-11-03).
+- **Step values** (user, 2026-11-12): steps give information that later steps use as placeholders, e.g. a Show message
+  "Connected to {device}" naming a particular step, composed with clickable pills; maybe a fuller way of working with
+  values. Design: [step-values/DESIGN.md](step-values/DESIGN.md), D-129 (accepted 2026-11-12, all as recommended), PLAN → M23.
 - Working name **Daze Control** (namespace `DazeControl`, exe `DazeControl.exe`, CLI `dctl.exe`); the user may rename it.
 
 ## Must keep from scd
