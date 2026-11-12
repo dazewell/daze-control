@@ -46,7 +46,8 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
   waits for the called flow by default (its result is the step's, one pop-up and one history record, loops refused
   and stopped at 8 deep) or just starts it (`wait: false`); the editor picks the flow by name; a flow can declare
   device **inputs** with defaults (`inputs:`, steps use `$name`) and a call passes devices to them, so one chain serves
-  Technics and Sony (D-064); the editor adds inputs in flow settings, offers them in device pickers, and gives a call
+  Technics and Sony (D-064); an input can be a **bound device** (`kind: bound`: Bluetooth steps use its Bluetooth side,
+  audio steps its audio side, D-125); the editor adds inputs in flow settings, offers them in device pickers, and gives a call
   one device picker per input; the Runs page expands a call into the called flow's steps · M12: `menu.show` — a
   no-focus menu of flows over every window (list or grid, normal or large), keyboard/mouse, and an Xbox pad while it is open; picking launches the flow, or with "wait" runs it nested (D-054, D-055, D-061, D-086). Not over exclusive full-screen games (#32).
 

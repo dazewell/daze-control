@@ -1525,7 +1525,7 @@ Status: accepted (user, 2026-11-11: "binding audio and BT devices - so that they
   pickers would need a second lookup. Why not new step params (`bound:`): every Bluetooth/audio step and every picker
   would grow a second setting. Why not one combined device type replacing both: Library Test, Add from Windows and the
   live lists are per kind, and other flows use the sides alone.
-- Revisit if: users want more than two sides (a dock = display + audio + USB), or a bound flow input kind in the editor.
+- Revisit if: users want more than two sides (a dock = display + audio + USB). A bound flow input kind: D-125.
 
 ## D-117 · 2026-11-11 · Pick device step: its result fills later steps' device settings as `$result:<step id>`
 Status: accepted (user, 2026-11-11: "selecting items from the library that can be then used in other steps")
@@ -1692,3 +1692,16 @@ line from check ran through connect; then "this must work in every layout mode",
 - Known limit: steps placed by hand closer than 16 DIP to a port (the detour's first step) can't be cleared by any lane;
   the line then stays as it was (fewest crossings). Auto shapes always leave more room than that.
 - Revisit if: lanes of several lines overlap (lane per line), or lines should dodge other lines.
+
+## D-125 · 2026-11-12 · A flow input can be a bound device (`kind: bound`)
+Status: accepted (user, 2026-11-12: "let's add bound devices as inputs for the Flows")
+- Decision: `FlowInput.Kind` may be `LibraryKind.Bound` (YAML `kind: bound`, editor kind "Bound device"; default and
+  passed values are bound keys). `$name` of a bound input fits Bluetooth and audio settings (`LibraryEdits.Refers`, the
+  same rule as a bound key or a `kind: bound` pick); the runner substitutes the bound key and `Library.ResolveBluetooth/
+  ResolveAudio` pick the side, so there is no second resolution path. A Bluetooth or audio input still takes a bound key.
+- Validation: a missing default is the input's error, as for every kind (the config loads; that flow keeps its last
+  good version, D-021); a step using the input whose default lacks that step's side fails like a step naming the bound
+  key (D-116). Rename follows into defaults; "Used by" counts the input, so Remove stays off.
+- Why not keep "use an audio or Bluetooth input with a bound value" (the old refusal): one input then can't feed both a
+  Bluetooth and an audio step, which is what a bound device is for. Why no "disabled input" state for a missing
+  default: no other kind has one; a disabled input would leave its steps with no device anyway.

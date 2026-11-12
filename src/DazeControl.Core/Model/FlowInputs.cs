@@ -108,6 +108,7 @@ public static class FlowInputs
             LibraryKind.Audio => "audio",
             LibraryKind.Bluetooth => "bluetooth",
             LibraryKind.Display => "layout",
+            LibraryKind.Bound => "device",
             _ => "android",
         };
         var name = stem;

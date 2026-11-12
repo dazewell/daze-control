@@ -231,8 +231,10 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   name box's placeholder), summary the given devices (a passed-through input by its name), "Its defaults", or
   "Doesn't wait".
 - **Inputs** (M13, built T13.10) in flow settings, after the pop-up toggle: "Add an input" (#60) → rows name · ×, kind
-  (Audio device / Bluetooth device / Android device / Screen layout), default (device picker). A new input is an audio
-  device with the Library's first one. Device pickers in that flow get a group "This flow's inputs" ("Output" /
+  (Audio device / Bluetooth device / Bound device / Android device / Screen layout), default (device picker; a Bound
+  device input lists only the Library's bound devices, never "From Windows", D-125). A new input is an audio
+  device with the Library's first one. Device pickers in that flow get a group "This flow's inputs" (a Bluetooth or audio
+  picker also lists the flow's Bound device inputs) ("Output" /
   "Technics unless the caller picks another") above "Library"; a step using one shows its name on the pill. Removing a
   used input, or changing its kind, writes its default into the steps, with tip #61.
 - **Menu step** (M12, built): Choices = token list of

@@ -746,8 +746,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
     /// <summary>Asks the engine what's on this PC now (on load and each time a picker opens, UX §5.4).</summary>
     public async Task RefreshDevicesAsync(LibraryKind kind)
     {
-        if (kind == LibraryKind.Display)
-            return; // layouts are captured, not listed
+        if (kind is LibraryKind.Display or LibraryKind.Bound)
+            return; // layouts are captured, bound devices made in the Library: neither is listed from Windows
         var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.Devices, Kind = LibraryDevices.PipeKind(kind) }).ConfigureAwait(false);
         if (answer is not { Ok: true, Devices: { } devices })
             return;
