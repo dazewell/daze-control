@@ -260,7 +260,10 @@ public sealed partial class FlowCanvas
             if (scene.DragTo(offset)) // the snap holds most frames still: nothing to redraw
             {
                 Translate(offset);
-                DrawLiveEdges();
+                if (scene.LiveSetChanged)
+                    DrawEdges(); // a still line started or stopped detouring round a moved step (D-124)
+                else
+                    DrawLiveEdges();
                 ShowEdgeControls(EdgeWithControls());
                 if (_dragged is not null && (InPortDot.Visibility == Visibility.Visible || OutPortDot.Visibility == Visibility.Visible))
                     ShowPorts(_dragged.Node);

@@ -315,6 +315,12 @@ public sealed partial class CanvasScene
 
     public bool IsDragging => Drag is not null;
 
+    /// <summary>
+    /// Whether the last <see cref="DragTo"/> changed which lines follow the drag: a line between steps that don't move
+    /// started or stopped detouring round a moved step (D-124), so the static set must be drawn again.
+    /// </summary>
+    public bool LiveSetChanged { get; private set; }
+
     /// <summary>The curves of the lines that follow the drag or a glide now, by (from, to): the canvas's live set.</summary>
     public IReadOnlyDictionary<(string From, string To), EdgeCurve> LiveCurves =>
         _glideCurves.Count == 0 ? _live : _live.Count == 0 ? _glideCurves : MergedLive();
@@ -334,6 +340,11 @@ public sealed partial class CanvasScene
         if (Drag is null || (Frame is not null && Frame.Offset == offset))
             return false;
         Frame = Drag.At(offset);
+        var was = _live.Count;
+        var same = true;
+        for (var i = 0; i < Frame.Routes.Count; i++)
+            same &= _live.ContainsKey((Frame.Routes[i].From, Frame.Routes[i].To));
+        LiveSetChanged = !same || was != Frame.Routes.Count;
         _live.Clear();
         for (var i = 0; i < Frame.Routes.Count; i++)
             _live[(Frame.Routes[i].From, Frame.Routes[i].To)] = Frame.Curves[i];

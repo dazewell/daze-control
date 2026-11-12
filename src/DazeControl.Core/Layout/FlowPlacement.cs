@@ -53,16 +53,90 @@ public static class FlowPlacement
             boxes.Add(box with { Bounds = box.Bounds with { X = box.Bounds.X + now.X - was.X, Y = box.Bounds.Y + now.Y - was.Y } });
         }
         var final = boxes.Where(b => b.Card is null).ToDictionary(b => b.Id, b => b.Bounds, StringComparer.Ordinal);
-        var routes = new List<EdgeRoute>(edges.Count);
-        foreach (var (from, to, when) in edges)
+        var routes = edges.Select(e => Route(e.From, e.To, e.When, final, o.Shape, o.Lines)).ToList();
+
+        // A lane round the outside may run left of or above everything: make room for it.
+        var dx = Math.Max(0, o.Padding / 2 - routes.Where(r => r.Lane is not null && IsVertical(r.StartSide)).Select(r => r.Lane!.Value).DefaultIfEmpty(double.MaxValue).Min());
+        var dy = Math.Max(0, o.Padding / 2 - routes.Where(r => r.Lane is not null && !IsVertical(r.StartSide)).Select(r => r.Lane!.Value).DefaultIfEmpty(double.MaxValue).Min());
+        if (dx > 0 || dy > 0)
         {
-            var (a, b) = (final[from], final[to]);
-            var (startSide, endSide) = Sides(a, b, o.Shape);
-            routes.Add(new EdgeRoute(from, to, when, Port(a, startSide), Port(b, endSide), null, startSide, endSide));
+            boxes = [.. boxes.Select(b => b with { Bounds = b.Bounds with { X = b.Bounds.X + dx, Y = b.Bounds.Y + dy } })];
+            routes = [.. routes.Select(r => r with
+            {
+                Start = new Point(r.Start.X + dx, r.Start.Y + dy),
+                End = new Point(r.End.X + dx, r.End.Y + dy),
+                Lane = r.Lane + (IsVertical(r.StartSide) ? dx : dy),
+            })];
         }
         var right = boxes.Count == 0 ? o.Padding : boxes.Max(b => b.Bounds.Right);
         var bottom = boxes.Count == 0 ? o.Padding : boxes.Max(b => b.Bounds.Bottom);
+        foreach (var lane in routes.Where(r => r.Lane is not null))
+        {
+            if (IsVertical(lane.StartSide))
+                right = Math.Max(right, lane.Lane!.Value);
+            else
+                bottom = Math.Max(bottom, lane.Lane!.Value);
+        }
         return new FlowArrangement(boxes, routes, auto.Columns, new Size(right + o.Padding, bottom + o.Padding));
+    }
+
+    private const double LaneClearance = 14;
+
+    private static bool IsVertical(PortSide side) => side is PortSide.Top or PortSide.Bottom;
+
+    /// <summary>
+    /// A line between two top-level boxes of <paramref name="boxes"/> (every top-level step where it is shown): by
+    /// <see cref="Sides"/> and <see cref="Port"/>, detouring round any step it would be drawn through (D-124). The
+    /// commit and the drag preview both route with it.
+    /// </summary>
+    public static EdgeRoute Route(string from, string to, EdgeWhen when, IReadOnlyDictionary<string, Rect> boxes, LayoutShape shape, LayoutLines lines)
+    {
+        ArgumentNullException.ThrowIfNull(boxes);
+        var (a, b) = (boxes[from], boxes[to]);
+        var (startSide, endSide) = Sides(a, b, shape);
+        return Clear(new EdgeRoute(from, to, when, Port(a, startSide), Port(b, endSide), null, startSide, endSide), boxes, lines);
+    }
+
+    /// <summary>How many steps other than its own two the line is drawn through (sampled).</summary>
+    private static int Hits(EdgeRoute route, IReadOnlyDictionary<string, Rect> boxes, LayoutLines lines)
+    {
+        var curve = EdgeCurve.For(route, lines);
+        var points = Enumerable.Range(1, 127).Select(i => curve.At(i / 128.0)).ToList();
+        return boxes.Count(kv => kv.Key != route.From && kv.Key != route.To
+            && points.Any(p => p.X > kv.Value.X && p.X < kv.Value.Right && p.Y > kv.Value.Y && p.Y < kv.Value.Bottom));
+    }
+
+    /// <summary>
+    /// A line drawn through a step detours (D-124): out of its port, along a lane just past every step beside its run
+    /// (the nearer side; right or below on a tie), and back in. The detour is kept only if it crosses fewer steps.
+    /// </summary>
+    private static EdgeRoute Clear(EdgeRoute route, IReadOnlyDictionary<string, Rect> boxes, LayoutLines lines)
+    {
+        var hits = Hits(route, boxes, lines);
+        if (hits == 0)
+            return route;
+        var shape = EdgeCurve.Detour(route.Start, route.End, route.StartSide, route.EndSide, 0);
+        var (c1, c2, alongX) = (shape.Control1, shape.Control2, shape.LaneIsX);
+        double Across(Point p) => alongX ? p.X : p.Y;
+        double Along(Point p) => alongX ? p.Y : p.X;
+        var (lo, hi) = (Math.Min(Along(c1), Along(c2)), Math.Max(Along(c1), Along(c2)));
+        var band = boxes.Where(kv => kv.Key != route.From && kv.Key != route.To).Select(kv => kv.Value)
+            .Where(r => alongX ? r.Bottom > lo && r.Y < hi : r.Right > lo && r.X < hi).ToList();
+        var (near, far) = (Math.Min(Across(c1), Across(c2)), Math.Max(Across(c1), Across(c2)));
+        var before = band.Select(r => alongX ? r.X : r.Y).Append(near).Min() - LaneClearance;
+        var after = band.Select(r => alongX ? r.Right : r.Bottom).Append(far).Max() + LaneClearance;
+        var mid = (near + far) / 2;
+        var best = route;
+        foreach (var lane in mid - before < after - mid ? [before, after] : new[] { after, before })
+        {
+            var tried = route with { Lane = lane };
+            var count = Hits(tried, boxes, lines);
+            if (count < hits)
+                (best, hits) = (tried, count);
+            if (hits == 0)
+                break;
+        }
+        return best;
     }
 
     /// <summary>
@@ -119,12 +193,66 @@ public static class FlowPlacement
     /// <summary>
     /// A tidy tree, top down: each step hangs under the step it waits for that runs last (its layer is one more, so
     /// the levels are the left-to-right columns), parents centred over their children, separate trees side by side.
+    /// A <b>side join</b> (D-124) is a step that also waits for an ancestor of the step it hangs under (a line that
+    /// would skip a level and run through the steps between): it goes to the right of that ancestor's branch instead,
+    /// centred up and down between the first and the last step it waits for, so every line comes in from the side.
+    /// Joins are tried one at a time in run order; one whose side place doesn't cut the lines drawn through steps
+    /// stays hung under.
     /// </summary>
     private static Dictionary<string, Point> Tree(List<string> order, Dictionary<string, Rect> top,
         List<(string From, string To, EdgeWhen When)> edges, Dictionary<string, int> layers, LayoutOptions o)
     {
         var children = Children(order, edges, layers);
-        var hasParent = children.Values.SelectMany(c => c).ToHashSet(StringComparer.Ordinal);
+        var parent = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (p, kids) in children)
+        {
+            foreach (var kid in kids)
+                parent[kid] = p;
+        }
+        bool IsAncestor(string a, string of)
+        {
+            for (var p = of; parent.TryGetValue(p, out var up); p = up)
+            {
+                if (up == a)
+                    return true;
+            }
+            return false;
+        }
+
+        var rank = order.Select((id, i) => (id, i)).ToDictionary(x => x.id, x => x.i, StringComparer.Ordinal);
+        var side = new Dictionary<string, (string First, string Last)>(StringComparer.Ordinal);
+        var at = TreeAt(order, top, children, side, layers, o);
+        var crossings = Crossings(at, top, edges, o);
+        foreach (var id in order)
+        {
+            if (crossings == 0 || !parent.TryGetValue(id, out var last))
+                continue;
+            var sources = edges.Where(e => e.To == id && e.From != last).Select(e => e.From).Distinct(StringComparer.Ordinal).ToList();
+            if (sources.Count == 0 || !sources.All(s => IsAncestor(s, last)))
+                continue;
+            var first = sources.OrderBy(s => layers.GetValueOrDefault(s)).ThenBy(s => rank[s]).First();
+            side[id] = (first, last);
+            var tried = TreeAt(order, top, children, side, layers, o);
+            var count = Crossings(tried, top, edges, o);
+            if (count < crossings)
+                (at, crossings) = (tried, count);
+            else
+                side.Remove(id);
+        }
+        return at;
+    }
+
+    /// <summary>The tidy tree for a given set of side joins (<see cref="Tree"/>).</summary>
+    private static Dictionary<string, Point> TreeAt(List<string> order, Dictionary<string, Rect> top,
+        Dictionary<string, List<string>> hung, Dictionary<string, (string First, string Last)> side,
+        Dictionary<string, int> layers, LayoutOptions o)
+    {
+        // A side join leaves the step it hung under and goes beside its first source's branch, in run order.
+        var children = hung.ToDictionary(kv => kv.Key, kv => kv.Value.Where(k => !side.ContainsKey(k)).ToList(), StringComparer.Ordinal);
+        var sides = order.ToDictionary(id => id, _ => new List<string>(), StringComparer.Ordinal);
+        foreach (var id in order.Where(side.ContainsKey))
+            sides[side[id].First].Add(id);
+        var hasParent = hung.Values.SelectMany(c => c).ToHashSet(StringComparer.Ordinal);
 
         var levels = order.Select(id => layers.GetValueOrDefault(id)).DefaultIfEmpty(0).Max() + 1;
         var levelHeight = new double[levels];
@@ -135,28 +263,34 @@ public static class FlowPlacement
             levelY[l] = levelY[l - 1] + levelHeight[l - 1] + LevelGap(o);
 
         var gap = SiblingGap(o);
+        var core = new Dictionary<string, double>(StringComparer.Ordinal);
         var span = new Dictionary<string, double>(StringComparer.Ordinal);
-        double Span(string id)
+        double Under(string id)
         {
-            if (span.TryGetValue(id, out var known))
-                return known;
             var kids = children[id];
-            var under = kids.Count == 0 ? 0 : kids.Sum(Span) + gap * (kids.Count - 1);
-            return span[id] = Math.Max(top[id].Width, under);
+            return kids.Count == 0 ? 0 : kids.Sum(Span) + gap * (kids.Count - 1);
         }
+        // Core: the step over its own children; its span adds its side joins to the right.
+        double Core(string id) => core.TryGetValue(id, out var known) ? known : core[id] = Math.Max(top[id].Width, Under(id));
+        double Span(string id) => span.TryGetValue(id, out var known) ? known : span[id] = Core(id) + sides[id].Sum(s => gap + Span(s));
+
         var at = new Dictionary<string, Point>(StringComparer.Ordinal);
         void Lay(string id, double left)
         {
-            var width = Span(id);
+            var width = Core(id);
             var l = layers.GetValueOrDefault(id);
             at[id] = new Point(left + (width - top[id].Width) / 2, levelY[l] + (levelHeight[l] - top[id].Height) / 2);
-            var kids = children[id];
-            var under = kids.Count == 0 ? 0 : kids.Sum(Span) + gap * (kids.Count - 1);
-            var x = left + (width - under) / 2;
-            foreach (var kid in kids)
+            var x = left + (width - Under(id)) / 2;
+            foreach (var kid in children[id])
             {
                 Lay(kid, x);
                 x += Span(kid) + gap;
+            }
+            x = left + width + gap;
+            foreach (var join in sides[id])
+            {
+                Lay(join, x);
+                x += Span(join) + gap;
             }
         }
         var cursor = 0.0;
@@ -165,7 +299,42 @@ public static class FlowPlacement
             Lay(root, cursor);
             cursor += Span(root) + 2 * gap;
         }
+        // Side joins move up between the first and the last step they wait for; their own branch moves with them.
+        foreach (var id in order.Where(side.ContainsKey))
+        {
+            var (first, last) = side[id];
+            var centre = (at[first].Y + top[first].Height / 2 + at[last].Y + top[last].Height / 2) / 2;
+            var dy = centre - top[id].Height / 2 - at[id].Y;
+            void Shift(string s)
+            {
+                at[s] = new Point(at[s].X, at[s].Y + dy);
+                foreach (var k in children[s].Concat(sides[s]))
+                    Shift(k);
+            }
+            Shift(id);
+        }
         return at;
+    }
+
+    /// <summary>
+    /// How many (line, step) pairs cross in the tree: a line drawn (Curved or Right angles) through a step that is
+    /// neither of its ends.
+    /// </summary>
+    private static int Crossings(Dictionary<string, Point> at, Dictionary<string, Rect> top,
+        List<(string From, string To, EdgeWhen When)> edges, LayoutOptions o)
+    {
+        var boxes = at.ToDictionary(kv => kv.Key, kv => new Rect(kv.Value.X, kv.Value.Y, top[kv.Key].Width, top[kv.Key].Height), StringComparer.Ordinal);
+        var count = 0;
+        foreach (var (from, to, when) in edges)
+        {
+            var (a, b) = (boxes[from], boxes[to]);
+            var (s, e) = Sides(a, b, LayoutShape.Tree);
+            var curve = EdgeCurve.For(new EdgeRoute(from, to, when, Port(a, s), Port(b, e), null, s, e), o.Lines);
+            var points = Enumerable.Range(1, 63).Select(i => curve.At(i / 64.0)).ToList();
+            count += boxes.Count(kv => kv.Key != from && kv.Key != to
+                && points.Any(p => p.X > kv.Value.X && p.X < kv.Value.Right && p.Y > kv.Value.Y && p.Y < kv.Value.Bottom));
+        }
+        return count;
     }
 
     /// <summary>

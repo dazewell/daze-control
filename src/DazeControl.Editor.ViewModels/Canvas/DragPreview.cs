@@ -15,6 +15,7 @@ public sealed class DragPreview
     private readonly Dictionary<string, NodeBox> _moved;
     private readonly Dictionary<string, Rect> _frozen;
     private readonly List<EdgeRoute> _touching;
+    private readonly List<string> _topLevel;
     private readonly LayoutShape _shape;
     private readonly Point _lead, _topLeft;
     private readonly double _padding;
@@ -31,6 +32,7 @@ public sealed class DragPreview
         var leaders = movers.Select(id => _moved.GetValueOrDefault(id)).OfType<NodeBox>().ToList();
         _lead = leaders.Count == 0 ? default : new Point(leaders[0].Bounds.X, leaders[0].Bounds.Y);
         _topLeft = leaders.Count == 0 ? default : new Point(leaders.Min(b => b.Bounds.X), leaders.Min(b => b.Bounds.Y));
+        _topLevel = [.. frozen.Boxes.Where(b => b.Card is null).Select(b => b.Id)];
         _touching = [.. frozen.Edges.Where(e => top.Contains(e.From) || top.Contains(e.To))];
         StaticEdges = [.. frozen.Edges.Where(e => !top.Contains(e.From) && !top.Contains(e.To))];
         Touching = _touching.Select(e => (e.From, e.To)).ToHashSet();
@@ -63,12 +65,22 @@ public sealed class DragPreview
         var rects = new Dictionary<string, Rect>(_moved.Count, StringComparer.Ordinal);
         foreach (var (id, box) in _moved)
             rects[id] = box.Bounds with { X = box.Bounds.X + offset.X, Y = box.Bounds.Y + offset.Y };
+        var top = new Dictionary<string, Rect>(_topLevel.Count, StringComparer.Ordinal);
+        foreach (var id in _topLevel)
+            top[id] = BoundsOf(id, rects);
         var routes = new List<EdgeRoute>(_touching.Count);
         foreach (var edge in _touching)
+            routes.Add(FlowPlacement.Route(edge.From, edge.To, edge.When, top, _shape, Lines));
+        // A line between steps that don't move detours round a moved step it would cross, and drops a detour the move
+        // made needless (D-124): those follow the drag too, so the drop shows what the commit draws.
+        var moved = _moved.Values.Where(b => b.Card is null).Select(b => rects[b.Id]).ToList();
+        foreach (var edge in StaticEdges)
         {
-            var (a, b) = (BoundsOf(edge.From, rects), BoundsOf(edge.To, rects));
-            var (startSide, endSide) = FlowPlacement.Sides(a, b, _shape);
-            routes.Add(new EdgeRoute(edge.From, edge.To, edge.When, FlowPlacement.Port(a, startSide), FlowPlacement.Port(b, endSide), null, startSide, endSide));
+            if (edge.Lane is null && !moved.Any(r => Near(EdgeCurve.For(edge, Lines), r)))
+                continue;
+            var route = FlowPlacement.Route(edge.From, edge.To, edge.When, top, _shape, Lines);
+            if (route != edge)
+                routes.Add(route);
         }
         return new DragFrame(offset, rects, routes, routes.ConvertAll(r => EdgeCurve.For(r, Lines)));
     }
@@ -81,6 +93,13 @@ public sealed class DragPreview
     }
 
     private Dictionary<(string, string), EdgeCurve>? _staticCurves;
+
+    /// <summary>Whether a box comes within reach of a line's bounding box (a cheap test before routing it again).</summary>
+    private static bool Near(EdgeCurve curve, Rect r)
+    {
+        var points = curve.IsOrthogonal ? curve.Corners : [curve.Start, curve.Control1, curve.Control2, curve.End];
+        return r.X <= points.Max(p => p.X) && r.Right >= points.Min(p => p.X) && r.Y <= points.Max(p => p.Y) && r.Bottom >= points.Min(p => p.Y);
+    }
 
     private Rect BoundsOf(string id, Dictionary<string, Rect> rects) =>
         rects.TryGetValue(id, out var r) ? r : _frozen[id];

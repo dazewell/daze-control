@@ -1673,3 +1673,22 @@ Status: accepted (user, 2026-11-11: "let's add an ability to add any library ite
   duplicates it. Why not a `manual: true` flag: nothing behaves differently, and a flag would block the merge with the
   live device. No `dctl library` commands exist, so none were added.
 - Revisit if: users want to type a screen layout (monitor names) or name programs once (then a Programs kind, D-041).
+
+## D-124 · 2026-11-12 · No line through a step in any shape: Tree side joins, lane detours elsewhere
+Status: accepted (user's report: check → connect (if it fails) and both → set default stacked set under connect, and the
+line from check ran through connect; then "this must work in every layout mode", hand placement too if cheap)
+- Rule: no line is drawn through a step other than its two ends (sampled on the drawn line, Curved or Right angles).
+- Tree, by placement: a **side join** (a step that also waits for an ancestor of the step it hangs under, i.e. a line
+  that skips a level) goes right of its first source's branch, centred up and down between its first and last source,
+  so its lines fan in from the side; its own branch hangs under it. Joins are tried one at a time in run order and kept
+  only when they cut the crossings, so plain trees and diamonds lay out as before.
+- Every shape and hand placement, by routing (`FlowPlacement.Route`): a line that still crosses a step gets a lane
+  detour (`EdgeRoute.Lane`): one step out of its port, along a lane 14 DIP past every step beside its run (nearer side;
+  right/below on a tie), one step into the target. Top to bottom (rows are the columns) and Circle rely on it; the
+  flow shifts right/down if a lane would leave the canvas. Left to right with nothing placed keeps D-111 unchanged.
+  A drag re-routes still lines the moved step would hit, so the drop shows what the commit draws.
+- Why not move steps in Top to bottom, Circle or hand placement: their places are the shape's (rows = columns, ring =
+  run order) or the user's. Why not dummy-node layers: a column/row of empty slots per long line (D-111).
+- Known limit: steps placed by hand closer than 16 DIP to a port (the detour's first step) can't be cleared by any lane;
+  the line then stays as it was (fewest crossings). Auto shapes always leave more room than that.
+- Revisit if: lanes of several lines overlap (lane per line), or lines should dodge other lines.

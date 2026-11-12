@@ -400,4 +400,39 @@ public sealed class CanvasMotionTests : IDisposable
         _canvas.ReportSize(first.Id, 280, 56); // renamed: its neighbours glide
         Assert.True(_canvas.Scene.IsMoving);
     }
+
+    [Fact]
+    public void TreeReLayoutOfAJoinGlidesOnceThenStaysPut()
+    {
+        // The user's flow (D-124): connect only if check fails, set after both.
+        var folder = Path.Combine(_folder, "join");
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "config.yaml");
+        File.WriteAllText(path, """
+            version: 1
+            flows:
+              j:
+                name: Join
+                nodes:
+                  - { id: check, step: wait, with: { duration: 1s } }
+                  - { id: connect, step: wait, with: { duration: 1s }, after: [{ id: check, when: failure }] }
+                  - { id: set, step: wait, with: { duration: 1s }, after: [check, connect] }
+            """);
+        using var session = new ConfigSession(new ConfigStore(path, Path.Combine(folder, "backups"), _time), _time, action => action());
+        session.Load();
+        using var store = new EditorSettingsStore(Path.Combine(folder, "editor.json"), _time);
+        using var canvas = new FlowCanvasViewModel(session, "j", settings: store) { Motion = () => On };
+
+        canvas.Arrange(LayoutShape.Tree);
+        Assert.True(canvas.Scene.IsMoving);
+        canvas.Scene.Settle();
+        Rect At(string id) => canvas.Find(id)!.Bounds;
+        Assert.True(At("set").X > At("connect").Right);
+        Assert.True(At("set").Y < At("connect").Y && At("set").Bottom > At("check").Bottom);
+        var laid = new[] { At("check"), At("connect"), At("set") };
+
+        canvas.Arrange(LayoutShape.Tree); // again: nothing moves
+        Assert.False(canvas.Scene.IsMoving);
+        Assert.Equal(laid, new[] { At("check"), At("connect"), At("set") });
+    }
 }
