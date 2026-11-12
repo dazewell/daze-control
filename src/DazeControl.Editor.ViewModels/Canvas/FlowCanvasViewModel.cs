@@ -137,7 +137,14 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             ? card.Members.Count > 0 && card.Members.All(m => Finished(_run?.GetValueOrDefault(m)))
             : Finished(_run?.GetValueOrDefault(id));
         foreach (var edge in Edges)
-            edge.IsLit = _run is not null && SourceFinished(edge.From);
+        {
+            var lit = _run is not null && SourceFinished(edge.From);
+            if (edge.IsLit != lit)
+            {
+                edge.IsLit = lit;
+                EdgeVersion++;
+            }
+        }
         OnPropertyChanged(nameof(IsShowingRun));
     }
 
@@ -217,7 +224,22 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     /// <summary>Any flow of the open config by id (a called or calling flow's names for live runs).</summary>
     internal Flow? FlowById(string id) => _session.Current.Flows.FirstOrDefault(f => f.Id == id);
 
-    public CanvasNodeViewModel? Find(string id) => Nodes.FirstOrDefault(n => n.Id == id);
+    public CanvasNodeViewModel? Find(string id) => id is not null && _nodeById.TryGetValue(id, out var node) ? node : null;
+
+    private readonly Dictionary<string, CanvasNodeViewModel> _nodeById = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string From, string To), CanvasEdgeViewModel> _edgeByKey = [];
+
+    /// <summary>The retained scene (D-119 a): boxes and lines by id, the hit-test index, the live drag.</summary>
+    public CanvasScene Scene { get; } = new();
+
+    /// <summary>What the last re-layout changed; read when <see cref="Arrangement"/> is raised.</summary>
+    public SceneDiff LastDiff { get; private set; } = SceneDiff.Empty;
+
+    /// <summary>
+    /// Bumped whenever how any line is drawn changes (added, removed, re-routed, restyled, selected, hovered, lit), so
+    /// the canvas redraws edge figures only then (T21.6).
+    /// </summary>
+    public int EdgeVersion { get; private set; }
 
     /// <summary>The control measured a pill; a changed size re-lays out (text scaling, UX §5.8 #5).</summary>
     public void ReportSize(string id, double width, double height)
@@ -275,8 +297,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             _selected.Clear();
             _selectedEdges.Clear();
         }
-        foreach (var node in Nodes.Where(n => n.Bounds.Intersects(area)))
-            _selected.Add(node.Id);
+        foreach (var item in Scene.ItemsIn(area))
+            _selected.Add(item.Id);
         foreach (var edge in Edges.Where(e => area.Contains(e.Curve.Start) && area.Contains(e.Curve.Tip)))
             _selectedEdges.Add((edge.From, edge.To));
         ApplySelection();
@@ -306,7 +328,14 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         set
         {
             foreach (var edge in Edges)
-                edge.IsHovered = ReferenceEquals(edge, value);
+            {
+                var hovered = ReferenceEquals(edge, value);
+                if (edge.IsHovered != hovered)
+                {
+                    edge.IsHovered = hovered;
+                    EdgeVersion++;
+                }
+            }
         }
     }
 
@@ -336,13 +365,11 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>The topmost node under a content point: a member before its card.</summary>
-    public CanvasNodeViewModel? HitTest(Point p) =>
-        Nodes.Where(n => n.Bounds.Contains(p)).OrderBy(n => n.Kind == CanvasNodeKind.Card ? 1 : 0).FirstOrDefault();
+    public CanvasNodeViewModel? HitTest(Point p) => Scene.HitTest(p) is { } item ? Find(item.Id) : null;
 
     /// <summary>The nearest edge within <paramref name="band"/> DIP (12 mouse, 20 touch; UX §5.8 #2).</summary>
     public CanvasEdgeViewModel? HitTestEdge(Point p, double band = 12) =>
-        Edges.Select(e => (Edge: e, Distance: e.Curve.DistanceTo(p))).Where(x => x.Distance <= band)
-            .OrderBy(x => x.Distance).Select(x => x.Edge).FirstOrDefault();
+        Scene.HitTestEdge(p, band) is { } edge ? _edgeByKey.GetValueOrDefault(edge.Key) : null;
 
     // ---- Keyboard: one tab stop, roving focus (UX §5.2) ----
 
@@ -488,9 +515,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     /// <summary>The step or card whose output port is under <paramref name="p"/>; members have none (ports on the card).</summary>
     public CanvasNodeViewModel? OutPortAt(Point p, double radius = PortRadius) =>
-        Nodes.Where(n => n.Kind != CanvasNodeKind.Member)
-            .Select(n => (Node: n, Distance: Distance(OutPortOf(n), p)))
-            .Where(x => x.Distance <= radius).OrderBy(x => x.Distance).Select(x => x.Node).FirstOrDefault();
+        Scene.OutPortAt(p, radius) is { } item ? Find(item.Id) : null;
 
     /// <summary>
     /// Where a connect drag released at <paramref name="p"/> ends: the node under it (a member counts as its card), else
@@ -498,9 +523,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     /// </summary>
     public CanvasNodeViewModel? ConnectTargetAt(Point p, double radius = PortRadius)
     {
-        var node = HitTest(p) ?? Nodes.Where(n => n.Kind != CanvasNodeKind.Member)
-            .Select(n => (Node: n, Distance: Distance(InPortOf(n), p)))
-            .Where(x => x.Distance <= radius).OrderBy(x => x.Distance).Select(x => x.Node).FirstOrDefault();
+        var node = HitTest(p) ?? (Scene.InPortAt(p, radius) is { } item ? Find(item.Id) : null);
         return node?.CardId is { } card ? Find(card) : node;
     }
 
@@ -744,8 +767,6 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         return refusal;
     }
 
-    private static double Distance(Point a, Point b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
-
     // ---- Edits ----
 
     // ---- Layout menu (D-067) ----
@@ -850,8 +871,13 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             return null;
         var options = LayoutOptions with { Placed = Frozen() };
         var frozen = FlowPlacement.Arrange(flow, id => _measured.GetValueOrDefault(id, DefaultPillSize), options);
-        return new DragPreview(frozen, [.. moving.Select(n => n.Id)], options);
+        var preview = new DragPreview(frozen, [.. moving.Select(n => n.Id)], options);
+        Scene.BeginDrag(preview);
+        return preview;
     }
+
+    /// <summary>The drag ended (after its commit, or with none): every box and line is shown as laid out again.</summary>
+    public void EndMove() => Scene.EndDrag();
 
     /// <summary>Every top-level step and card where it is now: what the first move freezes (D-115).</summary>
     private Dictionary<string, Point> Frozen() =>
@@ -1174,23 +1200,30 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             .Select(p => NodeOf(flow, p.Path)).OfType<string>().ToHashSet(StringComparer.Ordinal);
         var nodes = flow.Nodes.GroupBy(n => n.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         var titles = new Dictionary<string, string>(StringComparer.Ordinal);
+        var mayFail = flow.Nodes.Where(n => EffectivePolicy(n, _session.Current.Settings.StepDefaults) == FailurePolicy.Ignore).Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
+        var cards = flow.Nodes.OfType<GroupNode>().Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
+        LastDiff = Scene.Apply(_arrangement, new SceneSetup(options.Lines, options.Shape, cards, mayFail,
+            id => nodes.TryGetValue(id, out var node) ? (node, problems.Contains(id)) : null));
 
-        var boxes = _arrangement.Boxes.OrderBy(b => b.Card is null ? 0 : 1).ToList();
         for (var i = Nodes.Count - 1; i >= 0; i--)
         {
-            if (!boxes.Any(b => b.Id == Nodes[i].Id))
+            if (Scene.Find(Nodes[i].Id) is null)
+            {
+                _nodeById.Remove(Nodes[i].Id);
                 Nodes.RemoveAt(i);
+            }
         }
-        for (var i = 0; i < boxes.Count; i++)
+        for (var i = 0; i < Scene.Items.Count; i++)
         {
-            var box = boxes[i];
+            var box = Scene.Items[i].Box;
             var vm = Find(box.Id);
             if (vm is null)
             {
                 vm = new CanvasNodeViewModel(box.Id);
+                _nodeById[box.Id] = vm;
                 Nodes.Insert(i, vm);
             }
-            else if (Nodes.IndexOf(vm) != i)
+            else if (!ReferenceEquals(Nodes[i], vm))
             {
                 Nodes.Move(Nodes.IndexOf(vm), i);
             }
@@ -1203,13 +1236,13 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         foreach (var vm in Nodes)
             vm.SetWaitsFor(string.Join(", ", _arrangement.Edges.Where(e => e.To == vm.Id).Select(e => titles.GetValueOrDefault(e.From, e.From))));
 
-        var mayFail = flow.Nodes.Where(n => EffectivePolicy(n, _session.Current.Settings.StepDefaults) == FailurePolicy.Ignore).Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
-        Edges.Clear();
-        foreach (var route in _arrangement.Edges)
-            Edges.Add(new CanvasEdgeViewModel(route, mayFail.Contains(route.To), options.Lines));
+        // Lines keep their view model while they exist (hover and selection stay on them); only changed ones restyle.
+        SyncEdges();
+        if (LastDiff.EdgesChanged)
+            EdgeVersion++;
 
         _selected.RemoveWhere(id => Find(id) is null);
-        _selectedEdges.RemoveWhere(k => !Edges.Any(e => e.From == k.From && e.To == k.To));
+        _selectedEdges.RemoveWhere(k => !_edgeByKey.ContainsKey(k));
         if (FocusedId is not null && Find(FocusedId) is null)
             FocusedId = null;
         SetFocus(FocusedId);
@@ -1225,6 +1258,33 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             .ThenBy(p => p.NodeId is null ? -1 : Find(p.NodeId)?.Column ?? int.MaxValue)
             .ThenBy(p => p.NodeId is null ? 0 : Find(p.NodeId)?.Y ?? 0)];
         OnPropertyChanged(nameof(Arrangement));
+    }
+
+    private void SyncEdges()
+    {
+        for (var i = Edges.Count - 1; i >= 0; i--)
+        {
+            var key = (Edges[i].From, Edges[i].To);
+            if (Scene.FindEdge(key.From, key.To) is null)
+            {
+                _edgeByKey.Remove(key);
+                Edges.RemoveAt(i);
+            }
+        }
+        for (var i = 0; i < Scene.Edges.Count; i++)
+        {
+            var edge = Scene.Edges[i];
+            if (!_edgeByKey.TryGetValue(edge.Key, out var vm))
+            {
+                vm = new CanvasEdgeViewModel(edge);
+                _edgeByKey[edge.Key] = vm;
+                Edges.Insert(i, vm);
+                continue;
+            }
+            if (!ReferenceEquals(Edges[i], vm))
+                Edges.Move(Edges.IndexOf(vm), i);
+            vm.Restyle(edge);
+        }
     }
 
     /// <summary>The step or card a problem path ("flows.f.nodes.bt.with.device") is about; null for the flow itself.</summary>
@@ -1259,7 +1319,14 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         foreach (var node in Nodes)
             node.IsSelected = _selected.Contains(node.Id);
         foreach (var edge in Edges)
-            edge.IsSelected = _selectedEdges.Contains((edge.From, edge.To)) || (_selected.Contains(edge.From) && _selected.Contains(edge.To));
+        {
+            var selected = _selectedEdges.Contains((edge.From, edge.To)) || (_selected.Contains(edge.From) && _selected.Contains(edge.To));
+            if (edge.IsSelected != selected)
+            {
+                edge.IsSelected = selected;
+                EdgeVersion++;
+            }
+        }
         OnPropertyChanged(nameof(SelectedIds));
     }
 

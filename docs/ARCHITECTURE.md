@@ -399,9 +399,20 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   On release the VM commits first; `EndGesture` then redraws the lines as committed and zeroes the translation in the
   same tick, and `NodeLayer` has no `RepositionThemeTransition`, so a drop doesn't move (T21.3). `NodeView` re-places itself on
   X/Y/Width/Height and redraws content for anything else; semantic zoom fades summary/badge/count by `Opacity`, so pill
-  sizes never change with zoom. A commit is still a full `Sync` (re-arrange, new edge VMs, outline). M21 still adds a pure scene that absorbs
-  `DragPreview`, diff-based view updates, a camera transform instead of the
-  `ScrollViewer` (after a spike), and FLIP reflow. XAML pills, batched edge paths and the UIA peers stay.
+  sizes never change with zoom. Scene (T21.6): `Canvas/CanvasScene` (pure) holds the boxes by id (O(1) `Find`; top-level
+  first, then members, = `Nodes` order), the lines with curve and style, and four uniform 256-DIP grids (`SpatialGrid`:
+  boxes, edge reach rects, out- and in-ports) rebuilt whole on each `Apply`; `HitTest`, `HitTestEdge`, `OutPortAt`,
+  `InPortAt` and `ItemsIn` (marquee) return exactly what the old full scans returned, ties included (`CanvasSceneTests`,
+  random scenes vs brute force). `Sync` still re-arranges, then `Scene.Apply(arrangement, SceneSetup)` returns a
+  `SceneDiff` (added, removed, moved, resized, content changed = kind/card/(node, problem) token, edges added/removed/
+  re-routed/restyled) exposed as `LastDiff`; node and edge VMs are kept per id (edges `Restyle` in place, so hover and
+  selection stay on them). The canvas, on `Arrangement`, refreshes only added/changed views and places moved/resized ones
+  (content changes already reached views through their node's events), and redraws edge figures only when
+  `EdgeVersion` moved (bumped by edge diffs and by selection, hover and run-lit changes); chips are kept per edge in both
+  sets and only moved. The transient layer is the scene's: `BeginMove` puts the `DragPreview` in `Scene.Drag`, `DragTo`
+  makes the frame and `LiveCurves`, `ShownBounds`/`ShownCurve` are what is drawn now, `EndMove` clears it (T21.8 adds
+  tweens here). M21 still adds a camera transform instead of the `ScrollViewer` (after a spike) and FLIP reflow. XAML
+  pills, batched edge paths and the UIA peers stay.
 - Canvas edits live in Core: `FlowGraph` (connect/disconnect/`when`, refusals: exists, loop, same card) and
   `FlowEdits` (group/ungroup, take out — a card under 2 members dissolves —, run together/after on drop).
   `FlowTidy` (Layout › "Untangle lines", was Tidy up, X-006) cuts crossings with barycentre sweeps; nodes only

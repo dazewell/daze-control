@@ -76,7 +76,8 @@ internal abstract class NodeView : Grid
     protected static bool IsUnseen(string? property) =>
         property is nameof(CanvasNodeViewModel.Column) or nameof(CanvasNodeViewModel.Row);
 
-    protected virtual void Place()
+    /// <summary>Puts the view where its node is laid out (also called for every box a re-layout moved, T21.6).</summary>
+    public virtual void Place()
     {
         Microsoft.UI.Xaml.Controls.Canvas.SetLeft(this, Node.X);
         Microsoft.UI.Xaml.Controls.Canvas.SetTop(this, Node.Y);
@@ -286,7 +287,7 @@ internal sealed class CardView : NodeView
         _shape.StrokeDashArray = Node.MayFail ? Theme.Dashes(4, 2) : null;
     }
 
-    protected override void Place()
+    public override void Place()
     {
         base.Place();
         Height = Node.Height;

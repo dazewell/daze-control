@@ -45,24 +45,38 @@ public sealed partial class FlowCanvas
     {
         if (_viewModel is null)
             return;
-        ChipLayer.Children.Clear();
-        var edges = _preview is { } preview
+        _drawnEdgeVersion = _viewModel.EdgeVersion;
+        var edges = _viewModel.Scene.Drag is { } preview
             ? _viewModel.Edges.Where(e => !preview.Touching.Contains((e.From, e.To))).Select(e => (e, preview.StaticCurve(e.From, e.To) ?? e.Curve))
             : _viewModel.Edges.Select(e => (e, e.Curve));
-        Draw(StaticPaths, edges, ChipLayer, null);
+        Draw(StaticPaths, edges, ChipLayer, _chips);
         DrawLiveEdges();
         ShowEdgeControls(EdgeWithControls());
+    }
+
+    /// <summary>
+    /// After a re-layout or a selection change: the edge figures only when a line was added, removed, re-routed or
+    /// restyled since they were drawn (T21.6); the "+"/"×" pair always follows.
+    /// </summary>
+    private void RedrawEdges()
+    {
+        if (_viewModel is null)
+            return;
+        if (_viewModel.EdgeVersion != _drawnEdgeVersion || _viewModel.Scene.IsDragging)
+            DrawEdges();
+        else
+            ShowEdgeControls(EdgeWithControls());
     }
 
     /// <summary>The lines touching the dragged steps at the current frame, their arrowheads and chips (chips kept per edge).</summary>
     private void DrawLiveEdges()
     {
-        if (_viewModel is null || _liveCurves.Count == 0)
+        if (_viewModel is null || _viewModel.Scene.LiveCurves is not { Count: > 0 } curves)
             return;
-        var live = new List<(CanvasEdgeViewModel, DazeControl.Core.Layout.EdgeCurve)>(_liveCurves.Count);
+        var live = new List<(CanvasEdgeViewModel, DazeControl.Core.Layout.EdgeCurve)>(curves.Count);
         foreach (var edge in _viewModel.Edges)
         {
-            if (_liveCurves.TryGetValue((edge.From, edge.To), out var curve))
+            if (curves.TryGetValue((edge.From, edge.To), out var curve))
                 live.Add((edge, curve));
         }
         Draw(LivePaths, live, LiveChipLayer, _liveChips);
@@ -75,18 +89,31 @@ public sealed partial class FlowCanvas
             path.Data = null;
         LiveChipLayer.Children.Clear();
         _liveChips.Clear();
-        _liveCurves.Clear();
+    }
+
+    /// <summary>Drops every kept chip (a new view model or theme): the next draw makes them again.</summary>
+    private void ForgetChips()
+    {
+        ChipLayer.Children.Clear();
+        _chips.Clear();
+        _drawnEdgeVersion = -1;
     }
 
     /// <summary>The curve an edge is drawn with now: live while it follows a drag, frozen while a drag runs, else committed.</summary>
     private DazeControl.Core.Layout.EdgeCurve CurveOf(CanvasEdgeViewModel edge) =>
-        _liveCurves.TryGetValue((edge.From, edge.To), out var live) ? live
-        : _preview?.StaticCurve(edge.From, edge.To) ?? edge.Curve;
+        _viewModel?.Scene.LiveCurves.TryGetValue((edge.From, edge.To), out var live) == true ? live
+        : _viewModel?.Scene.Drag?.StaticCurve(edge.From, edge.To) ?? edge.Curve;
 
+    /// <summary>
+    /// One set of paths from <paramref name="edges"/>. Chips are kept per edge in <paramref name="keep"/>: a drawn
+    /// edge's chip only moves (made once, or again when its text or colour changed), an edge not drawn loses its chip,
+    /// so hover and selection restyle lines without recreating chips (T21.6).
+    /// </summary>
     private static void Draw(EdgePaths paths, IEnumerable<(CanvasEdgeViewModel Edge, DazeControl.Core.Layout.EdgeCurve Curve)> edges,
-        XamlCanvas chips, Dictionary<(string, string), Border>? keep)
+        XamlCanvas chips, Dictionary<(string, string), Border> keep)
     {
         var curves = paths.All.ToDictionary(p => p, _ => new PathGeometry());
+        var drawn = new HashSet<(string, string)>();
         foreach (var (edge, c) in edges)
         {
             // During a run an edge turns accent once its source finished; hover/selected is 2 px accent (UX §5.3).
@@ -120,12 +147,23 @@ public sealed partial class FlowCanvas
 
             if (edge.Chip is not { } text)
                 continue;
-            if (keep is null)
-                chips.Children.Add(Chip(text, c.Midpoint, edge.Style == EdgeStyle.IfFails));
-            else if (keep.TryGetValue((edge.From, edge.To), out var chip))
-                PlaceChip(chip, c.Midpoint); // a live chip only moves: no new element per frame
-            else
-                chips.Children.Add(keep[(edge.From, edge.To)] = Chip(text, c.Midpoint, edge.Style == EdgeStyle.IfFails));
+            var key = (edge.From, edge.To);
+            var look = (text, edge.Style == EdgeStyle.IfFails);
+            drawn.Add(key);
+            if (keep.TryGetValue(key, out var chip) && chip.Tag is ValueTuple<string, bool> was && was == look)
+            {
+                PlaceChip(chip, c.Midpoint); // a kept chip only moves: no new element per frame or per hover
+                continue;
+            }
+            if (chip is not null)
+                chips.Children.Remove(chip);
+            chips.Children.Add(keep[key] = Chip(text, c.Midpoint, look.Item2));
+            keep[key].Tag = look;
+        }
+        foreach (var gone in keep.Keys.Where(k => !drawn.Contains(k)).ToList())
+        {
+            chips.Children.Remove(keep[gone]);
+            keep.Remove(gone);
         }
         paths.Selected.Stroke = paths.SelectedArrows.Fill = Theme.Selection;
         foreach (var (path, geometry) in curves)
