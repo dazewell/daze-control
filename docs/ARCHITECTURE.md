@@ -365,7 +365,9 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   `FlowLayout.Arrange` for left to right with nothing placed, else moves its top-level boxes into the shape
   (members follow their card), applies `LayoutOptions.Placed` and routes edges by `Sides` (any side; `EdgeCurve`
   bends at `BendY` or one `Elbow`). Tree moves a join that skips a level beside its chain when that cuts the
-  sampled line/step crossings (`Tree` → `TreeAt` + `Crossings`, D-124). The VM's `MoveBy` / `Arrange` / `ResetLayout` change `FlowViewSettings` through
+  sampled line/step crossings (`Tree` → `TreeAt` + `Crossings`); then every line goes through `Route`, which gives one
+  still crossing a step an `EdgeRoute.Lane` detour (`EdgeCurve.Detour`); `DragPreview.At` routes the same way and adds
+  still lines it re-routes to the frame (`CanvasScene.LiveSetChanged` redraws the static set) (D-124). The VM's `MoveBy` / `Arrange` / `ResetLayout` change `FlowViewSettings` through
   `ChangeView`; the undo stack holds `UndoEntry(Flow, View?)`, so view steps and flow edits share one history.
   Layout menu (D-067): `LayoutOptions.Of(wrapAfter, spacing, align, lines)` (Compact 40/8, Normal 64/16, Roomy
   96/32 column/row gaps). The canvas VM reads this flow's `FlowViewSettings` at every `Sync` (`SetLayout`,

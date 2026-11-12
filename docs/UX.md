@@ -128,9 +128,11 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   step out afresh. Dragging a step, card or the selection to empty canvas leaves it there (8-DIP grid); the other steps
   stay put. While steps are placed by hand no shape is ticked, "Arrange again" lays them out in the shape, and Wrap,
   Spacing, Line up and Untangle show "Placed by hand". Moves, Arrange and Reset layout undo with Ctrl+Z.
-  Tree hangs each step under the step it waits for that runs last; a step that also waits for an earlier step of
-  that chain (a line that would skip a level, e.g. check → connect if it fails, both → set default) sits to the right
-  of the chain, centred between them, with both lines coming in from the side (D-124).
+  No line is ever drawn through a step (D-124). Tree hangs each step under the step it waits for that runs last; a
+  step that also waits for an earlier step of that chain (e.g. check → connect if it fails, both → set default) sits to
+  the right of the chain, centred between them, both lines coming in from the side. In every shape, and between steps
+  placed by hand (nothing moves), a line that would still cross a step takes a right-angled detour just past the steps
+  in its way; dragging a step onto a line re-routes it live.
 
 ## 5.3 Visual language
 - **Buttons (D-121):** all at least 32 DIP tall (`ControlHeight`), so neighbours line up. Text and icon + text buttons: default

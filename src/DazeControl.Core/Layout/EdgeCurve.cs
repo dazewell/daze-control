@@ -36,8 +36,16 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
     /// <summary>The one corner of a right-angled edge between a horizontal and a vertical side (D-115).</summary>
     public Point? Elbow { get; init; }
 
+    /// <summary>
+    /// A detour's lane (D-124): x when <see cref="LaneIsX"/> (between vertical sides), else y. The line steps out of its
+    /// port to <see cref="Control1"/>, runs along the lane, and steps back in from <see cref="Control2"/>.
+    /// </summary>
+    public double? Lane { get; init; }
+
+    public bool LaneIsX { get; init; }
+
     /// <summary>Drawn as straight runs with rounded corners (<see cref="RoundedSegments"/>), not a Bézier.</summary>
-    public bool IsOrthogonal => WrapLaneY is not null || BendX is not null || BendY is not null || Elbow is not null;
+    public bool IsOrthogonal => WrapLaneY is not null || BendX is not null || BendY is not null || Elbow is not null || Lane is not null;
 
     /// <summary>The drawn shape of a laid-out edge for the flow's Lines choice.</summary>
     public static EdgeCurve For(EdgeRoute route, LayoutLines lines)
@@ -45,6 +53,8 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
         ArgumentNullException.ThrowIfNull(route);
         if (route.WrapLaneY is { } lane)
             return Wrapped(route.Start, route.End, lane);
+        if (route.Lane is { } detour)
+            return Detour(route.Start, route.End, route.StartSide, route.EndSide, detour);
         return lines == LayoutLines.RightAngles
             ? RightAngled(route.Start, route.End, route.StartSide, route.EndSide)
             : Between(route.Start, route.End, route.StartSide, route.EndSide);
@@ -90,6 +100,19 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
         return new EdgeCurve(start, start, end, end, tip) { BendY = down >= 2 * WrapStep ? (start.Y + end.Y) / 2 : start.Y + n.Y * WrapStep };
     }
 
+    /// <summary>
+    /// Round the steps in the way (D-124): one <see cref="WrapStep"/> out of the start port, along the lane (an x when
+    /// the start side is vertical, else a y), one step out from the target's port, and in.
+    /// </summary>
+    public static EdgeCurve Detour(Point start, Point tip, PortSide startSide, PortSide endSide, double lane)
+    {
+        var end = ArrowBase(tip, endSide);
+        Point n1 = Normal(startSide), n2 = Normal(endSide);
+        var outOf = new Point(start.X + n1.X * WrapStep, start.Y + n1.Y * WrapStep);
+        var into = new Point(tip.X + n2.X * WrapStep, tip.Y + n2.Y * WrapStep);
+        return new EdgeCurve(start, outOf, into, end, tip) { Lane = lane, LaneIsX = !IsHorizontal(startSide) };
+    }
+
     /// <summary>A Bézier leaving <paramref name="startSide"/> and entering <paramref name="endSide"/> straight on (D-115).</summary>
     public static EdgeCurve Between(Point start, Point tip, PortSide startSide, PortSide endSide)
     {
@@ -132,6 +155,12 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
                 return [Start, new(Start.X, bendY), new(End.X, bendY), End];
             if (Elbow is { } elbow)
                 return [Start, elbow, End];
+            if (Lane is { } detour)
+            {
+                return LaneIsX
+                    ? [Start, Control1, new(detour, Control1.Y), new(detour, Control2.Y), Control2, End]
+                    : [Start, Control1, new(Control1.X, detour), new(Control2.X, detour), Control2, End];
+            }
             if (WrapLaneY is not { } lane)
                 return [Start, End];
             var outX = Start.X + WrapStep;
@@ -171,6 +200,7 @@ public readonly record struct EdgeCurve(Point Start, Point Control1, Point Contr
         : BendX is { } bend ? new(bend, (Start.Y + End.Y) / 2)
         : BendY is { } bendY ? new((Start.X + End.X) / 2, bendY)
         : Elbow is { } elbow ? elbow
+        : Lane is not null ? new((Corners[2].X + Corners[3].X) / 2, (Corners[2].Y + Corners[3].Y) / 2)
         : At(0.5);
 
     public Point At(double t)

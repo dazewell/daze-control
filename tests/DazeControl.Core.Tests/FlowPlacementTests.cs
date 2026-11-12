@@ -109,6 +109,50 @@ public class FlowPlacementTests
         }
     }
 
+    /// <summary>The join cases every shape must draw with no line through a step (D-124).</summary>
+    public static TheoryData<LayoutShape, string> JoinCases()
+    {
+        var data = new TheoryData<LayoutShape, string>();
+        foreach (var shape in Enum.GetValues<LayoutShape>())
+        {
+            foreach (var name in JoinFlows.Keys)
+                data.Add(shape, name);
+        }
+        return data;
+    }
+
+    private static readonly Dictionary<string, Func<Flow>> JoinFlows = new()
+    {
+        ["check-connect-set"] = CheckConnectSet,
+        ["diamond"] = Diamond,
+        ["skip-two-levels"] = () => FlowOf(Step("a"), Step("b", "a"), Step("c", "b"), Step("j", "a", "c"), Step("k", "j")),
+        ["skip-with-sibling"] = () => FlowOf(Step("a"), Step("b", "a"), Step("c", "b"), Step("e", "b"), Step("j", "a", "c")),
+        ["fan-in-of-three"] = () => FlowOf(Step("a"), Step("b", "a"), Step("c", "b"), Step("d", "c"), Step("j", "a", "b", "c", "d")),
+    };
+
+    [Theory]
+    [MemberData(nameof(JoinCases))]
+    public void NoShapeDrawsALineThroughAStep(LayoutShape shape, string flow)
+    {
+        var a = Arrange(JoinFlows[flow](), shape);
+
+        NoLineCrossesAStep(a);
+        NoOverlaps(a);
+        Assert.Equal(a, Arrange(JoinFlows[flow](), shape), new ArrangementComparer()); // the same picture each time
+        Assert.All(a.Boxes, b => Assert.True(b.Bounds.X >= 0 && b.Bounds.Y >= 0 && b.Bounds.Right <= a.Extent.Width && b.Bounds.Bottom <= a.Extent.Height));
+    }
+
+    [Fact]
+    public void LinesBetweenStepsPlacedByHandGoRoundTheStepsBetween()
+    {
+        // Placed in one column by hand: check's line to set would run straight down through connect.
+        var placed = new Dictionary<string, Point> { ["check"] = new(48, 48), ["connect"] = new(48, 200), ["set"] = new(48, 352) };
+        var a = Arrange(CheckConnectSet(), LayoutShape.Tree, placed);
+
+        Assert.Equal((48.0, 200.0), (B(a, "connect").X, B(a, "connect").Y)); // nothing moves
+        NoLineCrossesAStep(a);
+    }
+
     [Fact]
     public void TreePutsAJoinThatSkipsALevelBesideItsStepsCentredBetweenThem()
     {

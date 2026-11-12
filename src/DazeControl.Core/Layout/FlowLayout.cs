@@ -130,8 +130,10 @@ public sealed record NodeBox(string Id, Rect Bounds, int Column, int Row, string
 /// <param name="WrapLaneY">Set on an edge from a wrapped row's end to the next row's start (D-060), or from a block's
 /// last box to the line under it (D-066): the gap's middle; or on a long edge that detours round the boxes it skips (D-111): the lane.</param>
 /// <param name="StartSide">The side the line leaves its source by; <paramref name="EndSide"/> the side it enters by (D-115).</param>
+/// <param name="Lane">Set when an Arrange shape's or hand-placed line would cross a step (D-124): it steps out of its port,
+/// runs along this lane (an x between vertical sides, a y between horizontal ones) round the steps, and steps back in.</param>
 public sealed record EdgeRoute(string From, string To, EdgeWhen When, Point Start, Point End, double? WrapLaneY = null,
-    PortSide StartSide = PortSide.Right, PortSide EndSide = PortSide.Left);
+    PortSide StartSide = PortSide.Right, PortSide EndSide = PortSide.Left, double? Lane = null);
 
 /// <param name="Columns">Top-level ids per column, top to bottom.</param>
 public sealed record FlowArrangement(

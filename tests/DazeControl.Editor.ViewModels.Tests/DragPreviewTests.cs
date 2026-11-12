@@ -119,9 +119,34 @@ public sealed class DragPreviewTests : IDisposable
         var frame = preview.At(new Point(16, 8));
         foreach (var id in preview.Moved)
             Assert.Equal(_canvas.Find(id)!.Bounds with { X = _canvas.Find(id)!.X + 16, Y = _canvas.Find(id)!.Y + 8 }, frame.Rects[id]);
-        Assert.All(frame.Routes, r => Assert.True(r.From == "both" || r.To == "both"));
+        var touching = frame.Routes.Where(r => r.From == "both" || r.To == "both").ToList();
         Assert.Equal(frame.Routes.Count, frame.Curves.Count);
-        Assert.Equal(preview.Frozen.Edges.Count, preview.StaticEdges.Count + frame.Routes.Count);
+        Assert.Equal(preview.Frozen.Edges.Count, preview.StaticEdges.Count + touching.Count);
+        // Any other line in the frame is a still one re-routed round the moved card (D-124).
+        foreach (var r in frame.Routes.Except(touching))
+            Assert.NotEqual(preview.StaticEdges.Single(e => (e.From, e.To) == (r.From, r.To)), r);
+    }
+
+    [Fact]
+    public void AStillLineThatStartsDetouringMidDragRedrawsTheStaticSet()
+    {
+        _canvas.Arrange(LayoutShape.TopToBottom);
+        var preview = _canvas.BeginMove(["w1"])!;
+        var scene = _canvas.Scene;
+        scene.BeginDrag(preview);
+
+        Assert.True(scene.DragTo(preview.Offset(0, 8)));
+        var still = scene.LiveCurves.Keys.Where(k => !preview.Touching.Contains(k)).ToList();
+        Assert.Empty(still);
+
+        Assert.True(scene.DragTo(preview.Offset(90, 210))); // the card moves onto or off bt → vol's way: it re-routes (D-124)
+        Assert.True(scene.LiveSetChanged);
+        Assert.Contains(("bt", "vol"), scene.LiveCurves.Keys);
+        Assert.NotEqual(preview.StaticCurve("bt", "vol"), scene.LiveCurves[("bt", "vol")]);
+
+        Assert.True(scene.DragTo(preview.Offset(98, 210))); // same lines follow: only the live set is drawn
+        Assert.False(scene.LiveSetChanged);
+        scene.EndDrag();
     }
 
     [Fact]
@@ -147,9 +172,9 @@ public sealed class DragPreviewTests : IDisposable
         Assert.Equal(_canvas.SnappedOffset(ids, dx, dy), offset);
         var frame = preview.At(offset);
         var boxes = preview.Frozen.Boxes.ToDictionary(b => b.Id, b => frame.Rects.TryGetValue(b.Id, out var r) ? r : b.Bounds);
-        var curves = preview.StaticEdges.Select(e => (Key: (e.From, e.To), Curve: EdgeCurve.For(e, preview.Lines)))
-            .Concat(frame.Routes.Select((r, i) => (Key: (r.From, r.To), Curve: frame.Curves[i])))
-            .ToDictionary(x => x.Key, x => x.Curve);
+        var curves = preview.StaticEdges.ToDictionary(e => (e.From, e.To), e => EdgeCurve.For(e, preview.Lines));
+        for (var i = 0; i < frame.Routes.Count; i++)
+            curves[(frame.Routes[i].From, frame.Routes[i].To)] = frame.Curves[i]; // the frame's: touching or detouring (D-124)
 
         Assert.True(_canvas.MoveBy(ids, dx, dy));
 

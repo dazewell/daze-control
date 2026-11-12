@@ -53,16 +53,90 @@ public static class FlowPlacement
             boxes.Add(box with { Bounds = box.Bounds with { X = box.Bounds.X + now.X - was.X, Y = box.Bounds.Y + now.Y - was.Y } });
         }
         var final = boxes.Where(b => b.Card is null).ToDictionary(b => b.Id, b => b.Bounds, StringComparer.Ordinal);
-        var routes = new List<EdgeRoute>(edges.Count);
-        foreach (var (from, to, when) in edges)
+        var routes = edges.Select(e => Route(e.From, e.To, e.When, final, o.Shape, o.Lines)).ToList();
+
+        // A lane round the outside may run left of or above everything: make room for it.
+        var dx = Math.Max(0, o.Padding / 2 - routes.Where(r => r.Lane is not null && IsVertical(r.StartSide)).Select(r => r.Lane!.Value).DefaultIfEmpty(double.MaxValue).Min());
+        var dy = Math.Max(0, o.Padding / 2 - routes.Where(r => r.Lane is not null && !IsVertical(r.StartSide)).Select(r => r.Lane!.Value).DefaultIfEmpty(double.MaxValue).Min());
+        if (dx > 0 || dy > 0)
         {
-            var (a, b) = (final[from], final[to]);
-            var (startSide, endSide) = Sides(a, b, o.Shape);
-            routes.Add(new EdgeRoute(from, to, when, Port(a, startSide), Port(b, endSide), null, startSide, endSide));
+            boxes = [.. boxes.Select(b => b with { Bounds = b.Bounds with { X = b.Bounds.X + dx, Y = b.Bounds.Y + dy } })];
+            routes = [.. routes.Select(r => r with
+            {
+                Start = new Point(r.Start.X + dx, r.Start.Y + dy),
+                End = new Point(r.End.X + dx, r.End.Y + dy),
+                Lane = r.Lane + (IsVertical(r.StartSide) ? dx : dy),
+            })];
         }
         var right = boxes.Count == 0 ? o.Padding : boxes.Max(b => b.Bounds.Right);
         var bottom = boxes.Count == 0 ? o.Padding : boxes.Max(b => b.Bounds.Bottom);
+        foreach (var lane in routes.Where(r => r.Lane is not null))
+        {
+            if (IsVertical(lane.StartSide))
+                right = Math.Max(right, lane.Lane!.Value);
+            else
+                bottom = Math.Max(bottom, lane.Lane!.Value);
+        }
         return new FlowArrangement(boxes, routes, auto.Columns, new Size(right + o.Padding, bottom + o.Padding));
+    }
+
+    private const double LaneClearance = 14;
+
+    private static bool IsVertical(PortSide side) => side is PortSide.Top or PortSide.Bottom;
+
+    /// <summary>
+    /// A line between two top-level boxes of <paramref name="boxes"/> (every top-level step where it is shown): by
+    /// <see cref="Sides"/> and <see cref="Port"/>, detouring round any step it would be drawn through (D-124). The
+    /// commit and the drag preview both route with it.
+    /// </summary>
+    public static EdgeRoute Route(string from, string to, EdgeWhen when, IReadOnlyDictionary<string, Rect> boxes, LayoutShape shape, LayoutLines lines)
+    {
+        ArgumentNullException.ThrowIfNull(boxes);
+        var (a, b) = (boxes[from], boxes[to]);
+        var (startSide, endSide) = Sides(a, b, shape);
+        return Clear(new EdgeRoute(from, to, when, Port(a, startSide), Port(b, endSide), null, startSide, endSide), boxes, lines);
+    }
+
+    /// <summary>How many steps other than its own two the line is drawn through (sampled).</summary>
+    private static int Hits(EdgeRoute route, IReadOnlyDictionary<string, Rect> boxes, LayoutLines lines)
+    {
+        var curve = EdgeCurve.For(route, lines);
+        var points = Enumerable.Range(1, 127).Select(i => curve.At(i / 128.0)).ToList();
+        return boxes.Count(kv => kv.Key != route.From && kv.Key != route.To
+            && points.Any(p => p.X > kv.Value.X && p.X < kv.Value.Right && p.Y > kv.Value.Y && p.Y < kv.Value.Bottom));
+    }
+
+    /// <summary>
+    /// A line drawn through a step detours (D-124): out of its port, along a lane just past every step beside its run
+    /// (the nearer side; right or below on a tie), and back in. The detour is kept only if it crosses fewer steps.
+    /// </summary>
+    private static EdgeRoute Clear(EdgeRoute route, IReadOnlyDictionary<string, Rect> boxes, LayoutLines lines)
+    {
+        var hits = Hits(route, boxes, lines);
+        if (hits == 0)
+            return route;
+        var shape = EdgeCurve.Detour(route.Start, route.End, route.StartSide, route.EndSide, 0);
+        var (c1, c2, alongX) = (shape.Control1, shape.Control2, shape.LaneIsX);
+        double Across(Point p) => alongX ? p.X : p.Y;
+        double Along(Point p) => alongX ? p.Y : p.X;
+        var (lo, hi) = (Math.Min(Along(c1), Along(c2)), Math.Max(Along(c1), Along(c2)));
+        var band = boxes.Where(kv => kv.Key != route.From && kv.Key != route.To).Select(kv => kv.Value)
+            .Where(r => alongX ? r.Bottom > lo && r.Y < hi : r.Right > lo && r.X < hi).ToList();
+        var (near, far) = (Math.Min(Across(c1), Across(c2)), Math.Max(Across(c1), Across(c2)));
+        var before = band.Select(r => alongX ? r.X : r.Y).Append(near).Min() - LaneClearance;
+        var after = band.Select(r => alongX ? r.Right : r.Bottom).Append(far).Max() + LaneClearance;
+        var mid = (near + far) / 2;
+        var best = route;
+        foreach (var lane in mid - before < after - mid ? [before, after] : new[] { after, before })
+        {
+            var tried = route with { Lane = lane };
+            var count = Hits(tried, boxes, lines);
+            if (count < hits)
+                (best, hits) = (tried, count);
+            if (hits == 0)
+                break;
+        }
+        return best;
     }
 
     /// <summary>
