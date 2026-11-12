@@ -48,7 +48,7 @@
                                 </Flyout>
                             </Button.Flyout>
                         </Button>
-                        <!-- Add by hand (D-122): a device that's off, away or not paired yet, typed in. -->
+                        <!-- Add by hand (D-123): a device that's off, away or not paired yet, typed in. -->
                         <Button Visibility="{x:Bind CanAddByHand}" AutomationProperties.Name="Add by hand"
                                 ToolTipService.ToolTip="Type in a device Windows doesn't see right now">
                             <StackPanel Orientation="Horizontal" Spacing="8">

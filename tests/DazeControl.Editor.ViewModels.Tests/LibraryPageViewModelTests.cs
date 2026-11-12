@@ -711,7 +711,7 @@ public sealed class LibraryPageViewModelTests : IDisposable
         Assert.Equal(LibraryDevices.NotConnectable, row.Caption);
     }
 
-    // ---- Add by hand (D-122) ----
+    // ---- Add by hand (D-123) ----
 
     [Fact]
     public async Task ABluetoothDeviceAddedByHandIsStoredAndMatchesTheDeviceWhenItShowsUp()

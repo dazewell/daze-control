@@ -19,7 +19,8 @@ Usage caps cut sessions often (D-018). Two hand-overs, so parallel tasks never c
    build + test them; green → commit as `wip(...)` and keep going; red → `git stash push -m "cut session <date>"`
    and note the stash in the PR's Resume section.
 3. `gh pr list --state open` (when a remote exists). If your task has a PR, read its body's `## Resume` and its
-   review comments (`gh pr view <n> --comments`) before new work. Open PRs' branches are the truth, not `main`.
+   open review threads (`pwsh scripts/pr-threads.ps1 <n>`; `pr-status.ps1 <n>` for CI/merge state; `pr-review` skill)
+   before new work. Open PRs' branches are the truth, not `main`.
 4. Build + tests (`build` skill). Red before you started → fix that first, it's the real next action.
 5. Continue at **Next action**. Read only GOALS, the task's files, and grep DECISIONS/DEADENDS for the area —
    don't re-read whole docs.

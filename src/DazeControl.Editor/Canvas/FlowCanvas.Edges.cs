@@ -17,34 +17,86 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
 using Windows.UI.Core;
 using CorePoint = DazeControl.Core.Layout.Point;
+using Shape = Microsoft.UI.Xaml.Shapes.Path;
 using XamlCanvas = Microsoft.UI.Xaml.Controls.Canvas;
 
 namespace DazeControl.Editor.Canvas;
 
 public sealed partial class FlowCanvas
 {
+    /// <summary>One set of edge paths: one per style, whatever the edge count (D-037).</summary>
+    private sealed record EdgePaths(Shape Normal, Shape MayFail, Shape Always, Shape IfFails, Shape Selected,
+        Shape NormalArrows, Shape IfFailsArrows, Shape SelectedArrows)
+    {
+        public IEnumerable<Shape> All => [Normal, MayFail, Always, IfFails, Selected, NormalArrows, IfFailsArrows, SelectedArrows];
+    }
+
+    private EdgePaths? _staticPaths, _livePaths;
+
+    private EdgePaths StaticPaths => _staticPaths ??= new(NormalEdges, MayFailEdges, AlwaysEdges, IfFailsEdges, SelectedEdges, NormalArrows, IfFailsArrows, SelectedArrows);
+
+    private EdgePaths LivePaths => _livePaths ??= new(LiveNormalEdges, LiveMayFailEdges, LiveAlwaysEdges, LiveIfFailsEdges, LiveSelectedEdges, LiveNormalArrows, LiveIfFailsArrows, LiveSelectedArrows);
+
+    /// <summary>
+    /// Every edge into the static set; during a live drag only the lines that don't touch the moved steps, from the
+    /// frozen arrangement (drawn once at drag start), while the touching ones go to the live set (D-119 b).
+    /// </summary>
     private void DrawEdges()
     {
         if (_viewModel is null)
             return;
-        var curves = new Dictionary<Microsoft.UI.Xaml.Shapes.Path, PathGeometry>
-        {
-            [NormalEdges] = new(), [MayFailEdges] = new(), [AlwaysEdges] = new(), [IfFailsEdges] = new(), [SelectedEdges] = new(),
-            [NormalArrows] = new(), [IfFailsArrows] = new(), [SelectedArrows] = new(),
-        };
         ChipLayer.Children.Clear();
-        var controlled = EdgeWithControls();
+        var edges = _preview is { } preview
+            ? _viewModel.Edges.Where(e => !preview.Touching.Contains((e.From, e.To))).Select(e => (e, preview.StaticCurve(e.From, e.To) ?? e.Curve))
+            : _viewModel.Edges.Select(e => (e, e.Curve));
+        Draw(StaticPaths, edges, ChipLayer, null);
+        DrawLiveEdges();
+        ShowEdgeControls(EdgeWithControls());
+    }
+
+    /// <summary>The lines touching the dragged steps at the current frame, their arrowheads and chips (chips kept per edge).</summary>
+    private void DrawLiveEdges()
+    {
+        if (_viewModel is null || _liveCurves.Count == 0)
+            return;
+        var live = new List<(CanvasEdgeViewModel, DazeControl.Core.Layout.EdgeCurve)>(_liveCurves.Count);
         foreach (var edge in _viewModel.Edges)
         {
-            var c = edge.Curve;
+            if (_liveCurves.TryGetValue((edge.From, edge.To), out var curve))
+                live.Add((edge, curve));
+        }
+        Draw(LivePaths, live, LiveChipLayer, _liveChips);
+    }
+
+    /// <summary>Empties the live set when a drag ends.</summary>
+    private void ClearLiveEdges()
+    {
+        foreach (var path in LivePaths.All)
+            path.Data = null;
+        LiveChipLayer.Children.Clear();
+        _liveChips.Clear();
+        _liveCurves.Clear();
+    }
+
+    /// <summary>The curve an edge is drawn with now: live while it follows a drag, frozen while a drag runs, else committed.</summary>
+    private DazeControl.Core.Layout.EdgeCurve CurveOf(CanvasEdgeViewModel edge) =>
+        _liveCurves.TryGetValue((edge.From, edge.To), out var live) ? live
+        : _preview?.StaticCurve(edge.From, edge.To) ?? edge.Curve;
+
+    private static void Draw(EdgePaths paths, IEnumerable<(CanvasEdgeViewModel Edge, DazeControl.Core.Layout.EdgeCurve Curve)> edges,
+        XamlCanvas chips, Dictionary<(string, string), Border>? keep)
+    {
+        var curves = paths.All.ToDictionary(p => p, _ => new PathGeometry());
+        foreach (var (edge, c) in edges)
+        {
             // During a run an edge turns accent once its source finished; hover/selected is 2 px accent (UX §5.3).
             var accent = edge.IsSelected || edge.IsHovered || edge.IsLit;
-            var path = accent ? SelectedEdges : edge.Style switch
+            var path = accent ? paths.Selected : edge.Style switch
             {
-                EdgeStyle.IntoMayFail => MayFailEdges,
-                EdgeStyle.IfFails => IfFailsEdges,
-                EdgeStyle.Always => AlwaysEdges,
-                _ => NormalEdges,
+                EdgeStyle.IntoMayFail => paths.MayFail,
+                EdgeStyle.IfFails => paths.IfFails,
+                EdgeStyle.Always => paths.Always,
+                _ => paths.Normal,
             };
             var figure = new PathFigure { StartPoint = P(c.Start), IsClosed = false, IsFilled = false };
             if (c.IsOrthogonal)
@@ -63,14 +115,19 @@ public sealed partial class FlowCanvas
             }
             curves[path].Figures.Add(figure);
 
-            var arrows = accent ? SelectedArrows : edge.Style == EdgeStyle.IfFails ? IfFailsArrows : NormalArrows;
+            var arrows = accent ? paths.SelectedArrows : edge.Style == EdgeStyle.IfFails ? paths.IfFailsArrows : paths.NormalArrows;
             curves[arrows].Figures.Add(Arrowhead(c));
 
-            if (edge.Chip is { } chip)
-                ChipLayer.Children.Add(Chip(chip, c.Midpoint, edge.Style == EdgeStyle.IfFails));
+            if (edge.Chip is not { } text)
+                continue;
+            if (keep is null)
+                chips.Children.Add(Chip(text, c.Midpoint, edge.Style == EdgeStyle.IfFails));
+            else if (keep.TryGetValue((edge.From, edge.To), out var chip))
+                PlaceChip(chip, c.Midpoint); // a live chip only moves: no new element per frame
+            else
+                chips.Children.Add(keep[(edge.From, edge.To)] = Chip(text, c.Midpoint, edge.Style == EdgeStyle.IfFails));
         }
-        ShowEdgeControls(controlled);
-        SelectedEdges.Stroke = SelectedArrows.Fill = Theme.Selection;
+        paths.Selected.Stroke = paths.SelectedArrows.Fill = Theme.Selection;
         foreach (var (path, geometry) in curves)
             path.Data = geometry;
     }
@@ -104,11 +161,12 @@ public sealed partial class FlowCanvas
             EdgeControls.Visibility = Visibility.Collapsed;
             return;
         }
-        var mid = edge.Curve.Midpoint;
-        if (edge.Curve.IsWrapped)
+        var curve = CurveOf(edge);
+        var mid = curve.Midpoint;
+        if (curve.IsWrapped)
         {
             // The row gap is too low to lift them above the lane (D-060): centre them on the lane, right of the chip.
-            var lane = edge.Curve.Corners;
+            var lane = curve.Corners;
             XamlCanvas.SetLeft(EdgeControls, (mid.X + lane[2].X) / 2 - EdgeControlsWidth / 2);
             XamlCanvas.SetTop(EdgeControls, mid.Y - EdgeControlsHeight / 2);
             EdgeControls.Visibility = Visibility.Visible;
@@ -168,9 +226,14 @@ public sealed partial class FlowCanvas
             Child = new TextBlock { Text = text, FontSize = 11, Foreground = Theme.Brush(critical ? "SystemFillColorCriticalBrush" : "TextFillColorSecondaryBrush") },
         };
         chip.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+        PlaceChip(chip, at);
+        return chip;
+    }
+
+    private static void PlaceChip(Border chip, CorePoint at)
+    {
         XamlCanvas.SetLeft(chip, at.X - chip.DesiredSize.Width / 2);
         XamlCanvas.SetTop(chip, at.Y - chip.DesiredSize.Height / 2);
-        return chip;
     }
 
     private static Windows.Foundation.Point P(CorePoint p) => new(p.X, p.Y);

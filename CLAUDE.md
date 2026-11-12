@@ -31,6 +31,7 @@ Don't re-read whole docs: GOALS + the task's files + grep DECISIONS/DEADENDS for
 - `resume` — session start and near-cap stop. Use first in every session.
 - `repo-workflow` — orient → branch → work → record → commit → definition of done. Use for every task.
 - `build` — prerequisites, build/run/test/publish/measure commands, troubleshooting.
+- `pr-review` — Copilot review, review threads, CI wait/rerun, ready check and merge via `scripts/pr-*.ps1` (D-122). Use for every PR.
 - `release` — cut a release with `scripts/cut-release.ps1`; only when the user asks.
 - `daze-coordinator` — run a coordinator session: route tasks to child sessions, track PRs, cut releases on request; use only in coordinator sessions.
 - `knowledge-log` — what goes into which doc, entry formats, brevity rules.

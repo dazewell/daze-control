@@ -5,7 +5,7 @@ using DazeControl.Editor.ViewModels.Inspector;
 namespace DazeControl.Editor.ViewModels.LibraryPage;
 
 /// <summary>
-/// Library › "Add by hand" (D-122): an audio, Bluetooth or Android device typed in rather than picked from what Windows
+/// Library › "Add by hand" (D-123): an audio, Bluetooth or Android device typed in rather than picked from what Windows
 /// sees, so flows can use a device that is off, out of range or not paired yet. It is stored exactly like a picked one,
 /// so a device that turns up later matches it (address / name text) instead of being offered again.
 /// </summary>

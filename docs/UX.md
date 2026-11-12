@@ -17,7 +17,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   and edits each one's moves as Up/Down chips in order (D-078); Bound devices (D-116): "Bind devices" flyout (Bluetooth
   device, Audio device, Name), a card's Devices panel changes either side, Test checks both, and a Bluetooth or audio
   device that is a side can't be removed ("Part of Sony headphones. Remove that bound device first."); Audio, Bluetooth and
-  Android: "Add by hand" flyout (D-122: Name + Bluetooth address / Network address, or audio "Name in Windows" + Direction;
+  Android: "Add by hand" flyout (D-123: Name + Bluetooth address / Network address, or audio "Name in Windows" + Direction;
   a hint line, an error line that keeps its space, Add; Enter adds; "Sony already has this address."); Programs add Open file location) · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, step defaults, Backup and restore card),
   **About** (version + Copy details, Updates: "Updates to follow" Stable / Release candidates (D-108, shots in `docs/update-channel/`: dark, light, high contrast, 225 % text), status + Check for updates, Files: config, logs and app folders). Save errors: InfoBar on top of every page.
 - Flow editor: an unsaved-changes dot (fixed slot, tooltip "Unsaved changes", D-104) + **Save** (accent, Ctrl+S) + **Cancel** beside the breadcrumb (D-047): edits are a

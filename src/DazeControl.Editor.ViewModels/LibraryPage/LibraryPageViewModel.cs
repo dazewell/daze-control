@@ -95,7 +95,7 @@ public sealed partial class LibrarySectionViewModel : ObservableObject
             BindName = newValue.Title;
     }
 
-    // ---- Add by hand (D-122): a device typed in, for one that's off, away or not paired yet ----
+    // ---- Add by hand (D-123): a device typed in, for one that's off, away or not paired yet ----
 
     public bool CanAddByHand => Kind is { } kind && ManualItems.CanAdd(kind);
 
@@ -733,7 +733,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
 
     // ---- Add, capture, remove ----
 
-    /// <summary>Library › Add by hand (D-122): the section's form becomes a new item. False, with
+    /// <summary>Library › Add by hand (D-123): the section's form becomes a new item. False, with
     /// <see cref="LibrarySectionViewModel.ManualError"/> saying why, when a field is wrong or the device is already there.</summary>
     public bool AddByHand(LibraryKind kind)
     {

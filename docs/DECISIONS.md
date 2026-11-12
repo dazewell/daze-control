@@ -1638,7 +1638,19 @@ Status: accepted (user, 2026-11-12: "very inconsistent height and size of the bu
 - Why not one `Height="32"` on everything: it clips at larger text scale; MinHeight grows with the text.
 - Revisit if: a dense variant is wanted (add a style, don't override a button).
 
-## D-122 · 2026-11-12 · Library "Add by hand": audio, Bluetooth and Android devices typed in, stored like picked ones
+## D-122 · 2026-11-12 · PR review and merge go through `scripts/pr-*.ps1` and one `pr-review` skill
+Status: accepted (user, 2026-11-12). Amends D-079 (merge policy wording; children never arm `--auto`).
+- Decision: Copilot request/wait, thread listing, reply+resolve, ready check, merge and flaky rerun are scripts with
+  short one-line-per-fact output and documented exit codes (`pr-lib.ps1` + `pr-request-review`, `pr-wait`, `pr-threads`,
+  `pr-reply`, `pr-status`, `pr-merge`, `pr-rerun`). The `pr-review` skill holds the standing rules; other skills point to it.
+  Merging always goes through `pr-merge.ps1` (ready check, then `gh pr merge --merge`), so the user can allow-list that one
+  command instead of every session's merge hitting the auto-mode classifier.
+- Why: every child session re-invented graphql/polling/transcripts at high usage cost; scripts do it deterministically.
+- Why not one big script with verbs: a single named merge command is what makes allow-listing safe.
+- Why not Pester: not used in the repo; a plain script test of the pure functions (`scripts/tests/pr-lib.tests.ps1`) runs in CI.
+- Revisit if: the PR flow changes (new required checks, a different reviewer bot, auto-merge becomes safe).
+
+## D-123 · 2026-11-12 · Library "Add by hand": audio, Bluetooth and Android devices typed in, stored like picked ones
 Status: accepted (user, 2026-11-11: "let's add an ability to add any library item manually")
 - Decision: Library › Audio, Bluetooth and Android get an "Add by hand" flyout beside "Add from Windows": Bluetooth = name +
   address (dashes, spaces or none accepted, saved as `B8:20:8E:ED:48:FC`), Android = name + address (host or IP, optional
