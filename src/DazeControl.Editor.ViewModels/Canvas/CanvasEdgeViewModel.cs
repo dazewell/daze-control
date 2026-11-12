@@ -21,29 +21,31 @@ public enum EdgeStyle
 
 public sealed partial class CanvasEdgeViewModel : ObservableObject
 {
-    internal CanvasEdgeViewModel(EdgeRoute route, bool intoMayFail, LayoutLines lines = LayoutLines.Curved)
+    /// <summary>One line of the scene; the same instance follows it while it exists (selection and hover stay on it).</summary>
+    internal CanvasEdgeViewModel(SceneEdge edge)
     {
-        From = route.From;
-        To = route.To;
-        When = route.When;
-        Curve = EdgeCurve.For(route, lines);
-        Style = route.When switch
-        {
-            EdgeWhen.Failure => EdgeStyle.IfFails,
-            EdgeWhen.Always => EdgeStyle.Always,
-            _ => intoMayFail ? EdgeStyle.IntoMayFail : EdgeStyle.Normal,
-        };
+        From = edge.From;
+        To = edge.To;
+        Restyle(edge);
+    }
+
+    /// <summary>The line was re-routed or restyled (T21.6): the instance stays, so hover and selection stay on it.</summary>
+    internal void Restyle(SceneEdge edge)
+    {
+        When = edge.Route.When;
+        Curve = edge.Curve;
+        Style = edge.Style;
     }
 
     public string From { get; }
 
     public string To { get; }
 
-    public EdgeWhen When { get; }
+    public EdgeWhen When { get; private set; }
 
-    public EdgeCurve Curve { get; }
+    public EdgeCurve Curve { get; private set; }
 
-    public EdgeStyle Style { get; }
+    public EdgeStyle Style { get; private set; }
 
     /// <summary>Text on the midpoint chip; null = no chip.</summary>
     public string? Chip => Style switch

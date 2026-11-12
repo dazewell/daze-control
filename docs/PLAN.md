@@ -71,13 +71,14 @@ Model: Opus medium; T21.6 and T21.7 Opus high.
   `Core/Commands/FlowCommands` or `FlowPlacement` if the placement needs it, `FlowCanvas.Palette.cs`, one element in
   `OverlayLayer`. Done when: VM tests (position, zones, one undo, auto layout → placed); live: drop at 50 %, 100 %,
   200 % zoom and scrolled lands under the pointer. (feat/library-drop-at-pointer: code + tests; live check open, user)
-- [ ] T21.6 Scene model (D-119 a): `Editor.ViewModels/Canvas/CanvasScene`: items by id (O(1) `Find`), a uniform-grid
+- [~] T21.6 Scene model (D-119 a): `Editor.ViewModels/Canvas/CanvasScene`: items by id (O(1) `Find`), a uniform-grid
   index for `HitTest`/`HitTestEdge`/`OutPortAt`, edge routes, the transient layer (absorbs `DragPreview`), and
   `Apply(arrangement)` returning a diff (moved, resized, content changed, added, removed, routes changed). `FlowCanvas`
   applies the diff: `Place()` for moved, `Refresh` for content, edge figures only when routes or styles changed; hover
   and selection restyle edges without recreating chips (chips kept per edge id). Files: VM `Canvas/*`,
   `FlowCanvas.xaml.cs` (sync), `FlowCanvas.Edges.cs`; not `FlowCanvas.xaml`. Done when: scene tests (diff, index vs
-  brute-force hit tests on random points), existing canvas tests green, T21.1's event-count test still minimal.
+  brute-force hit tests on random points), existing canvas tests green, T21.1's event-count test still minimal. (feat/canvas-scene: code + tests;
+  live check open, for the user)
 - [~] T21.7 Camera (D-119 e), spike first: a branch-only spike replaces the `ScrollViewer` with a world layer under one
   transform and checks: touchpad two-finger pan and pinch (wheel with `PointerDeviceType.Touchpad`, Ctrl for pinch),
   crisp text at 50/150/200 %, touch pan/pinch with inertia via manipulation events, keyboard focus reveal. Pass → pure

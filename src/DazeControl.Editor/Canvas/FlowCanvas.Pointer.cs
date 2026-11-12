@@ -144,11 +144,8 @@ public sealed partial class FlowCanvas
                         XamlCanvas.SetZIndex(view, view.Node.CardId is null ? 1 : 2); // members above their card
                     // A free move previews what the drop commits: lines between steps that stay put are drawn once
                     // now, from the frozen arrangement (a first drag drops wrap lanes here, not on release).
-                    if (_dragged.Node.CardId is null && _viewModel.BeginMove(DragIds()) is { } preview)
-                    {
-                        _preview = preview;
-                        DrawEdges();
-                    }
+                    if (_dragged.Node.CardId is null && _viewModel.BeginMove(DragIds()) is not null)
+                        DrawEdges(); // the scene holds the preview (T21.6)
                     _pendingMove = position;
                     OnFrames(true);
                 }
@@ -200,19 +197,15 @@ public sealed partial class FlowCanvas
     private void DragFrame(Windows.Foundation.Point position)
     {
         double dx = position.X - _pressContent.X, dy = position.Y - _pressContent.Y;
-        if (_preview is null)
+        if (_viewModel?.Scene is not { Drag: { } preview } scene)
         {
             Translate(new CorePoint(dx, dy));
         }
         else
         {
-            var offset = _preview.Offset(dx, dy);
-            if (_frame is null || _frame.Offset != offset) // the snap holds most frames still: nothing to redraw
+            var offset = preview.Offset(dx, dy);
+            if (scene.DragTo(offset)) // the snap holds most frames still: nothing to redraw
             {
-                _frame = _preview.At(offset);
-                _liveCurves.Clear();
-                for (var i = 0; i < _frame.Routes.Count; i++)
-                    _liveCurves[(_frame.Routes[i].From, _frame.Routes[i].To)] = _frame.Curves[i];
                 Translate(offset);
                 DrawLiveEdges();
                 ShowEdgeControls(EdgeWithControls());
@@ -233,7 +226,7 @@ public sealed partial class FlowCanvas
 
     /// <summary>Where a node is drawn now: its live rect during a drag, else its committed bounds.</summary>
     private DazeControl.Core.Layout.Rect BoundsOf(CanvasNodeViewModel node) =>
-        _frame is not null && _frame.Rects.TryGetValue(node.Id, out var live) ? live : node.Bounds;
+        _viewModel?.Scene.Frame is { } frame && frame.Rects.TryGetValue(node.Id, out var live) ? live : node.Bounds;
 
     private void OnPointerReleased(object sender, PointerRoutedEventArgs e)
     {
@@ -465,11 +458,10 @@ public sealed partial class FlowCanvas
     {
         OnFrames(false);
         _pendingMove = null;
-        if (_preview is not null || _liveCurves.Count > 0)
+        if (_viewModel?.Scene.IsDragging == true)
         {
             // After the commit (or none: no move, a refused drop, capture lost) every line is drawn as it now is.
-            _preview = null;
-            _frame = null;
+            _viewModel.EndMove();
             ClearLiveEdges();
             DrawEdges();
             UpdateFocusRing();

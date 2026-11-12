@@ -45,10 +45,9 @@ public sealed partial class FlowCanvas : UserControl
     private RightDragPan? _rightPan;
     private NodeView? _dragged;
     private List<NodeView> _dragViews = []; // moved by the drag preview
-    private DragPreview? _preview; // a free move's live preview (D-119 b); null for a member reorder
-    private DragFrame? _frame; // the preview at the last drawn offset
-    private readonly Dictionary<(string From, string To), DazeControl.Core.Layout.EdgeCurve> _liveCurves = [];
+    private readonly Dictionary<(string, string), Border> _chips = []; // static set's chips, kept per edge (T21.6)
     private readonly Dictionary<(string, string), Border> _liveChips = [];
+    private int _drawnEdgeVersion = -1; // the view model's EdgeVersion the static set was last drawn for
     private Windows.Foundation.Point? _pendingMove; // the latest pointer position, drawn on the next frame
     private bool _onFrames; // CompositionTarget.Rendering subscribed (for a gesture only: idle = zero)
     private CanvasNodeViewModel? _connectFrom;
@@ -118,6 +117,7 @@ public sealed partial class FlowCanvas : UserControl
                 _viewModel.Noted -= OnNoted;
             }
             _viewModel = value;
+            ForgetChips();
             NodeLayer.Children.Clear();
             foreach (var view in _views.Values)
                 view.Detach();
@@ -152,13 +152,13 @@ public sealed partial class FlowCanvas : UserControl
                 AnnounceFocus();
                 break;
             case nameof(FlowCanvasViewModel.SelectedIds) or nameof(FlowCanvasViewModel.CanEdit) or nameof(FlowCanvasViewModel.IsShowingRun):
-                DrawEdges();
+                RedrawEdges();
                 if (_gesture == Gesture.None)
                     ShowPorts(null); // the dots follow the selection until the pointer hovers again
                 break;
             case nameof(FlowCanvasViewModel.Arrangement):
-                SyncNodes(); // kinds are final now (a node can turn into a card without a collection change)
-                DrawEdges();
+                SyncNodes(_viewModel?.LastDiff); // kinds are final now (a node can turn into a card without a collection change)
+                RedrawEdges();
                 UpdateFocusRing();
                 if (_gesture == Gesture.None)
                     ShowPorts(null); // nodes moved (reorder, Tidy up): stale dots would not match OutPortAt
@@ -166,7 +166,8 @@ public sealed partial class FlowCanvas : UserControl
         }
     }
 
-    private void OnNodesChanged(object? sender, NotifyCollectionChangedEventArgs e) => SyncNodes();
+    // Mid-Sync: only add or drop views here; the Arrangement raised at its end refreshes what its diff names.
+    private void OnNodesChanged(object? sender, NotifyCollectionChangedEventArgs e) => SyncNodes(SceneDiff.Empty);
 
     private void UpdateExtent()
     {
@@ -182,8 +183,11 @@ public sealed partial class FlowCanvas : UserControl
     /// <summary>
     /// One view per node; members draw above cards by ZIndex. Views are never moved within the layer: a removed and
     /// re-added element can miss its node's changes (X-004), which left pills drawn where they no longer were.
+    /// With a re-layout's <paramref name="diff"/> (T21.6) only what it names is touched: new boxes and changed content
+    /// refresh, moved or resized boxes are placed, the rest are left alone (their own node events already updated them);
+    /// without one (a new view model) every view refreshes.
     /// </summary>
-    private void SyncNodes()
+    private void SyncNodes(SceneDiff? diff = null)
     {
         if (_viewModel is null)
             return;
@@ -206,8 +210,17 @@ public sealed partial class FlowCanvas : UserControl
                 NodeLayer.Children.Add(view);
             }
             XamlCanvas.SetZIndex(view, node.Kind == CanvasNodeKind.Member ? 1 : 0);
-            view.Refresh(_viewModel.ShowDetails); // places it: the layout may have moved it without a change event reaching it
+            if (diff is null)
+                view.Refresh(_viewModel.ShowDetails);
         }
+        if (diff is null)
+            return;
+        foreach (var id in diff.Added.Concat(diff.ContentChanged))
+            if (_views.TryGetValue(id, out var view))
+                view.Refresh(_viewModel.ShowDetails); // also places it
+        foreach (var id in diff.Moved.Concat(diff.Resized))
+            if (_views.TryGetValue(id, out var view))
+                view.Place();
     }
 
     private void RemoveView(string id)
@@ -233,6 +246,7 @@ public sealed partial class FlowCanvas : UserControl
             return;
         foreach (var view in _views.Values)
             view.Refresh(_viewModel.ShowDetails);
+        ForgetChips(); // their brushes are the old theme's
         DrawEdges();
     }
 
