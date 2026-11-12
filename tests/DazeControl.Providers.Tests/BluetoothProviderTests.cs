@@ -111,6 +111,35 @@ public class BluetoothProviderTests
     }
 
     [Fact]
+    public async Task TheUsersFlowShape_BoundKeyEqualToItsAudioItemKey_StillConnectsTheBluetoothSide()
+    {
+        // From the failing flow: audio input default "headphones-wh-1000xm4c", BT input default "wh-1000xm4c", pick kind: bound.
+        var library = new Library
+        {
+            Bluetooth = [Sony with { Key = "wh-1000xm4c" }, new("technics-eah-az80", "B8:20:8E:ED:48:FC", "Technics")],
+            Audio = [new AudioDevice("headphones-wh-1000xm4c", "WH-1000XM4")],
+            Bound = [new BoundDevice("headphones-wh-1000xm4c", "wh-1000xm4c", "headphones-wh-1000xm4c", "WH-1000XM4C")],
+        };
+        var bluetooth = new FakeBluetooth();
+        await new BluetoothConnectProvider(bluetooth).ExecuteAsync(
+            Picked("bluetooth.connect", LibraryKind.Bluetooth, library, "headphones-wh-1000xm4c"), TestContext.Current.CancellationToken);
+        Assert.Equal(["connect 11:22:33:44:55:66"], bluetooth.Calls);
+        Assert.Equal("headphones-wh-1000xm4c", library.ResolveAudio("headphones-wh-1000xm4c")!.Key);
+    }
+
+    [Fact]
+    public void AnItemSharingTheBoundKeyWinsOverTheBoundSide()
+    {
+        // Known ambiguity: a Bluetooth item with the same key as a bound device shadows the bound device's Bluetooth side.
+        var library = new Library
+        {
+            Bluetooth = [new("x", "AA:AA:AA:AA:AA:AA", "Other"), new("real", "11:22:33:44:55:66", "Real")],
+            Bound = [new BoundDevice("x", "real", "a")],
+        };
+        Assert.Equal("AA:AA:AA:AA:AA:AA", library.ResolveBluetooth("x")!.Address);
+    }
+
+    [Fact]
     public void ABoundDeviceResolvesEachSideAndAPlainItemOnlyItsOwnKind()
     {
         var library = new Library
