@@ -30,10 +30,11 @@ $dctl = Join-Path $repo 'artifacts\cli\dctl.exe'
 $editorExe = Join-Path $repo 'src\DazeControl.Editor\bin\Debug\net10.0-windows10.0.26100.0\win-x64\DazeControl.Editor.exe'
 
 function Stop-Editors {
-    # Only editors started on the dev config; other checkouts' editors on other files are left alone.
+    # Editors on any dev config (%LOCALAPPDATA%\DazeControl\dev\*.yaml, so a previous -Sample's editor goes too, F-026);
+    # editors on the user's real config are left alone.
     # Closed through the window first so the editor flushes pending edits; killed only if it doesn't exit.
     $ids = @(Get-CimInstance Win32_Process -Filter "Name = 'DazeControl.Editor.exe'" |
-        Where-Object { $_.CommandLine -and $_.CommandLine.Contains($config, [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.ProcessId })
+        Where-Object { $_.CommandLine -and $_.CommandLine.Contains($devFolder, [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.ProcessId })
     foreach ($id in $ids) {
         $p = Get-Process -Id $id -ErrorAction SilentlyContinue
         if (-not $p) { continue }
