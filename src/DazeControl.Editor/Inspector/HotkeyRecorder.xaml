@@ -41,7 +41,7 @@
             </Button>
         </StackPanel>
     </Grid>
-    <HyperlinkButton x:Name="TypeLink" Content="Type it instead" Padding="2,2" FontSize="12" Click="OnTypeLink"
+    <HyperlinkButton x:Name="TypeLink" Content="Type it instead" FontSize="12" Click="OnTypeLink"
                      AutomationProperties.Name="Type the shortcut instead of pressing it" />
     <TextBlock x:Name="TypeNote" Visibility="Collapsed" TextWrapping="Wrap" FontSize="12"
                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
