@@ -192,6 +192,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         Inspector = new Inspector.InspectorViewModel(Session, editor, _engine, _post, desktop: Desktop);
         Inspector.OpenFlowRequested += OnCalledFlowRequested;
         Inspector.AndroidInputsRequested += OnAndroidInputsRequested;
+        Inspector.BoundDevicesRequested += OnBoundDevicesRequested;
         Run = new Runs.RunOverlayViewModel(editor, _engine, _post);
         Editor = editor;
     }
@@ -213,6 +214,9 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         LibraryRequested?.Invoke();
     }
 
+    /// <summary>An input's "Bind devices in Library": same hand-over as the Android inputs, without a device to reveal.</summary>
+    private void OnBoundDevicesRequested() => LibraryRequested?.Invoke();
+
     public void CloseFlow()
     {
         Run?.Dispose();
@@ -221,6 +225,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         {
             Inspector.OpenFlowRequested -= OnCalledFlowRequested;
             Inspector.AndroidInputsRequested -= OnAndroidInputsRequested;
+            Inspector.BoundDevicesRequested -= OnBoundDevicesRequested;
         }
         Inspector?.Dispose();
         Inspector = null;

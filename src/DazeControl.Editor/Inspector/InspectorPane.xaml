@@ -835,7 +835,7 @@
 
                 <!-- Inputs (D-064, UX §5.4): devices another flow may pick when it runs this one. -->
                 <TextBlock Text="Inputs" Style="{StaticResource InspectorSection}" />
-                <ItemsControl ItemsSource="{x:Bind ViewModel.Inputs, Mode=OneWay}" IsTabStop="False" AutomationProperties.Name="Inputs">
+                <ItemsControl x:Name="InputsList" ItemsSource="{x:Bind ViewModel.Inputs, Mode=OneWay}" IsTabStop="False" AutomationProperties.Name="Inputs">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Spacing="16" />
@@ -858,10 +858,16 @@
                                 </Grid>
                                 <ComboBox ItemsSource="{x:Bind vmi:FlowInputViewModel.KindNames}" SelectedIndex="{x:Bind KindIndex, Mode=TwoWay}"
                                           HorizontalAlignment="Stretch" AutomationProperties.Name="Kind" />
-                                <ComboBox ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}" PlaceholderText="Default device"
+                                <ComboBox ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}" PlaceholderText="{x:Bind DefaultPlaceholder, Mode=OneWay}"
                                           Loaded="OnPickerLoaded" SelectionChanged="OnPickerSelectionChanged"
                                           ItemTemplate="{StaticResource DeviceTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
                                           DropDownOpened="OnPickerOpened" AutomationProperties.Name="{x:Bind DefaultName, Mode=OneWay}" />
+                                <StackPanel Orientation="Horizontal" Spacing="4" Visibility="{x:Bind NoBoundDevices, Mode=OneWay}">
+                                    <TextBlock Text="{x:Bind vmi:FlowInputViewModel.NoBoundDevicesHint}" VerticalAlignment="Center"
+                                               Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <HyperlinkButton Content="Bind devices in Library › Bound devices" Click="OnBindDevices" Tag="{x:Bind}"
+                                                     AutomationProperties.Name="Bind devices in Library, Bound devices" />
+                                </StackPanel>
                                 <ToggleSwitch Header="Ask me when it runs" IsOn="{x:Bind Ask, Mode=TwoWay}" OnContent="Yes" OffContent="No"
                                               AutomationProperties.Name="{x:Bind AskName, Mode=OneWay}" />
                                 <StackPanel Spacing="8" Visibility="{x:Bind Ask, Mode=OneWay}">

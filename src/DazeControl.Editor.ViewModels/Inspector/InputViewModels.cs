@@ -123,6 +123,19 @@ public sealed partial class FlowInputViewModel : DevicePickerViewModel
 
     public string DefaultName => $"{Title}: default device";
 
+    /// <summary>A bound device is required, not a system default (F-008).</summary>
+    public string DefaultPlaceholder => Kind == LibraryKind.Bound ? "Choose a bound device" : "Default device";
+
+    public const string NoBoundDevicesHint = "No bound devices yet.";
+
+    /// <summary>The Library has no bound devices: a line with a link to bind some.</summary>
+    [ObservableProperty]
+    public partial bool NoBoundDevices { get; private set; }
+
+    internal void SetNoBoundDevices(bool value) => NoBoundDevices = value;
+
+    public void OpenBoundDevices() => _owner.RequestBoundDevices();
+
     internal void Load(FlowInput input)
     {
         Loading = true;
@@ -130,6 +143,7 @@ public sealed partial class FlowInputViewModel : DevicePickerViewModel
         {
             Label = input.Label;
             KindIndex = Math.Max(0, Array.IndexOf(Kinds, input.Kind));
+            OnPropertyChanged(nameof(DefaultPlaceholder));
             Ask = input.Ask;
             TimeoutSeconds = (input.Timeout ?? Prompts.DefaultTimeout).TotalSeconds;
             OnTimeoutIndex = Math.Max(0, Array.IndexOf(OnTimeoutValues, input.OnTimeout));

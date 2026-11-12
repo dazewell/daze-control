@@ -34,10 +34,16 @@ public sealed partial class InspectorPane : UserControl
         {
             _viewModel?.PreviewPolicy(null);
             if (_viewModel is not null)
+            {
                 _viewModel.PropertyChanged -= OnViewModelChanged;
+                _viewModel.InputAdded -= OnInputAdded;
+            }
             _viewModel = value;
             if (value is not null)
+            {
                 value.PropertyChanged += OnViewModelChanged;
+                value.InputAdded += OnInputAdded;
+            }
             GlyphGrid.ItemsSource = value?.GlyphOptions;
             Bindings.Update();
         }
@@ -48,6 +54,42 @@ public sealed partial class InspectorPane : UserControl
     {
         if (e.PropertyName is nameof(InspectorViewModel.NodeId) or nameof(InspectorViewModel.Mode))
             Motion.Swap(Scroller);
+    }
+
+    /// <summary>"Add an input" (F-009): the new row is scrolled into view and its name box focused, so typing starts at once.</summary>
+    private void OnInputAdded(string name)
+    {
+        // The row's container is made after the collection change: look once the layout has caught up.
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            var index = _viewModel?.Inputs.ToList().FindIndex(i => i.Name == name) ?? -1;
+            if (index < 0 || InputsList.ContainerFromIndex(index) is not FrameworkElement row)
+                return;
+            row.UpdateLayout();
+            row.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = true });
+            if (FindName(row, "Input name") is TextBox box && box.Focus(FocusState.Programmatic))
+                box.SelectAll();
+        });
+    }
+
+    private static DependencyObject? FindName(DependencyObject parent, string automationName)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is TextBox && Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(child) == automationName)
+                return child;
+            if (FindName(child, automationName) is { } found)
+                return found;
+        }
+        return null;
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnBindDevices(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is FlowInputViewModel input)
+            input.OpenBoundDevices();
     }
 
     public static Visibility Not(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
