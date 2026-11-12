@@ -14,7 +14,7 @@ flows:
   morning:
     name: Morning check
     nodes:
-      - { id: start, step: notify, with: { text: "Morning check: starting" } }
+      - { id: start, step: notify, with: { text: "Morning check: starting", sound: false } }
       - { id: net, step: network.internet, after: [start], timeout: 10s }
       - { id: power, step: power.source, after: [start] }
       - { id: disk, step: file.space, with: { drive: "C:", gb: "5" }, after: [start] }
@@ -26,17 +26,17 @@ flows:
       - { id: w3, step: flag.set, with: { name: morning-done } }
       - { id: explorer, step: process.check, with: { program: explorer }, after: [ready] }
       - { id: winfolder, step: file.check, with: { path: "%WINDIR%" }, after: [ready] }
-      - { id: ok, step: notify, with: { text: "Morning check: all good" }, after: [explorer, winfolder, hours, idle] }
-      - { id: nonet, step: notify, with: { text: "No internet this morning" }, after: [{ id: net, when: failure }] }
-      - { id: lowdisk, step: notify, with: { text: "C: is short on space" }, after: [{ id: disk, when: failure }] }
+      - { id: ok, step: notify, with: { text: "Morning check: all good", sound: false }, after: [explorer, winfolder, hours, idle] }
+      - { id: nonet, step: notify, with: { text: "No internet this morning", sound: false }, after: [{ id: net, when: failure }] }
+      - { id: lowdisk, step: notify, with: { text: "C: is short on space", sound: false }, after: [{ id: disk, when: failure }] }
       - { id: battery, step: power.battery, with: { percent: "30" }, after: [{ id: power, when: failure }], onFailure: ignore }
-      - { id: charge, step: notify, with: { text: "On battery: plug in soon" }, after: [battery] }
-      - { id: done, step: notify, with: { text: "Morning check finished" }, after: [{ id: ok, when: always }] }
+      - { id: charge, step: notify, with: { text: "On battery: plug in soon", sound: false }, after: [battery] }
+      - { id: done, step: notify, with: { text: "Morning check finished", sound: false }, after: [{ id: ok, when: always }] }
 
   desk:
     name: Desk setup (simulated)
     nodes:
-      - { id: hello, step: notify, with: { text: "Desk setup: simulating devices" } }
+      - { id: hello, step: notify, with: { text: "Desk setup: simulating devices", sound: false } }
       - { id: buds, step: bluetooth.check, with: { device: dev-buds }, after: [hello], onFailure: skip }
       - { id: speakers, step: audio.check, with: { device: dev-speakers }, after: [hello], onFailure: ignore }
       - { id: headset, step: audio.check, with: { device: dev-headset }, after: [buds] }
@@ -55,9 +55,9 @@ flows:
       - { id: chat, step: process.check, with: { program: Teams, is: notRunning }, after: [ready], onFailure: ignore }
       - { id: retry, step: file.check, with: { path: "%TEMP%" }, after: [music, browser, chat], retry: { count: 3, delay: 1s }, timeout: 5s }
       - { id: late, step: time.check, with: { from: "18:00", to: "23:59" }, after: [retry], onFailure: skip }
-      - { id: evening, step: notify, with: { text: "Evening desk mode" }, after: [late] }
-      - { id: noaudio, step: notify, with: { text: "Headset not found (expected: it's fake)" }, after: [{ id: headset, when: failure }] }
-      - { id: wrap, step: notify, with: { text: "Desk setup simulated" }, after: [{ id: retry, when: always }, speakers] }
+      - { id: evening, step: notify, with: { text: "Evening desk mode", sound: false }, after: [late] }
+      - { id: noaudio, step: notify, with: { text: "Headset not found (expected: it's fake)", sound: false }, after: [{ id: headset, when: failure }] }
+      - { id: wrap, step: notify, with: { text: "Desk setup simulated", sound: false }, after: [{ id: retry, when: always }, speakers] }
 
   ask:
     name: Ask then branch
@@ -69,37 +69,37 @@ flows:
       - { id: l3, step: file.space, with: { gb: "1" } }
       - { id: pick, step: prompt.ask, with: { mode: choose, question: "Which mood?", choices: [Focus, Relax, Party], timeout: 30s, onTimeout: use-default, default: Focus, flag: mood }, after: [long] }
       - { id: focus, step: flag.check, with: { name: "mood:Focus" }, after: [pick], onFailure: skip }
-      - { id: focused, step: notify, with: { text: "Focus it is" }, after: [focus] }
-      - { id: other, step: notify, with: { text: "Relax or Party" }, after: [{ id: focus, when: failure }] }
-      - { id: yes, step: notify, with: { text: "Long part done" }, after: [{ id: focused, when: always }, { id: other, when: always }] }
-      - { id: no, step: notify, with: { text: "Skipped the long part" }, after: [{ id: q, when: failure }] }
-      - { id: bye, step: notify, with: { text: "Ask flow finished" }, after: [{ id: yes, when: always }, { id: no, when: always }], onFailure: ignore }
+      - { id: focused, step: notify, with: { text: "Focus it is", sound: false }, after: [focus] }
+      - { id: other, step: notify, with: { text: "Relax or Party", sound: false }, after: [{ id: focus, when: failure }] }
+      - { id: yes, step: notify, with: { text: "Long part done", sound: false }, after: [{ id: focused, when: always }, { id: other, when: always }] }
+      - { id: no, step: notify, with: { text: "Skipped the long part", sound: false }, after: [{ id: q, when: failure }] }
+      - { id: bye, step: notify, with: { text: "Ask flow finished", sound: false }, after: [{ id: yes, when: always }, { id: no, when: always }], onFailure: ignore }
 
   pick-device:
     name: Pick a device (fakes)
     nodes:
       - { id: pick, step: prompt.pick, with: { kind: audio, timeout: 30s, onTimeout: stop } }
       - { id: check, step: audio.check, with: { device: "$result:pick" }, after: [pick], onFailure: ignore }
-      - { id: told, step: notify, with: { text: "Picked a device (it's fake, so the check fails)" }, after: [check] }
+      - { id: told, step: notify, with: { text: "Picked a device (it's fake, so the check fails)", sound: false }, after: [check] }
 
   failures:
     name: Failure lab
     nodes:
-      - { id: begin, step: notify, with: { text: "Failure lab: some steps fail on purpose" } }
+      - { id: begin, step: notify, with: { text: "Failure lab: some steps fail on purpose", sound: false } }
       - { id: missing, step: file.check, with: { path: "C:\\does-not-exist\\daze-dev" }, after: [begin], onFailure: skip }
-      - { id: after-missing, step: notify, with: { text: "You never see this (skipped)" }, after: [missing] }
+      - { id: after-missing, step: notify, with: { text: "You never see this (skipped)", sound: false }, after: [missing] }
       - { id: ignored, step: file.check, with: { path: "C:\\nope-daze-dev" }, after: [begin], onFailure: ignore }
-      - { id: after-ignored, step: notify, with: { text: "Runs anyway: failure ignored" }, after: [ignored] }
+      - { id: after-ignored, step: notify, with: { text: "Runs anyway: failure ignored", sound: false }, after: [ignored] }
       - { id: retried, step: process.check, with: { program: daze-dev-not-a-program }, after: [begin], retry: { count: 2, delay: 1s }, onFailure: skip }
-      - { id: on-fail, step: notify, with: { text: "Retried twice, then took the failure line" }, after: [{ id: retried, when: failure }] }
+      - { id: on-fail, step: notify, with: { text: "Retried twice, then took the failure line", sound: false }, after: [{ id: retried, when: failure }] }
       - { id: idle, step: pc.idle, with: { for: 1h }, after: [begin], timeout: 5s, onFailure: skip }
-      - { id: busy, step: notify, with: { text: "You were not idle for an hour (expected)" }, after: [{ id: idle, when: failure }] }
-      - { id: always, step: notify, with: { text: "Failure lab finished" }, after: [{ id: after-ignored, when: always }, { id: on-fail, when: always }, { id: busy, when: always }] }
+      - { id: busy, step: notify, with: { text: "You were not idle for an hour (expected)", sound: false }, after: [{ id: idle, when: failure }] }
+      - { id: always, step: notify, with: { text: "Failure lab finished", sound: false }, after: [{ id: after-ignored, when: always }, { id: on-fail, when: always }, { id: busy, when: always }] }
 
   fan:
     name: Wide fan-out
     nodes:
-      - { id: go, step: notify, with: { text: "Fan-out: 12 checks at once" } }
+      - { id: go, step: notify, with: { text: "Fan-out: 12 checks at once", sound: false } }
       - { id: c1, step: network.internet, after: [go], onFailure: ignore }
       - { id: c2, step: network.cable, after: [go], onFailure: ignore }
       - { id: c3, step: network.wifi, after: [go], onFailure: ignore }
@@ -112,7 +112,7 @@ flows:
       - { id: c10, step: file.check, with: { path: "%USERPROFILE%" }, after: [go], onFailure: ignore }
       - { id: c11, step: process.check, with: { program: explorer }, after: [go], onFailure: ignore }
       - { id: c12, step: time.check, after: [go], onFailure: ignore }
-      - { id: join, step: notify, with: { text: "All 12 checks done" }, after: [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12] }
+      - { id: join, step: notify, with: { text: "All 12 checks done", sound: false }, after: [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12] }
 
   caller:
     name: Run others
@@ -120,7 +120,7 @@ flows:
       - { id: first, step: flow.run, with: { flow: morning, wait: true } }
       - { id: second, step: flow.run, with: { flow: fan, wait: true }, after: [first] }
       - { id: third, step: flow.run, with: { flow: failures, wait: false }, after: [{ id: second, when: always }] }
-      - { id: said, step: notify, with: { text: "Ran morning, fan-out and the failure lab" }, after: [third] }
+      - { id: said, step: notify, with: { text: "Ran morning, fan-out and the failure lab", sound: false }, after: [third] }
 
   menu:
     name: Showcase menu
@@ -131,6 +131,6 @@ flows:
     name: Draft (off)
     enabled: false
     nodes:
-      - { id: a, step: notify, with: { text: "A flow that is switched off" } }
+      - { id: a, step: notify, with: { text: "A flow that is switched off", sound: false } }
       - { id: b, step: wait, with: { duration: 1s }, after: [a] }
-      - { id: c, step: notify, with: { text: "Still off" }, after: [b] }
+      - { id: c, step: notify, with: { text: "Still off", sound: false }, after: [b] }

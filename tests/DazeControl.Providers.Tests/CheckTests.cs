@@ -48,7 +48,7 @@ public class CheckTests
 
     private sealed class NoNotifier : INotifier
     {
-        public void Show(string flowName, string text)
+        public void Show(string flowName, string text, bool sound)
         {
         }
     }

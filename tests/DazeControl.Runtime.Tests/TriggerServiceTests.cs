@@ -314,13 +314,25 @@ public sealed class TriggerServiceTests : IDisposable
             On("home-out", "network.disconnected", ssid: "Home"),
         ]);
         var started = new List<string>();
-        _launcher.RunCompleted += r => { lock (started) started.Add(r.FlowId); };
+        var four = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _launcher.RunCompleted += r =>
+        {
+            lock (started)
+            {
+                started.Add(r.FlowId);
+                if (started.Count == 4)
+                    four.TrySetResult();
+            }
+        };
 
         _network.Raise("network.connected", detail: "Ethernet 4", kind: "cable");
         _network.Raise("network.disconnected", detail: "Home", kind: "wifi");
         _network.Raise("network.disconnected", detail: "Ethernet 4", kind: "cable");
         _network.Raise("network.connected", detail: "Office", kind: "wifi");
         _network.Raise("network.connected"); // a source that couldn't say what it was: no filter matches
+        // IdleAsync only covers the hand-over to the launcher; the runs finish on their own (F-042: a slow CI box
+        // missed one inside SettleAsync's 50 ms), so wait for the four, then settle to catch an extra one.
+        await four.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         await SettleAsync(service);
 
         lock (started)
