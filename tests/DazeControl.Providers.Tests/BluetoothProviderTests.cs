@@ -74,7 +74,56 @@ public class BluetoothProviderTests
     {
         var failure = await Assert.ThrowsAsync<StepFailedException>(() => new KsBluetoothAudio().ConnectAsync(
             new BluetoothDevice("ghost", "00:11:22:33:44:55", "Ghost"), TestContext.Current.CancellationToken));
-        Assert.Equal("Ghost isn't paired with this PC as an audio device.", failure.Message);
+        Assert.StartsWith("Ghost isn't paired with this PC as an audio device. Looked for Bluetooth address 00:11:22:33:44:55 in ", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheNotPairedMessageSaysWhatWasLookedForAndSeen()
+    {
+        var none = KsBluetoothAudio.NotPairedMessage("Sony", "aa-bb-cc-dd-ee-ff", [("Speakers", null)]);
+        Assert.Equal("Sony isn't paired with this PC as an audio device. Looked for Bluetooth address AA:BB:CC:DD:EE:FF in 1 audio endpoints; none of them has a Bluetooth address in its path.", none);
+
+        var other = KsBluetoothAudio.NotPairedMessage("WH-1000XM4", "AA:BB:CC:DD:EE:FF",
+            [("Headphones (WH-1000XM4)", "112233445566"), ("Headset (WH-1000XM4 Hands-Free)", "112233445566"), ("Speakers", null)]);
+        Assert.Contains("3 audio endpoints; 1 Bluetooth device(s) there: 11:22:33:44:55:66.", other, StringComparison.Ordinal);
+        Assert.Contains("named like \"WH-1000XM4\" has address 11:22:33:44:55:66", other, StringComparison.Ordinal);
+    }
+
+    private static readonly BluetoothDevice Sony = new("xm4", "11:22:33:44:55:66", "WH-1000XM4C");
+
+    private static StepContext Picked(string step, LibraryKind kind, Library library, string pickedKey)
+    {
+        var context = Steps.Context(step, ("device", PickResults.Ref("pick")));
+        var node = PickResults.Resolve(context.Node, new Dictionary<string, string> { ["pick"] = pickedKey }, out var missing);
+        Assert.Null(missing);
+        return context with { Node = node, Library = library };
+    }
+
+    [Theory]
+    [InlineData("headphones")] // a bound device: its Bluetooth side
+    [InlineData("xm4")] // a plain (or hand-added) Bluetooth item
+    public async Task APickedItemConnectsTheBluetoothAddressOfItsBluetoothSide(string picked)
+    {
+        var bluetooth = new FakeBluetooth();
+        var library = new Library { Bluetooth = [Sony], Bound = [new BoundDevice("headphones", "xm4", "xm4-audio", "Sony")] };
+        await new BluetoothConnectProvider(bluetooth).ExecuteAsync(Picked("bluetooth.connect", LibraryKind.Bluetooth, library, picked), TestContext.Current.CancellationToken);
+        Assert.Equal(["connect 11:22:33:44:55:66"], bluetooth.Calls);
+    }
+
+    [Fact]
+    public void ABoundDeviceResolvesEachSideAndAPlainItemOnlyItsOwnKind()
+    {
+        var library = new Library
+        {
+            Bluetooth = [Sony],
+            Audio = [new AudioDevice("xm4-audio", "WH-1000XM4")],
+            Bound = [new BoundDevice("headphones", "xm4", "xm4-audio")],
+        };
+        Assert.Equal("11:22:33:44:55:66", library.ResolveBluetooth("headphones")!.Address);
+        Assert.Equal("xm4-audio", library.ResolveAudio("headphones")!.Key);
+        Assert.Equal("xm4-audio", library.ResolveAudio("xm4-audio")!.Key);
+        Assert.Null(library.ResolveBluetooth("xm4-audio"));
+        Assert.Null(library.ResolveAudio("xm4"));
     }
 
     [Fact]

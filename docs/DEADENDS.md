@@ -127,3 +127,6 @@ Tried in D-121: implicit `Style TargetType="DropDownButton" BasedOn="{StaticReso
 Every DropDownButton then fails to load: native stowed exception (0xc000027b in Microsoft.UI.Xaml.dll), the process exits at
 once, nothing in editor.log, no window (dev-run looked like it did nothing). The key exists, so `XamlStyleKeyTests` passed; a keyed
 copy applied by hand crashes the same. Found by bisecting App.xaml. Don't style DropDownButton; `XamlStyleKeyTests` forbids it.
+
+### X-0xx: "isn't paired as an audio device" on a picked bound device: no resolution bug (2026-11-12)
+Traced Pick → `PickResults.Resolve` → `Library.ResolveBluetooth` → `KsBluetoothAudio.Change`: a bound, plain or hand-added item all reach the BT item's address; the failure only means no audio endpoint path on that PC contains that address. Cause on the user's other PC unproven (suspects: library address is an LE/other-PC address, or endpoint paths carry no address). The message now names the address looked for and the addresses seen (`NotPairedMessage`); ask for that log line next time.

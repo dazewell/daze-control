@@ -128,7 +128,7 @@ public sealed unsafe class KsBluetoothAudio : IBluetoothAudio
         {
             var endpoints = Endpoints(enumerator.Value, address);
             if (endpoints.Count == 0)
-                throw new StepFailedException($"{title} isn't paired with this PC as an audio device.");
+                throw new StepFailedException(NotPairedMessage(title, device.Address, Survey(enumerator.Value)));
             if (endpoints.Any(e => e.Active) == connect)
                 return BluetoothChange.AlreadyDone;
 
@@ -152,6 +152,40 @@ public sealed unsafe class KsBluetoothAudio : IBluetoothAudio
         {
             enumerator.Value->UnregisterEndpointNotificationCallback(client.Pointer);
         }
+    }
+
+    /// <summary>Read-only: every audio endpoint's name and the Bluetooth address its device path carries (null: none).</summary>
+    private static List<(string Name, string? Address)> Survey(IMMDeviceEnumerator* enumerator)
+    {
+        var all = new List<(string, string?)>();
+        ForEachEndpoint(enumerator, (device, _) =>
+        {
+            string? address = null;
+            foreach (var key in PathKeys)
+                address ??= AddressIn(StringProperty(device, key));
+            all.Add((CoreAudioEndpoints.Describe(device).Name, address));
+        });
+        return all;
+    }
+
+    /// <summary>
+    /// The failure text: which address was looked for and what the PC's audio endpoints showed, so a report says whether
+    /// the library address is wrong (an endpoint of this name sits under another address) or the endpoints carry no
+    /// address at all. Addresses are of the user's own paired devices; no keys or secrets.
+    /// </summary>
+    internal static string NotPairedMessage(string title, string address, IReadOnlyList<(string Name, string? Address)> endpoints)
+    {
+        var hex = Hex(address);
+        var seen = endpoints.Where(e => e.Address is not null).Select(e => e.Address!).Distinct().ToList();
+        var message = $"{title} isn't paired with this PC as an audio device. "
+            + $"Looked for Bluetooth address {Format(hex)} in {endpoints.Count} audio endpoints; "
+            + (seen.Count == 0
+                ? "none of them has a Bluetooth address in its path."
+                : $"{seen.Count} Bluetooth device(s) there: {string.Join(", ", seen.Take(8).Select(Format))}.");
+        var like = endpoints.Where(e => e.Address is not null && !string.Equals(e.Address, hex, StringComparison.OrdinalIgnoreCase)
+            && title.Length > 0 && e.Name.Contains(title, StringComparison.OrdinalIgnoreCase)).Select(e => e.Address!).Distinct().ToList();
+        return like.Count == 0 ? message
+            : message + $" An endpoint named like \"{title}\" has address {string.Join(", ", like.Select(Format))}: fix the device's address in your Library.";
     }
 
     /// <summary>"B8:20:8E:ED:48:FC" → "B8208EED48FC", as it appears in device paths.</summary>
