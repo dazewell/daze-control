@@ -379,7 +379,9 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   centred, reveal rect, clamp that keeps 48 DIP of the steps on screen, D-074) gives it, and `FlowCanvas.Camera.cs`'s
   `ApplyCamera` is the one place the view changes (clamp, transform, VM zoom/semantic zoom): a pan or zoom is synchronous
   and runs no layout pass. Wheel on `Root`: mouse wheel/Ctrl+wheel zoom at the pointer, Shift+wheel and tilt pan sideways,
-  `PointerDeviceType.Touchpad` wheel pans both ways and its pinch (Ctrl in `KeyModifiers`) zooms; touch pans/pinches by
+  a touchpad's two-finger scroll pans both ways and its pinch (Ctrl in `KeyModifiers`) zooms: Windows reports its vertical
+  scroll as mouse wheel input, so pure `Canvas/WheelInput` tells it apart (`GetCurrentInputMessageSource` = touchpad, or
+  a delta that isn't a whole 120 notch; a swipe stays the touchpad's for 300 ms); touch pans/pinches by
   `Root` manipulations with translate inertia (mouse/pen manipulations are completed at once: their gestures are the
   pointer handlers'); keyboard focus and new steps are revealed by `Camera.Reveal`. Pointer positions read with
   `GetCurrentPoint(Host)` go through the transform, so hit tests, drags, drops and menus have no camera maths.
