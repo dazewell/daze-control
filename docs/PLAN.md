@@ -750,4 +750,8 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 - [ ] T22.6 Inputs and Pick device (F-008, F-009, F-029)
 - [ ] T22.7 Light theme and Settings links (F-024, F-025)
 - [ ] T22.8 Runs, counters, messages, Outline (F-012 Opus left for the user; F-013, F-018, F-019 done in PR; F-028 by design: the highlighted answer is the step's `default`, `no` in the samples)
-- [ ] T22.9 Second live round + tooling/samples (F-026, F-027, F-031; join layout, pan/pinch, text scale, high contrast)
+- [x] T22.9 Second live round (Round 2 in the findings doc: regression table, F-032..F-043, batches 10-14); F-026 fixed in PR 208, F-027 needs a product change (F-037), F-031 baseline in the doc
+- [ ] T22.10 Shell and inspector polish (F-032, F-034, F-035, F-038, F-039, F-041)
+- [ ] T22.11 Silent notices and the flaky trigger test (F-037, F-042)
+- [ ] T22.12 Canvas input, routing, automation (F-033 after a human check, F-040, F-043; Opus, after T22.1)
+- [ ] T22.13 Editor memory and run counters (F-036, F-012; Opus)
