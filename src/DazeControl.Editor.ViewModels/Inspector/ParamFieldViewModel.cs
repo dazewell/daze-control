@@ -338,6 +338,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
         {
             _loading = false;
         }
+        RefreshPills();
     }
 
     /// <summary>Replaces the picker's rows, keeping the selection on the same key.</summary>
@@ -540,7 +541,11 @@ public sealed partial class ParamFieldViewModel : ObservableObject
         var changed = _values?.Flow != next?.Item1 || _values?.StepId != next?.Item2;
         _values = next;
         if (changed)
+        {
             OnPropertyChanged(nameof(TakesValues));
+            OnPropertyChanged(nameof(ShowsPlainHelp));
+        }
+        RefreshPills();
     }
 
     /// <summary>The groups of the Insert value list; empty when the setting takes no values.</summary>
@@ -558,6 +563,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
 
     partial void OnTextChanged(string value)
     {
+        RefreshPills();
         if (IsAppPicker)
         {
             OnPropertyChanged(nameof(AppCaption));

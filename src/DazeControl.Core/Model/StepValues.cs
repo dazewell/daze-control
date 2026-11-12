@@ -464,6 +464,98 @@ public static class StepValues
         return null;
     }
 
+    // ---- Editing a flow (DESIGN §5.6) ----
+
+    /// <summary>One reference in a step's setting: who reads it, in which setting.</summary>
+    public readonly record struct Use(StepNode Consumer, ParamSpec Setting, ValueRef Ref);
+
+    /// <summary>Every <c>{step.value}</c>, <c>{$input}</c> and <c>{@run}</c> in the settings of the flow that take values, in flow order.</summary>
+    public static IReadOnlyList<Use> Uses(Flow flow, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        catalog ??= ProviderCatalog.All;
+        var uses = new List<Use>();
+        foreach (var step in flow.Nodes.OfType<StepNode>())
+        {
+            if (Descriptor(catalog, step) is not { } descriptor)
+                continue;
+            foreach (var (name, setting) in step.With)
+            {
+                if (setting is ScalarParam { Text: var text } && descriptor.FindParam(name) is { } spec && Takes(spec))
+                    uses.AddRange(Parse(text).Select(r => new Use(step, spec, r)));
+            }
+        }
+        return uses;
+    }
+
+    /// <summary>
+    /// <paramref name="text"/> with each reference <paramref name="replace"/> answers for swapped for what it returns, written as
+    /// stored (null keeps the reference). Plain text is kept as it was; text with nothing replaced comes back unchanged.
+    /// </summary>
+    public static string Rewrite(string text, Func<ValueRef, string?> replace)
+    {
+        ArgumentNullException.ThrowIfNull(replace);
+        var changed = false;
+        var result = new StringBuilder(text.Length);
+        foreach (var part in Split(text))
+        {
+            if (part.Ref is { } r && replace(r) is { } stored)
+            {
+                result.Append(stored);
+                changed = true;
+            }
+            else
+            {
+                result.Append(part.Ref is null ? Escape(part.Text) : part.Text);
+            }
+        }
+        return changed ? result.ToString() : text;
+    }
+
+    /// <summary>
+    /// The flow with <paramref name="replace"/> applied to every reference in its settings that take values (see
+    /// <see cref="Rewrite"/>); the same instance when nothing changed.
+    /// </summary>
+    public static Flow RewriteRefs(Flow flow, Func<StepNode, ValueRef, string?> replace, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        catalog ??= ProviderCatalog.All;
+        var nodes = new List<Node>(flow.Nodes.Count);
+        var any = false;
+        foreach (var node in flow.Nodes)
+        {
+            if (node is not StepNode step || Descriptor(catalog, step) is not { } descriptor)
+            {
+                nodes.Add(node);
+                continue;
+            }
+            Dictionary<string, ParamValue>? changed = null;
+            foreach (var (name, setting) in step.With)
+            {
+                if (setting is not ScalarParam { Text: var text } || descriptor.FindParam(name) is not { } spec || !Takes(spec))
+                    continue;
+                var next = Rewrite(text, r => replace(step, r));
+                if (!ReferenceEquals(next, text))
+                    (changed ??= new(step.With, StringComparer.Ordinal))[name] = new ScalarParam(next);
+            }
+            if (changed is null)
+            {
+                nodes.Add(node);
+                continue;
+            }
+            any = true;
+            nodes.Add(step with { With = new(changed) });
+        }
+        return any ? flow with { Nodes = [.. nodes] } : flow;
+    }
+
+    /// <summary>
+    /// Deleting steps: their references become the fallback text (nothing when none was written), so no setting keeps
+    /// pointing at a step that is gone.
+    /// </summary>
+    public static Flow DropRefsTo(Flow flow, IReadOnlySet<string> goneIds, IReadOnlyList<ProviderDescriptor>? catalog = null) =>
+        goneIds.Count == 0 ? flow : RewriteRefs(flow, (_, r) => r.Source == ValueSource.Step && goneIds.Contains(r.Name) ? Escape(r.Fallback ?? "") : null, catalog);
+
     // ---- Run time (DESIGN §4.7) ----
 
     /// <summary>
@@ -685,9 +777,9 @@ public static class StepValues
 
     /// <summary>
     /// The text with each reference shown as its title, for dry runs and summaries of Sensitive values:
-    /// "Connected to ‹Device› at ‹Time›". References that name nothing stay as written.
+    /// "Connected to ‹Device› at ‹Time›" (without <paramref name="marks"/>: "Connected to Device at Time", for the canvas). References that name nothing stay as written.
     /// </summary>
-    public static string Describe(Flow flow, string text, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    public static string Describe(Flow flow, string text, IReadOnlyList<ProviderDescriptor>? catalog = null, bool marks = true)
     {
         ArgumentNullException.ThrowIfNull(flow);
         catalog ??= ProviderCatalog.All;
@@ -700,7 +792,7 @@ public static class StepValues
                 ValueSource.Run => RunTitle(r.Name),
                 _ => flow.FindNode(r.Name) is StepNode s && Descriptor(catalog, s) is { } d ? Find(d, r.Value)?.Title : null,
             };
-            result.Append(title is null ? part.Text : "‹" + title + "›");
+            result.Append(title is null ? part.Text : marks ? "‹" + title + "›" : title);
         }
         return result.ToString();
     }
