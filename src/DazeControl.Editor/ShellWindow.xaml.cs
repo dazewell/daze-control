@@ -1186,6 +1186,7 @@ public sealed partial class ShellWindow : Window
         StopButton.IsEnabled = run?.CanStop == true;
         RunStatusText.Text = run?.Status ?? "";
         RunInfo.IsOpen = run?.IsInfoOpen == true;
+        RunInfoHost.Visibility = Show(RunInfo.IsOpen);
         if (run is null)
             return;
         RunInfo.Title = run.InfoTitle;
