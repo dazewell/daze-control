@@ -133,7 +133,7 @@ public static class ValueText
             if (rows.Count > 0)
                 groups.Add(new(label, FromSteps, rows));
         }
-        var inputs = flow.Inputs.Select(i => new ValueChoice(i.Value.Label, "", $"{{${i.Key}}}", $"{{{InputLabel}: {i.Value.Label}}}")).ToList();
+        var inputs = flow.Inputs.Select(i => new ValueChoice(names.InputLabelOf(i.Key), "", $"{{${i.Key}}}", $"{{{InputLabel}: {names.InputLabelOf(i.Key)}}}")).ToList();
         if (inputs.Count > 0)
             groups.Add(new(FromInputs, FromInputs, inputs));
         groups.Add(new(FromRun, FromRun, [.. StepValues.RunNames.Select(n =>
@@ -148,15 +148,28 @@ public static class ValueText
         private readonly IReadOnlyList<ProviderDescriptor> _catalog;
         private readonly Dictionary<string, string> _labelOf = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _idOf = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> _inputLabelOf = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> _inputKeyOf = new(StringComparer.Ordinal);
 
         public Names(Flow flow, IReadOnlyList<ProviderDescriptor> catalog)
         {
             _flow = flow;
             _catalog = catalog;
+            // Inputs may share a label: later ones read "Output (2)" by input order, like steps.
+            foreach (var input in flow.Inputs)
+            {
+                var label = Safe(input.Value.Label);
+                var n = 1;
+                var candidate = label;
+                while (_inputKeyOf.ContainsKey(candidate))
+                    candidate = $"{label} ({++n})";
+                _inputLabelOf[input.Key] = candidate;
+                _inputKeyOf[candidate] = input.Key;
+            }
             var seen = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (var step in flow.Nodes.OfType<StepNode>())
             {
-                var name = StepValues.NameOf(step, catalog.FirstOrDefault(d => d.Id == step.Step));
+                var name = Safe(StepValues.NameOf(step, catalog.FirstOrDefault(d => d.Id == step.Step)));
                 var n = seen.GetValueOrDefault(name) + 1;
                 var label = n == 1 ? name : $"{name} ({n})";
                 while (_idOf.ContainsKey(label))
@@ -166,6 +179,15 @@ public static class ValueText
                 _idOf[label] = step.Id;
             }
         }
+
+        /// <summary>Delimiters of the display grammar in free text (step names, input labels) read as spaces, so a label always resolves back.</summary>
+        private static string Safe(string text)
+        {
+            var clean = string.Concat(text.Select(c => c is '{' or '}' or '|' or (char)13 or (char)10 ? ' ' : c)).Trim();
+            return clean.Length > 0 ? clean : "Step";
+        }
+
+        public string InputLabelOf(string key) => _inputLabelOf.GetValueOrDefault(key, key);
 
         public string LabelOf(string id) => _labelOf.GetValueOrDefault(id, id);
 
@@ -182,8 +204,8 @@ public static class ValueText
                     return _flow.FindNode(r.Name) is StepNode s && Spec(s, r.Value) is { } v
                         ? $"{{{LabelOf(s.Id)}: {v.Title}{fallback}}}" : null;
                 case ValueSource.Input:
-                    return _flow.Inputs.TryGetValue(r.Name, out var input) && input.Label.Length > 0
-                        ? $"{{{InputLabel}: {input.Label}{fallback}}}" : null;
+                    return _inputLabelOf.TryGetValue(r.Name, out var inputLabel)
+                        ? $"{{{InputLabel}: {inputLabel}{fallback}}}" : null;
                 default:
                     return StepValues.RunTitle(r.Name) is { } title ? $"{{{RunLabel}: {title}{fallback}}}" : null;
             }
@@ -229,7 +251,7 @@ public static class ValueText
                 return StepValues.RunNames.FirstOrDefault(n => StepValues.RunTitle(n) == title) is { } run
                     ? new(ValueSource.Run, run, "", null, 0, 0) : null;
             if (label == InputLabel)
-                return _flow.Inputs.FirstOrDefault(i => i.Value.Label == title) is { Key: { } key } ? new(ValueSource.Input, key, "", null, 0, 0) : null;
+                return _inputKeyOf.TryGetValue(title, out var key) ? new(ValueSource.Input, key, "", null, 0, 0) : null;
             return null;
         }
     }

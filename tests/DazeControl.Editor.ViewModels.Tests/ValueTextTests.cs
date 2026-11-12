@@ -76,6 +76,33 @@ public sealed class ValueTextTests
     }
 
     [Fact]
+    public void DuplicateInputLabelsAreNumberedAndResolveToTheirOwnInput()
+    {
+        var flow = Simple() with
+        {
+            Inputs = new(new Dictionary<string, FlowInput>
+            {
+                ["a"] = new(LibraryKind.Audio, "Output", "x"),
+                ["b"] = new(LibraryKind.Audio, "Output", "x"),
+            }),
+        };
+
+        Assert.Equal("{Input: Output} {Input: Output (2)}", ValueText.ToDisplay(flow, "{$a} {$b}", Catalog));
+        Assert.Equal("{$a} {$b}", ValueText.FromDisplay(flow, "{Input: Output} {Input: Output (2)}", Catalog));
+    }
+
+    [Fact]
+    public void DelimitersInStepNamesStillRoundTrip()
+    {
+        var flow = FlowOf(Bt("bt", "A|B {x}"), new StepNode("note", "notify") { After = [new Edge("bt")] });
+
+        var shown = ValueText.ToDisplay(flow, "{bt.device}", Catalog);
+
+        Assert.Equal("{A B  x: Device}", shown);
+        Assert.Equal("{bt.device}", ValueText.FromDisplay(flow, shown, Catalog));
+    }
+
+    [Fact]
     public void UnnamedStepShowsItsTypeTitle()
     {
         var flow = FlowOf(Bt("bt", null), new StepNode("note", "notify") { After = [new Edge("bt")] });
