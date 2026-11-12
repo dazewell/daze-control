@@ -1735,3 +1735,14 @@ Status: accepted (F-012, M22 batch 13; supersedes D-065's counting sentence)
 - Why not keep "fallbacks join m when they start": any growing m moves the bar back. Why not leave fallbacks out for
   good: a fallback that runs would then do work the bar doesn't show. Why not send m from the engine on the pipe:
   both sides already hold the same flow (the canvas the saved one, D-047), and one Core class is one definition.
+
+## D-128 · 2026-11-12 · Pick device's Default is a Library picker that stores the key; a hand-typed name still resolves
+Status: accepted (F-029, M22 T22.6; user chose option A; supersedes nothing, D-117 stays)
+- Decision: `prompt.pick`'s `default` shows a picker of the Library items of the step's `kind` (`ParamSpec.LibraryFrom: "kind"`, still
+  `Text` so any string loads) and stores the item's key. `PickResults.DefaultKey(library, kind, text)` is the one resolver (editor, validator,
+  runtime, dry run): an item key of that kind (bound devices count for audio/Bluetooth, D-116), else the one item whose name matches
+  (case-insensitive); none or several → null. A name in an old file shows as its item and is rewritten only when the person changes the
+  picker (no silent rewrite). A default that resolves to nothing is a **warning** (fail-soft, D-021: the pick works, `use-default` ends as "No answer").
+  Changing `kind` clears a default that doesn't resolve in the new kind; one that still does stays.
+- Why: the other device params are pickers; a free-text name drifted from the Library (renames, two items with one name).
+- Rejected: a new `LibraryRef` kind with a dynamic `Library` (every `spec.Library!` site would need a null path); rewriting names to keys on load.

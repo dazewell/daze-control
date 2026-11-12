@@ -46,7 +46,13 @@ public sealed partial class ParamFieldViewModel : ObservableObject
         _ => Spec.Default ?? (Spec.Required ? "" : "Optional"),
     };
 
-    public bool IsText => Kind is ParamKind.Text && Spec.Suggest is null;
+    public bool IsText => Kind is ParamKind.Text && Spec.Suggest is null && !IsKindDevice;
+
+    /// <summary>A Library key of the kind another setting chooses (Pick's <c>default</c>, D-128): a device picker, stored as the key.</summary>
+    public bool IsKindDevice => Kind is ParamKind.Text && Spec.LibraryFrom is not null;
+
+    /// <summary>The key a stored value stands for (a hand-typed name resolves to its item); set by the inspector. Only for display: nothing is rewritten.</summary>
+    internal Func<string?, string?>? ShownKey { get; set; }
 
     /// <summary>Text with suggestions: an editable ComboBox, typing stays allowed (D-050).</summary>
     public bool IsSuggestText => Kind is ParamKind.Text && Spec.Suggest is not null && !IsFlowRef && !IsAppPicker;
@@ -203,7 +209,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     public bool IsChoice => Kind is ParamKind.Choice;
 
     /// <summary>A picker of rows with a glyph and caption: Library items, or other flows.</summary>
-    public bool IsDevice => Kind is ParamKind.LibraryRef || IsFlowRef;
+    public bool IsDevice => Kind is ParamKind.LibraryRef || IsFlowRef || IsKindDevice;
 
     public IReadOnlyList<string> Choices => Spec.Choices;
 
@@ -289,9 +295,10 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                     Choice = scalar ?? Spec.Default;
                     break;
                 case ParamKind.LibraryRef:
-                case ParamKind.Text when IsFlowRef:
+                case ParamKind.Text when IsFlowRef || IsKindDevice:
                     Text = scalar ?? "";
-                    Device = Devices.FirstOrDefault(o => o.Key == scalar?.Trim() && o.IsValue)
+                    var shown = ShownKey?.Invoke(scalar) ?? scalar?.Trim();
+                    Device = Devices.FirstOrDefault(o => o.Key == shown && o.IsValue)
                         ?? Devices.FirstOrDefault(o => o.Source == DeviceSource.None);
                     break;
                 case ParamKind.TextList:
@@ -347,7 +354,8 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                 foreach (var option in options)
                     Devices.Add(option);
             }
-            Device = Devices.FirstOrDefault(o => o.Key == current?.Trim() && o.IsValue)
+            var shown = ShownKey?.Invoke(current) ?? current?.Trim();
+            Device = Devices.FirstOrDefault(o => o.Key == shown && o.IsValue)
                 ?? Devices.FirstOrDefault(o => o.Source == DeviceSource.None);
             if (IsMixed)
                 Device = null;

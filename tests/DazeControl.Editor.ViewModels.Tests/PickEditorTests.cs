@@ -26,6 +26,8 @@ public sealed class PickEditorTests : IDisposable
               - { id: set, step: audio.setDefault, with: { device: technics }, after: [pick] }
               - { id: early, step: audio.setDefault, with: { device: sony } }
               - { id: connect, step: bluetooth.connect, with: { device: technics }, after: [set] }
+              - { id: legacy, step: prompt.pick, with: { kind: bluetooth, default: Technics } }
+              - { id: keyed, step: prompt.pick, with: { kind: audio, default: sony } }
         """;
 
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "DazeControl.Tests-" + Guid.NewGuid().ToString("N"));
@@ -75,6 +77,73 @@ public sealed class PickEditorTests : IDisposable
         Assert.Equal(new ScalarParam("$result:pick"), ((StepNode)_canvas.Flow!.FindNode("set")!).With["device"]);
         Assert.Equal("Result of Pick speakers", _canvas.Nodes.Single(n => n.Id == "set").Summary);
         Assert.DoesNotContain(_session.Problems, p => p.Severity == Severity.Error);
+    }
+
+    private ParamFieldViewModel Default() => _inspector.Fields.Single(f => f.Name == "default");
+
+    private StepNode Step(string id) => (StepNode)_canvas.Flow!.FindNode(id)!;
+
+    /// <summary>D-128: Default is a picker of the Library items of the Pick's kind, not a text box.</summary>
+    [Fact]
+    public void TheDefaultIsAPickerOfTheKindsLibraryItems()
+    {
+        _canvas.Select("keyed");
+
+        Assert.True(Default().IsDevice);
+        Assert.False(Default().IsText);
+        Assert.Equal([null, "technics", "sony"], Default().Devices.Select(d => d.Key));
+        Assert.Equal("No default", Default().Devices[0].Title);
+        Assert.Equal("sony", Default().Device?.Key);
+
+        _canvas.Select("legacy");
+
+        Assert.Equal(["No default", "Technics"], Default().Devices.Select(d => d.Title));
+    }
+
+    [Fact]
+    public void AHandTypedNameShowsAsItsItemAndIsRewrittenOnlyWhenChanged()
+    {
+        _canvas.Select("legacy");
+
+        Assert.Equal("technics", Default().Device?.Key);
+        Assert.Equal(new ScalarParam("Technics"), Step("legacy").With["default"]);
+        Assert.DoesNotContain(_session.Problems, p => p.Path.EndsWith("legacy.with.default", StringComparison.Ordinal));
+
+        Default().Device = Default().Devices[0]; // changing it writes: first none, then the item's key
+        Default().Device = Default().Devices.Single(d => d.Key == "technics");
+
+        Assert.Equal(new ScalarParam("technics"), Step("legacy").With["default"]);
+    }
+
+    [Fact]
+    public void NoDefaultClearsTheSetting()
+    {
+        _canvas.Select("legacy");
+        Default().Device = Default().Devices[0]; // No default
+        Assert.False(Step("legacy").With.ContainsKey("default"));
+    }
+
+    [Fact]
+    public void ChangingTheKindDropsADefaultOfTheOldKind()
+    {
+        _canvas.Select("keyed");
+
+        _inspector.Fields.Single(f => f.Name == "kind").Choice = "display";
+
+        Assert.False(Step("keyed").With.ContainsKey("default"));
+    }
+
+    [Fact]
+    public void ChangingTheKindKeepsADefaultThatStillFits()
+    {
+        _canvas.Select("keyed");
+
+        _inspector.Fields.Single(f => f.Name == "kind").Choice = "bound";
+        Assert.False(Step("keyed").With.ContainsKey("default")); // sony isn't a bound device
+
+        _canvas.Select("legacy");
+        _inspector.Fields.Single(f => f.Name == "kind").Choice = "audio"; // "Technics" is a name, not an audio key: gone
+        Assert.False(Step("legacy").With.ContainsKey("default"));
     }
 
     [Theory]
