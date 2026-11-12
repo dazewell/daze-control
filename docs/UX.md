@@ -12,7 +12,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   Pages: **Flows** (cards: glyph, name, shortcut, last result, On toggle, Run; a click on the card (not the toggle or Run) → flow editor with
   BreadcrumbBar "Flows › Connect Technics"; New flow: Blank / TV only / Audio → Headphones templates) ·
   **Library** (Pivot: Audio, Bluetooth, Bound devices, Displays, Android, Programs; settings cards with Test and "Used by 2
-  flows", which lists the flows and opens one; layouts and Android devices Rename (their flows follow), a layout's
+  flows", which lists the flows and opens one; layouts, Android, Bluetooth and bound devices Rename (layouts and Android: flows follow the new key; Bluetooth and bound: the shown name changes, the key stays); long names end in an ellipsis with the full text in a tooltip; a disabled Remove says why in its accessible name too (audio devices and programs have no Rename; programs have no Add by hand: they come from flows), a layout's
   Details list its screens; an Android card's Inputs panel adds, renames (steps follow), removes (off while used) inputs
   and edits each one's moves as Up/Down chips in order (D-078); Bound devices (D-116): "Bind devices" flyout (Bluetooth
   device, Audio device, Name), a card's Devices panel changes either side, Test checks both, and a Bluetooth or audio

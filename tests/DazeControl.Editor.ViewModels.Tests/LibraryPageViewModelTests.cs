@@ -371,13 +371,71 @@ public sealed class LibraryPageViewModelTests : IDisposable
     }
 
     [Fact]
-    public void OnlyLayoutsAndAndroidDevicesCanBeRenamed()
+    public void EverythingButAudioAndProgramsCanBeRenamed()
     {
         Assert.True(Item(LibraryKind.Display, "desk").CanRename);
         Assert.True(Item(LibraryKind.Android, "living-room").CanRename);
-        Assert.False(Item(LibraryKind.Bluetooth, "technics").CanRename); // its key isn't what the card shows
-        Assert.False(_page.Rename(Item(LibraryKind.Bluetooth, "technics"), "buds"));
+        Assert.True(Item(LibraryKind.Bluetooth, "technics").CanRename);
         Assert.False(_page.Section(null).Items[0].CanRename);
+    }
+
+    [Fact]
+    public void RenamingABluetoothDeviceChangesItsNameAndKeepsItsKey()
+    {
+        var technics = Item(LibraryKind.Bluetooth, "technics");
+        Assert.Equal(technics.Title, technics.RenameText); // the box starts with what the card shows, not the slug
+
+        Assert.True(_page.Rename(technics, "Office buds"));
+
+        Assert.Equal("Office buds", Item(LibraryKind.Bluetooth, "technics").Title);
+        Assert.Contains(_session.Current.Library.Bluetooth, d => d.Key == "technics" && d.Name == "Office buds");
+    }
+
+    [Fact]
+    public void RenamingABoundDeviceChangesItsNameAndKeepsItsKey()
+    {
+        var item = BindSonyToTechnicsAudio();
+        Assert.Equal("Sony headphones", item.RenameText);
+
+        Assert.True(_page.Rename(item, "Travel cans"));
+
+        Assert.Equal(new BoundDevice("sony-headphones", "sony", "technics", "Travel cans"), Assert.Single(_session.Current.Library.Bound));
+    }
+
+    [Fact]
+    public void ABoundDeviceNamedLikeItsBluetoothSideDoesntRepeatItInTheSubtitle()
+    {
+        var section = _page.Section(LibraryKind.Bound);
+        section.BindBluetooth = section.BindBluetoothChoices.Single(c => c.Key == "sony");
+        section.BindAudio = section.BindAudioChoices.Single(c => c.Key == "technics");
+        Assert.True(_page.Bind()); // the name followed the Bluetooth device: "Sony"
+
+        var item = _page.Section(LibraryKind.Bound).Items.Single();
+        Assert.Equal("Sony", item.Title);
+        Assert.Equal("Audio: Technics EAH-AZ80", item.Detail);
+    }
+
+    [Fact]
+    public void BindsErrorClearsOncePickedAgain()
+    {
+        var section = _page.Section(LibraryKind.Bound);
+        section.BindAudio = section.BindAudioChoices[0];
+        Assert.False(_page.Bind());
+        Assert.NotNull(section.BindError);
+
+        section.BindBluetooth = section.BindBluetoothChoices[0];
+
+        Assert.Null(section.BindError);
+    }
+
+    [Fact]
+    public void ADisabledRemoveSaysWhyInItsAccessibleName()
+    {
+        var bound = BindSonyToTechnicsAudio();
+        var sony = Item(LibraryKind.Bluetooth, "sony");
+
+        Assert.Equal("Remove Sony from Library, not available. Part of Sony headphones. Remove that bound device first.", sony.RemoveName);
+        Assert.Equal("Remove Sony headphones from Library", bound.RemoveName);
     }
 
     [Fact]

@@ -64,7 +64,8 @@ public sealed partial class LibraryItemViewModel : ObservableObject
 
     public string TestName => $"Test {Title}";
 
-    public string RemoveName => $"Remove {Title} from Library";
+    /// <summary>Includes why Remove is off, so a screen reader hears it on the disabled button too (F-011).</summary>
+    public string RemoveName => CanRemove ? $"Remove {Title} from Library" : $"Remove {Title} from Library, not available. {RemoveTip}";
 
     public string RenameName => $"Rename {Title}";
 
@@ -87,7 +88,7 @@ public sealed partial class LibraryItemViewModel : ObservableObject
     public string Description => State.Length == 0 ? Detail : Detail.Length == 0 ? State : $"{Detail} · {State}";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(UsedByText), nameof(CanRemove), nameof(RemoveTip), nameof(AutomationName), nameof(IsUsed), nameof(IsUnused), nameof(UsedByName))]
+    [NotifyPropertyChangedFor(nameof(UsedByText), nameof(CanRemove), nameof(RemoveTip), nameof(RemoveName), nameof(AutomationName), nameof(IsUsed), nameof(IsUnused), nameof(UsedByName))]
     public partial int UsedBy { get; internal set; }
 
     public bool IsUsed => UsedBy > 0;
@@ -114,14 +115,14 @@ public sealed partial class LibraryItemViewModel : ObservableObject
 
     /// <summary>Programs aren't stored on their own; a device in use would leave its flows broken.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanRemove))]
+    [NotifyPropertyChangedFor(nameof(CanRemove), nameof(RemoveName))]
     public partial bool Removable { get; internal set; }
 
     public bool CanRemove => Removable && UsedBy == 0 && BoundIn is null;
 
     /// <summary>A Bluetooth or audio device that is a side of a bound device: that device's name (D-116).</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanRemove), nameof(RemoveTip))]
+    [NotifyPropertyChangedFor(nameof(CanRemove), nameof(RemoveTip), nameof(RemoveName))]
     public partial string? BoundIn { get; internal set; }
 
     // ---- Bound devices (D-116): which Bluetooth and audio devices it binds, changed in place ----
@@ -190,7 +191,12 @@ public sealed partial class LibraryItemViewModel : ObservableObject
         _ => $"Used by {UsedBy} flows. Remove it from those flows first.",
     };
 
-    /// <summary>Displays and Android devices, whose key is their name; flows that use it follow the new key.</summary>
+    /// <summary>What the rename box starts with: the name the card shows (Bluetooth, bound), or the key that is the name.</summary>
+    [ObservableProperty]
+    public partial string RenameText { get; internal set; } = "";
+
+    /// <summary>Displays and Android devices (their key is their name; flows that use it follow the new key), and
+    /// Bluetooth and bound devices (their display name changes, the key stays).</summary>
     [ObservableProperty]
     public partial bool CanRename { get; internal set; }
 
