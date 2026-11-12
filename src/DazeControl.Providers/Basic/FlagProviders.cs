@@ -41,6 +41,7 @@ public sealed class FlagCheckProvider(FlagStore flags) : IStepProvider
     {
         var name = context.RequiredText("name");
         var expected = context.Boolean("value", fallback: true);
+        context.SetValue("result", $"Flag \"{name}\" is {(flags.Get(name) ? "on" : "off")}");
         return flags.Get(name) == expected
             ? Task.CompletedTask
             : Task.FromException(new StepFailedException($"Flag \"{name}\" is {(expected ? "off" : "on")}."));

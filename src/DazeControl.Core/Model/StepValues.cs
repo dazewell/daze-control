@@ -533,13 +533,16 @@ public static class StepValues
         ArgumentNullException.ThrowIfNull(library);
         catalog ??= ProviderCatalog.All;
         var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // Only what this script's text names (as Wanted does): a value another step uses, a Sensitive one included, isn't handed to every script.
+        if (flow.FindNode(stepId) is not StepNode { With: var with } || !with.TryGetValue("script", out var script) || script is not ScalarParam { Text: var code })
+            return variables;
         foreach (var producer in Before(flow, stepId))
         {
             if (Descriptor(catalog, producer) is not { } d)
                 continue;
             foreach (var v in Of(d))
             {
-                if (values.TryGet(producer.Id, v.Name, out var given))
+                if (code.Contains(Variable(producer.Id, v.Name), StringComparison.OrdinalIgnoreCase) && values.TryGet(producer.Id, v.Name, out var given))
                     variables[Variable(producer.Id, v.Name)] = Show(given, library).Replace("\0", "", StringComparison.Ordinal);
             }
         }

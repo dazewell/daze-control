@@ -174,4 +174,15 @@ public sealed class StepValueFieldsTests
         Assert.Equal("3", count.Values["count"].Text);
         Assert.Equal("12.3", space.Values["free"].Text);
     }
+
+    [Fact]
+    public async Task AFlagCheckGivesWhatItFoundEvenWhenItFails()
+    {
+        var flags = new FlagStore();
+        flags.Set("away", false);
+        var context = Steps.Context("flag.check", ("name", "away"), ("value", "true"));
+        await Assert.ThrowsAsync<StepFailedException>(() => new FlagCheckProvider(flags).ExecuteAsync(context, Token));
+
+        Assert.Equal("Flag \"away\" is off", context.Values["result"].Text);
+    }
 }

@@ -50,6 +50,9 @@ public class StepValueFieldsTests
     [InlineData("pc.idle")]
     [InlineData("display.count")]
     [InlineData("time.check")]
+    [InlineData("android.check")]
+    [InlineData("display.check")]
+    [InlineData("flag.check")]
     public void EveryFactCheckGivesItsResultEvenWhenItFails(string step)
     {
         var result = StepValues.Find(ProviderCatalog.Find(step)!, "result");
@@ -121,13 +124,14 @@ public class StepValueFieldsTests
         Assert.Equal(expected, StepValues.Variable(step, value));
 
     [Fact]
-    public void ScriptVariablesHoldEveryEarlierValueAsPlainTextAndNothingAfterward()
+    public void ScriptVariablesHoldTheEarlierValuesTheScriptNamesAndNothingElse()
     {
-        var flow = Load(Producer, "{ id: s, step: script.powershell, after: [p], with: { script: \"exit 0\" } }",
+        var flow = Load(Producer, "{ id: s, step: script.powershell, after: [p], with: { script: \"$env:DAZE_P_OUTPUT; $env:daze_p_exitcode; $env:DAZE_LATER_OUTPUT\" } }",
             "{ id: later, step: process.run, after: [s], with: { path: z.exe } }").Flows[0];
         var values = new RunValues();
         values.SetText("p", "output", "TV'; calc");
         values.SetNumber("p", "exitCode", 0);
+        values.SetText("p", "error", "kept for another step, not named here");
         values.SetText("later", "output", "not yet");
 
         var variables = StepValues.Variables(flow, "s", values, Library.Empty);

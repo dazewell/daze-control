@@ -40,6 +40,7 @@ public static class ProviderCatalog
     private static readonly HashSet<string> ResultSteps = new(StringComparer.Ordinal)
     {
         "audio.check", "bluetooth.check", "process.check", "service.check", "file.check", "file.space", "display.count",
+        "android.check", "display.check", "flag.check",
         "network.wifi", "network.cable", "network.internet", "network.metered", "network.vpn",
         "power.source", "power.battery", "pc.idle", "pc.locked", "time.check",
     };
