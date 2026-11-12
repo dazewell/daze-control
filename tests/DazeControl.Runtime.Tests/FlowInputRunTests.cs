@@ -19,7 +19,22 @@ public sealed class FlowInputRunTests : IDisposable
           bluetooth:
             technics: { address: "B8:20:8E:ED:48:FC" }
             sony: { address: "AC:80:0A:11:22:33" }
+          bound:
+            technics-pair: { bluetooth: technics, audio: technics }
+            sony-pair: { bluetooth: sony, audio: sony }
         flows:
+          bound-in:
+            name: Bound input
+            inputs:
+              headphones: { kind: bound, name: Headphones, default: technics-pair }
+            nodes:
+              - { id: connect, step: bluetooth.connect, with: { device: $headphones } }
+              - { id: check, step: bluetooth.check, with: { device: $headphones }, after: [connect] }
+              - { id: setDefault, step: audio.setDefault, with: { device: $headphones }, after: [check] }
+          bound-call:
+            name: Bound call
+            nodes:
+              - { id: call, step: flow.run, with: { flow: bound-in, inputs: { headphones: sony-pair } } }
           make-default:
             name: Make it the default
             tray: { show: false }
@@ -61,7 +76,7 @@ public sealed class FlowInputRunTests : IDisposable
         Assert.Empty(load.Problems);
         _config = load.Config!;
         _starter = new Starter(_config);
-        _runner = new FlowRunner([new Step(_devices, "audio.setDefault"), new Step(_devices, "bluetooth.connect"), new FlowProvider(_starter)], _time)
+        _runner = new FlowRunner([new Step(_devices, "audio.setDefault"), new Step(_devices, "bluetooth.connect"), new Step(_devices, "bluetooth.check"), new FlowProvider(_starter)], _time)
         {
             Flows = _starter,
         };
@@ -93,6 +108,34 @@ public sealed class FlowInputRunTests : IDisposable
         var sony = NodeOf(result.Nodes, "sony");
         Assert.Equal(NodeOutcome.Succeeded, sony.Outcome);
         Assert.Equal(NodeOutcome.Succeeded, NodeOf(sony.Called!.Nodes, "set").Outcome);
+    }
+
+    /// <summary>D-125: a bound input reaches each step as the bound key; Bluetooth steps lock its Bluetooth side.</summary>
+    [Fact]
+    public async Task ABoundInputRunsEachStepOnItsSide()
+    {
+        var result = await Run("bound-in");
+
+        Assert.Equal(FlowOutcome.Succeeded, result.Outcome);
+        Assert.Equal(
+            [
+                ("bluetooth.connect", "technics-pair", "bluetooth:B8:20:8E:ED:48:FC"),
+                ("bluetooth.check", "technics-pair", "bluetooth:B8:20:8E:ED:48:FC"),
+                ("audio.setDefault", "technics-pair", "audio"),
+            ],
+            _devices.Calls);
+        Assert.Equal("B8:20:8E:ED:48:FC", _config.Library.ResolveBluetooth("technics-pair")!.Address);
+        Assert.Equal("Technics", _config.Library.ResolveAudio("technics-pair")!.Match);
+    }
+
+    [Fact]
+    public async Task ACallerPassesAnotherBoundDevice()
+    {
+        var result = await Run("bound-call");
+
+        Assert.Equal(FlowOutcome.Succeeded, result.Outcome);
+        Assert.All(_devices.Calls, c => Assert.Equal("sony-pair", c.Device));
+        Assert.Contains(("bluetooth.connect", "sony-pair", "bluetooth:AC:80:0A:11:22:33"), _devices.Calls);
     }
 
     [Fact]

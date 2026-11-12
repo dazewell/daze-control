@@ -695,6 +695,10 @@ public static partial class ConfigValidator
                     Error(path, $"This flow has no input called \"{name}\".");
                 else if (!LibraryEdits.Refers(input.Kind, kind))
                     Error(path, $"{input.Label} is {WithArticle(input.Kind)}; this setting needs {WithArticle(kind)}.");
+                // A bound input's default must have this step's side (D-125); a missing default is the input's own error.
+                else if (input.Kind == LibraryKind.Bound && kind != LibraryKind.Bound && library.Contains(LibraryKind.Bound, input.Default)
+                    && !library.Contains(kind, input.Default))
+                    Error(path, $"{input.Label}'s default, the bound device \"{input.Default}\", has no {LibraryName(kind)} in your Library.");
                 return;
             }
             // Only this flow's own input names count, so text that merely starts with $ ("$5 off") stays plain text.
