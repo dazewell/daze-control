@@ -94,9 +94,9 @@
                             <Button.Flyout>
                                 <Flyout Placement="BottomEdgeAlignedLeft">
                                     <StackPanel Spacing="8" MinWidth="300">
-                                        <ComboBox Header="Bluetooth device" ItemsSource="{x:Bind BindBluetoothChoices, Mode=OneWay}"
+                                        <ComboBox Header="Bluetooth device" PlaceholderText="Choose a Bluetooth device" ItemsSource="{x:Bind BindBluetoothChoices, Mode=OneWay}"
                                                   SelectedItem="{x:Bind BindBluetooth, Mode=TwoWay}" HorizontalAlignment="Stretch" />
-                                        <ComboBox Header="Audio device" ItemsSource="{x:Bind BindAudioChoices, Mode=OneWay}"
+                                        <ComboBox Header="Audio device" PlaceholderText="Choose an audio device" ItemsSource="{x:Bind BindAudioChoices, Mode=OneWay}"
                                                   SelectedItem="{x:Bind BindAudio, Mode=TwoWay}" HorizontalAlignment="Stretch" />
                                         <TextBox Header="Name" Text="{x:Bind BindName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Technics headphones" />
                                         <TextBlock Text="{x:Bind BindError, Mode=OneWay}" Visibility="{x:Bind HasBindError, Mode=OneWay}"
@@ -136,9 +136,12 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <FontIcon Glyph="{x:Bind Glyph}" Style="{StaticResource SettingsCardIcon}" />
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="{x:Bind Title, Mode=OneWay}" />
-                                            <TextBlock Text="{x:Bind Description, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <!-- A long name ends in an ellipsis; the full text is in the tooltip (F-010). -->
+                                            <TextBlock Text="{x:Bind Title, Mode=OneWay}" TextTrimming="CharacterEllipsis" MaxLines="1"
+                                                       ToolTipService.ToolTip="{x:Bind Title, Mode=OneWay}" />
+                                            <TextBlock Text="{x:Bind Description, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
+                                                       TextTrimming="CharacterEllipsis" MaxLines="1" ToolTipService.ToolTip="{x:Bind Description, Mode=OneWay}" />
                                             <StackPanel Orientation="Horizontal" Spacing="6" Visibility="{x:Bind HasProblem, Mode=OneWay}">
                                                 <FontIcon Glyph="&#xEA39;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
                                                 <TextBlock Text="{x:Bind Problem, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}"
@@ -192,7 +195,7 @@
                                                     <Flyout Placement="Bottom">
                                                         <StackPanel Spacing="8" MinWidth="260">
                                                             <TextBlock Text="Flows that use it keep working." Style="{StaticResource SettingsCardDescription}" />
-                                                            <TextBox Text="{x:Bind Key}" Header="Name" KeyDown="OnRenameKeyDown" Tag="{x:Bind}" />
+                                                            <TextBox Text="{x:Bind RenameText, Mode=OneWay}" Header="Name" KeyDown="OnRenameKeyDown" Tag="{x:Bind}" />
                                                             <TextBlock Text="{x:Bind RenameError, Mode=OneWay}" Visibility="{x:Bind HasRenameError, Mode=OneWay}"
                                                                        Foreground="{ThemeResource SystemFillColorCriticalBrush}" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" />
                                                             <Button Content="Rename" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right"
@@ -220,7 +223,8 @@
                                                 Visibility="{x:Bind Removable, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind RemoveTip, Mode=OneWay}">
                                             <Button Click="OnRemove" Tag="{x:Bind}" IsEnabled="{x:Bind CanRemove, Mode=OneWay}"
                                                     AutomationProperties.Name="{x:Bind RemoveName, Mode=OneWay}"
-                                                    AutomationProperties.HelpText="{x:Bind RemoveTip, Mode=OneWay}" Style="{StaticResource IconButton}">
+                                                    AutomationProperties.HelpText="{x:Bind RemoveTip, Mode=OneWay}"
+                                                    AutomationProperties.FullDescription="{x:Bind RemoveTip, Mode=OneWay}" Style="{StaticResource IconButton}">
                                                 <FontIcon Glyph="&#xE74D;" FontSize="14" />
                                             </Button>
                                         </Border>

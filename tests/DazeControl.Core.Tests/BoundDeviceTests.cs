@@ -94,6 +94,22 @@ public class BoundDeviceTests
         Assert.Equal(RenameRefusal.Taken, LibraryEdits.Rename(before, LibraryKind.Bound, "technics", "technics-out").Refusal);
     }
 
+    [Fact]
+    public void RetitlingKeepsTheKeyAndRefusesATakenName()
+    {
+        var before = Load();
+
+        var (config, refusal) = LibraryEdits.Retitle(before, LibraryKind.Bound, "technics", "Office cans");
+
+        Assert.Equal(RenameRefusal.None, refusal);
+        Assert.Equal("technics", config.Library.Bound[0].Key);
+        Assert.Equal("Office cans", config.Library.Bound[0].Name);
+        Assert.Equal(before.Flows, config.Flows);
+        Assert.Equal(RenameRefusal.Empty, LibraryEdits.Retitle(before, LibraryKind.Bound, "technics", "  ").Refusal);
+        Assert.Equal(RenameRefusal.Missing, LibraryEdits.Retitle(before, LibraryKind.Bound, "nope", "x").Refusal);
+        Assert.Equal(RenameRefusal.Missing, LibraryEdits.Retitle(before, LibraryKind.Audio, "technics-out", "x").Refusal);
+    }
+
     // ---- Bound flow inputs (D-125) ----
 
     private const string WithInput = """

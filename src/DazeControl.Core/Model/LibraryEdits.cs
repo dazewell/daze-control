@@ -61,6 +61,32 @@ public static class LibraryEdits
     }
 
     /// <summary>
+    /// Bluetooth and bound devices: a new display name, the key (what steps and files name) staying put, so nothing
+    /// else changes. The name must be new among that kind's names; typing the key back clears the name.
+    /// </summary>
+    public static (Configuration Config, RenameRefusal Refusal) Retitle(Configuration config, LibraryKind kind, string key, string name)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(name);
+        name = name.Trim();
+        var library = config.Library;
+        if (kind is not (LibraryKind.Bluetooth or LibraryKind.Bound) || !library.Contains(kind, key))
+            return (config, RenameRefusal.Missing);
+        if (name.Length == 0)
+            return (config, RenameRefusal.Empty);
+        var others = kind == LibraryKind.Bluetooth
+            ? library.Bluetooth.Where(d => d.Key != key).Select(d => d.Name ?? d.Key)
+            : library.Bound.Where(d => d.Key != key).Select(d => d.Name ?? d.Key);
+        if (others.Contains(name, StringComparer.OrdinalIgnoreCase))
+            return (config, RenameRefusal.Taken);
+        var stored = name == key ? null : name;
+        library = kind == LibraryKind.Bluetooth
+            ? library with { Bluetooth = [.. library.Bluetooth.Select(d => d.Key == key ? d with { Name = stored } : d)] }
+            : library with { Bound = [.. library.Bound.Select(d => d.Key == key ? d with { Name = stored } : d)] };
+        return (config with { Library = library }, RenameRefusal.None);
+    }
+
+    /// <summary>
     /// Whether <paramref name="flow"/> uses this Library item: a step setting names it, an input's default is it, or a
     /// <c>flow.run</c> passes it to an input of that kind (D-064). "Used by" counts these; Remove is off while any.
     /// </summary>

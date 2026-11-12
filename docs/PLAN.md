@@ -746,7 +746,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 - [ ] T22.2 Destructive actions and selection (F-002, F-003, F-016, F-017)
 - [ ] T22.3 Window and list responsiveness (F-005, F-014, F-023)
 - [ ] T22.4 Accessibility and keyboard (F-004, F-020, F-021, F-022)
-- [ ] T22.5 Library consistency (F-007, F-010, F-011)
+- [x] T22.5 Library consistency (F-007, F-010, F-011; audio rename + Programs add-by-hand skipped: need a model change)
 - [ ] T22.6 Inputs and Pick device (F-008, F-009, F-029)
 - [ ] T22.7 Light theme and Settings links (F-024, F-025)
 - [ ] T22.8 Runs, counters, messages, Outline (F-012 Opus, F-013, F-018, F-019, F-028)

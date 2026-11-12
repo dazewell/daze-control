@@ -89,8 +89,13 @@ public sealed partial class LibrarySectionViewModel : ObservableObject
     public bool HasBindError => BindError is not null;
 
     /// <summary>A new name follows the Bluetooth device picked, until the user types their own.</summary>
+    partial void OnBindAudioChanged(LibraryChoice? value) => BindError = null;
+
+    partial void OnBindNameChanged(string value) => BindError = null;
+
     partial void OnBindBluetoothChanged(LibraryChoice? oldValue, LibraryChoice? newValue)
     {
+        BindError = null;
         if (newValue is not null && (BindName.Length == 0 || BindName == oldValue?.Title))
             BindName = newValue.Title;
     }
@@ -314,7 +319,8 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
             item.UsedByFlows = row.Users;
             item.Problem = row.Problem;
             item.Removable = kind is not null && CanEdit;
-            item.CanRename = kind is LibraryKind.Display or LibraryKind.Android or LibraryKind.Bound && CanEdit;
+            item.CanRename = kind is LibraryKind.Display or LibraryKind.Android or LibraryKind.Bluetooth or LibraryKind.Bound && CanEdit;
+            item.RenameText = kind is LibraryKind.Bluetooth or LibraryKind.Bound ? row.Title : row.Key;
             item.BoundIn = kind is { } side && config.Library.BoundWith(side, row.Key).FirstOrDefault() is { } binding
                 ? binding.Name ?? binding.Key
                 : null;
@@ -413,8 +419,13 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     };
 
     /// <summary>"Technics EAH-AZ80 + Technics": its Bluetooth device and its audio device.</summary>
-    private static string BoundDetail(Library library, BoundDevice bound) =>
-        $"{LibraryDevices.NameOf(library, LibraryKind.Bluetooth, bound.Bluetooth)} + {library.Audio.FirstOrDefault(d => d.Key == bound.Audio)?.Match ?? bound.Audio}";
+    private static string BoundDetail(Library library, BoundDevice bound)
+    {
+        var bluetooth = LibraryDevices.NameOf(library, LibraryKind.Bluetooth, bound.Bluetooth);
+        var audio = library.Audio.FirstOrDefault(d => d.Key == bound.Audio)?.Match ?? bound.Audio;
+        // A name that is just the Bluetooth device's would repeat itself in the subtitle (F-007).
+        return (bound.Name ?? bound.Key) == bluetooth ? $"Audio: {audio}" : $"{bluetooth} + {audio}";
+    }
 
     /// <summary>"192.168.1.50 · 2 inputs".</summary>
     private static string AndroidDetail(AndroidDevice device) => device.Inputs.Count switch
@@ -629,9 +640,13 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(newKey);
-        if (!CanEdit || Sections.FirstOrDefault(s => s.Items.Contains(item))?.Kind is not ({ } kind and (LibraryKind.Display or LibraryKind.Android or LibraryKind.Bound)))
+        if (!CanEdit || Sections.FirstOrDefault(s => s.Items.Contains(item))?.Kind is not ({ } kind and (LibraryKind.Display or LibraryKind.Android or LibraryKind.Bluetooth or LibraryKind.Bound)))
             return false;
-        var refusal = LibraryEdits.Rename(_session.Current, kind, item.Key, newKey).Refusal;
+        // Bluetooth and bound devices show a name that isn't their key: renaming changes the name, steps keep the key.
+        var named = kind is LibraryKind.Bluetooth or LibraryKind.Bound;
+        (Configuration Config, RenameRefusal Refusal) Edit(Configuration c) =>
+            named ? LibraryEdits.Retitle(c, kind, item.Key, newKey) : LibraryEdits.Rename(c, kind, item.Key, newKey);
+        var refusal = Edit(_session.Current).Refusal;
         item.RenameError = refusal switch
         {
             RenameRefusal.Empty => "Give it a name.",
@@ -641,7 +656,7 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         };
         if (refusal != RenameRefusal.None)
             return false;
-        _session.Update(c => LibraryEdits.Rename(c, kind, item.Key, newKey).Config);
+        _session.Update(c => Edit(c).Config);
         return true;
     }
 
