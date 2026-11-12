@@ -69,6 +69,30 @@ internal static partial class WindowPlacementInterop
         }
     }
 
+    /// <summary>The smallest window the layout works in, in DIPs (F-005): the Flows cards need about 640 across.</summary>
+    internal const int MinWidthDips = 640;
+
+    internal const int MinHeightDips = 480;
+
+    /// <summary>Sets the minimum size, so the window can't be dragged narrower than the layout copes with.</summary>
+    public static void ApplyMinimumSize(Window window)
+    {
+        try
+        {
+            if (window.AppWindow.Presenter is OverlappedPresenter presenter)
+            {
+                var hwnd = Win32Interop.GetWindowFromWindowId(window.AppWindow.Id);
+                var scale = GetDpiForWindow(hwnd) / 96.0;
+                presenter.PreferredMinimumWidth = (int)Math.Ceiling(MinWidthDips * scale);
+                presenter.PreferredMinimumHeight = (int)Math.Ceiling(MinHeightDips * scale);
+            }
+        }
+        catch (Exception e) when (e is COMException or InvalidOperationException or DllNotFoundException or NotImplementedException)
+        {
+            // No minimum: the layout still works, just less tidily.
+        }
+    }
+
     /// <summary>Moves and sizes the window per the saved state, before it is first shown; maximizes after if it was.</summary>
     public static void Apply(Window window, WindowSettings? saved)
     {
