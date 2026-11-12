@@ -256,4 +256,20 @@ public sealed class ValueTextTests
         Assert.Equal("On {bt.device}", field.Text);
         Assert.Empty(field.ValueGroups);
     }
+
+    [Fact]
+    public void RealCatalogShowMessageAfterBluetoothConnectListsTheDevice()
+    {
+        var flow = new Flow("f", "F", [new StepNode("bt", "bluetooth.connect") { Name = "Connect Technics" },
+            new StepNode("note", "notify") { After = [new Edge("bt")] }]);
+        var spec = ProviderCatalog.Find("notify")!.Params.First(p => p.Name == "text");
+        var field = new ParamFieldViewModel(spec, (_, _) => { }, _ => true);
+        field.SetValueContext(flow, "note");
+        field.Load(new ScalarParam("On {bt.device}"), null);
+
+        Assert.True(field.TakesValues);
+        Assert.Equal("On {Connect Technics: Device}", field.Text);
+        Assert.Equal(["Connect Technics", ValueText.FromRun], field.ValueGroups.Select(g => g.Header));
+        Assert.Contains(field.ValueGroups[0].Rows, r => r.Stored == "{bt.device}");
+    }
 }
