@@ -55,10 +55,13 @@ Model: Opus medium; T21.6 and T21.7 Opus high.
   members, ports, the routes of every edge touching a moved box, built with `FlowPlacement.Sides/Port` + `EdgeCurve.For`
   exactly as the commit will); `FlowCanvas` coalesces pointer moves to one update per frame (`CompositionTarget.
   Rendering` subscribed for the gesture only), moves views by `UIElement.Translation`, draws touching edges in a second
-  "live" path set (static ones drawn once at drag start without them), moves their chips, arrowheads, the port dots,
+  "live" path set (static ones drawn once at drag start without them; on a flow not yet placed by hand the drag starts
+  from the frozen arrangement `MoveBy` will commit, `FlowPlacement.Arrange` with every step placed where it is, so
+  edges between steps that don't move lose their wrap/detour lanes at drag start, never on release), moves their chips, arrowheads, the port dots,
   focus ring and "+/×". Same for the connect preview's source port. Files: new `DragPreview.cs` (+ tests),
   `FlowCanvas.Pointer.cs`, `FlowCanvas.Edges.cs`, `FlowCanvas.xaml` (live paths in `EdgeLayer`). Done when: tests prove
-  preview routes == the routes after `MoveBy` for the same offset in all four Arrange shapes, auto and placed, with a
+  every preview route == the route after `MoveBy` for the same offset (all edges, not only touching ones), in all four
+  Arrange shapes, auto and placed, a first drag with an unrelated wrapped edge, with a
   card; live: lines, dots and chips stay attached while dragging one step, a card, and a 3-step selection.
 - [ ] T21.5 Library drop at the pointer (D-120): `FlowCanvasViewModel.AddStepAt(step, Point, targetId?, DropZone)`:
   empty canvas = new step centred on the point, snapped, as a hand placement (freezes the rest, one undo step with the

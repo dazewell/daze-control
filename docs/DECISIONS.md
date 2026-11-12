@@ -1563,7 +1563,7 @@ Status: accepted (user asked 2026-11-11: "different device checks, like what wif
 
 ## D-119 · 2026-11-11 · Canvas: keep XAML views, add a live scene layer and a camera; no custom-drawn surface
 Status: accepted (user, 2026-11-11: "as smooth as butter… as Miro"; investigation only, built in M21). Supersedes D-074's
-"Why not an unbounded canvas" once T21.6's spike passes; D-013 and D-037 stand.
+"Why not an unbounded canvas" once T21.7's camera spike passes; D-013 and D-037 stand.
 - Verdict: the drawing stack is not the problem (a pill is 10 elements, flows are 5–80 steps, a re-layout of 80 steps
   costs ~2 ms in the VM). The **interaction architecture** is: the canvas knows only committed layout, so nothing derived
   follows a gesture, and a commit is a full rebuild. Root causes (code as of fb3e371):
@@ -1586,7 +1586,8 @@ Status: accepted (user, 2026-11-11: "as smooth as butter… as Miro"; investigat
 - Decision: keep XAML pills/cards (UIA names, theme and high-contrast brushes, text) and batched edge paths, and add:
   (a) a pure **scene** in `Editor.ViewModels/Canvas` — item rects by id (dictionary + uniform-grid index for hit tests),
   ports, edge routes, and a **transient** layer (drag offset for a set of ids, palette ghost, connect preview) from which
-  moved rects, ports and the routes of touching edges are derived with the same `FlowPlacement.Sides/Port` +
+  moved rects, ports and the routes of touching edges are derived (on a flow not yet placed by hand, from the frozen
+  arrangement the first move commits, so wrap and detour lanes go at drag start, not on release) with the same `FlowPlacement.Sides/Port` +
   `EdgeCurve.For` code the commit uses, so **preview == commit**; (b) per-frame updates during a gesture only:
   pointer moves are coalesced to one update per frame (`CompositionTarget.Rendering`, subscribed for the gesture,
   removed at its end: idle stays zero), views move by `UIElement.Translation`, edges touching moving items go to a
