@@ -175,7 +175,7 @@ public sealed partial class FlowCanvas
     /// </summary>
     private void UpdateEdgePan()
     {
-        var velocity = Camera.EdgeVelocity(_gestureScreen.X, _gestureScreen.Y, ViewportWidth, ViewportHeight);
+        var velocity = EdgeVelocity();
         SetEdgeFrames(_gesture is Gesture.DragNode or Gesture.Connect or Gesture.Marquee && velocity != (0, 0));
     }
 
@@ -198,7 +198,7 @@ public sealed partial class FlowCanvas
         _edgeLast = now;
         if (last is not { } before || now <= before)
             return;
-        var velocity = Camera.EdgeVelocity(_gestureScreen.X, _gestureScreen.Y, ViewportWidth, ViewportHeight);
+        var velocity = EdgeVelocity();
         var was = _camera;
         ApplyCamera(_camera.EdgePan(velocity, (now - before).TotalSeconds));
         if (_camera == was)
@@ -209,6 +209,32 @@ public sealed partial class FlowCanvas
         var world = _camera.ToWorld(C(_gestureScreen));
         _pendingMove = new Windows.Foundation.Point(world.X, world.Y);
     }
+
+    /// <summary>
+    /// Auto-pan's velocity for the gesture's pointer, stopped along an axis once the view shows room past the content
+    /// that way (F-001): the steps that stay put for a drag, every step for a connect or a marquee.
+    /// </summary>
+    private (double X, double Y) EdgeVelocity()
+    {
+        var velocity = Camera.EdgeVelocity(_gestureScreen.X, _gestureScreen.Y, ViewportWidth, ViewportHeight);
+        if (velocity == (0, 0) || _viewModel is null)
+            return velocity;
+        _edgeContent ??= _viewModel.Scene.Drag?.StillBounds ?? ContentBounds(_viewModel);
+        return _edgeContent is { } content ? _camera.EdgeLimit(velocity, content, ViewportWidth, ViewportHeight) : velocity;
+
+        static DazeControl.Core.Layout.Rect? ContentBounds(FlowCanvasViewModel vm)
+        {
+            var top = vm.Nodes.Where(n => n.CardId is null).Select(n => n.Bounds).ToList();
+            if (top.Count == 0)
+                return null;
+            double x = top.Min(r => r.X), y = top.Min(r => r.Y);
+            return new DazeControl.Core.Layout.Rect(x, y, top.Max(r => r.Right) - x, top.Max(r => r.Bottom) - y);
+        }
+    }
+
+    /// <summary>Whether a screen point (Viewport DIP) is on the canvas, not over the palette, inspector or toolbar.</summary>
+    private bool InViewport(Windows.Foundation.Point screen) =>
+        screen.X >= 0 && screen.Y >= 0 && screen.X <= ViewportWidth && screen.Y <= ViewportHeight;
 
     /// <summary>Escape mid-gesture: nothing is committed, a marquee gives back the selection it started from, a pan its camera.</summary>
     private void CancelGesture()
@@ -308,6 +334,10 @@ public sealed partial class FlowCanvas
                 break;
             case Gesture.Connect when ConnectTarget(position) is { } end && end.Id != _connectFrom!.Id: // a click on a port is no drag
                 ShowRefusal(_viewModel.Connect(_connectFrom!.Id, end.Id), end);
+                break;
+            case Gesture.DragNode when !InViewport(e.GetCurrentPoint(Viewport).Position):
+                // Released over another pane (the inspector, the palette): no drop there, the steps stay put (F-001).
+                _viewModel.ReleaseMove();
                 break;
             case Gesture.DragNode:
                 var node = _dragged!.Node;
@@ -531,6 +561,7 @@ public sealed partial class FlowCanvas
     {
         _edgeFrames = false;
         _edgeLast = null;
+        _edgeContent = null;
         OnFrames(false);
         _pendingMove = null;
         if (_gesture == Gesture.Marquee)

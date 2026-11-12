@@ -110,11 +110,11 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   and selected alone (Ctrl adds); the marquee takes edges with both ends inside and shows its selection while dragging; Del removes a selected edge. Ctrl+C/V/D copy nodes + inner edges + library
   refs, paste into a new column to the right. Del; deleting B in A→B→C reconnects A→C; deleting a card
   deletes its members. Del on 10 or more selected items asks "Delete n items?" first (Ctrl+Z undoes either way); the Many-mode inspector says what applies to the whole selection (Del, Ctrl+G, Ctrl+C, Ctrl+Z). Undo/redo Ctrl+Z/Y, one entry per gesture, within the draft (Save or Cancel clears it).
-- Navigate: the mouse wheel and Ctrl+wheel zoom 50–200 % (×1.1 a notch) with the point under the pointer staying
+- Navigate: the mouse wheel and Ctrl+wheel zoom 10–200 % (×1.1 a notch, D-126) with the point under the pointer staying
   put; Shift+wheel and a tilt wheel pan sideways; a touchpad's two-finger scroll pans and pinch zooms at the pointer;
   touch pans and pinches with a short glide (D-074, D-119 e). Space+drag /
   middle-drag / right-drag / one-finger pan move any flow, one that fits the window too, until 48 DIP of its steps
-  is left on screen; Ctrl+0 fits and centres it, Ctrl+1 100 %; minimap 160×100 bottom-right only when content overflows.
+  is left on screen; Ctrl+0 fits and centres it (opening a flow and Layout › Arrange or Reset layout fit too), Ctrl+1 100 %; minimap 160×100 bottom-right only when content overflows.
   Right-drag pans over pills and edges too, without selecting them; a right click that doesn't leave the system drag
   rectangle still opens the menu (D-069).
 - Empty state: centred glyph, title, line, "Add a step" button.

@@ -50,10 +50,15 @@ public sealed class CanvasPlacementTests : IDisposable
         var before = Everything();
         var vol = At("vol");
 
+        var offset = _canvas.SnappedOffset(["vol"], 301, 197);
+
         Assert.True(_canvas.MoveBy(["vol"], 301, 197));
 
         Assert.True(_canvas.IsPlacedByHand);
-        Assert.Equal(new Point(FlowPlacement.Snap(vol.X + 301), FlowPlacement.Snap(vol.Y + 197)), At("vol"));
+        Assert.Equal(new Point(vol.X + offset.X, vol.Y + offset.Y), At("vol"));
+        // On the grid, or lined up with a step's column (UX §5.9), and clear of every other step.
+        Assert.True(At("vol").X == FlowPlacement.Snap(vol.X + 301) || before.Any(kv => kv.Key != "vol" && kv.Value.X == At("vol").X));
+        Assert.Equal(FlowPlacement.Snap(vol.Y + 197), At("vol").Y);
         foreach (var (id, at) in before.Where(kv => kv.Key != "vol"))
             Assert.Equal(at, At(id));
         Assert.Equal(before.Keys.Order(), _canvas.LayoutChoices.Placed!.Keys.Order());
@@ -83,39 +88,113 @@ public sealed class CanvasPlacementTests : IDisposable
     {
         string[] ids = ["vol", "out", "w1"]; // a member counts as its card
         var before = ids.Select(At).ToList();
-        var lead = At("vol");
+        var shift = default(Point);
+        _canvas.OriginShifted += (_, s) => shift = s;
 
         var preview = _canvas.SnappedOffset(ids, dx, dy);
         _canvas.MoveBy(ids, dx, dy);
 
-        // D-120: the lead lands on the grid exactly where the preview drew it, the rest keep their distance.
-        Assert.Equal(FlowPlacement.Snap(lead.X + preview.X), lead.X + preview.X);
+        // D-120: every box lands exactly where the preview drew it (less the origin shift of a drop above or left, F-030).
         foreach (var (id, was) in ids.Zip(before))
-            Assert.Equal(new Point(was.X + preview.X, was.Y + preview.Y), At(id));
+            Assert.Equal(new Point(was.X + preview.X + shift.X, was.Y + preview.Y + shift.Y), At(id));
     }
 
     [Fact]
     public void ThePreviewOffsetOfNothingIsZero() =>
         Assert.Equal(default, _canvas.SnappedOffset(["nope"], 40, 40));
 
+    private static readonly Size Pill = new(232, 56);
+
+    private static Rect Box(double x, double y) => new(x, y, Pill.Width, Pill.Height);
+
     [Theory]
     [InlineData(96, 96, 13, 6, 16, 8)] // the lead snaps: 109 → 112, 102 → 104 (8-DIP grid)
     [InlineData(101, 99, 0, 0, 3, -3)] // a lead off the grid snaps even when the pointer hasn't moved
-    [InlineData(100, 100, -500, -500, -76, -76)] // the top left stops at the padding (24)
-    public void MoveSnapSnapsTheLeadAndClampsAtThePadding(double x, double y, double dx, double dy, double wantX, double wantY)
+    [InlineData(100, 100, -500, -500, -500, -500)] // nothing stops it above or left of the flow (F-030)
+    public void MoveSnapSnapsTheLeadAndGoesAnywhereFree(double x, double y, double dx, double dy, double wantX, double wantY)
     {
-        var offset = MoveSnap.Offset(new Point(x, y), new Point(x, y), dx, dy, padding: 24);
+        var offset = MoveSnap.Offset([Box(x, y)], [], dx, dy, 64, 16);
 
         Assert.Equal(new Point(wantX, wantY), offset);
     }
 
     [Fact]
-    public void MoveSnapClampsByTheTopLeftOfTheWholeGroup()
+    public void MoveSnapLinesTheLeadUpWithANearbyColumn()
     {
-        // The lead is far from the edge, but another box is already near it: the group stops when that box hits it.
-        var offset = MoveSnap.Offset(new Point(400, 400), new Point(40, 32), -1000, -1000, padding: 24);
+        // A still step at x 300 (off the grid); the lead dropped 20 DIP right of that column, far below it, joins it.
+        var offset = MoveSnap.Offset([Box(1000, 1000)], [Box(301, 0)], -680, 0, 64, 16);
 
-        Assert.Equal(new Point(-16, -8), offset);
+        Assert.Equal(301, 1000 + offset.X);
+    }
+
+    [Fact]
+    public void MoveSnapNeverOverlapsAndKeepsTheGaps()
+    {
+        // The finding (F-030): a drop 8 DIP over a neighbour in its column. It goes under it, a row gap away.
+        Rect[] still = [Box(48, 48), Box(48 + 232 + 64, 48)];
+        var lead = Box(600, 400);
+        var offset = MoveSnap.Offset([lead], still, 48 - 600, 48 + 56 - 8 - 400, 64, 16);
+
+        var landed = lead with { X = lead.X + offset.X, Y = lead.Y + offset.Y };
+        Assert.True(MoveSnap.Clear([lead], still, offset.X, offset.Y, 64, 16));
+        Assert.Equal(48, landed.X); // still in the column
+        Assert.Equal(48 + 56 + 16, landed.Y); // one row gap under its neighbour
+    }
+
+    [Fact]
+    public void MoveSnapKeepsAGroupRigidAndClearOfEveryStillStep()
+    {
+        Rect[] movers = [Box(1000, 48), Box(1000, 48 + 56 + 16)];
+        Rect[] still = [Box(48, 48), Box(48, 48 + 56 + 16), Box(48, 48 + 2 * (56 + 16))];
+        var offset = MoveSnap.Offset(movers, still, -940, 8, 64, 16);
+
+        Assert.True(MoveSnap.Clear(movers, still, offset.X, offset.Y, 64, 16));
+        Assert.True(Math.Abs(offset.X - -940) + Math.Abs(offset.Y - 8) < 400); // the nearest free spot, not far away
+    }
+
+    [Theory]
+    [InlineData(48 + 232 + 63, 48, false)] // beside it, one DIP inside the column gap
+    [InlineData(48 + 232 + 64, 48, true)] // exactly the column gap
+    [InlineData(48, 48 + 56 + 15, false)] // under it, one DIP inside the row gap
+    [InlineData(48, 48 + 56 + 16, true)] // exactly the row gap
+    [InlineData(48 + 232 + 10, 48 + 56 + 16, true)] // diagonal: a row gap below is enough
+    public void ClearMeansTheColumnGapBesideOrTheRowGapAboveAndBelow(double x, double y, bool clear) =>
+        Assert.Equal(clear, MoveSnap.Clear([Box(x, y)], [Box(48, 48)], 0, 0, 64, 16));
+
+    [Fact]
+    public void AMoveAboveTheFlowShiftsTheOriginAndUndoPutsItBack()
+    {
+        var before = Everything();
+        var vol = At("vol");
+        var shifts = new List<Point>();
+        _canvas.OriginShifted += (_, s) => shifts.Add(s);
+
+        Assert.True(_canvas.MoveBy(["vol"], 0, -vol.Y - 400)); // 400 DIP above the top of the flow (F-030)
+
+        var shift = Assert.Single(shifts);
+        Assert.True(shift.Y > 0); // everything moved down, so the moved step is at the margin
+        Assert.Equal(_canvas.LayoutOptions.Padding, _canvas.Nodes.Where(n => n.CardId is null).Min(n => n.Y));
+        foreach (var (id, at) in before.Where(kv => kv.Key != "vol"))
+            Assert.Equal(new Point(at.X + shift.X, at.Y + shift.Y), At(id)); // the rest keep their places on screen
+
+        _canvas.Undo();
+
+        Assert.Equal(new Point(-shift.X, -shift.Y), shifts[^1]); // the camera pans back by it
+        Assert.Equal(before, Everything());
+    }
+
+    [Fact]
+    public void ArrangeAndResetLayoutAskTheCanvasToFit()
+    {
+        var raised = 0;
+        _canvas.Rearranged += (_, _) => raised++;
+
+        _canvas.MoveBy(["vol"], 400, 400);
+        _canvas.Arrange(LayoutShape.LeftToRight);
+        _canvas.Arrange(LayoutShape.LeftToRight); // already so: still brings it into view (F-015)
+        _canvas.ResetLayout();
+
+        Assert.Equal(3, raised);
     }
 
     [Fact]

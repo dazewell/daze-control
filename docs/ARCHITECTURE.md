@@ -389,9 +389,11 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   pointer handlers'); keyboard focus and new steps are revealed by `Camera.Reveal`. Pointer positions read with
   `GetCurrentPoint(Host)` go through the transform, so hit tests, drags, drops and menus have no camera maths.
   Gesture polish (T21.9): a drag, connect or marquee whose pointer is within `Camera.EdgeBand` (40 DIP) of the viewport
-  edge auto-pans (`Camera.EdgeVelocity`: linear in depth, 1200 DIP/s at and past the edge, no time acceleration, so the
+  edge auto-pans (`Camera.EdgeVelocity`: linear in depth, 600 DIP/s at and past the edge (D-126), no time acceleration, so the
   same with Animation effects off; `EdgePan` caps a stalled frame at 1/30 s) as a third reason on the one `OnFrame`
-  clock (`_edgeFrames`), off when the pointer leaves the band, the clamp stops the camera, or the gesture ends; each
+  clock (`_edgeFrames`), off when the pointer leaves the band, the clamp stops the camera, `Camera.EdgeLimit` finds
+  `EdgeRoom` (one column) past the content already on screen (the still steps for a drag), or the gesture ends; a drag
+  released outside the viewport (over the inspector or palette) commits nothing; each
   pan frame re-reads the world point under the still pointer, so the drag, line or marquee follows. The connect line
   snaps to an allowed target's in-port; the marquee selects live (`BeginMarquee`/`MarqueeTo`/`EndMarquee`, raised only
   on change); Escape mid-gesture (and a lost capture) cancels: nothing committed, the marquee restores `CancelMarquee`.
@@ -401,7 +403,9 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   still arrives; an armed press is dropped on `PointerExited` (no capture = no release outside).
 - Canvas direction (D-119, M21; partly built): live drag (T21.4): `FlowCanvasViewModel.BeginMove(ids)` returns a pure
   `Canvas/DragPreview` built from the arrangement `MoveBy` commits with every step frozen where it is
-  (`FlowPlacement.Arrange` with all top-level steps placed); `Offset(dx, dy)` = `MoveSnap` (lead snapped, padding clamp)
+  (`FlowPlacement.Arrange` with all top-level steps placed); `Offset(dx, dy)` = `MoveSnap` (lead snapped to the grid or a
+  column within half a column gap, then the nearest offset keeping the column/row gap from every still step; no clamp:
+  `MoveBy` raises `OriginShifted` like a library drop, D-126)
   and `At(offset)` gives the moved rects (cards with members) and the routes/curves of the touching lines via
   `FlowPlacement.Sides/Port` + `EdgeCurve.For`, so preview == commit (`DragPreviewTests`, all shapes, auto and placed).
   `FlowCanvas` draws pointer moves of a drag, connect or marquee once per frame (`CompositionTarget.Rendering`,
