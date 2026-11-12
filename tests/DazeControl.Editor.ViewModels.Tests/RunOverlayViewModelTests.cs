@@ -49,7 +49,7 @@ public sealed class RunOverlayViewModelTests : IDisposable
 
         Assert.True(_run.IsRunning);
         Assert.False(_canvas.CanEdit);
-        Assert.Equal("Running · 0 of 5", _run.Status); // note is a fallback: it counts once it starts (D-065)
+        Assert.Equal("Running · 0 of 6", _run.Status); // every step counts from the start, fallback too (D-126)
         Assert.Equal("You can edit again when this run finishes.", _run.InfoMessage);
         Assert.Equal(NodeRunState.Pending, State("bt"));
         Assert.Equal(NodeRunState.None, State("both")); // a card has no ring
@@ -60,13 +60,13 @@ public sealed class RunOverlayViewModelTests : IDisposable
         Raise(EventKinds.NodeFinished, result: new NodeResult("bt", NodeOutcome.Succeeded, Duration: TimeSpan.FromSeconds(1.2)));
         Assert.Equal(NodeRunState.Succeeded, State("bt"));
         Assert.Equal("1.2 s", _canvas.Find("bt")!.ShownSummary); // the summary becomes its duration
-        Assert.Equal("Running · 1 of 5", _run.Status);
+        Assert.Equal("Running · 1 of 6", _run.Status);
         Assert.True(_canvas.Edges.Single(e => e.From == "bt" && e.To == "vol").IsLit);
         Assert.False(_canvas.Edges.Single(e => e.From == "out").IsLit);
     }
 
     [Fact]
-    public void AFallbackCountsOnceItStartsAndAFixedFailureSaysWhatRanInstead()
+    public void TheTotalStaysWhenAFallbackStartsAndAFixedFailureSaysWhatRanInstead()
     {
         Raise(EventKinds.RunStarted);
         Raise(EventKinds.NodeFinished, result: new NodeResult("out", NodeOutcome.Failed, Order: 2, Error: "No such device"));
@@ -80,12 +80,12 @@ public sealed class RunOverlayViewModelTests : IDisposable
     }
 
     [Fact]
-    public void AFallbackThatWasntNeededSaysSoAndCountsForNothing()
+    public void AFallbackThatWasntNeededSaysSoAndCountsAsDone()
     {
         Raise(EventKinds.RunStarted);
         Raise(EventKinds.NodeFinished, result: new NodeResult("note", NodeOutcome.NotNeeded, Attempts: 0));
 
-        Assert.Equal("Running · 0 of 5", _run.Status);
+        Assert.Equal("Running · 1 of 6", _run.Status);
         Assert.Equal((NodeRunState.Skipped, "Not needed"), (State("note"), _canvas.Find("note")!.ShownSummary)); // #47
     }
 
@@ -253,7 +253,7 @@ public sealed class RunOverlayViewModelTests : IDisposable
 
         Raise(EventKinds.RunStarted);
 
-        Assert.Equal("Running · 0 of 5", _run.Status);
+        Assert.Equal("Running · 0 of 6", _run.Status);
     }
 
     // ---- Flows inside flows (D-062) ----

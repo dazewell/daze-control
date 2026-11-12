@@ -30,12 +30,10 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
     private readonly Action<Action> _post;
     private readonly Dictionary<string, NodeRunView> _states = new(StringComparer.Ordinal);
     private readonly HashSet<string> _steps = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _counted = new(StringComparer.Ordinal); // "n of m": fallbacks once they start
     private readonly List<NodeResult> _results = [];
-    private IReadOnlySet<string> _fallbacks = new HashSet<string>();
     private Flow? _running;
     private Guid? _runId;
-    private int _done;
+    private RunProgress _progress = new(new Flow("", "", [])); // "n of m", shared with the pop-up (F-012, D-126)
 
     /// <summary>Every run the engine reported starting (any flow): a nested run's caller is named from it (#64).</summary>
     private readonly Dictionary<Guid, string> _runFlows = [];
@@ -245,15 +243,13 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
         {
             case EventKinds.NodeStarted when e.NodeId is { } id && _steps.Contains(id):
                 _states[id] = new NodeRunView(NodeRunState.Running, "Running…");
-                _counted.Add(id);
                 break;
             case EventKinds.NodeFinished when e.Node is { } node:
                 _results.Add(node);
                 if (!_steps.Contains(node.NodeId))
                     return;
                 _states[node.NodeId] = RunWords.View(node);
-                if (_counted.Contains(node.NodeId))
-                    _done++;
+                _progress.Finish(node.NodeId);
                 break;
             case EventKinds.RunFinished:
                 Finish(e.Outcome ?? FlowOutcome.Failed);
@@ -270,17 +266,13 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
         _runId = runId;
         _states.Clear();
         _steps.Clear();
-        _counted.Clear();
         _results.Clear();
-        _done = 0;
         // A live run executes the saved flow, not the draft on screen (D-047).
         _running = _canvas.SavedFlow ?? _canvas.Flow;
-        _fallbacks = _running is null ? new HashSet<string>() : FlowShape.Fallbacks(_running);
+        _progress = new RunProgress(_running ?? new Flow("", "", []));
         foreach (var step in _running?.Nodes.OfType<StepNode>() ?? [])
         {
             _steps.Add(step.Id);
-            if (!_fallbacks.Contains(step.Id))
-                _counted.Add(step.Id);
             _states[step.Id] = new NodeRunView(NodeRunState.Pending);
         }
         IsRunning = true;
@@ -296,7 +288,7 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
 
     private void Update()
     {
-        Status = IsRunning ? $"Running · {_done} of {_counted.Count}" : "";
+        Status = IsRunning ? $"Running · {_progress.Text}" : "";
         _canvas.ShowRun(new Dictionary<string, NodeRunView>(_states));
     }
 
