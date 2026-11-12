@@ -980,6 +980,7 @@ Status: accepted (user, 2026-11-03, v0.29.0 feedback); built F1. Changes UX §5.
 - Why not wheel scroll as before: the user's flows are short and wide, so vertical scrolling rarely helps, and
   diagram tools (Miro, Figma) zoom on the wheel. Why not an unbounded canvas (render transform instead of a
   `ScrollViewer`): loses the `ScrollViewer`'s pinch, touchpad and keyboard scrolling and `BringIntoView` for focus.
+  (Superseded by D-119 e, T21.7: the camera does those itself; the wrapper padding is now `Camera.Clamp`.)
 - Revisit if: mouse users miss vertical scrolling on tall flows (then wheel scrolls when the flow is taller than the
   window), or the touchpad's two-finger scroll turns out to arrive as wheel input (then tell it by device type).
 
@@ -1563,7 +1564,8 @@ Status: accepted (user asked 2026-11-11: "different device checks, like what wif
 
 ## D-119 · 2026-11-11 · Canvas: keep XAML views, add a live scene layer and a camera; no custom-drawn surface
 Status: accepted (user, 2026-11-11: "as smooth as butter… as Miro"; investigation only, built in M21). Supersedes D-074's
-"Why not an unbounded canvas" once T21.7's camera spike passes; D-013 and D-037 stand.
+"Why not an unbounded canvas": T21.7's spike passed the agent-checkable parts (2026-11-12: crisp text at 50/200 %, clip,
+zoom at centre; real touchpad/touch input is the user's live check, its fail = revert T21.7 per Revisit); D-013, D-037 stand.
 - Verdict: the drawing stack is not the problem (a pill is 10 elements, flows are 5–80 steps, a re-layout of 80 steps
   costs ~2 ms in the VM). The **interaction architecture** is: the canvas knows only committed layout, so nothing derived
   follows a gesture, and a commit is a full rebuild. Root causes (code as of fb3e371):

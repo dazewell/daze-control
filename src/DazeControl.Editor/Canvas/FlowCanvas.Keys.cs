@@ -174,9 +174,5 @@ public sealed partial class FlowCanvas
             BringIntoView(node);
     });
 
-    private void BringIntoView(CanvasNodeViewModel node)
-    {
-        if (_views.TryGetValue(node.Id, out var view))
-            view.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = true });
-    }
+    private void BringIntoView(CanvasNodeViewModel node) => Reveal(node.Bounds);
 }

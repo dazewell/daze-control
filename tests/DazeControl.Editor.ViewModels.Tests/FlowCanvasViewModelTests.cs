@@ -123,11 +123,11 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     {
         Assert.Equal(1, _canvas.FitView(10_000, 10_000).Zoom);
         Assert.Equal(FlowCanvasViewModel.MinZoom, _canvas.FitView(10, 10).Zoom);
-        Assert.Equal(new CanvasView(0, 0, FlowCanvasViewModel.MinZoom), _canvas.FitView(10, 10)); // too big: starts at the top left
+        Assert.Equal(new Camera(0, 0, FlowCanvasViewModel.MinZoom), _canvas.FitView(10, 10)); // too big: starts at the top left
         var width = _canvas.ExtentWidth * 0.75;
         var view = _canvas.FitView(width, _canvas.ExtentHeight * 2);
         Assert.Equal(0.75, view.Zoom, 3);
-        Assert.Equal(0, CanvasViewport.Pad(width, view.Zoom) * view.Zoom - view.OffsetX, 3); // flow's left edge at the window's
+        Assert.Equal(0, view.X, 3); // flow's left edge at the window's
     }
 
     [Fact]

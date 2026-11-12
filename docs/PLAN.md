@@ -79,7 +79,7 @@ Model: Opus medium; T21.6 and T21.7 Opus high.
   `FlowCanvas.xaml.cs` (sync), `FlowCanvas.Edges.cs`; not `FlowCanvas.xaml`. Done when: scene tests (diff, index vs
   brute-force hit tests on random points), existing canvas tests green, T21.1's event-count test still minimal. (feat/canvas-scene: code + tests;
   live check open, for the user)
-- [ ] T21.7 Camera (D-119 e), spike first: a branch-only spike replaces the `ScrollViewer` with a world layer under one
+- [~] T21.7 Camera (D-119 e), spike first: a branch-only spike replaces the `ScrollViewer` with a world layer under one
   transform and checks: touchpad two-finger pan and pinch (wheel with `PointerDeviceType.Touchpad`, Ctrl for pinch),
   crisp text at 50/150/200 %, touch pan/pinch with inertia via manipulation events, keyboard focus reveal. Pass → pure
   `Editor.ViewModels/Canvas/Camera` (screen↔world, zoom at point, fit and centre, reveal rect, 48-DIP keep-on-screen
@@ -87,7 +87,7 @@ Model: Opus medium; T21.6 and T21.7 Opus high.
   as today (D-069, D-074) but synchronous; no `Wrapper` padding, no `ChangeView` retries. Fail → X-entry with the
   evidence, keep the `ScrollViewer`, mark D-119 (e) dropped. Files: `FlowCanvas.xaml`, `FlowCanvas.Camera.cs`,
   `CanvasViewport.cs` → `Camera.cs` + tests. Done when: Camera tests (round trips, zoom keeps the point, fit, clamp);
-  live by the user: mouse, touchpad, touch.
+  live by the user: mouse, touchpad, touch. (feat/canvas-camera: code + tests, spike checks in the PR; live check open, user)
 - [ ] T21.8 Motion (D-119 d): the scene tweens rects 200 ms decelerate (UX §5.3 reflow token) on layout-driven moves
   (Arrange, insert, delete, untangle, undo/redo, card changes); views and the live edge set read the tween each frame
   (Rendering subscribed only while it runs); add = fade + scale 0.96→1 150 ms; none of it with Animation effects off.
