@@ -67,14 +67,14 @@ internal sealed unsafe class TrayIcon : IDisposable
     }
 
     /// <summary>A Windows notification from the tray icon (the <c>notify</c> step until the run pop-up, M5).</summary>
-    public void ShowBalloon(string title, string text)
+    public void ShowBalloon(string title, string text, bool sound = true)
     {
         if (!_added)
             return;
         var data = Data(NOTIFY_ICON_DATA_FLAGS.NIF_INFO);
         data.szInfoTitle = title.Length > 63 ? title[..63] : title;
         data.szInfo = text.Length > 255 ? text[..255] : text;
-        data.dwInfoFlags = NOTIFY_ICON_INFOTIP_FLAGS.NIIF_NONE;
+        data.dwInfoFlags = sound ? NOTIFY_ICON_INFOTIP_FLAGS.NIIF_NONE : NOTIFY_ICON_INFOTIP_FLAGS.NIIF_NOSOUND;
         PInvoke.Shell_NotifyIcon(NOTIFY_ICON_MESSAGE.NIM_MODIFY, &data);
     }
 

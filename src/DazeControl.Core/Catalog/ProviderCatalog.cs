@@ -348,7 +348,10 @@ public static class ProviderCatalog
         new("wait", "Wait", Wait, TimeSpan.FromHours(1),
             [new("duration", ParamKind.Duration, "How long") { Required = true }]),
         new("notify", "Show message", Message, Short,
-            [new("text", ParamKind.Text, "Message") { Required = true }]),
+        [
+            new("text", ParamKind.Text, "Message") { Required = true },
+            new("sound", ParamKind.Boolean, "Play the notification sound") { Default = "true" },
+        ]),
         new("flag.set", "Set flag", Flag, Short,
         [
             new("name", ParamKind.Text, "Flag") { Required = true, Suggest = ParamSuggest.Config(ParamSuggest.Flags) },

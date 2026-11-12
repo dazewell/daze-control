@@ -8,7 +8,7 @@ flows:
   chain-40:
     name: Chain of 40
     nodes:
-      - { id: s1, step: notify, with: { text: "Step 1" } }
+      - { id: s1, step: notify, with: { text: "Step 1", sound: false } }
       - { id: s2, step: network.internet, onFailure: ignore, after: [s1] }
       - { id: s3, step: power.source, onFailure: ignore, after: [s2] }
       - { id: s4, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [s3] }
@@ -18,7 +18,7 @@ flows:
       - { id: s8, step: flag.set, with: { name: big-8 }, after: [s7] }
       - { id: s9, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [s8] }
       - { id: s10, step: wait, with: { duration: 1s }, after: [s9] }
-      - { id: s11, step: notify, with: { text: "Step 11" }, after: [s10] }
+      - { id: s11, step: notify, with: { text: "Step 11", sound: false }, after: [s10] }
       - { id: s12, step: network.internet, onFailure: ignore, after: [s11] }
       - { id: s13, step: power.source, onFailure: ignore, after: [s12] }
       - { id: s14, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [s13] }
@@ -28,7 +28,7 @@ flows:
       - { id: s18, step: flag.set, with: { name: big-18 }, after: [s17] }
       - { id: s19, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [s18] }
       - { id: s20, step: wait, with: { duration: 1s }, after: [s19] }
-      - { id: s21, step: notify, with: { text: "Step 21" }, after: [s20] }
+      - { id: s21, step: notify, with: { text: "Step 21", sound: false }, after: [s20] }
       - { id: s22, step: network.internet, onFailure: ignore, after: [s21] }
       - { id: s23, step: power.source, onFailure: ignore, after: [s22] }
       - { id: s24, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [s23] }
@@ -38,7 +38,7 @@ flows:
       - { id: s28, step: flag.set, with: { name: big-28 }, after: [s27] }
       - { id: s29, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [s28] }
       - { id: s30, step: wait, with: { duration: 1s }, after: [s29] }
-      - { id: s31, step: notify, with: { text: "Step 31" }, after: [s30] }
+      - { id: s31, step: notify, with: { text: "Step 31", sound: false }, after: [s30] }
       - { id: s32, step: network.internet, onFailure: ignore, after: [s31] }
       - { id: s33, step: power.source, onFailure: ignore, after: [s32] }
       - { id: s34, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [s33] }
@@ -51,7 +51,7 @@ flows:
   mesh-60:
     name: Mesh of 60
     nodes:
-      - { id: m1, step: notify, with: { text: "Step 1" } }
+      - { id: m1, step: notify, with: { text: "Step 1", sound: false } }
       - { id: m2, step: network.internet, onFailure: ignore }
       - { id: m3, step: power.source, onFailure: ignore }
       - { id: m4, step: file.space, with: { gb: "1" }, onFailure: ignore }
@@ -61,7 +61,7 @@ flows:
       - { id: m8, step: flag.set, with: { name: big-8 }, after: [m1] }
       - { id: m9, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [m7] }
       - { id: m10, step: wait, with: { duration: 1s }, after: [m6, m7, m5] }
-      - { id: m11, step: notify, with: { text: "Step 11" }, after: [m6] }
+      - { id: m11, step: notify, with: { text: "Step 11", sound: false }, after: [m6] }
       - { id: m12, step: network.internet, onFailure: ignore, after: [m10, m9, m11] }
       - { id: m13, step: power.source, onFailure: ignore, after: [m11] }
       - { id: m14, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [m11] }
@@ -73,7 +73,7 @@ flows:
       - { id: m18, step: flag.set, with: { name: big-18 }, after: [m16, m15] }
       - { id: m19, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [m18, m17] }
       - { id: m20, step: wait, with: { duration: 1s }, after: [m18, m17] }
-      - { id: m21, step: notify, with: { text: "Step 21" }, after: [m17] }
+      - { id: m21, step: notify, with: { text: "Step 21", sound: false }, after: [m17] }
       - { id: m22, step: network.internet, onFailure: ignore, after: [m21, { id: m19, when: failure }] }
       - { id: m23, step: power.source, onFailure: ignore, after: [m19, m20] }
       - { id: m24, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [m21, m19, m20] }
@@ -83,7 +83,7 @@ flows:
       - { id: m28, step: flag.set, with: { name: big-28 }, after: [m27] }
       - { id: m29, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [m27, m25, { id: m26, when: failure }] }
       - { id: m30, step: wait, with: { duration: 1s }, after: [m26, m25] }
-      - { id: m31, step: notify, with: { text: "Step 31" }, after: [m27] }
+      - { id: m31, step: notify, with: { text: "Step 31", sound: false }, after: [m27] }
       - { id: m32, step: network.internet, onFailure: ignore, after: [{ id: m28, when: failure }] }
       - { id: m33, step: power.source, onFailure: ignore, after: [m28, m30] }
       - { id: m34, group: [m34a, m34b], after: [m29, m31, m28] }
@@ -95,7 +95,7 @@ flows:
       - { id: m38, step: flag.set, with: { name: big-38 }, after: [m32, m33] }
       - { id: m39, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [m34] }
       - { id: m40, step: wait, with: { duration: 1s }, after: [m36, m38, m35] }
-      - { id: m41, step: notify, with: { text: "Step 41" }, after: [m35, m39] }
+      - { id: m41, step: notify, with: { text: "Step 41", sound: false }, after: [m35, m39] }
       - { id: m42, step: network.internet, onFailure: ignore, after: [m36] }
       - { id: m43, step: power.source, onFailure: ignore, after: [m42, m40] }
       - { id: m44, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [m42] }
@@ -107,14 +107,14 @@ flows:
       - { id: m50, step: wait, with: { duration: 1s }, after: [m47] }
       - { id: m51, group: [m51a, m51b], after: [m50, m48] }
       - { id: m51a, step: wait, with: { duration: 1s } }
-      - { id: m51b, step: notify, with: { text: "Step 51" } }
+      - { id: m51b, step: notify, with: { text: "Step 51", sound: false } }
       - { id: m52, step: network.internet, onFailure: ignore, after: [m48] }
       - { id: m53, step: power.source, onFailure: ignore, after: [m48] }
       - { id: m54, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [m52, m53, m51] }
   probe-100:
     name: Probe 100
     nodes:
-      - { id: p1, step: notify, with: { text: "Step 1" } }
+      - { id: p1, step: notify, with: { text: "Step 1", sound: false } }
       - { id: p2, step: network.internet, onFailure: ignore }
       - { id: p3, step: power.source, onFailure: ignore }
       - { id: p4, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p1, p2] }
@@ -124,7 +124,7 @@ flows:
       - { id: p8, step: flag.set, with: { name: big-8 }, after: [p1] }
       - { id: p9, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p7, p5] }
       - { id: p10, step: wait, with: { duration: 1s }, after: [p7, p5] }
-      - { id: p11, step: notify, with: { text: "Step 11" }, after: [p4] }
+      - { id: p11, step: notify, with: { text: "Step 11", sound: false }, after: [p4] }
       - { id: p12, step: network.internet, onFailure: ignore, after: [p8] }
       - { id: p13, step: power.source, onFailure: ignore, after: [p10] }
       - { id: p14, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p12, p9, p11] }
@@ -136,7 +136,7 @@ flows:
       - { id: p18, step: flag.set, with: { name: big-18 }, after: [{ id: p14, when: failure }, p15, p13] }
       - { id: p19, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p14] }
       - { id: p20, step: wait, with: { duration: 1s }, after: [p16, p18, p19] }
-      - { id: p21, step: notify, with: { text: "Step 21" }, after: [{ id: p18, when: failure }, p17, p19] }
+      - { id: p21, step: notify, with: { text: "Step 21", sound: false }, after: [{ id: p18, when: failure }, p17, p19] }
       - { id: p22, step: network.internet, onFailure: ignore, after: [p20, p21] }
       - { id: p23, step: power.source, onFailure: ignore, after: [p20, { id: p21, when: failure }] }
       - { id: p24, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p22] }
@@ -146,7 +146,7 @@ flows:
       - { id: p28, step: flag.set, with: { name: big-28 }, after: [{ id: p23, when: failure }] }
       - { id: p29, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p27, p26] }
       - { id: p30, step: wait, with: { duration: 1s }, after: [p28, p26, p25] }
-      - { id: p31, step: notify, with: { text: "Step 31" }, after: [p26, p27, p25] }
+      - { id: p31, step: notify, with: { text: "Step 31", sound: false }, after: [p26, p27, p25] }
       - { id: p32, step: network.internet, onFailure: ignore, after: [p27] }
       - { id: p33, step: power.source, onFailure: ignore, after: [p26] }
       - { id: p34, group: [p34a, p34b], after: [p33] }
@@ -158,7 +158,7 @@ flows:
       - { id: p38, step: flag.set, with: { name: big-38 }, after: [p36, { id: p37, when: failure }] }
       - { id: p39, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p36, p37] }
       - { id: p40, step: wait, with: { duration: 1s }, after: [p37, p36] }
-      - { id: p41, step: notify, with: { text: "Step 41" }, after: [p37, p36] }
+      - { id: p41, step: notify, with: { text: "Step 41", sound: false }, after: [p37, p36] }
       - { id: p42, step: network.internet, onFailure: ignore, after: [p38, p40] }
       - { id: p43, step: power.source, onFailure: ignore, after: [p39, p38, p41] }
       - { id: p44, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [{ id: p38, when: failure }] }
@@ -170,7 +170,7 @@ flows:
       - { id: p50, step: wait, with: { duration: 1s }, after: [p46, p47] }
       - { id: p51, group: [p51a, p51b], after: [p49] }
       - { id: p51a, step: wait, with: { duration: 1s } }
-      - { id: p51b, step: notify, with: { text: "Step 51" } }
+      - { id: p51b, step: notify, with: { text: "Step 51", sound: false } }
       - { id: p52, step: network.internet, onFailure: ignore, after: [p46] }
       - { id: p53, step: power.source, onFailure: ignore, after: [p48] }
       - { id: p54, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [{ id: p46, when: failure }, p48] }
@@ -180,7 +180,7 @@ flows:
       - { id: p58, step: flag.set, with: { name: big-58 }, after: [p52] }
       - { id: p59, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p58, p57, p55] }
       - { id: p60, step: wait, with: { duration: 1s }, after: [p56, p55, p58] }
-      - { id: p61, step: notify, with: { text: "Step 61" }, after: [p56, p57] }
+      - { id: p61, step: notify, with: { text: "Step 61", sound: false }, after: [p56, p57] }
       - { id: p62, step: network.internet, onFailure: ignore, after: [p56] }
       - { id: p63, step: power.source, onFailure: ignore, after: [p59, p61] }
       - { id: p64, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [{ id: p62, when: failure }] }
@@ -192,7 +192,7 @@ flows:
       - { id: p68b, step: flag.set, with: { name: big-68 } }
       - { id: p69, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p64, p65, p63] }
       - { id: p70, step: wait, with: { duration: 1s }, after: [p68, p66] }
-      - { id: p71, step: notify, with: { text: "Step 71" }, after: [p66] }
+      - { id: p71, step: notify, with: { text: "Step 71", sound: false }, after: [p66] }
       - { id: p72, step: network.internet, onFailure: ignore, after: [p71, p70] }
       - { id: p73, step: power.source, onFailure: ignore, after: [p70] }
       - { id: p74, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p71, p70] }
@@ -202,7 +202,7 @@ flows:
       - { id: p78, step: flag.set, with: { name: big-78 }, after: [p76, p77] }
       - { id: p79, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p77, { id: p76, when: failure }] }
       - { id: p80, step: wait, with: { duration: 1s }, after: [p76, p77] }
-      - { id: p81, step: notify, with: { text: "Step 81" }, after: [p77, p76] }
+      - { id: p81, step: notify, with: { text: "Step 81", sound: false }, after: [p77, p76] }
       - { id: p82, step: network.internet, onFailure: ignore, after: [p80, p78] }
       - { id: p83, step: power.source, onFailure: ignore, after: [p79, p80, p78] }
       - { id: p84, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p83, p82] }

@@ -9,9 +9,9 @@ public class BasicProviderTests
 {
     private sealed class RecordingNotifier : INotifier
     {
-        public List<(string Flow, string Text)> Shown { get; } = [];
+        public List<(string Flow, string Text, bool Sound)> Shown { get; } = [];
 
-        public void Show(string flowName, string text) => Shown.Add((flowName, text));
+        public void Show(string flowName, string text, bool sound) => Shown.Add((flowName, text, sound));
     }
 
     [Fact]
@@ -36,7 +36,15 @@ public class BasicProviderTests
     {
         var notifier = new RecordingNotifier();
         await new NotifyProvider(notifier).RunAsync(("text", "Headphones ready"));
-        Assert.Equal([("Test flow", "Headphones ready")], notifier.Shown);
+        Assert.Equal([("Test flow", "Headphones ready", true)], notifier.Shown);
+    }
+
+    [Fact]
+    public async Task NotifyCanBeSilent()
+    {
+        var notifier = new RecordingNotifier();
+        await new NotifyProvider(notifier).RunAsync(("text", "Quiet"), ("sound", "false"));
+        Assert.Equal([("Test flow", "Quiet", false)], notifier.Shown);
     }
 
     [Fact]
