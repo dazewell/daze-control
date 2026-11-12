@@ -344,6 +344,12 @@ public sealed partial class FlowCanvas
             DropTarget.Visibility = DropLabel.Visibility = Visibility.Collapsed;
             return;
         }
+        ShowDropZone(target, zone);
+    }
+
+    /// <summary>The dashed zone outline and its label over <paramref name="target"/>: a step drag and a library drag (D-120).</summary>
+    private void ShowDropZone(CanvasNodeViewModel target, DropZone zone)
+    {
         var height = _views.TryGetValue(target.Id, out var view) && view.ActualHeight > 0 ? view.ActualHeight : target.Height;
         var x = zone == DropZone.RunAfter ? target.X + target.Width * 2 / 3 : target.X;
         var third = zone is DropZone.RunAfter or DropZone.RunBefore;

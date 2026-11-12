@@ -100,27 +100,70 @@ public sealed partial class FlowCanvas
         return text.StartsWith(PaletteDragPrefix, StringComparison.Ordinal) ? text[PaletteDragPrefix.Length..] : null;
     }
 
-    private void OnPaletteDragOver(object sender, DragEventArgs e)
+    /// <summary>The step or card a library drag is over at <paramref name="p"/> (a pill before its card) and the zone it would use.</summary>
+    private (CanvasNodeViewModel? Target, DropZone Zone) PaletteTargetAt(CorePoint p)
     {
-        if (_viewModel is not { CanEdit: true } || !e.DataView.Contains(StandardDataFormats.Text))
-            return;
-        e.AcceptedOperation = DataPackageOperation.Copy;
-        var target = _viewModel.HitTest(C(e.GetPosition(Host)));
-        e.DragUIOverride.Caption = target is null ? "Add a step" : $"Run after {target.Title}";
+        var target = _viewModel?.Nodes.Where(n => n.Bounds.Contains(p))
+            .OrderBy(n => n.Kind == CanvasNodeKind.Card ? 1 : 0).FirstOrDefault();
+        return target is null ? (null, DropZone.None) : (target, FlowCanvasViewModel.ZoneAt(target, p));
     }
 
-    /// <summary>Dropped on a step: runs after it (its card for a member); on empty canvas: a first step.</summary>
+    /// <summary>
+    /// Over a step: the step drag's zone highlight and label; elsewhere: a dashed outline where the new step will land
+    /// (D-120). Positions are Host (content) DIP, so zoom and scroll need no maths here.
+    /// </summary>
+    private void OnPaletteDragOver(object sender, DragEventArgs e)
+    {
+        if (_viewModel is not { CanEdit: true } vm || !e.DataView.Contains(StandardDataFormats.Text))
+            return;
+        e.AcceptedOperation = DataPackageOperation.Copy;
+        var p = C(e.GetPosition(Host));
+        var (target, zone) = PaletteTargetAt(p);
+        if (target is not null && zone != DropZone.None)
+        {
+            LandingOutline.Visibility = Visibility.Collapsed;
+            ShowDropZone(target, zone);
+            e.DragUIOverride.Caption = zone switch
+            {
+                DropZone.RunAfter => $"Run after {target.Title}",
+                DropZone.RunBefore => $"Run before {target.Title}",
+                _ => $"Run together with {target.Title}",
+            };
+            return;
+        }
+        DropTarget.Visibility = DropLabel.Visibility = Visibility.Collapsed;
+        var landing = vm.LandingAt(p, FlowCanvasViewModel.DefaultPillSize);
+        LandingOutline.Stroke = Theme.Selection;
+        LandingOutline.StrokeDashArray = Theme.Dashes(2, 2);
+        LandingOutline.Width = landing.Width;
+        LandingOutline.Height = landing.Height;
+        XamlCanvas.SetLeft(LandingOutline, landing.X);
+        XamlCanvas.SetTop(LandingOutline, landing.Y);
+        LandingOutline.Visibility = Visibility.Visible;
+        e.DragUIOverride.Caption = "Add a step here";
+    }
+
+    private void OnPaletteDragLeave(object sender, DragEventArgs e) => HidePaletteLanding();
+
+    private void HidePaletteLanding() =>
+        LandingOutline.Visibility = DropTarget.Visibility = DropLabel.Visibility = Visibility.Collapsed;
+
+    /// <summary>Dropped on a step's zone: the step drag's edit; elsewhere: centred under the pointer, placed by hand (D-120).</summary>
     private async void OnPaletteDrop(object sender, DragEventArgs e)
     {
+        HidePaletteLanding();
         if (_viewModel is not { CanEdit: true } vm)
             return;
         var deferral = e.GetDeferral();
         try
         {
-            var target = vm.HitTest(C(e.GetPosition(Host)));
+            var p = C(e.GetPosition(Host)); // read before the await: the event args don't outlive it
+            var (target, zone) = PaletteTargetAt(p);
             if (await DraggedStep(e) is { } step)
             {
-                vm.AddStep(step, target is null ? null : [target.Id]);
+                var (_, refusal) = vm.AddStepAt(step, p, target?.Id, zone);
+                if (target is not null)
+                    ShowRefusal(refusal, target);
                 RevealFocused();
             }
         }
