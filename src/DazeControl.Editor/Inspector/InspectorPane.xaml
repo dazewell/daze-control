@@ -777,7 +777,7 @@
                 <StackPanel Orientation="Vertical">
                     <HyperlinkButton Content="Add schedule" Command="{x:Bind ViewModel.AddScheduleCommand, Mode=OneWay}" />
                     <HyperlinkButton Content="Add event" Command="{x:Bind ViewModel.AddEventCommand, Mode=OneWay}" />
-                    <Button Content="Add events…" Style="{StaticResource TextBlockButtonStyle}" AutomationProperties.Name="Add several events at once">
+                    <Button Content="Add events…" Style="{StaticResource LinkButton}" AutomationProperties.Name="Add several events at once">
                         <Button.Flyout>
                             <Flyout Placement="Bottom">
                                 <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto">

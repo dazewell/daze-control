@@ -51,8 +51,13 @@
                 <Setter Property="Padding" Value="0,4" />
             </Style>
             <!-- Primary action: accent-filled. -->
-            <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
                 <Setter Property="MinHeight" Value="{StaticResource ControlHeight}" />
+            </Style>
+            <!-- Text-only action that looks like a link but opens a flyout (HyperlinkButton has no Flyout). -->
+            <Style x:Key="LinkButton" TargetType="Button" BasedOn="{StaticResource TextBlockButtonStyle}">
+                <Setter Property="MinHeight" Value="{StaticResource ControlHeight}" />
+                <Setter Property="Padding" Value="0,4" />
             </Style>
             <!-- Icon-only: a square the size of every other button. Needs AutomationProperties.Name and a tooltip. -->
             <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
