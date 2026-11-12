@@ -7,30 +7,30 @@ flows:
     triggers:
       - { every: 1m }
     nodes:
-      - { id: n, step: notify, with: { text: "Schedule fired" } }
+      - { id: n, step: notify, with: { text: "Schedule fired", sound: false } }
   unlock:
     name: On unlock
     triggers:
       - { on: session.unlock }
     nodes:
-      - { id: n, step: notify, with: { text: "PC unlocked" } }
+      - { id: n, step: notify, with: { text: "PC unlocked", sound: false } }
   wake:
     name: On wake
     triggers:
       - { on: power.resume }
     nodes:
-      - { id: n, step: notify, with: { text: "PC awake" } }
+      - { id: n, step: notify, with: { text: "PC awake", sound: false } }
   network:
     name: On network change
     triggers:
       - { on: network.connected }
       - { on: network.disconnected }
     nodes:
-      - { id: n, step: notify, with: { text: "Network changed" } }
+      - { id: n, step: notify, with: { text: "Network changed", sound: false } }
   ask:
     name: Ask
     hotkeys: [Ctrl+Alt+F11]
     nodes:
       - { id: q, step: prompt.ask, with: { question: "Go on?", timeout: 20s, onTimeout: use-default, default: no } }
-      - { id: yes, step: notify, with: { text: "You said Yes" }, after: [q] }
-      - { id: no, step: notify, with: { text: "You said No or no answer" }, after: [{ id: q, when: failure }] }
+      - { id: yes, step: notify, with: { text: "You said Yes", sound: false }, after: [q] }
+      - { id: no, step: notify, with: { text: "You said No or no answer", sound: false }, after: [{ id: q, when: failure }] }

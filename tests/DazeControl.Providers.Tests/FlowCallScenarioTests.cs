@@ -150,7 +150,7 @@ public sealed class FlowCallScenarioTests : IDisposable
 
     private sealed class Recorder(List<string> shown) : INotifier
     {
-        public void Show(string flowName, string text)
+        public void Show(string flowName, string text, bool sound)
         {
             lock (shown)
                 shown.Add(text);
