@@ -1,0 +1,231 @@
+# Dev sample for scripts/dev-run.ps1 -Sample big: copied once to %LOCALAPPDATA%\DazeControl\dev\big.yaml.
+# Large flows for canvas performance and motion checks (T21.8 frame probe: the 100-step flow). SAFE: steps only
+# wait, show messages, check network/power/disk/files/programs/time/lock state, or set this config's own flags.
+# No triggers or hotkeys. Running the 100-step flow takes a while and shows many messages: it is for the canvas.
+version: 1
+flows:
+  chain-40:
+    name: Chain of 40
+    nodes:
+      - { id: s1, step: notify, with: { text: "Step 1" } }
+      - { id: s2, step: network.internet, onFailure: ignore, after: [s1] }
+      - { id: s3, step: power.source, onFailure: ignore, after: [s2] }
+      - { id: s4, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [s3] }
+      - { id: s5, step: file.check, with: { path: "%WINDIR%" }, after: [s4] }
+      - { id: s6, step: process.check, with: { program: explorer }, onFailure: ignore, after: [s5] }
+      - { id: s7, step: time.check, onFailure: ignore, after: [s6] }
+      - { id: s8, step: flag.set, with: { name: big-8 }, after: [s7] }
+      - { id: s9, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [s8] }
+      - { id: s10, step: wait, with: { duration: 1s }, after: [s9] }
+      - { id: s11, step: notify, with: { text: "Step 11" }, after: [s10] }
+      - { id: s12, step: network.internet, onFailure: ignore, after: [s11] }
+      - { id: s13, step: power.source, onFailure: ignore, after: [s12] }
+      - { id: s14, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [s13] }
+      - { id: s15, step: file.check, with: { path: "%WINDIR%" }, after: [s14] }
+      - { id: s16, step: process.check, with: { program: explorer }, onFailure: ignore, after: [s15] }
+      - { id: s17, step: time.check, onFailure: ignore, after: [s16] }
+      - { id: s18, step: flag.set, with: { name: big-18 }, after: [s17] }
+      - { id: s19, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [s18] }
+      - { id: s20, step: wait, with: { duration: 1s }, after: [s19] }
+      - { id: s21, step: notify, with: { text: "Step 21" }, after: [s20] }
+      - { id: s22, step: network.internet, onFailure: ignore, after: [s21] }
+      - { id: s23, step: power.source, onFailure: ignore, after: [s22] }
+      - { id: s24, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [s23] }
+      - { id: s25, step: file.check, with: { path: "%WINDIR%" }, after: [s24] }
+      - { id: s26, step: process.check, with: { program: explorer }, onFailure: ignore, after: [s25] }
+      - { id: s27, step: time.check, onFailure: ignore, after: [s26] }
+      - { id: s28, step: flag.set, with: { name: big-28 }, after: [s27] }
+      - { id: s29, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [s28] }
+      - { id: s30, step: wait, with: { duration: 1s }, after: [s29] }
+      - { id: s31, step: notify, with: { text: "Step 31" }, after: [s30] }
+      - { id: s32, step: network.internet, onFailure: ignore, after: [s31] }
+      - { id: s33, step: power.source, onFailure: ignore, after: [s32] }
+      - { id: s34, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [s33] }
+      - { id: s35, step: file.check, with: { path: "%WINDIR%" }, after: [s34] }
+      - { id: s36, step: process.check, with: { program: explorer }, onFailure: ignore, after: [s35] }
+      - { id: s37, step: time.check, onFailure: ignore, after: [s36] }
+      - { id: s38, step: flag.set, with: { name: big-38 }, after: [s37] }
+      - { id: s39, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [s38] }
+      - { id: s40, step: wait, with: { duration: 1s }, after: [s39] }
+  mesh-60:
+    name: Mesh of 60
+    nodes:
+      - { id: m1, step: notify, with: { text: "Step 1" } }
+      - { id: m2, step: network.internet, onFailure: ignore }
+      - { id: m3, step: power.source, onFailure: ignore }
+      - { id: m4, step: file.space, with: { gb: "1" }, onFailure: ignore }
+      - { id: m5, step: file.check, with: { path: "%WINDIR%" }, after: [m2, m4, m1] }
+      - { id: m6, step: process.check, with: { program: explorer }, onFailure: ignore, after: [m1] }
+      - { id: m7, step: time.check, onFailure: ignore, after: [m2] }
+      - { id: m8, step: flag.set, with: { name: big-8 }, after: [m1] }
+      - { id: m9, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [m7] }
+      - { id: m10, step: wait, with: { duration: 1s }, after: [m6, m7, m5] }
+      - { id: m11, step: notify, with: { text: "Step 11" }, after: [m6] }
+      - { id: m12, step: network.internet, onFailure: ignore, after: [m10, m9, m11] }
+      - { id: m13, step: power.source, onFailure: ignore, after: [m11] }
+      - { id: m14, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [m11] }
+      - { id: m15, step: file.check, with: { path: "%WINDIR%" }, after: [m13, m14, m12] }
+      - { id: m16, step: process.check, with: { program: explorer }, onFailure: ignore, after: [m12] }
+      - { id: m17, group: [m17a, m17b], after: [m15] }
+      - { id: m17a, step: wait, with: { duration: 1s } }
+      - { id: m17b, step: time.check, onFailure: ignore }
+      - { id: m18, step: flag.set, with: { name: big-18 }, after: [m16, m15] }
+      - { id: m19, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [m18, m17] }
+      - { id: m20, step: wait, with: { duration: 1s }, after: [m18, m17] }
+      - { id: m21, step: notify, with: { text: "Step 21" }, after: [m17] }
+      - { id: m22, step: network.internet, onFailure: ignore, after: [m21, { id: m19, when: failure }] }
+      - { id: m23, step: power.source, onFailure: ignore, after: [m19, m20] }
+      - { id: m24, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [m21, m19, m20] }
+      - { id: m25, step: file.check, with: { path: "%WINDIR%" }, after: [m24, m22, m23] }
+      - { id: m26, step: process.check, with: { program: explorer }, onFailure: ignore, after: [m22] }
+      - { id: m27, step: time.check, onFailure: ignore, after: [m23, m24] }
+      - { id: m28, step: flag.set, with: { name: big-28 }, after: [m27] }
+      - { id: m29, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [m27, m25, { id: m26, when: failure }] }
+      - { id: m30, step: wait, with: { duration: 1s }, after: [m26, m25] }
+      - { id: m31, step: notify, with: { text: "Step 31" }, after: [m27] }
+      - { id: m32, step: network.internet, onFailure: ignore, after: [{ id: m28, when: failure }] }
+      - { id: m33, step: power.source, onFailure: ignore, after: [m28, m30] }
+      - { id: m34, group: [m34a, m34b], after: [m29, m31, m28] }
+      - { id: m34a, step: wait, with: { duration: 1s } }
+      - { id: m34b, step: file.space, with: { gb: "1" }, onFailure: ignore }
+      - { id: m35, step: file.check, with: { path: "%WINDIR%" }, after: [m34, m33, m32] }
+      - { id: m36, step: process.check, with: { program: explorer }, onFailure: ignore, after: [m33, m34] }
+      - { id: m37, step: time.check, onFailure: ignore, after: [m33] }
+      - { id: m38, step: flag.set, with: { name: big-38 }, after: [m32, m33] }
+      - { id: m39, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [m34] }
+      - { id: m40, step: wait, with: { duration: 1s }, after: [m36, m38, m35] }
+      - { id: m41, step: notify, with: { text: "Step 41" }, after: [m35, m39] }
+      - { id: m42, step: network.internet, onFailure: ignore, after: [m36] }
+      - { id: m43, step: power.source, onFailure: ignore, after: [m42, m40] }
+      - { id: m44, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [m42] }
+      - { id: m45, step: file.check, with: { path: "%WINDIR%" }, after: [m40, m41, m42] }
+      - { id: m46, step: process.check, with: { program: explorer }, onFailure: ignore, after: [m40, m42, m41] }
+      - { id: m47, step: time.check, onFailure: ignore, after: [m42] }
+      - { id: m48, step: flag.set, with: { name: big-48 }, after: [m45, m43, m46] }
+      - { id: m49, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [m44, { id: m47, when: failure }] }
+      - { id: m50, step: wait, with: { duration: 1s }, after: [m47] }
+      - { id: m51, group: [m51a, m51b], after: [m50, m48] }
+      - { id: m51a, step: wait, with: { duration: 1s } }
+      - { id: m51b, step: notify, with: { text: "Step 51" } }
+      - { id: m52, step: network.internet, onFailure: ignore, after: [m48] }
+      - { id: m53, step: power.source, onFailure: ignore, after: [m48] }
+      - { id: m54, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [m52, m53, m51] }
+      - { id: m55, step: file.check, with: { path: "%WINDIR%" }, after: [m53, m51, { id: m52, when: failure }] }
+      - { id: m56, step: process.check, with: { program: explorer }, onFailure: ignore, after: [m52, m53, { id: m51, when: failure }] }
+      - { id: m57, step: time.check, onFailure: ignore, after: [m53, m52, m51] }
+      - { id: m58, step: flag.set, with: { name: big-58 }, after: [m53] }
+      - { id: m59, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [m54] }
+      - { id: m60, step: wait, with: { duration: 1s }, after: [m56, m55] }
+  probe-100:
+    name: Probe 100
+    nodes:
+      - { id: p1, step: notify, with: { text: "Step 1" } }
+      - { id: p2, step: network.internet, onFailure: ignore }
+      - { id: p3, step: power.source, onFailure: ignore }
+      - { id: p4, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p1, p2] }
+      - { id: p5, step: file.check, with: { path: "%WINDIR%" }, after: [p3] }
+      - { id: p6, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p2, p3, p1] }
+      - { id: p7, step: time.check, onFailure: ignore, after: [p2] }
+      - { id: p8, step: flag.set, with: { name: big-8 }, after: [p1] }
+      - { id: p9, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p7, p5] }
+      - { id: p10, step: wait, with: { duration: 1s }, after: [p7, p5] }
+      - { id: p11, step: notify, with: { text: "Step 11" }, after: [p4] }
+      - { id: p12, step: network.internet, onFailure: ignore, after: [p8] }
+      - { id: p13, step: power.source, onFailure: ignore, after: [p10] }
+      - { id: p14, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p12, p9, p11] }
+      - { id: p15, step: file.check, with: { path: "%WINDIR%" }, after: [p11, p12, p10] }
+      - { id: p16, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p14, p13] }
+      - { id: p17, group: [p17a, p17b], after: [p14, p15, p13] }
+      - { id: p17a, step: wait, with: { duration: 1s } }
+      - { id: p17b, step: time.check, onFailure: ignore }
+      - { id: p18, step: flag.set, with: { name: big-18 }, after: [{ id: p14, when: failure }, p15, p13] }
+      - { id: p19, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p14] }
+      - { id: p20, step: wait, with: { duration: 1s }, after: [p16, p18, p19] }
+      - { id: p21, step: notify, with: { text: "Step 21" }, after: [{ id: p18, when: failure }, p17, p19] }
+      - { id: p22, step: network.internet, onFailure: ignore, after: [p20, p21] }
+      - { id: p23, step: power.source, onFailure: ignore, after: [p20, { id: p21, when: failure }] }
+      - { id: p24, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p22] }
+      - { id: p25, step: file.check, with: { path: "%WINDIR%" }, after: [p22] }
+      - { id: p26, step: process.check, with: { program: explorer }, onFailure: ignore, after: [{ id: p22, when: failure }] }
+      - { id: p27, step: time.check, onFailure: ignore, after: [p22] }
+      - { id: p28, step: flag.set, with: { name: big-28 }, after: [{ id: p23, when: failure }] }
+      - { id: p29, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p27, p26] }
+      - { id: p30, step: wait, with: { duration: 1s }, after: [p28, p26, p25] }
+      - { id: p31, step: notify, with: { text: "Step 31" }, after: [p26, p27, p25] }
+      - { id: p32, step: network.internet, onFailure: ignore, after: [p27] }
+      - { id: p33, step: power.source, onFailure: ignore, after: [p26] }
+      - { id: p34, group: [p34a, p34b], after: [p33] }
+      - { id: p34a, step: wait, with: { duration: 1s } }
+      - { id: p34b, step: file.space, with: { gb: "1" }, onFailure: ignore }
+      - { id: p35, step: file.check, with: { path: "%WINDIR%" }, after: [p29, p33] }
+      - { id: p36, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p35] }
+      - { id: p37, step: time.check, onFailure: ignore, after: [p34, p35] }
+      - { id: p38, step: flag.set, with: { name: big-38 }, after: [p36, { id: p37, when: failure }] }
+      - { id: p39, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p36, p37] }
+      - { id: p40, step: wait, with: { duration: 1s }, after: [p37, p36] }
+      - { id: p41, step: notify, with: { text: "Step 41" }, after: [p37, p36] }
+      - { id: p42, step: network.internet, onFailure: ignore, after: [p38, p40] }
+      - { id: p43, step: power.source, onFailure: ignore, after: [p39, p38, p41] }
+      - { id: p44, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [{ id: p38, when: failure }] }
+      - { id: p45, step: file.check, with: { path: "%WINDIR%" }, after: [p42, p44] }
+      - { id: p46, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p44, p42] }
+      - { id: p47, step: time.check, onFailure: ignore, after: [p42] }
+      - { id: p48, step: flag.set, with: { name: big-48 }, after: [p44, p42, p43] }
+      - { id: p49, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p44, p42, p43] }
+      - { id: p50, step: wait, with: { duration: 1s }, after: [p46, p47] }
+      - { id: p51, group: [p51a, p51b], after: [p49] }
+      - { id: p51a, step: wait, with: { duration: 1s } }
+      - { id: p51b, step: notify, with: { text: "Step 51" } }
+      - { id: p52, step: network.internet, onFailure: ignore, after: [p46] }
+      - { id: p53, step: power.source, onFailure: ignore, after: [p48] }
+      - { id: p54, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [{ id: p46, when: failure }, p48] }
+      - { id: p55, step: file.check, with: { path: "%WINDIR%" }, after: [p54] }
+      - { id: p56, step: process.check, with: { program: explorer }, onFailure: ignore, after: [{ id: p51, when: failure }] }
+      - { id: p57, step: time.check, onFailure: ignore, after: [{ id: p51, when: failure }, p53, p52] }
+      - { id: p58, step: flag.set, with: { name: big-58 }, after: [p52] }
+      - { id: p59, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p58, p57, p55] }
+      - { id: p60, step: wait, with: { duration: 1s }, after: [p56, p55, p58] }
+      - { id: p61, step: notify, with: { text: "Step 61" }, after: [p56, p57] }
+      - { id: p62, step: network.internet, onFailure: ignore, after: [p56] }
+      - { id: p63, step: power.source, onFailure: ignore, after: [p59, p61] }
+      - { id: p64, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [{ id: p62, when: failure }] }
+      - { id: p65, step: file.check, with: { path: "%WINDIR%" }, after: [p60, p59] }
+      - { id: p66, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p64] }
+      - { id: p67, step: time.check, onFailure: ignore, after: [{ id: p64, when: failure }, p65] }
+      - { id: p68, group: [p68a, p68b], after: [p63, p65, p64] }
+      - { id: p68a, step: wait, with: { duration: 1s } }
+      - { id: p68b, step: flag.set, with: { name: big-68 } }
+      - { id: p69, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p64, p65, p63] }
+      - { id: p70, step: wait, with: { duration: 1s }, after: [p68, p66] }
+      - { id: p71, step: notify, with: { text: "Step 71" }, after: [p66] }
+      - { id: p72, step: network.internet, onFailure: ignore, after: [p71, p70] }
+      - { id: p73, step: power.source, onFailure: ignore, after: [p70] }
+      - { id: p74, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p71, p70] }
+      - { id: p75, step: file.check, with: { path: "%WINDIR%" }, after: [p70, p71] }
+      - { id: p76, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p74, p73, p72] }
+      - { id: p77, step: time.check, onFailure: ignore, after: [p74] }
+      - { id: p78, step: flag.set, with: { name: big-78 }, after: [p76, p77] }
+      - { id: p79, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p77, { id: p76, when: failure }] }
+      - { id: p80, step: wait, with: { duration: 1s }, after: [p76, p77] }
+      - { id: p81, step: notify, with: { text: "Step 81" }, after: [p77, p76] }
+      - { id: p82, step: network.internet, onFailure: ignore, after: [p80, p78] }
+      - { id: p83, step: power.source, onFailure: ignore, after: [p79, p80, p78] }
+      - { id: p84, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p83, p82] }
+      - { id: p85, group: [p85a, p85b], after: [p82] }
+      - { id: p85a, step: wait, with: { duration: 1s } }
+      - { id: p85b, step: file.check, with: { path: "%WINDIR%" } }
+      - { id: p86, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p85, p84] }
+      - { id: p87, step: time.check, onFailure: ignore, after: [p84, p85] }
+      - { id: p88, step: flag.set, with: { name: big-88 }, after: [p86, p87] }
+      - { id: p89, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p86] }
+      - { id: p90, step: wait, with: { duration: 1s }, after: [p86] }
+      - { id: p91, step: notify, with: { text: "Step 91" }, after: [p88, p89] }
+      - { id: p92, step: network.internet, onFailure: ignore, after: [p89, p90] }
+      - { id: p93, step: power.source, onFailure: ignore, after: [{ id: p88, when: failure }, p90] }
+      - { id: p94, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p92, p93, p91] }
+      - { id: p95, step: file.check, with: { path: "%WINDIR%" }, after: [p92, p93] }
+      - { id: p96, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p95, p94] }
+      - { id: p97, step: time.check, onFailure: ignore, after: [{ id: p94, when: failure }, p95] }
+      - { id: p98, step: flag.set, with: { name: big-98 }, after: [p95] }
+      - { id: p99, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p95, p94] }
+      - { id: p100, step: wait, with: { duration: 1s }, after: [p95, { id: p94, when: failure }] }

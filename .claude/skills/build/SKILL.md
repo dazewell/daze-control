@@ -38,7 +38,7 @@ The engine keeps running after you start it and locks its exe → stop it before
 `pwsh scripts/stop.ps1`. Start the published engine in the background (`Start-Process`), never with a
 blocking call.
 
-Try a checkout on the user's PC: `pwsh scripts/dev-run.ps1` stops the running engine, builds this worktree and runs it on the fixed dev config `%LOCALAPPDATA%\DazeControl\dev\config.yaml` (seeded once from `samples/dev-config.yaml`; `-NoEditor`, `-ResetConfig`); `pwsh scripts/dev-run.ps1 -Restore` brings the installed app back.
+Try a checkout on the user's PC: `pwsh scripts/dev-run.ps1` stops the running engine, builds this worktree and runs it on the fixed dev config `%LOCALAPPDATA%\DazeControl\dev\config.yaml` (seeded once from `samples/dev-config.yaml`; `-NoEditor`, `-ResetConfig`); `-Sample showcase` (branchy flows, cards, failure lines, prompts) or `-Sample big` (40/60/100-step flows, the T21.8 probe) runs on `samples/dev-<name>.yaml` kept as `dev\<name>.yaml` instead; dev samples may use only read-only steps and no triggers or hotkeys (`SampleConfigTests`); `pwsh scripts/dev-run.ps1 -Restore` brings the installed app back.
 
 ## Measuring the footprint (gates M0, M3, M10)
 

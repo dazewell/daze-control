@@ -1,0 +1,133 @@
+# Dev sample for scripts/dev-run.ps1 -Sample showcase: copied once to %LOCALAPPDATA%\DazeControl\dev\showcase.yaml.
+# Larger, branchier flows to try the editor on. SAFE: nothing changes the PC. Steps only check things (network,
+# power, disk, files, programs, time, flags), show messages, wait, set this config's own flags or ask you.
+# The library items are fakes: steps using them fail on purpose (failure branches). No triggers or hotkeys:
+# run flows from the editor, the tray or `dctl run <id>`.
+version: 1
+library:
+  audio:
+    dev-speakers: { match: "Dev Speakers (fake)" }
+    dev-headset: { match: "Dev Headset (fake)" }
+  bluetooth:
+    dev-buds: { address: "00:11:22:33:44:55", name: "Dev Buds (fake)" }
+flows:
+  morning:
+    name: Morning check
+    nodes:
+      - { id: start, step: notify, with: { text: "Morning check: starting" } }
+      - { id: net, step: network.internet, after: [start], timeout: 10s }
+      - { id: power, step: power.source, after: [start] }
+      - { id: disk, step: file.space, with: { drive: "C:", gb: "5" }, after: [start] }
+      - { id: hours, step: time.check, with: { days: weekdays, from: "06:00", to: "11:00" }, after: [start], onFailure: ignore }
+      - { id: idle, step: pc.idle, with: { for: 1m, is: active }, after: [start], onFailure: ignore }
+      - { id: ready, group: [w1, w2, w3], after: [net, power, disk] }
+      - { id: w1, step: wait, with: { duration: 1s } }
+      - { id: w2, step: wait, with: { duration: 2s } }
+      - { id: w3, step: flag.set, with: { name: morning-done } }
+      - { id: explorer, step: process.check, with: { program: explorer }, after: [ready] }
+      - { id: winfolder, step: file.check, with: { path: "%WINDIR%" }, after: [ready] }
+      - { id: ok, step: notify, with: { text: "Morning check: all good" }, after: [explorer, winfolder, hours, idle] }
+      - { id: nonet, step: notify, with: { text: "No internet this morning" }, after: [{ id: net, when: failure }] }
+      - { id: lowdisk, step: notify, with: { text: "C: is short on space" }, after: [{ id: disk, when: failure }] }
+      - { id: battery, step: power.battery, with: { percent: "30" }, after: [{ id: power, when: failure }], onFailure: ignore }
+      - { id: charge, step: notify, with: { text: "On battery: plug in soon" }, after: [battery] }
+      - { id: done, step: notify, with: { text: "Morning check finished" }, after: [{ id: ok, when: always }] }
+
+  desk:
+    name: Desk setup (simulated)
+    nodes:
+      - { id: hello, step: notify, with: { text: "Desk setup: simulating devices" } }
+      - { id: buds, step: bluetooth.check, with: { device: dev-buds }, after: [hello], onFailure: skip }
+      - { id: speakers, step: audio.check, with: { device: dev-speakers }, after: [hello], onFailure: ignore }
+      - { id: headset, step: audio.check, with: { device: dev-headset }, after: [buds] }
+      - { id: screens, step: display.count, with: { count: "1" }, after: [hello] }
+      - { id: lan, step: network.cable, after: [hello], onFailure: ignore }
+      - { id: wifi, step: network.wifi, after: [hello], onFailure: ignore }
+      - { id: vpn, step: network.vpn, with: { is: notConnected }, after: [lan, wifi], onFailure: ignore }
+      - { id: prep, group: [p1, p2, p3, p4], after: [screens, vpn] }
+      - { id: p1, step: wait, with: { duration: 1s } }
+      - { id: p2, step: wait, with: { duration: 1s } }
+      - { id: p3, step: flag.set, with: { name: desk-ready } }
+      - { id: p4, step: flag.check, with: { name: desk-ready } }
+      - { id: music, step: process.check, with: { program: Spotify }, after: [prep], onFailure: ignore }
+      - { id: browser, step: process.check, with: { program: msedge }, after: [prep], onFailure: ignore }
+      - { id: chat, step: process.check, with: { program: Teams, is: notRunning }, after: [prep], onFailure: ignore }
+      - { id: retry, step: file.check, with: { path: "%TEMP%" }, after: [music, browser, chat], retry: { count: 3, delay: 1s }, timeout: 5s }
+      - { id: late, step: time.check, with: { from: "18:00", to: "23:59" }, after: [retry], onFailure: skip }
+      - { id: evening, step: notify, with: { text: "Evening desk mode" }, after: [late] }
+      - { id: noaudio, step: notify, with: { text: "Headset not found (expected: it's fake)" }, after: [{ id: headset, when: failure }] }
+      - { id: wrap, step: notify, with: { text: "Desk setup simulated" }, after: [{ id: retry, when: always }, speakers] }
+
+  ask:
+    name: Ask then branch
+    nodes:
+      - { id: q, step: prompt.ask, with: { question: "Run the long part?", timeout: 30s, onTimeout: use-default, default: no } }
+      - { id: long, group: [l1, l2, l3], after: [q] }
+      - { id: l1, step: wait, with: { duration: 2s } }
+      - { id: l2, step: network.internet, onFailure: ignore }
+      - { id: l3, step: file.space, with: { gb: "1" } }
+      - { id: pick, step: prompt.ask, with: { mode: choose, question: "Which mood?", choices: [Focus, Relax, Party], timeout: 30s, onTimeout: use-default, default: Focus, flag: mood }, after: [long] }
+      - { id: focus, step: flag.check, with: { name: mood }, after: [pick], onFailure: ignore }
+      - { id: yes, step: notify, with: { text: "Long part done" }, after: [focus] }
+      - { id: no, step: notify, with: { text: "Skipped the long part" }, after: [{ id: q, when: failure }] }
+      - { id: bye, step: notify, with: { text: "Ask flow finished" }, after: [{ id: yes, when: always }, { id: no, when: always }], onFailure: ignore }
+
+  pick-device:
+    name: Pick a device (fakes)
+    nodes:
+      - { id: pick, step: prompt.pick, with: { kind: audio, timeout: 30s, onTimeout: stop } }
+      - { id: check, step: audio.check, with: { device: "$result:pick" }, after: [pick], onFailure: ignore }
+      - { id: told, step: notify, with: { text: "Picked a device (it's fake, so the check fails)" }, after: [check] }
+
+  failures:
+    name: Failure lab
+    nodes:
+      - { id: begin, step: notify, with: { text: "Failure lab: some steps fail on purpose" } }
+      - { id: missing, step: file.check, with: { path: "C:\\does-not-exist\\daze-dev" }, after: [begin], onFailure: skip }
+      - { id: after-missing, step: notify, with: { text: "You never see this (skipped)" }, after: [missing] }
+      - { id: ignored, step: file.check, with: { path: "C:\\nope-daze-dev" }, after: [begin], onFailure: ignore }
+      - { id: after-ignored, step: notify, with: { text: "Runs anyway: failure ignored" }, after: [ignored] }
+      - { id: retried, step: process.check, with: { program: daze-dev-not-a-program }, after: [begin], retry: { count: 2, delay: 1s }, onFailure: skip }
+      - { id: on-fail, step: notify, with: { text: "Retried twice, then took the failure line" }, after: [{ id: retried, when: failure }] }
+      - { id: idle, step: pc.idle, with: { for: 1h }, after: [begin], timeout: 5s, onFailure: skip }
+      - { id: busy, step: notify, with: { text: "You were not idle for an hour (expected)" }, after: [{ id: idle, when: failure }] }
+      - { id: always, step: notify, with: { text: "Failure lab finished" }, after: [{ id: after-ignored, when: always }, { id: on-fail, when: always }, { id: busy, when: always }] }
+
+  fan:
+    name: Wide fan-out
+    nodes:
+      - { id: go, step: notify, with: { text: "Fan-out: 12 checks at once" } }
+      - { id: c1, step: network.internet, after: [go], onFailure: ignore }
+      - { id: c2, step: network.cable, after: [go], onFailure: ignore }
+      - { id: c3, step: network.wifi, after: [go], onFailure: ignore }
+      - { id: c4, step: network.metered, after: [go], onFailure: ignore }
+      - { id: c5, step: network.vpn, after: [go], onFailure: ignore }
+      - { id: c6, step: power.source, after: [go], onFailure: ignore }
+      - { id: c7, step: pc.locked, with: { is: unlocked }, after: [go], onFailure: ignore }
+      - { id: c8, step: pc.idle, with: { for: 30s, is: active }, after: [go], onFailure: ignore }
+      - { id: c9, step: file.space, with: { gb: "2" }, after: [go], onFailure: ignore }
+      - { id: c10, step: file.check, with: { path: "%USERPROFILE%" }, after: [go], onFailure: ignore }
+      - { id: c11, step: process.check, with: { program: explorer }, after: [go], onFailure: ignore }
+      - { id: c12, step: time.check, after: [go], onFailure: ignore }
+      - { id: join, step: notify, with: { text: "All 12 checks done" }, after: [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12] }
+
+  caller:
+    name: Run others
+    nodes:
+      - { id: first, step: flow.run, with: { flow: morning, wait: true } }
+      - { id: second, step: flow.run, with: { flow: fan, wait: true }, after: [first] }
+      - { id: third, step: flow.run, with: { flow: failures, wait: false }, after: [{ id: second, when: always }] }
+      - { id: said, step: notify, with: { text: "Ran morning, fan-out and the failure lab" }, after: [third] }
+
+  menu:
+    name: Showcase menu
+    nodes:
+      - { id: m, step: menu.show, with: { items: [morning, desk, ask, failures, fan, caller], title: "Showcase", layout: grid } }
+
+  draft:
+    name: Draft (off)
+    enabled: false
+    nodes:
+      - { id: a, step: notify, with: { text: "A flow that is switched off" } }
+      - { id: b, step: wait, with: { duration: 1s }, after: [a] }
+      - { id: c, step: notify, with: { text: "Still off" }, after: [b] }
