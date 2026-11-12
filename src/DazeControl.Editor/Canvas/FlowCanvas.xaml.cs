@@ -49,7 +49,9 @@ public sealed partial class FlowCanvas : UserControl
     private readonly Dictionary<(string, string), Border> _liveChips = [];
     private int _drawnEdgeVersion = -1; // the view model's EdgeVersion the static set was last drawn for
     private Windows.Foundation.Point? _pendingMove; // the latest pointer position, drawn on the next frame
-    private bool _onFrames; // CompositionTarget.Rendering subscribed (for a gesture only: idle = zero)
+    private bool _onFrames; // CompositionTarget.Rendering subscribed (for a gesture or a glide only: idle = zero)
+    private bool _gestureFrames; // a drag, connect or marquee wants frames
+    private CanvasNodeViewModel? _portsNode; // whose dots are shown (they follow a glide)
     private CanvasNodeViewModel? _connectFrom;
     private CanvasEdgeViewModel? _controlsEdge;
     private const double EdgeControlsWidth = 56;
@@ -116,6 +118,9 @@ public sealed partial class FlowCanvas : UserControl
                 _viewModel.Nodes.CollectionChanged -= OnNodesChanged;
                 _viewModel.Noted -= OnNoted;
                 _viewModel.OriginShifted -= OnOriginShifted;
+                _viewModel.Motion = null;
+                if (_motionFrames || _animated.Count > 0)
+                    FinishMotion();
             }
             _viewModel = value;
             ForgetChips();
@@ -129,6 +134,8 @@ public sealed partial class FlowCanvas : UserControl
             _viewModel.Nodes.CollectionChanged += OnNodesChanged;
             _viewModel.Noted += OnNoted;
             _viewModel.OriginShifted += OnOriginShifted;
+            // Layout glides only while the canvas is on screen and Windows "Animation effects" is on (UX §5.3).
+            _viewModel.Motion = () => SceneMotion.For(Shown && Motion.Enabled);
             SyncNodes();
             DrawEdges();
             UpdateExtent();
@@ -160,6 +167,7 @@ public sealed partial class FlowCanvas : UserControl
                 break;
             case nameof(FlowCanvasViewModel.Arrangement):
                 SyncNodes(_viewModel?.LastDiff); // kinds are final now (a node can turn into a card without a collection change)
+                BeginMotion(); // before the lines: the gliding ones go to the live set (T21.8)
                 RedrawEdges();
                 UpdateFocusRing();
                 if (_gesture == Gesture.None)

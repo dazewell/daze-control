@@ -83,8 +83,11 @@ internal abstract class NodeView : Grid
         Microsoft.UI.Xaml.Controls.Canvas.SetTop(this, Node.Y);
         Width = Node.Width;
         AutomationProperties.SetName(this, Node.AutomationName);
-        Opacity = Node.IsDimmed ? 0.35 : 1; // failure-policy preview (UX §5.4)
+        Opacity = RestOpacity;
     }
+
+    /// <summary>The opacity when nothing fades it in: faded while the inspector previews a failure policy (UX §5.4).</summary>
+    public double RestOpacity => Node.IsDimmed ? 0.35 : 1;
 }
 
 /// <summary>

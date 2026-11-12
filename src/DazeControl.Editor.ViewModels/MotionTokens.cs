@@ -10,6 +10,14 @@ public static class MotionTokens
     /// <summary>Opacity a swapped-in pane starts from.</summary>
     public const float SwapStartOpacity = 0.4f;
 
+    /// <summary>Canvas steps moved by layout (Arrange, insert, delete, undo) glide this long, decelerating (UX §5.3).</summary>
+    public const int ReflowMs = 200;
+
+    /// <summary>A step added to the canvas fades in and grows from <see cref="AppearScale"/> this long (UX §5.3).</summary>
+    public const int AppearMs = 150;
+
+    public const double AppearScale = 0.96;
+
     public static TimeSpan Duration(bool animationsEnabled, int ms) =>
         animationsEnabled && ms > 0 ? TimeSpan.FromMilliseconds(ms) : TimeSpan.Zero;
 }

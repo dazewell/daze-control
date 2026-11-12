@@ -100,7 +100,7 @@ public sealed record SceneDiff(
 /// it commits (the live drag, <see cref="DragPreview"/>). <see cref="Apply"/> takes a new arrangement and returns
 /// only what changed. Pure: no UI types, no timers; it changes only when told to.
 /// </summary>
-public sealed class CanvasScene
+public sealed partial class CanvasScene
 {
     private readonly List<SceneItem> _items = [];
     private readonly Dictionary<string, int> _itemAt = new(StringComparer.Ordinal);
@@ -145,10 +145,12 @@ public sealed class CanvasScene
     // ---- Apply ----
 
     /// <summary>Takes a new arrangement; returns what moved, resized, changed, came, went or was re-routed.</summary>
-    public SceneDiff Apply(FlowArrangement arrangement, SceneSetup? setup = null)
+    /// <param name="motion">How long moved boxes glide and added ones fade in (T21.8); null or <see cref="SceneMotion.Instant"/>: shown as laid out at once.</param>
+    public SceneDiff Apply(FlowArrangement arrangement, SceneSetup? setup = null, SceneMotion? motion = null)
     {
         ArgumentNullException.ThrowIfNull(arrangement);
         setup ??= new SceneSetup();
+        var before = SnapshotShown(motion);
         Lines = setup.Lines;
         (OutSide, InSide) = setup.PortsVertical ? (PortSide.Bottom, PortSide.Top) : (PortSide.Right, PortSide.Left);
         Extent = arrangement.Extent;
@@ -205,6 +207,8 @@ public sealed class CanvasScene
         var edgesRemoved = oldEdgeAt.Keys.ToList();
 
         Reindex();
+        Retarget(before, motion);
+        _released = null; // the commit took the drop point as its start
         return new SceneDiff(added, removed, moved, resized, content, edgesAdded, edgesRemoved, routes, styles,
             order && edgesAdded.Count == 0 && edgesRemoved.Count == 0);
     }
@@ -311,12 +315,14 @@ public sealed class CanvasScene
 
     public bool IsDragging => Drag is not null;
 
-    /// <summary>The curves of the lines that follow the drag now, by (from, to).</summary>
-    public IReadOnlyDictionary<(string From, string To), EdgeCurve> LiveCurves => _live;
+    /// <summary>The curves of the lines that follow the drag or a glide now, by (from, to): the canvas's live set.</summary>
+    public IReadOnlyDictionary<(string From, string To), EdgeCurve> LiveCurves =>
+        _glideCurves.Count == 0 ? _live : _live.Count == 0 ? _glideCurves : MergedLive();
 
     public void BeginDrag(DragPreview preview)
     {
         ArgumentNullException.ThrowIfNull(preview);
+        Settle(); // a step grabbed mid-glide is dragged from where it is laid out: direct manipulation never tweens
         Drag = preview;
         Frame = null;
         _live.Clear();
@@ -339,17 +345,35 @@ public sealed class CanvasScene
         Drag = null;
         Frame = null;
         _live.Clear();
+        _released = null;
     }
 
-    /// <summary>Where a box is drawn now: its live rect while it is dragged, else where it is laid out.</summary>
+    /// <summary>
+    /// The drag was released and its commit follows: the drag ends, but its last frame stays where the boxes are shown
+    /// until the commit's <see cref="Apply"/>, so a drop the layout puts elsewhere (a zone) glides from the drop point.
+    /// </summary>
+    public void Release()
+    {
+        var shown = Frame?.Rects;
+        EndDrag();
+        _released = shown;
+    }
+
+    private IReadOnlyDictionary<string, Rect>? _released;
+
+    /// <summary>Where a box is drawn now: mid-glide, its live rect while it is dragged, else where it is laid out.</summary>
     public Rect ShownBounds(string id) =>
-        Frame is not null && Frame.Rects.TryGetValue(id, out var live) ? live : Find(id)?.Bounds ?? default;
+        _moving.TryGetValue(id, out var glide) ? glide.Now
+        : Frame is not null && Frame.Rects.TryGetValue(id, out var live) ? live
+        : _released is not null && _released.TryGetValue(id, out var dropped) ? dropped
+        : Find(id)?.Bounds ?? default;
 
     /// <summary>
-    /// The curve a line is drawn with now: live while it follows a drag, from the frozen arrangement while another
-    /// drag runs, else as laid out.
+    /// The curve a line is drawn with now: mid-glide, live while it follows a drag, from the frozen arrangement while
+    /// another drag runs, else as laid out.
     /// </summary>
     public EdgeCurve ShownCurve(string from, string to) =>
-        _live.TryGetValue((from, to), out var live) ? live
+        _glideCurves.TryGetValue((from, to), out var glide) ? glide
+        : _live.TryGetValue((from, to), out var live) ? live
         : Drag?.StaticCurve(from, to) ?? FindEdge(from, to)?.Curve ?? default;
 }

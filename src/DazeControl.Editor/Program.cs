@@ -17,10 +17,16 @@ public static partial class Program
     /// <summary><c>--config &lt;path&gt;</c>: the file this instance edits (tests, screenshots); null = the user's config.</summary>
     public static string? ConfigPath { get; private set; }
 
+    /// <summary><c>--canvas-probe</c> (Debug builds only): the canvas logs its frame times per gesture (T21.8).</summary>
+    public static bool CanvasProbe { get; private set; }
+
     [STAThread]
     public static int Main(string[] args)
     {
         ArgumentNullException.ThrowIfNull(args);
+#if DEBUG
+        CanvasProbe = args.Contains("--canvas-probe");
+#endif
         var at = Array.IndexOf(args, "--config");
         if (at >= 0)
         {

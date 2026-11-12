@@ -63,7 +63,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         _session.PropertyChanged += OnSessionChanged;
         _session.FlowRenamed += OnFlowRenamed;
         _known = Flow;
-        Sync();
+        Sync(animate: false);
     }
 
     /// <summary>Changes when a saved rename gives the flow a new id (D-075): the canvas stays open.</summary>
@@ -252,9 +252,18 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         var size = new Size(Math.Max(width, DefaultPillSize.Width), Math.Max(height, DefaultPillSize.Height));
         if (_measured.TryGetValue(id, out var known) && Math.Abs(known.Width - size.Width) < 0.5 && Math.Abs(known.Height - size.Height) < 0.5)
             return;
+        // A re-measure (renamed, details changed) glides its neighbours, and so does a new step's first measure while
+        // its add still glides; the first measures after opening a flow are shown at once.
+        var animate = _measured.ContainsKey(id) || Scene.IsMoving;
         _measured[id] = size;
-        Sync();
+        Sync(animate);
     }
+
+    /// <summary>
+    /// How re-layouts are shown (T21.8): the canvas gives the Windows "Animation effects" setting (and whether it is
+    /// on screen); null = at once, as in tests that don't ask for motion.
+    /// </summary>
+    public Func<SceneMotion>? Motion { get; set; }
 
     /// <summary>
     /// The camera that shows the whole flow, never above 100 %, centred (D-074); still too big at the smallest zoom, it
@@ -884,6 +893,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     /// <summary>The drag ended (after its commit, or with none): every box and line is shown as laid out again.</summary>
     public void EndMove() => Scene.EndDrag();
 
+    /// <summary>The drag was released; its commit follows and glides only what the layout puts elsewhere (T21.8).</summary>
+    public void ReleaseMove() => Scene.Release();
+
     /// <summary>Every top-level step and card where it is now: what the first move freezes (D-115).</summary>
     private Dictionary<string, Point> Frozen() =>
         Nodes.Where(n => n.CardId is null).ToDictionary(n => n.Id, n => new Point(n.X, n.Y), StringComparer.Ordinal);
@@ -1204,7 +1216,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     // ---- Sync ----
 
-    private void Sync()
+    /// <param name="animate">A layout-driven change (an edit, undo, Arrange, a re-measure): moved steps glide, added ones fade in (D-119 d).</param>
+    private void Sync(bool animate = true)
     {
         var flow = Flow;
         IsMissing = flow is null;
@@ -1223,7 +1236,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         var mayFail = flow.Nodes.Where(n => EffectivePolicy(n, _session.Current.Settings.StepDefaults) == FailurePolicy.Ignore).Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
         var cards = flow.Nodes.OfType<GroupNode>().Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
         LastDiff = Scene.Apply(_arrangement, new SceneSetup(options.Lines, options.Shape, cards, mayFail,
-            id => nodes.TryGetValue(id, out var node) ? (node, problems.Contains(id)) : null));
+            id => nodes.TryGetValue(id, out var node) ? (node, problems.Contains(id)) : null),
+            animate ? Motion?.Invoke() : null);
 
         for (var i = Nodes.Count - 1; i >= 0; i--)
         {

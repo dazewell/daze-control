@@ -88,6 +88,13 @@ public sealed partial class FlowCanvas
     {
         _autoFit = false;
         ApplyCamera(_camera.PanBy(-shift.X * _camera.Zoom, -shift.Y * _camera.Zoom));
+        if (_viewModel?.Scene.IsMoving == true)
+        {
+            // The camera took the uniform shift back: it isn't layout motion, so nothing slides by it (T21.8).
+            _viewModel.Scene.ShiftBy(shift.X, shift.Y);
+            BeginMotion();
+            DrawEdges(); // lines that stopped gliding go back to the static set
+        }
     }
 
     private void OnViewportSizeChanged(object sender, SizeChangedEventArgs e)
