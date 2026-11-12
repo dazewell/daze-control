@@ -93,6 +93,7 @@ public sealed partial class FlowCanvas
         else if (props.IsLeftButtonPressed)
         {
             _gesture = Gesture.Marquee; // mouse and pen only (UX §5.8 #4)
+            _viewModel.BeginMarquee();
             _gestureProbe.Begin("marquee");
         }
         if (_gesture != Gesture.None)
@@ -118,6 +119,7 @@ public sealed partial class FlowCanvas
             return;
         var position = e.GetCurrentPoint(Host).Position;
         var screen = e.GetCurrentPoint(this).Position;
+        _gestureScreen = e.GetCurrentPoint(Viewport).Position;
         double dx = position.X - _pressContent.X, dy = position.Y - _pressContent.Y;
         switch (_gesture)
         {
@@ -125,6 +127,7 @@ public sealed partial class FlowCanvas
                 // Coalesced: a mouse can report several moves per frame; only the latest is drawn (D-119 b).
                 _pendingMove = position;
                 OnFrames(true);
+                UpdateEdgePan();
                 break;
             case Gesture.RightPan:
                 var started = _rightPan!.IsPanning;
@@ -153,6 +156,7 @@ public sealed partial class FlowCanvas
                         DrawEdges(); // the scene holds the preview (T21.6)
                     _pendingMove = position;
                     OnFrames(true);
+                    UpdateEdgePan();
                 }
                 break;
         }
@@ -163,6 +167,54 @@ public sealed partial class FlowCanvas
     {
         _gestureFrames = on;
         UpdateFrames();
+    }
+
+    /// <summary>
+    /// Auto-pan (T21.9): runs on the frame clock while the gesture's pointer is in the viewport's edge band, stops when
+    /// it leaves the band, the camera can't go further, or the gesture ends (idle = zero).
+    /// </summary>
+    private void UpdateEdgePan()
+    {
+        var velocity = Camera.EdgeVelocity(_gestureScreen.X, _gestureScreen.Y, ViewportWidth, ViewportHeight);
+        SetEdgeFrames(_gesture is Gesture.DragNode or Gesture.Connect or Gesture.Marquee && velocity != (0, 0));
+    }
+
+    private void SetEdgeFrames(bool on)
+    {
+        if (on == _edgeFrames)
+            return;
+        _edgeFrames = on;
+        _edgeLast = null; // the first frame only takes the time: a pan never covers the wait before it
+        UpdateFrames();
+    }
+
+    /// <summary>
+    /// One auto-pan frame: the camera pans by speed × frame time, and the pointer, still on screen, is now over another
+    /// world point, so the dragged steps, the connect line or the marquee follow it this same frame.
+    /// </summary>
+    private void EdgeFrame(TimeSpan now)
+    {
+        var last = _edgeLast;
+        _edgeLast = now;
+        if (last is not { } before || now <= before)
+            return;
+        var velocity = Camera.EdgeVelocity(_gestureScreen.X, _gestureScreen.Y, ViewportWidth, ViewportHeight);
+        var was = _camera;
+        ApplyCamera(_camera.EdgePan(velocity, (now - before).TotalSeconds));
+        if (_camera == was)
+        {
+            SetEdgeFrames(false); // out of the band, or at the end of the pan room: the next pointer move asks again
+            return;
+        }
+        var world = _camera.ToWorld(C(_gestureScreen));
+        _pendingMove = new Windows.Foundation.Point(world.X, world.Y);
+    }
+
+    /// <summary>Escape mid-gesture: nothing is committed, a marquee gives back the selection it started from.</summary>
+    private void CancelGesture()
+    {
+        Root.ReleasePointerCaptures();
+        EndGesture();
     }
 
     /// <summary>Draws the latest pointer position of a drag, connect or marquee (from <see cref="OnFrame"/>).</summary>
@@ -183,6 +235,8 @@ public sealed partial class FlowCanvas
                 Marquee.Width = rect.Width;
                 Marquee.Height = rect.Height;
                 Marquee.Visibility = Visibility.Visible;
+                if (rect.Width >= DragThreshold || rect.Height >= DragThreshold)
+                    _viewModel?.MarqueeTo(rect, additive: CtrlDown()); // the selection shows live (T21.9)
                 break;
         }
     }
@@ -270,12 +324,20 @@ public sealed partial class FlowCanvas
                 var rect = DazeControl.Core.Layout.Rect.FromCorners(C(_pressContent), C(position));
                 if (rect.Width < DragThreshold && rect.Height < DragThreshold)
                 {
-                    if (!CtrlDown())
+                    if (CtrlDown())
+                    {
+                        _viewModel.CancelMarquee(); // a Ctrl+click on blank canvas changes nothing
+                    }
+                    else
+                    {
+                        _viewModel.EndMarquee();
                         _viewModel.ClearSelection();
+                    }
                 }
                 else
                 {
-                    _viewModel.SelectIn(rect, additive: CtrlDown());
+                    _viewModel.MarqueeTo(rect, additive: CtrlDown());
+                    _viewModel.EndMarquee();
                 }
                 break;
         }
@@ -356,8 +418,16 @@ public sealed partial class FlowCanvas
 
     private void PreviewConnect(Windows.Foundation.Point position)
     {
-        var start = _viewModel!.OutPortOf(_connectFrom!);
-        var curve = DazeControl.Core.Layout.EdgeCurve.Between(start, C(position), _viewModel.OutSide, _viewModel.InSide);
+        var from = _connectFrom!;
+        var start = _viewModel!.OutPortOf(from);
+        var target = ConnectTarget(position);
+        var refused = target is not null && target.Id != from.Id
+            && _viewModel.CanConnect(from.Id, target.Id) is not (ConnectRefusal.None or ConnectRefusal.Exists);
+        // Over a step it can join, the line snaps to that step's in-port: it shows the line the release makes (T21.9).
+        var end = target is not null && target.Id != from.Id && !refused
+            ? FlowPlacement.Port(BoundsOf(target), _viewModel.InSide)
+            : C(position);
+        var curve = DazeControl.Core.Layout.EdgeCurve.Between(start, end, _viewModel.OutSide, _viewModel.InSide);
         var figure = new PathFigure { StartPoint = P(curve.Start), IsFilled = false };
         figure.Segments.Add(new BezierSegment { Point1 = P(curve.Control1), Point2 = P(curve.Control2), Point3 = P(curve.Tip) });
         var geometry = new PathGeometry();
@@ -366,14 +436,12 @@ public sealed partial class FlowCanvas
         ConnectPreview.Stroke = Theme.Selection;
         ConnectPreview.Visibility = Visibility.Visible;
 
-        var target = ConnectTarget(position);
         if (target is null || target.Id == _connectFrom!.Id)
         {
             DropTarget.Visibility = Visibility.Collapsed;
             ProtectedCursor = null;
             return;
         }
-        var refused = _viewModel!.CanConnect(_connectFrom.Id, target.Id) is not (ConnectRefusal.None or ConnectRefusal.Exists);
         DropTarget.Stroke = refused ? Theme.Brush("SystemFillColorCriticalBrush") : Theme.Selection;
         DropTarget.StrokeDashArray = null;
         DropTarget.RadiusX = DropTarget.RadiusY = target.Kind == CanvasNodeKind.Card ? 14 : 30;
@@ -456,8 +524,12 @@ public sealed partial class FlowCanvas
 
     private void EndGesture()
     {
+        _edgeFrames = false;
+        _edgeLast = null;
         OnFrames(false);
         _pendingMove = null;
+        if (_gesture == Gesture.Marquee)
+            _viewModel?.CancelMarquee(); // capture lost or Escape; a release already ended it
         if (_gesture is Gesture.DragNode or Gesture.Connect or Gesture.Marquee)
             _gestureProbe.End();
         if (_viewModel is not null && (_viewModel.Scene.IsDragging || _gesture == Gesture.DragNode))

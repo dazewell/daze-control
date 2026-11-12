@@ -102,6 +102,11 @@ public sealed partial class FlowCanvas
         var alt = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down);
         e.Handled = true;
         _autoFit = false;
+        if (e.Key == VirtualKey.Escape && _gesture != Gesture.None)
+        {
+            CancelGesture(); // a drag, connect, marquee or pan in progress: drop it, keep the selection it had
+            return;
+        }
         if (RunCommandKey(e.Key))
         {
             UpdateFocusRing();

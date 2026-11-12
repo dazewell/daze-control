@@ -168,6 +168,45 @@ public sealed class FlowCanvasViewModelTests : IDisposable
     }
 
     [Fact]
+    public void MarqueeShowsItsSelectionLiveAndTheReleaseKeepsIt()
+    {
+        var bt = Node("bt").Bounds;
+        var outBox = Node("out").Bounds;
+        _canvas.Select("out");
+        _canvas.BeginMarquee();
+        var raised = 0;
+        _canvas.PropertyChanged += (_, e) => raised += e.PropertyName == nameof(FlowCanvasViewModel.SelectedIds) ? 1 : 0;
+
+        Assert.True(_canvas.MarqueeTo(new Rect(bt.X - 10, bt.Y - 10, 20, 20), additive: false));
+        Assert.Equal(["bt"], _canvas.SelectedIds);
+        Assert.False(_canvas.MarqueeTo(new Rect(bt.X - 10, bt.Y - 10, 25, 25), additive: false)); // same set: nothing raised
+        Assert.Equal(1, raised);
+
+        Assert.True(_canvas.MarqueeTo(new Rect(bt.X - 10, bt.Y - 10, 20, 20), additive: true)); // Ctrl: on top of the start
+        Assert.Equal(["bt", "out"], _canvas.SelectedIds.Order());
+
+        _canvas.MarqueeTo(new Rect(outBox.X, outBox.Y, 5, 5), additive: false);
+        _canvas.EndMarquee();
+        Assert.Equal(["out"], _canvas.SelectedIds);
+        Assert.True(Node("out").IsSelected);
+        Assert.False(Node("bt").IsSelected);
+    }
+
+    [Fact]
+    public void CancelledMarqueeBringsBackTheStartingSelection()
+    {
+        var bt = Node("bt").Bounds;
+        _canvas.Select("out");
+        _canvas.BeginMarquee();
+        _canvas.MarqueeTo(new Rect(bt.X - 10, bt.Y - 10, 20, 20), additive: false);
+
+        _canvas.CancelMarquee();
+
+        Assert.Equal(["out"], _canvas.SelectedIds);
+        Assert.False(Node("bt").IsSelected);
+    }
+
+    [Fact]
     public void SelectAllAndClear()
     {
         _canvas.SelectAll();
