@@ -100,6 +100,13 @@ public static class StepValues
         return spec.TakesValues && spec.Kind is ParamKind.Text or ParamKind.MultilineText;
     }
 
+    /// <summary>Whether each item of a list setting fills references (<c>process.run</c>'s arguments): one argument per item.</summary>
+    public static bool TakesItems(ParamSpec spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        return spec.TakesValues && spec.Kind == ParamKind.TextList;
+    }
+
     // ---- Grammar (DESIGN §4.3) ----
 
     /// <summary>The references in <paramref name="text"/>, in order; escaped ones (<c>{{bt.device}</c>) aren't.</summary>
@@ -364,10 +371,10 @@ public static class StepValues
         ArgumentNullException.ThrowIfNull(spec);
         var problems = new List<ValueProblem>();
         var refs = Parse(text);
-        if (refs.Count == 0 || spec.Kind is ParamKind.TextList or ParamKind.TextMap)
+        if (refs.Count == 0 || spec.Kind == ParamKind.TextMap || spec.Kind == ParamKind.TextList && !TakesItems(spec))
             return problems;
         catalog ??= ProviderCatalog.All;
-        var takes = Takes(spec);
+        var takes = Takes(spec) || TakesItems(spec);
         var textKind = spec.Kind is ParamKind.Text or ParamKind.MultilineText or ParamKind.FilePath or ParamKind.FolderPath;
         foreach (var r in refs)
         {
@@ -479,16 +486,109 @@ public static class StepValues
                     if (PickResults.StepIn(v) is { } pick)
                         wanted.Add((pick, DeviceName));
                 }
-                if (setting is ScalarParam { Text: var text } && descriptor?.FindParam(name) is { } spec && Takes(spec))
+                if (descriptor?.FindParam(name) is not { } spec)
+                    continue;
+                foreach (var text in TextsOf(setting, spec))
                 {
                     foreach (var r in Parse(text).Where(r => r.Source == ValueSource.Step))
                         wanted.Add((r.Name, r.Value));
+                }
+            }
+            if (step.Step == ProviderCatalog.PowerShellId && step.With.TryGetValue("script", out var script) && script is ScalarParam { Text: var code })
+            {
+                // A script reads values from its environment (DESIGN §4.8): keep the ones its text names.
+                foreach (var producer in Before(flow, step.Id))
+                {
+                    if (Descriptor(catalog, producer) is not { } d)
+                        continue;
+                    foreach (var v in Of(d).Where(v => code.Contains(Variable(producer.Id, v.Name), StringComparison.OrdinalIgnoreCase)))
+                        wanted.Add((producer.Id, v.Name));
                 }
             }
         }
         return wanted;
     }
 
+    /// <summary>The texts of a setting that fill references: one for a text setting, each item of a list whose items fill.</summary>
+    private static IEnumerable<string> TextsOf(ParamValue setting, ParamSpec spec) => setting switch
+    {
+        ScalarParam { Text: var text } when Takes(spec) => [text],
+        ListParam list when TakesItems(spec) => list.Items.OfType<ScalarParam>().Select(i => i.Text),
+        _ => [],
+    };
+
+    /// <summary>The environment variable a script reads a value from: <c>DAZE_BT_DEVICE</c> for <c>bt</c>'s <c>device</c> (id <c>-</c> → <c>_</c>).</summary>
+    public static string Variable(string step, string value) =>
+        "DAZE_" + step.Replace('-', '_').ToUpperInvariant() + "_" + value.ToUpperInvariant();
+
+    /// <summary>
+    /// What a script step gets as environment variables (DESIGN §4.8): every value its earlier steps gave, as text (a Device shows
+    /// its Library name). The script's text is never changed, so a device named <c>'; Remove-Item …</c> stays data.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> Variables(Flow flow, string stepId, RunValues values, Library library,
+        IReadOnlyList<ProviderDescriptor>? catalog = null)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        ArgumentNullException.ThrowIfNull(values);
+        ArgumentNullException.ThrowIfNull(library);
+        catalog ??= ProviderCatalog.All;
+        var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var producer in Before(flow, stepId))
+        {
+            if (Descriptor(catalog, producer) is not { } d)
+                continue;
+            foreach (var v in Of(d))
+            {
+                if (values.TryGet(producer.Id, v.Name, out var given))
+                    variables[Variable(producer.Id, v.Name)] = Show(given, library).Replace("\0", "", StringComparison.Ordinal);
+            }
+        }
+        return variables;
+    }
+
+    /// <summary>
+    /// The Sensitive values (<see cref="ValueSpec.Sensitive"/>) that earlier steps gave, with their titles, so the runner can keep
+    /// them out of errors and summaries (D-014): see <see cref="Mask"/>.
+    /// </summary>
+    public static IReadOnlyList<(string Text, string Title)> Secrets(Flow flow, string stepId, RunValues values, Library library,
+        IReadOnlyList<ProviderDescriptor>? catalog = null)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        ArgumentNullException.ThrowIfNull(values);
+        ArgumentNullException.ThrowIfNull(library);
+        catalog ??= ProviderCatalog.All;
+        var secrets = new List<(string Text, string Title)>();
+        foreach (var producer in Before(flow, stepId))
+        {
+            if (Descriptor(catalog, producer) is not { } d)
+                continue;
+            foreach (var v in Of(d).Where(v => v.Sensitive))
+            {
+                if (values.TryGet(producer.Id, v.Name, out var given) && Show(given, library) is { Length: > 0 } text)
+                    secrets.Add((text, v.Title));
+            }
+        }
+        // Longest first, so a secret that contains another is hidden whole.
+        return [.. secrets.OrderByDescending(s => s.Text.Length)];
+    }
+
+    /// <summary>The text with each secret shown as its title ("‹Output›"); null stays null.</summary>
+    public static string? Mask(string? text, IReadOnlyList<(string Text, string Title)> secrets)
+    {
+        if (string.IsNullOrEmpty(text))
+            return text;
+        foreach (var (secret, title) in secrets)
+            text = text.Replace(secret, "‹" + title + "›", StringComparison.Ordinal);
+        return text;
+    }
+
+    /// <summary>
+    /// <c>%</c> in a value filled into an <see cref="FillRule.Argument"/> becomes this private character, so the provider's
+    /// <c>%VAR%</c> expansion of the written text never reads a value; <see cref="Unguard"/> puts the <c>%</c> back.
+    /// </summary>
+    public const char PercentGuard = '\uE000';
+
+    public static string Unguard(string text) => text.Replace(PercentGuard, '%');
     /// <summary>
     /// The step as its provider should see it: settings that take values filled from <paramref name="values"/> (Device values
     /// show the Library item's name), and <c>$result:&lt;id&gt;</c> device settings swapped for the key (as
@@ -505,22 +605,27 @@ public static class StepValues
         ArgumentNullException.ThrowIfNull(library);
         descriptor ??= ProviderCatalog.Find(step.Step);
         var filled = step;
-        if (descriptor is not null && step.With.Any(e => e.Value is ScalarParam { Text: var t } && t.Contains('{', StringComparison.Ordinal)
-                && descriptor.FindParam(e.Key) is { } spec && Takes(spec)))
+        if (descriptor is not null && step.With.Any(e => descriptor.FindParam(e.Key) is { } spec && TextsOf(e.Value, spec).Any(t => t.Contains('{', StringComparison.Ordinal))))
         {
             filled = step with
             {
-                With = new(step.With.Select(e => KeyValuePair.Create(e.Key,
-                    e.Value is ScalarParam { Text: var text } && descriptor.FindParam(e.Key) is { } spec && Takes(spec)
-                        ? new ScalarParam(FillText(flow, text, values, library, singleLine: spec.Kind == ParamKind.Text))
-                        : e.Value))),
+                With = new(step.With.Select(e => KeyValuePair.Create(e.Key, descriptor.FindParam(e.Key) is { } spec ? FillParam(flow, e.Value, spec, values, library) : e.Value))),
             };
         }
         return PickResults.Resolve(filled, values.Picked(), out missing, descriptor);
     }
 
+    private static ParamValue FillParam(Flow flow, ParamValue setting, ParamSpec spec, RunValues values, Library library) => setting switch
+    {
+        ScalarParam { Text: var text } when Takes(spec) => new ScalarParam(FillText(flow, text, values, library, spec.Kind == ParamKind.Text, spec.Fill)),
+        ListParam list when TakesItems(spec) => new ListParam(new ValueList<ParamValue>(list.Items.Select(i =>
+            i is ScalarParam { Text: var item } ? new ScalarParam(FillText(flow, item, values, library, singleLine: false, spec.Fill)) : i))),
+        _ => setting,
+    };
+
     /// <summary>One text with its references filled (see <see cref="Fill"/>); cut at <see cref="MaxFilledLength"/>.</summary>
-    public static string FillText(Flow flow, string text, RunValues values, Library library, bool singleLine = true)
+    /// <param name="rule">How a value is written: percent-encoded in an address, <c>%</c> guarded in a program argument.</param>
+    public static string FillText(Flow flow, string text, RunValues values, Library library, bool singleLine = true, FillRule rule = FillRule.None)
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(values);
@@ -542,12 +647,14 @@ public static class StepValues
             {
                 ValueSource.Input => values.TryGetInput(r.Name, out var input) ? Show(input, library) : null,
                 ValueSource.Run => values.Run(r.Name),
-                _ => values.TryGet(r.Name, r.Value, out var given) ? Show(given, library) : null,
+                _ => values.TryGet(r.Name, r.Value, out var found) ? Show(found, library) : null,
             };
-            if (string.IsNullOrEmpty(value))
-                value = r.Fallback ?? "";
+            var given = !string.IsNullOrEmpty(value);
+            value = given ? value! : r.Fallback ?? "";
             if (singleLine)
                 value = value.ReplaceLineEndings(" ");
+            if (rule != FillRule.None && given)
+                value = rule == FillRule.Url ? Uri.EscapeDataString(value) : value.Replace('%', PercentGuard);
             result.Append(value);
         }
         return RunValues.Cut(result.ToString(), MaxFilledLength);

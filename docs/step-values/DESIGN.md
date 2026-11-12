@@ -171,6 +171,13 @@ error into `RunValues`. Unreferenced values are not kept (`StepValues.Wanted(flo
   environment variables (`DAZE_BT_DEVICE`, `DAZE_BATT_PERCENT`; id `-` → `_`, upper case), so a device named
   `'; Remove-Item …` stays data. Stage 3 fill rules for other fields: URL parts percent-encoded (`http.request` url,
   `android.open` address), a `process.run` argument filled as one argv element, headers/body as written (warned in Help).
+- Built in T23.5: `ParamSpec.Fill` (`Url` encodes the value only, a `|fallback` stays as written; `Argument` fills list items one by
+  one). `process.run` expands `%VAR%` in the written argument, so a value's `%` is swapped for `StepValues.PercentGuard` (U+E000)
+  while filling and back after the expansion: a device named `%TEMP%` stays text. Scripts get the values their text *names*
+  (`$env:DAZE_BT_DEVICE`, any case: `Wanted` scans the script) as `StepContext.Variables`; PowerShell's stdout is UTF-8 so `output`
+  keeps non-ASCII. The runner replaces any Sensitive value of an earlier step found in a step's error or summary with its title
+  (`StepValues.Secrets/Mask`). `output` of a failed program is not given (only OnFailure values are). Inspector Insert value
+  doesn't list the argument items yet (a list setting; the editor part is T23.4's area): write `{p.output}` by hand.
 
 ## 5. Editor UX
 

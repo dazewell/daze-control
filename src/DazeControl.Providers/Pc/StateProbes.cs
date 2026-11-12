@@ -151,6 +151,7 @@ public sealed class IdleProbe(IPcState pc) : IFactProbe
     {
         var wanted = context.Duration("for");
         var idle = pc.IdleFor();
+        context.SetValue("idle", Duration.Format(Whole(idle)));
         return Task.FromResult(idle >= wanted
             ? new FactReading(true, $"No input for {Duration.Format(Whole(idle))}")
             : new FactReading(false, idle < TimeSpan.FromSeconds(1) ? "In use right now" : $"Last input {Duration.Format(Whole(idle))} ago"));
@@ -182,6 +183,7 @@ public sealed class ScreenCountProbe(IPcState pc) : IFactProbe
     {
         var wanted = context.WholeNumber("count", 2);
         var count = pc.ScreenCount();
+        context.SetNumber("count", count);
         return Task.FromResult(new FactReading(count >= wanted, count == 1 ? "1 screen is on" : $"{count} screens are on"));
     }
 }
@@ -207,6 +209,7 @@ public sealed class FreeSpaceProbe(IPcState pc) : IFactProbe
             throw new StepFailedException($"Can't read the free space on {path}: {e.Message}");
         }
         var freeGb = free / 1_000_000_000d;
+        context.SetNumber("free", Math.Round(freeGb, 1));
         var drive = Path.GetPathRoot(path)?.TrimEnd('\\') is { Length: > 0 } root ? root : path;
         return Task.FromResult(new FactReading(freeGb >= gb, $"{drive} has {freeGb.ToString(freeGb < 10 ? "0.#" : "0", CultureInfo.InvariantCulture)} GB free"));
     }

@@ -8,6 +8,9 @@ namespace DazeControl.Providers.Process;
 /// <summary>Starts a program and waits for it; shared by <c>process.run</c> and <c>script.powershell</c>.</summary>
 internal static class ProcessRunner
 {
+    /// <summary>Chars of stdout kept for the <c>output</c> value (a little over its 1,000 limit, so the cut shows).</summary>
+    internal const int ValueTail = 1100;
+
     private const int ErrorTail = 4096; // chars of stderr kept for the failure message
     private static readonly TimeSpan DrainGrace = TimeSpan.FromMilliseconds(500);
 

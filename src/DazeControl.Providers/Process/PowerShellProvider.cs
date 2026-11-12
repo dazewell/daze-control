@@ -21,10 +21,17 @@ public sealed class PowerShellProvider : IStepProvider
         // -Command - runs stdin statement by statement, so an error would end only its own statement: one try block
         // makes the first error (cmdlet errors too, via 'Stop') end the whole script with exit code 1. The blank
         // line ends the block.
-        var body = "try {\n$ErrorActionPreference = 'Stop'\n" + context.RequiredText("script")
+        // UTF-8 out, so an output value (and an error line) keeps non-ASCII text, like a device name.
+        var body = "try {\n[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\n$ErrorActionPreference = 'Stop'\n" + context.RequiredText("script")
             + "\n} catch {\n[Console]::Error.WriteLine($_.ToString())\nexit 1\n}\n\n";
-        var (exitCode, lastError) = await ProcessRunner.RunAsync(start, body, cancellationToken).ConfigureAwait(false);
+        // Earlier steps' values are data in the environment, never part of the script text (DESIGN §4.8).
+        foreach (var (name, value) in context.Variables ?? new Dictionary<string, string>())
+            start.Environment[name] = value;
+        var (exitCode, lastError, output) = await ProcessRunner.RunAsync(start, body, keepOutput: context.Wants("output"),
+            cancellationToken, ProcessRunner.ValueTail).ConfigureAwait(false);
         context.SetNumber("exitCode", exitCode);
+        if (context.Wants("output"))
+            context.SetValue("output", output);
         if (exitCode != 0)
             throw new StepFailedException(ProcessRunProvider.Failure("PowerShell", exitCode, lastError));
     }

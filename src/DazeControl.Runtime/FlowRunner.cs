@@ -287,11 +287,14 @@ public sealed class FlowRunner
                     Chain = scope.Chain,
                     Trigger = scope.Trigger,
                     WantsValue = name => values.Wants(node.Id, name),
+                    Variables = node.Step == ProviderCatalog.PowerShellId ? StepValues.Variables(flow, node.Id, values, library, _catalog) : null,
                     RunNested = Flows is null ? null : (target, token) => NestedAsync(scope, flow, node, target, c => called = c, token),
                 };
                 var attemptResult = await AttemptAsync(provider!, context, timeout, flowToken).ConfigureAwait(false);
-                error = attemptResult.Error;
-                summary = context.Summary;
+                // Sensitive values never reach the log or history (D-014): an error or summary that holds one shows its title.
+                var secrets = DryRun ? [] : StepValues.Secrets(flow, node.Id, values, library, _catalog);
+                error = StepValues.Mask(attemptResult.Error, secrets);
+                summary = StepValues.Mask(context.Summary, secrets);
                 skipped = attemptResult.SkippedBecause;
                 if (skipped is null) // an unmet "Only if" gives nothing (DESIGN §4.5), though its probe may have read values
                     GiveValues(values, node.Id, descriptor, context, error is null);
@@ -314,15 +317,20 @@ public sealed class FlowRunner
     /// <summary>A dry run (D-042) fills text with each value's title ("Connected to ‹Device›"), never a real or sample device; the Pick's key still goes into device settings.</summary>
     public bool DryRun { get; init; }
 
+    private ParamValue DescribeParam(Flow flow, ParamValue setting, ParamSpec? spec) => setting switch
+    {
+        ScalarParam { Text: var text } when spec is not null && StepValues.Takes(spec) => new ScalarParam(StepValues.Describe(flow, text, _catalog)),
+        ListParam list when spec is not null && StepValues.TakesItems(spec) => new ListParam(new ValueList<ParamValue>(list.Items.Select(i =>
+            i is ScalarParam { Text: var item } ? new ScalarParam(StepValues.Describe(flow, item, _catalog)) : i))),
+        _ => setting,
+    };
+
     private StepNode Describe(Flow flow, StepNode step, RunValues values, out string? missing)
     {
         var descriptor = _catalog.FirstOrDefault(d => d.Id == step.Step);
         var shown = descriptor is null ? step : step with
         {
-            With = new(step.With.Select(e => KeyValuePair.Create(e.Key,
-                e.Value is ScalarParam { Text: var text } && descriptor.FindParam(e.Key) is { } spec && StepValues.Takes(spec)
-                    ? new ScalarParam(StepValues.Describe(flow, text, _catalog))
-                    : e.Value))),
+            With = new(step.With.Select(e => KeyValuePair.Create(e.Key, DescribeParam(flow, e.Value, descriptor.FindParam(e.Key))))),
         };
         return PickResults.Resolve(shown, values.Picked(), out missing, descriptor);
     }
