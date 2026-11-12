@@ -300,9 +300,9 @@
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
-                                                    <Button Command="{x:Bind ToggleCommand}" Padding="8" Background="Transparent" BorderThickness="0"
-                                                            AutomationProperties.Name="{x:Bind ToggleName, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind ToggleName, Mode=OneWay}">
-                                                        <FontIcon Glyph="{x:Bind ChevronGlyph, Mode=OneWay}" FontSize="12" />
+                                                    <Button Command="{x:Bind ToggleCommand}"
+                                                            AutomationProperties.Name="{x:Bind ToggleName, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind ToggleName, Mode=OneWay}" Style="{StaticResource SubtleIconButton}">
+                                                        <FontIcon Glyph="{x:Bind ChevronGlyph, Mode=OneWay}" FontSize="14" />
                                                     </Button>
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="4,0,12,0" Spacing="8">
                                                         <CheckBox IsChecked="{x:Bind IsSelected, Mode=OneWay}" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupCheckClick" MinWidth="0" Padding="0"
@@ -318,8 +318,8 @@
                                                         <FontIcon Glyph="&#xEA39;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
                                                         <TextBlock Text="{x:Bind Problems, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" />
                                                     </StackPanel>
-                                                    <Button Grid.Column="4" Content="&#xE712;" FontFamily="{ThemeResource SymbolThemeFontFamily}" Background="Transparent" BorderThickness="0"
-                                                            AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" ToolTipService.ToolTip="Group menu">
+                                                    <Button Grid.Column="4" Content="&#xE712;" FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                                            AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" ToolTipService.ToolTip="Group menu" Style="{StaticResource SubtleIconButton}">
                                                         <Button.Flyout>
                                                             <MenuFlyout>
                                                                 <MenuFlyoutItem Text="Rename…" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupRenameClick" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" />
@@ -692,10 +692,10 @@
                                                         </Flyout>
                                                     </Button.Flyout>
                                                 </Button>
-                                                <Button Grid.Column="3" VerticalAlignment="Center" Tag="{x:Bind}" Click="OnRemoveDefault"
+                                                <Button Grid.Column="3" Tag="{x:Bind}" Click="OnRemoveDefault"
                                                         AutomationProperties.Name="{x:Bind RemoveName}"
                                                         ToolTipService.ToolTip="Remove these defaults"
-                                                        IsEnabled="{x:Bind CanEdit, Mode=OneWay}">
+                                                        IsEnabled="{x:Bind CanEdit, Mode=OneWay}" Style="{StaticResource IconButton}">
                                                     <FontIcon Glyph="&#xE74D;" FontSize="14" />
                                                 </Button>
                                             </Grid>
@@ -757,9 +757,9 @@
                                     </StackPanel>
                                     <!-- One fixed slot: Check for updates and Install sit side by side; Install is only enabled once something can be installed. -->
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                        <Button Content="Check for updates" Click="OnCheckForUpdates" MinWidth="148"
+                                        <Button Content="Check for updates" Click="OnCheckForUpdates"
                                                 IsEnabled="{x:Bind ViewModel.Updates.CanCheck, Mode=OneWay}" />
-                                        <Button Content="Install" Click="OnRestartForUpdate" Style="{StaticResource AccentButtonStyle}" MinWidth="104"
+                                        <Button Content="Install" Click="OnRestartForUpdate" Style="{StaticResource PrimaryButton}"
                                                 IsEnabled="{x:Bind ViewModel.Updates.CanRestart, Mode=OneWay}" />
                                     </StackPanel>
                                 </Grid>
@@ -845,7 +845,7 @@
                             <Grid x:Name="DraftSlot" Width="12" Height="12" VerticalAlignment="Center" Background="Transparent">
                                 <Ellipse x:Name="DraftDot" Width="8" Height="8" Opacity="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
                             </Grid>
-                            <Button x:Name="SaveButton" Content="Save" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" Click="OnSaveFlow"
+                            <Button x:Name="SaveButton" Content="Save" Style="{StaticResource PrimaryButton}" IsEnabled="False" Click="OnSaveFlow"
                                     ToolTipService.ToolTip="Save your changes to this flow (Ctrl+S)" AutomationProperties.AcceleratorKey="Control+S" />
                             <Button x:Name="CancelButton" Content="Cancel" IsEnabled="False" Click="OnCancelFlow"
                                     ToolTipService.ToolTip="Throw away your changes since the last save" />
