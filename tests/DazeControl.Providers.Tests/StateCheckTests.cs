@@ -65,6 +65,34 @@ public class StateCheckTests
     }
 
     [Fact]
+    public async Task WifiGivesTheNetworkItIsOnEvenWhenItIsNotTheOneAsked()
+    {
+        var on = new WifiProbe(new FakeNetwork([Home]));
+        var any = Steps.Context("network.wifi");
+        var other = Steps.Context("network.wifi", ("network", "Office"));
+        await on.ReadAsync(any, Token);
+        await on.ReadAsync(other, Token);
+        var off = Steps.Context("network.wifi");
+        await new WifiProbe(new FakeNetwork([])).ReadAsync(off, Token);
+
+        Assert.Equal("Home", any.Values["network"].Text);
+        Assert.Equal("Home", other.Values["network"].Text);
+        Assert.Empty(off.Values);
+    }
+
+    [Fact]
+    public async Task BatteryGivesThePercentAndOnlyWhenItKnowsIt()
+    {
+        var context = Steps.Context("power.battery", ("percent", "50"));
+        await new BatteryProbe(new FakePc(new(false, 35))).ReadAsync(context, Token);
+        var none = Steps.Context("power.battery");
+        await Assert.ThrowsAsync<StepFailedException>(() => new BatteryProbe(new FakePc(new(true, null))).ReadAsync(none, Token));
+
+        Assert.Equal(new DazeControl.Core.Runs.StepValue(DazeControl.Core.Catalog.ValueKind.Number, "35"), context.Values["percent"]);
+        Assert.Empty(none.Values);
+    }
+
+    [Fact]
     public async Task WifiWithAHiddenNameCantAnswerForANamedNetwork()
     {
         var hidden = new WifiProbe(new FakeNetwork([new("wifi:{a}", "wifi", "Wi-Fi", "{a}", Named: false)]));

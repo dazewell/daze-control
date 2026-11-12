@@ -24,6 +24,7 @@ public sealed class PowerShellProvider : IStepProvider
         var body = "try {\n$ErrorActionPreference = 'Stop'\n" + context.RequiredText("script")
             + "\n} catch {\n[Console]::Error.WriteLine($_.ToString())\nexit 1\n}\n\n";
         var (exitCode, lastError) = await ProcessRunner.RunAsync(start, body, cancellationToken).ConfigureAwait(false);
+        context.SetNumber("exitCode", exitCode);
         if (exitCode != 0)
             throw new StepFailedException(ProcessRunProvider.Failure("PowerShell", exitCode, lastError));
     }

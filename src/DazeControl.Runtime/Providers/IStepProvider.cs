@@ -23,9 +23,45 @@ public sealed record StepContext(Flow Flow, StepNode Node, ProviderDescriptor De
     public void SetSummary(string summary) => Summary = summary;
 
     /// <summary>The Library key a pick step picked (D-117), read by the runner after the attempt; later steps use it as <c>$result:id</c>.</summary>
-    public string? Result { get; private set; }
+    public string? Result => Values.TryGetValue(StepValues.DeviceName, out var device) && device.Kind == ValueKind.Device ? device.Text : null;
 
-    public void SetResult(string key) => Result = key;
+    /// <summary><c>SetDevice("device", key)</c>, kept for pick steps.</summary>
+    public void SetResult(string key) => SetDevice(StepValues.DeviceName, key);
+
+    private readonly Dictionary<string, StepValue> _values = new(StringComparer.Ordinal);
+
+    /// <summary>Whether a later step uses this value (D-129): a provider skips costly work (reading stdout) when none does. True where unknown.</summary>
+    public Func<string, bool>? WantsValue { get; init; }
+
+    public bool Wants(string name) => WantsValue?.Invoke(name) ?? true;
+
+    /// <summary>A text value later steps can use (<c>{id.name}</c>); the runner takes it after the attempt (D-129). The last call wins.</summary>
+    public void SetValue(string name, string text) => Put(name, new(ValueKind.Text, text ?? ""));
+
+    public void SetNumber(string name, long number) =>
+        Put(name, new(ValueKind.Number, number.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+
+    public void SetNumber(string name, double number) =>
+        Put(name, new(ValueKind.Number, number.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+
+    /// <summary>A Library key as a device value; <paramref name="kind"/> says which list it is in (null = the value's declared kind).</summary>
+    public void SetDevice(string name, string key, LibraryKind? kind = null) => Put(name, new(ValueKind.Device, key, kind));
+
+    private void Put(string name, StepValue value)
+    {
+        lock (_values)
+            _values[name] = value;
+    }
+
+    /// <summary>What the attempt gave, as a snapshot: a provider that ignores cancellation may still write after the runner moved on.</summary>
+    public IReadOnlyDictionary<string, StepValue> Values
+    {
+        get
+        {
+            lock (_values)
+                return new Dictionary<string, StepValue>(_values, StringComparer.Ordinal);
+        }
+    }
 
     /// <summary>
     /// Runs another flow nested inside this step, the way a waiting <c>flow.run</c> does (D-062); null where the runner

@@ -1,4 +1,5 @@
 using DazeControl.Core.Model;
+using DazeControl.Core.Runs;
 using DazeControl.Providers.Audio;
 using DazeControl.Runtime.Providers;
 
@@ -49,6 +50,15 @@ public class AudioProviderTests
 
     private static Task Run(IStepProvider provider, params (string, string)[] with) =>
         provider.ExecuteAsync(WithLibrary(Steps.Context(provider.Id, with)), TestContext.Current.CancellationToken);
+
+    [Fact]
+    public async Task SetDefaultGivesTheDeviceAsAValue()
+    {
+        var context = WithLibrary(Steps.Context("audio.setDefault", ("device", "technics")));
+        await new AudioSetDefaultProvider(new FakeAudio()).ExecuteAsync(context, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new StepValue(Core.Catalog.ValueKind.Device, "technics", LibraryKind.Audio), context.Values["device"]);
+    }
 
     [Fact]
     public async Task SetDefaultWaitsForTheDeviceThenSetsAllRoles()

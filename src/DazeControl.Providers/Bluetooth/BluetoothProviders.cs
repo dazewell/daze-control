@@ -1,3 +1,4 @@
+using DazeControl.Core.Catalog;
 using DazeControl.Core.Model;
 using DazeControl.Runtime.Providers;
 
@@ -40,8 +41,11 @@ public sealed class BluetoothConnectProvider(IBluetoothAudio bluetooth) : IStepP
 {
     public string Id => "bluetooth.connect";
 
-    public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken) =>
-        bluetooth.ConnectAsync(BluetoothSteps.Device(context), cancellationToken);
+    public async Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
+    {
+        await bluetooth.ConnectAsync(BluetoothSteps.Device(context), cancellationToken).ConfigureAwait(false);
+        context.SetDevice("device", context.RequiredText("device"), LibraryKind.Bluetooth);
+    }
 }
 
 /// <summary><c>bluetooth.disconnect</c>: disconnects a device; already disconnected counts as success.</summary>
@@ -49,8 +53,11 @@ public sealed class BluetoothDisconnectProvider(IBluetoothAudio bluetooth) : ISt
 {
     public string Id => "bluetooth.disconnect";
 
-    public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken) =>
-        bluetooth.DisconnectAsync(BluetoothSteps.Device(context), cancellationToken);
+    public async Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
+    {
+        await bluetooth.DisconnectAsync(BluetoothSteps.Device(context), cancellationToken).ConfigureAwait(false);
+        context.SetDevice("device", context.RequiredText("device"), LibraryKind.Bluetooth);
+    }
 }
 
 /// <summary>Whether a paired device is connected right now; null when Windows doesn't say (D-081).</summary>

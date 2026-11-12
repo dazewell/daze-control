@@ -75,8 +75,8 @@ failure edge can say "Couldn't connect: {bt.error}". Run values (no step): `@flo
 | `prompt.pick` Pick device | `device` · Device(kind) · Device | 1 (its `$result:` already exists) |
 | `bluetooth.connect` / `disconnect` | `device` · Device(Bluetooth) · Device | 1 |
 | `audio.setDefault` | `device` · Device(Audio) · Device; `previous` · Device(Audio) · Previous default | 1 / 3 (`previous` fills a device setting: "put back what was default") |
-| `power.battery` Check battery | `percent` · Number · Battery (%) | 1 |
-| `network.wifi` Check Wi-Fi | `network` · Text · Wi-Fi network | 1 |
+| `power.battery` Check battery | `percent` · Number · Battery (%) (OnFailure: a failed check still read it) | 1 |
+| `network.wifi` Check Wi-Fi | `network` · Text · Wi-Fi network (OnFailure, as battery) | 1 |
 | `prompt.ask` Ask | `answer` · Text · Answer ("Yes"/"No" or the choice) | 1 |
 | `process.run`, `script.powershell` | `exitCode` · Number · Exit code (OnFailure) | 1 |
 | `process.run`, `script.powershell` | `output` · Text · Output (last 1,000 chars of stdout, trimmed; Sensitive; captured only when referenced) | 3 |
