@@ -46,12 +46,13 @@ flows:
       - { id: vpn, step: network.vpn, with: { is: notConnected }, after: [lan, wifi], onFailure: ignore }
       - { id: prep, group: [p1, p2, p3, p4], after: [screens, vpn] }
       - { id: p1, step: wait, with: { duration: 1s } }
-      - { id: p2, step: wait, with: { duration: 1s } }
+      - { id: p2, step: wait, with: { duration: 2s } }
       - { id: p3, step: flag.set, with: { name: desk-ready } }
-      - { id: p4, step: flag.check, with: { name: desk-ready } }
-      - { id: music, step: process.check, with: { program: Spotify }, after: [prep], onFailure: ignore }
-      - { id: browser, step: process.check, with: { program: msedge }, after: [prep], onFailure: ignore }
-      - { id: chat, step: process.check, with: { program: Teams, is: notRunning }, after: [prep], onFailure: ignore }
+      - { id: p4, step: file.space, with: { gb: "1" } }
+      - { id: ready, step: flag.check, with: { name: desk-ready }, after: [prep] }
+      - { id: music, step: process.check, with: { program: Spotify }, after: [ready], onFailure: ignore }
+      - { id: browser, step: process.check, with: { program: msedge }, after: [ready], onFailure: ignore }
+      - { id: chat, step: process.check, with: { program: Teams, is: notRunning }, after: [ready], onFailure: ignore }
       - { id: retry, step: file.check, with: { path: "%TEMP%" }, after: [music, browser, chat], retry: { count: 3, delay: 1s }, timeout: 5s }
       - { id: late, step: time.check, with: { from: "18:00", to: "23:59" }, after: [retry], onFailure: skip }
       - { id: evening, step: notify, with: { text: "Evening desk mode" }, after: [late] }
@@ -67,8 +68,10 @@ flows:
       - { id: l2, step: network.internet, onFailure: ignore }
       - { id: l3, step: file.space, with: { gb: "1" } }
       - { id: pick, step: prompt.ask, with: { mode: choose, question: "Which mood?", choices: [Focus, Relax, Party], timeout: 30s, onTimeout: use-default, default: Focus, flag: mood }, after: [long] }
-      - { id: focus, step: flag.check, with: { name: mood }, after: [pick], onFailure: ignore }
-      - { id: yes, step: notify, with: { text: "Long part done" }, after: [focus] }
+      - { id: focus, step: flag.check, with: { name: "mood:Focus" }, after: [pick], onFailure: skip }
+      - { id: focused, step: notify, with: { text: "Focus it is" }, after: [focus] }
+      - { id: other, step: notify, with: { text: "Relax or Party" }, after: [{ id: focus, when: failure }] }
+      - { id: yes, step: notify, with: { text: "Long part done" }, after: [{ id: focused, when: always }, { id: other, when: always }] }
       - { id: no, step: notify, with: { text: "Skipped the long part" }, after: [{ id: q, when: failure }] }
       - { id: bye, step: notify, with: { text: "Ask flow finished" }, after: [{ id: yes, when: always }, { id: no, when: always }], onFailure: ignore }
 

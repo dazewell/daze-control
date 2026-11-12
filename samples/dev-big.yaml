@@ -1,7 +1,8 @@
 # Dev sample for scripts/dev-run.ps1 -Sample big: copied once to %LOCALAPPDATA%\DazeControl\dev\big.yaml.
 # Large flows for canvas performance and motion checks (T21.8 frame probe: the 100-step flow). SAFE: steps only
 # wait, show messages, check network/power/disk/files/programs/time/lock state, or set this config's own flags.
-# No triggers or hotkeys. Running the 100-step flow takes a while and shows many messages: it is for the canvas.
+# No triggers or hotkeys. Mesh 60 and Probe 100 count every box (cards and their members too). Running Probe 100
+# takes a while and shows many messages: it is for the canvas.
 version: 1
 flows:
   chain-40:
@@ -110,12 +111,6 @@ flows:
       - { id: m52, step: network.internet, onFailure: ignore, after: [m48] }
       - { id: m53, step: power.source, onFailure: ignore, after: [m48] }
       - { id: m54, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [m52, m53, m51] }
-      - { id: m55, step: file.check, with: { path: "%WINDIR%" }, after: [m53, m51, { id: m52, when: failure }] }
-      - { id: m56, step: process.check, with: { program: explorer }, onFailure: ignore, after: [m52, m53, { id: m51, when: failure }] }
-      - { id: m57, step: time.check, onFailure: ignore, after: [m53, m52, m51] }
-      - { id: m58, step: flag.set, with: { name: big-58 }, after: [m53] }
-      - { id: m59, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [m54] }
-      - { id: m60, step: wait, with: { duration: 1s }, after: [m56, m55] }
   probe-100:
     name: Probe 100
     nodes:
@@ -219,13 +214,3 @@ flows:
       - { id: p88, step: flag.set, with: { name: big-88 }, after: [p86, p87] }
       - { id: p89, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p86] }
       - { id: p90, step: wait, with: { duration: 1s }, after: [p86] }
-      - { id: p91, step: notify, with: { text: "Step 91" }, after: [p88, p89] }
-      - { id: p92, step: network.internet, onFailure: ignore, after: [p89, p90] }
-      - { id: p93, step: power.source, onFailure: ignore, after: [{ id: p88, when: failure }, p90] }
-      - { id: p94, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p92, p93, p91] }
-      - { id: p95, step: file.check, with: { path: "%WINDIR%" }, after: [p92, p93] }
-      - { id: p96, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p95, p94] }
-      - { id: p97, step: time.check, onFailure: ignore, after: [{ id: p94, when: failure }, p95] }
-      - { id: p98, step: flag.set, with: { name: big-98 }, after: [p95] }
-      - { id: p99, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p95, p94] }
-      - { id: p100, step: wait, with: { duration: 1s }, after: [p95, { id: p94, when: failure }] }

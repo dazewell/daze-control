@@ -33,7 +33,7 @@ function Stop-Editors {
     # Only editors started on the dev config; other checkouts' editors on other files are left alone.
     # Closed through the window first so the editor flushes pending edits; killed only if it doesn't exit.
     $ids = @(Get-CimInstance Win32_Process -Filter "Name = 'DazeControl.Editor.exe'" |
-        Where-Object { $_.CommandLine -and $_.CommandLine -like "*$devFolder\*" } | ForEach-Object { $_.ProcessId })
+        Where-Object { $_.CommandLine -and $_.CommandLine.Contains($config, [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.ProcessId })
     foreach ($id in $ids) {
         $p = Get-Process -Id $id -ErrorAction SilentlyContinue
         if (-not $p) { continue }
@@ -62,7 +62,7 @@ function Invoke-Step([string]$What, [scriptblock]$Run) {
 
 # Checked before anything is stopped: a mistyped sample leaves the running app alone.
 $template = if ($Sample) { Join-Path $repo "samples\dev-$Sample.yaml" } else { Join-Path $repo 'samples\dev-config.yaml' }
-if (-not (Test-Path $template)) {
+if (($Sample -and $Sample -notmatch '^[A-Za-z0-9-]+$') -or -not (Test-Path -LiteralPath $template)) {
     $names = (Get-ChildItem (Join-Path $repo 'samples') -Filter 'dev-*.yaml' | Where-Object Name -ne 'dev-config.yaml' |
         ForEach-Object { $_.BaseName -replace '^dev-', '' }) -join ', '
     throw "dev-run: no sample '$Sample' (samples: $names)"
@@ -78,9 +78,9 @@ if ($Restore) {
 
 try {
     # The dev config: created once from the template (or on -ResetConfig).
-    if ($ResetConfig -or -not (Test-Path $config)) {
+    if ($ResetConfig -or -not (Test-Path -LiteralPath $config)) {
         New-Item -ItemType Directory -Force (Split-Path -Parent $config) | Out-Null
-        Copy-Item $template $config -Force
+        Copy-Item -LiteralPath $template -Destination $config -Force
         Write-Host "dev-run: dev config written to $config"
     }
 
