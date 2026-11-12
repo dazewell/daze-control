@@ -18,6 +18,11 @@ public sealed record ProviderDescriptor(string Id, string Title, string Glyph, T
     /// <summary>What "Only if" can say on this step type (D-081); empty = the step has no such row.</summary>
     public ValueList<ConditionSpec> Conditions { get; init; } = [];
 
+    /// <summary>
+    /// What the step gives later steps (D-129). Every step also gives <c>error</c>; <see cref="StepValues.Of"/> lists both.
+    /// </summary>
+    public ValueList<ValueSpec> Values { get; init; } = [];
+
     /// <summary>"bluetooth" for "bluetooth.connect", "wait" for "wait"; groups the palette.</summary>
     public string Area => Id.Split('.')[0];
 

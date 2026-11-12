@@ -760,10 +760,10 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 
 ## M23 Step values: steps give values that later steps' text uses (user, 2026-11-12; design docs/step-values/DESIGN.md, D-129 accepted)
 The user accepted all five open points as recommended (PR #217). One PR per task (D-079). Each stage ships alone.
-- [ ] T23.1 Core (Opus, M): `ValueSpec`/`ValueKind`, `ProviderDescriptor.Values`, `ParamSpec.TakesValues`, `Core/Model/StepValues`
+- [x] T23.1 Core (Opus, M): `ValueSpec`/`ValueKind`, `ProviderDescriptor.Values`, `ParamSpec.TakesValues`, `Core/Model/StepValues`
   (scanner, `Before` (PickResults delegates), `Problems`, `MayBeMissing`, `Fill`, `Wanted`), `Core/Runs/RunValues`, `ConfigValidator`
   checks (DESIGN §4.6). Files: Core/Catalog, Core/Model, Core/Runs, Core/Validation. Done when: Core tests for the grammar (JSON,
-  PowerShell, `%VAR%`, `{{` escape, fallback), every §4.6 sentence, card siblings, may-be-missing; samples/fixtures round-trip byte-identical.
+  PowerShell, `%VAR%`, `{{` escape, fallback), every §4.6 sentence, card siblings, may-be-missing; samples/fixtures round-trip byte-identical. Branch feat/m23-core-values.
 - [ ] T23.2 Runtime and the first producers (Sonnet, M; after T23.1): runner fills before the lock, clears per attempt, keeps OnFailure
   values and `error`; `StepContext.SetValue/SetDevice/Wants` (`SetResult` kept); values for `prompt.pick`, `bluetooth.connect/disconnect`,
   `audio.setDefault` (`device`), `power.battery`, `network.wifi`, `prompt.ask`, `process.run`/`script.powershell` (`exitCode`); takes

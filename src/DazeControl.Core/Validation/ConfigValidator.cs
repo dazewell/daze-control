@@ -37,7 +37,7 @@ public static partial class ConfigValidator
             }
         }
         CheckBound(config.Library, badLibraryItems, problems);
-        var checkers = config.Flows.Select(f => new FlowChecker(f, config.Library, badLibraryItems, catalog, problems)).ToList();
+        var checkers = config.Flows.Select(f => new FlowChecker(f, config.Library, badLibraryItems, catalog, config.Settings.StepDefaults, problems)).ToList();
         foreach (var checker in checkers)
             checker.Check();
         CheckMenus(config.Flows, config.Settings.StepDefaults, problems);
@@ -443,7 +443,7 @@ public static partial class ConfigValidator
     private static partial Regex GlyphCode();
 
     private sealed class FlowChecker(Flow flow, Library library, HashSet<(LibraryKind, string)> badLibraryItems,
-        IReadOnlyList<ProviderDescriptor> catalog, List<Problem> problems)
+        IReadOnlyList<ProviderDescriptor> catalog, ValueDictionary<StepDefault> defaults, List<Problem> problems)
     {
         private readonly string _path = $"flows.{flow.Id}";
         private readonly Dictionary<string, Node> _nodes = [];
@@ -685,6 +685,13 @@ public static partial class ConfigValidator
                 Error(path, "Write a single value here, not a list or mapping.");
                 return;
             }
+            // Step values (D-129, DESIGN §4.6). Outside text settings a reference is the only error said: "isn't a number" adds nothing.
+            var valueProblems = StepValues.Problems(flow, _step, spec, text, catalog, defaults);
+            foreach (var problem in valueProblems)
+                Add(problem.Severity, path, problem.Message);
+            if (valueProblems.Any(p => p.Severity == Severity.Error) && !StepValues.Takes(spec)
+                && spec.Kind is not (ParamKind.Text or ParamKind.MultilineText or ParamKind.FilePath or ParamKind.FolderPath))
+                return;
             if (spec.Required && string.IsNullOrWhiteSpace(text))
             {
                 Error(path, $"{spec.Title} can't be empty.");
