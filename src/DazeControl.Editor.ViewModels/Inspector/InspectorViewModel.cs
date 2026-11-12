@@ -448,8 +448,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                 field.SetDevices(Options(field, kind, (value as ScalarParam)?.Text), (value as ScalarParam)?.Text);
             var errors = _session.Problems.Where(p => p.Severity == Severity.Error).ToList();
             var problem = errors.FirstOrDefault(p => p.Path == path + field.Name)?.Message
-                // A missing required setting is reported on "with" as "Device is missing (device: …)." (UX §5.7 #9).
-                ?? (errors.Any(p => p.Path == path[..^1] && p.Message.EndsWith($"({field.Name}: …).", StringComparison.Ordinal))
+                // A missing required setting is reported on "with" as "Device is missing." (UX §5.7 #9).
+                ?? (errors.Any(p => p.Path == path[..^1] && p.Message == $"{field.Spec.Title} is missing.")
                     ? field.IsFlowRef ? "Choose a flow." : field.IsDevice ? "Choose a device." : "Fill this in." : null);
             field.Load(value, problem);
             Suggest(field, step);

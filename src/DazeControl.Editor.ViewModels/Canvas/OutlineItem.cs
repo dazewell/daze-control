@@ -6,7 +6,7 @@ namespace DazeControl.Editor.ViewModels.Canvas;
 /// One row of the Outline view (UX §5.2), the canvas's keyboard and screen-reader equivalent: steps in run order,
 /// a card as a branch holding its steps.
 /// </summary>
-public sealed record OutlineItem(string Id, string Title, string Summary, string Glyph, string AutomationName, IReadOnlyList<OutlineItem> Children)
+public sealed record OutlineItem(string Id, string Title, string Summary, string Glyph, string AutomationName, IReadOnlyList<OutlineItem> Children, string Detail = "")
 {
     public override string ToString() => AutomationName;
 }

@@ -70,8 +70,10 @@
             <TextBlock Text="Run a flow and it shows up here." HorizontalAlignment="Center" Style="{StaticResource SettingsCardDescription}" />
         </StackPanel>
 
-        <TextBlock x:Name="NoSelectionText" Grid.Column="1" Text="Pick a run to see how it went." Margin="0,8,0,0"
-                   Style="{StaticResource SettingsCardDescription}" />
+        <StackPanel x:Name="NoSelectionText" Grid.Column="1" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <FontIcon Glyph="&#xE81C;" FontSize="40" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <TextBlock Text="Pick a run to see how it went." HorizontalAlignment="Center" Style="{StaticResource SettingsCardDescription}" />
+        </StackPanel>
 
         <ScrollViewer x:Name="DetailScroller" Grid.Column="1" Visibility="Collapsed">
             <StackPanel Spacing="12" Padding="0,0,16,16">

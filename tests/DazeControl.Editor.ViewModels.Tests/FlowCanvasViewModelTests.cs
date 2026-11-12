@@ -784,6 +784,15 @@ public sealed class FlowCanvasViewModelTests : IDisposable
         Assert.DoesNotContain(_canvas.Outline, i => i.Id == "note");
     }
 
+    [Fact]
+    public void OutlineRowsSayWhatTheyWaitForAndTheirState()
+    {
+        var outline = _canvas.Outline;
+
+        Assert.StartsWith("Waits for Connect", outline.Single(i => i.Id == "out").Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("Waits for", outline.Single(i => i.Id == "bt").Detail, StringComparison.Ordinal);
+    }
+
     // ---- T7.5: palette ----
 
     [Fact]

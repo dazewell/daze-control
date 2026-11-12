@@ -275,6 +275,19 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         ApplyName();
     }
 
+    /// <summary>"Waits for Connect Technics · Failure ignored · Needs fixing": the Outline row's second line (UX §5.2); empty when none apply.</summary>
+    internal string OutlineDetail
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (_waitsFor.Length > 0)
+                parts.Add($"Waits for {_waitsFor}");
+            parts.AddRange(_nameTail);
+            return string.Join(" · ", parts);
+        }
+    }
+
     private List<string> _nameHead = [];
     private List<string> _nameTail = [];
     private string _waitsFor = "";

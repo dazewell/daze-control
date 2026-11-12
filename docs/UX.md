@@ -112,7 +112,7 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   checklist (cycle-making choices disabled with the reason).
 - Screen readers: **Outline view** (TreeView in run order; card = branch) is the accessible equivalent; item
   name e.g. "Set default output, Technics. Audio. Waits for Connect Technics. Failure ignored."; its context menu has
-  every canvas command; live region announces run results (≤ 1/s); canvas exposes the same names.
+  every canvas command; each row has a second line "Waits for … · Failure ignored · Needs fixing" (F-019); live region announces run results (≤ 1/s); canvas exposes the same names.
 
 - Long simple chains (more than 5 boxes, no forks or joins) wrap onto new rows like text; forks, joins and
   side-by-side branches keep their own columns (D-060). Whatever follows a wrapped chain starts on a new line

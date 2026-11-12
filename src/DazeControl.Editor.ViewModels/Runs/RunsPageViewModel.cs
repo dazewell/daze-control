@@ -37,7 +37,8 @@ public sealed class RunItemViewModel(RunRecord record, string glyph)
     /// <summary>"Alt+Z · 14:02 · 3.1 s"; an empty trigger leaves no separator.</summary>
     public string Caption => Captions.Join(Trigger, Time, Duration);
 
-    public string Duration => RunWords.Seconds(Record.Duration);
+    /// <summary>"3 s" with a non-breaking space, so the list row never wraps the unit onto its own line (F-013).</summary>
+    public string Duration => RunWords.Seconds(Record.Duration).Replace(' ', ' ');
 
     /// <summary>UIA reads list rows by <c>ToString()</c>.</summary>
     public override string ToString() => $"{Name}, {Result}, {Trigger}, {Time}, {Duration}";

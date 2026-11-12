@@ -54,7 +54,7 @@ public sealed class RunsPageViewModelTests : IDisposable
         Assert.Equal(["Today", "Yesterday"], page.Days.Take(2).Select(d => d.Title));
         Assert.Equal([history[2], history[0]], page.Days[0].Select(r => r.Record));
         var row = page.Days[0][0];
-        Assert.Equal(("Done", "Alt+Z", "3 s"), (row.Result, row.Trigger, row.Duration));
+        Assert.Equal(("Done", "Alt+Z", "3 s"), (row.Result, row.Trigger, row.Duration));
     }
 
     [Fact]
