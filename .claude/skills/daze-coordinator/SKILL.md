@@ -46,6 +46,7 @@ Use the `release` skill and `scripts/cut-release.ps1`: it waits for the PRs, for
 
 ## Guards
 
+- **Permission mode (check first, the user keeps forgetting):** children inherit the coordinator's permission mode and `start_session` cannot raise a child above it. In **Auto** mode the classifier refuses a child's `pr-merge.ps1`/`gh pr merge` ("Merge Without Review") and `mcp__ccd_pr__set_monitor` (Auto-fix), so PRs queue up unmerged. If you see those refusals, tell the user to switch the coordinator to **Bypass permissions** before starting more sessions; already-running children keep the old mode. You cannot change the mode yourself.
 - Pause cleanly at 97 % of the 5-hour or weekly limit (`mcp__ccd_session_mgmt__get_usage`; check before starting large work). After a reset, wake paused sessions with `SendMessage`.
 - After a usage reset, wake paused sessions with `SendMessage`. `start_session` is refused on automated turns (cron, notes), so on a user turn pre-start next tasks PARKED (brief: make no tool calls, reply "Parked, waiting for go") and wake them later with `SendMessage` "go". Worker sessions only stop cleanly and report resetsAt; the `daze-control-resume` scheduled task stays disabled.
 - Don't create scheduled tasks or crons for waiting. Use a background `pwsh -File wait-pr.ps1 <n>` (run_in_background) and end the turn.
