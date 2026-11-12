@@ -43,7 +43,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   **No hint of any kind** (popup, tip or tooltip) ever names Alt+Left / Alt+Right on any page: there is no on-screen
   Back/Forward control to hang one on and a keyboard user already pressed the keys. The accelerators are `Hidden` on the window root, or
   WinUI popped an "Alt+Left" tooltip over the focused element, Settings and About included.
-- The nav pane collapses: the toggle above the items ("Close Navigation" / "Open Navigation" for Narrator) shrinks
+- The nav pane collapses: the "Menu" item, first in the rail like the other items (Narrator: "Toggle navigation menu"; D-113), shrinks
   it to a 48-DIP icon strip whose items show their name as a tooltip; open or collapsed is remembered on this PC
   (D-068).
 - **M13 fixes (F4):** the card's context menu (and Delete on a focused card) has **Delete** (D-076): the

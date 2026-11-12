@@ -76,7 +76,6 @@ public sealed partial class ShellWindow : Window
         ViewModel.LibraryRequested += OnLibraryRequested;
         WindowPlacementInterop.Apply(this, ViewModel.EditorSettings?.Settings.Window); // D-098
 
-        Navigation.Loaded += (_, _) => StretchPaneToggle();
         ViewModel.Session.PropertyChanged += OnSessionChanged;
         ViewModel.PropertyChanged += OnShellChanged;
         PaletteList.ItemsSource = new CollectionViewSource { Source = _palette.Groups, IsSourceGrouped = true, ItemsPath = new PropertyPath(nameof(PaletteGroup.Items)) }.View;
@@ -390,6 +389,11 @@ public sealed partial class ShellWindow : Window
     /// </summary>
     private async void OnNavigationItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {
+        if (args.InvokedItemContainer == MenuToggleItem)
+        {
+            ViewModel.IsNavPaneOpen = !ViewModel.IsNavPaneOpen;
+            return;
+        }
         if (_navigating || args.InvokedItemContainer != FlowsItem || ViewModel.Page != EditorPage.Flows
             || _editor is null)
             return;
@@ -588,36 +592,6 @@ public sealed partial class ShellWindow : Window
             else
                 flyout.ShowAt(button);
         }
-    }
-
-    /// <summary>The pane's hamburger is a 40 DIP button; make its row as wide as the nav items (open and 48 DIP rail).</summary>
-    private void StretchPaneToggle()
-    {
-        if (FindByName(Navigation, "TogglePaneButton") is not Button toggle)
-            return;
-        toggle.HorizontalAlignment = HorizontalAlignment.Stretch;
-        toggle.HorizontalContentAlignment = HorizontalAlignment.Left;
-        toggle.Width = double.NaN;
-        toggle.Margin = new Thickness(4, 2, 4, 2);
-        toggle.Padding = new Thickness(11, 0, 0, 0);
-        for (var parent = VisualTreeHelper.GetParent(toggle); parent is not null && !ReferenceEquals(parent, Navigation); parent = VisualTreeHelper.GetParent(parent))
-        {
-            if (parent is Grid { Name: "PaneToggleButtonGrid" or "ButtonHolderGrid" } holder)
-                holder.HorizontalAlignment = HorizontalAlignment.Stretch;
-        }
-    }
-
-    private static FrameworkElement? FindByName(DependencyObject root, string name)
-    {
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
-        {
-            var child = VisualTreeHelper.GetChild(root, i);
-            if (child is FrameworkElement { Name: var n } fe && n == name)
-                return fe;
-            if (FindByName(child, name) is { } found)
-                return found;
-        }
-        return null;
     }
 
     /// <summary>A click on a group header's row (not its buttons) expands or collapses it.</summary>

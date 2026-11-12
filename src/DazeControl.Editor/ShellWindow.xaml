@@ -24,11 +24,18 @@
 
         <NavigationView x:Name="Navigation" Grid.Row="1"
                         PaneDisplayMode="Left" IsSettingsVisible="False" IsBackButtonVisible="Collapsed"
-                        IsPaneToggleButtonVisible="True" OpenPaneLength="200" CompactPaneLength="48"
+                        IsPaneToggleButtonVisible="False" OpenPaneLength="200" CompactPaneLength="48"
                         IsPaneOpen="{x:Bind ViewModel.IsNavPaneOpen, Mode=TwoWay}"
                         SelectionChanged="OnNavigationSelectionChanged"
                         ItemInvoked="OnNavigationItemInvoked">
             <NavigationView.MenuItems>
+                <!-- The pane toggle, as the first rail item (D-113): same size, hover and focus as the pages below; it never selects. -->
+                <NavigationViewItem x:Name="MenuToggleItem" Content="Menu" SelectsOnInvoked="False"
+                                    AutomationProperties.Name="Toggle navigation menu" ToolTipService.ToolTip="Menu">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE700;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem x:Name="FlowsItem" Content="Flows" Tag="Flows" IsSelected="True">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE945;" />
