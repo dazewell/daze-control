@@ -35,12 +35,12 @@
                 <!-- "+"/"×" at the hovered or selected edge's midpoint (UX §5.3). -->
                 <Canvas>
                     <StackPanel x:Name="EdgeControls" Visibility="Collapsed" Orientation="Horizontal" Spacing="8">
-                        <Button Width="24" Height="24" Padding="0" CornerRadius="12" Background="{ThemeResource SolidBackgroundFillColorTertiaryBrush}"
+                        <Button Style="{StaticResource CanvasHandleButton}" Background="{ThemeResource SolidBackgroundFillColorTertiaryBrush}"
                                 BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" Click="OnInsertOnEdge"
                                 ToolTipService.ToolTip="Add a step here" AutomationProperties.Name="Add a step on this connection">
                             <FontIcon Glyph="&#xE710;" FontSize="10" />
                         </Button>
-                        <Button Width="24" Height="24" Padding="0" CornerRadius="12" Background="{ThemeResource SolidBackgroundFillColorTertiaryBrush}"
+                        <Button Style="{StaticResource CanvasHandleButton}" Background="{ThemeResource SolidBackgroundFillColorTertiaryBrush}"
                                 BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" Click="OnRemoveEdge"
                                 ToolTipService.ToolTip="Remove connection" AutomationProperties.Name="Remove this connection">
                             <FontIcon Glyph="&#xE711;" FontSize="10" />
@@ -54,6 +54,8 @@
                             Background="{ThemeResource AccentFillColorDefaultBrush}">
                         <TextBlock x:Name="DropLabelText" FontSize="12" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
                     </Border>
+                    <!-- Where a step dragged from the library will land on empty canvas (D-120). -->
+                    <Rectangle x:Name="LandingOutline" Visibility="Collapsed" StrokeThickness="2" RadiusX="28" RadiusY="28" />
                     <Path x:Name="ConnectPreview" Visibility="Collapsed" StrokeThickness="2" StrokeDashArray="3 2" />
                     <Ellipse x:Name="InPortDot" Visibility="Collapsed" Width="10" Height="10" StrokeThickness="1.5" />
                     <Ellipse x:Name="OutPortDot" Visibility="Collapsed" Width="10" Height="10" StrokeThickness="1.5" />
@@ -74,7 +76,7 @@
             <TextBlock Text="This flow is empty" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
             <TextBlock Text="Add a step to start. Drag one from the left, or double-click anywhere." HorizontalAlignment="Center"
                        Style="{StaticResource SettingsCardDescription}" />
-            <Button Content="Add a step" HorizontalAlignment="Center" Margin="0,8,0,0" Style="{StaticResource AccentButtonStyle}"
+            <Button Content="Add a step" HorizontalAlignment="Center" Margin="0,8,0,0" Style="{StaticResource PrimaryButton}"
                     Click="OnAddFirstStep" />
             <TextBlock HorizontalAlignment="Center" Margin="0,16,0,0" MaxWidth="420" TextWrapping="Wrap" TextAlignment="Center"
                        Style="{StaticResource SettingsCardDescription}"

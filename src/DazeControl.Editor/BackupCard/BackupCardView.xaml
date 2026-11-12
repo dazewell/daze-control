@@ -95,7 +95,7 @@
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Button Content="Restore" Tag="{x:Bind}" Click="OnRestoreRow" IsEnabled="{x:Bind IsReadable}" />
-                            <Button Tag="{x:Bind}" Click="OnDeleteRow" AutomationProperties.Name="Delete backup" ToolTipService.ToolTip="Delete backup">
+                            <Button Tag="{x:Bind}" Click="OnDeleteRow" AutomationProperties.Name="Delete backup" ToolTipService.ToolTip="Delete backup" Style="{StaticResource IconButton}">
                                 <FontIcon Glyph="&#xE74D;" FontSize="14" />
                             </Button>
                         </StackPanel>
@@ -126,7 +126,7 @@
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                 <Button Content="Restore" Tag="{x:Bind}" Click="OnRestoreRow" />
-                                <Button Tag="{x:Bind}" Click="OnDeleteRow" AutomationProperties.Name="Delete earlier save" ToolTipService.ToolTip="Delete earlier save">
+                                <Button Tag="{x:Bind}" Click="OnDeleteRow" AutomationProperties.Name="Delete earlier save" ToolTipService.ToolTip="Delete earlier save" Style="{StaticResource IconButton}">
                                     <FontIcon Glyph="&#xE74D;" FontSize="14" />
                                 </Button>
                             </StackPanel>

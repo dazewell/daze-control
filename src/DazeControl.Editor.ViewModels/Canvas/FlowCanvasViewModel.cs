@@ -40,7 +40,8 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     private readonly List<UndoEntry> _undo = [], _redo = [];
 
     /// <summary>An undo step: the flow before an edit, or (D-115) this flow's view choices before a move or Arrange.</summary>
-    private sealed record UndoEntry(Flow Flow, FlowViewSettings? View);
+    /// <summary>A flow edit (<paramref name="View"/> null), a view change, or both at once (<paramref name="WithFlow"/>: a library drop that places the new step).</summary>
+    private sealed record UndoEntry(Flow Flow, FlowViewSettings? View, bool WithFlow = false);
     private FlowArrangement _arrangement = new([], [], [], new Size(96, 96));
     private Flow? _known;
     private bool _editing;
@@ -702,12 +703,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     {
         if (Flow is not { } flow || zone == DropZone.None)
             return ConnectRefusal.None;
-        var (next, refusal, droppedFallback) = zone switch
-        {
-            DropZone.RunAfter => FlowEdits.RunAfter(flow, dragged, target),
-            DropZone.RunBefore => FlowEdits.RunBefore(flow, dragged, target),
-            _ => FlowEdits.RunTogether(flow, dragged, target),
-        };
+        var (next, refusal, droppedFallback) = ZoneEdit(flow, dragged, target, zone);
         if (refusal == ConnectRefusal.None && next != flow)
         {
             Edit(_ => next);
@@ -716,6 +712,13 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         }
         return refusal;
     }
+
+    private static GroupResult ZoneEdit(Flow flow, string dragged, string target, DropZone zone) => zone switch
+    {
+        DropZone.RunAfter => FlowEdits.RunAfter(flow, dragged, target),
+        DropZone.RunBefore => FlowEdits.RunBefore(flow, dragged, target),
+        _ => FlowEdits.RunTogether(flow, dragged, target),
+    };
 
     /// <summary>Steps and cards <paramref name="step"/> could run before: the keyboard route of the left-third drop (D-083).</summary>
     public IReadOnlyList<CanvasNodeViewModel> RunBeforeCandidates(string step)
@@ -937,7 +940,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         from.RemoveAt(from.Count - 1);
         if (target.View is { } view)
         {
-            Push(to, new UndoEntry(current, LayoutChoices.Copy()));
+            Push(to, new UndoEntry(current, LayoutChoices.Copy(), target.WithFlow));
+            if (target.WithFlow)
+                Replace(_ => target.Flow);
             var copy = view.Copy();
             ChangeView(v => (v.WrapAfter, v.Spacing, v.Align, v.Lines, v.Shape, v.Placed, v.Other) =
                 (copy.WrapAfter, copy.Spacing, copy.Align, copy.Lines, copy.Shape, copy.Placed, copy.Other), undoable: false);
@@ -992,6 +997,57 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         });
         SelectOnly(id is null ? [] : [id]);
         return id;
+    }
+
+    /// <summary>
+    /// Where a step of <paramref name="size"/> dropped from the library at content point <paramref name="p"/> lands on
+    /// empty canvas: centred on the point, its top left snapped to the grid, never above or left of the padding (D-120).
+    /// The canvas draws its dashed landing outline from this, so the outline is exactly where the step goes.
+    /// </summary>
+    public Rect LandingAt(Point p, Size size)
+    {
+        var padding = LayoutOptions.Padding;
+        return new Rect(
+            Math.Max(padding, FlowPlacement.Snap(p.X - size.Width / 2)),
+            Math.Max(padding, FlowPlacement.Snap(p.Y - size.Height / 2)),
+            size.Width, size.Height);
+    }
+
+    /// <summary>
+    /// A step dropped from the library at content point <paramref name="p"/> (D-120). On <paramref name="targetId"/>'s
+    /// <paramref name="zone"/> it is the step drag's edit (Run before / after / together); otherwise it lands centred
+    /// under the point as a hand placement: the first one freezes every other step where it is (D-115). One undo step
+    /// either way; selected. A refused zone adds nothing.
+    /// </summary>
+    public (string? Id, ConnectRefusal Refusal) AddStepAt(string step, Point p, string? targetId = null, DropZone zone = DropZone.None)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        if (Flow is not { } flow || !CanEdit || IsRunLocked)
+            return (null, ConnectRefusal.None);
+        var (added, id) = FlowCommands.Add(flow, step, []);
+        if (targetId is not null && zone != DropZone.None && Find(targetId) is not null)
+        {
+            var (next, refusal, _) = ZoneEdit(added, id, targetId, zone);
+            if (refusal != ConnectRefusal.None)
+                return (null, refusal);
+            Edit(_ => next);
+            SelectOnly([id]);
+            return (id, ConnectRefusal.None);
+        }
+        var at = LandingAt(p, DefaultPillSize);
+        var before = LayoutChoices.Copy();
+        var everything = Nodes.Where(n => n.CardId is null).ToDictionary(n => n.Id, n => new Point(n.X, n.Y), StringComparer.Ordinal);
+        Replace(_ => added);
+        ChangeView(v =>
+        {
+            v.Placed = everything; // as in MoveBy: what is on the canvas now, so nothing else shifts
+            v.Placed[id] = new Point(at.X, at.Y);
+        }, undoable: false);
+        Push(_undo, new UndoEntry(flow, before, WithFlow: true));
+        _redo.Clear();
+        UpdateHistory();
+        SelectOnly([id]);
+        return (id, ConnectRefusal.None);
     }
 
     /// <summary>"Add a step here" on an edge.</summary>

@@ -106,6 +106,7 @@ public sealed partial class FlowCanvas : UserControl
         Root.AllowDrop = true; // palette drags (OLE between controls; never for gestures inside the canvas, UX §5.8 #7)
         Root.DragOver += OnPaletteDragOver;
         Root.Drop += OnPaletteDrop;
+        Root.DragLeave += OnPaletteDragLeave;
         Root.AddHandler(PointerWheelChangedEvent, new PointerEventHandler((_, _) => _autoFit = false), handledEventsToo: true);
     }
 
