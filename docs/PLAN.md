@@ -95,9 +95,10 @@ Model: Opus medium; T21.6 and T21.7 Opus high.
   numbers for a 100-step flow in the PR. Files: `CanvasScene`, `FlowCanvas.Pointer.cs`/`.Edges.cs`, `NodeViews.cs`.
   Done when: tween tests (pure); probe ≤ 8 ms worst frame on the 100-step flow, else open D-119's revisit. (feat/canvas-motion:
   code + `CanvasMotionTests`; scene cost per glide frame on 100 steps ≈ 0.1 ms; the live probe and the look are the user's)
-- [ ] T21.9 Gesture polish: auto-pan when a drag, connect or marquee nears the canvas edge (speed by distance, Rendering
+- [~] T21.9 Gesture polish: auto-pan when a drag, connect or marquee nears the canvas edge (speed by distance, Rendering
   only while near), the connect preview snaps to the target's in-port, the marquee previews its selection live.
   Files: `FlowCanvas.Pointer.cs`, `Camera.cs`. Done when: Camera/auto-pan maths tested; live by the user.
+  (feat/canvas-autopan: code + `CameraTests` edge speed/pan, marquee VM tests; live check open, for the user)
 - [ ] T21.10 Gate: UX §5.9 M21 list checked live by the user, ARCHITECTURE as built, D-119 status "built", release-notes
   line in the PR body.
 ## M14 Step defaults, checks and "Only if" (user, 2026-11-04) — before the remaining plan (M12 T12.9/T12.10, T10.5, M13 gate)

@@ -318,6 +318,56 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         ApplySelection();
     }
 
+    private (HashSet<string> Nodes, HashSet<(string From, string To)> Edges)? _marqueeBase;
+
+    /// <summary>
+    /// A marquee drag shows its selection live (T21.9): remembers the selection it started from, so each frame's
+    /// <see cref="MarqueeTo"/> and <see cref="CancelMarquee"/> work from it.
+    /// </summary>
+    public void BeginMarquee() =>
+        _marqueeBase = ([.. _selected], [.. _selectedEdges]);
+
+    /// <summary>
+    /// One marquee frame: the selection the release would make for <paramref name="area"/> (<see cref="SelectIn"/>
+    /// from the starting selection); nothing is raised when it is unchanged. Returns whether it changed.
+    /// </summary>
+    public bool MarqueeTo(Rect area, bool additive)
+    {
+        var (nodes, edges) = _marqueeBase ?? ([.. _selected], [.. _selectedEdges]);
+        var nextNodes = new HashSet<string>(additive ? nodes : [], StringComparer.Ordinal);
+        var nextEdges = new HashSet<(string From, string To)>(additive ? edges : []);
+        foreach (var item in Scene.ItemsIn(area))
+            nextNodes.Add(item.Id);
+        foreach (var edge in Edges.Where(e => area.Contains(e.Curve.Start) && area.Contains(e.Curve.Tip)))
+            nextEdges.Add((edge.From, edge.To));
+        if (_selected.SetEquals(nextNodes) && _selectedEdges.SetEquals(nextEdges))
+            return false;
+        _selected.Clear();
+        _selectedEdges.Clear();
+        _selected.UnionWith(nextNodes);
+        _selectedEdges.UnionWith(nextEdges);
+        ApplySelection();
+        return true;
+    }
+
+    /// <summary>The marquee was released: its live selection stays.</summary>
+    public void EndMarquee() => _marqueeBase = null;
+
+    /// <summary>Escape or a lost capture mid-marquee: back to the selection it started from.</summary>
+    public void CancelMarquee()
+    {
+        if (_marqueeBase is not { } start)
+            return;
+        _marqueeBase = null;
+        if (_selected.SetEquals(start.Nodes) && _selectedEdges.SetEquals(start.Edges))
+            return;
+        _selected.Clear();
+        _selectedEdges.Clear();
+        _selected.UnionWith(start.Nodes);
+        _selectedEdges.UnionWith(start.Edges);
+        ApplySelection();
+    }
+
     /// <summary>A click on an edge (UX §5.8 #2): selects it alone; Ctrl adds or removes it.</summary>
     public void SelectEdge(CanvasEdgeViewModel edge, bool additive = false)
     {

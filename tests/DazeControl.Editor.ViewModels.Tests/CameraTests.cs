@@ -130,6 +130,53 @@ public sealed class CameraTests
         Assert.Equal(Camera.RevealMargin, tooWide.ToScreen(new Rect(2000, 100, 5000, 60)).X, 6);
     }
 
+    [Theory]
+    [InlineData(500, 300, 0, 0)] // the middle: still
+    [InlineData(40, 300, 0, 0)] // the band's inner edge: still
+    [InlineData(20, 300, -600, 0)] // half way into the left band: half speed, leftwards
+    [InlineData(0, 300, -1200, 0)] // at the edge: full speed
+    [InlineData(-150, 300, -1200, 0)] // past it (captured): no faster
+    [InlineData(990, 590, 900, 900)] // a corner pans along both axes
+    [InlineData(500, 10, 0, -900)]
+    public void EdgeSpeedGrowsWithDepthInTheBand(double sx, double sy, double vx, double vy)
+    {
+        var (x, y) = Camera.EdgeVelocity(sx, sy, Vw, Vh);
+        Assert.Equal(vx, x, 6);
+        Assert.Equal(vy, y, 6);
+    }
+
+    [Fact]
+    public void ATinyViewportNeverAutoPans() =>
+        Assert.Equal((0.0, 0.0), Camera.EdgeVelocity(0, 0, 100, 100));
+
+    [Theory]
+    [InlineData(1.0)]
+    [InlineData(0.5)]
+    [InlineData(2.0)]
+    public void EdgePanMovesTheWorldUnderTheStillPointerTheWayItPoints(double zoom)
+    {
+        var camera = new Camera(-200, 50, zoom);
+        var pointer = new Point(Vw - 10, 300); // deep in the right band
+        var before = camera.ToWorld(pointer);
+        var velocity = Camera.EdgeVelocity(pointer.X, pointer.Y, Vw, Vh);
+
+        var after = camera.EdgePan(velocity, 1 / 60.0);
+
+        Assert.Equal(velocity.X / 60, camera.ToScreen(after.ToWorld(pointer)).X - pointer.X, 6); // screen DIP per frame
+        Assert.Equal(velocity.X / 60 / zoom, after.ToWorld(pointer).X - before.X, 6); // the item under it moves right
+        Assert.Equal(before.Y, after.ToWorld(pointer).Y, 6);
+        Assert.Equal(zoom, after.Zoom);
+    }
+
+    [Fact]
+    public void AStalledFrameIsCappedAndATimeTravelFrameIsStill()
+    {
+        var camera = Camera.Identity;
+        var velocity = (Camera.MaxEdgeSpeed, 0.0);
+        Assert.Equal(-Camera.MaxEdgeSpeed * Camera.MaxEdgeStep, camera.EdgePan(velocity, 2).X, 6);
+        Assert.Equal(camera, camera.EdgePan(velocity, -1));
+    }
+
     private static void AssertNear(Point expected, Point actual)
     {
         Assert.Equal(expected.X, actual.X, 6);

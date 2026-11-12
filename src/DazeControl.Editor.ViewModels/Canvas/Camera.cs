@@ -78,6 +78,44 @@ public readonly record struct Camera(double X, double Y, double Zoom)
         return min <= max ? Math.Clamp(offset, min, max) : (min + max) / 2; // a window too small to keep both: centre
     }
 
+    /// <summary>Auto-pan (T21.9): the band along each viewport edge, in screen DIP, where a drag, connect or marquee pans.</summary>
+    public const double EdgeBand = 40;
+
+    /// <summary>Auto-pan's top speed, in screen DIP per second: at the edge and beyond it (the pointer is captured).</summary>
+    public const double MaxEdgeSpeed = 1200;
+
+    /// <summary>A frame gap longer than this (a stall) pans as if it were this long, so the flow never jumps.</summary>
+    public const double MaxEdgeStep = 1 / 30.0;
+
+    /// <summary>
+    /// How fast the flow pans with the pointer at screen (sx, sy): (0, 0) outside <see cref="EdgeBand"/>, else in the
+    /// pointer's direction, linear in how deep it is in the band (no time-based acceleration: the same with Animation
+    /// effects off), <see cref="MaxEdgeSpeed"/> at the edge and past it. Screen DIP per second, the way the pointer goes.
+    /// </summary>
+    public static (double X, double Y) EdgeVelocity(double sx, double sy, double viewportWidth, double viewportHeight) =>
+        (EdgeAxis(sx, viewportWidth), EdgeAxis(sy, viewportHeight));
+
+    private static double EdgeAxis(double at, double viewport)
+    {
+        if (viewport < 3 * EdgeBand) // too small to have a middle: never auto-pan
+            return 0;
+        if (at < EdgeBand)
+            return -MaxEdgeSpeed * Math.Min(1, (EdgeBand - at) / EdgeBand);
+        if (at > viewport - EdgeBand)
+            return MaxEdgeSpeed * Math.Min(1, (at - (viewport - EdgeBand)) / EdgeBand);
+        return 0;
+    }
+
+    /// <summary>
+    /// One auto-pan frame of <paramref name="seconds"/> (capped at <see cref="MaxEdgeStep"/>): shows more of the flow
+    /// the way the pointer goes, so the world point under the still pointer moves that way.
+    /// </summary>
+    public Camera EdgePan((double X, double Y) velocity, double seconds)
+    {
+        var dt = Math.Clamp(seconds, 0, MaxEdgeStep);
+        return PanBy(-velocity.X * dt, -velocity.Y * dt);
+    }
+
     /// <summary>
     /// The smallest pan that brings <paramref name="world"/> on screen with <see cref="RevealMargin"/> around it (keyboard
     /// focus, a new step); the start wins when it can't all fit.

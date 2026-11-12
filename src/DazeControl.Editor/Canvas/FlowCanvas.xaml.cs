@@ -51,6 +51,9 @@ public sealed partial class FlowCanvas : UserControl
     private Windows.Foundation.Point? _pendingMove; // the latest pointer position, drawn on the next frame
     private bool _onFrames; // CompositionTarget.Rendering subscribed (for a gesture or a glide only: idle = zero)
     private bool _gestureFrames; // a drag, connect or marquee wants frames
+    private bool _edgeFrames; // the pointer of a drag, connect or marquee is in the edge band: auto-pan (T21.9)
+    private TimeSpan? _edgeLast; // the frame time auto-pan last panned at
+    private Windows.Foundation.Point _gestureScreen; // the gesture's pointer in Viewport (screen) DIP
     private CanvasNodeViewModel? _portsNode; // whose dots are shown (they follow a glide)
     private CanvasNodeViewModel? _connectFrom;
     private CanvasEdgeViewModel? _controlsEdge;

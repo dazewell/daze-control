@@ -108,7 +108,7 @@ public sealed partial class FlowCanvas
     /// <summary>Subscribes the per-frame handler while a gesture or a glide needs it; removes it otherwise (idle = zero).</summary>
     private void UpdateFrames()
     {
-        var on = _gestureFrames || _motionFrames;
+        var on = _gestureFrames || _motionFrames || _edgeFrames;
         if (on == _onFrames)
             return;
         _onFrames = on;
@@ -119,15 +119,19 @@ public sealed partial class FlowCanvas
     }
 
     /// <summary>
-    /// The one frame clock: the glide advances first (a drag that grabbed a gliding step ends it), then the latest
-    /// pointer position of a drag, connect or marquee is drawn: once per frame, whatever the move rate.
+    /// The one frame clock: the glide advances first (a drag that grabbed a gliding step ends it), then auto-pan moves
+    /// the camera, then the latest pointer position of a drag, connect or marquee is drawn: once per frame, whatever
+    /// the move rate.
     /// </summary>
     private void OnFrame(object? sender, object e)
     {
         var probing = _gestureProbe.On || _glideProbe.On;
         var started = probing ? Stopwatch.GetTimestamp() : 0;
+        var time = e is RenderingEventArgs r ? r.RenderingTime : Stopwatch.GetElapsedTime(0);
         if (_motionFrames)
-            MotionFrame(e is RenderingEventArgs r ? r.RenderingTime : Stopwatch.GetElapsedTime(0));
+            MotionFrame(time);
+        if (_edgeFrames)
+            EdgeFrame(time);
         if (_viewModel is not null && _pendingMove is { } position)
         {
             _pendingMove = null;
