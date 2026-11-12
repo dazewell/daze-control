@@ -74,7 +74,7 @@ public static partial class Program
                 new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread()));
             _ = new App();
         });
-        return 0;
+        return Environment.ExitCode; // 0 unless the memory probe failed
     }
 
     [LibraryImport("user32.dll", SetLastError = true)]

@@ -61,11 +61,13 @@ public sealed partial class ShellWindow
                 await Settle();
                 Note($"open and close {i}");
             }
+            log.WriteLine("done"); // the script checks for it
 
         }
         catch (Exception ex)
         {
             log.WriteLine("failed: " + ex);
+            Environment.ExitCode = 1; // the script fails too
         }
         Close();
     }

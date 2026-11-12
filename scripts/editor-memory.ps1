@@ -19,7 +19,13 @@ $work = Join-Path ([IO.Path]::GetTempPath()) ('dc-memprobe-' + [guid]::NewGuid()
 New-Item -ItemType Directory $work | Out-Null
 Copy-Item (Join-Path $repo 'samples\dev-big.yaml') (Join-Path $work 'config.yaml')
 $log = Join-Path $work 'memory.log'
-$p = Start-Process $exe -ArgumentList '--config', (Join-Path $work 'config.yaml'), '--memory-probe', $Flow, $log -PassThru
+$config = Join-Path $work 'config.yaml'
+# Start-Process joins the list into one command line: quote the paths (a profile folder may have spaces).
+$p = Start-Process $exe -ArgumentList '--config', "`"$config`"", '--memory-probe', $Flow, "`"$log`"" -PassThru
 if (-not $p.WaitForExit(180000)) { $p.Kill($true); throw 'the probe did not finish in 3 minutes' }
-Get-Content $log
+Get-Content $log -ErrorAction SilentlyContinue
+if ($p.ExitCode -ne 0 -or -not (Select-String -Path $log -Pattern '^done$' -Quiet -ErrorAction SilentlyContinue)) {
+    Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
+    throw "the probe failed (exit $($p.ExitCode)); see the log above"
+}
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue

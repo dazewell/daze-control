@@ -60,9 +60,30 @@ public sealed class EditorMemoryTests(ITestOutputHelper output) : IDisposable
         output.WriteLine($"managed: {before / 1048576.0:0.0} MB → {after / 1048576.0:0.0} MB after 5 copy/paste/undo cycles ({clock.ElapsedMilliseconds} ms)");
 
         canvas.Dispose();
-        var closed = Managed();
-        output.WriteLine($"after closing the flow: {closed / 1048576.0:0.0} MB");
+        output.WriteLine($"after closing the flow: {Managed() / 1048576.0:0.0} MB");
         Assert.InRange(after - before, long.MinValue, 4L << 20); // the history holds flow records, not copies of the scene
+    }
+
+    [Fact]
+    public void AClosedFlowsCanvasAndHistoryAreFreed()
+    {
+        using var session = Open();
+        var canvas = OpenAndEdit(session);
+
+        Managed();
+        Assert.False(canvas.IsAlive); // nothing the session keeps (events, clipboard) holds the closed flow's canvas
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static WeakReference OpenAndEdit(ConfigSession session)
+    {
+        var canvas = new FlowCanvasViewModel(session, "probe-100");
+        Cycle(canvas);
+        canvas.SelectAll();
+        canvas.Copy();
+        canvas.Paste(); // history and redo both hold entries
+        canvas.Dispose();
+        return new WeakReference(canvas);
     }
 
     [Fact]
