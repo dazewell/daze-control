@@ -200,4 +200,23 @@ public sealed class StepValueRunTests : IDisposable
         Assert.Equal("Use Sony?", presenter.Shown[1].Title);
         Assert.Equal(["Sony: Yes"], _said);
     }
+
+    [Fact]
+    public async Task AnUnmetOnlyIfPublishesNothing()
+    {
+        var loaded = Load("", "{ id: bt, step: bluetooth.connect, with: { device: technics }, only: disconnected }", Say("<{bt.device|none}>", "[bt]"));
+        var runner = new FlowRunner([new Recorder("bluetooth.connect", c => c.SetDevice("device", "technics")),
+            new Recorder("notify", c => _said.Add(((ScalarParam)c.Node.With["text"]).Text))], _time,
+            probes: [new Probe("bluetooth.connected", c => { c.SetDevice("device", "technics"); return new FactReading(true, "connected"); })]);
+        await Run(runner, loaded);
+
+        Assert.Equal(["<none>"], _said);
+    }
+
+    private sealed class Probe(string fact, Func<StepContext, FactReading> read) : IFactProbe
+    {
+        public string Fact => fact;
+
+        public Task<FactReading> ReadAsync(StepContext context, CancellationToken cancellationToken) => Task.FromResult(read(context));
+    }
 }

@@ -292,8 +292,9 @@ public sealed class FlowRunner
                 var attemptResult = await AttemptAsync(provider!, context, timeout, flowToken).ConfigureAwait(false);
                 error = attemptResult.Error;
                 summary = context.Summary;
-                GiveValues(values, node.Id, descriptor, context, error is null);
                 skipped = attemptResult.SkippedBecause;
+                if (skipped is null) // an unmet "Only if" gives nothing (DESIGN §4.5), though its probe may have read values
+                    GiveValues(values, node.Id, descriptor, context, error is null);
                 called = context.Called ?? called;
                 if (attemptResult.EndsFlow)
                 {
