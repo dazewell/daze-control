@@ -9,7 +9,7 @@ Every script takes the PR number, works from any worktree, prints one short line
 
 ## Standing rules (children follow these; briefs just say "follow the pr-review skill")
 
-- **Never `gh pr merge --auto`** (it fires before Copilot threads are answered), `--squash` or `--admin`. Merge only through `pr-merge.ps1` (merge commit). Docs-only PRs with no review may use `--auto`.
+- **Never `gh pr merge --auto`** (it fires before Copilot threads are answered), `--squash` or `--admin`. Merge only through `pr-merge.ps1` (merge commit).
 - **Copilot review is required** when the PR adds more than 100 lines of non-test code (docs and tests excluded). Not for docs-only or small fixes whose tests cover the change. Max **2 reviews per PR** (the script refuses a third; Critical findings = 🔴, or correctness, data loss, security, fail-soft). If Critical is still open after the second, fix it yourself and run the `code-review` skill at high effort on the diff; note it in the PR.
 - **Wait for the review before merging, reply to AND resolve every thread, verify `unresolved: 0`.**
 - Never wait on CI or the review with your own loop or model turns: `pr-wait.ps1` in the background.

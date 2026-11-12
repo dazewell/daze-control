@@ -10,7 +10,8 @@ $ErrorActionPreference = 'Stop'
 $d = Get-PrData $Pr
 if ($Full) {
   $t = $d.Threads | Where-Object { $_.Id.StartsWith($Full) } | Select-Object -First 1
-  if ($t) { "$($t.Id) $($t.Path):$($t.Line) resolved=$($t.Resolved)"; foreach ($c in $t.Comments) { "--- @$($c.Author)"; $c.Body }; exit 0 }
+  if ($t) { "$($t.Id) $($t.Path):$($t.Line) resolved=$($t.Resolved)"; foreach ($c in $t.Comments) { "--- @$($c.Author)"; $c.Body }
+    if ($t.CommentsTotal -gt $t.Comments.Count) { "(truncated: showing $($t.Comments.Count) of $($t.CommentsTotal) comments)" }; exit 0 }
   $r = $d.Reviews | Where-Object { $_.Id.StartsWith($Full) } | Select-Object -First 1
   if ($r) { "review $($r.Id) @$($r.Author) $($r.State)"; $r.Body; exit 0 }
   "no thread or review with id '$Full'"; exit 0

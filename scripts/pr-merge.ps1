@@ -12,7 +12,7 @@ $v = Get-Verdict $d { Test-LocalConflict $Pr $d.Head }
 Write-Verdict $v $d.Head
 if (-not $v.Ready) { exit 1 }
 if ($DryRun) { "dry-run: would run gh pr merge $Pr --merge"; exit 0 }
-$out = gh pr merge $Pr --merge 2>&1
+$out = gh pr merge $Pr --merge --match-head-commit $d.Head 2>&1
 if ($LASTEXITCODE -ne 0) { "merge FAILED: $(Format-Text ($out -join ' ') 250)"; exit 1 }
 $sha = $null
 for ($i = 0; $i -lt 6 -and -not $sha; $i++) { $sha = gh pr view $Pr --json mergeCommit -q .mergeCommit.oid 2>$null; if (-not $sha) { Start-Sleep -Seconds 2 } }

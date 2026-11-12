@@ -13,6 +13,7 @@ $runs = gh run list --commit $d.Head --json databaseId,conclusion,status,workflo
 $bad = @($runs | Where-Object { $_.status -eq 'completed' -and $_.conclusion -in 'failure', 'timed_out' } | Select-Object -First 1)
 if (-not $bad) { "#$Pr no failed run on head $($d.Head.Substring(0,7)) (ci: $($d.Ci))"; exit 0 }
 $run = $bad[0].databaseId
+$attempt = [int](gh run view $run --json attempt -q .attempt 2>$null)
 $log = @(gh run view $run --log-failed 2>&1)
 $tests = Get-FailedTests $log
 "run $run ($($bad[0].workflowName)) failed tests: $(if ($tests) { $tests -join ', ' } else { 'none parsed (build/infra failure)' })"
@@ -22,6 +23,7 @@ if (-not $tests -and -not $Force) {
   $log | Select-Object -Last 6 | ForEach-Object { Format-Text $_ 160 }
   'no failing test parsed: check the log tail above; -Force to rerun anyway'; exit 1
 }
+if ($attempt -ge 2 -and -not $Force) { "run $run already rerun (attempt $attempt) and failed again: not a flake, investigate (X-012); -Force to rerun"; exit 1 }
 if ($DryRun) { "dry-run: would run gh run rerun $run --failed"; exit 0 }
 gh run rerun $run --failed 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) { 'rerun failed to start'; exit 1 }

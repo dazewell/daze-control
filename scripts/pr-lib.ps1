@@ -6,10 +6,10 @@ $script:PrQuery = @'
 query($owner:String!,$name:String!,$n:Int!){repository(owner:$owner,name:$name){pullRequest(number:$n){
  number title state isDraft headRefOid mergeStateStatus mergeable
  files(first:100){totalCount nodes{path additions}}
- reviewThreads(first:100){totalCount nodes{id isResolved isOutdated path line originalLine comments(first:20){nodes{author{login} body}}}}
+ reviewThreads(first:100){totalCount nodes{id isResolved isOutdated path line originalLine comments(first:20){totalCount nodes{author{login} body}}}}
  reviews(last:30){nodes{id state body submittedAt author{login} commit{oid}}}
  timelineItems(last:30,itemTypes:[REVIEW_REQUESTED_EVENT]){nodes{... on ReviewRequestedEvent{createdAt requestedReviewer{... on User{login} ... on Bot{login}}}}}
- commits(last:1){nodes{commit{statusCheckRollup{contexts(first:100){nodes{__typename
+ commits(last:1){nodes{commit{statusCheckRollup{contexts(first:100){totalCount nodes{__typename
    ... on CheckRun{name status conclusion} ... on StatusContext{context state}}}}}}}
 }}}
 '@
@@ -37,6 +37,7 @@ function ConvertTo-PrData($Raw) {
       [pscustomobject]@{
         Id = $_.id; Resolved = [bool]$_.isResolved; Outdated = [bool]$_.isOutdated; Path = $_.path
         Line = $(if ($_.line) { $_.line } else { $_.originalLine })
+        CommentsTotal = $_.comments.totalCount
         Comments = @($_.comments.nodes | ForEach-Object { [pscustomobject]@{ Author = $_.author.login; Body = $_.body } })
       } })
   $reviews = @($p.reviews.nodes | ForEach-Object {
@@ -58,6 +59,7 @@ function ConvertTo-PrData($Raw) {
       if ($c.state -in 'PENDING', 'EXPECTED') { $running++ } elseif ($c.state -in 'FAILURE', 'ERROR') { $failed += $c.context }
     }
   }
+  $ciTruncated = ($p.commits.nodes[0].commit.statusCheckRollup.contexts.totalCount -gt 100)
   $ci = if ($ctx.Count -eq 0) { 'none' } elseif ($failed) { 'fail' } elseif ($running) { 'pending' } else { 'pass' }
   $adds = 0; $codeFiles = 0
   foreach ($f in $p.files.nodes) { if (Test-CodePath $f.path) { $adds += $f.additions; $codeFiles++ } }
@@ -67,7 +69,7 @@ function ConvertTo-PrData($Raw) {
     MergeState = $p.mergeStateStatus; Mergeable = $p.mergeable
     Threads = $threads; Reviews = $reviews; CopilotReviews = $copRev; CopilotPending = $pending
     Ci = $ci; CiFailed = $failed; CiRunning = $running; CiTotal = $ctx.Count
-    CodeAdds = $adds; CodeFiles = $codeFiles; FilesTruncated = ($p.files.totalCount -gt 100)
+    CodeAdds = $adds; CodeFiles = $codeFiles; FilesTruncated = ($p.files.totalCount -gt 100); ThreadsTruncated = ($p.reviewThreads.totalCount -gt 100); CiTruncated = $ciTruncated
   }
 }
 
@@ -100,7 +102,10 @@ function Get-Verdict($D, [scriptblock]$ConflictCheck = { 'unknown' }) {
     elseif ($D.CopilotReviews.Count -eq 0) { $b.Add("Copilot review required ($($D.CodeAdds) code lines added) and not requested (pr-request-review.ps1)") }
     elseif ($D.CopilotReviews[-1].Commit -ne $D.Head) { $w.Add('Copilot reviewed an older commit than the head (fine unless you pushed big changes since)') }
   } elseif ($D.CopilotPending) { $w.Add('a Copilot review is pending; merging now skips it') }
-  if ($D.FilesTruncated) { $w.Add('more than 100 files: code-line count is a lower bound') }
+  # fail closed when a connection was cut at 100: hidden files/threads/checks could change the verdict (Copilot review of PR 186)
+  if ($D.FilesTruncated) { $b.Add('more than 100 files changed: code-line count unreliable, decide the Copilot rule by hand') }
+  if ($D.ThreadsTruncated) { $b.Add('more than 100 review threads: cannot verify all are resolved') }
+  if ($D.CiTruncated) { $b.Add('more than 100 checks: cannot verify all passed') }
   if ($D.MergeState -eq 'DIRTY' -or $D.Mergeable -eq 'CONFLICTING') {
     switch (& $ConflictCheck) {
       'conflict' { $b.Add('merge conflict with main (git merge origin/main, resolve, push)') }
@@ -108,6 +113,7 @@ function Get-Verdict($D, [scriptblock]$ConflictCheck = { 'unknown' }) {
       default { $b.Add('GitHub reports a merge conflict (could not verify locally; notices can be stale)') }
     }
   } elseif ($D.MergeState -eq 'UNKNOWN' -or $D.Mergeable -eq 'UNKNOWN') { $b.Add('GitHub is still computing mergeability: retry in a few seconds') }
+  elseif ($D.MergeState -eq 'UNSTABLE') { $b.Add('mergeStateStatus UNSTABLE: a check GitHub counts as failing (maybe external) is not in the list above') }
   elseif ($D.MergeState -eq 'BEHIND') { $w.Add('branch is behind main (merge commit still fine unless the ruleset needs it up to date)') }
   elseif ($D.MergeState -eq 'BLOCKED' -and $b.Count -eq 0) { $b.Add('mergeStateStatus BLOCKED by a ruleset/required check not listed above (approval? required check name?)') }
   [pscustomobject]@{ Ready = ($b.Count -eq 0); Blockers = @($b); Warnings = @($w) }
