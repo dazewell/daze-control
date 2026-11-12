@@ -61,6 +61,20 @@ public sealed class CanvasPlacementTests : IDisposable
     }
 
     [Fact]
+    public void AMoveRaisesChangesOnlyOnTheMovedStep()
+    {
+        _canvas.MoveBy(["vol"], 160, 80); // the first move freezes the rest
+        var raised = new List<string>();
+        foreach (var node in _canvas.Nodes)
+            node.PropertyChanged += (_, e) => raised.Add($"{node.Id}.{e.PropertyName}");
+
+        _canvas.MoveBy(["vol"], 16, 8);
+
+        // Each event is a full pill refresh in the view (T21.1: a drop used to re-raise Badges and AutomationName on every node).
+        Assert.Equal(["vol.X", "vol.Y"], raised.Order());
+    }
+
+    [Fact]
     public void TheSelectionMovesTogether()
     {
         var offset = new Point(At("out").X - At("vol").X, At("out").Y - At("vol").Y);
