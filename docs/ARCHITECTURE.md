@@ -587,8 +587,8 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 
 ## Open questions
 
-- Step values (D-129, proposed): steps give typed values that later steps' text uses (`{step.value}`), pills in the editor.
-  Design and open points: [step-values/DESIGN.md](step-values/DESIGN.md); nothing built (PLAN → M23).
+- Step values (D-129, accepted 2026-11-12): steps give typed values that later steps' text uses (`{step.value}`), pills in the editor.
+  Design: [step-values/DESIGN.md](step-values/DESIGN.md); nothing built (PLAN → M23).
 - Display, after Duplicate (F5 live run 2026-11-03, notes `f5-display/fix-runs/`): leaving Duplicate, the next one or
   two switches can be undone by Windows seconds later, `display.topology` included (Extend → Duplicate; "use only"
   DELL passed its check, then both came back on). The DELL's target id changes 0x1009038 → 0x9038 then, which looks

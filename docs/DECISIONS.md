@@ -805,7 +805,7 @@ Status: accepted, built (T13.8; user, 2026-11-03: "no infinite loops")
 - Revisit if: someone needs recursion on purpose (retry-until loops); then a bounded "repeat" step, not calls.
 
 ## D-064 · 2026-11-03 · Flow inputs are Library devices with defaults; steps use `$name`; calls pass `inputs:`
-Status: accepted (M13 design; user, 2026-11-03: inputs ship inside P6)
+Status: accepted (M13 design; user, 2026-11-03: inputs ship inside P6); amended by D-129 (values in text settings)
 - Decision: `Flow.Inputs` = name → (`LibraryKind`, label, default key); the default is always given (YAML `kind`,
   `name`, `default`; no "required" flag, every input is optional for a caller). A `LibraryRef` param of the same
   kind may hold `$name`; the runner resolves it (caller's value, else the default) before resources are filled.
@@ -1529,7 +1529,7 @@ Status: accepted (user, 2026-11-11: "binding audio and BT devices - so that they
 - Revisit if: users want more than two sides (a dock = display + audio + USB). A bound flow input kind: D-125.
 
 ## D-117 · 2026-11-11 · Pick device step: its result fills later steps' device settings as `$result:<step id>`
-Status: accepted (user, 2026-11-11: "selecting items from the library that can be then used in other steps")
+Status: accepted (user, 2026-11-11: "selecting items from the library that can be then used in other steps"); amended by D-129 (step values)
 - Decision: a `prompt.pick` step ("Pick device", Questions group) offers the Library's items of one `kind`
   (audio/bluetooth/display/android) on the prompt window (D-107: never takes focus, timeout, `onTimeout: stop|use-default`).
   Any `LibraryRef` setting, and a value `flow.run` passes as `inputs`, may hold `$result:<id>`; the runner substitutes the
@@ -1749,7 +1749,7 @@ Status: accepted (F-029, M22 T22.6; user chose option A; supersedes nothing, D-1
 - Rejected: a new `LibraryRef` kind with a dynamic `Library` (every `spec.Library!` site would need a null path); rewriting names to keys on load.
 
 ## D-129 · 2026-11-12 · Step values: typed values declared per step type, `{step.value}` in text settings that take them
-Status: proposed, awaiting the user (design docs/step-values/DESIGN.md; on acceptance it amends D-064 and D-117)
+Status: accepted (user, 2026-11-12: all five PR #217 questions as recommended; design docs/step-values/DESIGN.md). Amends D-064, D-117
 - Decision: `ProviderDescriptor.Values` (`ValueSpec`: name, Text/Number/Device kind, title, Sensitive, OnFailure) + `error`
   on every step + run values (`@flow`, `@trigger`, `@time`, `@date`) + `{$input}`. Text settings opt in
   (`ParamSpec.TakesValues`) and hold `{step.value|fallback}`; device settings keep `$result:<id>` (widened later to

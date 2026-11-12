@@ -1,6 +1,7 @@
 # Step values: what a step gives, used by later steps
 
-Status: **proposed, awaiting the user** (D-129). Design spike, 2026-11-12. Nothing here is built. Tasks: PLAN → M23.
+Status: **accepted** (D-129; user, 2026-11-12: syntax, missing = fallback else empty, the word "value", scripts via
+environment variables, single-assignment values only, all as recommended). Nothing here is built yet. Tasks: PLAN → M23.
 Each M23 task moves what it built into ARCHITECTURE / UX / FEATURES and cuts it here (D-053).
 
 ## 1. What the user asked
@@ -220,7 +221,7 @@ Word: **value** ("Insert value", "Values it gives"), never "variable", "node", "
   `samples/*.yaml` and the test fixtures must round-trip byte-identical (T23.1 test).
 - D-064's "Why not free-text substitution" is answered by opt-in fields + catalog-declared values (the validator still
   sees every reference). D-117's "Why not a generic result system" is revisited because the user asked; its Pick rules
-  stay and become the Device case of §4.5. When accepted, D-129 amends both (their status lines change then).
+  stay and become the Device case of §4.5. D-129 amends both (their status lines say so).
 
 ## 8. Stages (tasks in PLAN → M23)
 

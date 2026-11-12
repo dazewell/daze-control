@@ -758,8 +758,8 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 - [ ] T22.12 Canvas input, routing, automation (F-033 after a human check, F-040, F-043; Opus, after T22.1)
 - [x] T22.13 Editor memory and run counters (F-036: pills measured in one pass re-lay out once, `scripts/editor-memory.ps1`; F-012: one `RunProgress`, D-127; Opus)
 
-## M23 Step values: steps give values that later steps' text uses (user, 2026-11-12; design docs/step-values/DESIGN.md, D-129 proposed)
-Waits for the user to accept D-129 and answer the PR's open questions. One PR per task (D-079). Each stage ships alone.
+## M23 Step values: steps give values that later steps' text uses (user, 2026-11-12; design docs/step-values/DESIGN.md, D-129 accepted)
+The user accepted all five open points as recommended (PR #217). One PR per task (D-079). Each stage ships alone.
 - [ ] T23.1 Core (Opus, M): `ValueSpec`/`ValueKind`, `ProviderDescriptor.Values`, `ParamSpec.TakesValues`, `Core/Model/StepValues`
   (scanner, `Before` (PickResults delegates), `Problems`, `MayBeMissing`, `Fill`, `Wanted`), `Core/Runs/RunValues`, `ConfigValidator`
   checks (DESIGN §4.6). Files: Core/Catalog, Core/Model, Core/Runs, Core/Validation. Done when: Core tests for the grammar (JSON,
@@ -780,5 +780,5 @@ Waits for the user to accept D-129 and answer the PR's open questions. One PR pe
   `process.run` args; `DAZE_*` environment variables for PowerShell. Done when: Providers tests incl. an injection-shaped device name.
 - [ ] T23.6 Device values beyond Pick (Opus, M; after T23.2): `$result:<id>.<value>`, `audio.setDefault` `previous`, device picker
   group "From earlier steps" replaces "Picked earlier in this flow"; locks use the filled key. Supersedes D-117's Pick-only rule (new D-xxx).
-- [ ] T23.7 Text inputs, flow outputs, Make text (Opus, L; after T23.5; confirm DESIGN §9 with the user first).
+- [ ] T23.7 Text inputs, flow outputs, Make text (Opus, L; after T23.5; DESIGN §9, accepted 2026-11-12).
 - [ ] T23.8 Gate (Sonnet, S): ARCHITECTURE/FEATURES/UX take what was built, DESIGN cut (D-053), release-notes line.
