@@ -944,7 +944,14 @@
                         </CommandBar>
                     </Grid>
                     <!-- A run on the canvas: "You can edit again when this run finishes" (§5.7 #22), then how it went. -->
-                    <InfoBar x:Name="RunInfo" Grid.Row="2" VerticalAlignment="Top" Canvas.ZIndex="10" Margin="36,0,16,0" Closed="OnRunInfoClosed" />
+                    <!-- Overlay over the canvas column only (palette 240 left, inspector 320 right), so it never covers the
+                         search box or inspector. InfoBar fills are translucent by design, hence the opaque host with a border. -->
+                    <Border x:Name="RunInfoHost" Grid.Row="2" VerticalAlignment="Top" HorizontalAlignment="Stretch" Canvas.ZIndex="10"
+                            Margin="252,8,332,0" Visibility="Collapsed" CornerRadius="{StaticResource ControlCornerRadius}"
+                            Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                        <InfoBar x:Name="RunInfo" Closed="OnRunInfoClosed" />
+                    </Border>
                     <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
