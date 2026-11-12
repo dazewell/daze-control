@@ -48,6 +48,33 @@
                                 </Flyout>
                             </Button.Flyout>
                         </Button>
+                        <!-- Add by hand (D-122): a device that's off, away or not paired yet, typed in. -->
+                        <Button Visibility="{x:Bind CanAddByHand}" AutomationProperties.Name="Add by hand"
+                                ToolTipService.ToolTip="Type in a device Windows doesn't see right now">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE70F;" FontSize="14" />
+                                <TextBlock Text="Add by hand" />
+                            </StackPanel>
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <StackPanel Spacing="8" Width="320">
+                                        <TextBox Header="Name" Visibility="{x:Bind NeedsName}" Text="{x:Bind ManualName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 PlaceholderText="{x:Bind ManualNamePlaceholder}" AutomationProperties.Name="Name" />
+                                        <TextBox Header="{x:Bind ManualValueHeader}" Text="{x:Bind ManualValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 PlaceholderText="{x:Bind ManualValuePlaceholder}" AutomationProperties.Name="{x:Bind ManualValueHeader}"
+                                                 KeyDown="OnAddByHandKeyDown" Tag="{x:Bind}" />
+                                        <ComboBox Header="Direction" Visibility="{x:Bind IsAudio}" ItemsSource="{x:Bind ManualFlows}"
+                                                  SelectedIndex="{x:Bind ManualFlowIndex, Mode=TwoWay}" HorizontalAlignment="Stretch" />
+                                        <TextBlock Text="{x:Bind ManualHint}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
+                                        <!-- The error line keeps its space so the flyout doesn't jump when it shows. -->
+                                        <TextBlock Text="{x:Bind ManualError, Mode=OneWay}" Opacity="{x:Bind ManualErrorOpacity, Mode=OneWay}"
+                                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" MinHeight="16" />
+                                        <Button Content="Add" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Right" Click="OnAddByHand"
+                                                Tag="{x:Bind}" AutomationProperties.Name="Add to Library" />
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
                         <Button Visibility="{x:Bind CanCapture}" Click="OnCapture" AutomationProperties.Name="Capture current layout"
                                 ToolTipService.ToolTip="Saves how your screens are set up now.">
                             <StackPanel Orientation="Horizontal" Spacing="8">

@@ -60,7 +60,7 @@ service, file; the screen and Android checks only read, the Android one asks an 
 **F4 Library** — named, reusable resources referenced by steps: audio devices (match text + flow), Bluetooth
 devices (address + name), **bound devices** (a Bluetooth device + its audio device used as one: Bluetooth steps act on
 the Bluetooth side, audio steps on the audio side; listed in both pickers, D-116), display layouts/outputs, Android devices + inputs (edited on the card: moves as an Up/Down list, D-078), programs, credentials (secret in
-Windows Credential Manager, only the name in YAML). Each has a Test action.
+Windows Credential Manager, only the name in YAML). Each has a Test action. Audio, Bluetooth and Android devices can also be **added by hand** (name text / address, D-122), for a device that is off, away or not paired yet; it matches the real one when it shows up.
 
 **F5 Runtime** — DAG scheduler with parallel branches, engine-wide resource locks, timeouts + cancellation
 on every step, retries, run events stream, run history (last 100, persisted), dry run.

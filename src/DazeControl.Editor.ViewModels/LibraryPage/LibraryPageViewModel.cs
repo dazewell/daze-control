@@ -95,6 +95,60 @@ public sealed partial class LibrarySectionViewModel : ObservableObject
             BindName = newValue.Title;
     }
 
+    // ---- Add by hand (D-122): a device typed in, for one that's off, away or not paired yet ----
+
+    public bool CanAddByHand => Kind is { } kind && ManualItems.CanAdd(kind);
+
+    public bool IsAudio => Kind == LibraryKind.Audio;
+
+    /// <summary>Bluetooth and Android items need a name (their key); an audio device's name text is its name.</summary>
+    public bool NeedsName => Kind is LibraryKind.Bluetooth or LibraryKind.Android;
+
+    /// <summary>The field's header: what identifies the device for this kind.</summary>
+    public string ManualValueHeader => Kind switch
+    {
+        LibraryKind.Audio => "Name in Windows (or a part of it)",
+        LibraryKind.Bluetooth => "Bluetooth address",
+        _ => "Network address",
+    };
+
+    public string ManualValuePlaceholder => Kind switch
+    {
+        LibraryKind.Audio => "Technics",
+        LibraryKind.Bluetooth => "B8:20:8E:ED:48:FC",
+        _ => "192.168.1.50 or 192.168.1.50:5555",
+    };
+
+    public string ManualNamePlaceholder => Kind == LibraryKind.Android ? "Living room TV" : "Technics headphones";
+
+    public string ManualHint => Kind switch
+    {
+        LibraryKind.Audio => "Steps use the first sound device whose name contains this text.",
+        LibraryKind.Bluetooth => "Find it in Settings › Bluetooth & devices, or on the device's box. Connect works once it's paired.",
+        _ => "Turn on network debugging on the device (Developer options).",
+    };
+
+    [ObservableProperty]
+    public partial string ManualValue { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string ManualName { get; set; } = "";
+
+    /// <summary>Audio only: 0 = Output (playback), 1 = Input (recording).</summary>
+    [ObservableProperty]
+    public partial int ManualFlowIndex { get; set; }
+
+    public IReadOnlyList<string> ManualFlows { get; } = ["Output (speakers, headphones)", "Input (microphone)"];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasManualError), nameof(ManualErrorOpacity))]
+    public partial string? ManualError { get; internal set; }
+
+    public bool HasManualError => ManualError is not null;
+
+    /// <summary>The error line keeps its space (no jump when it shows).</summary>
+    public double ManualErrorOpacity => HasManualError ? 1 : 0;
+
     /// <summary>The Pivot header's name for screen readers.</summary>
     public override string ToString() => Title;
 }
@@ -131,15 +185,15 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
         Sections =
         [
             new(LibraryKind.Audio, "Audio", LibraryDevices.Glyph(LibraryKind.Audio),
-                "No audio devices yet. Add one from Windows, or pick one in a step."),
+                "No audio devices yet. Add one from Windows or by hand, or pick one in a step."),
             new(LibraryKind.Bluetooth, "Bluetooth", LibraryDevices.Glyph(LibraryKind.Bluetooth),
-                "No Bluetooth devices yet. Add a paired one from Windows."),
+                "No Bluetooth devices yet. Add a paired one from Windows, or add one by hand by its address."),
             new(LibraryKind.Bound, "Bound devices", LibraryDevices.Glyph(LibraryKind.Bound),
                 "No bound devices yet. Bind a Bluetooth device to its audio device to use the pair as one device in Bluetooth and audio steps."),
             new(LibraryKind.Display, "Displays", LibraryDevices.Glyph(LibraryKind.Display),
                 "No screen layouts yet. Set your screens up the way you like, then capture the layout."),
             new(LibraryKind.Android, "Android", LibraryDevices.Glyph(LibraryKind.Android),
-                "No Android devices yet. Turn on network debugging on the TV, connect it with adb, then add it."),
+                "No Android devices yet. Turn on network debugging on the TV, then add it from Windows or by hand by its address."),
             new(null, "Programs", FlowItemViewModel.DecodeGlyph("E756"),
                 "No programs yet. Programs show up here once a flow runs one."),
         ];
@@ -678,6 +732,29 @@ public sealed partial class LibraryPageViewModel : ObservableObject, IDisposable
     }
 
     // ---- Add, capture, remove ----
+
+    /// <summary>Library › Add by hand (D-122): the section's form becomes a new item. False, with
+    /// <see cref="LibrarySectionViewModel.ManualError"/> saying why, when a field is wrong or the device is already there.</summary>
+    public bool AddByHand(LibraryKind kind)
+    {
+        var section = Section(kind);
+        if (!CanEdit)
+        {
+            section.ManualError = "The Library can't be changed right now.";
+            return false;
+        }
+        var flow = section.ManualFlowIndex == 1 ? AudioFlow.Input : AudioFlow.Output;
+        var (library, _, error) = ManualItems.Add(_session.Current.Library, kind, section.ManualValue, section.ManualName, flow);
+        section.ManualError = error;
+        if (library is null)
+            return false;
+        section.Note = null;
+        _session.Update(c => c with { Library = library });
+        section.ManualValue = "";
+        section.ManualName = "";
+        section.ManualFlowIndex = 0;
+        return true;
+    }
 
     /// <summary>A device from Windows joins the Library under a key made from its name.</summary>
     [RelayCommand]
