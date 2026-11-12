@@ -32,6 +32,23 @@ public sealed partial class XamlStyleKeyTests
     }
 
     /// <summary>
+    /// A Style for DropDownButton based on DefaultDropDownButtonStyle makes the editor exit at start with a native XAML
+    /// exception and no log line (X-013), though the key exists. Nothing may style DropDownButton.
+    /// </summary>
+    [Fact]
+    public void NoStyleTargetsDropDownButton()
+    {
+        var editor = Path.Combine(RepoRoot(), "src", "DazeControl.Editor");
+        var offenders = Directory.EnumerateFiles(editor, "*.xaml", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
+                        && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
+            .Where(f => File.ReadAllText(f).Contains("TargetType=\"DropDownButton\"", StringComparison.Ordinal))
+            .Select(Path.GetFileName)
+            .ToList();
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>
     /// The generic.xaml the editor builds against: the WinUI package (a dependency of Microsoft.WindowsAppSDK) at the
     /// version and in the package folder the editor's own restore recorded, not whatever else sits in the cache.
     /// </summary>

@@ -96,7 +96,11 @@ try {
     if (-not $up) { throw 'dev-run: the dev engine did not answer dctl status' }
     & $dctl status
     if (-not $NoEditor) {
-        Start-Process $editorExe -ArgumentList '--config', "`"$config`""
+        $ed = Start-Process $editorExe -ArgumentList '--config', "`"$config`"" -PassThru
+        # A XAML crash at start is native and leaves no editor.log line: say so instead of showing nothing.
+        if ($ed.WaitForExit(6000)) {
+            Write-Host "dev-run: the editor exited at once (exit $($ed.ExitCode)), no window. See Windows Event Viewer > Application (DazeControl.Editor.exe) and $env:LOCALAPPDATA\DazeControl\logs\editor.log" -ForegroundColor Red
+        }
     }
 } catch {
     Write-Host "dev-run: failed: $($_.Exception.Message)" -ForegroundColor Red

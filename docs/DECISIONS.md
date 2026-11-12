@@ -1628,8 +1628,8 @@ Status: accepted (user, 2026-11-11, same report as D-119); built in M21.
 
 ## D-121 · 2026-11-12 · One button size: shared styles, no per-button Width/Height/Padding
 Status: accepted (user, 2026-11-12: "very inconsistent height and size of the buttons").
-- Decision: every button is at least `ControlHeight` (32 DIP) tall via implicit Button/ToggleButton/DropDownButton styles in
-  App.xaml; icon-only buttons use `IconButton` / `SubtleIconButton` / `IconToggleButton` (32×32 square, icon 14),
+- Decision: every button is at least `ControlHeight` (32 DIP) tall via implicit Button/ToggleButton styles in
+  App.xaml (none for DropDownButton: X-013; the stock one is 32 tall); icon-only buttons use `IconButton` / `SubtleIconButton` / `IconToggleButton` (32×32 square, icon 14),
   primary actions `PrimaryButton` (accent), weekday chips `ChipToggleButton`, canvas connection handles `CanvasHandleButton`
   (24 round, on purpose). Links (HyperlinkButton) pad `0,4`. `XamlButtonSizingTests` fails on any Button/ToggleButton/
   DropDownButton/HyperlinkButton/SplitButton tag that sets Width, Height, MinWidth, MinHeight or Padding.

@@ -121,3 +121,9 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
 - Result: they pass on rerun; the time went nowhere. Rule: if the only failed tests are `TriggerServiceTests`, run
   `pwsh scripts/pr-rerun.ps1 <pr>` and move on; a different failed test, or the same one failing twice in a row, is real.
 - Revisit if: the flake is fixed (then drop `KnownFlaky` in `scripts/pr-lib.ps1`).
+
+## X-013 · 2026-11-12 · A Style based on DefaultDropDownButtonStyle (implicit or keyed) kills the editor at start
+Tried in D-121: implicit `Style TargetType="DropDownButton" BasedOn="{StaticResource DefaultDropDownButtonStyle}"` with MinHeight.
+Every DropDownButton then fails to load: native stowed exception (0xc000027b in Microsoft.UI.Xaml.dll), the process exits at
+once, nothing in editor.log, no window (dev-run looked like it did nothing). The key exists, so `XamlStyleKeyTests` passed; a keyed
+copy applied by hand crashes the same. Found by bisecting App.xaml. Don't style DropDownButton; `XamlStyleKeyTests` forbids it.
