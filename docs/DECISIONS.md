@@ -826,7 +826,7 @@ PartiallySucceeded")
 - Decision: a **fallback step** is a unit with an incoming `when: failure` edge, or an incoming `when: success` edge
   from a fallback step (members follow their card), computed in Core (`FlowShape.Fallbacks`). When the Scheduler
   would skip one, it ends **NotNeeded** (new `NodeOutcome`; fires `always` like Skipped). Counting (superseded by
-  D-126): "n of m" leaves fallback steps out of m until one starts. Summary: Succeeded when every unit is Succeeded, NotNeeded, or Failed /
+  D-127): "n of m" leaves fallback steps out of m until one starts. Summary: Succeeded when every unit is Succeeded, NotNeeded, or Failed /
   FailedIgnored with an outgoing failure edge (handled); otherwise as before. Pop-up: "Done" + #48 when a fallback
   fixed it. Runs: "Worked", the handled bar caution-dashed, NotNeeded rows "Not needed" (#47). The tray's problem
   notification follows the outcome.
@@ -964,6 +964,7 @@ Status: accepted (design M13b); `HotkeyRejection` + `WindowsShortcuts` built T13
 - Revisit if: the Windows list goes wrong after a Windows update (the generic "Another app…" is the safe fallback).
 
 ## D-074 · 2026-11-03 · The mouse wheel zooms the canvas at the pointer; a flow can always be moved
+(Zoom range 50–200 % superseded by D-126: 10–200 %.)
 Status: accepted (user, 2026-11-03, v0.29.0 feedback); built F1. Changes UX §5.2 Navigate.
 - Decision: in `FlowCanvas`, a mouse wheel notch zooms (×1.1 per 120 delta, 50–200 %) around the point under the
   pointer, which stays put; Ctrl+wheel does the same; Shift+wheel still scrolls sideways. The scroll extent gets
@@ -1706,7 +1707,23 @@ Status: accepted (user, 2026-11-12: "let's add bound devices as inputs for the F
   Bluetooth and an audio step, which is what a bound device is for. Why no "disabled input" state for a missing
   default: no other kind has one; a disabled input would leave its steps with no device anyway.
 
-## D-126 · 2026-11-12 · "n of m" is every step, fixed at the start, one counter for the pop-up and the canvas
+## D-126 · 2026-11-12 · Canvas camera and drops: 10 % zoom, auto-pan that runs out, drops that keep the gaps
+Status: accepted (user, 2026-11-12, findings F-001, F-006, F-015, F-030 of the M22 live test); built T22.1.
+- Decision: zoom 10–200 % (`MinZoom` 0.1); Fit, opening a flow and Layout › Arrange / Reset layout fit the whole flow.
+  Auto-pan tops out at 600 DIP/s (linear in band depth) and stops along an axis once one column's room (`EdgeRoom`
+  384 DIP) past the still steps is on screen; a step drag released outside the canvas (over the inspector or palette)
+  is no drop. A free move has no top/left clamp (it moves the origin and the camera pans back, as a library drop does);
+  its lead snaps to the 8-DIP grid or to a still step's column within half a column gap, then takes the nearest offset
+  that keeps the layout's column gap beside and row gap above/below every still step (`MoveSnap`, preview == commit).
+- Why: Fit stuck at 50 % cut off a 95-step flow; 1200 DIP/s with no end scrolled the whole flow away in 2 s; the move
+  clamp refused a spot a library drop accepted; drops overlapped by 8 DIP and sat off-column (UX §5.9).
+- Why not snap only the drop (keep the free preview): the drop then jumps (D-120). Why not refuse a crowded drop: the
+  library drop already takes the nearest free spot, so a move does the same. Why not time-based auto-pan acceleration:
+  it differs with Animation effects off (T21.9).
+- Revisit if: the column magnet feels sticky live (shrink it below half a column gap), or users want to pan past the
+  content while dragging (raise `EdgeRoom`).
+
+## D-127 · 2026-11-12 · "n of m" is every step, fixed at the start, one counter for the pop-up and the canvas
 Status: accepted (F-012, M22 batch 13; supersedes D-065's counting sentence)
 - Decision: `Core/Runs/RunProgress` is the only "n of m": m = the flow's `StepNode`s when the run starts (fallbacks
   included, cards not: their members count), n = steps with a `NodeFinished` (any outcome, each once). The pop-up

@@ -3,7 +3,7 @@ using DazeControl.Core.Model;
 namespace DazeControl.Core.Runs;
 
 /// <summary>
-/// The one "n of m" of a run, shared by the pop-up and the editor's run overlay (F-012, D-126): m is the flow's
+/// The one "n of m" of a run, shared by the pop-up and the editor's run overlay (F-012, D-127): m is the flow's
 /// step count, fixed when the run starts (the same number as the card's "17 steps"); n is the steps that finished,
 /// with any outcome. Fallbacks count from the start and finish as "Not needed" when skipped, cards don't count
 /// (their members do), so m never moves and n never goes back.

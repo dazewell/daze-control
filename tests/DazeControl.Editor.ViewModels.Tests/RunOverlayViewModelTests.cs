@@ -49,7 +49,7 @@ public sealed class RunOverlayViewModelTests : IDisposable
 
         Assert.True(_run.IsRunning);
         Assert.False(_canvas.CanEdit);
-        Assert.Equal("Running · 0 of 6", _run.Status); // every step counts from the start, fallback too (D-126)
+        Assert.Equal("Running · 0 of 6", _run.Status); // every step counts from the start, fallback too (D-127)
         Assert.Equal("You can edit again when this run finishes.", _run.InfoMessage);
         Assert.Equal(NodeRunState.Pending, State("bt"));
         Assert.Equal(NodeRunState.None, State("both")); // a card has no ring

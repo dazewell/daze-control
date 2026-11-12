@@ -182,7 +182,7 @@ public sealed class RunPopupModelTests
     public void FallbacksThatWerentNeededCountAsDoneWhenSkipped()
     {
         var model = Started(WithFallback);
-        Assert.Equal("0 of 4", model.Current!.Status); // every step, fallbacks too: m is fixed (F-012, D-126)
+        Assert.Equal("0 of 4", model.Current!.Status); // every step, fallbacks too: m is fixed (F-012, D-127)
         Node(model, "bt");
         Assert.Equal(("1 of 4", 0.25), (model.Current!.Status, model.Current!.Progress));
         NotRun(model, "connect", NodeOutcome.NotNeeded);

@@ -33,7 +33,7 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
     private readonly List<NodeResult> _results = [];
     private Flow? _running;
     private Guid? _runId;
-    private RunProgress _progress = new(new Flow("", "", [])); // "n of m", shared with the pop-up (F-012, D-126)
+    private RunProgress _progress = new(new Flow("", "", [])); // "n of m", shared with the pop-up (F-012, D-127)
 
     /// <summary>Every run the engine reported starting (any flow): a nested run's caller is named from it (#64).</summary>
     private readonly Dictionary<Guid, string> _runFlows = [];

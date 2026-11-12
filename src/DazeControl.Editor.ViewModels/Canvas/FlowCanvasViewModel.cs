@@ -23,7 +23,7 @@ public enum FocusMove
 /// </summary>
 public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 {
-    public const double MinZoom = 0.5, MaxZoom = 2.0;
+    public const double MinZoom = 0.1, MaxZoom = 2.0; // 10 %: Fit shows a 100-step flow whole (F-006)
 
     /// <summary>Below this, pills show only their title (UX §5.8 #1, semantic zoom).</summary>
     public const double DetailZoom = 0.6;
@@ -887,10 +887,16 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     /// <remarks>It can throw away a hand placement, so it is an undo step (D-115).</remarks>
     public void ResetLayout()
     {
-        if (LayoutChoices.IsDefault)
-            return;
-        ChangeView(v => (v.WrapAfter, v.Spacing, v.Align, v.Lines, v.Shape, v.Placed) = (null, null, null, null, null, null), undoable: true);
+        if (!LayoutChoices.IsDefault)
+            ChangeView(v => (v.WrapAfter, v.Spacing, v.Align, v.Lines, v.Shape, v.Placed) = (null, null, null, null, null, null), undoable: true);
+        Rearranged?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// Raised after Layout › Arrange or Reset layout laid the flow out afresh (or found it already so): the canvas fits
+    /// its camera, so the whole flow is in view again (F-015).
+    /// </summary>
+    public event EventHandler? Rearranged;
 
     // ---- Arrange and hand placement (D-115) ----
 
@@ -902,15 +908,17 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     public void Arrange(LayoutShape shape)
     {
         var choices = LayoutChoices;
-        if ((choices.Shape ?? LayoutShape.LeftToRight) == shape && !choices.IsPlacedByHand)
-            return;
-        ChangeView(v => (v.Shape, v.Placed) = (shape == LayoutShape.LeftToRight ? null : shape, null), undoable: true);
+        if ((choices.Shape ?? LayoutShape.LeftToRight) != shape || choices.IsPlacedByHand)
+            ChangeView(v => (v.Shape, v.Placed) = (shape == LayoutShape.LeftToRight ? null : shape, null), undoable: true);
+        Rearranged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
     /// A drag to empty canvas: the steps and cards in <paramref name="ids"/> (members count as their card) move by
-    /// (<paramref name="dx"/>, <paramref name="dy"/>), snapped to the grid, never above or left of the padding. The
-    /// first move freezes every other step where it is, so nothing else shifts. One undo step; false when nothing moved.
+    /// (<paramref name="dx"/>, <paramref name="dy"/>), snapped to the grid or a column and kept the layout's gaps from
+    /// every other step (<see cref="MoveSnap"/>, UX §5.9). Above or left of the flow too: the layout then moves the
+    /// flow's origin and raises <see cref="OriginShifted"/>, as a library drop does (F-030). The first move freezes every
+    /// other step where it is, so nothing else shifts. One undo step; false when nothing moved.
     /// </summary>
     public bool MoveBy(IEnumerable<string> ids, double dx, double dy)
     {
@@ -925,17 +933,29 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         if (moving.All(n => n.X == to[n.Id].X && n.Y == to[n.Id].Y))
             return false;
         var everything = Frozen();
+        var before = LayoutChoices.Copy();
+        var lead = moving[0].Id;
         ChangeView(v =>
         {
             v.Placed = everything; // rebuilt from what is on the canvas, so deleted steps drop out
             foreach (var (id, at) in to)
                 v.Placed[id] = at;
-        }, undoable: true);
+        }, undoable: false);
+        // Above or left of the margin: the layout moved everything so the moved steps sit at the margin.
+        var shift = Find(lead) is { } node ? new Point(node.X - to[lead].X, node.Y - to[lead].Y) : default;
+        if (Flow is { } flow)
+        {
+            Push(_undo, new UndoEntry(flow, before, Restore: new Point(-shift.X, -shift.Y)));
+            _redo.Clear();
+            UpdateHistory();
+        }
+        if (shift != default)
+            OriginShifted?.Invoke(this, shift);
         return true;
     }
 
     /// <summary>
-    /// The offset <see cref="MoveBy"/> would apply for the same arguments (snapped, padding-clamped), for the drag
+    /// The offset <see cref="MoveBy"/> would apply for the same arguments (snapped, gaps kept), for the drag
     /// preview: what is shown while dragging is what the drop commits (D-120). (0, 0) when nothing would move.
     /// </summary>
     public Point SnappedOffset(IEnumerable<string> ids, double dx, double dy)
@@ -981,9 +1001,13 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             .Select(n => n.CardId is { } card ? Find(card) : n).OfType<CanvasNodeViewModel>()
             .DistinctBy(n => n.Id).ToList();
 
-    private Point Snapped(List<CanvasNodeViewModel> moving, double dx, double dy) =>
-        MoveSnap.Offset(new Point(moving[0].X, moving[0].Y), new Point(moving.Min(n => n.X), moving.Min(n => n.Y)),
-            dx, dy, LayoutOptions.Padding);
+    private Point Snapped(List<CanvasNodeViewModel> moving, double dx, double dy)
+    {
+        var ids = moving.Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
+        var still = Nodes.Where(n => n.CardId is null && !ids.Contains(n.Id)).Select(n => n.Bounds).ToList();
+        var options = LayoutOptions;
+        return MoveSnap.Offset([.. moving.Select(n => n.Bounds)], still, dx, dy, options.ColumnGap, options.RowGap);
+    }
 
     /// <summary>Changes this flow's view choices in editor.json (or this session's copy) and lays it out again.</summary>
     private void ChangeView(Action<FlowViewSettings> change, bool undoable)

@@ -5,7 +5,7 @@ namespace DazeControl.Core.Tests;
 
 public sealed class RunProgressTests
 {
-    // a → card(m1, m2) → b, with fix as a's fallback: four steps plus a card that doesn't count (F-012, D-126).
+    // a → card(m1, m2) → b, with fix as a's fallback: four steps plus a card that doesn't count (F-012, D-127).
     private static readonly Flow Shape = new("f", "F",
     [
         new StepNode("a", "wait"),

@@ -52,6 +52,7 @@ public sealed partial class FlowCanvas : UserControl
     private bool _onFrames; // CompositionTarget.Rendering subscribed (for a gesture or a glide only: idle = zero)
     private bool _gestureFrames; // a drag, connect or marquee wants frames
     private bool _edgeFrames; // the pointer of a drag, connect or marquee is in the edge band: auto-pan (T21.9)
+    private DazeControl.Core.Layout.Rect? _edgeContent; // what auto-pan runs out with, taken on its first frame (F-001)
     private TimeSpan? _edgeLast; // the frame time auto-pan last panned at
     private Windows.Foundation.Point _gestureScreen; // the gesture's pointer in Viewport (screen) DIP
     private CanvasNodeViewModel? _portsNode; // whose dots are shown (they follow a glide)
@@ -121,6 +122,7 @@ public sealed partial class FlowCanvas : UserControl
                 _viewModel.Nodes.CollectionChanged -= OnNodesChanged;
                 _viewModel.Noted -= OnNoted;
                 _viewModel.OriginShifted -= OnOriginShifted;
+                _viewModel.Rearranged -= OnRearranged;
                 _viewModel.Motion = null;
                 if (_motionFrames || _animated.Count > 0)
                     FinishMotion();
@@ -138,6 +140,7 @@ public sealed partial class FlowCanvas : UserControl
             _viewModel.Nodes.CollectionChanged += OnNodesChanged;
             _viewModel.Noted += OnNoted;
             _viewModel.OriginShifted += OnOriginShifted;
+            _viewModel.Rearranged += OnRearranged;
             // Layout glides only while the canvas is on screen and Windows "Animation effects" is on (UX §5.3).
             _viewModel.Motion = () => SceneMotion.For(Shown && Motion.Enabled);
             SyncNodes();

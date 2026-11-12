@@ -139,12 +139,14 @@ public sealed class DragPreviewTests : IDisposable
         var still = scene.LiveCurves.Keys.Where(k => !preview.Touching.Contains(k)).ToList();
         Assert.Empty(still);
 
-        Assert.True(scene.DragTo(preview.Offset(90, 210))); // the card moves onto or off bt → vol's way: it re-routes (D-124)
+        // The card moves onto or off bt → vol's way: it re-routes (D-124). Where 90, 210 would crowd a step, it takes the
+        // nearest spot that keeps the gaps (176, 296; UX §5.9).
+        Assert.True(scene.DragTo(preview.Offset(90, 210)));
         Assert.True(scene.LiveSetChanged);
         Assert.Contains(("bt", "vol"), scene.LiveCurves.Keys);
         Assert.NotEqual(preview.StaticCurve("bt", "vol"), scene.LiveCurves[("bt", "vol")]);
 
-        Assert.True(scene.DragTo(preview.Offset(98, 210))); // same lines follow: only the live set is drawn
+        Assert.True(scene.DragTo(preview.Offset(176, 312))); // same lines follow: only the live set is drawn
         Assert.False(scene.LiveSetChanged);
         scene.EndDrag();
     }
@@ -176,14 +178,29 @@ public sealed class DragPreviewTests : IDisposable
         for (var i = 0; i < frame.Routes.Count; i++)
             curves[(frame.Routes[i].From, frame.Routes[i].To)] = frame.Curves[i]; // the frame's: touching or detouring (D-124)
 
+        var shift = default(Point); // a move above or left of the flow moves its origin (F-030): everything by the same
+        _canvas.OriginShifted += (_, s) => shift = s;
         Assert.True(_canvas.MoveBy(ids, dx, dy));
 
         Assert.Equal(boxes.Count, _canvas.Arrangement.Boxes.Count);
         foreach (var box in _canvas.Arrangement.Boxes)
-            Near(boxes[box.Id], box.Bounds, box.Id);
+            Near(boxes[box.Id], box.Bounds with { X = box.Bounds.X - shift.X, Y = box.Bounds.Y - shift.Y }, box.Id);
         Assert.Equal(curves.Count, _canvas.Edges.Count);
         foreach (var edge in _canvas.Edges)
-            Near(curves[(edge.From, edge.To)], edge.Curve, $"{edge.From}→{edge.To}");
+            Near(Moved(curves[(edge.From, edge.To)], shift), edge.Curve, $"{edge.From}→{edge.To}");
+    }
+
+    private static EdgeCurve Moved(EdgeCurve c, Point by)
+    {
+        if (by == default)
+            return c;
+        Point M(Point p) => new(p.X + by.X, p.Y + by.Y);
+        return c with
+        {
+            Start = M(c.Start), Control1 = M(c.Control1), Control2 = M(c.Control2), End = M(c.End), Tip = M(c.Tip),
+            WrapLaneY = c.WrapLaneY + by.Y, BendX = c.BendX + by.X, BendY = c.BendY + by.Y,
+            Elbow = c.Elbow is { } e ? M(e) : null,
+        };
     }
 
     private static void Near(Rect want, Rect got, string what)

@@ -160,7 +160,7 @@ once. Fallbacks (D-065): a fallback unit that would be skipped ends `NotNeeded` 
 Failed/FailedIgnored unit with a failure edge is *handled*, and a skip whose dead edges all come from handled
 failures (or such skips) is *excused*; `Summarize((outcome, handled))` is Succeeded when every node is
 Succeeded, NotNeeded, handled or excused. `Outcomes.Fix(flow, results)` names the first Failed step (not may-fail: its success edges fired too) and the
-first fallback step that started (`Fixes` also drives the Runs timeline's dashed bar), for #48 in the pop-up (`RunPopupModel`; its "n of m" and the canvas's are one `Core/Runs/RunProgress`: every step, fixed at start, D-126), the Runs sentence (`RunWords.Sentence(run, title, flow)`) and the canvas InfoBar.
+first fallback step that started (`Fixes` also drives the Runs timeline's dashed bar), for #48 in the pop-up (`RunPopupModel`; its "n of m" and the canvas's are one `Core/Runs/RunProgress`: every step, fixed at start, D-127), the Runs sentence (`RunWords.Sentence(run, title, flow)`) and the canvas InfoBar.
 `Runtime/FlowRunner.RunAsync(flow, library, ct)` (one runner per engine) drives it: each step runs on the pool through its `IStepProvider`
 (`Runtime/Providers`) with `1 + retry.count` attempts `retry.delay` apart, each with a timeout (node's, else the
 descriptor's) on the injected `TimeProvider`. `WaitAsync` ends an attempt on time even if a provider ignores
@@ -375,7 +375,7 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   animation (UX §5.3 motion's 200 ms reflow isn't built anywhere yet). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
   and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
   edges batched by style, D-037) and maps pointer/keys to VM calls (partials: main = constructor + VM sync, `.Camera`, `.Pointer`, `.Edges`,
-  `.Palette`, `.Menus`, `.Keys`); zoom 50–200 % by a camera transform (below).
+  `.Palette`, `.Menus`, `.Keys`); zoom 10–200 % (D-126) by a camera transform (below).
   Camera (D-119 e, T21.7): no `ScrollViewer`. `Host` (the world, laid out once at the flow's extent) sits in a clipped
   `Viewport` canvas under one `CompositeTransform`; pure `Canvas/Camera` (tested: screen↔world, zoom at a point, fit
   centred, reveal rect, clamp that keeps 48 DIP of the steps on screen, D-074) gives it, and `FlowCanvas.Camera.cs`'s
@@ -388,9 +388,11 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   pointer handlers'); keyboard focus and new steps are revealed by `Camera.Reveal`. Pointer positions read with
   `GetCurrentPoint(Host)` go through the transform, so hit tests, drags, drops and menus have no camera maths.
   Gesture polish (T21.9): a drag, connect or marquee whose pointer is within `Camera.EdgeBand` (40 DIP) of the viewport
-  edge auto-pans (`Camera.EdgeVelocity`: linear in depth, 1200 DIP/s at and past the edge, no time acceleration, so the
+  edge auto-pans (`Camera.EdgeVelocity`: linear in depth, 600 DIP/s at and past the edge (D-126), no time acceleration, so the
   same with Animation effects off; `EdgePan` caps a stalled frame at 1/30 s) as a third reason on the one `OnFrame`
-  clock (`_edgeFrames`), off when the pointer leaves the band, the clamp stops the camera, or the gesture ends; each
+  clock (`_edgeFrames`), off when the pointer leaves the band, the clamp stops the camera, `Camera.EdgeLimit` finds
+  `EdgeRoom` (one column) past the content already on screen (the still steps for a drag), or the gesture ends; a drag
+  released outside the viewport (over the inspector or palette) commits nothing; each
   pan frame re-reads the world point under the still pointer, so the drag, line or marquee follows. The connect line
   snaps to an allowed target's in-port; the marquee selects live (`BeginMarquee`/`MarqueeTo`/`EndMarquee`, raised only
   on change); Escape mid-gesture (and a lost capture) cancels: nothing committed, the marquee restores `CancelMarquee`.
@@ -400,7 +402,9 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   still arrives; an armed press is dropped on `PointerExited` (no capture = no release outside).
 - Canvas direction (D-119, M21; partly built): live drag (T21.4): `FlowCanvasViewModel.BeginMove(ids)` returns a pure
   `Canvas/DragPreview` built from the arrangement `MoveBy` commits with every step frozen where it is
-  (`FlowPlacement.Arrange` with all top-level steps placed); `Offset(dx, dy)` = `MoveSnap` (lead snapped, padding clamp)
+  (`FlowPlacement.Arrange` with all top-level steps placed); `Offset(dx, dy)` = `MoveSnap` (lead snapped to the grid or a
+  column within half a column gap, then the nearest offset keeping the column/row gap from every still step; no clamp:
+  `MoveBy` raises `OriginShifted` like a library drop, D-126)
   and `At(offset)` gives the moved rects (cards with members) and the routes/curves of the touching lines via
   `FlowPlacement.Sides/Port` + `EdgeCurve.For`, so preview == commit (`DragPreviewTests`, all shapes, auto and placed).
   `FlowCanvas` draws pointer moves of a drag, connect or marquee once per frame (`CompositionTarget.Rendering`,

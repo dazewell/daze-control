@@ -742,7 +742,9 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 
 ## M22 UI polish (from the live test of 2026-11-12; findings in [docs/ui-findings-2026-11-12.md](ui-findings-2026-11-12.md))
 31 findings F-001..F-031; batches are disjoint by files, run in this order (batch 4 after 3, batch 7 after 4).
-- [ ] T22.1 Canvas camera and drop correctness (F-001, F-006, F-030; Opus)
+- [~] T22.1 Canvas camera and drop correctness (F-001, F-006, F-030, F-015 refit; Opus; D-126). Code + unit tests
+  done; live check open: drag to the right edge 2 s (pans ≤ 1200 DIP, stops past the last step), drag above the first
+  row, Fit on Probe 100, Arrange refits.
 - [ ] T22.2 Destructive actions and selection (F-002, F-003, F-016, F-017)
 - [ ] T22.3 Window and list responsiveness (F-005, F-014, F-023)
 - [ ] T22.4 Accessibility and keyboard (F-004, F-020, F-021, F-022)
@@ -754,4 +756,4 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 - [ ] T22.10 Shell and inspector polish (F-032, F-034, F-035, F-038, F-039, F-041)
 - [ ] T22.11 Silent notices and the flaky trigger test (F-037, F-042)
 - [ ] T22.12 Canvas input, routing, automation (F-033 after a human check, F-040, F-043; Opus, after T22.1)
-- [x] T22.13 Editor memory and run counters (F-036: pills measured in one pass re-lay out once, `scripts/editor-memory.ps1`; F-012: one `RunProgress`, D-126; Opus)
+- [x] T22.13 Editor memory and run counters (F-036: pills measured in one pass re-lay out once, `scripts/editor-memory.ps1`; F-012: one `RunProgress`, D-127; Opus)

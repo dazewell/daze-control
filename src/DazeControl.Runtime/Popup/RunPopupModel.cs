@@ -247,7 +247,7 @@ public sealed class RunPopupModel
     }
 
     /// <summary>
-    /// One run's state for the pop-up; "n of m" is the shared <see cref="RunProgress"/> (F-012, D-126).
+    /// One run's state for the pop-up; "n of m" is the shared <see cref="RunProgress"/> (F-012, D-127).
     /// </summary>
     private sealed class RunTrack
     {

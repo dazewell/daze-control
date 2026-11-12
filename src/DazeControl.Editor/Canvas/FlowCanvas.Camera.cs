@@ -25,7 +25,7 @@ public sealed partial class FlowCanvas
 
     // ---- View commands ----
 
-    /// <summary>Ctrl+0.</summary>
+    /// <summary>Ctrl+0: the whole flow in view, down to 10 % (F-006).</summary>
     public void Fit()
     {
         if (_viewModel is null || ViewportWidth <= 0)
@@ -95,6 +95,16 @@ public sealed partial class FlowCanvas
             BeginMotion();
             DrawEdges(); // lines that stopped gliding go back to the static set
         }
+    }
+
+    /// <summary>
+    /// Layout › Arrange or Reset layout: the camera fits the new arrangement, so a step the shape put far off is in view
+    /// (F-015), and keeps fitting while pill sizes settle, until the user moves the view.
+    /// </summary>
+    private void OnRearranged(object? sender, EventArgs e)
+    {
+        _autoFit = true;
+        Fit();
     }
 
     private void OnViewportSizeChanged(object sender, SizeChangedEventArgs e)
