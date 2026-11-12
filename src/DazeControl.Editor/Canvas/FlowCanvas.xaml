@@ -7,16 +7,15 @@
     AutomationProperties.Name="Flow canvas">
 
     <Grid x:Name="Root" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
-        <!-- Mouse wheel and Ctrl+wheel zoom at the pointer, Shift+wheel scrolls sideways (both Wrapper's handler); a
-             touchpad's two-finger scroll pans and pinch zooms 50–200 % (UX §5.2, D-074). -->
-        <ScrollViewer x:Name="Scroller" ZoomMode="Enabled" MinZoomFactor="0.5" MaxZoomFactor="2" IsTabStop="False"
-                      HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto"
-                      ViewChanged="OnViewChanged">
-            <!-- Pan room: padding per side = viewport − 48 DIP − the layout margin, at the current zoom, so a flow that
-                 fits can still be moved and 48 DIP of its steps stays on screen; Host's coordinates don't change (D-074). -->
-            <Grid x:Name="Wrapper" Background="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <!-- The camera (D-119 e): Host is the world, laid out once at the flow's own size; pan and zoom are one render
+             transform on it (no layout pass, no scroll extent). The mouse wheel zooms at the pointer, Shift+wheel and a
+             tilt wheel pan sideways, a touchpad's two-finger scroll pans and its pinch zooms, touch pans and pinches with
+             inertia (FlowCanvas.Camera.cs; UX §5.2, D-074). Viewport clips Host to the canvas. -->
+        <Canvas x:Name="Viewport" Background="Transparent">
             <Grid x:Name="Host" Background="Transparent">
+                <Grid.RenderTransform>
+                    <CompositeTransform x:Name="CameraTransform" />
+                </Grid.RenderTransform>
                 <!-- All edges: a handful of paths, one per style, whatever the edge count (UX §5.8 #1, D-037). -->
                 <Canvas x:Name="EdgeLayer" IsHitTestVisible="False">
                     <Path x:Name="NormalEdges" StrokeThickness="1.5" Stroke="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
@@ -75,8 +74,7 @@
                                Stroke="{ThemeResource AccentFillColorDefaultBrush}" Fill="{ThemeResource SubtleFillColorSecondaryBrush}" />
                 </Canvas>
             </Grid>
-            </Grid>
-        </ScrollViewer>
+        </Canvas>
 
         <TeachingTip x:Name="RefusalTip" Title="Can't connect these" IsLightDismissEnabled="True" PreferredPlacement="Bottom" />
 

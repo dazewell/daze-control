@@ -373,15 +373,16 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   animation (UX §5.3 motion's 200 ms reflow isn't built anywhere yet). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
   and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
   edges batched by style, D-037) and maps pointer/keys to VM calls (partials: main = constructor + VM sync, `.Camera`, `.Pointer`, `.Edges`,
-  `.Palette`, `.Menus`, `.Keys`); zoom/scroll is a `ScrollViewer` (50–200 %).
-  Wheel zoom and pan room (D-074): the `ScrollViewer`'s content is a transparent `Wrapper` Grid around `Host`, padded
-  per side by viewport − 48 DIP (screen) less the layout's 48-DIP margin, in content DIP at the current zoom, so any
-  flow can be moved and `Host`'s coordinates never change. `Canvas/CanvasViewport` (pure, tested) holds the maths:
-  pad, offsets that keep a point still across a zoom (the padding changes with it), Fit centred. `Wrapper`'s
-  `PointerWheelChanged` (mouse only, handled) zooms at the pointer and does Shift+wheel sideways itself (the WinUI 3
-  `ScrollViewer` scrolls it vertically); touchpad gestures stay the `ScrollViewer`'s, re-padded on
-  `DirectManipulationCompleted`. A re-pad inside a layout pass clamps `ChangeView` to the old extent, so the canvas
-  asks again at low priority once layout is done.
+  `.Palette`, `.Menus`, `.Keys`); zoom 50–200 % by a camera transform (below).
+  Camera (D-119 e, T21.7): no `ScrollViewer`. `Host` (the world, laid out once at the flow's extent) sits in a clipped
+  `Viewport` canvas under one `CompositeTransform`; pure `Canvas/Camera` (tested: screen↔world, zoom at a point, fit
+  centred, reveal rect, clamp that keeps 48 DIP of the steps on screen, D-074) gives it, and `FlowCanvas.Camera.cs`'s
+  `ApplyCamera` is the one place the view changes (clamp, transform, VM zoom/semantic zoom): a pan or zoom is synchronous
+  and runs no layout pass. Wheel on `Root`: mouse wheel/Ctrl+wheel zoom at the pointer, Shift+wheel and tilt pan sideways,
+  `PointerDeviceType.Touchpad` wheel pans both ways and its pinch (Ctrl in `KeyModifiers`) zooms; touch pans/pinches by
+  `Root` manipulations with translate inertia (mouse/pen manipulations are completed at once: their gestures are the
+  pointer handlers'); keyboard focus and new steps are revealed by `Camera.Reveal`. Pointer positions read with
+  `GetCurrentPoint(Host)` go through the transform, so hit tests, drags, drops and menus have no camera maths.
   Right-drag pan (D-069): `Canvas/RightDragPan` (pure, tested) arms on a mouse right press, pans once the pointer
   leaves the system drag rectangle (`GetSystemMetricsForDpi(SM_CX/CYDRAG)` at the XAML root's DPI, in DIP), and
   swallows the one `RightTapped` after a pan. The canvas captures only once panning, so a still click's `RightTapped`
