@@ -105,6 +105,26 @@ public sealed class CanvasLibraryDropTests : IDisposable
     }
 
     [Fact]
+    public void UndoAndRedoOfADropAboveTheFlowPanBackToo()
+    {
+        var shifts = new List<Point>();
+        _canvas.OriginShifted += (_, s) => shifts.Add(s);
+        _canvas.AddStepAt("wait", new Point(-500, -300));
+        var shift = Assert.Single(shifts);
+        var vol = new Point(Node("vol").X, Node("vol").Y);
+
+        _canvas.Undo();
+        // Everything moved back by the shift; the canvas pans by the reverse, so "vol" stays put on screen.
+        Assert.Equal(new Point(-shift.X, -shift.Y), shifts[^1]);
+        Assert.Equal(new Point(vol.X - shift.X, vol.Y - shift.Y), new Point(Node("vol").X, Node("vol").Y));
+
+        _canvas.Redo();
+        Assert.Equal(shift, shifts[^1]);
+        Assert.Equal(vol, new Point(Node("vol").X, Node("vol").Y));
+        Assert.Equal(3, shifts.Count);
+    }
+
+    [Fact]
     public void ADropOnEmptyCanvasDoesNotShiftTheFlow()
     {
         var shifted = false;
@@ -120,6 +140,8 @@ public sealed class CanvasLibraryDropTests : IDisposable
     [InlineData("vol", 1.15, 0.5)] // just right of it, where the new pill would cover it
     public void ItNeverLandsOnTopOfAnotherStep(string near, double fx, double fy)
     {
+        var tall = Everything().Keys.First(k => k != near);
+        _canvas.ReportSize(tall, Node(tall).Width, 96); // a step with badges or larger text: the new pill may grow as tall
         var n = Node(near);
         var p = new Point(n.X + n.Width * fx, n.Y + n.Height * fy);
         var (target, zone) = (n.Bounds.Contains(p) ? n.Id : null, n.Bounds.Contains(p) ? FlowCanvasViewModel.ZoneAt(n, p) : DropZone.None);
@@ -134,7 +156,7 @@ public sealed class CanvasLibraryDropTests : IDisposable
 
         var mine = Node(id!).Bounds;
         Assert.Equal(new Point(outline.X, outline.Y), new Point(mine.X - shift.X, mine.Y - shift.Y));
-        var room = new Rect(mine.X, mine.Y, FlowCanvasViewModel.MaxPillWidth, mine.Height); // as wide as it may grow
+        var room = new Rect(mine.X, mine.Y, FlowCanvasViewModel.MaxPillWidth, 96); // as wide and tall as it may grow
         foreach (var other in others)
             Assert.False(room.Intersects(Node(other).Bounds), $"covers {other}");
     }

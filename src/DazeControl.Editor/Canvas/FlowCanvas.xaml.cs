@@ -147,7 +147,7 @@ public sealed partial class FlowCanvas : UserControl
                 UpdateExtent();
                 // Measured pill sizes arrive after the first fit: keep fitting until the user moves the view.
                 if (_autoFit)
-                    DispatcherQueue.TryEnqueue(Fit);
+                    DispatcherQueue.TryEnqueue(() => { if (_autoFit) Fit(); }); // a pan or drop since then wins
                 break;
             case nameof(FlowCanvasViewModel.FocusedId):
                 UpdateFocusRing();

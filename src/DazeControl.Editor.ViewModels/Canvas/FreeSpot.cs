@@ -9,14 +9,15 @@ namespace DazeControl.Editor.ViewModels.Canvas;
 public static class FreeSpot
 {
     /// <param name="want">The wanted rect (top left on the grid).</param>
-    /// <param name="reach">How far right the box may still grow (a pill widens to its title after it lands); counted in
-    /// the clearance, not in the returned rect.</param>
+    /// <param name="reach">How far right and down the box may still grow (a pill widens to its title and grows taller with
+    /// badges or larger text after it lands); counted in the clearance, not in the returned rect.</param>
     /// <param name="taken">The boxes already on the canvas.</param>
     /// <param name="gap">The least room kept between boxes.</param>
-    public static Rect Nearest(Rect want, double reach, IReadOnlyCollection<Rect> taken, double gap)
+    public static Rect Nearest(Rect want, Size reach, IReadOnlyCollection<Rect> taken, double gap)
     {
         ArgumentNullException.ThrowIfNull(taken);
-        var width = Math.Max(want.Width, reach);
+        var width = Math.Max(want.Width, reach.Width);
+        var height = Math.Max(want.Height, reach.Height);
         if (Clear(want.X, want.Y))
             return want;
         // The nearest clear spot sits against some box's side along each axis (or keeps the wanted coordinate): try those
@@ -28,7 +29,7 @@ public static class FreeSpot
             xs.Add(Up(b.Right + gap));
             xs.Add(Down(b.X - gap - width));
             ys.Add(Up(b.Bottom + gap));
-            ys.Add(Down(b.Y - gap - want.Height));
+            ys.Add(Down(b.Y - gap - height));
         }
         var best = (X: want.X, Y: want.Y, D: double.MaxValue);
         foreach (var x in xs.Distinct())
@@ -43,7 +44,7 @@ public static class FreeSpot
         return want with { X = best.X, Y = best.Y };
 
         bool Clear(double x, double y) => !taken.Any(b =>
-            x < b.Right + gap && b.X < x + width + gap && y < b.Bottom + gap && b.Y < y + want.Height + gap);
+            x < b.Right + gap && b.X < x + width + gap && y < b.Bottom + gap && b.Y < y + height + gap);
     }
 
     private static double Up(double v) => Math.Ceiling(v / FlowPlacement.Grid) * FlowPlacement.Grid;
