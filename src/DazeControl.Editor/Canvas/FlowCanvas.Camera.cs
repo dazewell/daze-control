@@ -16,6 +16,7 @@ public sealed partial class FlowCanvas
 {
     private Camera _camera = Camera.Identity;
     private Camera _panStart; // the camera when a drag pan was pressed
+    private bool _pressedSinceGlide; // any press after a touch glide began: the glide stops on its next frame
 
     private double ViewportWidth => Viewport.ActualWidth;
 
@@ -148,13 +149,14 @@ public sealed partial class FlowCanvas
     private void OnManipulationInertiaStarting(object sender, ManipulationInertiaStartingRoutedEventArgs e)
     {
         e.TranslationBehavior.DesiredDeceleration = 10.0 * 96 / (1000 * 1000); // DIP/ms²: a short glide
+        _pressedSinceGlide = false;
     }
 
     private void OnManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
     {
-        if (_viewModel is null || (_gesture != Gesture.None && e.IsInertial))
+        if (_viewModel is null || (e.IsInertial && (_pressedSinceGlide || _gesture != Gesture.None)))
         {
-            e.Complete(); // a new press stops the glide
+            e.Complete(); // any new press (blank canvas too) stops the glide
             return;
         }
         var camera = _camera.PanBy(e.Delta.Translation.X, e.Delta.Translation.Y);
