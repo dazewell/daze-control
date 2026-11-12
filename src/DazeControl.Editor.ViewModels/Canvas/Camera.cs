@@ -42,7 +42,7 @@ public readonly record struct Camera(double X, double Y, double Zoom)
     /// <summary>Moves the flow by (dx, dy) screen DIP.</summary>
     public Camera PanBy(double dx, double dy) => this with { X = X + dx, Y = Y + dy };
 
-    /// <summary>Zoom to <paramref name="zoom"/> (clamped to 50–200 %), keeping the world point under (sx, sy) where it is.</summary>
+    /// <summary>Zoom to <paramref name="zoom"/> (clamped to 10–200 %, F-006), keeping the world point under (sx, sy) where it is.</summary>
     public Camera ZoomAt(double zoom, double sx, double sy)
     {
         zoom = ClampZoom(zoom);
@@ -81,8 +81,17 @@ public readonly record struct Camera(double X, double Y, double Zoom)
     /// <summary>Auto-pan (T21.9): the band along each viewport edge, in screen DIP, where a drag, connect or marquee pans.</summary>
     public const double EdgeBand = 40;
 
-    /// <summary>Auto-pan's top speed, in screen DIP per second: at the edge and beyond it (the pointer is captured).</summary>
-    public const double MaxEdgeSpeed = 1200;
+    /// <summary>
+    /// Auto-pan's top speed, in screen DIP per second: at the edge and beyond it (the pointer is captured). 600 as in
+    /// Miro and Figma (F-001: 1200 felt like the flow ran away).
+    /// </summary>
+    public const double MaxEdgeSpeed = 600;
+
+    /// <summary>
+    /// How far past the steps auto-pan still goes, in world DIP: room for one more column (the widest pill and a column
+    /// gap), so a step can be dragged just past the last one but the flow never scrolls away (F-001).
+    /// </summary>
+    public const double EdgeRoom = 320 + 64;
 
     /// <summary>A frame gap longer than this (a stall) pans as if it were this long, so the flow never jumps.</summary>
     public const double MaxEdgeStep = 1 / 30.0;
@@ -104,6 +113,22 @@ public readonly record struct Camera(double X, double Y, double Zoom)
         if (at > viewport - EdgeBand)
             return MaxEdgeSpeed * Math.Min(1, (at - (viewport - EdgeBand)) / EdgeBand);
         return 0;
+    }
+
+    /// <summary>
+    /// <paramref name="velocity"/> with each axis stopped once the view already shows <see cref="EdgeRoom"/> past the
+    /// <paramref name="content"/> (world: the steps that stay put) that way: auto-pan runs out with the content (F-001).
+    /// </summary>
+    public (double X, double Y) EdgeLimit((double X, double Y) velocity, Rect content, double viewportWidth, double viewportHeight)
+    {
+        if (content.Width <= 0 && content.Height <= 0)
+            return velocity;
+        var near = ToScreen(new Point(content.X - EdgeRoom, content.Y - EdgeRoom));
+        var far = ToScreen(new Point(content.Right + EdgeRoom, content.Bottom + EdgeRoom));
+        return (Axis(velocity.X, near.X, far.X, viewportWidth), Axis(velocity.Y, near.Y, far.Y, viewportHeight));
+
+        static double Axis(double v, double near, double far, double viewport) =>
+            v > 0 && far <= viewport ? 0 : v < 0 && near >= 0 ? 0 : v;
     }
 
     /// <summary>

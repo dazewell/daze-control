@@ -964,6 +964,7 @@ Status: accepted (design M13b); `HotkeyRejection` + `WindowsShortcuts` built T13
 - Revisit if: the Windows list goes wrong after a Windows update (the generic "Another app…" is the safe fallback).
 
 ## D-074 · 2026-11-03 · The mouse wheel zooms the canvas at the pointer; a flow can always be moved
+(Zoom range 50–200 % superseded by D-126: 10–200 %.)
 Status: accepted (user, 2026-11-03, v0.29.0 feedback); built F1. Changes UX §5.2 Navigate.
 - Decision: in `FlowCanvas`, a mouse wheel notch zooms (×1.1 per 120 delta, 50–200 %) around the point under the
   pointer, which stays put; Ctrl+wheel does the same; Shift+wheel still scrolls sideways. The scroll extent gets
@@ -1705,3 +1706,19 @@ Status: accepted (user, 2026-11-12: "let's add bound devices as inputs for the F
 - Why not keep "use an audio or Bluetooth input with a bound value" (the old refusal): one input then can't feed both a
   Bluetooth and an audio step, which is what a bound device is for. Why no "disabled input" state for a missing
   default: no other kind has one; a disabled input would leave its steps with no device anyway.
+
+## D-126 · 2026-11-12 · Canvas camera and drops: 10 % zoom, auto-pan that runs out, drops that keep the gaps
+Status: accepted (user, 2026-11-12, findings F-001, F-006, F-015, F-030 of the M22 live test); built T22.1.
+- Decision: zoom 10–200 % (`MinZoom` 0.1); Fit, opening a flow and Layout › Arrange / Reset layout fit the whole flow.
+  Auto-pan tops out at 600 DIP/s (linear in band depth) and stops along an axis once one column's room (`EdgeRoom`
+  384 DIP) past the still steps is on screen; a step drag released outside the canvas (over the inspector or palette)
+  is no drop. A free move has no top/left clamp (it moves the origin and the camera pans back, as a library drop does);
+  its lead snaps to the 8-DIP grid or to a still step's column within half a column gap, then takes the nearest offset
+  that keeps the layout's column gap beside and row gap above/below every still step (`MoveSnap`, preview == commit).
+- Why: Fit stuck at 50 % cut off a 95-step flow; 1200 DIP/s with no end scrolled the whole flow away in 2 s; the move
+  clamp refused a spot a library drop accepted; drops overlapped by 8 DIP and sat off-column (UX §5.9).
+- Why not snap only the drop (keep the free preview): the drop then jumps (D-120). Why not refuse a crowded drop: the
+  library drop already takes the nearest free spot, so a move does the same. Why not time-based auto-pan acceleration:
+  it differs with Animation effects off (T21.9).
+- Revisit if: the column magnet feels sticky live (shrink it below half a column gap), or users want to pan past the
+  content while dragging (raise `EdgeRoom`).

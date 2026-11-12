@@ -54,8 +54,8 @@ public sealed class CameraTests
     }
 
     [Theory]
-    [InlineData(0.1, 0.5)]
-    [InlineData(0.5, 0.5)]
+    [InlineData(0.01, 0.1)] // F-006: down to 10 %
+    [InlineData(0.1, 0.1)]
     [InlineData(2.0, 2.0)]
     [InlineData(9.0, 2.0)]
     public void ZoomClampsAtBothEnds(double asked, double expected) =>
@@ -133,16 +133,46 @@ public sealed class CameraTests
     [Theory]
     [InlineData(500, 300, 0, 0)] // the middle: still
     [InlineData(40, 300, 0, 0)] // the band's inner edge: still
-    [InlineData(20, 300, -600, 0)] // half way into the left band: half speed, leftwards
-    [InlineData(0, 300, -1200, 0)] // at the edge: full speed
-    [InlineData(-150, 300, -1200, 0)] // past it (captured): no faster
-    [InlineData(990, 590, 900, 900)] // a corner pans along both axes
-    [InlineData(500, 10, 0, -900)]
+    [InlineData(20, 300, -300, 0)] // half way into the left band: half speed, leftwards
+    [InlineData(0, 300, -600, 0)] // at the edge: full speed (600 DIP/s, F-001)
+    [InlineData(-150, 300, -600, 0)] // past it (captured): no faster
+    [InlineData(990, 590, 450, 450)] // a corner pans along both axes
+    [InlineData(500, 10, 0, -450)]
     public void EdgeSpeedGrowsWithDepthInTheBand(double sx, double sy, double vx, double vy)
     {
         var (x, y) = Camera.EdgeVelocity(sx, sy, Vw, Vh);
         Assert.Equal(vx, x, 6);
         Assert.Equal(vy, y, 6);
+    }
+
+    [Fact]
+    public void AutoPanRunsOutWithTheContent()
+    {
+        // F-001: the steps span world 0..2000 × 0..200 at 100 %; the view shows 0..Vw.
+        var content = new Rect(0, 0, 2000, 200);
+        var camera = Camera.Identity;
+        var right = (Camera.MaxEdgeSpeed, 0.0);
+        Assert.Equal(right, camera.EdgeLimit(right, content, Vw, Vh)); // more steps that way: pans
+        // Panned until one column's room past the last step is on screen: stops.
+        var end = camera.PanBy(-(2000 + Camera.EdgeRoom - Vw), 0);
+        Assert.Equal((0.0, 0.0), end.EdgeLimit(right, content, Vw, Vh));
+        // Leftwards from the start: the room before the first step isn't on screen yet, so it still pans that far.
+        var left = (-Camera.MaxEdgeSpeed, 0.0);
+        Assert.Equal(left, camera.EdgeLimit(left, content, Vw, Vh));
+        Assert.Equal((0.0, 0.0), camera.PanBy(Camera.EdgeRoom, 0).EdgeLimit(left, content, Vw, Vh));
+        // Each axis on its own: the content is short, so downwards is already exhausted.
+        Assert.Equal((Camera.MaxEdgeSpeed, 0.0), camera.EdgeLimit((Camera.MaxEdgeSpeed, Camera.MaxEdgeSpeed), content, Vw, Vh));
+    }
+
+    [Fact]
+    public void AutoPanOfAFullSecondHeldAtTheEdgeIsCapped()
+    {
+        // F-001: 2 s held at the edge pans 1200 DIP at most (was > 1500), and frames never jump.
+        var camera = Camera.Identity;
+        var velocity = Camera.EdgeVelocity(Vw + 50, 300, Vw, Vh);
+        for (var i = 0; i < 120; i++)
+            camera = camera.EdgePan(velocity, 1 / 60.0);
+        Assert.Equal(-2 * Camera.MaxEdgeSpeed, camera.X, 6);
     }
 
     [Fact]

@@ -105,12 +105,12 @@ Build = main `68c6df4` (batches 2-8 merged, PRs 201-207) plus the F-026 fix (PR 
 
 | ID | Status | Note |
 |----|--------|------|
-| F-001 | not fixed, not re-tested | Opus work left for the user |
+| F-001 | fixed in code (T22.1, D-126), not re-tested live | Auto-pan 600 DIP/s max, stops one column past the still steps; a release over the inspector/palette is no drop. Unit tests only (agents can't drag) |
 | F-002 | **still broken** | hint exists (`ManyHint`) but never shows: see F-032 |
 | F-003 | fixed | Ctrl+A, Del: "Delete 18 items?" with Delete / Cancel |
 | F-004 | fixed | palette groups named "Audio", "Bluetooth", … in UIA |
 | F-005 | partly | minimum size holds (640 DIP), Steps pane hides, wrapped toolbar; at the minimum the canvas still gets ~45 % (F-039) |
-| F-006 | **still broken** | Probe 100 opens and Fit stays at 50 %, right third under the inspector |
+| F-006 | fixed in code (T22.1, D-126), not re-tested live | Zoom 10–200 %; Fit and the opening view fit the whole flow (the canvas is its own column: the inspector never covers it) |
 | F-007 | partly verified | combos have placeholders, rename icon on Bluetooth and bound rows; the Bind error clearing was not exercised |
 | F-008 | partly verified | Bound device input exists with a "Bound device: default device" picker; the empty-state link not exercised |
 | F-009 | fixed | the new input row scrolls into view and "Input name" has focus |
@@ -119,7 +119,7 @@ Build = main `68c6df4` (batches 2-8 merged, PRs 201-207) plus the F-026 fix (PR 
 | F-012 | not fixed, not re-tested | Opus work left for the user |
 | F-013 | fixed | duration kept on one line; the centred "Pick a run" state not looked at closely |
 | F-014 | fixed | toolbar wraps at the minimum width |
-| F-015 | fixed (menu) | Layout menu is now the same every time: Arrange › (Left to right, Top to bottom, Tree, Circle), Wrap long chains, Spacing, Line up, Lines, Untangle lines, Reset layout; refit after Arrange see F-040 |
+| F-015 | fixed (menu) | Layout menu is now the same every time: Arrange › (Left to right, Top to bottom, Tree, Circle), Wrap long chains, Spacing, Line up, Lines, Untangle lines, Reset layout; refit after Arrange: T22.1 (Arrange and Reset layout fit the camera; not re-tested live) |
 | F-016 | text only, as claimed | Cancel dialog says layout stays |
 | F-017 | fixed | "Discard 1 change to Morning check?" Discard / Keep editing |
 | F-018 | not re-tested | |
@@ -134,10 +134,10 @@ Build = main `68c6df4` (batches 2-8 merged, PRs 201-207) plus the F-026 fix (PR 
 | F-027 | not fixable in samples | the notice is a tray balloon whose sound is the OS default: F-037 |
 | F-028 | by design | the highlighted answer is the step's `default` ("No" with `default: no`); Up + Enter picked the other answer without stealing focus |
 | F-029 | not fixed (skipped) | design pass needed |
-| F-030 | not fixed, not re-tested | Opus work left for the user |
+| F-030 | fixed in code (T22.1, D-126), not re-tested live | A move goes above/left of the flow (origin shift, as a library drop); the lead snaps to a column within 32 DIP and keeps 64/16 gaps, preview == commit |
 | F-031 | baseline recorded | editor 235 MB just started, 331-342 MB with the 95-step flow open; growth in F-036 |
 
-Counts: fixed 11 (F-003, F-004, F-009, F-013, F-014, F-015, F-017, F-019, F-024, F-025, F-026), partly 6 (F-005, F-007, F-008, F-011, F-020, F-021), still broken 2 (F-002, F-006), left or by design 6 (F-001, F-012, F-016 text only, F-027, F-028, F-029, F-030), not re-tested 4 (F-010, F-018, F-022, F-023).
+Counts: fixed 11 (F-003, F-004, F-009, F-013, F-014, F-015, F-017, F-019, F-024, F-025, F-026), fixed in code but not re-tested live 3 (F-001, F-006, F-030: T22.1), partly 6 (F-005, F-007, F-008, F-011, F-020, F-021), still broken 1 (F-002), left or by design 5 (F-012, F-016 text only, F-027, F-028, F-029), not re-tested 4 (F-010, F-018, F-022, F-023).
 
 ## Checks that passed (keep)
 

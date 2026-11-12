@@ -17,22 +17,23 @@ public sealed class DragPreview
     private readonly List<EdgeRoute> _touching;
     private readonly List<string> _topLevel;
     private readonly LayoutShape _shape;
-    private readonly Point _lead, _topLeft;
-    private readonly double _padding;
+    private readonly List<Rect> _movers, _still;
+    private readonly double _columnGap, _rowGap;
 
     internal DragPreview(FlowArrangement frozen, IReadOnlyList<string> movers, LayoutOptions options)
     {
         Frozen = frozen;
         Lines = options.Lines;
         _shape = options.Shape;
-        _padding = options.Padding;
+        _columnGap = options.ColumnGap;
+        _rowGap = options.RowGap;
         var top = new HashSet<string>(movers, StringComparer.Ordinal);
         _frozen = frozen.Boxes.ToDictionary(b => b.Id, b => b.Bounds, StringComparer.Ordinal);
         _moved = frozen.Boxes.Where(b => top.Contains(b.Card ?? b.Id)).ToDictionary(b => b.Id, StringComparer.Ordinal);
-        var leaders = movers.Select(id => _moved.GetValueOrDefault(id)).OfType<NodeBox>().ToList();
-        _lead = leaders.Count == 0 ? default : new Point(leaders[0].Bounds.X, leaders[0].Bounds.Y);
-        _topLeft = leaders.Count == 0 ? default : new Point(leaders.Min(b => b.Bounds.X), leaders.Min(b => b.Bounds.Y));
+        _movers = [.. movers.Select(id => _moved.GetValueOrDefault(id)).OfType<NodeBox>().Select(b => b.Bounds)];
         _topLevel = [.. frozen.Boxes.Where(b => b.Card is null).Select(b => b.Id)];
+        _still = [.. frozen.Boxes.Where(b => b.Card is null && !top.Contains(b.Id)).Select(b => b.Bounds)];
+        StillBounds = _still.Count == 0 ? null : Union(_still);
         _touching = [.. frozen.Edges.Where(e => top.Contains(e.From) || top.Contains(e.To))];
         StaticEdges = [.. frozen.Edges.Where(e => !top.Contains(e.From) && !top.Contains(e.To))];
         Touching = _touching.Select(e => (e.From, e.To)).ToHashSet();
@@ -52,12 +53,21 @@ public sealed class DragPreview
     /// <summary>The lines that follow the drag, as (from, to).</summary>
     public IReadOnlySet<(string From, string To)> Touching { get; }
 
+    /// <summary>The steps and cards that stay put, as one rect (auto-pan runs out with them, F-001); null when all move.</summary>
+    public Rect? StillBounds { get; }
+
     /// <summary>
-    /// The offset the drop commits for the pointer's travel (<see cref="MoveSnap"/>: the lead snaps to the grid,
-    /// nothing above or left of the padding), as <see cref="FlowCanvasViewModel.MoveBy"/> applies it.
+    /// The offset the drop commits for the pointer's travel (<see cref="MoveSnap"/>: the lead snaps to the grid or a
+    /// column, the gaps are kept, above or left of the flow too), as <see cref="FlowCanvasViewModel.MoveBy"/> applies it.
     /// </summary>
     public Point Offset(double dx, double dy) =>
-        _moved.Count == 0 ? default : MoveSnap.Offset(_lead, _topLeft, dx, dy, _padding);
+        _movers.Count == 0 ? default : MoveSnap.Offset(_movers, _still, dx, dy, _columnGap, _rowGap);
+
+    private static Rect Union(List<Rect> rects)
+    {
+        double x = rects.Min(r => r.X), y = rects.Min(r => r.Y);
+        return new Rect(x, y, rects.Max(r => r.Right) - x, rects.Max(r => r.Bottom) - y);
+    }
 
     /// <summary>The moved boxes and the touching lines with the move at <paramref name="offset"/> (already snapped).</summary>
     public DragFrame At(Point offset)
