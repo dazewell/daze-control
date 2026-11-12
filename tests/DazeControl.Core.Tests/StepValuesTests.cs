@@ -361,7 +361,7 @@ public class StepValuesTests
     public void TheCompiledInCatalogMarksOnlyTextSettings()
     {
         foreach (var spec in ProviderCatalog.All.SelectMany(d => d.Params).Where(p => p.TakesValues))
-            Assert.True(StepValues.Takes(spec), spec.Name);
+            Assert.True(StepValues.Takes(spec) || StepValues.TakesItems(spec), spec.Name);
         foreach (var value in ProviderCatalog.All.SelectMany(d => d.Values))
             Assert.Matches("^[a-z][A-Za-z0-9]*$", value.Name);
     }

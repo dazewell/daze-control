@@ -98,10 +98,23 @@ public sealed class HttpRequestProvider(HttpMessageHandler handler, ICredentialS
         }
         using (response)
         {
+            context.SetNumber("status", (int)response.StatusCode);
             if (!response.IsSuccessStatusCode)
                 // Never the server's reason phrase: it is untrusted text that could echo the token into the log.
                 throw new StepFailedException($"{uri.Host} answered {(int)response.StatusCode}{StatusName(response.StatusCode)}.");
+            if (context.Wants("body"))
+                context.SetValue("body", await ReadStartAsync(response, cancellationToken).ConfigureAwait(false));
         }
+    }
+
+    /// <summary>The first 1,001 characters of the answer (one over the value's limit, so the cut shows): never the whole body.</summary>
+    private static async Task<string> ReadStartAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        var buffer = new char[1001];
+        var read = await reader.ReadBlockAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+        return new string(buffer, 0, read);
     }
 
     private static string StatusName(HttpStatusCode code) =>

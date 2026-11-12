@@ -133,7 +133,23 @@ public sealed record ParamSpec(string Name, ParamKind Kind, string Title)
     /// </summary>
     public bool TakesValues { get; init; }
 
+    /// <summary>How filled values are written into this setting (D-129, DESIGN §4.8); only where <see cref="TakesValues"/>.</summary>
+    public FillRule Fill { get; init; }
+
     public int? Min { get; init; }
 
     public int? Max { get; init; }
+}
+
+/// <summary>How a value is written into a setting that takes values (DESIGN §4.8): so a device name stays data, never syntax.</summary>
+public enum FillRule
+{
+    /// <summary>As given (messages, titles).</summary>
+    None,
+
+    /// <summary>Percent-encoded: a web or app address, where a value is one part of the address.</summary>
+    Url,
+
+    /// <summary>One program argument per list item, never split or re-read by a shell; <c>%VAR%</c> in a value stays text.</summary>
+    Argument,
 }

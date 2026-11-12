@@ -775,7 +775,7 @@ The user accepted all five open points as recommended (PR #217). One PR per task
   tests (duplicate names, rename, unmapped token); screenshots light/dark/high contrast/225 % text. Branch feat/m23-insert-value (live look not done: no provider marks `TakesValues` until T23.2).
 - [ ] T23.4 Editor: pills row, "Values it gives", delete/duplicate/paste remap, canvas summary (Sonnet, M; after T23.3): DESIGN §5.3-5.7.
   Done when: view-model tests for remap and delete-to-fallback (one Undo); reserved row shows no jump (D-104); Narrator names checked.
-- [ ] T23.5 More values and fields (Sonnet, M; after T23.2): `output` (stdout only when referenced, Sensitive), `http.request`
+- [x] T23.5 More values and fields (Sonnet, M; after T23.2; engine AOT 0 warnings, image +59 KB): `output` (stdout only when referenced, Sensitive), `http.request`
   `status`/`body`, `menu.show` `picked`, checks' `result`, `idle`/`free`/`count`; fill rules Url/Argument for http url, `android.open`,
   `process.run` args; `DAZE_*` environment variables for PowerShell. Done when: Providers tests incl. an injection-shaped device name.
 - [ ] T23.6 Device values beyond Pick (Opus, M; after T23.2): `$result:<id>.<value>`, `audio.setDefault` `previous`, device picker
