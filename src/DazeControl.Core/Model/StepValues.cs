@@ -289,6 +289,21 @@ public static class StepValues
         var card = flow.Nodes.OfType<GroupNode>().FirstOrDefault(c => c.Members.Contains(producerId));
         var cardIgnores = card?.OnFailure == FailurePolicy.Ignore;
 
+        // The scheduler's joins (D-112): an edge from a branch that may simply not be taken (a fallback that ends NotNeeded,
+        // a unit whose failure a failure edge handles, or one skipped only because of such a branch) is an alternative,
+        // so a unit with several edges can start without it firing. Only the other edges, or a unit's only edge, are sure.
+        var fallbacks = FlowShape.Fallbacks(flow);
+        var withFallback = FlowShape.WithFallback(flow);
+        var excusable = new Dictionary<string, bool>(StringComparer.Ordinal);
+        bool Untakeable(string unit)
+        {
+            if (fallbacks.Contains(unit) || withFallback.Contains(unit))
+                return true;
+            if (excusable.TryGetValue(unit, out var found))
+                return found;
+            excusable[unit] = false;
+            return excusable[unit] = (flow.FindNode(unit)?.After ?? []).Any(e => Untakeable(e.From));
+        }
         var memo = new Dictionary<string, Known>(StringComparer.Ordinal);
         Known At(string unit)
         {
@@ -296,8 +311,12 @@ public static class StepValues
                 return known;
             memo[unit] = Known.Nothing; // a loop (refused elsewhere) proves nothing
             known = Known.Nothing;
-            foreach (var edge in flow.FindNode(unit)?.After ?? [])
-                known = Stronger(known, Via(edge));
+            var edges = flow.FindNode(unit)?.After ?? [];
+            foreach (var edge in edges)
+            {
+                if (edges.Count == 1 || !Untakeable(edge.From))
+                    known = Stronger(known, Via(edge));
+            }
             return memo[unit] = known;
         }
         Known Via(Edge edge)
@@ -327,6 +346,7 @@ public static class StepValues
         return $"{name} may fail or be skipped on the way to this step, so {value.Title} can be empty";
     }
 
+    /// <summary>Both hold (every sure edge fired); Succeeded and Failed of one step can't meet, so either wins.</summary>
     private static Known Stronger(Known a, Known b) => a == Known.Nothing || a == Known.Ran && b != Known.Nothing ? b : a;
 
     // ---- Validation (DESIGN §4.6) ----

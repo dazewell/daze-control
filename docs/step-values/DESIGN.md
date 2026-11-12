@@ -148,7 +148,8 @@ stage 3 (range checked at run time).
   Add what to show when it has no value."). Statically known: the producer has `onFailure: ignore`, an `only`, is a
   fallback unit, or the path reaches the consumer through a `when: failure|always` edge. T23.1 made it exact: the value is sure when a chain of success/failure edges from the producer (its first edge
   a success edge, and no Only if / Run the next steps anyway on it or its card) reaches the consumer, so a fallback producer
-  followed by success edges is fine; `error` is sure only after a failure edge; OnFailure values whenever the producer surely ran.
+  followed by success edges is fine; `error` is sure only after a failure edge; OnFailure values whenever the producer surely ran. In a join (D-112) an edge from a branch that may not be taken
+  (fallback, a unit with a failure edge, or downstream of one) proves nothing unless it is the unit's only edge.
 - Reference in a text setting that doesn't take values: **warning** ("This setting doesn't take values; {bt.device} is
   used as written."). In a script: the same warning naming the environment variable (§4.8).
 - Unknown input / run value: error, as for `$name` today.

@@ -262,6 +262,32 @@ public class StepValuesTests
     }
 
     [Fact]
+    public void AJoinAfterAStepAndItsFallbackMayRunWithoutTheFallback()
+    {
+        // note runs when a succeeds (bt ends NotNeeded) or when a fails and bt runs (D-112): bt's values may be missing.
+        var yaml = Yaml("""
+                  - { id: a, step: wait, with: { duration: 1s } }
+                  - { id: bt, step: bluetooth.connect, after: [{ id: a, when: failure }], with: { device: sony } }
+                  - { id: note, step: notify, after: [a, bt], with: { text: "{bt.device}" } }
+                  - { id: n2, step: notify, after: [bt, a], with: { text: "{bt.device}" } }
+            """);
+        Assert.Equal(["flows.f.nodes.note.with.text", "flows.f.nodes.n2.with.text"],
+            Problems(yaml).Where(p => p.Severity == Severity.Warning).Select(p => p.Path));
+    }
+
+    [Fact]
+    public void AFailureEdgeInAJoinIsNotSure()
+    {
+        // When bt is skipped by its Only if, its failure edge doesn't fire, and the join can still start through w.
+        var yaml = Yaml("""
+                  - { id: bt, step: bluetooth.connect, only: notConnected, with: { device: sony } }
+                  - { id: w, step: wait, with: { duration: 1s } }
+                  - { id: note, step: notify, after: [{ id: bt, when: failure }, w], with: { text: "{bt.error}" } }
+            """);
+        Assert.Contains("has a value only when", Only(yaml, Severity.Warning).Message);
+    }
+
+    [Fact]
     public void LaterSuccessEdgesKeepAFailureEdgesFacts()
     {
         var yaml = Yaml(Bt + """
