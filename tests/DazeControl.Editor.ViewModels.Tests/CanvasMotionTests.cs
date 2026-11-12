@@ -292,6 +292,26 @@ public sealed class CanvasMotionTests : IDisposable
         Assert.Equal(248, scene.ShownBounds("a").Y);
     }
 
+    [Fact]
+    public void AnOriginShiftTheCameraPansBackDoesNotGlide()
+    {
+        var scene = new CanvasScene();
+        scene.Apply(Arrangement(Box("a", 48, 48), Box("b", 400, 48)), motion: On);
+
+        // A library drop left of a: every box moves 300 right (the camera pans back), b also moves down by layout.
+        scene.Apply(Arrangement(Box("n", 48, 48), Box("a", 348, 48), Box("b", 700, 148)), motion: On);
+        scene.ShiftBy(300, 0);
+        Assert.Equal(["b", "n"], scene.Animated.Order());
+        Assert.Equal(new Rect(348, 48, 232, 56), scene.ShownBounds("a")); // shown where it is: no slide
+        Assert.Equal(new Rect(700, 48, 232, 56), scene.ShownBounds("b")); // glides only down
+        Assert.Equal(("a", "b"), Assert.Single(scene.LiveCurves).Key); // a→b follows b; nothing else
+
+        scene.Apply(Arrangement(Box("a", 48, 48)), motion: On);
+        scene.Apply(Arrangement(Box("a", 348, 48)), motion: On);
+        scene.ShiftBy(300, 0);
+        Assert.False(scene.IsMoving);
+    }
+
     // ---- The view model: which re-layouts glide ----
 
     [Fact]

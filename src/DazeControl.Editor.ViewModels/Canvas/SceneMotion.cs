@@ -44,7 +44,7 @@ public sealed partial class CanvasScene
     /// <summary>A box gliding from where it was shown to where it is laid out; <see cref="Now"/> at the last frame.</summary>
     private sealed class Glide(Rect from, Rect to)
     {
-        public Rect From { get; } = from;
+        public Rect From { get; set; } = from;
 
         public Rect To { get; } = to;
 
@@ -94,6 +94,40 @@ public sealed partial class CanvasScene
         }
         Sample(reflow, appear);
         return true;
+    }
+
+    /// <summary>
+    /// The last layout also moved every box by (<paramref name="dx"/>, <paramref name="dy"/>) and the camera pans that
+    /// back in the same tick (a library drop above or left of the flow moves its origin): that uniform shift isn't
+    /// layout motion, so it comes out of every glide; boxes it alone moved stop gliding.
+    /// </summary>
+    public void ShiftBy(double dx, double dy)
+    {
+        if (!IsMoving || (dx == 0 && dy == 0))
+            return;
+        foreach (var (id, glide) in _moving.ToList())
+        {
+            glide.From = glide.From with { X = glide.From.X + dx, Y = glide.From.Y + dy };
+            glide.Now = glide.Now with { X = glide.Now.X + dx, Y = glide.Now.Y + dy };
+            if (glide.From == glide.To)
+                _moving.Remove(id);
+        }
+        foreach (var edge in _edgeGlides.ToList())
+        {
+            var lane = edge.Value + dy;
+            var laneMoves = lane is not null && _edges[_edgeAt[edge.Key]].Route.WrapLaneY != lane;
+            if (laneMoves || _moving.ContainsKey(Owner(edge.Key.From)) || _moving.ContainsKey(Owner(edge.Key.To)))
+                _edgeGlides[edge.Key] = lane;
+            else
+            {
+                _edgeGlides.Remove(edge.Key);
+                _glideCurves.Remove(edge.Key);
+            }
+        }
+        if (!IsMoving)
+            Settle();
+        else if (_start is null)
+            Sample(0, 0);
     }
 
     /// <summary>Ends any glide or fade at once: everything is shown as laid out.</summary>
