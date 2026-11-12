@@ -111,7 +111,7 @@ public class BluetoothProviderTests
     }
 
     [Fact]
-    public async Task TheUsersFlowShape_BoundKeyEqualToItsAudioItemKey_StillConnectsTheBluetoothSide()
+    public async Task ABoundKeyEqualToItsAudioItemKeyStillConnectsTheBluetoothSide()
     {
         // From the failing flow: audio input default "headphones-wh-1000xm4c", BT input default "wh-1000xm4c", pick kind: bound.
         var library = new Library
