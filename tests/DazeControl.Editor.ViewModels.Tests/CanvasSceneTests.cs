@@ -327,6 +327,19 @@ public sealed class CanvasSceneTests : IDisposable
     }
 
     [Fact]
+    public void AHugeOrCorruptBoxIsStillHitWithoutFillingTheGrid()
+    {
+        // Spans every clamped cell both ways (2³² × 2³² cells): must take the list every query reads, not overflow.
+        NodeBox huge = Box("huge", -1e300, -1e300, 2e300, 2e300), small = Box("small", 48, 48), nan = Box("nan", double.NaN, 0);
+        var scene = new CanvasScene();
+        scene.Apply(Arrangement([huge, small, nan], []));
+        Assert.Equal("huge", scene.HitTest(new Point(1e9, -1e9))?.Id);
+        Assert.Equal(ScanHit(scene, new Point(60, 60))?.Id, scene.HitTest(new Point(60, 60))?.Id); // first in order wins the tie
+        Assert.Equal(["huge", "small"], scene.ItemsIn(new Rect(40, 40, 20, 20)).Select(i => i.Id));
+        Assert.Equal(["huge"], scene.ItemsIn(new Rect(-1e299, 1e200, 1e250, 1e250)).Select(i => i.Id));
+    }
+
+    [Fact]
     public void TheVerticalShapesPortTopAndBottom()
     {
         var a = Box("a", 48, 48);

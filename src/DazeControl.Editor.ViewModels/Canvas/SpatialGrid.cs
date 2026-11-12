@@ -43,7 +43,7 @@ internal sealed class SpatialGrid
             return;
         }
         var (x0, y0, x1, y1) = Cells(r);
-        if ((x1 - x0 + 1) * (y1 - y0 + 1) > MaxCells)
+        if (MoreThan(x1 - x0 + 1, y1 - y0 + 1, MaxCells))
         {
             _everywhere.Add(index);
             return;
@@ -77,7 +77,7 @@ internal sealed class SpatialGrid
         if (!double.IsFinite(area.X) || !double.IsFinite(area.Y) || !double.IsFinite(area.Right) || !double.IsFinite(area.Bottom))
             return;
         var (x0, y0, x1, y1) = Cells(area);
-        if ((x1 - x0 + 1) * (y1 - y0 + 1) > _cells.Count)
+        if (MoreThan(x1 - x0 + 1, y1 - y0 + 1, _cells.Count))
         {
             // A query wider than the grid: walk the cells that exist instead of the empty ones.
             foreach (var (key, list) in _cells)
@@ -99,6 +99,9 @@ internal sealed class SpatialGrid
             }
         }
     }
+
+    /// <summary>width × height &gt; limit without the multiplication (two clamped spans can reach 2³², their product overflows).</summary>
+    private static bool MoreThan(long width, long height, long limit) => width > limit || height > limit || width > limit / Math.Max(height, 1);
 
     private void Take(int index, List<int> into)
     {

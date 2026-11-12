@@ -178,7 +178,8 @@ public sealed partial class FlowCanvas : UserControl
         }
     }
 
-    private void OnNodesChanged(object? sender, NotifyCollectionChangedEventArgs e) => SyncNodes();
+    // Mid-Sync: only add or drop views here; the Arrangement raised at its end refreshes what its diff names.
+    private void OnNodesChanged(object? sender, NotifyCollectionChangedEventArgs e) => SyncNodes(SceneDiff.Empty);
 
     private void UpdateExtent()
     {

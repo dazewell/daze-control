@@ -91,9 +91,10 @@ public sealed partial class FlowCanvas
         _liveChips.Clear();
     }
 
-    /// <summary>Drops every kept chip (a new view model or theme): the next draw makes them again.</summary>
+    /// <summary>Drops every kept chip and the live set (a new view model or theme): the next draw makes them again.</summary>
     private void ForgetChips()
     {
+        ClearLiveEdges();
         ChipLayer.Children.Clear();
         _chips.Clear();
         _drawnEdgeVersion = -1;
