@@ -1529,7 +1529,7 @@ Status: accepted (user, 2026-11-11: "binding audio and BT devices - so that they
 - Revisit if: users want more than two sides (a dock = display + audio + USB). A bound flow input kind: D-125.
 
 ## D-117 · 2026-11-11 · Pick device step: its result fills later steps' device settings as `$result:<step id>`
-Status: accepted (user, 2026-11-11: "selecting items from the library that can be then used in other steps"); amended by D-129 (step values)
+Status: accepted (user, 2026-11-11: "selecting items from the library that can be then used in other steps"); amended by D-129 (step values); Pick-only `$result:` superseded by D-130
 - Decision: a `prompt.pick` step ("Pick device", Questions group) offers the Library's items of one `kind`
   (audio/bluetooth/display/android) on the prompt window (D-107: never takes focus, timeout, `onTimeout: stop|use-default`).
   Any `LibraryRef` setting, and a value `flow.run` passes as `inputs`, may hold `$result:<id>`; the runner substitutes the
@@ -1764,3 +1764,18 @@ Status: accepted (user, 2026-11-12: all five PR #217 questions as recommended; d
   Why not `${x}` / `%x%` / `{{x}}`: PowerShell, Windows environment variables, noise; `{x.y}` with a strict grammar
   leaves other braces as text.
 - Revisit if: a value must survive a restart (flags, D-029), or format specifiers are asked for.
+
+## D-130 · 2026-11-12 · Device values beyond Pick: `$result:<id>.<value>`; `audio.setDefault` gives `previous`
+Status: accepted (M23 T23.6, as D-129 / DESIGN §4.3 planned). Supersedes D-117's rule that `$result:` names only a Pick step
+- Decision: a device setting (or a value `flow.run` passes) may hold `$result:<id>.<value>` for any Device value of a step
+  that always finishes first and whose Library kind fits (D-116 `Fits`); `$result:<id>` alone = its `device` (a Pick's
+  keeps D-117's sentences). Filled in `StepValues.Fill` before the lock, so the lock is the filled device's (two keys of one
+  Bluetooth device share it). Missing at run time = the step fails (""Set default device" gave no Previous default."),
+  never a fallback device; the validator warns ahead when the producer may not give it (non-Pick only, D-117 flows unchanged).
+  `audio.setDefault` gives `previous`: the default it replaced (first role it sets), mapped back to the Library audio item
+  whose match the endpoint name contains (same direction, longest match), read only when a later step uses it. The device
+  picker's group "From earlier steps" (was "Picked earlier in this flow") lists every such value. Dry run: "Would use …".
+- Why the Library key and not the endpoint id: device settings, locks and pickers are Library-keyed; a raw endpoint would
+  need a second identity everywhere. A previous default outside the Library gives no value (the step says so) rather than
+  guessing. Why not a separate "remember default" step: the value is exactly what the step replaced, at that moment.
+- Revisit if: users want to put back a device that isn't in the Library (add it silently, as pickers do from Windows).

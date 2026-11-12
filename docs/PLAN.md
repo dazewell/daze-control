@@ -778,7 +778,8 @@ The user accepted all five open points as recommended (PR #217). One PR per task
 - [ ] T23.5 More values and fields (Sonnet, M; after T23.2): `output` (stdout only when referenced, Sensitive), `http.request`
   `status`/`body`, `menu.show` `picked`, checks' `result`, `idle`/`free`/`count`; fill rules Url/Argument for http url, `android.open`,
   `process.run` args; `DAZE_*` environment variables for PowerShell. Done when: Providers tests incl. an injection-shaped device name.
-- [ ] T23.6 Device values beyond Pick (Opus, M; after T23.2): `$result:<id>.<value>`, `audio.setDefault` `previous`, device picker
-  group "From earlier steps" replaces "Picked earlier in this flow"; locks use the filled key. Supersedes D-117's Pick-only rule (new D-xxx).
+- [x] T23.6 Device values beyond Pick (Opus, M; after T23.2): `$result:<id>.<value>`, `audio.setDefault` `previous`, device picker
+  group "From earlier steps" replaces "Picked earlier in this flow"; locks use the filled key. Supersedes D-117's Pick-only rule (D-130).
+  Branch feat/m23-device-values (fakes only: no live default-device switch-back run).
 - [ ] T23.7 Text inputs, flow outputs, Make text (Opus, L; after T23.5; DESIGN §9, accepted 2026-11-12).
 - [ ] T23.8 Gate (Sonnet, S): ARCHITECTURE/FEATURES/UX take what was built, DESIGN cut (D-053), release-notes line.
