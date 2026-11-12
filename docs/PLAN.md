@@ -38,7 +38,7 @@ Model: Opus medium; T21.6 and T21.7 Opus high.
   "waits for" text worked out before `Update`, so `AutomationName` is set once). Files: `Editor.ViewModels/Canvas/
   CanvasNodeViewModel.cs`, `FlowCanvasViewModel.cs` (Sync). Done when: a test that counts node `PropertyChanged` on a
   `MoveBy` sees only the moved node's X/Y (was 18 events on the 7-step fixture, 319 on 80 steps). (fix/canvas-sync-churn)
-- [ ] T21.2 Split `Editor/Canvas/FlowCanvas.xaml.cs` (1276 lines) into partial files, no behaviour change:
+- [x] T21.2 Split `Editor/Canvas/FlowCanvas.xaml.cs` (1276 lines) into partial files, no behaviour change:
   `FlowCanvas.Camera.cs` (Fit, zoom, wheel, ApplyView, OnViewChanged), `.Pointer.cs` (gestures, drag, marquee, connect,
   ports), `.Edges.cs` (DrawEdges, chips, edge controls, hover), `.Palette.cs` (quick add, palette drag/drop), `.Menus.cs`
   (context menus, tips), `.Keys.cs` (keyboard, focus ring, announce); the constructor and VM sync stay in the main file.
