@@ -74,8 +74,13 @@ public sealed class DragPreview
     }
 
     /// <summary>The curve of a line that doesn't move (from the frozen arrangement); null when it touches the move.</summary>
-    public EdgeCurve? StaticCurve(string from, string to) =>
-        StaticEdges.FirstOrDefault(e => e.From == from && e.To == to) is { } route ? EdgeCurve.For(route, Lines) : null;
+    public EdgeCurve? StaticCurve(string from, string to)
+    {
+        _staticCurves ??= StaticEdges.DistinctBy(e => (e.From, e.To)).ToDictionary(e => (e.From, e.To), e => EdgeCurve.For(e, Lines));
+        return _staticCurves.TryGetValue((from, to), out var curve) ? curve : null;
+    }
+
+    private Dictionary<(string, string), EdgeCurve>? _staticCurves;
 
     private Rect BoundsOf(string id, Dictionary<string, Rect> rects) =>
         rects.TryGetValue(id, out var r) ? r : _frozen[id];

@@ -27,8 +27,18 @@
                     <Path x:Name="NormalArrows" Fill="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
                     <Path x:Name="IfFailsArrows" Fill="{ThemeResource SystemFillColorCriticalBrush}" />
                     <Path x:Name="SelectedArrows" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+                    <!-- The lines touching dragged steps, rebuilt every frame of a drag; the set above stays put (D-119 b). -->
+                    <Path x:Name="LiveNormalEdges" StrokeThickness="1.5" Stroke="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
+                    <Path x:Name="LiveMayFailEdges" StrokeThickness="1.5" StrokeDashArray="4 4" Stroke="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
+                    <Path x:Name="LiveAlwaysEdges" StrokeThickness="1.5" StrokeDashArray="4 2" Stroke="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
+                    <Path x:Name="LiveIfFailsEdges" StrokeThickness="1.5" StrokeDashArray="4 2" Stroke="{ThemeResource SystemFillColorCriticalBrush}" />
+                    <Path x:Name="LiveSelectedEdges" StrokeThickness="2" Stroke="{ThemeResource AccentFillColorDefaultBrush}" />
+                    <Path x:Name="LiveNormalArrows" Fill="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
+                    <Path x:Name="LiveIfFailsArrows" Fill="{ThemeResource SystemFillColorCriticalBrush}" />
+                    <Path x:Name="LiveSelectedArrows" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
                 </Canvas>
                 <Canvas x:Name="ChipLayer" IsHitTestVisible="False" />
+                <Canvas x:Name="LiveChipLayer" IsHitTestVisible="False" />
                 <!-- No RepositionThemeTransition: it animated a dropped step from where it was before the drop, so the
                      drop visibly jumped (D-120); layout moves glide again with their lines in T21.8. -->
                 <Canvas x:Name="NodeLayer" />

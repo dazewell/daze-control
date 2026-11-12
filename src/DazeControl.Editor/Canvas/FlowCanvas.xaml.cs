@@ -50,6 +50,12 @@ public sealed partial class FlowCanvas : UserControl
     private RightDragPan? _rightPan;
     private NodeView? _dragged;
     private List<NodeView> _dragViews = []; // moved by the drag preview
+    private DragPreview? _preview; // a free move's live preview (D-119 b); null for a member reorder
+    private DragFrame? _frame; // the preview at the last drawn offset
+    private readonly Dictionary<(string From, string To), DazeControl.Core.Layout.EdgeCurve> _liveCurves = [];
+    private readonly Dictionary<(string, string), Border> _liveChips = [];
+    private Windows.Foundation.Point? _pendingMove; // the latest pointer position, drawn on the next frame
+    private bool _onFrames; // CompositionTarget.Rendering subscribed (for a gesture only: idle = zero)
     private CanvasNodeViewModel? _connectFrom;
     private CanvasEdgeViewModel? _controlsEdge;
     private const double EdgeControlsWidth = 56;
