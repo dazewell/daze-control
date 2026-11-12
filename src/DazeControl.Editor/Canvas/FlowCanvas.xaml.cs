@@ -49,6 +49,7 @@ public sealed partial class FlowCanvas : UserControl
     private double _panStartX, _panStartY;
     private RightDragPan? _rightPan;
     private NodeView? _dragged;
+    private List<NodeView> _dragViews = []; // moved by the drag preview
     private CanvasNodeViewModel? _connectFrom;
     private CanvasEdgeViewModel? _controlsEdge;
     private const double EdgeControlsWidth = 56;

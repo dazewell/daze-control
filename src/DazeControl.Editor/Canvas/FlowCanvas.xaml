@@ -29,14 +29,9 @@
                     <Path x:Name="SelectedArrows" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
                 </Canvas>
                 <Canvas x:Name="ChipLayer" IsHitTestVisible="False" />
-                <Canvas x:Name="NodeLayer">
-                    <Canvas.ChildrenTransitions>
-                        <TransitionCollection>
-                            <!-- Nodes glide to their slot after an edit (UX §5.3 motion); off with Animation effects. -->
-                            <RepositionThemeTransition IsStaggeringEnabled="False" />
-                        </TransitionCollection>
-                    </Canvas.ChildrenTransitions>
-                </Canvas>
+                <!-- No RepositionThemeTransition: it animated a dropped step from where it was before the drop, so the
+                     drop visibly jumped (D-120); layout moves glide again with their lines in T21.8. -->
+                <Canvas x:Name="NodeLayer" />
                 <!-- "+"/"×" at the hovered or selected edge's midpoint (UX §5.3). -->
                 <Canvas>
                     <StackPanel x:Name="EdgeControls" Visibility="Collapsed" Orientation="Horizontal" Spacing="8">

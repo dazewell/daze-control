@@ -74,6 +74,50 @@ public sealed class CanvasPlacementTests : IDisposable
         Assert.Equal(["vol.X", "vol.Y"], raised.Order());
     }
 
+    [Theory]
+    [InlineData(301, 197)]
+    [InlineData(3, -3)]
+    [InlineData(-5000, 40)]
+    [InlineData(0, 0)]
+    public void ThePreviewOffsetIsWhatTheDropCommits(double dx, double dy)
+    {
+        string[] ids = ["vol", "out", "w1"]; // a member counts as its card
+        var before = ids.Select(At).ToList();
+        var lead = At("vol");
+
+        var preview = _canvas.SnappedOffset(ids, dx, dy);
+        _canvas.MoveBy(ids, dx, dy);
+
+        // D-120: the lead lands on the grid exactly where the preview drew it, the rest keep their distance.
+        Assert.Equal(FlowPlacement.Snap(lead.X + preview.X), lead.X + preview.X);
+        foreach (var (id, was) in ids.Zip(before))
+            Assert.Equal(new Point(was.X + preview.X, was.Y + preview.Y), At(id));
+    }
+
+    [Fact]
+    public void ThePreviewOffsetOfNothingIsZero() =>
+        Assert.Equal(default, _canvas.SnappedOffset(["nope"], 40, 40));
+
+    [Theory]
+    [InlineData(96, 96, 13, 6, 16, 8)] // the lead snaps: 109 → 112, 102 → 104 (8-DIP grid)
+    [InlineData(101, 99, 0, 0, 3, -3)] // a lead off the grid snaps even when the pointer hasn't moved
+    [InlineData(100, 100, -500, -500, -76, -76)] // the top left stops at the padding (24)
+    public void MoveSnapSnapsTheLeadAndClampsAtThePadding(double x, double y, double dx, double dy, double wantX, double wantY)
+    {
+        var offset = MoveSnap.Offset(new Point(x, y), new Point(x, y), dx, dy, padding: 24);
+
+        Assert.Equal(new Point(wantX, wantY), offset);
+    }
+
+    [Fact]
+    public void MoveSnapClampsByTheTopLeftOfTheWholeGroup()
+    {
+        // The lead is far from the edge, but another box is already near it: the group stops when that box hits it.
+        var offset = MoveSnap.Offset(new Point(400, 400), new Point(40, 32), -1000, -1000, padding: 24);
+
+        Assert.Equal(new Point(-16, -8), offset);
+    }
+
     [Fact]
     public void TheSelectionMovesTogether()
     {
