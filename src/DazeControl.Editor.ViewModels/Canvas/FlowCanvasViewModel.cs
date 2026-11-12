@@ -1386,7 +1386,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     private List<OutlineItem> BuildOutline()
     {
         OutlineItem Item(CanvasNodeViewModel n, IReadOnlyList<OutlineItem> children) =>
-            new(n.Id, n.Title, n.Summary, n.Glyph, n.AutomationName, children);
+            new(n.Id, n.Title, n.Summary, n.Glyph, n.AutomationName, children, n.OutlineDetail);
         return [.. Nodes.Where(n => n.Kind != CanvasNodeKind.Member).OrderBy(n => n.Column).ThenBy(n => n.Row)
             .Select(n => Item(n, [.. Nodes.Where(m => m.CardId == n.Id).OrderBy(m => m.Row).Select(m => Item(m, []))]))];
     }

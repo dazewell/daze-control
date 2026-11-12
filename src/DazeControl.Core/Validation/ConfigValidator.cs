@@ -637,7 +637,7 @@ public static partial class ConfigValidator
                     Error($"{path}.with.{name}", $"{descriptor.Title} has no setting \"{name}\" ({Names(descriptor)}).");
             }
             foreach (var spec in descriptor.Params.Where(p => p.Required && !step.With.ContainsKey(p.Name)))
-                Error(path + ".with", $"{spec.Title} is missing ({spec.Name}: …).");
+                Error(path + ".with", $"{spec.Title} is missing.");
         }
 
         /// <summary>This flow's <c>$name</c> inside a list or map: only device settings take inputs (they aren't filled in there).</summary>

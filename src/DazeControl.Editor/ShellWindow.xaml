@@ -1005,10 +1005,13 @@
                                     <TreeView.ItemTemplate>
                                         <DataTemplate x:DataType="vmc:OutlineItem">
                                             <TreeViewItem ItemsSource="{x:Bind Children}" IsExpanded="True" AutomationProperties.Name="{x:Bind AutomationName}">
-                                                <StackPanel Orientation="Horizontal" Spacing="12" Padding="0,6">
-                                                    <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" />
-                                                    <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                                                    <TextBlock Text="{x:Bind Summary}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                <StackPanel Padding="0,6">
+                                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                                        <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" />
+                                                        <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                        <TextBlock Text="{x:Bind Summary}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="{x:Bind Detail}" Margin="28,2,0,0" Style="{StaticResource SettingsCardDescription}" />
                                                 </StackPanel>
                                             </TreeViewItem>
                                         </DataTemplate>
