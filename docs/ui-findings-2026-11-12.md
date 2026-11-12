@@ -137,7 +137,7 @@ Build = main `68c6df4` (batches 2-8 merged, PRs 201-207) plus the F-026 fix (PR 
 | F-030 | fixed in code (T22.1, D-126), not re-tested live | A move goes above/left of the flow (origin shift, as a library drop); the lead snaps to a column within 32 DIP and keeps 64/16 gaps, preview == commit |
 | F-031 | baseline recorded | editor 235 MB just started, 331-342 MB with the 95-step flow open; growth in F-036 |
 
-Counts: fixed 11 (F-003, F-004, F-009, F-013, F-014, F-015, F-017, F-019, F-024, F-025, F-026), partly 6 (F-005, F-007, F-008, F-011, F-020, F-021), still broken 2 (F-002, F-006), left or by design 6 (F-001, F-012, F-016 text only, F-027, F-028, F-029, F-030), not re-tested 4 (F-010, F-018, F-022, F-023).
+Counts: fixed 11 (F-003, F-004, F-009, F-013, F-014, F-015, F-017, F-019, F-024, F-025, F-026), fixed in code but not re-tested live 3 (F-001, F-006, F-030: T22.1), partly 6 (F-005, F-007, F-008, F-011, F-020, F-021), still broken 1 (F-002), left or by design 5 (F-012, F-016 text only, F-027, F-028, F-029), not re-tested 4 (F-010, F-018, F-022, F-023).
 
 ## Checks that passed (keep)
 

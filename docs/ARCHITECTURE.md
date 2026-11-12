@@ -376,7 +376,7 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   animation (UX §5.3 motion's 200 ms reflow isn't built anywhere yet). The VM owns selection, roving focus, reorder (`MoveToRow` rewrites `nodes`/`group` order), fit
   and semantic zoom; every edit is `Edit(flow => …)`. The WinUI `Canvas/FlowCanvas` only draws (code-built pills,
   edges batched by style, D-037) and maps pointer/keys to VM calls (partials: main = constructor + VM sync, `.Camera`, `.Pointer`, `.Edges`,
-  `.Palette`, `.Menus`, `.Keys`); zoom 50–200 % by a camera transform (below).
+  `.Palette`, `.Menus`, `.Keys`); zoom 10–200 % (D-126) by a camera transform (below).
   Camera (D-119 e, T21.7): no `ScrollViewer`. `Host` (the world, laid out once at the flow's extent) sits in a clipped
   `Viewport` canvas under one `CompositeTransform`; pure `Canvas/Camera` (tested: screen↔world, zoom at a point, fit
   centred, reveal rect, clamp that keeps 48 DIP of the steps on screen, D-074) gives it, and `FlowCanvas.Camera.cs`'s
