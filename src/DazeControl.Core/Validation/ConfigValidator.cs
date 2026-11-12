@@ -312,10 +312,10 @@ public static partial class ConfigValidator
                 var fallback = Text("default");
                 if (PickResults.KindOf(step) is { } kind)
                 {
-                    // An audio or Bluetooth pick also offers bound devices (D-116).
-                    if (!string.IsNullOrEmpty(fallback) && !library.Contains(kind, fallback)
-                        && !(kind is LibraryKind.Audio or LibraryKind.Bluetooth && library.Contains(LibraryKind.Bound, fallback)))
-                        Bad("default", Library.Missing(kind, fallback));
+                    // A key, or (older flows) a name that picks out one item; an audio or Bluetooth pick also offers bound devices (D-116, D-128).
+                    // Only a warning: the pick still works, a missing default just ends the wait with "No answer" (D-021).
+                    if (!string.IsNullOrEmpty(fallback) && PickResults.DefaultKey(library, kind, fallback) is null)
+                        problems.Add(new(Severity.Warning, $"{path}.default", Library.Missing(kind, fallback), flow.Id));
                 }
                 if (Text("onTimeout") == Prompts.UseDefault && string.IsNullOrEmpty(fallback))
                     Bad("default", "Give the default to use when nobody answers.");

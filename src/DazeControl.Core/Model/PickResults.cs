@@ -142,6 +142,30 @@ public static class PickResults
             || v is MapParam m && m.Entries.Values.Any(e => StepIn(e) == pickId)));
     }
 
+    /// <summary>
+    /// The Library key a pick's <c>default</c> stands for (D-128): the text when it is a key of that kind (a bound device
+    /// counts for audio and Bluetooth, D-116), else the one item whose name matches (older flows typed a name by hand); null
+    /// when nothing, or more than one item, matches.
+    /// </summary>
+    public static string? DefaultKey(Library library, LibraryKind kind, string? text)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+        if (text?.Trim() is not { Length: > 0 } wanted)
+            return null;
+        if (library.Contains(kind, wanted) || kind is LibraryKind.Audio or LibraryKind.Bluetooth && library.Contains(LibraryKind.Bound, wanted))
+            return wanted;
+        IEnumerable<(string Key, string Name)> items = kind switch
+        {
+            LibraryKind.Bluetooth => library.Bluetooth.Select(d => (d.Key, d.Name ?? d.Key)),
+            LibraryKind.Bound => library.Bound.Select(d => (d.Key, d.Name ?? d.Key)),
+            _ => [],
+        };
+        if (kind is LibraryKind.Audio or LibraryKind.Bluetooth)
+            items = items.Concat(library.Bound.Where(b => library.Contains(kind, b.Key)).Select(b => (b.Key, b.Name ?? b.Key)));
+        var found = items.Where(i => string.Equals(i.Name, wanted, StringComparison.OrdinalIgnoreCase)).Select(i => i.Key).Distinct().ToList();
+        return found.Count == 1 ? found[0] : null;
+    }
+
     /// <summary>The step's name on the canvas, else "Pick device".</summary>
     public static string NameOf(StepNode pick) =>
         pick.Name is { Length: > 0 } name ? name : ProviderCatalog.Find(pick.Step)?.Title ?? pick.Id;

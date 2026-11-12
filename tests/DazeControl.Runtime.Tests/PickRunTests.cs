@@ -76,6 +76,29 @@ public sealed class PickRunTests : IDisposable
         Assert.Equal(FlowOutcome.Succeeded, result.Outcome);
     }
 
+    [Theory]
+    [InlineData("bt1")] // the key
+    [InlineData("Technics")] // a name typed by hand in an older flow (D-128)
+    public async Task NoAnswerUsesTheDefaultByKeyOrByLegacyName(string fallback)
+    {
+        _presenter.Script = _ => new(null, MenuCloseReason.TimedOut);
+        var loaded = Load($$"""
+            library:
+              bluetooth:
+                bt1: { address: "B8:20:8E:ED:48:FC", name: Technics }
+                bt2: { address: "B8:20:8E:ED:48:FD", name: Sony }
+            flows:
+              f:
+                nodes:
+                  - { id: pick, step: prompt.pick, with: { kind: bluetooth, onTimeout: use-default, default: {{fallback}} } }
+            """);
+        var result = await Run(loaded);
+
+        Assert.Equal(FlowOutcome.Succeeded, result.Outcome);
+        Assert.Equal("Picked Technics", Node(result, "pick").Summary);
+        Assert.Equal("bt1", _presenter.Shown[0].LastPickedFlowId);
+    }
+
     [Fact]
     public async Task NoAnswerStopsTheRunQuietlyByDefault()
     {

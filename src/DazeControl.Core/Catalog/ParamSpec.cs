@@ -109,6 +109,12 @@ public sealed record ParamSpec(string Name, ParamKind Kind, string Title)
     /// <summary>For <see cref="ParamKind.LibraryRef"/>.</summary>
     public LibraryKind? Library { get; init; }
 
+    /// <summary>
+    /// A <see cref="ParamKind.Text"/> that holds a Library key of the kind another setting of the step chooses (<c>prompt.pick</c>'s
+    /// <c>default</c>, D-128): the inspector shows a picker of that kind's items. Text so a hand-typed name still loads.
+    /// </summary>
+    public string? LibraryFrom { get; init; }
+
     /// <summary>Where suggested values come from; the inspector offers them (D-050).</summary>
     public ParamSuggest? Suggest { get; init; }
 

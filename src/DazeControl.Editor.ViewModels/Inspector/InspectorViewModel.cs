@@ -446,6 +446,8 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             step.With.TryGetValue(field.Name, out var value);
             if (field.IsDevice && field.Spec.Library is { } kind)
                 field.SetDevices(Options(field, kind, (value as ScalarParam)?.Text), (value as ScalarParam)?.Text);
+            else if (field.IsKindDevice)
+                SetKindDevices(field, step, (value as ScalarParam)?.Text);
             var errors = _session.Problems.Where(p => p.Severity == Severity.Error).ToList();
             var problem = errors.FirstOrDefault(p => p.Path == path + field.Name)?.Message
                 // A missing required setting is reported on "with" as "Device is missing." (UX §5.7 #9).
@@ -739,6 +741,23 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         LibraryDevices.Options(kind, _session.Current.Library, _live.GetValueOrDefault(kind), current, field.Spec.Required,
             canCapture: EngineRunning && CanEdit, Flow?.Inputs, picks: PicksBefore());
 
+    /// <summary>
+    /// Pick's Default (D-128): the Library items of the step's kind, stored as the key. A name typed by hand in an older flow
+    /// shows as its item when exactly one matches; it is rewritten only when the person picks something.
+    /// </summary>
+    private void SetKindDevices(ParamFieldViewModel field, StepNode step, string? current)
+    {
+        var library = _session.Current.Library;
+        var kind = PickResults.KindOf(step);
+        field.ShownKey = kind is { } k ? text => PickResults.DefaultKey(library, k, text) : null;
+        List<DeviceOption> rows = [new(DeviceSource.None, null, "No default", "", LibraryDevices.Glyph(kind ?? LibraryKind.Audio))];
+        if (kind is { } known)
+            rows.AddRange(LibraryDevices.Options(known, library, null, field.ShownKey?.Invoke(current) ?? current, required: true, canCapture: false));
+        else if (!string.IsNullOrEmpty(current))
+            rows.Add(new(DeviceSource.Missing, current, current, LibraryDevices.NotFound, LibraryDevices.Glyph(LibraryKind.Audio)));
+        field.SetDevices(rows, current);
+    }
+
     /// <summary>The Pick steps that finish before the selected step (D-117): their results can fill its device settings.</summary>
     private IReadOnlyList<StepNode> PicksBefore() =>
         Mode != InspectorMode.Many && Flow is { } flow && Node is StepNode step ? PickResults.Before(flow, step.Id) : [];
@@ -828,8 +847,17 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                 ? new(s.With.Where(e => e.Key != field.Name))
                 : new([.. s.With, new KeyValuePair<string, ParamValue>(field.Name, value)]),
         };
+        if (s.Step == ProviderCatalog.PromptPickId && field.Name == "kind")
+            written = DropStaleDefault(written);
         return field.IsFlowRef && s.Step == ProviderCatalog.RunFlowId ? KeepPassedInputs(written, s, _session.Current) : written;
     });
+
+    /// <summary>Changing a Pick's kind clears a default that isn't an item of the new kind (D-128); one that still fits stays.</summary>
+    private StepNode DropStaleDefault(StepNode pick) =>
+        pick.With.TryGetValue("default", out var value) && value is ScalarParam { Text.Length: > 0 } text
+        && (PickResults.KindOf(pick) is not { } kind || PickResults.DefaultKey(_session.Current.Library, kind, text.Text) is null)
+            ? pick with { With = new(pick.With.Where(e => e.Key != "default")) }
+            : pick;
 
     /// <summary>A device from Windows joins the Library under a new key; a capture becomes a new layout.</summary>
     private void OnDevicePicked(ParamFieldViewModel field, DeviceOption option)

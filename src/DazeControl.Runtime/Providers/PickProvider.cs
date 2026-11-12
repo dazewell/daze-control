@@ -24,7 +24,7 @@ public sealed class PickProvider(IMenuPresenter presenter) : IStepProvider
         var items = InputPrompts.ItemsOf(context.Library, kind);
         if (items.Count == 0)
             throw new StepFailedException($"Your Library has no {Library.KindName(kind)} to pick.");
-        var fallback = Text(node, "default") is { Length: > 0 } d && items.Any(i => i.FlowId == d) ? d : null;
+        var fallback = PickResults.DefaultKey(context.Library, kind, Text(node, "default")); // a key, or a hand-typed name (D-128)
         if (items.Count == 1)
         {
             Picked(context, items[0]);
@@ -59,7 +59,8 @@ public sealed class PickProvider(IMenuPresenter presenter) : IStepProvider
         var items = InputPrompts.ItemsOf(context.Library, kind);
         if (items.Count == 0)
             throw new StepFailedException($"Your Library has no {Library.KindName(kind)} to pick.");
-        var item = items.FirstOrDefault(i => i.FlowId == Text(context.Node, "default")) ?? items[0];
+        var fallback = PickResults.DefaultKey(context.Library, kind, Text(context.Node, "default"));
+        var item = items.FirstOrDefault(i => i.FlowId == fallback) ?? items[0];
         context.SetResult(item.FlowId);
         var question = Text(context.Node, "question") is { Length: > 0 } q ? q : QuestionFor(kind);
         return $"Would ask \"{question}\", assuming {item.Name}";

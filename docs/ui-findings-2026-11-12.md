@@ -133,7 +133,7 @@ Build = main `68c6df4` (batches 2-8 merged, PRs 201-207) plus the F-026 fix (PR 
 | F-026 | fixed (PR 208) | switching `-Sample showcase` → `big` left exactly one editor |
 | F-027 | not fixable in samples | the notice is a tray balloon whose sound is the OS default: F-037 |
 | F-028 | by design | the highlighted answer is the step's `default` ("No" with `default: no`); Up + Enter picked the other answer without stealing focus |
-| F-029 | not fixed (skipped) | design pass needed |
+| F-029 | fixed in code (T22.6, D-128), not re-tested live | Default is a Library picker filtered by the Pick kind and stores the key; a legacy name shows as its item until changed; no match = warning |
 | F-030 | fixed in code (T22.1, D-126), not re-tested live | A move goes above/left of the flow (origin shift, as a library drop); the lead snaps to a column within 32 DIP and keeps 64/16 gaps, preview == commit |
 | F-031 | baseline recorded | editor 235 MB just started, 331-342 MB with the 95-step flow open; growth in F-036 |
 

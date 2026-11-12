@@ -457,7 +457,7 @@ public static class ProviderCatalog
             },
             new("default", ParamKind.Text, "Default")
             {
-                Help = "The Library name to use when nobody answers, and the one shown first.",
+                LibraryFrom = "kind", Help = "The Library item to use when nobody answers, and the one shown first.",
             },
         ]),
     ];
