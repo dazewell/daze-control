@@ -168,7 +168,8 @@ public static class LibraryDevices
         var options = new List<DeviceOption>();
         if (!required)
             options.Add(new(DeviceSource.None, null, "Current default device", "", glyph));
-        var own = (inputs ?? []).Where(i => i.Value.Kind == kind).ToList();
+        // A bound input fits Bluetooth and audio settings too (D-116, D-125).
+        var own = (inputs ?? []).Where(i => LibraryEdits.Refers(i.Value.Kind, kind)).ToList();
         if (own.Count > 0)
         {
             options.Add(Header(inputsGroup));
@@ -212,7 +213,8 @@ public static class LibraryDevices
             options.Add(new(DeviceSource.Missing, current, current,
                 PickResults.StepIn(current) is not null ? NotAnEarlierPick : current.StartsWith('$') ? NotAnInput : NotFound, glyph));
         }
-        if (live is not null && kind != LibraryKind.Display)
+        // A bound device is made in the Library from two items, never added from Windows (D-116).
+        if (live is not null && kind is not (LibraryKind.Display or LibraryKind.Bound))
         {
             foreach (var device in live)
             {

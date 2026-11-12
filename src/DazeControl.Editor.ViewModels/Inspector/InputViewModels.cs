@@ -74,9 +74,9 @@ public abstract partial class DevicePickerViewModel : ObservableObject
 public sealed partial class FlowInputViewModel : DevicePickerViewModel
 {
     /// <summary>The kind ComboBox's rows, in <see cref="Kinds"/> order.</summary>
-    public static IReadOnlyList<string> KindNames { get; } = ["Audio device", "Bluetooth device", "Android device", "Screen layout"];
+    public static IReadOnlyList<string> KindNames { get; } = ["Audio device", "Bluetooth device", "Bound device", "Android device", "Screen layout"];
 
-    internal static readonly LibraryKind[] Kinds = [LibraryKind.Audio, LibraryKind.Bluetooth, LibraryKind.Android, LibraryKind.Display];
+    internal static readonly LibraryKind[] Kinds = [LibraryKind.Audio, LibraryKind.Bluetooth, LibraryKind.Bound, LibraryKind.Android, LibraryKind.Display];
 
     private readonly InspectorViewModel _owner;
 
