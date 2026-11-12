@@ -21,6 +21,14 @@ public sealed partial class InspectorViewModel
 
     public ObservableCollection<FlowInputViewModel> Inputs { get; } = [];
 
+    /// <summary>"Add an input" made a row (its key): the pane scrolls it into view and focuses its name box (F-009).</summary>
+    public event Action<string>? InputAdded;
+
+    /// <summary>"Bind devices in Library › Bound devices": the shell shows the Library page.</summary>
+    public event Action? BoundDevicesRequested;
+
+    internal void RequestBoundDevices() => BoundDevicesRequested?.Invoke();
+
     [ObservableProperty]
     public partial bool HasInputs { get; private set; }
 
@@ -63,6 +71,7 @@ public sealed partial class InspectorViewModel
         {
             var input = flow.Inputs[row.Name];
             row.Load(input);
+            row.SetNoBoundDevices(input.Kind == LibraryKind.Bound && !LibraryDevices.Items(library, LibraryKind.Bound).Any());
             row.SetDevices(LibraryDevices.Options(input.Kind, library, _live.GetValueOrDefault(input.Kind), input.Default,
                 required: true, canCapture: false), input.Default);
             var path = $"flows.{flow.Id}.inputs.{row.Name}";
@@ -85,6 +94,7 @@ public sealed partial class InspectorViewModel
         InputTip = null;
         EditFlow(f => f with { Inputs = new([.. f.Inputs, KeyValuePair.Create(name, new FlowInput(kind, label, first))]) });
         _ = RefreshDevicesAsync(kind);
+        InputAdded?.Invoke(name);
     }
 
     private static string UniqueLabel(Flow flow, string stem)

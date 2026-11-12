@@ -481,7 +481,9 @@ public static partial class ConfigValidator
                 if (!InputName().IsMatch(name))
                     Error(path, "Name inputs with small letters, digits and dashes, starting with a letter (like output).");
                 if (input.Default.Length == 0)
-                    Error(path + ".default", $"{input.Label} needs a default device.");
+                    Error(path + ".default", input.Kind == LibraryKind.Bound
+                        ? $"{input.Label}: choose a bound device."
+                        : $"{input.Label} needs a default device.");
                 else if (LibraryKeyProblem(library, badLibraryItems, input.Kind, input.Default) is { } message)
                     Error(path + ".default", message);
             }

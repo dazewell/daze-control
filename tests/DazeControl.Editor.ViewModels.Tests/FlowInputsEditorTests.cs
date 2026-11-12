@@ -119,6 +119,38 @@ public sealed class FlowInputsEditorTests : IDisposable
     }
 
     [Fact]
+    public void AddAnInputAnnouncesTheNewRowSoThePaneCanShowIt()
+    {
+        Open("night");
+        var added = new List<string>();
+        _inspector.InputAdded += added.Add;
+
+        _inspector.AddInputCommand.Execute(null);
+
+        Assert.Equal(["audio"], added);
+    }
+
+    [Fact]
+    public void ABoundInputWithNoBoundDevicesSaysSoAndOpensTheLibrary()
+    {
+        Open("night");
+        _inspector.AddInputCommand.Execute(null);
+        var input = Assert.Single(_inspector.Inputs);
+        Assert.Equal("Default device", input.DefaultPlaceholder);
+        Assert.False(input.NoBoundDevices);
+        var asked = 0;
+        _inspector.BoundDevicesRequested += () => asked++;
+
+        input.KindIndex = Array.IndexOf(FlowInputViewModel.KindNames.ToArray(), "Bound device");
+
+        Assert.Equal("Choose a bound device", input.DefaultPlaceholder);
+        Assert.True(input.NoBoundDevices);
+        Assert.Contains("choose a bound device", input.Error ?? "", StringComparison.OrdinalIgnoreCase);
+        input.OpenBoundDevices();
+        Assert.Equal(1, asked);
+    }
+
+    [Fact]
     public void RenamingAnInputKeepsItsKeySoStepsStillWork()
     {
         Open("make-default");
