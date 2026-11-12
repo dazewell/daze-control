@@ -332,9 +332,10 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             values.Add(spec.Kind switch
             {
                 // "$output" shows as the input's name, like the picker (D-064).
-                // "$result:pick" shows as "Result of Pick device" (D-117).
-                ParamKind.LibraryRef when PickResults.StepIn(value) is { } pick =>
-                    OwnerOf(step, config)?.FindNode(pick) is StepNode picker ? "Result of " + PickResults.NameOf(picker) : text,
+                // "$result:pick" shows as "Result of Pick device" (D-117), "$result:set.previous" as
+                // "Previous default from Set default device" (D-130).
+                ParamKind.LibraryRef when PickResults.StepIn(value) is not null =>
+                    OwnerOf(step, config) is { } owner ? PickResults.Describe(owner, text) ?? text : text,
                 ParamKind.LibraryRef when FlowInputs.NameIn(value) is { } input =>
                     OwnerOf(step, config)?.Inputs.GetValueOrDefault(input)?.Label ?? text,
                 ParamKind.LibraryRef => LibraryName(config.Library, spec.Library, text),

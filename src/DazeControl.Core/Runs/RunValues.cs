@@ -111,6 +111,9 @@ public sealed class RunValues
         };
     }
 
+    /// <summary>The Library key of Device value <paramref name="value"/> of <paramref name="step"/>, or null: what <c>$result:step.value</c> becomes (D-130).</summary>
+    public string? Device(string step, string value) => TryGet(step, value, out var given) && given.Kind == ValueKind.Device ? given.Text : null;
+
     /// <summary>Step id → Library key of its <c>device</c> value: what <see cref="PickResults.Resolve"/> swaps into <c>$result:id</c>.</summary>
     public IReadOnlyDictionary<string, string> Picked()
     {

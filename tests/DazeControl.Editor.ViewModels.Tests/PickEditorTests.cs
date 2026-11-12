@@ -67,7 +67,7 @@ public sealed class PickEditorTests : IDisposable
         _canvas.Select("set");
 
         var devices = Device().Devices;
-        Assert.Equal(LibraryDevices.PicksGroup, devices[0].Title);
+        Assert.Equal(LibraryDevices.EarlierGroup, devices[0].Title);
         Assert.True(devices[0].IsHeader);
         Assert.Equal(("Result of: Pick speakers", "$result:pick"), (devices[1].Title, devices[1].Key));
         Assert.Equal("Library", devices[2].Title);
@@ -153,6 +153,6 @@ public sealed class PickEditorTests : IDisposable
     {
         _canvas.Select(id);
 
-        Assert.DoesNotContain(Device().Devices, d => d.Title == LibraryDevices.PicksGroup || d.Key == "$result:pick");
+        Assert.DoesNotContain(Device().Devices, d => d.Title == LibraryDevices.EarlierGroup || d.Key == "$result:pick");
     }
 }
