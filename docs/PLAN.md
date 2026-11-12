@@ -64,13 +64,13 @@ Model: Opus medium; T21.6 and T21.7 Opus high.
   Arrange shapes, auto and placed, a first drag with an unrelated wrapped edge, with a
   card; live: lines, dots and chips stay attached while dragging one step, a card, and a 3-step selection (feat/canvas-live-drag;
   live checks open, for the user).
-- [ ] T21.5 Library drop at the pointer (D-120): `FlowCanvasViewModel.AddStepAt(step, Point, targetId?, DropZone)`:
+- [~] T21.5 Library drop at the pointer (D-120): `FlowCanvasViewModel.AddStepAt(step, Point, targetId?, DropZone)`:
   empty canvas = new step centred on the point, snapped, as a hand placement (freezes the rest, one undo step with the
   add); on a step = the step drag's zones (`ZoneAt`). `OnPaletteDragOver` shows a dashed landing outline (empty canvas)
   or the zone highlight and label (on a step), hidden on `DragLeave`/drop. Files: `FlowCanvasViewModel.cs` (add region),
   `Core/Commands/FlowCommands` or `FlowPlacement` if the placement needs it, `FlowCanvas.Palette.cs`, one element in
   `OverlayLayer`. Done when: VM tests (position, zones, one undo, auto layout → placed); live: drop at 50 %, 100 %,
-  200 % zoom and scrolled lands under the pointer.
+  200 % zoom and scrolled lands under the pointer. (feat/library-drop-at-pointer: code + tests; live check open, user)
 - [ ] T21.6 Scene model (D-119 a): `Editor.ViewModels/Canvas/CanvasScene`: items by id (O(1) `Find`), a uniform-grid
   index for `HitTest`/`HitTestEdge`/`OutPortAt`, edge routes, the transient layer (absorbs `DragPreview`), and
   `Apply(arrangement)` returning a diff (moved, resized, content changed, added, removed, routes changed). `FlowCanvas`

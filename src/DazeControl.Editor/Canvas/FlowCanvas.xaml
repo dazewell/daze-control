@@ -64,6 +64,8 @@
                             Background="{ThemeResource AccentFillColorDefaultBrush}">
                         <TextBlock x:Name="DropLabelText" FontSize="12" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
                     </Border>
+                    <!-- Where a step dragged from the library will land on empty canvas (D-120). -->
+                    <Rectangle x:Name="LandingOutline" Visibility="Collapsed" StrokeThickness="2" RadiusX="28" RadiusY="28" />
                     <Path x:Name="ConnectPreview" Visibility="Collapsed" StrokeThickness="2" StrokeDashArray="3 2" />
                     <Ellipse x:Name="InPortDot" Visibility="Collapsed" Width="10" Height="10" StrokeThickness="1.5" />
                     <Ellipse x:Name="OutPortDot" Visibility="Collapsed" Width="10" Height="10" StrokeThickness="1.5" />
