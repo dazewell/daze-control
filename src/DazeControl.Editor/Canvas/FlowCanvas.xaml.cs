@@ -117,6 +117,7 @@ public sealed partial class FlowCanvas : UserControl
                 _viewModel.PropertyChanged -= OnViewModelChanged;
                 _viewModel.Nodes.CollectionChanged -= OnNodesChanged;
                 _viewModel.Noted -= OnNoted;
+                _viewModel.OriginShifted -= OnOriginShifted;
                 _viewModel.Motion = null;
                 if (_motionFrames || _animated.Count > 0)
                     FinishMotion();
@@ -132,6 +133,7 @@ public sealed partial class FlowCanvas : UserControl
             _viewModel.PropertyChanged += OnViewModelChanged;
             _viewModel.Nodes.CollectionChanged += OnNodesChanged;
             _viewModel.Noted += OnNoted;
+            _viewModel.OriginShifted += OnOriginShifted;
             // Layout glides only while the canvas is on screen and Windows "Animation effects" is on (UX §5.3).
             _viewModel.Motion = () => SceneMotion.For(Shown && Motion.Enabled);
             SyncNodes();
@@ -152,7 +154,7 @@ public sealed partial class FlowCanvas : UserControl
                 UpdateExtent();
                 // Measured pill sizes arrive after the first fit: keep fitting until the user moves the view.
                 if (_autoFit)
-                    DispatcherQueue.TryEnqueue(Fit);
+                    DispatcherQueue.TryEnqueue(() => { if (_autoFit) Fit(); }); // a pan or drop since then wins
                 break;
             case nameof(FlowCanvasViewModel.FocusedId):
                 UpdateFocusRing();

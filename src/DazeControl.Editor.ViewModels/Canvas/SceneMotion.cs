@@ -116,7 +116,7 @@ public sealed partial class CanvasScene
         {
             var lane = edge.Value + dy;
             var laneMoves = lane is not null && _edges[_edgeAt[edge.Key]].Route.WrapLaneY != lane;
-            if (laneMoves || _moving.ContainsKey(Owner(edge.Key.From)) || _moving.ContainsKey(Owner(edge.Key.To)))
+            if (laneMoves || Follows(edge.Key))
                 _edgeGlides[edge.Key] = lane;
             else
             {
@@ -188,9 +188,10 @@ public sealed partial class CanvasScene
                     continue; // a layout while the drag runs (a re-measure, a reload): the box stays under the pointer
                 if (item.Kind != SceneKind.Card)
                     was = was with { Width = to.Width, Height = to.Height };
-                if (glides && was != to)
+                var fading = before.Opacity.TryGetValue(item.Id, out var opacity);
+                if (glides && was != to && !(fading && opacity == 0)) // never drawn yet (added earlier this tick): appears where it lands
                     _moving[item.Id] = new Glide(was, to);
-                if (fades && before.Opacity.TryGetValue(item.Id, out var opacity) && opacity < 1)
+                if (fades && fading && opacity < 1)
                     _appearing[item.Id] = opacity; // was fading in: carries on from where it is
             }
             else if (fades)
@@ -206,12 +207,27 @@ public sealed partial class CanvasScene
                 var laneMoves = lane is not null && edge.Route.WrapLaneY is { } now && now != lane;
                 if (_live.ContainsKey(edge.Key))
                     continue; // the drag's own line: direct manipulation wins
-                if (laneMoves || _moving.ContainsKey(Owner(edge.From)) || _moving.ContainsKey(Owner(edge.To)))
+                if (laneMoves || Follows(edge.Key))
                     _edgeGlides[edge.Key] = lane;
+            }
+        }
+        if (fades)
+        {
+            foreach (var edge in _edges)
+            {
+                if (!_edgeGlides.ContainsKey(edge.Key) && !_live.ContainsKey(edge.Key) && Follows(edge.Key))
+                    _edgeGlides[edge.Key] = null; // into or out of a box growing in: the ends follow its scale
             }
         }
         if (IsMoving)
             Sample(0, 0);
+    }
+
+    /// <summary>A line whose box at either end glides or grows in.</summary>
+    private bool Follows((string From, string To) key)
+    {
+        string from = Owner(key.From), to = Owner(key.To);
+        return _moving.ContainsKey(from) || _moving.ContainsKey(to) || _appearing.ContainsKey(from) || _appearing.ContainsKey(to);
     }
 
     /// <summary>The box a line attaches to: a member's card, else the box itself.</summary>
@@ -237,10 +253,19 @@ public sealed partial class CanvasScene
 
     private Point Shifted(Point port, string owner, PortSide side)
     {
-        if (!_moving.TryGetValue(owner, out var glide))
-            return port;
-        Point now = FlowPlacement.Port(glide.Now, side), laid = FlowPlacement.Port(glide.To, side);
-        return new Point(port.X + now.X - laid.X, port.Y + now.Y - laid.Y);
+        if (_moving.TryGetValue(owner, out var glide))
+        {
+            Point now = FlowPlacement.Port(glide.Now, side), laid = FlowPlacement.Port(glide.To, side);
+            port = new Point(port.X + now.X - laid.X, port.Y + now.Y - laid.Y);
+        }
+        if (_appearing.ContainsKey(owner))
+        {
+            // The view grows about its centre (the canvas scales it there): so does the port.
+            var box = ShownBounds(owner);
+            double cx = box.X + box.Width / 2, cy = box.Y + box.Height / 2, s = ShownScale(owner);
+            port = new Point(cx + (port.X - cx) * s, cy + (port.Y - cy) * s);
+        }
+        return port;
     }
 
     private Dictionary<(string From, string To), EdgeCurve> MergedLive()

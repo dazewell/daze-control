@@ -83,6 +83,20 @@ public sealed partial class FlowCanvas
     private void Reveal(DazeControl.Core.Layout.Rect bounds) =>
         ApplyCamera(_camera.Reveal(bounds, ViewportWidth, ViewportHeight));
 
+    /// <summary>The flow moved by (dx, dy) world DIP (a drop above or left of it): pan back, so nothing moves on screen.</summary>
+    private void OnOriginShifted(object? sender, DazeControl.Core.Layout.Point shift)
+    {
+        _autoFit = false;
+        ApplyCamera(_camera.PanBy(-shift.X * _camera.Zoom, -shift.Y * _camera.Zoom));
+        if (_viewModel?.Scene.IsMoving == true)
+        {
+            // The camera took the uniform shift back: it isn't layout motion, so nothing slides by it (T21.8).
+            _viewModel.Scene.ShiftBy(shift.X, shift.Y);
+            BeginMotion();
+            DrawEdges(); // lines that stopped gliding go back to the static set
+        }
+    }
+
     private void OnViewportSizeChanged(object sender, SizeChangedEventArgs e)
     {
         Viewport.Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, e.NewSize.Width, e.NewSize.Height) };

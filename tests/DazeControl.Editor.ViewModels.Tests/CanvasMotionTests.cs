@@ -250,6 +250,37 @@ public sealed class CanvasMotionTests : IDisposable
     }
 
     [Fact]
+    public void LinesIntoABoxGrowingInFollowItsScale()
+    {
+        var scene = new CanvasScene();
+        scene.Apply(Arrangement(Box("a", 48, 48)), motion: On);
+        scene.Apply(Arrangement(Box("a", 48, 48), Box("b", 400, 48)), motion: On);
+        foreach (var ms in new[] { 0.0, 10, 60, 149 })
+        {
+            scene.Advance(Ms(ms));
+            var s = scene.ShownScale("b");
+            // b grows about its centre (516, 76): its left port sits s * 116 left of it.
+            var tip = scene.ShownCurve("a", "b").Tip;
+            Near(516 - 116 * s, tip.X);
+            Near(76, tip.Y);
+        }
+        scene.Advance(Ms(150));
+        Assert.Equal(scene.FindEdge("a", "b")!.Curve, scene.ShownCurve("a", "b"));
+    }
+
+    [Fact]
+    public void ABoxAddedAndPlacedInOneTickAppearsWhereItLands()
+    {
+        // A library drop: the step is added (laid out where unplaced steps go), then placed at the pointer, before any frame.
+        var scene = new CanvasScene();
+        scene.Apply(Arrangement(Box("a", 48, 48)), motion: On);
+        scene.Apply(Arrangement(Box("a", 48, 48), Box("n", 400, 48)), motion: On);
+        scene.Apply(Arrangement(Box("a", 48, 48), Box("n", 900, 600)), motion: On);
+        Assert.Equal(new Rect(900, 600, 232, 56), scene.ShownBounds("n"));
+        Assert.Equal(0, scene.ShownOpacity("n"));
+    }
+
+    [Fact]
     public void ADropWhereTheDragShowedItDoesNotGlide()
     {
         var scene = new CanvasScene();
@@ -328,7 +359,7 @@ public sealed class CanvasMotionTests : IDisposable
         Assert.Equal(["b", "n"], scene.Animated.Order());
         Assert.Equal(new Rect(348, 48, 232, 56), scene.ShownBounds("a")); // shown where it is: no slide
         Assert.Equal(new Rect(700, 48, 232, 56), scene.ShownBounds("b")); // glides only down
-        Assert.Equal(("a", "b"), Assert.Single(scene.LiveCurves).Key); // a→b follows b; nothing else
+        Assert.Equal([("a", "b"), ("n", "a")], scene.LiveCurves.Keys.Order()); // a→b follows b, n→a follows n growing in
 
         scene.Apply(Arrangement(Box("a", 48, 48)), motion: On);
         scene.Apply(Arrangement(Box("a", 348, 48)), motion: On);

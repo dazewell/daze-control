@@ -129,7 +129,7 @@ internal sealed class PillView : NodeView
         measurer.Style = _title.Style;
         measurer.Text = Node.Title;
         measurer.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
-        return Math.Clamp(56 + measurer.DesiredSize.Width + 20 + 2, 232, 320);
+        return Math.Clamp(56 + measurer.DesiredSize.Width + 20 + 2, FlowCanvasViewModel.DefaultPillSize.Width, FlowCanvasViewModel.MaxPillWidth);
     }
 
     public override void Refresh(bool showDetails)
