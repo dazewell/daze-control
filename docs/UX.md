@@ -304,6 +304,8 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   (#59) and the bar moves within that step; the called flow shows no pop-up of its own.
 
 ## 5.7 Microcopy (the OSD's D-026 voice: plain, friendly, sentence case)
+Appearance (Settings, M22 F-025): Theme, Text size and Animation effects rows, each with a "Change in Windows settings" link (ms-settings:colors / easeofaccess-display / easeofaccess-visualeffects); the editor only follows Windows. Light theme (F-024): pill, card and chip outlines use the strong control stroke (≥ 3:1), dark keeps the subtle card stroke.
+
 Step defaults card (Settings, D-080): "Step defaults" · "How long and how often steps try" / "A step that sets its own value keeps it." · empty "Set how long and how often steps try, once for every step of a type." · "Add a step type…" · row "Give up after 30 s · Try again 2 times · Wait 0.5 s between tries · Skip what follows" + "Used by 5 steps in 2 flows" / "Not used yet" · flyout "Give up after (seconds)", "Try again (times)", "Wait between tries (seconds)", "If it fails", each with Reset.
 1 "This flow is empty" / "Add a step to start. Drag one from the left, or double-click anywhere." · 2 "No flows
 yet" / "A flow does a few things for you with one shortcut, like connecting your headphones and switching to

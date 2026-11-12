@@ -25,6 +25,14 @@ internal static class Theme
     /// <summary>Selected/problem outline; 3 px in a contrast theme (UX §5.3).</summary>
     public static double Emphasis => HighContrast ? 3 : 2;
 
+    /// <summary>
+    /// Boundary of a pill, card or chip. The default card stroke is ~1.1:1 against a light canvas, below the 3:1 WCAG
+    /// asks for control boundaries (F-024), so light mode uses the strong control stroke; dark keeps the subtle one.
+    /// </summary>
+    public static string OutlineKey => !HighContrast && Application.Current.RequestedTheme == ApplicationTheme.Light
+        ? "ControlStrongStrokeColorDefaultBrush"
+        : "CardStrokeColorDefaultBrush";
+
     public static Style Style(string key) => (Style)Application.Current.Resources[key];
 
     public static DoubleCollection Dashes(params double[] values)
@@ -148,13 +156,15 @@ internal sealed class PillView : NodeView
         _badgeText.Text = Node.BadgeText;
         _badgeText.Foreground = Theme.Brush(Node.HasProblem ? "SystemFillColorCautionBrush" : Node.BadgesInherited ? "TextFillColorTertiaryBrush" : "TextFillColorSecondaryBrush");
         _badge.Background = Theme.Brush("ControlFillColorSecondaryBrush");
+        _badge.BorderBrush = Theme.Brush(Theme.OutlineKey); // chips keep a visible pill shape in light mode (F-024)
+        _badge.BorderThickness = new Thickness(1);
         _badge.Visibility = Node.HasBadges ? Visibility.Visible : Visibility.Collapsed;
         ShowDetails(showDetails);
 
         var failed = Node.RunState == NodeRunState.Failed;
         _shape.Fill = Theme.Brush(Theme.HighContrast ? "SystemColorWindowColorBrush" : "CardBackgroundFillColorDefaultBrush");
         _shape.Stroke = Node.IsSelected ? Theme.Selection
-            : Theme.Brush(failed ? "SystemFillColorCriticalBrush" : Node.HasProblem ? "SystemFillColorCautionBrush" : "CardStrokeColorDefaultBrush");
+            : Theme.Brush(failed ? "SystemFillColorCriticalBrush" : Node.HasProblem ? "SystemFillColorCautionBrush" : Theme.OutlineKey);
         _shape.StrokeThickness = Node.IsSelected || Node.HasProblem || failed ? Theme.Emphasis : 1;
         _shape.StrokeDashArray = Node.MayFail ? Theme.Dashes(4, 2) : null;
     }
@@ -282,10 +292,12 @@ internal sealed class CardView : NodeView
         _countText.Text = Node.Count;
         _countText.Foreground = Theme.Brush("TextFillColorSecondaryBrush");
         _count.Background = Theme.Brush("ControlFillColorSecondaryBrush");
+        _count.BorderBrush = Theme.Brush(Theme.OutlineKey);
+        _count.BorderThickness = new Thickness(1);
         ShowDetails(showDetails);
         _shape.Fill = Theme.Brush("CardBackgroundFillColorSecondaryBrush");
         _shape.Stroke = Node.IsSelected ? Theme.Selection
-            : Theme.Brush(Node.HasProblem ? "SystemFillColorCautionBrush" : "CardStrokeColorDefaultBrush");
+            : Theme.Brush(Node.HasProblem ? "SystemFillColorCautionBrush" : Theme.OutlineKey);
         _shape.StrokeThickness = Node.IsSelected || Node.HasProblem ? Theme.Emphasis : 1;
         _shape.StrokeDashArray = Node.MayFail ? Theme.Dashes(4, 2) : null;
     }

@@ -262,7 +262,7 @@ public sealed partial class FlowCanvas
             Padding = new Thickness(8, 1, 8, 2),
             BorderThickness = new Thickness(1),
             Background = Theme.Brush("SolidBackgroundFillColorTertiaryBrush"), // opaque: the edge runs under it
-            BorderBrush = Theme.Brush(critical ? "SystemFillColorCriticalBrush" : "CardStrokeColorDefaultBrush"),
+            BorderBrush = Theme.Brush(critical ? "SystemFillColorCriticalBrush" : Theme.OutlineKey),
             Child = new TextBlock { Text = text, FontSize = 11, Foreground = Theme.Brush(critical ? "SystemFillColorCriticalBrush" : "TextFillColorSecondaryBrush") },
         };
         chip.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));

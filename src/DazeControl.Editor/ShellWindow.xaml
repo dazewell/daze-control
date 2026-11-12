@@ -722,6 +722,50 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
 
+                                <TextBlock Text="Appearance" Style="{StaticResource SettingsSection}" />
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE790;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Theme" />
+                                        <TextBlock Text="Light or dark follows Windows." Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <HyperlinkButton Grid.Column="2" Content="Change in Windows settings" Tag="ms-settings:colors" Click="OnOpenWindowsSettings"
+                                                     AutomationProperties.Name="Change the theme in Windows settings" />
+                                </Grid>
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE8E9;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Text size" />
+                                        <TextBlock Text="Text follows the Windows text size." Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <HyperlinkButton Grid.Column="2" Content="Change in Windows settings" Tag="ms-settings:easeofaccess-display" Click="OnOpenWindowsSettings"
+                                                     AutomationProperties.Name="Change the text size in Windows settings" />
+                                </Grid>
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE7B3;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Animation effects" />
+                                        <TextBlock Text="Motion is off when Windows animation effects are off." Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <HyperlinkButton Grid.Column="2" Content="Change in Windows settings" Tag="ms-settings:easeofaccess-visualeffects" Click="OnOpenWindowsSettings"
+                                                     AutomationProperties.Name="Change animation effects in Windows settings" />
+                                </Grid>
+
                                 <backup:BackupCardView ViewModel="{x:Bind ViewModel.Backup}" />
                             </StackPanel>
 

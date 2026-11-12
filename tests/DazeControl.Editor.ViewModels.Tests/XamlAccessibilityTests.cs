@@ -39,4 +39,32 @@ public sealed class XamlAccessibilityTests
         Assert.Contains("KeyboardAcceleratorTextOverride=\"Alt+Up\"", xaml);
         Assert.Contains("KeyboardAcceleratorTextOverride=\"Alt+Down\"", xaml);
     }
+
+    [Theory]
+    [InlineData("ms-settings:colors")]
+    [InlineData("ms-settings:easeofaccess-display")]
+    [InlineData("ms-settings:easeofaccess-visualeffects")]
+    public void SettingsLinksToWindowsAppearance(string uri)
+    {
+        var xaml = Shell();
+        Assert.Contains($"Tag=\"{uri}\" Click=\"OnOpenWindowsSettings\"", xaml);
+        Assert.Contains("AutomationProperties.Name=\"Change the theme in Windows settings\"", xaml);
+    }
+
+    /// <summary>F-024: WinUI's light tokens (ControlStrongStroke #9C000000, CardStroke #0F000000) over a white card.</summary>
+    [Fact]
+    public void LightOutlineMeetsThreeToOneButDefaultCardStrokeDoesNot()
+    {
+        Assert.True(Contrast(0x9C, 0xFF) >= 3.0, "strong stroke");
+        Assert.True(Contrast(0x0F, 0xFF) < 3.0, "default card stroke is why light mode needs the strong one");
+    }
+
+    // Black at `alpha` over white, against white.
+    private static double Contrast(int alpha, int back)
+    {
+        double a = alpha / 255.0, fg = (1 - a) * 255 / 255.0;
+        static double L(double c) => c <= 0.03928 ? c / 12.92 : Math.Pow((c + 0.055) / 1.055, 2.4);
+        double l1 = L(1.0), l2 = L(fg);
+        return (l1 + 0.05) / (l2 + 0.05);
+    }
 }
