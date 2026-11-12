@@ -96,7 +96,7 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   "If it fails" chip; `always` → "Whatever happens" chip. The same without the edge menu: the inspector's
   "If it fails, run…" and Connections (§5.4); the empty state's tip points there.
 - Selection: click, Ctrl+click, marquee (mouse/pen), Ctrl+A. An edge is clicked within 12 DIP of its curve (20 touch)
-  and selected alone (Ctrl adds); the marquee takes edges with both ends inside; Del removes a selected edge. Ctrl+C/V/D copy nodes + inner edges + library
+  and selected alone (Ctrl adds); the marquee takes edges with both ends inside and shows its selection while dragging; Del removes a selected edge. Ctrl+C/V/D copy nodes + inner edges + library
   refs, paste into a new column to the right. Del; deleting B in A→B→C reconnects A→C; deleting a card
   deletes its members. Undo/redo Ctrl+Z/Y, one entry per gesture, within the draft (Save or Cancel clears it).
 - Navigate: the mouse wheel and Ctrl+wheel zoom 50–200 % (×1.1 a notch) with the point under the pointer staying
@@ -388,7 +388,9 @@ contrast: solid background, no dots.
   3-step selection keeps its dots, lines, chips and arrowheads attached every frame, and releasing moves nothing; a
   library step dropped at 50 %, 100 % and 200 % zoom, scrolled, lands under the pointer, and on a step shows and uses
   the zone it showed; zooming across 60 % moves nothing; Arrange and Undo glide with lines attached; Animation effects
-  off = no motion, still correct; touchpad two-finger pan and pinch, mouse wheel zoom, right/middle/Space drag pan.
+  off = no motion, still correct; touchpad two-finger pan and pinch, mouse wheel zoom, right/middle/Space drag pan;
+  a drag, connect or marquee near the canvas edge pans (faster nearer the edge, stops away from it), the connect line
+  snaps to the target's in-port, the marquee selects as it grows, Escape cancels any of them.
 - M13: right-drag pans and a still right click opens the menu; a 7-step chain then a fork leaves no long empty line
   (the fork starts under the chain); every Layout choice changes the canvas visibly on a sample flow; the Flows card
   shows the flow's icon and runs it with Run (keyboard: Tab to the card, Enter opens); nav Flows leaves the editor;

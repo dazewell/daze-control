@@ -385,6 +385,13 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   `Root` manipulations with translate inertia (mouse/pen manipulations are completed at once: their gestures are the
   pointer handlers'); keyboard focus and new steps are revealed by `Camera.Reveal`. Pointer positions read with
   `GetCurrentPoint(Host)` go through the transform, so hit tests, drags, drops and menus have no camera maths.
+  Gesture polish (T21.9): a drag, connect or marquee whose pointer is within `Camera.EdgeBand` (40 DIP) of the viewport
+  edge auto-pans (`Camera.EdgeVelocity`: linear in depth, 1200 DIP/s at and past the edge, no time acceleration, so the
+  same with Animation effects off; `EdgePan` caps a stalled frame at 1/30 s) as a third reason on the one `OnFrame`
+  clock (`_edgeFrames`), off when the pointer leaves the band, the clamp stops the camera, or the gesture ends; each
+  pan frame re-reads the world point under the still pointer, so the drag, line or marquee follows. The connect line
+  snaps to an allowed target's in-port; the marquee selects live (`BeginMarquee`/`MarqueeTo`/`EndMarquee`, raised only
+  on change); Escape mid-gesture (and a lost capture) cancels: nothing committed, the marquee restores `CancelMarquee`.
   Right-drag pan (D-069): `Canvas/RightDragPan` (pure, tested) arms on a mouse right press, pans once the pointer
   leaves the system drag rectangle (`GetSystemMetricsForDpi(SM_CX/CYDRAG)` at the XAML root's DPI, in DIP), and
   swallows the one `RightTapped` after a pan. The canvas captures only once panning, so a still click's `RightTapped`
