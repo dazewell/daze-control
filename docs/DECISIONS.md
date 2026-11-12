@@ -1626,7 +1626,19 @@ Status: accepted (user, 2026-11-11, same report as D-119); built in M21.
   (snap only on drop): the drop then visibly jumps up to 4 DIP.
 - Revisit if: users want auto layout kept after library drops (then a drop on empty canvas adds without placing).
 
-## D-122 · 2026-11-11 · Library "Add by hand": audio, Bluetooth and Android devices typed in, stored like picked ones
+## D-121 · 2026-11-12 · One button size: shared styles, no per-button Width/Height/Padding
+Status: accepted (user, 2026-11-12: "very inconsistent height and size of the buttons").
+- Decision: every button is at least `ControlHeight` (32 DIP) tall via implicit Button/ToggleButton/DropDownButton styles in
+  App.xaml; icon-only buttons use `IconButton` / `SubtleIconButton` / `IconToggleButton` (32×32 square, icon 14),
+  primary actions `PrimaryButton` (accent), weekday chips `ChipToggleButton`, canvas connection handles `CanvasHandleButton`
+  (24 round, on purpose). Links (HyperlinkButton) pad `0,4`. `XamlButtonSizingTests` fails on any Button/ToggleButton/
+  DropDownButton/HyperlinkButton/SplitButton tag that sets Width, Height, MinWidth, MinHeight or Padding.
+- Why: WinUI buttons size from their content, so an icon-only (14 px glyph), a text and an icon + text button in one row
+  were three heights, and each page patched it with its own Padding 6/8 or Width.
+- Why not one `Height="32"` on everything: it clips at larger text scale; MinHeight grows with the text.
+- Revisit if: a dense variant is wanted (add a style, don't override a button).
+
+## D-122 · 2026-11-12 · Library "Add by hand": audio, Bluetooth and Android devices typed in, stored like picked ones
 Status: accepted (user, 2026-11-11: "let's add an ability to add any library item manually")
 - Decision: Library › Audio, Bluetooth and Android get an "Add by hand" flyout beside "Add from Windows": Bluetooth = name +
   address (dashes, spaces or none accepted, saved as `B8:20:8E:ED:48:FC`), Android = name + address (host or IP, optional

@@ -90,7 +90,7 @@
                                            Style="{StaticResource SettingsCardDescription}" Margin="0,4,0,0" />
                                 <!-- Android input with no inputs yet: the link opens the device's inputs in the Library (L1). -->
                                 <HyperlinkButton Content="{x:Bind SuggestionHint, Mode=OneWay}" Visibility="{x:Bind HasHintLink, Mode=OneWay}"
-                                                 Click="OnHintLinkClick" Tag="{x:Bind}" Padding="0,4" />
+                                                 Click="OnHintLinkClick" Tag="{x:Bind}" />
                                 <!-- Screens: a checklist of what's plugged in (D-051). -->
                                 <StackPanel Visibility="{x:Bind IsChecklist}" Spacing="2">
                                     <ItemsControl ItemsSource="{x:Bind Screens}" AutomationProperties.Name="{x:Bind Title}" IsTabStop="False">
@@ -105,7 +105,7 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                    <HyperlinkButton Content="Use the screens that are on now" Tag="{x:Bind}" Click="OnUseScreensOnNow" Padding="0,4" />
+                                    <HyperlinkButton Content="Use the screens that are on now" Tag="{x:Bind}" Click="OnUseScreensOnNow" />
                                 </StackPanel>
                                 <!-- Android keys: tokens in send order; Alt+Up/Down on a token's remove button moves it. -->
                                 <StackPanel Visibility="{x:Bind IsTokenList}" Spacing="4">
@@ -124,10 +124,9 @@
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="{x:Bind Text}" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas" />
-                                                    <Button Grid.Column="1" Tag="{x:Bind}" Click="OnRemoveToken" KeyDown="OnTokenKeyDown" Padding="6"
-                                                            Background="Transparent" BorderThickness="0" AutomationProperties.Name="{x:Bind RemoveName}"
-                                                            ToolTipService.ToolTip="Remove (Alt+Up or Alt+Down moves it)">
-                                                        <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                                    <Button Grid.Column="1" Tag="{x:Bind}" Click="OnRemoveToken" KeyDown="OnTokenKeyDown" AutomationProperties.Name="{x:Bind RemoveName}"
+                                                            ToolTipService.ToolTip="Remove (Alt+Up or Alt+Down moves it)" Style="{StaticResource SubtleIconButton}">
+                                                        <FontIcon Glyph="&#xE711;" FontSize="14" />
                                                     </Button>
                                                 </Grid>
                                             </DataTemplate>
@@ -160,10 +159,9 @@
                                                         <TextBlock Grid.Column="2" Text="{x:Bind Caption}" VerticalAlignment="Center"
                                                                    Style="{StaticResource CaptionTextBlockStyle}"
                                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                                        <Button Grid.Column="3" Tag="{x:Bind}" Click="OnRemoveFlow" KeyDown="OnFlowKeyDown" Padding="6"
-                                                                Background="Transparent" BorderThickness="0" AutomationProperties.Name="{x:Bind RemoveName}"
-                                                                ToolTipService.ToolTip="Remove (Alt+Up or Alt+Down moves it)">
-                                                            <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                                        <Button Grid.Column="3" Tag="{x:Bind}" Click="OnRemoveFlow" KeyDown="OnFlowKeyDown" AutomationProperties.Name="{x:Bind RemoveName}"
+                                                                ToolTipService.ToolTip="Remove (Alt+Up or Alt+Down moves it)" Style="{StaticResource SubtleIconButton}">
+                                                            <FontIcon Glyph="&#xE711;" FontSize="14" />
                                                         </Button>
                                                     </Grid>
                                                     <TextBlock Text="{x:Bind Problem}" Visibility="{x:Bind HasProblem}" TextWrapping="Wrap"
@@ -313,7 +311,7 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <HyperlinkButton Content="Open this flow" Command="{x:Bind ViewModel.OpenCalledFlowCommand, Mode=OneWay}" Padding="0,4"
+                <HyperlinkButton Content="Open this flow" Command="{x:Bind ViewModel.OpenCalledFlowCommand, Mode=OneWay}"
                                  Visibility="{x:Bind ViewModel.CanOpenCalledFlow, Mode=OneWay}" />
 
                 <!-- Only if (D-081): the choices come from the step type's conditions; not shown when it has none. -->
@@ -325,7 +323,7 @@
                     <TextBlock Text="Otherwise this step is skipped and the flow carries on." Style="{StaticResource SettingsCardDescription}" />
                     <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}"
                                Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.OnlyIfIsSet), Mode=OneWay}" />
-                    <HyperlinkButton Command="{x:Bind ViewModel.ResetOnlyIfCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetOnlyIfTip, Mode=OneWay}"
+                    <HyperlinkButton Command="{x:Bind ViewModel.ResetOnlyIfCommand}" ToolTipService.ToolTip="{x:Bind ViewModel.ResetOnlyIfTip, Mode=OneWay}"
                                      Visibility="{x:Bind local:InspectorPane.ShowSet(ViewModel.IsStep, ViewModel.OnlyIfIsSet), Mode=OneWay}"
                                      AutomationProperties.Name="Reset Only if">
                         <StackPanel Orientation="Horizontal" Spacing="4">
@@ -364,7 +362,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                     <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                            Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.PolicyIsSet), Mode=OneWay}" />
-                    <HyperlinkButton Command="{x:Bind ViewModel.ResetPolicyCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetPolicyTip, Mode=OneWay}"
+                    <HyperlinkButton Command="{x:Bind ViewModel.ResetPolicyCommand}" ToolTipService.ToolTip="{x:Bind ViewModel.ResetPolicyTip, Mode=OneWay}"
                                  Visibility="{x:Bind local:InspectorPane.ShowSet(ViewModel.IsStep, ViewModel.PolicyIsSet), Mode=OneWay}"
                                  AutomationProperties.Name="Reset If it fails">
                     <StackPanel Orientation="Horizontal" Spacing="4">
@@ -413,7 +411,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                    Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.RetriesIsSet), Mode=OneWay}" />
-                        <HyperlinkButton Command="{x:Bind ViewModel.ResetRetriesCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetRetriesTip, Mode=OneWay}"
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetRetriesCommand}" ToolTipService.ToolTip="{x:Bind ViewModel.ResetRetriesTip, Mode=OneWay}"
                                          Visibility="{x:Bind local:InspectorPane.ShowSet(ViewModel.IsStep, ViewModel.RetriesIsSet), Mode=OneWay}"
                                          AutomationProperties.Name="Reset Try again">
                             <StackPanel Orientation="Horizontal" Spacing="4">
@@ -431,7 +429,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                    Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.RetryDelayIsSet), Mode=OneWay}" />
-                        <HyperlinkButton Command="{x:Bind ViewModel.ResetRetryDelayCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetRetryDelayTip, Mode=OneWay}"
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetRetryDelayCommand}" ToolTipService.ToolTip="{x:Bind ViewModel.ResetRetryDelayTip, Mode=OneWay}"
                                          Visibility="{x:Bind local:InspectorPane.ShowSet(ViewModel.IsStep, ViewModel.RetryDelayIsSet), Mode=OneWay}"
                                          AutomationProperties.Name="Reset Wait between tries">
                             <StackPanel Orientation="Horizontal" Spacing="4">
@@ -449,7 +447,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="Default" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                    Visibility="{x:Bind local:InspectorPane.ShowDefault(ViewModel.IsStep, ViewModel.TimeoutIsSet), Mode=OneWay}" />
-                        <HyperlinkButton Command="{x:Bind ViewModel.ResetTimeoutCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ResetTimeoutTip, Mode=OneWay}"
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetTimeoutCommand}" ToolTipService.ToolTip="{x:Bind ViewModel.ResetTimeoutTip, Mode=OneWay}"
                                          Visibility="{x:Bind local:InspectorPane.ShowSet(ViewModel.IsStep, ViewModel.TimeoutIsSet), Mode=OneWay}"
                                          AutomationProperties.Name="Reset Give up after">
                             <StackPanel Orientation="Horizontal" Spacing="4">
@@ -469,7 +467,7 @@
                                     <ItemsControl ItemsSource="{x:Bind ViewModel.UseForAllValues, Mode=OneWay}" IsTabStop="False" />
                                     <TextBlock Text="{x:Bind ViewModel.UseForAllApplies, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <Button Content="Apply" Style="{StaticResource AccentButtonStyle}" Command="{x:Bind ViewModel.ApplyUseForAllCommand}" Click="OnUseForAllClosed" />
+                                        <Button Content="Apply" Style="{StaticResource PrimaryButton}" Command="{x:Bind ViewModel.ApplyUseForAllCommand}" Click="OnUseForAllClosed" />
                                         <Button Content="Cancel" Click="OnUseForAllClosed" />
                                     </StackPanel>
                                 </StackPanel>
@@ -511,7 +509,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="{x:Bind ViewModel.ManyOnlyView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                Visibility="{x:Bind ViewModel.ManyOnlyView.ShowCaption, Mode=OneWay}" />
-                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyOnlyCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyOnlyView.ResetTip, Mode=OneWay}"
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyOnlyCommand}" ToolTipService.ToolTip="{x:Bind ViewModel.ManyOnlyView.ResetTip, Mode=OneWay}"
                                      Visibility="{x:Bind ViewModel.ManyOnlyView.ShowReset, Mode=OneWay}"
                                      AutomationProperties.Name="{x:Bind ViewModel.ManyOnlyView.ResetTip, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal" Spacing="4">
@@ -547,7 +545,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="{x:Bind ViewModel.ManyPolicyView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                Visibility="{x:Bind ViewModel.ManyPolicyView.ShowCaption, Mode=OneWay}" />
-                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyPolicyCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyPolicyView.ResetTip, Mode=OneWay}"
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyPolicyCommand}" ToolTipService.ToolTip="{x:Bind ViewModel.ManyPolicyView.ResetTip, Mode=OneWay}"
                                      Visibility="{x:Bind ViewModel.ManyPolicyView.ShowReset, Mode=OneWay}"
                                      AutomationProperties.Name="{x:Bind ViewModel.ManyPolicyView.ResetTip, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal" Spacing="4">
@@ -566,7 +564,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="{x:Bind ViewModel.ManyRetriesView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                Visibility="{x:Bind ViewModel.ManyRetriesView.ShowCaption, Mode=OneWay}" />
-                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyRetriesCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyRetriesView.ResetTip, Mode=OneWay}"
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyRetriesCommand}" ToolTipService.ToolTip="{x:Bind ViewModel.ManyRetriesView.ResetTip, Mode=OneWay}"
                                      Visibility="{x:Bind ViewModel.ManyRetriesView.ShowReset, Mode=OneWay}"
                                      AutomationProperties.Name="{x:Bind ViewModel.ManyRetriesView.ResetTip, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal" Spacing="4">
@@ -585,7 +583,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="{x:Bind ViewModel.ManyRetryDelayView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                Visibility="{x:Bind ViewModel.ManyRetryDelayView.ShowCaption, Mode=OneWay}" />
-                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyRetryDelayCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyRetryDelayView.ResetTip, Mode=OneWay}"
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyRetryDelayCommand}" ToolTipService.ToolTip="{x:Bind ViewModel.ManyRetryDelayView.ResetTip, Mode=OneWay}"
                                      Visibility="{x:Bind ViewModel.ManyRetryDelayView.ShowReset, Mode=OneWay}"
                                      AutomationProperties.Name="{x:Bind ViewModel.ManyRetryDelayView.ResetTip, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal" Spacing="4">
@@ -604,7 +602,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,-4,0,0" motion:Motion.Animate="True">
                         <TextBlock Text="{x:Bind ViewModel.ManyTimeoutView.Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
                                Visibility="{x:Bind ViewModel.ManyTimeoutView.ShowCaption, Mode=OneWay}" />
-                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyTimeoutCommand}" Padding="0,2" ToolTipService.ToolTip="{x:Bind ViewModel.ManyTimeoutView.ResetTip, Mode=OneWay}"
+                        <HyperlinkButton Command="{x:Bind ViewModel.ResetManyTimeoutCommand}" ToolTipService.ToolTip="{x:Bind ViewModel.ManyTimeoutView.ResetTip, Mode=OneWay}"
                                      Visibility="{x:Bind ViewModel.ManyTimeoutView.ShowReset, Mode=OneWay}"
                                      AutomationProperties.Name="{x:Bind ViewModel.ManyTimeoutView.ResetTip, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal" Spacing="4">
@@ -626,8 +624,8 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <Button x:Name="GlyphButton" AutomationProperties.Name="Icon" ToolTipService.ToolTip="Icon" Padding="8" VerticalAlignment="Bottom">
-                        <FontIcon Glyph="{x:Bind ViewModel.FlowGlyph, Mode=OneWay}" FontSize="16" />
+                    <Button x:Name="GlyphButton" AutomationProperties.Name="Icon" ToolTipService.ToolTip="Icon" Style="{StaticResource IconButton}">
+                        <FontIcon Glyph="{x:Bind ViewModel.FlowGlyph, Mode=OneWay}" FontSize="14" />
                         <Button.Flyout>
                             <Flyout x:Name="GlyphFlyout">
                                 <GridView x:Name="GlyphGrid" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnGlyphClick" MaxWidth="260"
@@ -675,7 +673,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <HyperlinkButton Content="Add shortcut" Command="{x:Bind ViewModel.AddShortcutCommand, Mode=OneWay}" Padding="0,4" />
+                <HyperlinkButton Content="Add shortcut" Command="{x:Bind ViewModel.AddShortcutCommand, Mode=OneWay}" />
 
                 <!-- M20 T20.6 (DESIGN §5): a row per schedule or event, a plain sentence on top, the pickers when opened. -->
                 <ItemsControl ItemsSource="{x:Bind ViewModel.Triggers, Mode=OneWay}" IsTabStop="False" Margin="0,8,0,0" AutomationProperties.Name="Schedules and events">
@@ -714,7 +712,7 @@
                                             </ItemsRepeater.Layout>
                                             <ItemsRepeater.ItemTemplate>
                                                 <DataTemplate x:DataType="vmi:DayToggleViewModel">
-                                                    <ToggleButton Content="{x:Bind Name}" IsChecked="{x:Bind IsOn, Mode=TwoWay}" MinWidth="0" Padding="4,6"
+                                                    <ToggleButton Content="{x:Bind Name}" IsChecked="{x:Bind IsOn, Mode=TwoWay}" Style="{StaticResource ChipToggleButton}"
                                                                   HorizontalAlignment="Stretch" AutomationProperties.Name="{x:Bind Name}" />
                                                 </DataTemplate>
                                             </ItemsRepeater.ItemTemplate>
@@ -777,9 +775,9 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
                 <StackPanel Orientation="Vertical">
-                    <HyperlinkButton Content="Add schedule" Command="{x:Bind ViewModel.AddScheduleCommand, Mode=OneWay}" Padding="0,4" />
-                    <HyperlinkButton Content="Add event" Command="{x:Bind ViewModel.AddEventCommand, Mode=OneWay}" Padding="0,4" />
-                    <Button Content="Add events…" Padding="0,4" Style="{StaticResource TextBlockButtonStyle}" AutomationProperties.Name="Add several events at once">
+                    <HyperlinkButton Content="Add schedule" Command="{x:Bind ViewModel.AddScheduleCommand, Mode=OneWay}" />
+                    <HyperlinkButton Content="Add event" Command="{x:Bind ViewModel.AddEventCommand, Mode=OneWay}" />
+                    <Button Content="Add events…" Style="{StaticResource LinkButton}" AutomationProperties.Name="Add several events at once">
                         <Button.Flyout>
                             <Flyout Placement="Bottom">
                                 <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto">
@@ -852,9 +850,9 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBox Text="{x:Bind Label, Mode=TwoWay}" PlaceholderText="Name" KeyDown="OnCommitOnEnter"
                                              AutomationProperties.Name="Input name" />
-                                    <Button Grid.Column="1" Click="OnRemoveInput" Tag="{x:Bind}" Padding="8" VerticalAlignment="Center"
-                                            AutomationProperties.Name="{x:Bind RemoveName, Mode=OneWay}" ToolTipService.ToolTip="Remove">
-                                        <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                    <Button Grid.Column="1" Click="OnRemoveInput" Tag="{x:Bind}"
+                                            AutomationProperties.Name="{x:Bind RemoveName, Mode=OneWay}" ToolTipService.ToolTip="Remove" Style="{StaticResource IconButton}">
+                                        <FontIcon Glyph="&#xE711;" FontSize="14" />
                                     </Button>
                                 </Grid>
                                 <ComboBox ItemsSource="{x:Bind vmi:FlowInputViewModel.KindNames}" SelectedIndex="{x:Bind KindIndex, Mode=TwoWay}"
@@ -878,7 +876,7 @@
                 </ItemsControl>
                 <TextBlock Text="{x:Bind ViewModel.InputTip, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasInputTip, Mode=OneWay}"
                            TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <HyperlinkButton Content="Add an input" Command="{x:Bind ViewModel.AddInputCommand, Mode=OneWay}" Padding="0,4" />
+                <HyperlinkButton Content="Add an input" Command="{x:Bind ViewModel.AddInputCommand, Mode=OneWay}" />
                 <TextBlock Text="{x:Bind vmi:InspectorViewModel.AddInputHelp}" TextWrapping="Wrap" Style="{StaticResource SettingsCardDescription}" />
             </StackPanel>
             </ContentControl>

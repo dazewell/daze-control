@@ -129,6 +129,10 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   Spacing, Line up and Untangle show "Placed by hand". Moves, Arrange and Reset layout undo with Ctrl+Z.
 
 ## 5.3 Visual language
+- **Buttons (D-121):** all at least 32 DIP tall (`ControlHeight`), so neighbours line up. Text and icon + text buttons: default
+  padding, icon 14 with 8 between icon and label. Icon-only: square 32 (`IconButton`; `SubtleIconButton` without frame inside
+  rows; `IconToggleButton`), always with a name and tooltip. Primary: `PrimaryButton` (one per row). Links: HyperlinkButton.
+  Never set Width/Height/Padding on a button (a test enforces it); add a style in App.xaml instead.
 - Pill: min 232×56, max width 320, grows taller with text size. CornerRadius 28; the left cap is the status
   ring (32 DIP, inset 12, 16-DIP provider glyph). Title BodyStrong 1 line; summary Caption secondary ("Technics ·
   Default output"); ≤ 2 badge chips (20 DIP) then "+1". Fill CardBackgroundFillColorDefault, 1 px
