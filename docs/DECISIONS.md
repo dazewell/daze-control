@@ -1673,3 +1673,17 @@ Status: accepted (user, 2026-11-11: "let's add an ability to add any library ite
   duplicates it. Why not a `manual: true` flag: nothing behaves differently, and a flag would block the merge with the
   live device. No `dctl library` commands exist, so none were added.
 - Revisit if: users want to type a screen layout (monitor names) or name programs once (then a Programs kind, D-041).
+
+## D-124 · 2026-11-12 · Tree: a join that skips a level sits beside its steps, not under them
+Status: accepted (user's report: check → connect (if it fails) and both → set default stacked set under connect, and the
+line from check ran through connect)
+- Decision: in Arrange › Tree a **side join** is a step that also waits for an ancestor of the step it hangs under. It
+  leaves that step and goes right of its first (highest) source's branch, centred up and down between its first and last
+  source, so its lines enter from the side (a fan-in); its own branch hangs under it as usual. Its first source stays
+  centred over its other children only. Joins are tried one at a time in run order and kept only when they cut the count of
+  (line, step) crossings, sampled on the drawn line (Curved or Right angles); so ordinary trees and diamonds lay out as
+  before, and the result is deterministic and idempotent.
+- Why not route the line round the steps (D-111 lanes): a vertical lane beside a column is new edge geometry for every
+  hit test and control; placement fixes it with none. Why not hang the join one level lower: the line still crosses.
+- Revisit if: a join whose side place still crosses a step (another child of a step on the chain sits right of it) shows
+  up in real flows: then add side lanes.

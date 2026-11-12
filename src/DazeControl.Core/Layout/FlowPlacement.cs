@@ -119,12 +119,66 @@ public static class FlowPlacement
     /// <summary>
     /// A tidy tree, top down: each step hangs under the step it waits for that runs last (its layer is one more, so
     /// the levels are the left-to-right columns), parents centred over their children, separate trees side by side.
+    /// A <b>side join</b> (D-124) is a step that also waits for an ancestor of the step it hangs under (a line that
+    /// would skip a level and run through the steps between): it goes to the right of that ancestor's branch instead,
+    /// centred up and down between the first and the last step it waits for, so every line comes in from the side.
+    /// Joins are tried one at a time in run order; one whose side place doesn't cut the lines drawn through steps
+    /// stays hung under.
     /// </summary>
     private static Dictionary<string, Point> Tree(List<string> order, Dictionary<string, Rect> top,
         List<(string From, string To, EdgeWhen When)> edges, Dictionary<string, int> layers, LayoutOptions o)
     {
         var children = Children(order, edges, layers);
-        var hasParent = children.Values.SelectMany(c => c).ToHashSet(StringComparer.Ordinal);
+        var parent = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (p, kids) in children)
+        {
+            foreach (var kid in kids)
+                parent[kid] = p;
+        }
+        bool IsAncestor(string a, string of)
+        {
+            for (var p = of; parent.TryGetValue(p, out var up); p = up)
+            {
+                if (up == a)
+                    return true;
+            }
+            return false;
+        }
+
+        var rank = order.Select((id, i) => (id, i)).ToDictionary(x => x.id, x => x.i, StringComparer.Ordinal);
+        var side = new Dictionary<string, (string First, string Last)>(StringComparer.Ordinal);
+        var at = TreeAt(order, top, children, side, layers, o);
+        var crossings = Crossings(at, top, edges, o);
+        foreach (var id in order)
+        {
+            if (crossings == 0 || !parent.TryGetValue(id, out var last))
+                continue;
+            var sources = edges.Where(e => e.To == id && e.From != last).Select(e => e.From).Distinct(StringComparer.Ordinal).ToList();
+            if (sources.Count == 0 || !sources.All(s => IsAncestor(s, last)))
+                continue;
+            var first = sources.OrderBy(s => layers.GetValueOrDefault(s)).ThenBy(s => rank[s]).First();
+            side[id] = (first, last);
+            var tried = TreeAt(order, top, children, side, layers, o);
+            var count = Crossings(tried, top, edges, o);
+            if (count < crossings)
+                (at, crossings) = (tried, count);
+            else
+                side.Remove(id);
+        }
+        return at;
+    }
+
+    /// <summary>The tidy tree for a given set of side joins (<see cref="Tree"/>).</summary>
+    private static Dictionary<string, Point> TreeAt(List<string> order, Dictionary<string, Rect> top,
+        Dictionary<string, List<string>> hung, Dictionary<string, (string First, string Last)> side,
+        Dictionary<string, int> layers, LayoutOptions o)
+    {
+        // A side join leaves the step it hung under and goes beside its first source's branch, in run order.
+        var children = hung.ToDictionary(kv => kv.Key, kv => kv.Value.Where(k => !side.ContainsKey(k)).ToList(), StringComparer.Ordinal);
+        var sides = order.ToDictionary(id => id, _ => new List<string>(), StringComparer.Ordinal);
+        foreach (var id in order.Where(side.ContainsKey))
+            sides[side[id].First].Add(id);
+        var hasParent = hung.Values.SelectMany(c => c).ToHashSet(StringComparer.Ordinal);
 
         var levels = order.Select(id => layers.GetValueOrDefault(id)).DefaultIfEmpty(0).Max() + 1;
         var levelHeight = new double[levels];
@@ -135,28 +189,34 @@ public static class FlowPlacement
             levelY[l] = levelY[l - 1] + levelHeight[l - 1] + LevelGap(o);
 
         var gap = SiblingGap(o);
+        var core = new Dictionary<string, double>(StringComparer.Ordinal);
         var span = new Dictionary<string, double>(StringComparer.Ordinal);
-        double Span(string id)
+        double Under(string id)
         {
-            if (span.TryGetValue(id, out var known))
-                return known;
             var kids = children[id];
-            var under = kids.Count == 0 ? 0 : kids.Sum(Span) + gap * (kids.Count - 1);
-            return span[id] = Math.Max(top[id].Width, under);
+            return kids.Count == 0 ? 0 : kids.Sum(Span) + gap * (kids.Count - 1);
         }
+        // Core: the step over its own children; its span adds its side joins to the right.
+        double Core(string id) => core.TryGetValue(id, out var known) ? known : core[id] = Math.Max(top[id].Width, Under(id));
+        double Span(string id) => span.TryGetValue(id, out var known) ? known : span[id] = Core(id) + sides[id].Sum(s => gap + Span(s));
+
         var at = new Dictionary<string, Point>(StringComparer.Ordinal);
         void Lay(string id, double left)
         {
-            var width = Span(id);
+            var width = Core(id);
             var l = layers.GetValueOrDefault(id);
             at[id] = new Point(left + (width - top[id].Width) / 2, levelY[l] + (levelHeight[l] - top[id].Height) / 2);
-            var kids = children[id];
-            var under = kids.Count == 0 ? 0 : kids.Sum(Span) + gap * (kids.Count - 1);
-            var x = left + (width - under) / 2;
-            foreach (var kid in kids)
+            var x = left + (width - Under(id)) / 2;
+            foreach (var kid in children[id])
             {
                 Lay(kid, x);
                 x += Span(kid) + gap;
+            }
+            x = left + width + gap;
+            foreach (var join in sides[id])
+            {
+                Lay(join, x);
+                x += Span(join) + gap;
             }
         }
         var cursor = 0.0;
@@ -165,7 +225,42 @@ public static class FlowPlacement
             Lay(root, cursor);
             cursor += Span(root) + 2 * gap;
         }
+        // Side joins move up between the first and the last step they wait for; their own branch moves with them.
+        foreach (var id in order.Where(side.ContainsKey))
+        {
+            var (first, last) = side[id];
+            var centre = (at[first].Y + top[first].Height / 2 + at[last].Y + top[last].Height / 2) / 2;
+            var dy = centre - top[id].Height / 2 - at[id].Y;
+            void Shift(string s)
+            {
+                at[s] = new Point(at[s].X, at[s].Y + dy);
+                foreach (var k in children[s].Concat(sides[s]))
+                    Shift(k);
+            }
+            Shift(id);
+        }
         return at;
+    }
+
+    /// <summary>
+    /// How many (line, step) pairs cross in the tree: a line drawn (Curved or Right angles) through a step that is
+    /// neither of its ends.
+    /// </summary>
+    private static int Crossings(Dictionary<string, Point> at, Dictionary<string, Rect> top,
+        List<(string From, string To, EdgeWhen When)> edges, LayoutOptions o)
+    {
+        var boxes = at.ToDictionary(kv => kv.Key, kv => new Rect(kv.Value.X, kv.Value.Y, top[kv.Key].Width, top[kv.Key].Height), StringComparer.Ordinal);
+        var count = 0;
+        foreach (var (from, to, when) in edges)
+        {
+            var (a, b) = (boxes[from], boxes[to]);
+            var (s, e) = Sides(a, b, LayoutShape.Tree);
+            var curve = EdgeCurve.For(new EdgeRoute(from, to, when, Port(a, s), Port(b, e), null, s, e), o.Lines);
+            var points = Enumerable.Range(1, 63).Select(i => curve.At(i / 64.0)).ToList();
+            count += boxes.Count(kv => kv.Key != from && kv.Key != to
+                && points.Any(p => p.X > kv.Value.X && p.X < kv.Value.Right && p.Y > kv.Value.Y && p.Y < kv.Value.Bottom));
+        }
+        return count;
     }
 
     /// <summary>

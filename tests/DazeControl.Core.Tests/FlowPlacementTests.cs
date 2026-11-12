@@ -78,14 +78,103 @@ public class FlowPlacementTests
         NoOverlaps(a);
     }
 
-    [Fact]
-    public void TreeHangsAJoinUnderTheStepThatRunsLast()
+    /// <summary>
+    /// The user's flow (D-124): connect runs only if check fails, and set waits for both. Hung under connect, the line
+    /// from check ran straight down through connect.
+    /// </summary>
+    private static Flow CheckConnectSet() => FlowOf(
+        Step("check"),
+        new StepNode("connect", "wait") { After = [new Edge("check", EdgeWhen.Failure)] },
+        Step("set", "check", "connect"));
+
+    /// <summary>Every line, drawn Curved and Right angles, keeps out of every step but its own two.</summary>
+    private static void NoLineCrossesAStep(FlowArrangement a)
     {
-        var flow = FlowOf(Step("a"), Step("b", "a"), Step("c", "b"), Step("j", "a", "c"));
+        foreach (var lines in new[] { LayoutLines.Curved, LayoutLines.RightAngles })
+        {
+            foreach (var e in a.Edges)
+            {
+                var curve = EdgeCurve.For(e, lines);
+                foreach (var box in a.Boxes.Where(b => b.Card is null && b.Id != e.From && b.Id != e.To))
+                {
+                    var r = box.Bounds;
+                    for (var i = 0; i <= 200; i++)
+                    {
+                        var p = curve.At(i / 200.0);
+                        Assert.False(p.X > r.X && p.X < r.Right && p.Y > r.Y && p.Y < r.Bottom,
+                            $"{lines}: {e.From} → {e.To} crosses {box.Id} at ({p.X:0}, {p.Y:0})");
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void TreePutsAJoinThatSkipsALevelBesideItsStepsCentredBetweenThem()
+    {
+        var a = Arrange(CheckConnectSet(), LayoutShape.Tree);
+
+        Assert.Equal(CentreX(B(a, "check")), CentreX(B(a, "connect")), 3); // connect stays under check
+        Assert.True(B(a, "connect").Y > B(a, "check").Bottom);
+        Assert.True(B(a, "set").X > Math.Max(B(a, "check").Right, B(a, "connect").Right)); // set beside them
+        Assert.Equal((B(a, "check").CenterY + B(a, "connect").CenterY) / 2, B(a, "set").CenterY, 3);
+        foreach (var e in a.Edges.Where(e => e.To == "set"))
+            Assert.Equal((PortSide.Right, PortSide.Left), (e.StartSide, e.EndSide)); // a fan-in from the side
+        var down = a.Edges.Single(e => e.To == "connect");
+        Assert.Equal((PortSide.Bottom, PortSide.Top), (down.StartSide, down.EndSide));
+        NoLineCrossesAStep(a);
+        NoOverlaps(a);
+    }
+
+    [Fact]
+    public void TreePutsAJoinBesideALongerChainAndKeepsItsOwnBranchUnderIt()
+    {
+        // a → b → c → j, a → j skips two levels; j leads on to k.
+        var flow = FlowOf(Step("a"), Step("b", "a"), Step("c", "b"), Step("j", "a", "c"), Step("k", "j"));
         var a = Arrange(flow, LayoutShape.Tree);
 
-        Assert.Equal(CentreX(B(a, "c")), CentreX(B(a, "j")), 3);
-        Assert.True(B(a, "j").Y > B(a, "c").Bottom);
+        Assert.Equal(CentreX(B(a, "a")), CentreX(B(a, "c")), 3);
+        Assert.True(B(a, "j").X > B(a, "b").Right);
+        Assert.Equal((B(a, "a").CenterY + B(a, "c").CenterY) / 2, B(a, "j").CenterY, 3);
+        Assert.Equal(CentreX(B(a, "j")), CentreX(B(a, "k")), 3);
+        Assert.True(B(a, "k").Y > B(a, "j").Bottom);
+        NoLineCrossesAStep(a);
+        NoOverlaps(a);
+    }
+
+    [Fact]
+    public void TreeDiamondStaysATreeWithClearLines()
+    {
+        var a = Arrange(Diamond(), LayoutShape.Tree);
+
+        Assert.Equal(B(a, "b").Y, B(a, "c").Y);
+        Assert.Equal(CentreX(B(a, "b")), CentreX(B(a, "d")), 3); // hung under b, as before
+        Assert.True(B(a, "d").Y > B(a, "c").Bottom);
+        NoLineCrossesAStep(a);
+        NoOverlaps(a);
+    }
+
+    [Fact]
+    public void TreeWithAJoinNoPlaceClearsStillLaysOutTheSameEachTime()
+    {
+        // b's other child e sits right of c, so a line from c to a join beside the branch cuts through e: the tree keeps
+        // whichever place crosses fewer steps (here beside), and stays deterministic.
+        var flow = FlowOf(Step("a"), Step("b", "a"), Step("c", "b"), Step("e", "b"), Step("j", "a", "c"));
+        var a = Arrange(flow, LayoutShape.Tree);
+
+        NoOverlaps(a);
+        Assert.Equal(a, Arrange(flow, LayoutShape.Tree), new ArrangementComparer());
+    }
+
+    [Theory]
+    [InlineData(LayoutShape.Tree)]
+    [InlineData(LayoutShape.TopToBottom)]
+    [InlineData(LayoutShape.Circle)]
+    [InlineData(LayoutShape.LeftToRight)]
+    public void ArrangingAgainGivesTheSamePicture(LayoutShape shape)
+    {
+        foreach (var flow in new[] { CheckConnectSet(), Diamond(), Fan(), Chain(5) })
+            Assert.Equal(Arrange(flow, shape), Arrange(flow, shape), new ArrangementComparer());
     }
 
     [Fact]
