@@ -34,6 +34,9 @@ public sealed class PillSegment
 
     public bool IsPill => Ref is not null;
 
+    /// <summary>The reference names a value of this flow, so it can be changed and given words for when it is empty.</summary>
+    public bool Words { get; internal init; }
+
     public bool IsPlain => Ref is null;
 
     /// <summary>"Device from Connect Technics, in Message. Press to change or remove."</summary>
@@ -70,6 +73,9 @@ public sealed partial class ParamFieldViewModel
     }
 
     public bool HasPills => _pills.Count > 0;
+
+    /// <summary>The help line below a setting that takes no values; with values it lives in the pills row instead.</summary>
+    public bool ShowsPlainHelp => HasHelp && !TakesValues;
 
     /// <summary>With no value to show the row holds the setting's help (or stays empty), so the slot never changes height (D-104).</summary>
     public bool ShowsHelp => !HasPills && HasHelp && !HasUnknownValue;
@@ -109,7 +115,7 @@ public sealed partial class ParamFieldViewModel
             var name = words is { } n ? $"{n.Title} from {n.From}, in {Title}. Press to change or remove." : $"{r}, in {Title}. Not available in this flow. Press to remove.";
             var warning = problems.Where(p => p.Ref.Start == r.Start).Select(p => p.Message).FirstOrDefault()
                 ?? (words is null ? "This value isn't available in this flow." : null);
-            segments.Add(new(this, label, r, index++, name, warning));
+            segments.Add(new(this, label, r, index++, name, warning) { Words = words is not null });
         }
         if (!segments.Any(s => s.IsPill))
             segments.Clear();

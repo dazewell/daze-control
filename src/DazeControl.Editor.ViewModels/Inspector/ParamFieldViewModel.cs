@@ -541,7 +541,10 @@ public sealed partial class ParamFieldViewModel : ObservableObject
         var changed = _values?.Flow != next?.Item1 || _values?.StepId != next?.Item2;
         _values = next;
         if (changed)
+        {
             OnPropertyChanged(nameof(TakesValues));
+            OnPropertyChanged(nameof(ShowsPlainHelp));
+        }
         RefreshPills();
     }
 

@@ -271,7 +271,45 @@
                                     </DropDownButton.Flyout>
                                 </DropDownButton>
                                 <TextBlock Text="{x:Bind Error, Mode=OneWay}" Visibility="{x:Bind HasError, Mode=OneWay}" Style="{StaticResource FieldError}" />
-                                <TextBlock Text="{x:Bind Help}" Visibility="{x:Bind HasHelp}" Style="{StaticResource SettingsCardDescription}" Margin="0,4,0,0" />
+                                <TextBlock Text="{x:Bind Help}" Visibility="{x:Bind ShowsPlainHelp, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" Margin="0,4,0,0" />
+                                <!-- D-129 / D-104: the row under a setting that takes values always holds its slot: pills, else the help, else nothing. -->
+                                <Grid Visibility="{x:Bind TakesValues, Mode=OneWay}" MinHeight="28" Margin="0,4,0,0">
+                                    <TextBlock Text="{x:Bind Help}" Visibility="{x:Bind ShowsHelp, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
+                                               VerticalAlignment="Center" TextWrapping="Wrap" />
+                                    <TextBlock Text="Not a value from this flow" Visibility="{x:Bind HasUnknownValue, Mode=OneWay}" Style="{StaticResource FieldError}"
+                                               VerticalAlignment="Center" Margin="0" />
+                                    <ScrollViewer Visibility="{x:Bind HasPills, Mode=OneWay}" HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Hidden"
+                                                  VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" IsTabStop="False">
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="Shows:" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
+                                                       AutomationProperties.AccessibilityView="Raw" />
+                                            <ItemsControl ItemsSource="{x:Bind Pills, Mode=OneWay}" IsTabStop="False" AutomationProperties.Name="{x:Bind PillsName, Mode=OneWay}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <StackPanel Orientation="Horizontal" Spacing="2" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vmi:PillSegment">
+                                                        <Grid>
+                                                            <TextBlock Text="{x:Bind Text}" Visibility="{x:Bind IsPlain}" VerticalAlignment="Center" Style="{StaticResource SettingsCardDescription}"
+                                                                       AutomationProperties.AccessibilityView="Raw" />
+                                                            <Button Visibility="{x:Bind IsPill}" Tag="{x:Bind}" Click="OnPillClick" KeyDown="OnPillKeyDown"
+                                                                    Style="{StaticResource ValuePillButton}" VerticalAlignment="Center"
+                                                                    AutomationProperties.Name="{x:Bind AutomationName}" ToolTipService.ToolTip="{x:Bind Warning}">
+                                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                    <FontIcon Glyph="&#xE7BA;" FontSize="11" Visibility="{x:Bind HasWarning}"
+                                                                              Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+                                                                    <TextBlock Text="{x:Bind Text}" FontSize="12" VerticalAlignment="Center" />
+                                                                </StackPanel>
+                                                            </Button>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Grid>
                             </StackPanel>
                         </DataTemplate>
     </UserControl.Resources>
@@ -337,6 +375,30 @@
                         <StaticResource ResourceKey="ParamFieldTemplate" />
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+
+                <!-- D-129 (DESIGN §5.4): what this step gives later steps; a click copies the text to paste into a box that takes values. -->
+                <StackPanel Visibility="{x:Bind ViewModel.HasGivenValues, Mode=OneWay}" Spacing="4">
+                    <TextBlock Text="Values it gives" Style="{StaticResource InspectorSection}" />
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.GivenValues, Mode=OneWay}" IsTabStop="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="4" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vmi:GivenValueViewModel">
+                                <Button Tag="{x:Bind}" Click="OnCopyGivenValue" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                        AutomationProperties.Name="{x:Bind AutomationName}" ToolTipService.ToolTip="Copy it to paste into a text setting">
+                                    <StackPanel>
+                                        <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{x:Bind Help}" Visibility="{x:Bind HasHelp}" Style="{StaticResource SettingsCardDescription}" TextWrapping="Wrap" />
+                                        <TextBlock Text="{x:Bind Note, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
 
                 <HyperlinkButton Content="Open this flow" Command="{x:Bind ViewModel.OpenCalledFlowCommand, Mode=OneWay}"
                                  Visibility="{x:Bind ViewModel.CanOpenCalledFlow, Mode=OneWay}" />
