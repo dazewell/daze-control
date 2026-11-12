@@ -121,16 +121,29 @@ public static class LibraryEdits
     public static string? Names(StepNode step, LibraryKind kind, string key)
     {
         ArgumentNullException.ThrowIfNull(step);
-        return ProviderCatalog.Find(step.Step)?.Params.FirstOrDefault(p => p.Kind == ParamKind.LibraryRef && p.Library is { } k && Refers(kind, k)
-            && step.With.TryGetValue(p.Name, out var value) && value is ScalarParam { Text: var text } && text == key)?.Name;
+        return Holders(step, kind).FirstOrDefault(name => step.With.TryGetValue(name, out var value) && value is ScalarParam { Text: var text } && text == key);
+    }
+
+    /// <summary>
+    /// The settings of <paramref name="step"/> that can hold a key of this kind: its Library settings, and a Pick device's
+    /// <c>default</c> when that pick offers the kind (D-128).
+    /// </summary>
+    private static IEnumerable<string> Holders(StepNode step, LibraryKind kind)
+    {
+        if (ProviderCatalog.Find(step.Step) is not { } descriptor)
+            return [];
+        var pickKind = PickResults.IsPick(step) ? PickResults.KindOf(step) : null;
+        return descriptor.Params
+            .Where(p => p.Kind == ParamKind.LibraryRef && p.Library is { } k && Refers(kind, k)
+                || p.LibraryFrom is not null && pickKind is { } picked && Refers(kind, picked))
+            .Select(p => p.Name);
     }
 
     private static StepNode Renamed(StepNode step, LibraryKind kind, string key, string newKey)
     {
         if (Names(step, kind, key) is null)
             return step;
-        var refs = ProviderCatalog.Find(step.Step)!.Params
-            .Where(p => p.Kind == ParamKind.LibraryRef && p.Library is { } k && Refers(kind, k)).Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
+        var refs = Holders(step, kind).ToHashSet(StringComparer.Ordinal);
         return step with
         {
             With = new(step.With.Select(e => refs.Contains(e.Key) && e.Value is ScalarParam { Text: var text } && text == key

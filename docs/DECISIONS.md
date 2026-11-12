@@ -1744,5 +1744,6 @@ Status: accepted (F-029, M22 T22.6; user chose option A; supersedes nothing, D-1
   (case-insensitive); none or several → null. A name in an old file shows as its item and is rewritten only when the person changes the
   picker (no silent rewrite). A default that resolves to nothing is a **warning** (fail-soft, D-021: the pick works, `use-default` ends as "No answer").
   Changing `kind` clears a default that doesn't resolve in the new kind; one that still does stays.
+  A Library rename rewrites a default that is the renamed key and "Used by" counts it (`LibraryEdits.Holders`); a hand-typed name is left alone.
 - Why: the other device params are pickers; a free-text name drifted from the Library (renames, two items with one name).
 - Rejected: a new `LibraryRef` kind with a dynamic `Library` (every `spec.Library!` site would need a null path); rewriting names to keys on load.
