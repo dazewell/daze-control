@@ -28,6 +28,6 @@ GitHub's mergeable/conflict notice can be stale: `pr-status`/`pr-merge` re-check
 
 ## Coordinators
 
-`pr-status.ps1 <pr>` per child PR instead of `gh pr view` JSON. To let children merge without the auto-mode classifier blocking `gh pr merge`, the user can allow-list the single command `pwsh scripts/pr-merge.ps1` (e.g. a `Bash`/`PowerShell` permission rule `PowerShell(pwsh scripts/pr-merge.ps1:*)` in the user's settings; sessions don't edit settings).
+`pr-status.ps1 <pr>` per child PR instead of `gh pr view` JSON. To let children merge without the auto-mode classifier blocking `gh pr merge`, the user can allow-list the single command `pwsh scripts/pr-merge.ps1` (done in the checked-in `.claude/settings.json`: `permissions.allow` has `PowerShell(pwsh scripts/pr-merge.ps1:*)` and the Bash form).
 
 Tests for the pure logic: `pwsh scripts/tests/pr-lib.tests.ps1` (runs in CI).

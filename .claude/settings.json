@@ -1,4 +1,11 @@
 {
+  "permissions": {
+    "allow": [
+      "PowerShell(pwsh scripts/pr-merge.ps1:*)",
+      "Bash(pwsh scripts/pr-merge.ps1:*)",
+      "PowerShell(pwsh -File scripts/pr-merge.ps1:*)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
