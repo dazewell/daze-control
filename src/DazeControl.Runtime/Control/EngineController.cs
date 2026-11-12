@@ -77,7 +77,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
     /// structure only. A step whose device isn't in the library fails, so the dry run shows what would be skipped.
     /// </summary>
     public static FlowRunner CreateDryRunner(TimeProvider time) =>
-        new(ProviderCatalog.All.Select(d => new DryProvider(d.Id)), time);
+        new(ProviderCatalog.All.Select(d => new DryProvider(d.Id)), time) { DryRun = true };
 
     /// <summary>Starts a runnable flow (hotkey, tray, pipe); null when it can't run or the trigger was ignored.</summary>
     public Task<RunResult?> TriggerAsync(string flowId, string trigger) =>

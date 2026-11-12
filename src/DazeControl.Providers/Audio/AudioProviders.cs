@@ -78,6 +78,7 @@ public sealed class AudioSetDefaultProvider(IAudioEndpoints audio) : IStepProvid
         var roles = AudioSteps.Roles(context);
         var endpoint = await audio.WaitForAsync(device.Match, device.Flow, cancellationToken).ConfigureAwait(false);
         await audio.SetDefaultAsync(endpoint.Id, roles, cancellationToken).ConfigureAwait(false);
+        context.SetDevice("device", context.RequiredText("device"), LibraryKind.Audio);
     }
 }
 

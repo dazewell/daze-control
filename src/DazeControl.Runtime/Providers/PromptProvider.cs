@@ -64,6 +64,7 @@ public sealed class PromptProvider(IMenuPresenter presenter, Action<string, bool
             var yes = picked == YesKey;
             if (Text(node, "flag") is { Length: > 0 } yesNo)
                 setFlag?.Invoke(yesNo, yes);
+            context.SetValue("answer", yes ? "Yes" : "No");
             if (!yes)
                 throw new StepFailedException("You answered No.");
             context.SetSummary("Answered Yes");
@@ -75,6 +76,7 @@ public sealed class PromptProvider(IMenuPresenter presenter, Action<string, bool
             foreach (var answer in answers)
                 setFlag?.Invoke(flag + ":" + answer, answer == chosen);
         }
+        context.SetValue("answer", chosen);
         context.SetSummary($"Chose {chosen}");
     }
 

@@ -764,12 +764,12 @@ The user accepted all five open points as recommended (PR #217). One PR per task
   (scanner, `Before` (PickResults delegates), `Problems`, `MayBeMissing`, `Fill`, `Wanted`), `Core/Runs/RunValues`, `ConfigValidator`
   checks (DESIGN §4.6). Files: Core/Catalog, Core/Model, Core/Runs, Core/Validation. Done when: Core tests for the grammar (JSON,
   PowerShell, `%VAR%`, `{{` escape, fallback), every §4.6 sentence, card siblings, may-be-missing; samples/fixtures round-trip byte-identical. Branch feat/m23-core-values.
-- [ ] T23.2 Runtime and the first producers (Sonnet, M; after T23.1): runner fills before the lock, clears per attempt, keeps OnFailure
+- [x] T23.2 Runtime and the first producers (Sonnet, M; after T23.1): runner fills before the lock, clears per attempt, keeps OnFailure
   values and `error`; `StepContext.SetValue/SetDevice/Wants` (`SetResult` kept); values for `prompt.pick`, `bluetooth.connect/disconnect`,
   `audio.setDefault` (`device`), `power.battery`, `network.wifi`, `prompt.ask`, `process.run`/`script.powershell` (`exitCode`); takes
   values: `notify.text`, both prompt questions, `menu.show.title`; run values and `{$input}`; dry run shows titles. Files: Runtime/FlowRunner,
   Runtime/Providers, Providers/*, Runtime/Control (dry run). Done when: Runtime tests (parallel branches, retries, failure edge with
-  `error`, skipped producer → fallback/empty) and Providers tests; engine AOT publish 0 warnings; image delta noted.
+  `error`, skipped producer → fallback/empty) and Providers tests; engine AOT publish 0 warnings; image delta noted. Branch feat/m23-runtime-values. `network.wifi`'s network and `power.battery`'s percent are OnFailure (a failed check still read them).
 - [ ] T23.3 Editor: Insert value and display form (Sonnet, M; after T23.1, parallel with T23.2): `Inspector/ValueText` codec, grouped
   Flyout, caret insert, focus back to the box, names. Files: Editor.ViewModels/Inspector, Editor text param control. Done when: codec
   tests (duplicate names, rename, unmapped token); screenshots light/dark/high contrast/225 % text.

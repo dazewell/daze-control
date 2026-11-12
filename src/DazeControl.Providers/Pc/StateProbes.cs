@@ -22,15 +22,23 @@ public sealed class WifiProbe(INetworkState network) : IFactProbe
         if (string.IsNullOrEmpty(wanted))
         {
             var named = wifi.Where(c => c.Named).Select(c => c.Detail).ToList();
+            if (named.Count > 0)
+                context.SetValue("network", string.Join(", ", named));
             return Task.FromResult(wifi.Count == 0 ? new FactReading(false, "Not on Wi-Fi")
                 : new FactReading(true, named.Count > 0 ? $"On Wi-Fi {string.Join(", ", named)}" : "On Wi-Fi"));
         }
         if (wifi.FirstOrDefault(c => c.Named && string.Equals(c.Detail, wanted, StringComparison.OrdinalIgnoreCase)) is { } match)
+        {
+            context.SetValue("network", match.Detail);
             return Task.FromResult(new FactReading(true, $"On Wi-Fi {match.Detail}"));
+        }
         if (wifi.Count == 0)
             return Task.FromResult(new FactReading(false, "Not on Wi-Fi"));
         if (wifi.FirstOrDefault(c => c.Named) is { } other)
+        {
+            context.SetValue("network", other.Detail);
             return Task.FromResult(new FactReading(false, $"On Wi-Fi {other.Detail}, not {wanted}"));
+        }
         // Windows 11 hides network names from apps without location access.
         throw new StepFailedException("Windows didn't say which Wi-Fi network this is. Allow location for desktop apps in Settings › Privacy & security › Location.");
     }
@@ -129,6 +137,7 @@ public sealed class BatteryProbe(IPcState pc) : IFactProbe
     {
         var limit = context.WholeNumber("percent", 20);
         var percent = pc.Power().BatteryPercent ?? throw new StepFailedException("This PC has no battery, or Windows didn't say how full it is.");
+        context.SetNumber("percent", percent);
         return Task.FromResult(new FactReading(percent >= limit, $"The battery is at {percent}%"));
     }
 }
