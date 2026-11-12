@@ -22,6 +22,78 @@ Notes for next agent:
 
 ---
 
+## M21 Canvas: smooth as Miro (user, 2026-11-11; D-119, D-120) — investigated in docs/canvas-architecture
+Verdict (D-119): keep the XAML pills and batched edges; the jank comes from the interaction layer (only committed
+layout is drawn, a commit is a full rebuild, the library drop ignores the pointer, semantic zoom re-lays out). Fix it
+in this order: quick wins on today's code, then the scene and camera, then motion. One PR per task, no version bump
+(D-079); every task updates ARCHITECTURE (Editor › Flow editor) to as-built and ticks its line. Live checks are the
+user's (`scripts/dev-run.ps1`): agents can't drag with a real mouse, so each PR lists what to try.
+**Order and files** (`→` = after, same files; tasks on one line run in parallel):
+`T21.1` any time (VM only) · `T21.2 → T21.3 → T21.4 → T21.6 → T21.8` · `T21.2 → T21.5` (parallel with T21.3/T21.4:
+palette partial + one OverlayLayer element; rebase on whichever merges first) · `T21.4, T21.5 → T21.7` (parallel with
+T21.6: camera partial + XAML; T21.6 stays out of FlowCanvas.xaml) · `T21.7, T21.8 → T21.9 → T21.10`.
+Model: Opus medium; T21.6 and T21.7 Opus high.
+
+- [~] T21.1 Commit cost: `Sync` stops re-raising unchanged node properties (`Badges` only when the list differs; the
+  "waits for" text worked out before `Update`, so `AutomationName` is set once). Files: `Editor.ViewModels/Canvas/
+  CanvasNodeViewModel.cs`, `FlowCanvasViewModel.cs` (Sync). Done when: a test that counts node `PropertyChanged` on a
+  `MoveBy` sees only the moved node's X/Y (was 18 events on the 7-step fixture, 319 on 80 steps). (fix/canvas-sync-churn)
+- [ ] T21.2 Split `Editor/Canvas/FlowCanvas.xaml.cs` (1276 lines) into partial files, no behaviour change:
+  `FlowCanvas.Camera.cs` (Fit, zoom, wheel, ApplyView, OnViewChanged), `.Pointer.cs` (gestures, drag, marquee, connect,
+  ports), `.Edges.cs` (DrawEdges, chips, edge controls, hover), `.Palette.cs` (quick add, palette drag/drop), `.Menus.cs`
+  (context menus, tips), `.Keys.cs` (keyboard, focus ring, announce); the constructor and VM sync stay in the main file.
+  Done when: build with zero warnings, all tests green, `git diff --stat` shows only moves. Small; do it first.
+- [ ] T21.3 Drop lands where it was shown (D-120): snap the drag preview the way `MoveBy` does (lead snaps, rest keep
+  their distance, padding clamp); on release commit first, then clear the views' offset in the same tick; take
+  `RepositionThemeTransition` off `NodeLayer` (reflow comes back in T21.8); `NodeView` reacts to X/Y/Width/Height with
+  `Place()` only, a full `Refresh` only for content properties; semantic zoom hides summary/badge by `Opacity` so pill
+  sizes never change with zoom (drop the re-fit workaround in `OnViewChanged`). Files: `FlowCanvas.Pointer.cs`,
+  `FlowCanvas.Camera.cs`, `FlowCanvas.xaml`, `NodeViews.cs`. Done when: tests for the snapped preview offset
+  (pure helper in `Editor.ViewModels/Canvas`); live: a dropped step doesn't move at all on release, with and without
+  Animation effects; zooming across 60 % moves nothing.
+- [ ] T21.4 Live drag (D-119 b): a pure `Editor.ViewModels/Canvas/DragPreview` (ids, offset → moved rects incl. card
+  members, ports, the routes of every edge touching a moved box, built with `FlowPlacement.Sides/Port` + `EdgeCurve.For`
+  exactly as the commit will); `FlowCanvas` coalesces pointer moves to one update per frame (`CompositionTarget.
+  Rendering` subscribed for the gesture only), moves views by `UIElement.Translation`, draws touching edges in a second
+  "live" path set (static ones drawn once at drag start without them), moves their chips, arrowheads, the port dots,
+  focus ring and "+/×". Same for the connect preview's source port. Files: new `DragPreview.cs` (+ tests),
+  `FlowCanvas.Pointer.cs`, `FlowCanvas.Edges.cs`, `FlowCanvas.xaml` (live paths in `EdgeLayer`). Done when: tests prove
+  preview routes == the routes after `MoveBy` for the same offset in all four Arrange shapes, auto and placed, with a
+  card; live: lines, dots and chips stay attached while dragging one step, a card, and a 3-step selection.
+- [ ] T21.5 Library drop at the pointer (D-120): `FlowCanvasViewModel.AddStepAt(step, Point, targetId?, DropZone)`:
+  empty canvas = new step centred on the point, snapped, as a hand placement (freezes the rest, one undo step with the
+  add); on a step = the step drag's zones (`ZoneAt`). `OnPaletteDragOver` shows a dashed landing outline (empty canvas)
+  or the zone highlight and label (on a step), hidden on `DragLeave`/drop. Files: `FlowCanvasViewModel.cs` (add region),
+  `Core/Commands/FlowCommands` or `FlowPlacement` if the placement needs it, `FlowCanvas.Palette.cs`, one element in
+  `OverlayLayer`. Done when: VM tests (position, zones, one undo, auto layout → placed); live: drop at 50 %, 100 %,
+  200 % zoom and scrolled lands under the pointer.
+- [ ] T21.6 Scene model (D-119 a): `Editor.ViewModels/Canvas/CanvasScene`: items by id (O(1) `Find`), a uniform-grid
+  index for `HitTest`/`HitTestEdge`/`OutPortAt`, edge routes, the transient layer (absorbs `DragPreview`), and
+  `Apply(arrangement)` returning a diff (moved, resized, content changed, added, removed, routes changed). `FlowCanvas`
+  applies the diff: `Place()` for moved, `Refresh` for content, edge figures only when routes or styles changed; hover
+  and selection restyle edges without recreating chips (chips kept per edge id). Files: VM `Canvas/*`,
+  `FlowCanvas.xaml.cs` (sync), `FlowCanvas.Edges.cs`; not `FlowCanvas.xaml`. Done when: scene tests (diff, index vs
+  brute-force hit tests on random points), existing canvas tests green, T21.1's event-count test still minimal.
+- [ ] T21.7 Camera (D-119 e), spike first: a branch-only spike replaces the `ScrollViewer` with a world layer under one
+  transform and checks: touchpad two-finger pan and pinch (wheel with `PointerDeviceType.Touchpad`, Ctrl for pinch),
+  crisp text at 50/150/200 %, touch pan/pinch with inertia via manipulation events, keyboard focus reveal. Pass → pure
+  `Editor.ViewModels/Canvas/Camera` (screen↔world, zoom at point, fit and centre, reveal rect, 48-DIP keep-on-screen
+  clamp; replaces `CanvasViewport`) + `FlowCanvas.Camera.cs`; mouse wheel zoom, Shift+wheel, right/middle/Space drag
+  as today (D-069, D-074) but synchronous; no `Wrapper` padding, no `ChangeView` retries. Fail → X-entry with the
+  evidence, keep the `ScrollViewer`, mark D-119 (e) dropped. Files: `FlowCanvas.xaml`, `FlowCanvas.Camera.cs`,
+  `CanvasViewport.cs` → `Camera.cs` + tests. Done when: Camera tests (round trips, zoom keeps the point, fit, clamp);
+  live by the user: mouse, touchpad, touch.
+- [ ] T21.8 Motion (D-119 d): the scene tweens rects 200 ms decelerate (UX §5.3 reflow token) on layout-driven moves
+  (Arrange, insert, delete, untangle, undo/redo, card changes); views and the live edge set read the tween each frame
+  (Rendering subscribed only while it runs); add = fade + scale 0.96→1 150 ms; none of it with Animation effects off.
+  Plus a debug-only frame probe (`--canvas-probe`: worst and mean ms per gesture frame to `logs\editor.log`) and its
+  numbers for a 100-step flow in the PR. Files: `CanvasScene`, `FlowCanvas.Pointer.cs`/`.Edges.cs`, `NodeViews.cs`.
+  Done when: tween tests (pure); probe ≤ 8 ms worst frame on the 100-step flow, else open D-119's revisit.
+- [ ] T21.9 Gesture polish: auto-pan when a drag, connect or marquee nears the canvas edge (speed by distance, Rendering
+  only while near), the connect preview snaps to the target's in-port, the marquee previews its selection live.
+  Files: `FlowCanvas.Pointer.cs`, `Camera.cs`. Done when: Camera/auto-pan maths tested; live by the user.
+- [ ] T21.10 Gate: UX §5.9 M21 list checked live by the user, ARCHITECTURE as built, D-119 status "built", release-notes
+  line in the PR body.
 ## M14 Step defaults, checks and "Only if" (user, 2026-11-04) — before the remaining plan (M12 T12.9/T12.10, T10.5, M13 gate)
 Designed 2026-11-04: docs/step-settings/DESIGN.md, D-080..D-083. One PR per task, no version bumps (D-079); every task
 moves its as-built facts from DESIGN into ARCHITECTURE/UX/FEATURES and cuts them there (D-053). Opus medium each.

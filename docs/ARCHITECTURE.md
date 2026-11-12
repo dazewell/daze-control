@@ -385,6 +385,11 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   leaves the system drag rectangle (`GetSystemMetricsForDpi(SM_CX/CYDRAG)` at the XAML root's DPI, in DIP), and
   swallows the one `RightTapped` after a pan. The canvas captures only once panning, so a still click's `RightTapped`
   still arrives; an armed press is dropped on `PointerExited` (no capture = no release outside).
+- Canvas direction (D-119, M21; not built yet): today only committed layout is drawn (a drag moves just the views by
+  `RenderTransform`; edges, ports and chips wait for `MoveBy`), and a commit is a full `Sync` (re-arrange, new edge VMs,
+  outline, every node re-raising `Badges`/`AutomationName`). M21 adds a pure scene with a transient layer (preview ==
+  commit, per-frame updates only during a gesture), diff-based view updates, a camera transform instead of the
+  `ScrollViewer` (after a spike), and FLIP reflow. XAML pills, batched edge paths and the UIA peers stay.
 - Canvas edits live in Core: `FlowGraph` (connect/disconnect/`when`, refusals: exists, loop, same card) and
   `FlowEdits` (group/ungroup, take out — a card under 2 members dissolves —, run together/after on drop).
   `FlowTidy` (Layout › "Untangle lines", was Tidy up, X-006) cuts crossings with barycentre sweeps; nodes only
