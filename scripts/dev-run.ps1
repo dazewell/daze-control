@@ -4,6 +4,10 @@
 #   pwsh scripts/dev-run.ps1 -NoEditor    engine only
 #   pwsh scripts/dev-run.ps1 -Restore     stop the dev engine/editor and start the installed app again
 #   pwsh scripts/dev-run.ps1 -ResetConfig overwrite the dev config with samples/dev-config.yaml
+#   pwsh scripts/dev-run.ps1 -Sample showcase   run on a larger sample instead: samples/dev-<name>.yaml, kept as
+#                                               %LOCALAPPDATA%\DazeControl\dev\<name>.yaml (showcase: branchy flows,
+#                                               cards, failure lines, prompts; big: 40/60/100-step flows). Safe: they
+#                                               only check, show messages, wait or ask. -ResetConfig works with it too.
 # The dev config lives at a fixed place outside the repo: %LOCALAPPDATA%\DazeControl\dev\config.yaml. It is
 # copied from samples/dev-config.yaml once and then left alone, so edits you make in the editor stay across runs.
 # Logs and history are shared with the installed engine (%LOCALAPPDATA%\DazeControl).
@@ -13,11 +17,13 @@
 param(
     [switch]$NoEditor,
     [switch]$Restore,
-    [switch]$ResetConfig
+    [switch]$ResetConfig,
+    [string]$Sample
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
-$config = Join-Path $env:LOCALAPPDATA 'DazeControl\dev\config.yaml'
+$devFolder = Join-Path $env:LOCALAPPDATA 'DazeControl\dev'
+$config = if ($Sample) { Join-Path $devFolder "$Sample.yaml" } else { Join-Path $devFolder 'config.yaml' }
 $installed = Join-Path $env:LOCALAPPDATA 'DazeControlApp\current\DazeControl.exe'
 $engineExe = Join-Path $repo 'artifacts\engine\DazeControl.exe'
 $dctl = Join-Path $repo 'artifacts\cli\dctl.exe'
@@ -27,7 +33,7 @@ function Stop-Editors {
     # Only editors started on the dev config; other checkouts' editors on other files are left alone.
     # Closed through the window first so the editor flushes pending edits; killed only if it doesn't exit.
     $ids = @(Get-CimInstance Win32_Process -Filter "Name = 'DazeControl.Editor.exe'" |
-        Where-Object { $_.CommandLine -and $_.CommandLine -like "*$config*" } | ForEach-Object { $_.ProcessId })
+        Where-Object { $_.CommandLine -and $_.CommandLine.Contains($config, [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.ProcessId })
     foreach ($id in $ids) {
         $p = Get-Process -Id $id -ErrorAction SilentlyContinue
         if (-not $p) { continue }
@@ -54,6 +60,13 @@ function Invoke-Step([string]$What, [scriptblock]$Run) {
     if ($LASTEXITCODE -ne 0) { throw "dev-run: $What failed (exit $LASTEXITCODE)" }
 }
 
+# Checked before anything is stopped: a mistyped sample leaves the running app alone.
+$template = if ($Sample) { Join-Path $repo "samples\dev-$Sample.yaml" } else { Join-Path $repo 'samples\dev-config.yaml' }
+if (($Sample -and $Sample -notmatch '^[A-Za-z0-9-]+$') -or -not (Test-Path -LiteralPath $template)) {
+    $names = (Get-ChildItem (Join-Path $repo 'samples') -Filter 'dev-*.yaml' | Where-Object Name -ne 'dev-config.yaml' |
+        ForEach-Object { $_.BaseName -replace '^dev-', '' }) -join ', '
+    throw "dev-run: no sample '$Sample' (samples: $names)"
+}
 Write-Host "dev-run: stopping the running engine"
 Stop-Editors
 & (Join-Path $PSScriptRoot 'stop.ps1')
@@ -65,10 +78,9 @@ if ($Restore) {
 
 try {
     # The dev config: created once from the template (or on -ResetConfig).
-    $template = Join-Path $repo 'samples\dev-config.yaml'
-    if ($ResetConfig -or -not (Test-Path $config)) {
+    if ($ResetConfig -or -not (Test-Path -LiteralPath $config)) {
         New-Item -ItemType Directory -Force (Split-Path -Parent $config) | Out-Null
-        Copy-Item $template $config -Force
+        Copy-Item -LiteralPath $template -Destination $config -Force
         Write-Host "dev-run: dev config written to $config"
     }
 

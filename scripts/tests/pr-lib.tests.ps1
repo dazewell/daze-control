@@ -92,6 +92,8 @@ Check 'bad pair throws' $threw $true
 Check 'prefix resolves' (Resolve-ThreadId $d 'PRRT_aa').Id 'PRRT_aaa111'
 $threw = $false; try { Resolve-ThreadId $d 'nope' | Out-Null } catch { $threw = $true }
 Check 'unknown thread throws' $threw $true
+$cased = [pscustomobject]@{ Threads = @([pscustomobject]@{ Id = 'PRRT_xMgP' }, [pscustomobject]@{ Id = 'PRRT_xMgp' }) }
+Check 'ids differing only by case resolve exactly' (Resolve-ThreadId $cased 'PRRT_xMgp').Id 'PRRT_xMgp'
 
 # failed-test parsing and flake rule
 $log = @(
