@@ -115,6 +115,7 @@ public sealed partial class FlowCanvas : UserControl
                 _viewModel.PropertyChanged -= OnViewModelChanged;
                 _viewModel.Nodes.CollectionChanged -= OnNodesChanged;
                 _viewModel.Noted -= OnNoted;
+                _viewModel.OriginShifted -= OnOriginShifted;
             }
             _viewModel = value;
             ForgetChips();
@@ -127,6 +128,7 @@ public sealed partial class FlowCanvas : UserControl
             _viewModel.PropertyChanged += OnViewModelChanged;
             _viewModel.Nodes.CollectionChanged += OnNodesChanged;
             _viewModel.Noted += OnNoted;
+            _viewModel.OriginShifted += OnOriginShifted;
             SyncNodes();
             DrawEdges();
             UpdateExtent();
@@ -145,7 +147,7 @@ public sealed partial class FlowCanvas : UserControl
                 UpdateExtent();
                 // Measured pill sizes arrive after the first fit: keep fitting until the user moves the view.
                 if (_autoFit)
-                    DispatcherQueue.TryEnqueue(Fit);
+                    DispatcherQueue.TryEnqueue(() => { if (_autoFit) Fit(); }); // a pan or drop since then wins
                 break;
             case nameof(FlowCanvasViewModel.FocusedId):
                 UpdateFocusRing();

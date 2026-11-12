@@ -30,6 +30,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     public static readonly Size DefaultPillSize = new(232, 56);
 
+    /// <summary>The widest a pill grows to fit its title (the canvas clamps its measured width to this).</summary>
+    public const double MaxPillWidth = 320;
+
     private readonly ConfigSession _session;
     private readonly Dictionary<string, Size> _measured = new(StringComparer.Ordinal);
     private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
@@ -41,7 +44,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     /// <summary>An undo step: the flow before an edit, or (D-115) this flow's view choices before a move or Arrange.</summary>
     /// <summary>A flow edit (<paramref name="View"/> null), a view change, or both at once (<paramref name="WithFlow"/>: a library drop that places the new step).</summary>
-    private sealed record UndoEntry(Flow Flow, FlowViewSettings? View, bool WithFlow = false);
+    /// <param name="Restore">How far every step moves when this entry is applied (a library drop above or left of the flow
+    /// moved the origin): the canvas pans back by it (<see cref="OriginShifted"/>).</param>
+    private sealed record UndoEntry(Flow Flow, FlowViewSettings? View, bool WithFlow = false, Point Restore = default);
     private FlowArrangement _arrangement = new([], [], [], new Size(96, 96));
     private Flow? _known;
     private bool _editing;
@@ -986,9 +991,10 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             return;
         var target = from[^1];
         from.RemoveAt(from.Count - 1);
+        var back = new Point(-target.Restore.X, -target.Restore.Y); // applying the counterpart undoes this move
         if (target.View is { } view)
         {
-            Push(to, new UndoEntry(current, LayoutChoices.Copy(), target.WithFlow));
+            Push(to, new UndoEntry(current, LayoutChoices.Copy(), target.WithFlow, back));
             if (target.WithFlow)
                 Replace(_ => target.Flow);
             var copy = view.Copy();
@@ -998,9 +1004,11 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         else
         {
             Replace(_ => target.Flow);
-            Push(to, new UndoEntry(current, null));
+            Push(to, new UndoEntry(current, null, Restore: back));
         }
         UpdateHistory();
+        if (target.Restore != default)
+            OriginShifted?.Invoke(this, target.Restore);
     }
 
     private void Replace(Func<Flow, Flow> change)
@@ -1049,17 +1057,25 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// Where a step of <paramref name="size"/> dropped from the library at content point <paramref name="p"/> lands on
-    /// empty canvas: centred on the point, its top left snapped to the grid, never above or left of the padding (D-120).
-    /// The canvas draws its dashed landing outline from this, so the outline is exactly where the step goes.
+    /// empty canvas: centred on the point, its top left snapped to the grid, or the nearest spot that covers no step,
+    /// keeping room for the pill to widen to <see cref="MaxPillWidth"/> and grow as tall as the tallest step (D-120). Anywhere, above or left of the flow too
+    /// (the drop then moves the flow's origin and raises <see cref="OriginShifted"/>). The canvas draws its dashed landing
+    /// outline from this, so the outline is exactly where the step goes.
     /// </summary>
     public Rect LandingAt(Point p, Size size)
     {
-        var padding = LayoutOptions.Padding;
-        return new Rect(
-            Math.Max(padding, FlowPlacement.Snap(p.X - size.Width / 2)),
-            Math.Max(padding, FlowPlacement.Snap(p.Y - size.Height / 2)),
-            size.Width, size.Height);
+        var want = new Rect(FlowPlacement.Snap(p.X - size.Width / 2), FlowPlacement.Snap(p.Y - size.Height / 2), size.Width, size.Height);
+        var taken = Nodes.Where(n => n.CardId is null).Select(n => n.Bounds).ToList();
+        // Room to grow: as wide as a pill gets, as tall as the tallest step now (badges, larger text).
+        var tallest = Nodes.Where(n => n.Kind == CanvasNodeKind.Step).Select(n => n.Height).DefaultIfEmpty(size.Height).Max();
+        return FreeSpot.Nearest(want, new Size(MaxPillWidth, Math.Max(size.Height, tallest)), taken, LayoutOptions.RowGap);
     }
+
+    /// <summary>
+    /// Raised when an edit moved every step by the same amount (content DIP) because something went above or left of
+    /// the layout's margin: the canvas pans its camera back by it, so nothing moves on screen.
+    /// </summary>
+    public event EventHandler<Point>? OriginShifted;
 
     /// <summary>
     /// A step dropped from the library at content point <paramref name="p"/> (D-120). On <paramref name="targetId"/>'s
@@ -1091,10 +1107,14 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
             v.Placed = everything; // as in MoveBy: what is on the canvas now, so nothing else shifts
             v.Placed[id] = new Point(at.X, at.Y);
         }, undoable: false);
-        Push(_undo, new UndoEntry(flow, before, WithFlow: true));
+        // Above or left of the margin: the layout moved everything so the new step sits at the margin.
+        var shift = Find(id) is { } node ? new Point(node.X - at.X, node.Y - at.Y) : default;
+        Push(_undo, new UndoEntry(flow, before, WithFlow: true, new Point(-shift.X, -shift.Y)));
         _redo.Clear();
         UpdateHistory();
         SelectOnly([id]);
+        if (shift != default)
+            OriginShifted?.Invoke(this, shift);
         return (id, ConnectRefusal.None);
     }
 

@@ -1621,7 +1621,9 @@ Status: accepted (user, 2026-11-11, same report as D-119); built in M21.
   snapped to the 8-DIP grid while moving, so the drop changes nothing visible. A step dragged from the library lands
   centred under the pointer (snapped) on empty canvas, as a hand placement (D-115: the first placement freezes the rest);
   dropped on a step it uses the same zones as a step drag (left third Run before, right third Run after, body Run
-  together); a dashed landing outline shows where it will go. Zoom never changes layout: below 60 % summaries and
+  together); a dashed landing outline shows where it will go. It never covers another step (user, 2026-11-12): over a
+  step's free band or next to one it takes the nearest clear grid spot, keeping room to widen to the 320-DIP pill
+  maximum; above or left of the flow it lands there too (the flow's origin moves, the camera pans back). Zoom never changes layout: below 60 % summaries and
   badges are hidden by opacity, so a pill keeps its size. Steps moved by layout (Arrange, insert, delete, undo) glide
   200 ms with their lines attached.
 - Why: the user's report: steps that "cut and paste", dots and lines that update only on drop, library drops in the
