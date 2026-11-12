@@ -40,6 +40,7 @@ public sealed class MenuProvider(IMenuPresenter presenter, IFlowStarter flows) :
         if (!item.CanRun)
             throw new StepFailedException($"{item.Name} can't run right now.");
         _lastPicked[key] = picked;
+        context.SetValue("picked", item.Name);
 
         if (context.Flow.Id.StartsWith(EngineController.TestPrefix, StringComparison.Ordinal))
         {

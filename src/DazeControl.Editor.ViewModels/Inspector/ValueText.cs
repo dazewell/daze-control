@@ -141,6 +141,67 @@ public static class ValueText
         return groups;
     }
 
+    /// <summary>How the text boxes name a step: its name, "Connect Technics (2)" for the second of two.</summary>
+    public static string LabelOf(Flow flow, string stepId, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        return new Names(flow, catalog ?? ProviderCatalog.All).LabelOf(stepId);
+    }
+
+    /// <summary>What a pill shows for a reference: the value's <paramref name="Title"/> and where it comes from ("Connect Technics", "This run", "Input").</summary>
+    public readonly record struct PillWords(string Title, string From);
+
+    /// <summary>The words of a reference's pill, or null when it names nothing in this flow.</summary>
+    public static PillWords? Words(Flow flow, ValueRef reference, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        var names = new Names(flow, catalog ?? ProviderCatalog.All);
+        return reference.Source switch
+        {
+            ValueSource.Step => flow.FindNode(reference.Name) is StepNode s && names.Title(s, reference.Value) is { } t ? new(t, names.LabelOf(s.Id)) : null,
+            ValueSource.Input => flow.Inputs.ContainsKey(reference.Name) ? new(names.InputLabelOf(reference.Name), InputLabel) : null,
+            _ => StepValues.RunTitle(reference.Name) is { } title ? new(title, RunLabel) : null,
+        };
+    }
+
+    /// <summary>
+    /// Whether <paramref name="shown"/> holds a <c>{Step name: Value}</c> that reads like a value of this flow (a step, "This run" or
+    /// "Input" before the colon) but names none: a typo or a value that is gone. It stays plain text and the box says so.
+    /// </summary>
+    public static bool HasUnknownValue(Flow flow, string? shown, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        if (string.IsNullOrEmpty(shown) || !shown.Contains('{', StringComparison.Ordinal))
+            return false;
+        var names = new Names(flow, catalog ?? ProviderCatalog.All);
+        for (var i = 0; i < shown.Length; i++)
+        {
+            if (shown[i] != '{')
+                continue;
+            // "{{Connect Technics: Nope}" is written literally (FromDisplay): not a typo.
+            var escaped = i + 1 < shown.Length && shown[i + 1] == '{';
+            if (names.TryDisplayToken(shown, escaped ? i + 1 : i, out var length, out _))
+            {
+                i += escaped ? length : length - 1;
+                continue;
+            }
+            if (escaped)
+            {
+                i++;
+                continue;
+            }
+            var close = shown.IndexOf('}', i + 1);
+            var open = shown.IndexOf('{', i + 1);
+            if (close < 0 || open >= 0 && open < close)
+                continue;
+            var body = shown[(i + 1)..close];
+            var colon = body.IndexOf(": ", StringComparison.Ordinal);
+            if (colon > 0 && names.KnownLabel(body[..colon]) && StepValues.Split(shown[i..(close + 1)]).All(p => p.Ref is null))
+                return true;
+        }
+        return false;
+    }
+
     /// <summary>Step labels (duplicates numbered by flow order) and the two lookups the codec needs.</summary>
     private sealed class Names
     {
@@ -188,6 +249,10 @@ public static class ValueText
         }
 
         public string InputLabelOf(string key) => _inputLabelOf.GetValueOrDefault(key, key);
+
+        public bool KnownLabel(string label) => _idOf.ContainsKey(label) || label is RunLabel or InputLabel;
+
+        public string? Title(StepNode step, string value) => Spec(step, value)?.Title;
 
         public string LabelOf(string id) => _labelOf.GetValueOrDefault(id, id);
 

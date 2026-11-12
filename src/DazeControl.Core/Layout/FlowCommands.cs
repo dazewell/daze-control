@@ -119,7 +119,7 @@ public static partial class FlowCommands
         };
         foreach (var card in result.Nodes.OfType<GroupNode>().Where(g => g.Members.Count == 1).ToList())
             result = FlowEdits.Ungroup(result, card.Id).Flow; // one step: never refused
-        return result;
+        return StepValues.DropRefsTo(result, gone); // values of deleted steps: their fallback text (D-129)
     }
 
     /// <summary>
@@ -188,7 +188,13 @@ public static partial class FlowCommands
                 _ => node,
             });
         }
-        return (flow with { Nodes = [.. flow.Nodes, .. pasted] },
+        // A pasted step reads the copy of a step it was pasted with; a value of a step outside the clip stays and is checked again.
+        var pastedIds = pasted.Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
+        var next = flow with { Nodes = [.. flow.Nodes, .. pasted] };
+        next = StepValues.RewriteRefs(next, (step, r) =>
+            pastedIds.Contains(step.Id) && r.Source == ValueSource.Step && map.TryGetValue(r.Name, out var to) && to != r.Name
+                ? (r with { Name = to }).ToString() : null);
+        return (next,
             [.. clip.Nodes.Where(n => !members.Contains(n.Id)).Select(n => map[n.Id]).Distinct()]);
     }
 

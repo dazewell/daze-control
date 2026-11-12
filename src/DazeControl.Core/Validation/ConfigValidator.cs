@@ -671,7 +671,14 @@ public static partial class ConfigValidator
                     else if (list.Items.Any(i => i is not ScalarParam))
                         Error(path, "List items must be plain values.");
                     else
+                    {
                         CheckNoInputs(list.Items, path);
+                        foreach (var item in list.Items.OfType<ScalarParam>())
+                        {
+                            foreach (var problem in StepValues.Problems(flow, _step, spec, item.Text, catalog, defaults))
+                                Add(problem.Severity, path, problem.Message);
+                        }
+                    }
                     return;
                 case ParamKind.TextMap:
                     if (value is not MapParam map)

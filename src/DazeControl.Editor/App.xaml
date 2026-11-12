@@ -82,6 +82,14 @@
                 <Setter Property="MinWidth" Value="0" />
                 <Setter Property="Padding" Value="4,0" />
             </Style>
+            <!-- A value in the "Shows:" row under a text setting (D-129): a small inline chip, 20 DIP, so a line of text stays one line. -->
+            <Style x:Key="ValuePillButton" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Height" Value="20" />
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Padding" Value="8,0" />
+                <Setter Property="CornerRadius" Value="10" />
+            </Style>
             <!-- The two round handles on a selected connection in the canvas: smaller on purpose, a canvas affordance. -->
             <Style x:Key="CanvasHandleButton" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
                 <Setter Property="Width" Value="24" />

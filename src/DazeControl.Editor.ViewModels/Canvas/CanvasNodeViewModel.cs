@@ -329,13 +329,16 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         {
             if (!step.With.TryGetValue(spec.Name, out var value) || value is not ScalarParam { Text: { Length: > 0 } text })
                 continue;
+            // A text that takes values shows the titles ("Connected to Device at Time"), never ids (D-129).
+            if (StepValues.Takes(spec) && OwnerOf(step, config) is { } owner)
+                text = StepValues.Describe(owner, text, marks: false);
             values.Add(spec.Kind switch
             {
                 // "$output" shows as the input's name, like the picker (D-064).
                 // "$result:pick" shows as "Result of Pick device" (D-117), "$result:set.previous" as
                 // "Previous default from Set default device" (D-130).
                 ParamKind.LibraryRef when PickResults.StepIn(value) is not null =>
-                    OwnerOf(step, config) is { } owner ? PickResults.Describe(owner, text) ?? text : text,
+                    OwnerOf(step, config) is { } flow ? PickResults.Describe(flow, text) ?? text : text,
                 ParamKind.LibraryRef when FlowInputs.NameIn(value) is { } input =>
                     OwnerOf(step, config)?.Inputs.GetValueOrDefault(input)?.Label ?? text,
                 ParamKind.LibraryRef => LibraryName(config.Library, spec.Library, text),

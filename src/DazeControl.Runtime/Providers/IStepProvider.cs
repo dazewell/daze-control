@@ -35,6 +35,12 @@ public sealed record StepContext(Flow Flow, StepNode Node, ProviderDescriptor De
 
     public bool Wants(string name) => WantsValue?.Invoke(name) ?? true;
 
+    /// <summary>
+    /// What earlier steps gave, as environment variables for a script (<c>DAZE_BT_DEVICE</c>; DESIGN §4.8): values reach a script
+    /// only this way, never pasted into its text. Set only for <c>script.powershell</c>.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? Variables { get; init; }
+
     /// <summary>A text value later steps can use (<c>{id.name}</c>); the runner takes it after the attempt (D-129). The last call wins.</summary>
     public void SetValue(string name, string text) => Put(name, new(ValueKind.Text, text ?? ""));
 

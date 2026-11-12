@@ -36,7 +36,29 @@ public static class ProviderCatalog
     private static readonly ValueSpec ExitCode = new("exitCode", ValueKind.Number, "Exit code") { OnFailure = true, Help = "The number it ended with; 0 usually means it worked" };
 
 
-    public static ValueList<ProviderDescriptor> All { get; } =
+    /// <summary>The checks that read a fact and say it in a sentence (D-081, D-118): each gives <c>result</c> (D-129).</summary>
+    private static readonly HashSet<string> ResultSteps = new(StringComparer.Ordinal)
+    {
+        "audio.check", "bluetooth.check", "process.check", "service.check", "file.check", "file.space", "display.count",
+        "android.check", "display.check", "flag.check",
+        "network.wifi", "network.cable", "network.internet", "network.metered", "network.vpn",
+        "power.source", "power.battery", "pc.idle", "pc.locked", "time.check",
+    };
+
+    private static readonly ValueSpec Result = new("result", ValueKind.Text, "Result")
+    {
+        OnFailure = true, Help = "What the check found, in a sentence (\"The battery is at 20%\")",
+    };
+
+    /// <summary>What a program or script printed: the last 1,000 characters, read only when a later step uses it.</summary>
+    private static readonly ValueSpec Output = new("output", ValueKind.Text, "Output")
+    {
+        Sensitive = true, Help = "What it printed (the last 1,000 characters). Only read when a later step uses it",
+    };
+
+    public static ValueList<ProviderDescriptor> All { get; } = [.. Declared().Select(d => ResultSteps.Contains(d.Id) ? d with { Values = [.. d.Values, Result] } : d)];
+
+    private static ValueList<ProviderDescriptor> Declared() =>
     [
         new("audio.setDefault", "Set default device", Audio, Short,
         [
@@ -123,18 +145,22 @@ public static class ProviderCatalog
         [
             new("count", ParamKind.WholeNumber, "Screens") { Default = "2", Min = 1, Max = 16 },
             new("is", ParamKind.Choice, "Is") { Choices = ["atLeast", "fewer"], Captions = ["At least this many are on", "Fewer are on"], Default = "atLeast", Help = WaitUntilHelp },
-        ]) { Keywords = "monitor external second screens how many" },
+        ])
+        {
+            Keywords = "monitor external second screens how many",
+            Values = [new ValueSpec("count", ValueKind.Number, "Screens on") { OnFailure = true, Help = "How many screens are on" }],
+        },
         new("process.run", "Run program", Process, TimeSpan.FromSeconds(30),
         [
             new("path", ParamKind.FilePath, "Program") { Required = true },
-            new("args", ParamKind.TextList, "Arguments"),
+            new("args", ParamKind.TextList, "Arguments") { TakesValues = true, Fill = FillRule.Argument, Help = "One argument per line. A value from an earlier step stays one argument, whatever it holds." },
             new("cwd", ParamKind.FolderPath, "Start in"),
             new("wait", ParamKind.Boolean, "Wait until it exits") { Default = "true" },
             new("exitCodes", ParamKind.TextList, "Exit codes that mean success") { Default = "0" },
         ])
         {
             Conditions = [new ConditionSpec("notRunning", "It isn't running", "process.running", false)],
-            Values = [ExitCode],
+            Values = [ExitCode, Output],
         },
         new("process.close", "Close program", Process, TimeSpan.FromSeconds(30),
         [
@@ -149,16 +175,21 @@ public static class ProviderCatalog
             new("program", ParamKind.Text, "Program") { Required = true, Help = "Its name or path, like Spotify or Spotify.exe." },
             new("is", ParamKind.Choice, "Is") { Choices = ["running", "notRunning"], Captions = ["Running", "Not running"], Default = "running", Help = WaitUntilHelp },
         ]) { Keywords = "running is" },
-        new("script.powershell", "Run PowerShell", Script, TimeSpan.FromSeconds(60),
-            [new("script", ParamKind.MultilineText, "Script") { Required = true, Examples = PowerShellExamples }])
+        new(PowerShellId, "Run PowerShell", Script, TimeSpan.FromSeconds(60),
+            [new("script", ParamKind.MultilineText, "Script")
+            {
+                Required = true, Examples = PowerShellExamples,
+                Help = "Values from earlier steps are not pasted into the script: read them as $env:DAZE_<STEP>_<VALUE>, like $env:DAZE_BT_DEVICE.",
+            }])
         {
-            Values = [ExitCode],
+            Values = [ExitCode, Output],
         },
         new("http.request", "Send web request", Http, Short,
         [
             new("url", ParamKind.Text, "Address")
             {
                 Required = true, Examples = [new("Sunshine: close the running app", "https://localhost:47990/api/apps/close")],
+                TakesValues = true, Fill = FillRule.Url,
             },
             new("method", ParamKind.Choice, "Method") { Choices = ["GET", "POST", "PUT", "PATCH", "DELETE"], Default = "GET" },
             new("headers", ParamKind.TextMap, "Headers") { Examples = [new("JSON", "Content-Type: application/json")] },
@@ -168,7 +199,14 @@ public static class ProviderCatalog
                 Help = "Name of a saved credential; the secret stays in Windows Credential Manager.",
                 Suggest = ParamSuggest.Devices("credentials"),
             },
-        ]),
+        ])
+        {
+            Values =
+            [
+                new ValueSpec("status", ValueKind.Number, "Status code") { OnFailure = true, Help = "The number the server answered with (200 = fine)" },
+                new ValueSpec("body", ValueKind.Text, "Response") { Sensitive = true, Help = "What the server sent back (the first 1,000 characters). Only read when a later step uses it" },
+            ],
+        },
         // Android order (REVIEW F6): connect, apps, input and keys, media and sound, screen, wake/sleep.
         new("android.connect", "Connect", Tv, TimeSpan.FromSeconds(20),
             [Ref("device", "Android device", LibraryKind.Android)])
@@ -198,7 +236,7 @@ public static class ProviderCatalog
             Ref("device", "Android device", LibraryKind.Android),
             new("address", ParamKind.Text, "Address")
             {
-                Required = true, Help = "Opens in the app that handles it.",
+                Required = true, Help = "Opens in the app that handles it.", TakesValues = true, Fill = FillRule.Url,
                 Examples = [new("A web page", "https://example.com"), new("A YouTube video", "https://www.youtube.com/watch?v=dQw4w9WgXcQ")],
             },
         ])
@@ -304,7 +342,11 @@ public static class ProviderCatalog
             new("drive", ParamKind.Text, "Drive or folder") { Default = "C:", Help = "Like C: or D:\\Backups; %VARIABLES% work." },
             new("gb", ParamKind.WholeNumber, "Free space (GB)") { Default = "10", Min = 1, Max = 1_000_000 },
             new("is", ParamKind.Choice, "Is") { Choices = ["atLeast", "below"], Captions = ["At least this much is free", "Less is free"], Default = "atLeast", Help = WaitUntilHelp },
-        ]) { Keywords = "disk drive storage full" },
+        ])
+        {
+            Keywords = "disk drive storage full",
+            Values = [new ValueSpec("free", ValueKind.Number, "Free space (GB)") { OnFailure = true, Help = "How many GB are free" }],
+        },
         // Network, power, PC and time checks (D-118): read-only, one read when the step runs.
         new("network.wifi", "Check Wi-Fi", Network, Short,
         [
@@ -357,7 +399,11 @@ public static class ProviderCatalog
         [
             new("for", ParamKind.Duration, "No input for") { Default = "5m", Help = "Time since the last key press or mouse move." },
             new("is", ParamKind.Choice, "Is") { Choices = ["idle", "active"], Captions = ["Idle at least this long", "Used more recently"], Default = "idle", Help = WaitUntilHelp },
-        ]) { Keywords = "away inactive afk keyboard mouse" },
+        ])
+        {
+            Keywords = "away inactive afk keyboard mouse",
+            Values = [new ValueSpec("idle", ValueKind.Text, "Idle time") { OnFailure = true, Help = "How long since the last key press or mouse move, like 1h 5m" }],
+        },
         new("pc.locked", "Check locked", Pc, Short,
         [
             new("is", ParamKind.Choice, "Is") { Choices = ["locked", "unlocked"], Captions = ["Locked", "Unlocked"], Default = "locked", Help = WaitUntilHelp },
@@ -428,7 +474,10 @@ public static class ProviderCatalog
                 Default = "false",
                 Help = "On: this step waits for the picked flow and takes its result. Off: the picked flow starts on its own.",
             },
-        ]),
+        ])
+        {
+            Values = [new ValueSpec("picked", ValueKind.Text, "Picked flow") { Help = "The name of the flow that was picked" }],
+        },
         // No resources: the prompt waits for a person, never for a device (D-107).
         new(PromptAskId, "Ask", AskGlyph, TimeSpan.FromMinutes(11),
         [
@@ -500,6 +549,9 @@ public static class ProviderCatalog
 
     /// <summary>The <c>menu.show</c> step type (M12, D-054).</summary>
     public const string MenuShowId = "menu.show";
+
+    /// <summary>The <c>script.powershell</c> step type: gets earlier values as environment variables (D-129).</summary>
+    public const string PowerShellId = "script.powershell";
 
     /// <summary><c>menu.show</c>'s item count and <c>closeAfter</c> range (DESIGN §2.1).</summary>
     public const int MaxMenuItems = 12;

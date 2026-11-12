@@ -356,6 +356,18 @@ public sealed partial class InspectorPane : UserControl
     {
         if (sender is not MenuFlyout { Target: Button { Tag: ParamFieldViewModel field, Parent: Grid { Children: [TextBox box, ..] } } } menu)
             return;
+        FillValueMenu(menu, field, row =>
+        {
+            if (box.Text != field.Text)
+                field.Text = box.Text;
+            var caret = field.InsertValue(row, box.SelectionStart, box.SelectionLength);
+            box.Focus(FocusState.Programmatic);
+            box.Select(Math.Min(caret, box.Text.Length), 0);
+        });
+    }
+
+    private static void FillValueMenu(MenuFlyout menu, ParamFieldViewModel field, Action<ValueChoice> pick)
+    {
         menu.Items.Clear();
         foreach (var group in field.ValueGroups)
         {
@@ -373,19 +385,88 @@ public sealed partial class InspectorPane : UserControl
                 AutomationProperties.SetName(item, row.AutomationName);
                 if (row.Help.Length > 0)
                     ToolTipService.SetToolTip(item, row.Help);
-                item.Click += (_, _) =>
-                {
-                    if (box.Text != field.Text)
-                        field.Text = box.Text;
-                    var caret = field.InsertValue(row, box.SelectionStart, box.SelectionLength);
-                    box.Focus(FocusState.Programmatic);
-                    box.Select(Math.Min(caret, box.Text.Length), 0);
-                };
+                item.Click += (_, _) => pick(row);
                 menu.Items.Add(item);
             }
         }
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(new MenuFlyoutItem { Text = ValueText.Footer, IsEnabled = false });
+    }
+
+    /// <summary>
+    /// A pill (DESIGN §5.3): Change value, the words to show when it has no value, and Remove. Every choice is one write; the
+    /// row is rebuilt by it, so nothing here keeps the old pill.
+    /// </summary>
+    private void OnPillClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: PillSegment pill } button)
+            return;
+        var field = pill.Owner;
+        var flyout = new Flyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft };
+        var panel = new StackPanel { Spacing = 8, MinWidth = 240 };
+        if (pill.Words)
+        {
+            var change = new Button { Content = "Change value…", HorizontalAlignment = HorizontalAlignment.Stretch };
+            change.Click += (_, _) =>
+            {
+                flyout.Hide();
+                var menu = new MenuFlyout();
+                FillValueMenu(menu, field, choice => field.ChangePill(pill, choice));
+                menu.ShowAt(button);
+            };
+            panel.Children.Add(change);
+            var fallback = new TextBox { Header = "If it has no value, show", Text = pill.Fallback };
+            var applied = false;
+            void Apply()
+            {
+                if (applied)
+                    return;
+                applied = true;
+                if (fallback.Text != pill.Fallback)
+                    field.SetPillFallback(pill, fallback.Text);
+            }
+            fallback.KeyDown += (_, k) =>
+            {
+                if (k.Key == Windows.System.VirtualKey.Enter)
+                {
+                    k.Handled = true;
+                    Apply();
+                    flyout.Hide();
+                }
+            };
+            flyout.Closing += (_, _) => Apply();
+            panel.Children.Add(fallback);
+        }
+        var remove = new Button { Content = "Remove", HorizontalAlignment = HorizontalAlignment.Stretch };
+        remove.Click += (_, _) =>
+        {
+            flyout.Hide();
+            field.RemovePill(pill);
+        };
+        panel.Children.Add(remove);
+        flyout.Content = panel;
+        flyout.ShowAt(button);
+    }
+
+    private void OnPillKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Delete && sender is Button { Tag: PillSegment pill })
+        {
+            e.Handled = true;
+            pill.Owner.RemovePill(pill);
+        }
+    }
+
+    /// <summary>"Values it gives": puts the display text on the clipboard; the row says "Copied" in place of "Used by".</summary>
+    private void OnCopyGivenValue(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: GivenValueViewModel row } || _viewModel is not { } vm)
+            return;
+        var data = new Windows.ApplicationModel.DataTransfer.DataPackage();
+        data.SetText(row.CopyText);
+        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(data);
+        foreach (var other in vm.GivenValues)
+            other.IsCopied = ReferenceEquals(other, row);
     }
 
 #pragma warning restore CA1822

@@ -96,6 +96,25 @@ public sealed class MenuProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task ThePickedFlowIsAValueForLaterSteps()
+    {
+        Define(FlowYaml("couch", "Couch", Menu("pick", "tv, desk"),
+                "{ id: say, step: notify, after: [pick], with: { text: \"Going to {pick.picked|nothing}\" } }")
+            + FlowYaml("tv", "TV", Notify("a")) + FlowYaml("desk", "Desk", Notify("b")));
+        string? said = null;
+        _provider.On("say", (c, _) =>
+        {
+            said = ((ScalarParam)c.Node.With["text"]).Text;
+            return Task.CompletedTask;
+        });
+        _presenter.Script = _ => Pick("desk");
+
+        await Run("couch");
+
+        Assert.Equal("Going to Desk", said);
+    }
+
+    [Fact]
     public async Task TheStepsParamsReachThePresenter()
     {
         DefineCouch(", title: Evening, layout: grid, size: large, closeAfter: 2m");
