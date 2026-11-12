@@ -46,9 +46,11 @@ public sealed partial class FlowCanvas
         if (_viewModel is null)
             return;
         _drawnEdgeVersion = _viewModel.EdgeVersion;
+        // Lines following a drag or a glide are the live set's (drawn each frame), not the static set's.
+        var live = _viewModel.Scene.LiveCurves;
         var edges = _viewModel.Scene.Drag is { } preview
-            ? _viewModel.Edges.Where(e => !preview.Touching.Contains((e.From, e.To))).Select(e => (e, preview.StaticCurve(e.From, e.To) ?? e.Curve))
-            : _viewModel.Edges.Select(e => (e, e.Curve));
+            ? _viewModel.Edges.Where(e => !preview.Touching.Contains((e.From, e.To)) && !live.ContainsKey((e.From, e.To))).Select(e => (e, preview.StaticCurve(e.From, e.To) ?? e.Curve))
+            : _viewModel.Edges.Where(e => !live.ContainsKey((e.From, e.To))).Select(e => (e, e.Curve));
         Draw(StaticPaths, edges, ChipLayer, _chips);
         DrawLiveEdges();
         ShowEdgeControls(EdgeWithControls());
@@ -62,7 +64,7 @@ public sealed partial class FlowCanvas
     {
         if (_viewModel is null)
             return;
-        if (_viewModel.EdgeVersion != _drawnEdgeVersion || _viewModel.Scene.IsDragging)
+        if (_viewModel.EdgeVersion != _drawnEdgeVersion || _viewModel.Scene.IsDragging || _viewModel.Scene.IsMoving)
             DrawEdges();
         else
             ShowEdgeControls(EdgeWithControls());
@@ -100,10 +102,9 @@ public sealed partial class FlowCanvas
         _drawnEdgeVersion = -1;
     }
 
-    /// <summary>The curve an edge is drawn with now: live while it follows a drag, frozen while a drag runs, else committed.</summary>
+    /// <summary>The curve an edge is drawn with now: mid-glide, live while it follows a drag, frozen while a drag runs, else committed.</summary>
     private DazeControl.Core.Layout.EdgeCurve CurveOf(CanvasEdgeViewModel edge) =>
-        _viewModel?.Scene.LiveCurves.TryGetValue((edge.From, edge.To), out var live) == true ? live
-        : _viewModel?.Scene.Drag?.StaticCurve(edge.From, edge.To) ?? edge.Curve;
+        _viewModel?.Scene.FindEdge(edge.From, edge.To) is not null ? _viewModel.Scene.ShownCurve(edge.From, edge.To) : edge.Curve;
 
     /// <summary>
     /// One set of paths from <paramref name="edges"/>. Chips are kept per edge in <paramref name="keep"/>: a drawn

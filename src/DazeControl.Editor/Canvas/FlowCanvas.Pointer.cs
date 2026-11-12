@@ -68,6 +68,7 @@ public sealed partial class FlowCanvas
         {
             _connectFrom = source;
             _gesture = Gesture.Connect;
+            _gestureProbe.Begin("connect");
         }
         else if (props.IsLeftButtonPressed && _viewModel.HitTest(C(point.Position)) is { } node)
         {
@@ -92,6 +93,7 @@ public sealed partial class FlowCanvas
         else if (props.IsLeftButtonPressed)
         {
             _gesture = Gesture.Marquee; // mouse and pen only (UX §5.8 #4)
+            _gestureProbe.Begin("marquee");
         }
         if (_gesture != Gesture.None)
         {
@@ -139,6 +141,9 @@ public sealed partial class FlowCanvas
                 if (_dragged is not null && _viewModel.CanEdit)
                 {
                     _gesture = Gesture.DragNode;
+                    if (_animated.Count > 0)
+                        FinishMotion(); // grabbed mid-glide: direct manipulation is 1:1, from where it is laid out
+                    _gestureProbe.Begin("drag");
                     _dragViews = [.. DragGroup()];
                     foreach (var view in _dragViews)
                         XamlCanvas.SetZIndex(view, view.Node.CardId is null ? 1 : 2); // members above their card
@@ -153,24 +158,16 @@ public sealed partial class FlowCanvas
         }
     }
 
-    /// <summary>Subscribes the per-frame update for a gesture, or removes it (nothing runs per frame while idle).</summary>
+    /// <summary>Asks for the per-frame update for a gesture, or stops asking (nothing runs per frame while idle).</summary>
     private void OnFrames(bool on)
     {
-        if (on == _onFrames)
-            return;
-        _onFrames = on;
-        if (on)
-            CompositionTarget.Rendering += OnGestureFrame;
-        else
-            CompositionTarget.Rendering -= OnGestureFrame;
+        _gestureFrames = on;
+        UpdateFrames();
     }
 
-    /// <summary>Draws the latest pointer position of a drag, connect or marquee: once per frame, whatever the move rate.</summary>
-    private void OnGestureFrame(object? sender, object e)
+    /// <summary>Draws the latest pointer position of a drag, connect or marquee (from <see cref="OnFrame"/>).</summary>
+    private void GestureFrame(Windows.Foundation.Point position)
     {
-        if (_viewModel is null || _pendingMove is not { } position)
-            return;
-        _pendingMove = null;
         switch (_gesture)
         {
             case Gesture.DragNode:
@@ -224,9 +221,9 @@ public sealed partial class FlowCanvas
             view.Translation = shift;
     }
 
-    /// <summary>Where a node is drawn now: its live rect during a drag, else its committed bounds.</summary>
+    /// <summary>Where a node is drawn now: mid-glide, its live rect during a drag, else its committed bounds.</summary>
     private DazeControl.Core.Layout.Rect BoundsOf(CanvasNodeViewModel node) =>
-        _viewModel?.Scene.Frame is { } frame && frame.Rects.TryGetValue(node.Id, out var live) ? live : node.Bounds;
+        _viewModel?.Scene is { } scene && scene.Find(node.Id) is not null ? scene.ShownBounds(node.Id) : node.Bounds;
 
     private void OnPointerReleased(object sender, PointerRoutedEventArgs e)
     {
@@ -291,7 +288,8 @@ public sealed partial class FlowCanvas
     {
         foreach (var view in _dragViews)
         {
-            view.Translation = System.Numerics.Vector3.Zero;
+            if (!_animated.Contains(view.Node.Id)) // a dropped step the layout moved on glides from where it was dropped
+                view.Translation = System.Numerics.Vector3.Zero;
             XamlCanvas.SetZIndex(view, view.Node.Kind == CanvasNodeKind.Member ? 1 : 0); // as SyncNodes sets it
         }
         _dragViews = [];
@@ -332,6 +330,7 @@ public sealed partial class FlowCanvas
         hovered ??= _viewModel.SelectedIds.Count == 1 ? _viewModel.Find(_viewModel.SelectedIds.First()) : null;
         if (hovered?.CardId is { } card)
             hovered = _viewModel.Find(card);
+        _portsNode = hovered;
         if (hovered is null || !_viewModel.CanEdit)
         {
             InPortDot.Visibility = OutPortDot.Visibility = Visibility.Collapsed;
@@ -458,6 +457,8 @@ public sealed partial class FlowCanvas
     {
         OnFrames(false);
         _pendingMove = null;
+        if (_gesture is Gesture.DragNode or Gesture.Connect or Gesture.Marquee)
+            _gestureProbe.End();
         if (_viewModel?.Scene.IsDragging == true)
         {
             // After the commit (or none: no move, a refused drop, capture lost) every line is drawn as it now is.

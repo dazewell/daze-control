@@ -88,12 +88,13 @@ Model: Opus medium; T21.6 and T21.7 Opus high.
   evidence, keep the `ScrollViewer`, mark D-119 (e) dropped. Files: `FlowCanvas.xaml`, `FlowCanvas.Camera.cs`,
   `CanvasViewport.cs` → `Camera.cs` + tests. Done when: Camera tests (round trips, zoom keeps the point, fit, clamp);
   live by the user: mouse, touchpad, touch. (feat/canvas-camera: code + tests, spike checks in the PR; live check open, user)
-- [ ] T21.8 Motion (D-119 d): the scene tweens rects 200 ms decelerate (UX §5.3 reflow token) on layout-driven moves
+- [~] T21.8 Motion (D-119 d): the scene tweens rects 200 ms decelerate (UX §5.3 reflow token) on layout-driven moves
   (Arrange, insert, delete, untangle, undo/redo, card changes); views and the live edge set read the tween each frame
   (Rendering subscribed only while it runs); add = fade + scale 0.96→1 150 ms; none of it with Animation effects off.
   Plus a debug-only frame probe (`--canvas-probe`: worst and mean ms per gesture frame to `logs\editor.log`) and its
   numbers for a 100-step flow in the PR. Files: `CanvasScene`, `FlowCanvas.Pointer.cs`/`.Edges.cs`, `NodeViews.cs`.
-  Done when: tween tests (pure); probe ≤ 8 ms worst frame on the 100-step flow, else open D-119's revisit.
+  Done when: tween tests (pure); probe ≤ 8 ms worst frame on the 100-step flow, else open D-119's revisit. (feat/canvas-motion:
+  code + `CanvasMotionTests`; scene cost per glide frame on 100 steps ≈ 0.1 ms; the live probe and the look are the user's)
 - [ ] T21.9 Gesture polish: auto-pan when a drag, connect or marquee nears the canvas edge (speed by distance, Rendering
   only while near), the connect preview snaps to the target's in-port, the marquee previews its selection live.
   Files: `FlowCanvas.Pointer.cs`, `Camera.cs`. Done when: Camera/auto-pan maths tested; live by the user.

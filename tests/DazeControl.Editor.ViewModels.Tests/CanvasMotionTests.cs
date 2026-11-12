@@ -266,6 +266,20 @@ public sealed class CanvasMotionTests : IDisposable
     }
 
     [Fact]
+    public void ALayoutMidDragLeavesTheDraggedBoxUnderThePointer()
+    {
+        var scene = new CanvasScene();
+        scene.Apply(Arrangement(Box("a", 48, 48), Box("b", 400, 48)), motion: On);
+        scene.BeginDrag(new DragPreview(Arrangement(Box("a", 48, 48), Box("b", 400, 48)), ["b"], new LayoutOptions()));
+        scene.DragTo(new Point(0, 200));
+
+        // a was re-measured while b is dragged: a glides, b stays where the drag shows it.
+        scene.Apply(Arrangement(Box("a", 48, 96), Box("b", 400, 48)), motion: On);
+        Assert.Equal(["a"], scene.Animated);
+        Assert.Equal(248, scene.ShownBounds("b").Y);
+    }
+
+    [Fact]
     public void GrabbingAGlidingBoxEndsTheGlide()
     {
         var scene = new CanvasScene();

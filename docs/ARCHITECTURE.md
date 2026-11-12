@@ -411,9 +411,20 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   (content changes already reached views through their node's events), and redraws edge figures only when
   `EdgeVersion` moved (bumped by edge diffs and by selection, hover and run-lit changes); chips are kept per edge in both
   sets and only moved. The transient layer is the scene's: `BeginMove` puts the `DragPreview` in `Scene.Drag`, `DragTo`
-  makes the frame and `LiveCurves`, `ShownBounds`/`ShownCurve` are what is drawn now, `EndMove` clears it (T21.8 adds
-  tweens here). M21 still adds FLIP reflow (T21.8). XAML pills,
-  batched edge paths and the UIA peers stay.
+  makes the frame and `LiveCurves`, `ShownBounds`/`ShownCurve` are what is drawn now, `EndMove` clears it.
+  Motion (T21.8, D-119 d): `Scene.Apply(arrangement, setup, SceneMotion)` glides every box from its *shown* rect (so a
+  layout mid-glide retargets from the current frame) to its new one, 200 ms `Easing.Decelerate` (cubic-bezier 0,0,0,1);
+  boxes new to a non-empty scene fade + scale 0.96→1 150 ms; steps take their new size at once, cards' size glides;
+  lines touching a gliding box (and moved lanes) are rebuilt each frame from the laid-out route with each port shifted
+  by its box's offset, so they never leave the port. Pure clock: `Advance(now)` (first frame starts it), `Settle()`
+  ends it; `BeginDrag` settles (a drag is 1:1); a box the drag shows where the layout put it doesn't glide, and a layout
+  mid-drag that didn't commit the move leaves the dragged box alone. The VM's `Motion` provider (the canvas: on screen
+  and Windows "Animation effects" on) is asked on layout-driven syncs: edits, undo/redo, Arrange, a re-measure, a new
+  step's first measure while a glide runs; never the first layout or the first measures after opening. `FlowCanvas.Motion.cs`
+  shows it FLIP style: views sit at the final rect (UIA and hit tests correct at once) with `Translation`/`Scale`/opacity
+  from the glide, gliding lines go to the live set, and one `Rendering` handler (`OnFrame`, shared with gestures,
+  subscribed only while either runs) advances it. `--canvas-probe` (Debug) logs per gesture or glide the worst/mean
+  handler time and frame gap to `logs\editor.log`. XAML pills, batched edge paths and the UIA peers stay.
 - Canvas edits live in Core: `FlowGraph` (connect/disconnect/`when`, refusals: exists, loop, same card) and
   `FlowEdits` (group/ungroup, take out — a card under 2 members dissolves —, run together/after on drop).
   `FlowTidy` (Layout › "Untangle lines", was Tidy up, X-006) cuts crossings with barycentre sweeps; nodes only

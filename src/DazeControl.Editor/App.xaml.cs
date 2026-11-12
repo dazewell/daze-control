@@ -42,6 +42,9 @@ public partial class App : Application
         }
     }
 
+    /// <summary>One line in logs\editor.log from elsewhere in the editor (the canvas probe); never throws.</summary>
+    internal static void LogLine(string message) => Log(message);
+
     /// <summary>A second start of the editor (any thread).</summary>
     public void BringToFront() => _window?.DispatcherQueue.TryEnqueue(() => _window?.BringToFront());
 

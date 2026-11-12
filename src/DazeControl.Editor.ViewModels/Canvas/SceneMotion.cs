@@ -150,6 +150,8 @@ public sealed partial class CanvasScene
             if (before.Rects.TryGetValue(item.Id, out var was))
             {
                 var to = item.Bounds;
+                if (Frame is not null && Frame.Rects.ContainsKey(item.Id) && Drag?.FrozenBounds(item.Id) == to)
+                    continue; // a layout mid-drag that didn't commit the move: the box stays under the pointer
                 if (item.Kind != SceneKind.Card)
                     was = was with { Width = to.Width, Height = to.Height };
                 if (glides && was != to)
