@@ -21,9 +21,8 @@ The coordinator does not write product code. It routes work, watches PRs, cuts r
 ## Standing rules to put in every brief
 
 - Own branch, build + tests green, follow CLAUDE.md and the `repo-workflow` skill.
-- D-079: the tag is the version; PRs never bump `<Version>`. Merge commits only; never `--admin` or `--squash`. **Children do NOT arm `gh pr merge --auto`** (it fires before they answer Copilot threads): they run `gh pr merge <n> --merge` themselves only after the Copilot review is in, every review thread is replied to AND resolved (graphql `resolveReviewThread`), and re-queried `isResolved=true`. This overrides the auto-merge wording in CLAUDE.md/PLAN for children. Docs-only PRs with no review may use `--auto`.
-- Copilot review: per `repo-workflow` (none for docs-only and small fixes); **read it before arming auto-merge**.
-- On merge conflicts, merge origin/main keeping both sides (renumber colliding D-xxx). Right after `gh pr create` the child enables Auto-fix itself (`mcp__ccd_pr__set_monitor` only acts on the caller's own PR): `get_status`, `bind_pr` if unbound, then `set_monitor` with `auto_fix: true`, `address_comments: true`; if the app refuses, don't retry, say so in the PR `## Resume`.
+- **"Follow the `pr-review` skill"** covers Copilot review, threads, Auto-fix (the child enables it itself right after `gh pr create`), CI wait/rerun and the merge (`scripts/pr-merge.ps1`, never `--auto` for children, D-122). D-079: PRs never bump `<Version>`; never `--admin` or `--squash`.
+- On merge conflicts, merge origin/main keeping both sides (renumber colliding D-xxx).
 - Live state lives in the PR's `## Resume`. Child sessions are archived on PR close (auto-archive is on).
 - No Narrator/screen-reader work, no live audio run (D-091). Keep accessible names.
 - No UI jumping or layout shifts for any reason; no empty reserved gaps.
@@ -33,7 +32,7 @@ The coordinator does not write product code. It routes work, watches PRs, cuts r
 
 ## When a child reports back
 
-The note is a report, not proof. Check what matters with one command (`gh pr view <n> --json state,body,autoMergeRequest`), don't re-read the transcript. Then tell the user in 3-6 lines:
+The note is a report, not proof. Check what matters with one command (`pwsh scripts/pr-status.ps1 <n>`; merge a ready PR a child couldn't with `pr-merge.ps1 <n>`), don't re-read the transcript. Then tell the user in 3-6 lines:
 - the PR link, merged or auto-merge armed, whether Auto-fix is on (if refused, say you will watch it yourself);
 - what changed in user terms;
 - what was not verified live;

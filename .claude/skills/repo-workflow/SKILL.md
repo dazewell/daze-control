@@ -69,41 +69,12 @@ PR description: what changed, why (link D-xxx), how it was verified, what's left
 
 ## 6. Merge policy (user, 2026-11-01: agents merge while the app is being scaffolded)
 
-Agents merge their own PRs so work isn't blocked while the user sleeps. Merge with **merge commits** and let
-GitHub do it (D-079): `gh pr merge <n> --auto --merge`. A ruleset requires the `build` check on main, so the PR
-merges itself when CI is green; arm it and end the turn, don't wait for CI. Never `--squash`, never `--admin`.
-If main moved and the PR conflicts, `git merge origin/main`, resolve, push (auto-merge stays armed).
-
-Copilot review (user, 2026-11-01, trimmed 2026-11-04):
-- **No review:** docs-only PRs (no code, tests or build files changed; a spike's untracked probe counts as docs),
-  and `fix` PRs under ~100 changed lines whose new or changed tests cover the change. Arm auto-merge right away.
-- **Every other PR:** one review, a second only after Critical findings (step 4).
-
-With a review:
-1. Copilot doesn't review on its own. Right after opening the PR (or marking it ready),
-   request it: `gh pr edit <n> --add-reviewer @copilot` (works: PR #4 review 2, 2026-11-01; fallback if it fails:
-   `gh api -X POST repos/dazewell/daze-control/pulls/<n>/requested_reviewers -f "reviewers[]=copilot-pull-request-reviewer[bot]"`).
-   Check it took: `gh api repos/dazewell/daze-control/issues/<n>/timeline --jq '.[] | select(.event=="review_requested") | .requested_reviewer.login'`
-   prints `Copilot` (`reviewRequests` empties again once Copilot starts, so it can't confirm it). A review counts
-   against the budget only once requested. Then wait for the review (one background poll that exits when it
-   lands; CI runs meanwhile and auto-merge waits for it).
-2. Read the overview (🟢 / 🟡 / 🔴) and every comment. **Critical** = the review calls it critical or 🔴, or it
-   is a correctness, data-loss, security or fail-soft violation (your judgement counts too).
-3. No Critical → fix cheap findings or reply why not, resolve the threads, push, arm auto-merge
-   (`gh pr merge <n> --auto --merge`) and end the turn.
-4. Critical → fix all findings, reply on each thread, push, request a **second** Copilot review (step 1's
-   command). **Budget: 2 Copilot reviews per PR, never a third** (each costs the user).
-5. Critical still open after the second review → fix them yourself, then review your own fixes (`code-review`
-   skill at high effort on the PR diff) until you find nothing critical; note in the PR what the second
-   review raised and how you verified the fixes; then merge.
-6. Never arm auto-merge with a finding you think is critical but couldn't fix, or on a PR that needs the
-   user's decision (scope, UX, a decision that contradicts a D-xxx): stop, write it in the PR's Resume
-   section, and leave it for the user.
-7. Waiting: one background poll per thing you actually need (the review), never a loop of short checks, and
-   never wait for CI (auto-merge does). If CI fails, the app's Auto-fix or the coordinator wakes you.
-   To know when PRs landed (a dependency, a release), run `pwsh scripts/wait-pr.ps1 60,61` with
-   `run_in_background`: it exits when they merge (1 if closed unmerged or after 120 min) and re-invokes you, with
-   no model calls while it waits. Never poll `gh pr view` by hand, never ask the user "is it merged?".
+Agents merge their own PRs so work isn't blocked while the user sleeps. Everything about Copilot review, review
+threads, CI wait/rerun, the ready check and the merge itself is in the **`pr-review` skill** (D-122): follow it, don't
+hand-roll `gh` calls. In short: merge commits only via `scripts/pr-merge.ps1` (never `--auto` for children, `--squash`
+or `--admin`); a Copilot review is required for PRs adding more than 100 lines of non-test code (max 2 per PR);
+every thread is replied to and resolved first. To wait for a PR to land (a dependency, a release):
+`pwsh scripts/wait-pr.ps1 60,61` with `run_in_background`. Never poll by hand, never ask the user "is it merged?".
 
 Stacked PRs: with merge commits, a branch that already contains its base merges cleanly once the base lands;
 just `git merge origin/main`. Never rebase or force-push.

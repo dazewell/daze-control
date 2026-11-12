@@ -114,3 +114,10 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
   Readings on PC are only `GetCurrentReading`, a poll like XInput, and it adds the GameInputSvc service.
 - Evidence: T12.1 probe `spikes/GamepadProbe` (`gi` mode), 2026-11-04.
 - Retry only if: a newer GameInput (v1+ redist or inbox) implements reading callbacks on desktop.
+
+## X-012 · 2026-11-12 · Investigating a red `TriggerServiceTests`
+- Tried: debugging failures of `TriggerServiceTests` on PRs that never touched triggers (timing-based tests that stall
+  when another run holds the per-user pipe or the runner is slow).
+- Result: they pass on rerun; the time went nowhere. Rule: if the only failed tests are `TriggerServiceTests`, run
+  `pwsh scripts/pr-rerun.ps1 <pr>` and move on; a different failed test, or the same one failing twice in a row, is real.
+- Revisit if: the flake is fixed (then drop `KnownFlaky` in `scripts/pr-lib.ps1`).

@@ -814,7 +814,7 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         var to = moving.ToDictionary(n => n.Id, n => new Point(n.X + dx, n.Y + dy), StringComparer.Ordinal);
         if (moving.All(n => n.X == to[n.Id].X && n.Y == to[n.Id].Y))
             return false;
-        var everything = Nodes.Where(n => n.CardId is null).ToDictionary(n => n.Id, n => new Point(n.X, n.Y), StringComparer.Ordinal);
+        var everything = Frozen();
         ChangeView(v =>
         {
             v.Placed = everything; // rebuilt from what is on the canvas, so deleted steps drop out
@@ -834,6 +834,28 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         var moving = Moving(ids);
         return moving.Count == 0 ? default : Snapped(moving, dx, dy);
     }
+
+    /// <summary>
+    /// Starts a free move's live preview (D-119 b): the arrangement <see cref="MoveBy"/> commits with every step frozen
+    /// where it is, from which the preview derives the moved boxes and the lines touching them for any offset. Null
+    /// when nothing would move (read only, run locked, no such step).
+    /// </summary>
+    public DragPreview? BeginMove(IEnumerable<string> ids)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        if (!CanEdit || IsRunLocked || Flow is not { } flow)
+            return null;
+        var moving = Moving(ids);
+        if (moving.Count == 0)
+            return null;
+        var options = LayoutOptions with { Placed = Frozen() };
+        var frozen = FlowPlacement.Arrange(flow, id => _measured.GetValueOrDefault(id, DefaultPillSize), options);
+        return new DragPreview(frozen, [.. moving.Select(n => n.Id)], options);
+    }
+
+    /// <summary>Every top-level step and card where it is now: what the first move freezes (D-115).</summary>
+    private Dictionary<string, Point> Frozen() =>
+        Nodes.Where(n => n.CardId is null).ToDictionary(n => n.Id, n => new Point(n.X, n.Y), StringComparer.Ordinal);
 
     /// <summary>The top-level boxes a move carries, the lead first (members count as their card).</summary>
     private List<CanvasNodeViewModel> Moving(IEnumerable<string> ids) =>

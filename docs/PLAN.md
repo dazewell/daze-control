@@ -51,7 +51,7 @@ Model: Opus medium; T21.6 and T21.7 Opus high.
   `FlowCanvas.Camera.cs`, `FlowCanvas.xaml`, `NodeViews.cs`. Done when: tests for the snapped preview offset
   (pure helper in `Editor.ViewModels/Canvas`); live: a dropped step doesn't move at all on release, with and without
   Animation effects; zooming across 60 % moves nothing. (feat/canvas-drop-snap; live checks open, for the user)
-- [ ] T21.4 Live drag (D-119 b): a pure `Editor.ViewModels/Canvas/DragPreview` (ids, offset → moved rects incl. card
+- [x] T21.4 Live drag (D-119 b): a pure `Editor.ViewModels/Canvas/DragPreview` (ids, offset → moved rects incl. card
   members, ports, the routes of every edge touching a moved box, built with `FlowPlacement.Sides/Port` + `EdgeCurve.For`
   exactly as the commit will); `FlowCanvas` coalesces pointer moves to one update per frame (`CompositionTarget.
   Rendering` subscribed for the gesture only), moves views by `UIElement.Translation`, draws touching edges in a second
@@ -62,7 +62,8 @@ Model: Opus medium; T21.6 and T21.7 Opus high.
   `FlowCanvas.Pointer.cs`, `FlowCanvas.Edges.cs`, `FlowCanvas.xaml` (live paths in `EdgeLayer`). Done when: tests prove
   every preview route == the route after `MoveBy` for the same offset (all edges, not only touching ones), in all four
   Arrange shapes, auto and placed, a first drag with an unrelated wrapped edge, with a
-  card; live: lines, dots and chips stay attached while dragging one step, a card, and a 3-step selection.
+  card; live: lines, dots and chips stay attached while dragging one step, a card, and a 3-step selection (feat/canvas-live-drag;
+  live checks open, for the user).
 - [~] T21.5 Library drop at the pointer (D-120): `FlowCanvasViewModel.AddStepAt(step, Point, targetId?, DropZone)`:
   empty canvas = new step centred on the point, snapped, as a hand placement (freezes the rest, one undo step with the
   add); on a step = the step drag's zones (`ZoneAt`). `OnPaletteDragOver` shows a dashed landing outline (empty canvas)

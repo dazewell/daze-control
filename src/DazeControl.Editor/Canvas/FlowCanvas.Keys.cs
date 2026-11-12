@@ -30,10 +30,11 @@ public sealed partial class FlowCanvas
         {
             var radius = node.Kind == CanvasNodeKind.Card ? 15 : 31;
             FocusRing.RadiusX = FocusRing.RadiusY = radius;
-            FocusRing.Width = node.Width + 6;
-            FocusRing.Height = (_views.TryGetValue(id, out var view) && view.ActualHeight > 0 ? view.ActualHeight : node.Height) + 6;
-            XamlCanvas.SetLeft(FocusRing, node.X - 3);
-            XamlCanvas.SetTop(FocusRing, node.Y - 3);
+            var bounds = BoundsOf(node); // follows a live drag
+            FocusRing.Width = bounds.Width + 6;
+            FocusRing.Height = (_views.TryGetValue(id, out var view) && view.ActualHeight > 0 ? view.ActualHeight : bounds.Height) + 6;
+            XamlCanvas.SetLeft(FocusRing, bounds.X - 3);
+            XamlCanvas.SetTop(FocusRing, bounds.Y - 3);
             FocusRing.Visibility = Visibility.Visible;
         }
         else

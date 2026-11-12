@@ -386,13 +386,21 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   leaves the system drag rectangle (`GetSystemMetricsForDpi(SM_CX/CYDRAG)` at the XAML root's DPI, in DIP), and
   swallows the one `RightTapped` after a pan. The canvas captures only once panning, so a still click's `RightTapped`
   still arrives; an armed press is dropped on `PointerExited` (no capture = no release outside).
-- Canvas direction (D-119, M21; partly built): a drag moves just the views by `RenderTransform` (edges, ports and chips
-  wait for `MoveBy`), at the offset `MoveBy` will commit (`MoveSnap`: lead snapped, padding clamp; members inside a
-  card follow the pointer as is); on release the VM commits first and the preview offset is cleared in the same tick,
-  and `NodeLayer` has no `RepositionThemeTransition`, so a drop doesn't move (T21.3). `NodeView` re-places itself on
+- Canvas direction (D-119, M21; partly built): live drag (T21.4): `FlowCanvasViewModel.BeginMove(ids)` returns a pure
+  `Canvas/DragPreview` built from the arrangement `MoveBy` commits with every step frozen where it is
+  (`FlowPlacement.Arrange` with all top-level steps placed); `Offset(dx, dy)` = `MoveSnap` (lead snapped, padding clamp)
+  and `At(offset)` gives the moved rects (cards with members) and the routes/curves of the touching lines via
+  `FlowPlacement.Sides/Port` + `EdgeCurve.For`, so preview == commit (`DragPreviewTests`, all shapes, auto and placed).
+  `FlowCanvas` draws pointer moves of a drag, connect or marquee once per frame (`CompositionTarget.Rendering`,
+  subscribed for the gesture only), moves the views by `UIElement.Translation`, draws the static lines once at drag
+  start from the frozen arrangement (a first drag on an auto layout drops wrap lanes then, not on release) and the
+  touching ones in the `Live*` paths of `EdgeLayer` (+ `LiveChipLayer`, chips kept per edge and only moved); ports,
+  focus ring and "+/×" read `BoundsOf`/`CurveOf`. A member drag (reorder in its card) still just follows the pointer.
+  On release the VM commits first; `EndGesture` then redraws the lines as committed and zeroes the translation in the
+  same tick, and `NodeLayer` has no `RepositionThemeTransition`, so a drop doesn't move (T21.3). `NodeView` re-places itself on
   X/Y/Width/Height and redraws content for anything else; semantic zoom fades summary/badge/count by `Opacity`, so pill
-  sizes never change with zoom. A commit is still a full `Sync` (re-arrange, new edge VMs, outline). M21 adds a pure scene with a transient layer (preview ==
-  commit, per-frame updates only during a gesture), diff-based view updates, a camera transform instead of the
+  sizes never change with zoom. A commit is still a full `Sync` (re-arrange, new edge VMs, outline). M21 still adds a pure scene that absorbs
+  `DragPreview`, diff-based view updates, a camera transform instead of the
   `ScrollViewer` (after a spike), and FLIP reflow. XAML pills, batched edge paths and the UIA peers stay.
 - Canvas edits live in Core: `FlowGraph` (connect/disconnect/`when`, refusals: exists, loop, same card) and
   `FlowEdits` (group/ungroup, take out — a card under 2 members dissolves —, run together/after on drop).
