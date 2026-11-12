@@ -30,7 +30,7 @@ internal sealed unsafe class FlowMenu : AcrylicSurface, IMenuPresenter
     private const nuint CountdownTimer = 3;
     private const int WheelStepDip = 56;
     private static readonly TimeSpan FadeIn = TimeSpan.FromMilliseconds(150), FadeOut = TimeSpan.FromMilliseconds(100);
-    private static readonly TimeSpan SlideLength = TimeSpan.FromMilliseconds(200), ShakeLength = TimeSpan.FromMilliseconds(200);
+    private static readonly TimeSpan SlideLength = TimeSpan.FromMilliseconds(500), ShakeLength = TimeSpan.FromMilliseconds(200);
     private static readonly TimeSpan ClosingShows = TimeSpan.FromSeconds(5);
 
     private static bool s_exists;
