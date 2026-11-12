@@ -59,7 +59,8 @@
                                 <Flyout Placement="BottomEdgeAlignedLeft">
                                     <StackPanel Spacing="8" Width="320">
                                         <TextBox Header="Name" Visibility="{x:Bind NeedsName}" Text="{x:Bind ManualName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 PlaceholderText="{x:Bind ManualNamePlaceholder}" AutomationProperties.Name="Name" />
+                                                 PlaceholderText="{x:Bind ManualNamePlaceholder}" AutomationProperties.Name="Name"
+                                                 KeyDown="OnAddByHandKeyDown" Tag="{x:Bind}" />
                                         <TextBox Header="{x:Bind ManualValueHeader}" Text="{x:Bind ManualValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{x:Bind ManualValuePlaceholder}" AutomationProperties.Name="{x:Bind ManualValueHeader}"
                                                  KeyDown="OnAddByHandKeyDown" Tag="{x:Bind}" />
