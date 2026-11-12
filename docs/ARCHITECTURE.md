@@ -386,9 +386,12 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   leaves the system drag rectangle (`GetSystemMetricsForDpi(SM_CX/CYDRAG)` at the XAML root's DPI, in DIP), and
   swallows the one `RightTapped` after a pan. The canvas captures only once panning, so a still click's `RightTapped`
   still arrives; an armed press is dropped on `PointerExited` (no capture = no release outside).
-- Canvas direction (D-119, M21; not built yet): today only committed layout is drawn (a drag moves just the views by
-  `RenderTransform`; edges, ports and chips wait for `MoveBy`), and a commit is a full `Sync` (re-arrange, new edge VMs,
-  outline, every node re-raising `Badges`/`AutomationName`). M21 adds a pure scene with a transient layer (preview ==
+- Canvas direction (D-119, M21; partly built): a drag moves just the views by `RenderTransform` (edges, ports and chips
+  wait for `MoveBy`), at the offset `MoveBy` will commit (`MoveSnap`: lead snapped, padding clamp; members inside a
+  card follow the pointer as is); on release the VM commits first and the preview offset is cleared in the same tick,
+  and `NodeLayer` has no `RepositionThemeTransition`, so a drop doesn't move (T21.3). `NodeView` re-places itself on
+  X/Y/Width/Height and redraws content for anything else; semantic zoom fades summary/badge/count by `Opacity`, so pill
+  sizes never change with zoom. A commit is still a full `Sync` (re-arrange, new edge VMs, outline). M21 adds a pure scene with a transient layer (preview ==
   commit, per-frame updates only during a gesture), diff-based view updates, a camera transform instead of the
   `ScrollViewer` (after a spike), and FLIP reflow. XAML pills, batched edge paths and the UIA peers stay.
 - Canvas edits live in Core: `FlowGraph` (connect/disconnect/`when`, refusals: exists, loop, same card) and
