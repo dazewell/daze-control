@@ -710,4 +710,123 @@ public sealed class LibraryPageViewModelTests : IDisposable
         Assert.False(row.IsEnabled);
         Assert.Equal(LibraryDevices.NotConnectable, row.Caption);
     }
+
+    // ---- Add by hand (D-123) ----
+
+    [Fact]
+    public async Task ABluetoothDeviceAddedByHandIsStoredAndMatchesTheDeviceWhenItShowsUp()
+    {
+        var section = _page.Section(LibraryKind.Bluetooth);
+        Assert.True(section.CanAddByHand);
+        section.ManualName = "Sony XM4";
+        section.ManualValue = "11-22-33-44-55-66"; // typed with dashes
+
+        Assert.True(_page.AddByHand(LibraryKind.Bluetooth));
+
+        Assert.Equal(new BluetoothDevice("sony-xm4", "11:22:33:44:55:66", "Sony XM4"), _session.Current.Library.Bluetooth[^1]);
+        Assert.Equal(("", ""), (section.ManualName, section.ManualValue)); // the form starts over
+        Assert.Null(section.ManualError);
+        await _page.RefreshAsync();
+        Assert.Empty(section.Available); // the live WH-1000XM4 is this item now, not offered again
+        Assert.Contains("Not connected", Item(LibraryKind.Bluetooth, "sony-xm4").Description, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AnItemAddedByHandThatWindowsDoesntSeeSaysSo()
+    {
+        var section = _page.Section(LibraryKind.Bluetooth);
+        section.ManualName = "Car";
+        section.ManualValue = "aa:bb:cc:dd:ee:ff";
+        Assert.True(_page.AddByHand(LibraryKind.Bluetooth));
+
+        await _page.RefreshAsync();
+
+        Assert.Equal("AA:BB:CC:DD:EE:FF", _session.Current.Library.Bluetooth.Single(d => d.Key == "car").Address);
+        Assert.Equal(LibraryDevices.NotFound, Item(LibraryKind.Bluetooth, "car").State);
+        Assert.Empty(_session.Problems); // a valid item: steps can use it, a run says it isn't paired
+    }
+
+    [Theory]
+    [InlineData("", "Sony 2", "Type the device's Bluetooth address.")]
+    [InlineData("80:99:E7:2A:AB", "Sony 2", "\"80:99:E7:2A:AB\" isn't a Bluetooth address (like B8:20:8E:ED:48:FC).")]
+    [InlineData("80:99:e7:2a:ab:a1", "Sony 2", "Sony already has this address.")]
+    [InlineData("01:02:03:04:05:06", " ", "Give it a name.")]
+    public void BluetoothByHandSaysWhatIsWrong(string address, string name, string error)
+    {
+        var section = _page.Section(LibraryKind.Bluetooth);
+        section.ManualValue = address;
+        section.ManualName = name;
+        var before = _session.Current.Library;
+
+        Assert.False(_page.AddByHand(LibraryKind.Bluetooth));
+
+        Assert.Equal(error, section.ManualError);
+        Assert.Equal(1, section.ManualErrorOpacity);
+        Assert.Same(before, _session.Current.Library);
+        Assert.Equal(address, section.ManualValue); // kept for fixing
+    }
+
+    [Fact]
+    public void AnAudioDeviceByHandUsesItsNameTextAndDirection()
+    {
+        var section = _page.Section(LibraryKind.Audio);
+        Assert.False(section.NeedsName);
+        section.ManualValue = "  Jabra  ";
+        section.ManualFlowIndex = 1;
+
+        Assert.True(_page.AddByHand(LibraryKind.Audio));
+
+        Assert.Equal(new AudioDevice("jabra", "Jabra", AudioFlow.Input), _session.Current.Library.Audio[^1]);
+        Assert.Equal(0, section.ManualFlowIndex);
+        section.ManualValue = "yeti";
+        section.ManualFlowIndex = 1;
+        Assert.False(_page.AddByHand(LibraryKind.Audio));
+        Assert.Equal("Yeti is already in your Library.", section.ManualError);
+        section.ManualFlowIndex = 0; // the same name as an output is another device
+        Assert.True(_page.AddByHand(LibraryKind.Audio));
+        Assert.Equal(new AudioDevice("yeti", "yeti", AudioFlow.Output), _session.Current.Library.Audio[^1]);
+    }
+
+    [Fact]
+    public void AnAndroidDeviceByHandChecksTheAddressAndDuplicates()
+    {
+        var section = _page.Section(LibraryKind.Android);
+        section.ManualName = "Bedroom TV";
+        section.ManualValue = "192.168.1.50:5555"; // the same device as living-room (port 5555 is the default)
+
+        Assert.False(_page.AddByHand(LibraryKind.Android));
+        Assert.Equal("living-room already has this address.", section.ManualError);
+
+        section.ManualValue = "192.168.1.51:99999";
+        Assert.False(_page.AddByHand(LibraryKind.Android));
+        Assert.StartsWith("\"192.168.1.51:99999\" isn't a network address", section.ManualError, StringComparison.Ordinal);
+
+        section.ManualValue = "192.168.1.51";
+        Assert.True(_page.AddByHand(LibraryKind.Android));
+        Assert.Equal(new AndroidDevice("bedroom-tv", "192.168.1.51", new([])), _session.Current.Library.Android[^1]);
+        Assert.Contains(_page.Section(LibraryKind.Android).Items, i => i.Key == "bedroom-tv");
+    }
+
+    [Fact]
+    public void OnlyDeviceKindsAreAddedByHand()
+    {
+        Assert.False(_page.Section(LibraryKind.Display).CanAddByHand); // captured
+        Assert.False(_page.Section(LibraryKind.Bound).CanAddByHand); // bound from two items
+        Assert.False(_page.Section(null).CanAddByHand); // programs come from flows
+        Assert.Equal("Give it a name.", ManualItems.Add(Library.Empty, LibraryKind.Bluetooth, "01:02:03:04:05:06", "").Error);
+        Assert.Equal("A screen layout can't be added by hand.", ManualItems.Add(Library.Empty, LibraryKind.Display, "x", "x").Error);
+    }
+
+    [Fact]
+    public void AManualKeyNeverClashesWithAnExistingOne()
+    {
+        var section = _page.Section(LibraryKind.Bluetooth);
+        section.ManualName = "Sony";
+        section.ManualValue = "01:02:03:04:05:06";
+
+        Assert.True(_page.AddByHand(LibraryKind.Bluetooth));
+
+        Assert.Equal("sony-2", _session.Current.Library.Bluetooth[^1].Key);
+        Assert.Equal("Sony", _session.Current.Library.Bluetooth[^1].Name);
+    }
 }

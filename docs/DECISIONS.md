@@ -1649,3 +1649,20 @@ Status: accepted (user, 2026-11-12). Amends D-079 (merge policy wording; childre
 - Why not one big script with verbs: a single named merge command is what makes allow-listing safe.
 - Why not Pester: not used in the repo; a plain script test of the pure functions (`scripts/tests/pr-lib.tests.ps1`) runs in CI.
 - Revisit if: the PR flow changes (new required checks, a different reviewer bot, auto-merge becomes safe).
+
+## D-123 · 2026-11-12 · Library "Add by hand": audio, Bluetooth and Android devices typed in, stored like picked ones
+Status: accepted (user, 2026-11-11: "let's add an ability to add any library item manually")
+- Decision: Library › Audio, Bluetooth and Android get an "Add by hand" flyout beside "Add from Windows": Bluetooth = name +
+  address (dashes, spaces or none accepted, saved as `B8:20:8E:ED:48:FC`), Android = name + address (host or IP, optional
+  `:port`), audio = name text + Output/Input. `ManualItems.Add` checks the fields and refuses a duplicate (same address,
+  same adb serial, same name text and direction) with one sentence; the key comes from the name (`NewKey`). The item is the
+  same YAML record a picked device makes (no "manual" flag), so a device that appears later matches it by address / name
+  text, isn't offered by "Add from Windows" again, and the card's state goes from "Not found on this PC" to live. A run
+  with a device that isn't there fails that step with the provider's sentence (Bluetooth: "isn't paired with this PC as
+  an audio device"), like any missing device (fail-soft, D-021). Edit = Rename/Remove as for other items.
+- Why not every Library kind: a screen layout is raw CCD data only a capture can make (D-019); a bound device is already
+  made by hand from two items (D-116); programs and Wi-Fi networks aren't Library kinds (D-041; an SSID is a trigger's
+  value). Why not one page-level "Add item" with a kind picker: the Pivot already is the kind, and a second chooser
+  duplicates it. Why not a `manual: true` flag: nothing behaves differently, and a flag would block the merge with the
+  live device. No `dctl library` commands exist, so none were added.
+- Revisit if: users want to type a screen layout (monitor names) or name programs once (then a Programs kind, D-041).

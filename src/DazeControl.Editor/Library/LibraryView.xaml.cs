@@ -84,6 +84,28 @@ public sealed partial class LibraryView : UserControl
         }
     }
 
+    private void OnAddByHand(object sender, RoutedEventArgs e) => AddByHand(sender as FrameworkElement);
+
+    private void OnAddByHandKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key != Windows.System.VirtualKey.Enter)
+            return;
+        e.Handled = true;
+        AddByHand(sender as FrameworkElement);
+    }
+
+    private void AddByHand(FrameworkElement? element)
+    {
+        if (element?.Tag is not LibrarySectionViewModel { Kind: { } kind } || _viewModel is null)
+            return;
+        var popups = VisualTreeHelperPopups(element).ToList(); // before the edit, which rebuilds the list
+        if (_viewModel.AddByHand(kind))
+        {
+            foreach (var popup in popups)
+                popup.IsOpen = false;
+        }
+    }
+
     private void OnUsedByOpen(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement element)
