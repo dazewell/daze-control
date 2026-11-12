@@ -28,6 +28,9 @@ public sealed partial class InspectorViewModel
     [ObservableProperty]
     public partial string ManyHeader { get; private set; } = "";
 
+    /// <summary>What can be done with the whole selection (F-002).</summary>
+    public string ManyHint => !IsMany ? "" : "Del deletes them all, Ctrl+G runs them together, Ctrl+C copies. Ctrl+Z undoes.";
+
     [ObservableProperty]
     public partial bool ManyHasTiming { get; private set; }
 

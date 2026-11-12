@@ -159,6 +159,18 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     /// <summary>Edits not saved yet (D-047): Save writes them, Cancel throws them away.</summary>
     public bool HasChanges => _session.HasDraft(FlowId);
 
+    /// <summary>Edits made since the last save (the undo history of the draft): what Cancel would throw away.</summary>
+    public int EditCount => _undo.Count;
+
+    /// <summary>Deleting at least this many items at once asks first (F-003); Ctrl+Z still brings them back.</summary>
+    public const int BigDeleteThreshold = 10;
+
+    /// <summary>Items a Delete would remove: the selected steps and cards.</summary>
+    public int DeleteCount => _selected.Count;
+
+    /// <summary>True when the pending Delete is big enough to confirm first.</summary>
+    public bool DeleteNeedsConfirm => _selected.Count >= BigDeleteThreshold;
+
     /// <summary>Save (Ctrl+S): the draft goes to config.yaml, and the engine picks it up.</summary>
     /// <summary>False when the write failed: the draft and its undo history stay for another try.</summary>
     public bool Save()

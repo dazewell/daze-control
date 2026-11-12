@@ -53,6 +53,25 @@ public sealed class InspectorManyTests : IDisposable
     }
 
     [Fact]
+    public void ManyHintNamesTheBulkActions()
+    {
+        _canvas.SelectOnly(["w1", "vol"]);
+        Assert.Contains("Del", _inspector.ManyHint);
+        Assert.Contains("Ctrl+Z", _inspector.ManyHint);
+    }
+
+    [Fact]
+    public void BigDeleteAsksFirstAndEditsAreCounted()
+    {
+        _canvas.SelectOnly(["w1", "w2"]);
+        Assert.False(_canvas.DeleteNeedsConfirm);
+        Assert.Equal(0, _canvas.EditCount);
+        _canvas.DeleteSelection();
+        Assert.Equal(1, _canvas.EditCount);
+        Assert.Equal(10, FlowCanvasViewModel.BigDeleteThreshold);
+    }
+
+    [Fact]
     public void UniformSelectionShowsTheValueAsDefault()
     {
         _canvas.SelectOnly(["w1", "w2"]);

@@ -21,7 +21,7 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   a hint line, an error line that keeps its space, Add; Enter adds; "Sony already has this address."); Programs add Open file location) · **Runs** (history + timeline) · footer **Settings** (start with Windows, pop-up, step defaults, Backup and restore card),
   **About** (version + Copy details, Updates: "Updates to follow" Stable / Release candidates (D-108, shots in `docs/update-channel/`: dark, light, high contrast, 225 % text), status + Check for updates, Files: config, logs and app folders). Save errors: InfoBar on top of every page.
 - Flow editor: an unsaved-changes dot (fixed slot, tooltip "Unsaved changes", D-104) + **Save** (accent, Ctrl+S) + **Cancel** beside the breadcrumb (D-047): edits are a
-  draft until Save; Cancel throws it away; leaving the flow (breadcrumb, nav pane, closing the window) with a draft
+  draft until Save; Cancel asks "Discard n changes to <flow>?" (Discard / Keep editing) and throws them away (layout and view choices stay; its tooltip says so); leaving the flow (breadcrumb, nav pane, closing the window) with a draft
   asks "Save your changes to <flow>?" Save / Don't save / Cancel. **Flows** in the nav pane while a flow is open
   goes back to the list (after that prompt; Cancel stays in the flow). Run runs the saved version (its tooltip says so);
   Dry run and Test this step use what's on screen. Library and Settings keep autosaving (300 ms).
@@ -98,7 +98,7 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
 - Selection: click, Ctrl+click, marquee (mouse/pen), Ctrl+A. An edge is clicked within 12 DIP of its curve (20 touch)
   and selected alone (Ctrl adds); the marquee takes edges with both ends inside and shows its selection while dragging; Del removes a selected edge. Ctrl+C/V/D copy nodes + inner edges + library
   refs, paste into a new column to the right. Del; deleting B in A→B→C reconnects A→C; deleting a card
-  deletes its members. Undo/redo Ctrl+Z/Y, one entry per gesture, within the draft (Save or Cancel clears it).
+  deletes its members. Del on 10 or more selected items asks "Delete n items?" first (Ctrl+Z undoes either way); the Many-mode inspector says what applies to the whole selection (Del, Ctrl+G, Ctrl+C, Ctrl+Z). Undo/redo Ctrl+Z/Y, one entry per gesture, within the draft (Save or Cancel clears it).
 - Navigate: the mouse wheel and Ctrl+wheel zoom 50–200 % (×1.1 a notch) with the point under the pointer staying
   put; Shift+wheel and a tilt wheel pan sideways; a touchpad's two-finger scroll pans and pinch zooms at the pointer;
   touch pans and pinches with a short glide (D-074, D-119 e). Space+drag /
