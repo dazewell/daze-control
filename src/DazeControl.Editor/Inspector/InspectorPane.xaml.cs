@@ -2,6 +2,7 @@ using DazeControl.Core.Input;
 using DazeControl.Editor.ViewModels.Canvas;
 using DazeControl.Editor.ViewModels.Inspector;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
@@ -345,6 +346,49 @@ public sealed partial class InspectorPane : UserControl
             menu.Items.Add(item);
         }
     }
+
+    /// <summary>
+    /// "Insert value" (D-129, DESIGN §5.1): headers (not selectable, skipped by the arrow keys) and a row per value. A row puts
+    /// its token at the caret in place of the selection and gives the focus back to the box.
+    /// </summary>
+#pragma warning disable CA1822 // XAML event handlers are instance methods
+    private void OnValuesOpening(object? sender, object e)
+    {
+        if (sender is not MenuFlyout { Target: Button { Tag: ParamFieldViewModel field, Parent: Grid { Children: [TextBox box, ..] } } } menu)
+            return;
+        menu.Items.Clear();
+        foreach (var group in field.ValueGroups)
+        {
+            var first = !menu.Items.OfType<MenuFlyoutItem>().Any(i => i.Text == group.Section);
+            if (menu.Items.Count > 0 && first)
+                menu.Items.Add(new MenuFlyoutSeparator());
+            // "From earlier steps" is one section with a sub-header per step; the others are one header each.
+            if (first)
+                menu.Items.Add(new MenuFlyoutItem { Text = group.Section, IsEnabled = false });
+            if (group.Header != group.Section)
+                menu.Items.Add(new MenuFlyoutItem { Text = group.Header, IsEnabled = false, Padding = new Thickness(24, 4, 11, 4) });
+            foreach (var row in group.Rows)
+            {
+                var item = new MenuFlyoutItem { Text = row.Title };
+                AutomationProperties.SetName(item, row.AutomationName);
+                if (row.Help.Length > 0)
+                    ToolTipService.SetToolTip(item, row.Help);
+                item.Click += (_, _) =>
+                {
+                    if (box.Text != field.Text)
+                        field.Text = box.Text;
+                    var caret = field.InsertValue(row, box.SelectionStart, box.SelectionLength);
+                    box.Focus(FocusState.Programmatic);
+                    box.Select(Math.Min(caret, box.Text.Length), 0);
+                };
+                menu.Items.Add(item);
+            }
+        }
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(new MenuFlyoutItem { Text = ValueText.Footer, IsEnabled = false });
+    }
+
+#pragma warning restore CA1822
 
     private void OnDevicesOpened(object? sender, object e)
     {

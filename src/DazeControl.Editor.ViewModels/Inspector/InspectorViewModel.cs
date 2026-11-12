@@ -453,6 +453,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
                 // A missing required setting is reported on "with" as "Device is missing." (UX §5.7 #9).
                 ?? (errors.Any(p => p.Path == path[..^1] && p.Message == $"{field.Spec.Title} is missing.")
                     ? field.IsFlowRef ? "Choose a flow." : field.IsDevice ? "Choose a device." : "Fill this in." : null);
+            field.SetValueContext(_session.Current.Flows.FirstOrDefault(f => f.Id == FlowId), step.Id);
             field.Load(value, problem);
             Suggest(field, step);
             if (field.IsCallInputs)

@@ -72,8 +72,22 @@
         <DataTemplate x:Key="ParamFieldTemplate" x:DataType="vmi:ParamFieldViewModel">
                             <StackPanel motion:Motion.Animate="True">
                                 <TextBlock Text="{x:Bind Title}" Style="{StaticResource FieldTitle}" />
-                                <TextBox Visibility="{x:Bind IsText}" Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder, Mode=OneWay}"
-                                         AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" KeyDown="OnCommitOnEnter" />
+                                <Grid Visibility="{x:Bind IsText}" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder, Mode=OneWay}"
+                                             AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" KeyDown="OnCommitOnEnter" />
+                                    <!-- D-129: a setting that takes values lists what earlier steps give; the text box shows names, YAML keeps ids. -->
+                                    <Button Grid.Column="1" Style="{StaticResource SubtleIconButton}" Visibility="{x:Bind TakesValues, Mode=OneWay}" Tag="{x:Bind}"
+                                            AutomationProperties.Name="{x:Bind InsertValueName}" ToolTipService.ToolTip="Insert a value from an earlier step">
+                                        <FontIcon Glyph="&#xE943;" FontSize="14" />
+                                        <Button.Flyout>
+                                            <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="OnValuesOpening" />
+                                        </Button.Flyout>
+                                    </Button>
+                                </Grid>
                                 <ComboBox Visibility="{x:Bind IsSuggestText}" IsEditable="True" ItemsSource="{x:Bind Suggestions}"
                                           Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder, Mode=OneWay}"
                                           ItemTemplate="{StaticResource SuggestionTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
@@ -184,11 +198,24 @@
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
                                 </StackPanel>
-                                <TextBox Visibility="{x:Bind IsMultiline}" Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder, Mode=OneWay}"
-                                         AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="64" MaxHeight="176"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                         FontFamily="{x:Bind local:InspectorPane.Font(IsCode)}"
-                                         AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
+                                <Grid Visibility="{x:Bind IsMultiline}" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind Placeholder, Mode=OneWay}"
+                                             AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="64" MaxHeight="176"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                             FontFamily="{x:Bind local:InspectorPane.Font(IsCode)}"
+                                             AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
+                                    <Button Grid.Column="1" Style="{StaticResource SubtleIconButton}" VerticalAlignment="Top" Visibility="{x:Bind TakesValues, Mode=OneWay}" Tag="{x:Bind}"
+                                            AutomationProperties.Name="{x:Bind InsertValueName}" ToolTipService.ToolTip="Insert a value from an earlier step">
+                                        <FontIcon Glyph="&#xE943;" FontSize="14" />
+                                        <Button.Flyout>
+                                            <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="OnValuesOpening" />
+                                        </Button.Flyout>
+                                    </Button>
+                                </Grid>
                                 <Grid Visibility="{x:Bind IsFile}" ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />

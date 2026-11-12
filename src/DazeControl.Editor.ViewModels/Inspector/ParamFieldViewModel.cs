@@ -316,7 +316,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                     Text = value is MapParam map ? string.Join(Environment.NewLine, map.Entries.Select(e => $"{e.Key}: {e.Value}")) : "";
                     break;
                 default:
-                    Text = scalar ?? "";
+                    Text = _values is { } ctx && StepValues.Takes(Spec) ? ValueText.ToDisplay(ctx.Flow, scalar, _catalog) : scalar ?? "";
                     break;
             }
             if (mixed && Kind == ParamKind.Choice)
@@ -523,6 +523,39 @@ public sealed partial class ParamFieldViewModel : ObservableObject
             Tokens.Add(new KeyTokenViewModel(_items[i], i, _items.Count) { Owner = this });
     }
 
+    private (Flow Flow, string StepId)? _values;
+    private IReadOnlyList<ProviderDescriptor>? _catalog;
+
+    /// <summary>Whether the setting takes values here: it is marked so and one step is selected (several steps depend on their own upstream, DESIGN §5.7).</summary>
+    public bool TakesValues => _values is not null && StepValues.Takes(Spec) && !IsMixed;
+
+    /// <summary>"Insert a value into Message": the button's accessible name.</summary>
+    public string InsertValueName => $"Insert a value into {Title}";
+
+    /// <summary>Gives the field the flow and step its references are read against; null (several steps) turns Insert value off and shows the text as stored.</summary>
+    internal void SetValueContext(Flow? flow, string? stepId, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    {
+        _catalog = catalog;
+        var next = flow is null || stepId is null ? ((Flow, string)?)null : (flow, stepId);
+        var changed = _values?.Flow != next?.Item1 || _values?.StepId != next?.Item2;
+        _values = next;
+        if (changed)
+            OnPropertyChanged(nameof(TakesValues));
+    }
+
+    /// <summary>The groups of the Insert value list; empty when the setting takes no values.</summary>
+    public IReadOnlyList<ValueGroup> ValueGroups => _values is { } c && TakesValues ? ValueText.Choices(c.Flow, c.StepId, _catalog) : [];
+
+    /// <summary>Puts a value at the caret (in place of a selection) and returns where the caret goes. One write, one undo step.</summary>
+    public int InsertValue(ValueChoice choice, int selectionStart, int selectionLength)
+    {
+        ArgumentNullException.ThrowIfNull(choice);
+        Text = ValueText.Insert(Text, selectionStart, selectionLength, choice.Display, out var caret);
+        return caret;
+    }
+
+    private string Stored(string shown) => _values is { } c && StepValues.Takes(Spec) ? ValueText.FromDisplay(c.Flow, shown, _catalog) : shown;
+
     partial void OnTextChanged(string value)
     {
         if (IsAppPicker)
@@ -542,8 +575,8 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                     p[(p.IndexOf(':', StringComparison.Ordinal) + 1)..].Trim()))))
                 : null,
             // Scripts keep their own line breaks and indentation; a one-line value is trimmed.
-            ParamKind.MultilineText => Scalar(value.Trim().Length == 0 ? "" : value.ReplaceLineEndings("\n").TrimEnd()),
-            _ => Scalar(value.Trim()),
+            ParamKind.MultilineText => Scalar(value.Trim().Length == 0 ? "" : Stored(value.ReplaceLineEndings("\n").TrimEnd())),
+            _ => Scalar(Stored(value.Trim())),
         });
     }
 
