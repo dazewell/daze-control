@@ -75,6 +75,17 @@ public sealed partial class ShellWindow : Window
         ViewModel.CalledFlowRequested += OnCalledFlowRequested;
         ViewModel.LibraryRequested += OnLibraryRequested;
         WindowPlacementInterop.Apply(this, ViewModel.EditorSettings?.Settings.Window); // D-098
+        WindowPlacementInterop.ApplyMinimumSize(this);
+        if (Content is FrameworkElement root)
+        {
+            root.SizeChanged += OnRootSizeChanged;
+            // The minimum is in physical pixels: reapply it when the window lands on a monitor with another scale.
+            root.Loaded += (_, _) =>
+            {
+                if (root.XamlRoot is { } xamlRoot)
+                    xamlRoot.Changed += (_, _) => WindowPlacementInterop.ApplyMinimumSize(this);
+            };
+        }
 
         ViewModel.Session.PropertyChanged += OnSessionChanged;
         ViewModel.PropertyChanged += OnShellChanged;
@@ -884,6 +895,9 @@ public sealed partial class ShellWindow : Window
         }
         e.AcceptedOperation = DataPackageOperation.Move;
         e.DragUIOverride.IsGlyphVisible = false;
+        // The system ghost (the key as text, "Move") overlapped the target row (F-023): the drop cues and the dimmed source row show the drag.
+        e.DragUIOverride.IsCaptionVisible = false;
+        e.DragUIOverride.IsContentVisible = false;
         _dropTarget = Locate(e.GetPosition(FlowRepeater), drag.IsGroup);
         ShowDropCues(_dropTarget);
         // Edges scroll the page: a drag in the middle of the window is not near one.
@@ -1369,7 +1383,55 @@ public sealed partial class ShellWindow : Window
 
     // ---- Palette (UX §5.1, §5.2) ----
 
-    private void OnTogglePalette(object sender, RoutedEventArgs e) => PalettePane.Visibility = Show(PaletteToggle.IsChecked == true);
+    private void OnTogglePalette(object sender, RoutedEventArgs e) => ApplyResponsive();
+
+    /// <summary>Below this window width (DIPs) the Flows toolbar wraps, the page margins shrink and the Steps pane hides (F-005, F-014).</summary>
+    internal const double NarrowWidth = 900;
+
+    /// <summary>Below this the inspector narrows too, so the canvas keeps a usable share.</summary>
+    internal const double VeryNarrowWidth = 760;
+
+    private bool _responsiveNarrow;
+
+    private void OnRootSizeChanged(object sender, SizeChangedEventArgs e) => ApplyResponsive();
+
+    private void ApplyResponsive()
+    {
+        var width = (Content as FrameworkElement)?.ActualWidth ?? 0;
+        if (width <= 0)
+            return;
+        var narrow = width < NarrowWidth;
+        // The Steps pane follows the toggle, but auto-hides when narrow; the toggle itself is left as the user set it.
+        PalettePane.Visibility = Show(PaletteToggle.IsChecked == true && !narrow);
+        var inspectorWidth = width < VeryNarrowWidth ? 260 : 320;
+        InspectorPaneControl.Width = inspectorWidth;
+        var left = PalettePane.Visibility == Visibility.Visible ? 252 : 12;
+        RunInfoHost.Margin = new Thickness(left, 8, inspectorWidth + 12, 0);
+        if (narrow == _responsiveNarrow)
+            return;
+        _responsiveNarrow = narrow;
+        PageGrid.Padding = narrow ? new Thickness(16, 0, 16, 24) : new Thickness(36, 0, 36, 36);
+        LayoutCommandBar(narrow);
+    }
+
+    /// <summary>Wide: one row. Narrow: search on its own row, then sort and show, then the two buttons.</summary>
+    private void LayoutCommandBar(bool narrow)
+    {
+        Place(FlowSearchBox, 0, 0, narrow ? 5 : 1);
+        Place(FlowSortBox, narrow ? 1 : 0, narrow ? 0 : 1, 1);
+        Place(FlowShowBox, narrow ? 1 : 0, narrow ? 1 : 2, narrow ? 2 : 1);
+        Place(FlowOrderButton, narrow ? 2 : 0, narrow ? 0 : 3, 1);
+        Place(FlowSelectToggle, narrow ? 2 : 0, narrow ? 1 : 4, narrow ? 2 : 1);
+        FlowSortBox.HorizontalAlignment = narrow ? HorizontalAlignment.Stretch : HorizontalAlignment.Left;
+        FlowSortBox.MinWidth = narrow ? 0 : 150;
+
+        static void Place(FrameworkElement e, int row, int column, int span)
+        {
+            Microsoft.UI.Xaml.Controls.Grid.SetRow(e, row);
+            Microsoft.UI.Xaml.Controls.Grid.SetColumn(e, column);
+            Microsoft.UI.Xaml.Controls.Grid.SetColumnSpan(e, span);
+        }
+    }
 
     private void OnPaletteSearchChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {

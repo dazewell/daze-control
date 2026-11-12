@@ -106,7 +106,7 @@
                      stretching parent: as the scroller's direct content it was arranged past the right edge when maximized (X-003). -->
                 <ScrollViewer x:Name="PagesScroller" Grid.Row="1" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
                     <Grid>
-                        <Grid Padding="36,0,36,36" MaxWidth="1072">
+                        <Grid x:Name="PageGrid" Padding="36,0,36,36" MaxWidth="1072">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
@@ -199,7 +199,12 @@
                                     </StackPanel>
                                 </Grid>
                                 <!-- Command bar (DESIGN Part E): sort, search (Ctrl+F), show. View-only; drag is off while any is on (D-088). -->
-                                <Grid ColumnSpacing="8" Margin="0,0,0,8" x:Name="FlowCommandBar">
+                                <Grid ColumnSpacing="8" RowSpacing="8" Margin="0,0,0,8" x:Name="FlowCommandBar">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
@@ -213,13 +218,13 @@
                                             <KeyboardAccelerator Key="F" Modifiers="Control" Invoked="OnFlowSearchAccelerator" />
                                         </TextBox.KeyboardAccelerators>
                                     </TextBox>
-                                    <ComboBox Grid.Column="1" MinWidth="150" Header="" AutomationProperties.Name="Sort by" ToolTipService.ToolTip="Sort by"
+                                    <ComboBox x:Name="FlowSortBox" Grid.Column="1" MinWidth="150" Header="" AutomationProperties.Name="Sort by" ToolTipService.ToolTip="Sort by"
                                               SelectedIndex="{x:Bind ViewModel.Flows.SortIndex, Mode=TwoWay}">
                                         <ComboBoxItem Content="Sort: Your order" />
                                         <ComboBoxItem Content="Sort: Name" />
                                         <ComboBoxItem Content="Sort: Last run" />
                                     </ComboBox>
-                                    <ComboBox Grid.Column="2" MinWidth="150" AutomationProperties.Name="Show" ToolTipService.ToolTip="Show"
+                                    <ComboBox x:Name="FlowShowBox" Grid.Column="2" MinWidth="150" AutomationProperties.Name="Show" ToolTipService.ToolTip="Show"
                                               SelectedIndex="{x:Bind ViewModel.Flows.FilterIndex, Mode=TwoWay}">
                                         <ComboBoxItem Content="Show: All" />
                                         <ComboBoxItem Content="Show: On" />
@@ -227,10 +232,10 @@
                                         <ComboBoxItem Content="Show: Needs fixing" />
                                         <ComboBoxItem Content="Show: Not in tray" />
                                     </ComboBox>
-                                    <Button Grid.Column="3" Content="Make this my order" Command="{x:Bind ViewModel.Flows.MakeOrderCommand}"
+                                    <Button x:Name="FlowOrderButton" Grid.Column="3" Content="Make this my order" Command="{x:Bind ViewModel.Flows.MakeOrderCommand}"
                                             ToolTipService.ToolTip="Write the order shown here as the list and tray order" />
                                     <!-- Select (D-090): a checkbox on every card; a click toggles it. Ctrl/Shift+click and Ctrl+Space work without it. -->
-                                    <ToggleButton Grid.Column="4" Content="Select" IsChecked="{x:Bind ViewModel.Flows.SelectMode, Mode=TwoWay}"
+                                    <ToggleButton x:Name="FlowSelectToggle" Grid.Column="4" Content="Select" IsChecked="{x:Bind ViewModel.Flows.SelectMode, Mode=TwoWay}"
                                                   IsEnabled="{x:Bind ViewModel.Flows.CanEdit, Mode=OneWay}"
                                                   ToolTipService.ToolTip="Pick several flows to group, turn on or off, or delete them together" />
                                 </Grid>
@@ -440,18 +445,24 @@
                                                     <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
                                                         <TextBlock Text="{x:Bind Name, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                                                                    Opacity="{x:Bind local:RowFormat.Dim(IsEnabled), Mode=OneWay}" />
-                                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                                            <TextBlock Text="{x:Bind CaptionLead, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextWrapping="NoWrap"
+                                                        <!-- A grid, not a stack: the last-run text gets the room that is left and trims with an ellipsis (F-014). -->
+                                                        <Grid ColumnSpacing="6">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{x:Bind CaptionLead, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxWidth="200"
                                                                        ToolTipService.ToolTip="{x:Bind ShortcutTip, Mode=OneWay}" />
                                                             <!-- Status dot: one ellipse per state, faded in or out, so the colours follow the theme and high contrast. -->
-                                                            <Grid Width="8" Height="8" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw" Visibility="{x:Bind HasDot, Mode=OneWay}">
+                                                            <Grid Grid.Column="1" Width="8" Height="8" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw" Visibility="{x:Bind HasDot, Mode=OneWay}">
                                                                 <Ellipse Fill="{ThemeResource SystemFillColorSuccessBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 2), Mode=OneWay}" />
                                                                 <Ellipse Fill="{ThemeResource SystemFillColorCautionBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 3), Mode=OneWay}" />
                                                                 <Ellipse Fill="{ThemeResource SystemFillColorCriticalBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 4), Mode=OneWay}" />
                                                                 <Ellipse Fill="{ThemeResource AccentFillColorDefaultBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 1), Mode=OneWay}" />
                                                             </Grid>
-                                                            <TextBlock Text="{x:Bind CaptionRun, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
-                                                        </StackPanel>
+                                                            <TextBlock Grid.Column="2" Text="{x:Bind CaptionRun, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                                                        </Grid>
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
                                                                 Visibility="{x:Bind HasProblems, Mode=OneWay}">

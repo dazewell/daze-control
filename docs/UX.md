@@ -57,6 +57,13 @@ Builds on OSD `SettingsWindow.xaml` (cards, InfoBar, HotkeyRecorder), `OsdWindow
   "Isn't there anymore" and #51 under it; with no other flow it says #69; empty, #9 says "Choose a flow.". The Steps
   panel lists it under **Flows**, and its card shows the called flow's name.
 
+### Narrow windows (M22 F-005, F-014)
+
+The editor window has a minimum size (640 × 420 DIP). Below 900 DIP wide the Steps pane hides on its own (the Steps
+toggle keeps the user's choice), the Flows page margins shrink to 16 and the command bar wraps to three rows (search; sort and show;
+Make this my order and Select); below 760 the inspector narrows to 260. Card captions trim with an ellipsis. Dragging a Flows row shows
+only the drop cues and the dimmed source row: no system ghost or "Move" label.
+
 ### No layout jumps (D-104)
 Nothing the user is looking at moves unless they caused it and it has to. Status that comes and goes (a dirty dot, a
 "Restart now" button, a "Make this my order" button, a run result) gets a slot that is always there: invisible and
