@@ -43,14 +43,14 @@ Model: Opus medium; T21.6 and T21.7 Opus high.
   ports), `.Edges.cs` (DrawEdges, chips, edge controls, hover), `.Palette.cs` (quick add, palette drag/drop), `.Menus.cs`
   (context menus, tips), `.Keys.cs` (keyboard, focus ring, announce); the constructor and VM sync stay in the main file.
   Done when: build with zero warnings, all tests green, `git diff --stat` shows only moves. Small; do it first.
-- [ ] T21.3 Drop lands where it was shown (D-120): snap the drag preview the way `MoveBy` does (lead snaps, rest keep
+- [x] T21.3 Drop lands where it was shown (D-120): snap the drag preview the way `MoveBy` does (lead snaps, rest keep
   their distance, padding clamp); on release commit first, then clear the views' offset in the same tick; take
   `RepositionThemeTransition` off `NodeLayer` (reflow comes back in T21.8); `NodeView` reacts to X/Y/Width/Height with
   `Place()` only, a full `Refresh` only for content properties; semantic zoom hides summary/badge by `Opacity` so pill
   sizes never change with zoom (drop the re-fit workaround in `OnViewChanged`). Files: `FlowCanvas.Pointer.cs`,
   `FlowCanvas.Camera.cs`, `FlowCanvas.xaml`, `NodeViews.cs`. Done when: tests for the snapped preview offset
   (pure helper in `Editor.ViewModels/Canvas`); live: a dropped step doesn't move at all on release, with and without
-  Animation effects; zooming across 60 % moves nothing.
+  Animation effects; zooming across 60 % moves nothing. (feat/canvas-drop-snap; live checks open, for the user)
 - [ ] T21.4 Live drag (D-119 b): a pure `Editor.ViewModels/Canvas/DragPreview` (ids, offset → moved rects incl. card
   members, ports, the routes of every edge touching a moved box, built with `FlowPlacement.Sides/Port` + `EdgeCurve.For`
   exactly as the commit will); `FlowCanvas` coalesces pointer moves to one update per frame (`CompositionTarget.

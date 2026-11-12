@@ -124,9 +124,9 @@ public sealed partial class FlowCanvas
         _viewModel.Zoom = Scroller.ZoomFactor;
         if (details != _viewModel.ShowDetails)
         {
-            // Hiding details shrinks the pills, which would re-fit above the threshold and flicker: fit once.
-            _autoFit = false;
-            RefreshAll();
+            // Opacity only: pills keep their size, so crossing the threshold moves nothing (D-120).
+            foreach (var view in _views.Values)
+                view.ShowDetails(_viewModel.ShowDetails);
         }
     }
 }

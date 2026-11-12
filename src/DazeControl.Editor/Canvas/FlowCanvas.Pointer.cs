@@ -135,13 +135,22 @@ public sealed partial class FlowCanvas
                 if (_dragged is not null && _viewModel.CanEdit)
                 {
                     _gesture = Gesture.DragNode;
-                    foreach (var view in DragGroup())
+                    _dragViews = [.. DragGroup()];
+                    foreach (var view in _dragViews)
                         XamlCanvas.SetZIndex(view, view.Node.CardId is null ? 1 : 2); // members above their card
                 }
                 break;
             case Gesture.DragNode:
-                foreach (var view in DragGroup())
-                    view.RenderTransform = new TranslateTransform { X = dx, Y = dy };
+                // A free move shows the offset MoveBy will commit (snapped lead, padding clamp), so the drop moves
+                // nothing (D-120); a member reorders in its card, so it follows the pointer as is.
+                var offset = _dragged!.Node.CardId is null ? _viewModel.SnappedOffset(DragIds(), dx, dy) : new CorePoint(dx, dy);
+                foreach (var view in _dragViews)
+                {
+                    if (view.RenderTransform is TranslateTransform shift)
+                        (shift.X, shift.Y) = (offset.X, offset.Y);
+                    else
+                        view.RenderTransform = new TranslateTransform { X = offset.X, Y = offset.Y };
+                }
                 PreviewDrop(position);
                 break;
             case Gesture.Connect:
@@ -187,7 +196,8 @@ public sealed partial class FlowCanvas
                 var node = _dragged!.Node;
                 var (target, zone) = DropAt(position);
                 var moving = DragIds();
-                ResetDragged();
+                // Commit first: the views take their new place in this same tick and EndGesture then clears the
+                // preview offset, so nothing is drawn in between (D-120).
                 if (target is not null && zone != DropZone.None)
                     ShowRefusal(_viewModel.Drop(node.Id, target.Id, zone), target);
                 else if (node.CardId is { } card && _viewModel.Find(card) is { } own && !own.Bounds.Contains(C(position)))
@@ -215,13 +225,15 @@ public sealed partial class FlowCanvas
         e.Handled = true;
     }
 
+    /// <summary>Clears the drag preview on the views it moved (captured at drag start: a commit may change the group).</summary>
     private void ResetDragged()
     {
-        foreach (var view in DragGroup())
+        foreach (var view in _dragViews)
         {
             view.RenderTransform = null;
-            XamlCanvas.SetZIndex(view, 0);
+            XamlCanvas.SetZIndex(view, view.Node.Kind == CanvasNodeKind.Member ? 1 : 0); // as SyncNodes sets it
         }
+        _dragViews = [];
     }
 
     /// <summary>

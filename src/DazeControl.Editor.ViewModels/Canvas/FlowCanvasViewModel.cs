@@ -804,18 +804,10 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(ids);
         if (!CanEdit || IsRunLocked)
             return false;
-        var moving = ids.Select(Find).OfType<CanvasNodeViewModel>()
-            .Select(n => n.CardId is { } card ? Find(card) : n).OfType<CanvasNodeViewModel>()
-            .DistinctBy(n => n.Id).ToList();
+        var moving = Moving(ids);
         if (moving.Count == 0)
             return false;
-        // The first (the one under the pointer) snaps to the grid; the rest keep their distance from it.
-        var padding = LayoutOptions.Padding;
-        var lead = moving[0];
-        dx = FlowPlacement.Snap(lead.X + dx) - lead.X;
-        dy = FlowPlacement.Snap(lead.Y + dy) - lead.Y;
-        dx = Math.Max(dx, padding - moving.Min(n => n.X));
-        dy = Math.Max(dy, padding - moving.Min(n => n.Y));
+        (dx, dy) = Snapped(moving, dx, dy);
         var to = moving.ToDictionary(n => n.Id, n => new Point(n.X + dx, n.Y + dy), StringComparer.Ordinal);
         if (moving.All(n => n.X == to[n.Id].X && n.Y == to[n.Id].Y))
             return false;
@@ -828,6 +820,27 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         }, undoable: true);
         return true;
     }
+
+    /// <summary>
+    /// The offset <see cref="MoveBy"/> would apply for the same arguments (snapped, padding-clamped), for the drag
+    /// preview: what is shown while dragging is what the drop commits (D-120). (0, 0) when nothing would move.
+    /// </summary>
+    public Point SnappedOffset(IEnumerable<string> ids, double dx, double dy)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        var moving = Moving(ids);
+        return moving.Count == 0 ? default : Snapped(moving, dx, dy);
+    }
+
+    /// <summary>The top-level boxes a move carries, the lead first (members count as their card).</summary>
+    private List<CanvasNodeViewModel> Moving(IEnumerable<string> ids) =>
+        ids.Select(Find).OfType<CanvasNodeViewModel>()
+            .Select(n => n.CardId is { } card ? Find(card) : n).OfType<CanvasNodeViewModel>()
+            .DistinctBy(n => n.Id).ToList();
+
+    private Point Snapped(List<CanvasNodeViewModel> moving, double dx, double dy) =>
+        MoveSnap.Offset(new Point(moving[0].X, moving[0].Y), new Point(moving.Min(n => n.X), moving.Min(n => n.Y)),
+            dx, dy, LayoutOptions.Padding);
 
     /// <summary>Changes this flow's view choices in editor.json (or this session's copy) and lays it out again.</summary>
     private void ChangeView(Action<FlowViewSettings> change, bool undoable)

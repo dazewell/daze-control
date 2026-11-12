@@ -59,9 +59,24 @@ internal abstract class NodeView : Grid
 
     public abstract void Refresh(bool showDetails);
 
+    /// <summary>
+    /// Semantic zoom (D-120): summary and badges fade by opacity, never collapse, so a pill keeps its size and
+    /// zooming moves nothing.
+    /// </summary>
+    public abstract void ShowDetails(bool showDetails);
+
     protected abstract void OnNodeChanged(object? sender, PropertyChangedEventArgs e);
 
-    protected void Place()
+    /// <summary>A move or resize only places the view; anything else redraws its content.</summary>
+    protected static bool IsGeometry(string? property) =>
+        property is nameof(CanvasNodeViewModel.X) or nameof(CanvasNodeViewModel.Y)
+            or nameof(CanvasNodeViewModel.Width) or nameof(CanvasNodeViewModel.Height);
+
+    /// <summary>No drawing depends on these (the layout's grid cell).</summary>
+    protected static bool IsUnseen(string? property) =>
+        property is nameof(CanvasNodeViewModel.Column) or nameof(CanvasNodeViewModel.Row);
+
+    protected virtual void Place()
     {
         Microsoft.UI.Xaml.Controls.Canvas.SetLeft(this, Node.X);
         Microsoft.UI.Xaml.Controls.Canvas.SetTop(this, Node.Y);
@@ -121,7 +136,7 @@ internal sealed class PillView : NodeView
         _summary.Style = Theme.Style("CaptionTextBlockStyle");
         _title.Text = Node.Title;
         _summary.Text = Node.ShownSummary;
-        _summary.Visibility = showDetails && Node.ShownSummary.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _summary.Visibility = Node.ShownSummary.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         var skipped = Node.RunState == NodeRunState.Skipped;
         _title.Foreground = Theme.Brush(skipped ? "TextFillColorDisabledBrush" : "TextFillColorPrimaryBrush");
         _summary.Foreground = Theme.Brush(skipped ? "TextFillColorDisabledBrush" : "TextFillColorSecondaryBrush");
@@ -129,7 +144,8 @@ internal sealed class PillView : NodeView
         _badgeText.Text = Node.BadgeText;
         _badgeText.Foreground = Theme.Brush(Node.HasProblem ? "SystemFillColorCautionBrush" : Node.BadgesInherited ? "TextFillColorTertiaryBrush" : "TextFillColorSecondaryBrush");
         _badge.Background = Theme.Brush("ControlFillColorSecondaryBrush");
-        _badge.Visibility = showDetails && Node.HasBadges ? Visibility.Visible : Visibility.Collapsed;
+        _badge.Visibility = Node.HasBadges ? Visibility.Visible : Visibility.Collapsed;
+        ShowDetails(showDetails);
 
         var failed = Node.RunState == NodeRunState.Failed;
         _shape.Fill = Theme.Brush(Theme.HighContrast ? "SystemColorWindowColorBrush" : "CardBackgroundFillColorDefaultBrush");
@@ -209,7 +225,19 @@ internal sealed class PillView : NodeView
         }
     }
 
-    protected override void OnNodeChanged(object? sender, PropertyChangedEventArgs e) => Refresh(_showDetails);
+    public override void ShowDetails(bool showDetails)
+    {
+        _showDetails = showDetails;
+        _summary.Opacity = _badge.Opacity = showDetails ? 1 : 0;
+    }
+
+    protected override void OnNodeChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (IsGeometry(e.PropertyName))
+            Place();
+        else if (!IsUnseen(e.PropertyName))
+            Refresh(_showDetails);
+    }
 }
 
 /// <summary>A card: background, header (glyph, name, count chip) — 8 elements; members draw above it.</summary>
@@ -220,6 +248,7 @@ internal sealed class CardView : NodeView
     private readonly TextBlock _title = new() { TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 1, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _countText = new() { FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
     private readonly Border _count = new() { CornerRadius = new CornerRadius(10), MinHeight = 20, Padding = new Thickness(8, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+    private bool _showDetails = true;
 
     public CardView(CanvasNodeViewModel node)
         : base(node)
@@ -243,14 +272,13 @@ internal sealed class CardView : NodeView
     public override void Refresh(bool showDetails)
     {
         Place();
-        Height = Node.Height;
         _title.Style = Theme.Style("BodyStrongTextBlockStyle");
         _title.Text = Node.Title;
         _glyph.Glyph = Node.Glyph;
         _countText.Text = Node.Count;
         _countText.Foreground = Theme.Brush("TextFillColorSecondaryBrush");
         _count.Background = Theme.Brush("ControlFillColorSecondaryBrush");
-        _count.Visibility = showDetails ? Visibility.Visible : Visibility.Collapsed;
+        ShowDetails(showDetails);
         _shape.Fill = Theme.Brush("CardBackgroundFillColorSecondaryBrush");
         _shape.Stroke = Node.IsSelected ? Theme.Selection
             : Theme.Brush(Node.HasProblem ? "SystemFillColorCautionBrush" : "CardStrokeColorDefaultBrush");
@@ -258,7 +286,25 @@ internal sealed class CardView : NodeView
         _shape.StrokeDashArray = Node.MayFail ? Theme.Dashes(4, 2) : null;
     }
 
-    protected override void OnNodeChanged(object? sender, PropertyChangedEventArgs e) => Refresh(_count.Visibility == Visibility.Visible);
+    protected override void Place()
+    {
+        base.Place();
+        Height = Node.Height;
+    }
+
+    public override void ShowDetails(bool showDetails)
+    {
+        _showDetails = showDetails;
+        _count.Opacity = showDetails ? 1 : 0;
+    }
+
+    protected override void OnNodeChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (IsGeometry(e.PropertyName))
+            Place();
+        else if (!IsUnseen(e.PropertyName))
+            Refresh(_showDetails);
+    }
 }
 
 /// <summary>Screen readers see each pill and card by its full name (the Outline view, T7.8, is the full equivalent).</summary>
