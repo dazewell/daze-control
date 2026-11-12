@@ -44,9 +44,8 @@
             <Style TargetType="ToggleButton" BasedOn="{StaticResource DefaultToggleButtonStyle}">
                 <Setter Property="MinHeight" Value="{StaticResource ControlHeight}" />
             </Style>
-            <Style TargetType="DropDownButton" BasedOn="{StaticResource DefaultDropDownButtonStyle}">
-                <Setter Property="MinHeight" Value="{StaticResource ControlHeight}" />
-            </Style>
+            <!-- No DropDownButton style on purpose: any Style based on DefaultDropDownButtonStyle crashes the editor at start
+                 (X-013); the stock one is already as tall as the rest. -->
             <Style TargetType="HyperlinkButton" BasedOn="{StaticResource DefaultHyperlinkButtonStyle}">
                 <Setter Property="Padding" Value="0,4" />
             </Style>
