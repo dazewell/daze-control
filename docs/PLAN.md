@@ -739,3 +739,15 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   link (`ShellViewModel.LibraryRequested`). Live-checked on a scratch config: add, moves, rename (the step followed),
   save; the link's nav-pane hop is covered by a view-model test only (selecting a step needs the foreground).
 - [x] W1 The editor window remembers its place (user, 2026-11-06; D-098, feat/editor-window-geometry): `WindowPlacementLogic` (Editor.ViewModels, tested) + `WindowPlacementInterop`, saved in `editor.json` on close. Live-checked on a scratch config (move, resize, maximize, minimize, off-screen, corrupt file).
+
+## M22 UI polish (from the live test of 2026-11-12; findings in [docs/ui-findings-2026-11-12.md](ui-findings-2026-11-12.md))
+31 findings F-001..F-031; batches are disjoint by files, run in this order (batch 4 after 3, batch 7 after 4).
+- [ ] T22.1 Canvas camera and drop correctness (F-001, F-006, F-030; Opus)
+- [ ] T22.2 Destructive actions and selection (F-002, F-003, F-016, F-017)
+- [ ] T22.3 Window and list responsiveness (F-005, F-014, F-023)
+- [ ] T22.4 Accessibility and keyboard (F-004, F-020, F-021, F-022)
+- [ ] T22.5 Library consistency (F-007, F-010, F-011)
+- [ ] T22.6 Inputs and Pick device (F-008, F-009, F-029)
+- [ ] T22.7 Light theme and Settings links (F-024, F-025)
+- [ ] T22.8 Runs, counters, messages, Outline (F-012 Opus, F-013, F-018, F-019, F-028)
+- [ ] T22.9 Second live round + tooling/samples (F-026, F-027, F-031; join layout, pan/pinch, text scale, high contrast)
