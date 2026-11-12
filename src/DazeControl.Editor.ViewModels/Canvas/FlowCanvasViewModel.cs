@@ -259,16 +259,29 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     public int EdgeVersion { get; private set; }
 
     /// <summary>The control measured a pill; a changed size re-lays out (text scaling, UX §5.8 #5).</summary>
-    public void ReportSize(string id, double width, double height)
+    public void ReportSize(string id, double width, double height) => ReportSizes([(id, width, height)]);
+
+    /// <summary>
+    /// The control measured several pills in one layout pass (a paste of 95 steps): one re-layout for all of them,
+    /// not one per pill, each of which restarted the glide and redrew every line (F-036).
+    /// </summary>
+    public void ReportSizes(IEnumerable<(string Id, double Width, double Height)> sizes)
     {
-        var size = new Size(Math.Max(width, DefaultPillSize.Width), Math.Max(height, DefaultPillSize.Height));
-        if (_measured.TryGetValue(id, out var known) && Math.Abs(known.Width - size.Width) < 0.5 && Math.Abs(known.Height - size.Height) < 0.5)
-            return;
-        // A re-measure (renamed, details changed) glides its neighbours, and so does a new step's first measure while
-        // its add still glides; the first measures after opening a flow are shown at once.
-        var animate = _measured.ContainsKey(id) || Scene.IsMoving;
-        _measured[id] = size;
-        Sync(animate);
+        ArgumentNullException.ThrowIfNull(sizes);
+        bool changed = false, animate = false;
+        foreach (var (id, width, height) in sizes)
+        {
+            var size = new Size(Math.Max(width, DefaultPillSize.Width), Math.Max(height, DefaultPillSize.Height));
+            if (_measured.TryGetValue(id, out var known) && Math.Abs(known.Width - size.Width) < 0.5 && Math.Abs(known.Height - size.Height) < 0.5)
+                continue;
+            // A re-measure (renamed, details changed) glides its neighbours, and so does a new step's first measure
+            // while its add still glides; the first measures after opening a flow are shown at once.
+            animate |= _measured.ContainsKey(id) || Scene.IsMoving;
+            _measured[id] = size;
+            changed = true;
+        }
+        if (changed)
+            Sync(animate);
     }
 
     /// <summary>

@@ -825,8 +825,8 @@ Status: accepted (M13 design; user, 2026-11-03; supersedes D-024's "a handled fa
 PartiallySucceeded")
 - Decision: a **fallback step** is a unit with an incoming `when: failure` edge, or an incoming `when: success` edge
   from a fallback step (members follow their card), computed in Core (`FlowShape.Fallbacks`). When the Scheduler
-  would skip one, it ends **NotNeeded** (new `NodeOutcome`; fires `always` like Skipped). Counting: "n of m" leaves
-  fallback steps out of m until one starts. Summary: Succeeded when every unit is Succeeded, NotNeeded, or Failed /
+  would skip one, it ends **NotNeeded** (new `NodeOutcome`; fires `always` like Skipped). Counting (superseded by
+  D-127): "n of m" leaves fallback steps out of m until one starts. Summary: Succeeded when every unit is Succeeded, NotNeeded, or Failed /
   FailedIgnored with an outgoing failure edge (handled); otherwise as before. Pop-up: "Done" + #48 when a fallback
   fixed it. Runs: "Worked", the handled bar caution-dashed, NotNeeded rows "Not needed" (#47). The tray's problem
   notification follows the outcome.
@@ -1722,3 +1722,16 @@ Status: accepted (user, 2026-11-12, findings F-001, F-006, F-015, F-030 of the M
   it differs with Animation effects off (T21.9).
 - Revisit if: the column magnet feels sticky live (shrink it below half a column gap), or users want to pan past the
   content while dragging (raise `EdgeRoom`).
+
+## D-127 · 2026-11-12 · "n of m" is every step, fixed at the start, one counter for the pop-up and the canvas
+Status: accepted (F-012, M22 batch 13; supersedes D-065's counting sentence)
+- Decision: `Core/Runs/RunProgress` is the only "n of m": m = the flow's `StepNode`s when the run starts (fallbacks
+  included, cards not: their members count), n = steps with a `NodeFinished` (any outcome, each once). The pop-up
+  (`RunPopupModel`) and the canvas (`RunOverlayViewModel`) both use it; a nested call's progress only fills its
+  call step's share.
+- Why: the user saw "18 of 20" on the canvas and "18 of 21" in the pop-up (the pop-up counted cards, the canvas
+  didn't) and totals that grew mid-run as fallbacks started, so the bar jumped backwards. An unneeded fallback is
+  skipped (NotNeeded) right after its source succeeds, so n still reaches m without counting anything twice.
+- Why not keep "fallbacks join m when they start": any growing m moves the bar back. Why not leave fallbacks out for
+  good: a fallback that runs would then do work the bar doesn't show. Why not send m from the engine on the pipe:
+  both sides already hold the same flow (the canvas the saved one, D-047), and one Core class is one definition.

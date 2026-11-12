@@ -393,8 +393,8 @@ public sealed class FlowCallTests : IDisposable
         release.SetResult();
         await run;
 
-        Assert.Equal(("Headphones", "Make it the default · Connecting Sony…", "0 of 2"), (view.Title, view.Detail, view.Status));
-        Assert.InRange(view.Progress, 0.2, 0.3); // half of the call step's share
+        Assert.Equal(("Headphones", "Make it the default · Connecting Sony…", "0 of 3"), (view.Title, view.Detail, view.Status));
+        Assert.InRange(view.Progress, 0.15, 0.18); // half of the call step's share (1 of 3 steps)
         Assert.Equal(("Headphones", "Done"), (Popup()!.Title, Popup()!.Status));
     }
 

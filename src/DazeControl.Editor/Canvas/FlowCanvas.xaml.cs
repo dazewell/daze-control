@@ -128,6 +128,7 @@ public sealed partial class FlowCanvas : UserControl
                     FinishMotion();
             }
             _viewModel = value;
+            _measuredSizes.Clear(); // the old flow's pills
             ForgetChips();
             NodeLayer.Children.Clear();
             foreach (var view in _views.Values)
@@ -252,8 +253,21 @@ public sealed partial class FlowCanvas : UserControl
         if (_viewModel is null || pill.ActualHeight <= 0)
             return;
         var width = pill.Node.Kind == CanvasNodeKind.Member ? pill.Node.Width : pill.DesiredPillWidth(_measurer);
-        // Defer: re-layout from inside SizeChanged would reposition the element mid-pass.
-        DispatcherQueue.TryEnqueue(() => _viewModel?.ReportSize(pill.Node.Id, width, pill.ActualHeight));
+        // Defer: re-layout from inside SizeChanged would reposition the element mid-pass. Every pill measured in this
+        // pass goes in one re-layout (F-036: a pasted 95 steps made 95 re-layouts, each redrawing every line).
+        var first = _measuredSizes.Count == 0;
+        _measuredSizes[pill.Node.Id] = (width, pill.ActualHeight);
+        if (first)
+            DispatcherQueue.TryEnqueue(FlushSizes);
+    }
+
+    private readonly Dictionary<string, (double Width, double Height)> _measuredSizes = new(StringComparer.Ordinal);
+
+    private void FlushSizes()
+    {
+        var sizes = _measuredSizes.Select(s => (s.Key, s.Value.Width, s.Value.Height)).ToList();
+        _measuredSizes.Clear();
+        _viewModel?.ReportSizes(sizes);
     }
 
     private void RefreshAll()

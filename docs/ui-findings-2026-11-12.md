@@ -116,7 +116,7 @@ Build = main `68c6df4` (batches 2-8 merged, PRs 201-207) plus the F-026 fix (PR 
 | F-009 | fixed | the new input row scrolls into view and "Input name" has focus |
 | F-010 | not re-tested | long names |
 | F-011 | partly | Bluetooth rename icon and the disabled Remove's reason in its name seen; audio rename and Programs "Add by hand" skipped by design |
-| F-012 | not fixed, not re-tested | Opus work left for the user |
+| F-012 | fixed in batch 13 (tests only) | one `RunProgress` for pop-up and canvas, m fixed at start (D-127); not run live |
 | F-013 | fixed | duration kept on one line; the centred "Pick a run" state not looked at closely |
 | F-014 | fixed | toolbar wraps at the minimum width |
 | F-015 | fixed (menu) | Layout menu is now the same every time: Arrange › (Left to right, Top to bottom, Tree, Circle), Wrap long chains, Spacing, Line up, Lines, Untangle lines, Reset layout; refit after Arrange: T22.1 (Arrange and Reset layout fit the camera; not re-tested live) |
@@ -182,6 +182,31 @@ Run after Opus batch 1 (T22.1) where they share canvas files.
 12. **Canvas input, routing and automation** (Opus, after T22.1): F-033 (verify by hand with a real mouse and touchpad first), F-040, F-043. Files: `Canvas/FlowCanvas.Pointer.cs`, `Motion.cs`, `NodeViews.cs`.
 13. **Editor memory and run counters** (Opus): F-036 and F-012. Files: undo stack, scene rebuild, runtime progress events.
 14. **Human check list**: right/middle/Space pan and pinch with real input, 225 % text scale, high contrast, tray folders and hotkeys, Library "Test" on real audio/Bluetooth, the F-029 design decision.
+
+## Batch 13 results (F-036, F-012)
+
+F-036 measured with `pwsh scripts/editor-memory.ps1` (Release editor, scratch copy of `dev-big.yaml`, Probe 100: select
+all, copy, paste, undo ×3, close, open/close ×3; memory after a full GC). Private MB:
+
+| Step | Before | After |
+|------|--------|-------|
+| Flows page | 131 | 128 |
+| Probe 100 open | 208 | 198 |
+| Paste 1 (200 boxes) | **2168** (managed 187) | 292 (managed 9) |
+| Undo 1 | 960 | 286 |
+| Pastes/undos 2-3 | 933-968 | 290-315 |
+| Flow closed | 917 (managed 107) | 283 (managed 6) |
+| Open/close ×8 | not run | 274-309, managed flat 5.7 |
+
+- Cause: each pasted pill's first size started its own re-layout (95 per paste), each restarting the glide and
+  redrawing all 590 lines every frame: millions of short-lived WinRT path objects. The GC sees only their small
+  wrappers, so native memory peaked at 2 GB, and CsWinRT's wrapper tables (a 69 MB handle dictionary) kept their
+  peak size for good. Undo snapshots are flow records (no growth, `EditorMemoryTests`); a heap dump after closing
+  the flow holds no editor view models or views, only ~0.3 MB of Core layout objects (a static last-layout array).
+- Fix: the canvas collects every size measured in one layout pass and calls `ReportSizes` once: one re-layout.
+- Left: ~+80 MB stays after the first flow is closed (XAML templates, native heap high-water); it does not grow
+  with more open/close. Not measured: UIA walks (the tester saw them inflate memory), the installed build.
+- F-012: covered by unit tests only (pop-up, canvas, nested call); not watched on a live run.
 
 ## Round 2 restore verification
 

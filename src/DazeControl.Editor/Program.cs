@@ -20,6 +20,9 @@ public static partial class Program
     /// <summary><c>--canvas-probe</c> (Debug builds only): the canvas logs its frame times per gesture (T21.8).</summary>
     public static bool CanvasProbe { get; private set; }
 
+    /// <summary><c>--memory-probe &lt;flow id&gt; &lt;log&gt;</c>, only with <c>--config</c>: see ShellWindow.MemoryProbe (F-036).</summary>
+    public static (string FlowId, string Log)? MemoryProbe { get; private set; }
+
     [STAThread]
     public static int Main(string[] args)
     {
@@ -34,6 +37,14 @@ public static partial class Program
             if (at + 1 >= args.Length || args[at + 1].StartsWith("--", StringComparison.Ordinal))
                 return 2;
             ConfigPath = Path.GetFullPath(args[at + 1]);
+        }
+        var probe = Array.IndexOf(args, "--memory-probe");
+        if (probe >= 0)
+        {
+            // It edits the open flow (and undoes it): never on the user's real file.
+            if (ConfigPath is null || probe + 2 >= args.Length)
+                return 2;
+            MemoryProbe = (args[probe + 1], Path.GetFullPath(args[probe + 2]));
         }
 
         // Session-local names: one editor per signed-in user and file, so a --config instance never hands its
@@ -63,7 +74,7 @@ public static partial class Program
                 new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread()));
             _ = new App();
         });
-        return 0;
+        return Environment.ExitCode; // 0 unless the memory probe failed
     }
 
     [LibraryImport("user32.dll", SetLastError = true)]

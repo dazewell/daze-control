@@ -179,30 +179,31 @@ public sealed class RunPopupModelTests
         model.Apply(new NodeFinished(Run, "connect-technics", T0, new NodeResult(id, outcome, Attempts: 0)), null, Settings);
 
     [Fact]
-    public void FallbacksThatWerentNeededCountForNothing()
+    public void FallbacksThatWerentNeededCountAsDoneWhenSkipped()
     {
         var model = Started(WithFallback);
-        Assert.Equal("0 of 2", model.Current!.Status);
+        Assert.Equal("0 of 4", model.Current!.Status); // every step, fallbacks too: m is fixed (F-012, D-127)
         Node(model, "bt");
-        Assert.Equal(("1 of 2", 0.5), (model.Current!.Status, model.Current!.Progress));
+        Assert.Equal(("1 of 4", 0.25), (model.Current!.Status, model.Current!.Progress));
         NotRun(model, "connect", NodeOutcome.NotNeeded);
         NotRun(model, "setDefault", NodeOutcome.NotNeeded);
+        Assert.Equal("3 of 4", model.Current!.Status);
         Node(model, "out");
-        Assert.Equal(("2 of 2", 1.0), (model.Current!.Status, model.Current!.Progress));
+        Assert.Equal(("4 of 4", 1.0), (model.Current!.Status, model.Current!.Progress));
 
         var view = Finish(model, FlowOutcome.Succeeded);
         Assert.Equal(("Done", "Took 3.1 s", PopupTone.Succeeded), (view.Status, view.Detail, view.Tone));
     }
 
     [Fact]
-    public void AFallbackJoinsTheCountWhenItStarts()
+    public void TheTotalStaysWhenAFallbackStarts()
     {
         var model = Started(WithFallback);
         Node(model, "bt", NodeOutcome.Failed);
         NotRun(model, "out", NodeOutcome.Skipped);
-        Assert.Equal("2 of 2", model.Current!.Status);
+        Assert.Equal("2 of 4", model.Current!.Status);
         model.Apply(new NodeStarted(Run, "connect-technics", T0, "connect", 1), null, Settings);
-        Assert.Equal(("2 of 3", "Connect Sony…"), (model.Current!.Status, model.Current!.Detail));
+        Assert.Equal(("2 of 4", "Connect Sony…"), (model.Current!.Status, model.Current!.Detail));
     }
 
     [Fact]

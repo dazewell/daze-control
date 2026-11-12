@@ -756,4 +756,4 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 - [ ] T22.10 Shell and inspector polish (F-032, F-034, F-035, F-038, F-039, F-041)
 - [ ] T22.11 Silent notices and the flaky trigger test (F-037, F-042)
 - [ ] T22.12 Canvas input, routing, automation (F-033 after a human check, F-040, F-043; Opus, after T22.1)
-- [ ] T22.13 Editor memory and run counters (F-036, F-012; Opus)
+- [x] T22.13 Editor memory and run counters (F-036: pills measured in one pass re-lay out once, `scripts/editor-memory.ps1`; F-012: one `RunProgress`, D-127; Opus)

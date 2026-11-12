@@ -74,7 +74,6 @@ public sealed class RunPopupModel
         switch (e)
         {
             case NodeStarted node:
-                run.Count(node.NodeId);
                 if (run.IsMenu(node.NodeId))
                     return false;
                 run.Running.Remove(node.NodeId);
@@ -82,7 +81,7 @@ public sealed class RunPopupModel
                 break;
             case NodeFinished node:
                 run.Running.Remove(node.Result.NodeId);
-                run.Finished.Add(node.Result);
+                run.Finish(node.Result);
                 if (run.IsMenu(node.Result.NodeId))
                     return false;
                 break;
@@ -125,12 +124,11 @@ public sealed class RunPopupModel
         switch (e)
         {
             case NodeStarted node:
-                nested.Track.Count(node.NodeId);
                 if (!nested.Track.IsMenu(node.NodeId)) // the menu has its own window
                     top.NestedDetail[call] = $"{nested.Track.Flow.Name} · {nested.Track.NameOf(node.NodeId)}…";
                 break;
             case NodeFinished node:
-                nested.Track.Finished.Add(node.Result);
+                nested.Track.Finish(node.Result);
                 if (direct)
                     top.NestedFraction[call] = nested.Track.Fraction;
                 break;
@@ -162,14 +160,14 @@ public sealed class RunPopupModel
 
     private static PopupView Progress(Guid runId, string flowId, RunTrack run)
     {
-        var done = run.Done;
+        var done = run.Progress.Done;
         var detail = run.Running.Count switch
         {
             0 => done == 0 ? "Starting…" : "Working…",
             1 => run.Current(run.Running[0]),
             var n => $"{run.Current(run.Running[0])} and {n - 1} more",
         };
-        return new PopupView(runId, flowId, run.Flow.Name, $"{done} of {run.Total}", null, run.Fraction, detail, null,
+        return new PopupView(runId, flowId, run.Flow.Name, run.Progress.Text, null, run.Fraction, detail, null,
             PopupTone.Running, null, false);
     }
 
@@ -249,21 +247,18 @@ public sealed class RunPopupModel
     }
 
     /// <summary>
-    /// "n of m" counts the flow's nodes except fallbacks, which join m when one of their steps starts (D-065): a
-    /// fallback that wasn't needed counts for nothing.
+    /// One run's state for the pop-up; "n of m" is the shared <see cref="RunProgress"/> (F-012, D-127).
     /// </summary>
     private sealed class RunTrack
     {
-        private readonly IReadOnlySet<string> _fallbacks;
-        private readonly HashSet<string> _counted;
-
         public RunTrack(Flow flow, DateTimeOffset started)
         {
             Flow = flow;
             Started = started;
-            _fallbacks = FlowShape.Fallbacks(flow);
-            _counted = [.. flow.Nodes.Select(n => n.Id).Where(id => !_fallbacks.Contains(id))];
+            Progress = new RunProgress(flow);
         }
+
+        public RunProgress Progress { get; }
 
         public Flow Flow { get; }
         public DateTimeOffset Started { get; }
@@ -284,19 +279,12 @@ public sealed class RunPopupModel
 
         public bool IsMenu(string nodeId) => Flow.FindNode(nodeId) is StepNode { Step: ProviderCatalog.MenuShowId };
 
-        public int Total => Math.Max(_counted.Count, 1);
+        public double Fraction => Progress.Fraction(Running.Where(Progress.Counts).Sum(id => NestedFraction.GetValueOrDefault(id)));
 
-        public int Done => Finished.Count(r => _counted.Contains(r.NodeId));
-
-        public double Fraction => Math.Clamp((Done + Running.Where(_counted.Contains).Sum(id => NestedFraction.GetValueOrDefault(id))) / Total, 0, 1);
-
-        /// <summary>A step started: a fallback (and its card) counts from now on.</summary>
-        public void Count(string stepId)
+        public void Finish(NodeResult result)
         {
-            if (!_fallbacks.Contains(stepId))
-                return;
-            _counted.Add(stepId);
-            _counted.Add(FlowShape.UnitOf(Flow, stepId));
+            Finished.Add(result);
+            Progress.Finish(result.NodeId);
         }
 
         /// <summary>The node's own name, else its provider's title, else its id.</summary>
