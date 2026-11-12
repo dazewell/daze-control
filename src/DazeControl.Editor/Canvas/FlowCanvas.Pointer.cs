@@ -37,7 +37,6 @@ public sealed partial class FlowCanvas
             return;
         var point = e.GetCurrentPoint(Host);
         _rightPan = null; // a swallow no RightTapped consumed must not eat this press's menu
-        _viewSeq++; // a pan may start: a queued view retry must not snap it back
         var props = point.Properties;
         Focus(FocusState.Pointer);
         UpdateFocusRing(); // the ring is for keyboard focus only
@@ -45,8 +44,7 @@ public sealed partial class FlowCanvas
         _pointerId = e.Pointer.PointerId;
         _pressContent = point.Position;
         _pressScreen = e.GetCurrentPoint(this).Position;
-        _panStartX = Scroller.HorizontalOffset;
-        _panStartY = Scroller.VerticalOffset;
+        _panStart = _camera;
         var touch = e.Pointer.PointerDeviceType == PointerDeviceType.Touch;
         _portRadius = touch ? 20 : FlowCanvasViewModel.PortRadius; // 40-DIP touch target (UX §5.3)
 
@@ -88,7 +86,7 @@ public sealed partial class FlowCanvas
         else if (touch)
         {
             _viewModel.ClearSelection();
-            return; // one-finger pan: the ScrollViewer's own manipulation
+            return; // one-finger pan: the camera's touch manipulation (FlowCanvas.Camera.cs)
         }
         else if (props.IsLeftButtonPressed)
         {
@@ -131,10 +129,10 @@ public sealed partial class FlowCanvas
                     break;
                 if (!started)
                     Root.CapturePointer(e.Pointer);
-                Scroller.ChangeView(_panStartX - (screen.X - _pressScreen.X), _panStartY - (screen.Y - _pressScreen.Y), null, disableAnimation: true);
+                ApplyCamera(_panStart.PanBy(screen.X - _pressScreen.X, screen.Y - _pressScreen.Y));
                 break;
             case Gesture.Pan:
-                Scroller.ChangeView(_panStartX - (screen.X - _pressScreen.X), _panStartY - (screen.Y - _pressScreen.Y), null, disableAnimation: true);
+                ApplyCamera(_panStart.PanBy(screen.X - _pressScreen.X, screen.Y - _pressScreen.Y));
                 break;
             case Gesture.Press when Math.Abs(dx) > DragThreshold || Math.Abs(dy) > DragThreshold:
                 if (_dragged is not null && _viewModel.CanEdit)

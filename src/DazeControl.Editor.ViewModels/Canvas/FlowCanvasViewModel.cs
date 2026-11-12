@@ -230,15 +230,15 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// The view that shows the whole flow, never above 100 %, centred in the pan room (D-074); still too big at the
-    /// smallest zoom, it shows where the flow starts.
+    /// The camera that shows the whole flow, never above 100 %, centred (D-074); still too big at the smallest zoom, it
+    /// shows where the flow starts.
     /// </summary>
-    public CanvasView FitView(double viewportWidth, double viewportHeight)
+    public Camera FitView(double viewportWidth, double viewportHeight)
     {
         if (viewportWidth <= 0 || viewportHeight <= 0 || ExtentWidth <= 0 || ExtentHeight <= 0)
-            return new CanvasView(0, 0, 1);
+            return Camera.Identity;
         var zoom = Math.Clamp(Math.Min(viewportWidth / ExtentWidth, viewportHeight / ExtentHeight), MinZoom, 1);
-        return CanvasViewport.Fit(zoom, ExtentWidth, ExtentHeight, viewportWidth, viewportHeight);
+        return Camera.Fit(zoom, ExtentWidth, ExtentHeight, viewportWidth, viewportHeight);
     }
 
     // ---- Selection (UX §5.2) ----

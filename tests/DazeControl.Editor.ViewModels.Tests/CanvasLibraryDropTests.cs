@@ -182,9 +182,9 @@ public sealed class CanvasLibraryDropTests : IDisposable
     }
 
     /// <summary>
-    /// The canvas reads the drop in Host (content) coordinates, which the ScrollViewer works out from zoom, scroll and
-    /// the wrapper's pan room (D-074). Whatever the view, the step's centre comes back to the screen point it was dropped
-    /// on, within half a grid cell of content (snapping).
+    /// The canvas reads the drop in Host (world) coordinates, which XAML works out through the camera transform
+    /// (D-119 e). Whatever the zoom and pan, the step's centre comes back to the screen point it was dropped on, within
+    /// half a grid cell of content (snapping).
     /// </summary>
     [Theory]
     [InlineData(0.5, 0, 0, 300, 200)]
@@ -195,21 +195,16 @@ public sealed class CanvasLibraryDropTests : IDisposable
     [InlineData(2.0, 2400, 1700, 513, 77)]
     public void ADropAtAnyZoomAndScrollLandsUnderThePointer(double zoom, double scrollX, double scrollY, double sx, double sy)
     {
-        const double viewportWidth = 1400, viewportHeight = 900;
-        var padX = CanvasViewport.Pad(viewportWidth, zoom);
-        var padY = CanvasViewport.Pad(viewportHeight, zoom);
-        // Scroll past the steps so the pointer is over empty canvas, then by the case's own amount.
-        var offsetX = (_canvas.ExtentWidth + padX) * zoom + scrollX;
-        var offsetY = (_canvas.ExtentHeight + padY) * zoom + scrollY;
-        var host = new Point(CanvasViewport.HostAt(offsetX, sx, zoom, padX), CanvasViewport.HostAt(offsetY, sy, zoom, padY));
+        // Pan past the steps so the pointer is over empty canvas, then by the case's own amount.
+        var camera = new Camera(-_canvas.ExtentWidth * zoom - scrollX, -_canvas.ExtentHeight * zoom - scrollY, zoom);
+        var host = camera.ToWorld(new Point(sx, sy));
         Assert.Null(_canvas.HitTest(host));
 
         var (id, _) = _canvas.AddStepAt("wait", host);
 
         var node = Node(id!);
         AssertCentredOn(host, node);
-        var screenX = ((node.X + node.Width / 2) + padX) * zoom - offsetX;
-        var screenY = (node.Bounds.CenterY + padY) * zoom - offsetY;
+        var (screenX, screenY) = camera.ToScreen(new Point(node.X + node.Width / 2, node.Bounds.CenterY));
         Assert.InRange(screenX, sx - FlowPlacement.Grid / 2 * zoom, sx + FlowPlacement.Grid / 2 * zoom);
         Assert.InRange(screenY, sy - FlowPlacement.Grid / 2 * zoom, sy + FlowPlacement.Grid / 2 * zoom);
     }

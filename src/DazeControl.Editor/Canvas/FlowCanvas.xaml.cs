@@ -35,10 +35,6 @@ public sealed partial class FlowCanvas : UserControl
     private FlowCanvasViewModel? _viewModel;
     private bool _fitPending;
     private bool _autoFit;
-    private double _padX, _padY; // Wrapper's padding per side now (content DIP)
-    private double _padZoom = 1; // the zoom that padding was set for
-    private CanvasView? _pendingView; // asked of the ScrollViewer, not reported back by ViewChanged yet
-    private int _viewSeq; // bumped by every view change of ours and every press: a queued retry checks it's still current
 
     private enum Gesture { None, Press, DragNode, Marquee, Pan, Connect, RightPan }
 
@@ -46,7 +42,6 @@ public sealed partial class FlowCanvas : UserControl
     private uint _pointerId;
     private Windows.Foundation.Point _pressContent;
     private Windows.Foundation.Point _pressScreen;
-    private double _panStartX, _panStartY;
     private RightDragPan? _rightPan;
     private NodeView? _dragged;
     private List<NodeView> _dragViews = []; // moved by the drag preview
@@ -71,24 +66,17 @@ public sealed partial class FlowCanvas : UserControl
         GotFocus += (_, _) => { _viewModel?.EnsureFocus(); UpdateFocusRing(); };
         LostFocus += (_, _) => { _spaceDown = false; UpdateFocusRing(); }; // Space released elsewhere never reaches OnKeyUp
         SizeChanged += (_, _) => { if (_fitPending) Fit(); };
-        Scroller.SizeChanged += (_, e) =>
-        {
-            if (_fitPending || e.PreviousSize.Width <= 0)
-                return;
-            // New pan room for the new viewport: refit while the user hasn't moved the view, else the top left stays.
-            DispatcherQueue.TryEnqueue(() => { if (_autoFit) Fit(); else ZoomAround(CurrentView.Zoom, 0, 0); });
-        };
-        // Pinch and touchpad zoom are the ScrollViewer's own (no ChangeView of ours): new pan room once they end,
-        // keeping the middle of the window still.
-        Scroller.DirectManipulationCompleted += (_, _) =>
-        {
-            _pendingView = null;
-            if (Math.Abs(Scroller.ZoomFactor - _padZoom) > 1e-4)
-                ZoomAround(Scroller.ZoomFactor, Scroller.ViewportWidth / 2, Scroller.ViewportHeight / 2);
-        };
-        Wrapper.PointerWheelChanged += OnWheel;
+        Viewport.SizeChanged += OnViewportSizeChanged;
+        Root.PointerWheelChanged += OnWheel;
+        // Touch pans and pinches through manipulations (mouse and pen ones are completed at once: their gestures are
+        // the pointer handlers').
+        Root.ManipulationMode = ManipulationModes.TranslateX | ManipulationModes.TranslateY | ManipulationModes.Scale
+            | ManipulationModes.TranslateInertia;
+        Root.ManipulationStarted += OnManipulationStarted;
+        Root.ManipulationDelta += OnManipulationDelta;
+        Root.ManipulationInertiaStarting += OnManipulationInertiaStarting;
         // The whole viewport takes gestures (a small flow leaves blank canvas around Host); positions are in Host's
-        // coordinates. Scroll bars handle their own presses, so they never start a marquee.
+        // coordinates, through the camera transform.
         Root.PointerPressed += OnPointerPressed;
         Root.PointerMoved += OnPointerMoved;
         Root.PointerReleased += OnPointerReleased;
@@ -186,6 +174,8 @@ public sealed partial class FlowCanvas : UserControl
             return;
         Host.Width = _viewModel.ExtentWidth;
         Host.Height = _viewModel.ExtentHeight;
+        if (!_autoFit && !_fitPending)
+            ApplyCamera(_camera); // fewer steps: keep 48 DIP of them on screen, as the scroll extent used to
         EmptyState.Visibility = _viewModel.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
     }
 
