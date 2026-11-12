@@ -61,6 +61,7 @@ internal sealed unsafe class FlowMenu : AcrylicSurface, IMenuPresenter
     private bool _haveDrawn;
     private long _slideStart, _shakeStart;
     private bool _sliding, _shaking;
+    private int _fromFocus = -1, _focusDrawn = -1; // the choice the slide leaves / the one drawn focused last frame
 
     public FlowMenu(MessageWindow messages, IMenuPadFeed? pad, TimeProvider time)
         : base(ClassName, clickThrough: false)
@@ -512,6 +513,7 @@ internal sealed unsafe class FlowMenu : AcrylicSurface, IMenuPresenter
         if (!Theme.Animations || !_haveDrawn)
             return;
         _from = _drawn;
+        _fromFocus = _focusDrawn;
         _slideStart = Stopwatch.GetTimestamp();
         _sliding = true;
     }
@@ -565,10 +567,11 @@ internal sealed unsafe class FlowMenu : AcrylicSurface, IMenuPresenter
             shake = (float)(Math.Sin(t * Math.PI * 6) * 4 * (1 - t));
         }
         var rect = focus;
+        var eased = 1f;
         if (_sliding && _haveDrawn)
         {
             var t = (float)Math.Clamp(Stopwatch.GetElapsedTime(_slideStart, now) / SlideLength, 0, 1);
-            var eased = 1 - (1 - t) * (1 - t) * (1 - t);
+            eased = 1 - (1 - t) * (1 - t) * (1 - t);
             rect = new D2D_RECT_F
             {
                 left = _from.left + (focus.left - _from.left) * eased, top = _from.top + (focus.top - _from.top) * eased,
@@ -577,6 +580,8 @@ internal sealed unsafe class FlowMenu : AcrylicSurface, IMenuPresenter
         }
         _drawn = rect;
         _haveDrawn = true;
+        _focusDrawn = model.Focus;
+        var leaving = _sliding ? _fromFocus : -1;
 
         var fill = new D2D1_ROUNDED_RECT
         {
@@ -596,8 +601,10 @@ internal sealed unsafe class FlowMenu : AcrylicSurface, IMenuPresenter
             var focused = i == model.Focus;
             var item = model.Items[i];
             var dx = focused ? shake : 0;
-            var colour = focused ? theme.OnAccent : item.CanRun ? theme.Text : theme.Secondary;
-            var captionColour = focused ? theme.OnAccent : theme.Secondary;
+            // Text and icon colours cross-fade with the sliding fill (the arriving choice up, the leaving one down) instead of flipping at once.
+            var weight = focused ? eased : i == leaving ? 1 - eased : 0f;
+            var colour = Mix(item.CanRun ? theme.Text : theme.Secondary, theme.OnAccent, weight);
+            var captionColour = Mix(theme.Secondary, theme.OnAccent, weight);
             ref var layout = ref _layouts.Items[i];
             var top = r.top + offset;
             if (grid)
@@ -665,6 +672,9 @@ internal sealed unsafe class FlowMenu : AcrylicSurface, IMenuPresenter
         SetColour(theme.Light ? Rgb(1) : Rgb(0));
         target->DrawRoundedRectangle(&inner, Brush, 1, null);
     }
+
+    private static D2D1_COLOR_F Mix(D2D1_COLOR_F a, D2D1_COLOR_F b, float t) =>
+        new() { r = a.r + (b.r - a.r) * t, g = a.g + (b.g - a.g) * t, b = a.b + (b.b - a.b) * t, a = a.a + (b.a - a.a) * t };
 
     private static D2D1_COLOR_F Rgb(float v) => new() { r = v, g = v, b = v, a = 1 };
 
