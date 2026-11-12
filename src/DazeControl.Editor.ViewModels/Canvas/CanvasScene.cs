@@ -208,6 +208,7 @@ public sealed partial class CanvasScene
 
         Reindex();
         Retarget(before, motion);
+        _released = null; // the commit took the drop point as its start
         return new SceneDiff(added, removed, moved, resized, content, edgesAdded, edgesRemoved, routes, styles,
             order && edgesAdded.Count == 0 && edgesRemoved.Count == 0);
     }
@@ -344,12 +345,28 @@ public sealed partial class CanvasScene
         Drag = null;
         Frame = null;
         _live.Clear();
+        _released = null;
     }
+
+    /// <summary>
+    /// The drag was released and its commit follows: the drag ends, but its last frame stays where the boxes are shown
+    /// until the commit's <see cref="Apply"/>, so a drop the layout puts elsewhere (a zone) glides from the drop point.
+    /// </summary>
+    public void Release()
+    {
+        var shown = Frame?.Rects;
+        EndDrag();
+        _released = shown;
+    }
+
+    private IReadOnlyDictionary<string, Rect>? _released;
 
     /// <summary>Where a box is drawn now: mid-glide, its live rect while it is dragged, else where it is laid out.</summary>
     public Rect ShownBounds(string id) =>
         _moving.TryGetValue(id, out var glide) ? glide.Now
-        : Frame is not null && Frame.Rects.TryGetValue(id, out var live) ? live : Find(id)?.Bounds ?? default;
+        : Frame is not null && Frame.Rects.TryGetValue(id, out var live) ? live
+        : _released is not null && _released.TryGetValue(id, out var dropped) ? dropped
+        : Find(id)?.Bounds ?? default;
 
     /// <summary>
     /// The curve a line is drawn with now: mid-glide, live while it follows a drag, from the frozen arrangement while

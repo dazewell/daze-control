@@ -82,9 +82,6 @@ public sealed class DragPreview
 
     private Dictionary<(string, string), EdgeCurve>? _staticCurves;
 
-    /// <summary>Where a box was when the drag started (the frozen arrangement); null when it isn't in it.</summary>
-    public Rect? FrozenBounds(string id) => _frozen.TryGetValue(id, out var r) ? r : null;
-
     private Rect BoundsOf(string id, Dictionary<string, Rect> rects) =>
         rects.TryGetValue(id, out var r) ? r : _frozen[id];
 }

@@ -258,11 +258,31 @@ public sealed class CanvasMotionTests : IDisposable
         scene.BeginDrag(new DragPreview(frozen, ["b"], new LayoutOptions()));
         scene.DragTo(new Point(0, 200));
 
-        // The commit arrives while the drag is still shown: b is already there, so only what layout moved glides.
+        // Released: the commit puts b where the drag showed it, so nothing glides.
+        scene.Release();
+        Assert.Equal(248, scene.ShownBounds("b").Y);
         scene.Apply(Arrangement(Box("a", 48, 48), Box("b", 400, 248)), motion: On);
         Assert.False(scene.IsMoving);
         scene.EndDrag();
         Assert.Equal(248, scene.ShownBounds("b").Y);
+    }
+
+    [Fact]
+    public void ADropTheLayoutPutsElsewhereGlidesFromTheDropPoint()
+    {
+        var scene = new CanvasScene();
+        scene.Apply(Arrangement(Box("a", 48, 48), Box("b", 400, 48)), motion: On);
+        scene.BeginDrag(new DragPreview(Arrangement(Box("a", 48, 48), Box("b", 400, 48)), ["b"], new LayoutOptions()));
+        scene.DragTo(new Point(0, 200));
+        scene.Release();
+
+        // Dropped on a's zone: the layout runs b before a.
+        scene.Apply(Arrangement(Box("b", 48, 48), Box("a", 400, 48)), motion: On);
+        Assert.Equal(new Rect(400, 248, 232, 56), scene.ShownBounds("b")); // from the drop point
+        Assert.Equal(new Rect(48, 48, 232, 56), scene.ShownBounds("a"));
+        scene.Advance(Ms(0));
+        Assert.False(scene.Advance(Ms(200)));
+        Assert.Equal(new Rect(48, 48, 232, 56), scene.ShownBounds("b"));
     }
 
     [Fact]
@@ -273,10 +293,14 @@ public sealed class CanvasMotionTests : IDisposable
         scene.BeginDrag(new DragPreview(Arrangement(Box("a", 48, 48), Box("b", 400, 48)), ["b"], new LayoutOptions()));
         scene.DragTo(new Point(0, 200));
 
-        // a was re-measured while b is dragged: a glides, b stays where the drag shows it.
-        scene.Apply(Arrangement(Box("a", 48, 96), Box("b", 400, 48)), motion: On);
+        // a was re-measured while b is dragged, and the layout moved b too: a glides, b stays under the pointer and
+        // its line keeps the drag's live curve.
+        var dragged = scene.ShownCurve("a", "b");
+        scene.Apply(Arrangement(Box("a", 48, 96), Box("b", 500, 96)), motion: On);
         Assert.Equal(["a"], scene.Animated);
         Assert.Equal(248, scene.ShownBounds("b").Y);
+        Assert.Equal(dragged, scene.ShownCurve("a", "b"));
+        Assert.Equal(dragged, scene.LiveCurves[("a", "b")]);
     }
 
     [Fact]

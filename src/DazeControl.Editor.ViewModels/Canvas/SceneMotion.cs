@@ -184,8 +184,8 @@ public sealed partial class CanvasScene
             if (before.Rects.TryGetValue(item.Id, out var was))
             {
                 var to = item.Bounds;
-                if (Frame is not null && Frame.Rects.ContainsKey(item.Id) && Drag?.FrozenBounds(item.Id) == to)
-                    continue; // a layout mid-drag that didn't commit the move: the box stays under the pointer
+                if (Frame is not null && Frame.Rects.ContainsKey(item.Id))
+                    continue; // a layout while the drag runs (a re-measure, a reload): the box stays under the pointer
                 if (item.Kind != SceneKind.Card)
                     was = was with { Width = to.Width, Height = to.Height };
                 if (glides && was != to)
@@ -204,6 +204,8 @@ public sealed partial class CanvasScene
             {
                 var lane = before.Lanes.TryGetValue(edge.Key, out var l) ? l : (double?)null;
                 var laneMoves = lane is not null && edge.Route.WrapLaneY is { } now && now != lane;
+                if (_live.ContainsKey(edge.Key))
+                    continue; // the drag's own line: direct manipulation wins
                 if (laneMoves || _moving.ContainsKey(Owner(edge.From)) || _moving.ContainsKey(Owner(edge.To)))
                     _edgeGlides[edge.Key] = lane;
             }
@@ -243,9 +245,9 @@ public sealed partial class CanvasScene
 
     private Dictionary<(string From, string To), EdgeCurve> MergedLive()
     {
-        var merged = new Dictionary<(string From, string To), EdgeCurve>(_live);
-        foreach (var (key, curve) in _glideCurves)
-            merged[key] = curve;
+        var merged = new Dictionary<(string From, string To), EdgeCurve>(_glideCurves);
+        foreach (var (key, curve) in _live)
+            merged[key] = curve; // the drag's preview wins over a glide
         return merged;
     }
 }

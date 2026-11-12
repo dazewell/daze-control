@@ -888,6 +888,9 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
     /// <summary>The drag ended (after its commit, or with none): every box and line is shown as laid out again.</summary>
     public void EndMove() => Scene.EndDrag();
 
+    /// <summary>The drag was released; its commit follows and glides only what the layout puts elsewhere (T21.8).</summary>
+    public void ReleaseMove() => Scene.Release();
+
     /// <summary>Every top-level step and card where it is now: what the first move freezes (D-115).</summary>
     private Dictionary<string, Point> Frozen() =>
         Nodes.Where(n => n.CardId is null).ToDictionary(n => n.Id, n => new Point(n.X, n.Y), StringComparer.Ordinal);

@@ -419,8 +419,9 @@ selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). Al
   boxes new to a non-empty scene fade + scale 0.96→1 150 ms; steps take their new size at once, cards' size glides;
   lines touching a gliding box (and moved lanes) are rebuilt each frame from the laid-out route with each port shifted
   by its box's offset, so they never leave the port. Pure clock: `Advance(now)` (first frame starts it), `Settle()`
-  ends it; `BeginDrag` settles (a drag is 1:1); a box the drag shows where the layout put it doesn't glide, and a layout
-  mid-drag that didn't commit the move leaves the dragged box alone. The VM's `Motion` provider (the canvas: on screen
+  ends it; `BeginDrag` settles (a drag is 1:1); while a drag runs its boxes and live lines never glide; on release
+  `ReleaseMove` (`Scene.Release`) ends the drag but keeps its last frame as the commit's start, so a drop the layout puts
+  elsewhere (a zone) glides from the drop point and one it puts where shown doesn't move. The VM's `Motion` provider (the canvas: on screen
   and Windows "Animation effects" on) is asked on layout-driven syncs: edits, undo/redo, Arrange, a re-measure, a new
   step's first measure while a glide runs; never the first layout or the first measures after opening. `FlowCanvas.Motion.cs`
   shows it FLIP style: views sit at the final rect (UIA and hit tests correct at once) with `Translation`/`Scale`/opacity

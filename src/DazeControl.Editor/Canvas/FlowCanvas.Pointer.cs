@@ -254,6 +254,7 @@ public sealed partial class FlowCanvas
                 var node = _dragged!.Node;
                 var (target, zone) = DropAt(position);
                 var moving = DragIds();
+                _viewModel.ReleaseMove(); // a layout during the drag left the dragged steps alone; the commit may move them
                 // Commit first: the views take their new place in this same tick and EndGesture then clears the
                 // preview offset and redraws the lines as committed, so nothing is drawn in between (D-120).
                 if (target is not null && zone != DropZone.None)
@@ -459,7 +460,7 @@ public sealed partial class FlowCanvas
         _pendingMove = null;
         if (_gesture is Gesture.DragNode or Gesture.Connect or Gesture.Marquee)
             _gestureProbe.End();
-        if (_viewModel?.Scene.IsDragging == true)
+        if (_viewModel is not null && (_viewModel.Scene.IsDragging || _gesture == Gesture.DragNode))
         {
             // After the commit (or none: no move, a refused drop, capture lost) every line is drawn as it now is.
             _viewModel.EndMove();
