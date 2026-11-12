@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using DazeControl.Core.Model;
 using DazeControl.Runtime.Providers;
 
 namespace DazeControl.Providers.Process;
@@ -14,7 +15,7 @@ public sealed class ProcessRunProvider : IStepProvider
         var path = Environment.ExpandEnvironmentVariables(context.RequiredText("path"));
         var start = new ProcessStartInfo(path);
         foreach (var arg in context.TextList("args"))
-            start.ArgumentList.Add(Environment.ExpandEnvironmentVariables(arg));
+            start.ArgumentList.Add(StepValues.Unguard(Environment.ExpandEnvironmentVariables(arg))); // %VAR% in the written text only, never in a value (D-129)
         if (context.Text("cwd") is { Length: > 0 } cwd)
             start.WorkingDirectory = Environment.ExpandEnvironmentVariables(cwd);
 
@@ -26,8 +27,11 @@ public sealed class ProcessRunProvider : IStepProvider
         }
 
         var allowed = ExitCodes(context);
-        var (exitCode, lastError) = await ProcessRunner.RunAsync(start, stdin: null, cancellationToken).ConfigureAwait(false);
+        var (exitCode, lastError, output) = await ProcessRunner.RunAsync(start, stdin: null, keepOutput: context.Wants("output"),
+            cancellationToken, ProcessRunner.ValueTail).ConfigureAwait(false);
         context.SetNumber("exitCode", exitCode);
+        if (context.Wants("output"))
+            context.SetValue("output", output);
         if (!allowed.Contains(exitCode))
             throw new StepFailedException(Failure(Path.GetFileName(path), exitCode, lastError));
     }

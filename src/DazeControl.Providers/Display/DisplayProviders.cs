@@ -111,6 +111,7 @@ public sealed class DisplayCheckProvider(IDisplays displays) : IStepProvider
         cancellationToken.ThrowIfCancellationRequested();
         var difference = displays.LayoutDifferences(layout);
         var wantMatch = context.Text("is") != "differs";
+        context.SetValue("result", difference ?? $"The screens match {layout.Key}");
         if (wantMatch && difference is not null)
             throw new StepFailedException(difference);
         if (!wantMatch && difference is null)

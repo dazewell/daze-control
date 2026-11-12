@@ -369,6 +369,7 @@ public sealed class AndroidCheckProvider(AndroidRemote remote, IProcesses proces
         var device = context.Device();
         var wanted = context.Text("is") != "disconnected";
         var connected = await remote.IsConnectedAsync(device, processes, cancellationToken).ConfigureAwait(false);
+        context.SetValue("result", connected ? $"{device.Key} is connected" : $"{device.Key} isn't connected");
         if (connected != wanted)
             throw new StepFailedException(connected ? $"The Android device {device.Key} is connected." : $"The Android device {device.Key} isn't connected.");
         context.SetSummary(connected ? $"{device.Key} is connected" : $"{device.Key} isn't connected");
