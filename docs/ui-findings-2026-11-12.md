@@ -94,3 +94,95 @@ read back = 0) and window placement of the dev editor. Verified after `dev-run.p
 display layout identical to the start snapshot (one external 3840×2160 at (0,0)), no Bluetooth or default-device changes were made.
 The dev `showcase.yaml` was reset to the sample (the "Zzz test headset" library item removed); `big.yaml` has a reordered flow list
 (harmless dev file).
+
+---
+
+# Round 2 (2026-11-12, night; tester Sonnet 5.5)
+
+Build = main `68c6df4` (batches 2-8 merged, PRs 201-207) plus the F-026 fix (PR 208). Dev config only (`dev-run -Sample showcase`, then `big`), window 2400×1500 px at 175 % scale, dark theme (light switched on for a check and back). No computer-use tool again: SendInput helper + UIA + screenshots. **UIA bounding boxes of canvas nodes do not follow the camera** (stale after pan/zoom), so canvas checks used pixels. Audio, Bluetooth and display devices were **not changed** (no need arose; the Library "Test" buttons and Set default device were not run). Not done: 225 % text scale and high contrast (both are Windows system settings, off limits for an unattended run), touchpad pinch (Ctrl+wheel only), tray menu folders (tray not reachable by UIA), hotkey firing (capture box only), live drag/auto-pan items (F-001, F-030: no PR claims a fix).
+
+## Regression table (F-001..F-031)
+
+| ID | Status | Note |
+|----|--------|------|
+| F-001 | not fixed, not re-tested | Opus work left for the user |
+| F-002 | **still broken** | hint exists (`ManyHint`) but never shows: see F-032 |
+| F-003 | fixed | Ctrl+A, Del: "Delete 18 items?" with Delete / Cancel |
+| F-004 | fixed | palette groups named "Audio", "Bluetooth", … in UIA |
+| F-005 | partly | minimum size holds (640 DIP), Steps pane hides, wrapped toolbar; at the minimum the canvas still gets ~45 % (F-039) |
+| F-006 | **still broken** | Probe 100 opens and Fit stays at 50 %, right third under the inspector |
+| F-007 | partly verified | combos have placeholders, rename icon on Bluetooth and bound rows; the Bind error clearing was not exercised |
+| F-008 | partly verified | Bound device input exists with a "Bound device: default device" picker; the empty-state link not exercised |
+| F-009 | fixed | the new input row scrolls into view and "Input name" has focus |
+| F-010 | not re-tested | long names |
+| F-011 | partly | Bluetooth rename icon and the disabled Remove's reason in its name seen; audio rename and Programs "Add by hand" skipped by design |
+| F-012 | not fixed, not re-tested | Opus work left for the user |
+| F-013 | fixed | duration kept on one line; the centred "Pick a run" state not looked at closely |
+| F-014 | fixed | toolbar wraps at the minimum width |
+| F-015 | fixed (menu) | Layout menu is now the same every time: Arrange › (Left to right, Top to bottom, Tree, Circle), Wrap long chains, Spacing, Line up, Lines, Untangle lines, Reset layout; refit after Arrange see F-040 |
+| F-016 | text only, as claimed | Cancel dialog says layout stays |
+| F-017 | fixed | "Discard 1 change to Morning check?" Discard / Keep editing |
+| F-018 | not re-tested | |
+| F-019 | fixed | Outline rows show "Waits for … · Failure ignored" |
+| F-020 | partly | Tab order canvas → inspector works; one extra stop on the title bar (F-038); arrow keys select neighbouring steps; focus ring not judged |
+| F-021 | partly, as claimed | "Used by N flows" chip named; the on/off switch on a card is named only by the flow (F-041) |
+| F-022 | not re-tested | Rename in the card menu skipped by design |
+| F-023 | not re-tested | |
+| F-024 | fixed (steps); **new bug** | pills, chips and edge labels have visible outlines in light; the window caption buttons are nearly invisible (F-034) |
+| F-025 | fixed | Settings › Appearance with three "Change … in Windows settings" links |
+| F-026 | fixed (PR 208) | switching `-Sample showcase` → `big` left exactly one editor |
+| F-027 | not fixable in samples | the notice is a tray balloon whose sound is the OS default: F-037 |
+| F-028 | by design | the highlighted answer is the step's `default` ("No" with `default: no`); Up + Enter picked the other answer without stealing focus |
+| F-029 | not fixed (skipped) | design pass needed |
+| F-030 | not fixed, not re-tested | Opus work left for the user |
+| F-031 | baseline recorded | editor 235 MB just started, 331-342 MB with the 95-step flow open; growth in F-036 |
+
+Counts: fixed 11 (F-003, F-004, F-009, F-013, F-014, F-015, F-017, F-019, F-024, F-025, F-026), partly 6 (F-005, F-007, F-008, F-011, F-020, F-021), still broken 2 (F-002, F-006), left or by design 6 (F-001, F-012, F-016 text only, F-027, F-028, F-029, F-030), not re-tested 4 (F-010, F-018, F-022, F-023).
+
+## Checks that passed (keep)
+
+- **Join layout** "Check connection / Connect → Set default device" (and a 6-step wide join, three in → one): in Left to right, Top to bottom, Tree and Circle no line crosses a step; the long edge is routed over or around the middle step. Only polish: F-040.
+- 12 PC-state checks (internet, cable, Wi-Fi, metered, VPN, power, locked, idle, free space, file, program, time): every inspector renders its parameters, help line and failure policy; "Test this step" present.
+- Run / Stop from the Flows list ("Running" dot, "Stopped just now"), prompt pop-up (Yes/No with the `default` highlighted, Up + Enter answers without activating), run result in Runs with the timeline and per-step detail ("Check file, didn't work, the flow went on"). Pick device's "Result of: Pick device" is offered in the device picker and the bound device is listed ("Bound device").
+- Library "Add by hand" opens for Audio, Bluetooth and Android (name + address with a hint); Displays has only "Capture current layout", Programs is empty with an explanation; Bound devices "Bind devices" works with placeholders.
+- Hotkey capture box (Ctrl+Alt+Shift+F11 recorded, "Type it instead", Clear). Outline view with Up/Down selecting rows. Wrap long chains makes a 40-step chain readable. Wheel zoom, Shift+wheel, Ctrl+wheel (pinch stand-in) and the left marquee work. The editor picks up an outside edit of the config live.
+
+## New findings
+
+| ID | Area | What happens | Expected / why | Sev | Repro | Suspected files | Size | Model |
+|----|------|--------------|----------------|-----|-------|-----------------|------|-------|
+| F-032 | Inspector · many selected | The F-002 hint ("Del deletes them all, Ctrl+G runs them together…") never appears: between the header and "If it fails" there is a gap | Show it | bug | any flow, Ctrl+A | `Inspector/InspectorPane.xaml:491` binds `ViewModel.ManyHint` one-time (the `x:Bind` default) while the VM computes it from `IsMany`; use `Mode=OneWay` and raise `PropertyChanged(ManyHint)` with `IsMany` (`InspectorViewModel.Many.cs:32`) | S | Sonnet |
+| F-033 | Canvas · pan | Right-drag, middle-drag and Space + left-drag on empty canvas did **not** pan (40 moves, identical pixels before and after); a still right click on a step opens its menu, wheel and marquee work. UX §5.2 and M13 say all three pan | Pan | bug (suspected regression of M21, or a limit of synthetic input: **verify with a real mouse first**) | Open any flow, right-drag on empty canvas | `Canvas/FlowCanvas.Pointer.cs`, `FlowCanvas.Camera.cs` | M | Opus (after a human check) |
+| F-034 | Light theme · title bar | Minimize / Maximize / Close glyphs are light grey on the light title bar, almost invisible | Caption buttons follow the theme | bug | Windows app mode Light, open the editor | `ShellWindow.xaml.cs` (`AppWindow.TitleBar` button foreground and hover colours, set per theme and on theme change) | S | Sonnet |
+| F-035 | Editor · reload bar | The InfoBar "config.yaml changed outside the editor" always says `config.yaml` (the file was `showcase.yaml`) and stays on every page (Flows, Library, Runs, an open flow), taking ~60 DIP | Name the real file; dismiss on page change or after a few seconds | polish | Edit the open config file outside the editor | `ShellWindow.xaml(.cs)` (grep `changed outside`) | S | Sonnet |
+| F-036 | Editor · memory | Editor 235 MB at start, 331 MB with a 95-step flow, **+320 MB per Ctrl+C/Ctrl+V of all 95 steps and +140 MB per Undo**, not released when leaving the flow (1.4 GB on the Flows page after one paste and undo; UIA walks inflate it further) | Undo snapshots and node views bounded and freed with the flow | bug (perf) | Probe 100, Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+Z, watch private bytes | undo stack and scene rebuild: `src/DazeControl.Editor.ViewModels/Canvas`, `Canvas/FlowCanvas.Scene*.cs`, `NodeViews.cs` | M | Opus |
+| F-037 | Notices · sound | `notify` shows a tray balloon with the OS notification sound; samples and quiet use cannot silence it (F-027) | A silent balloon (`NIIF_NOSOUND`) for run notices, or a `silent` param | polish | Run a flow with Show message, Windows sounds on | `src/DazeControl.Engine/Shell/TrayIcon.cs` (`ShowBalloon`), `TrayNotifier.cs` | S | Sonnet |
+| F-038 | Keyboard | From the canvas the first Tab lands on the title bar, then the inspector | Canvas → inspector directly | polish | Click empty canvas, Tab | `ShellWindow.xaml` (title bar `IsTabStop`) | S | Sonnet |
+| F-039 | Narrow window | At the minimum width a card shows "Morning…" and drops "17 steps · No recent run"; in the editor the canvas is ~45 % of the width | Trim the caption, keep the name | polish | Resize to the minimum, Flows, open a flow | flow-card template in `ShellWindow.xaml`, inspector width rule | S | Sonnet |
+| F-040 | Canvas · edges | After Arrange › Left to right the camera leaves the flow at ~45 % of the pane; in the wide join, Top to bottom and Tree edges run along pill borders and share lanes, so which line goes where is hard to read | Fit after Arrange; lanes ≥ 8 DIP off the pills | polish | A 3-in → 1 join flow: Arrange each shape | `Canvas/FlowCanvas.Motion.cs`, edge routing in `src/DazeControl.Editor.ViewModels/Canvas` | M | Opus |
+| F-041 | A11y · small | The flow card's on/off switch is named only by the flow ("Morning check"), no state or purpose; Check time lacks the "Fails when it isn't…" hint other checks show | "Turn Morning check on/off"; same help text | polish | UIA dump; Check time inspector | flow-card template in `ShellWindow.xaml`, `ProviderCatalog.cs` (`time.check`) | S | Sonnet |
+| F-042 | CI · flaky test | `TriggerServiceTests.ViaNarrowsToWifiOrCableOnBothEvents` failed once on a script-only PR (Expected "cable-out", Actual "home-out", line 327) | Deterministic ordering | bug (test) | CI run 43202837346 | `tests/DazeControl.Runtime.Tests/TriggerServiceTests.cs:327` | S | Sonnet |
+| F-043 | A11y · canvas | UIA bounding rectangles of canvas nodes do not follow pan/zoom (automation tools and screen readers get the old place) | Rectangles in screen space | polish | UIA dump after panning | `Canvas/NodeViews.cs`, node automation peers | M | Sonnet |
+
+**Not covered (needs the user or a safer setup):** 225 % text scale, high contrast, touchpad pinch, tray menu folders and firing a hotkey, Library "Test" buttons and Set default device on real devices, Bluetooth connect, the run overlay and result banner on the canvas, Pick device "Default" (F-029), live drag drop and auto-pan (F-001, F-030).
+
+## Files that overlap (new rows)
+
+- `ShellWindow.xaml(.cs)`: F-034, F-035, F-038, F-039, F-041.
+- `Canvas/*` camera, pointer, scene: F-033, F-036, F-040 (and F-001, F-006, F-030).
+- `Inspector/InspectorPane.xaml` + `InspectorViewModel.Many.cs`: F-032 only.
+- `TrayIcon.cs`: F-037; test file: F-042.
+
+## Proposed batches for the new findings
+
+Run after Opus batch 1 (T22.1) where they share canvas files.
+
+10. **Shell and inspector polish** (Sonnet): F-032, F-034, F-035, F-038, F-039, F-041. Files: `InspectorPane.xaml`, `InspectorViewModel.Many.cs`, `ShellWindow.xaml(.cs)`, `ProviderCatalog.cs` (help line).
+11. **Silent notices and the flaky test** (Sonnet): F-037, F-042. Files: `TrayIcon.cs`, `TrayNotifier.cs`, `TriggerServiceTests.cs`. Disjoint from everything else.
+12. **Canvas input, routing and automation** (Opus, after T22.1): F-033 (verify by hand with a real mouse and touchpad first), F-040, F-043. Files: `Canvas/FlowCanvas.Pointer.cs`, `Motion.cs`, `NodeViews.cs`.
+13. **Editor memory and run counters** (Opus): F-036 and F-012. Files: undo stack, scene rebuild, runtime progress events.
+14. **Human check list**: right/middle/Space pan and pinch with real input, 225 % text scale, high contrast, tray folders and hotkeys, Library "Test" on real audio/Bluetooth, the F-029 design decision.
+
+## Round 2 restore verification
+
+Changed and restored: Windows app theme (`AppsUseLightTheme` 0 → 1 → 0, read back 0); dev `showcase.yaml` (extra test flows and a bound device added, then overwritten with the sample; a backup of the whole `dev` folder is in `%TEMP%\r2`); dev `big.yaml` identical to its backup. Verified after `dev-run.ps1 -Restore`: installed engine running from `DazeControlApp\current` (new pid), no dev editor or engine left, display layout identical to the start (one 3840×2160 at (0,0)). Not changed and so not compared: audio endpoints, Bluetooth connections, volumes, mute states. Not verified: no run with a Show message step was started, so nothing was heard.
