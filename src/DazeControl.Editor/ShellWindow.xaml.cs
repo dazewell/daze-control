@@ -1648,6 +1648,19 @@ public sealed partial class ShellWindow : Window
 
     private static StepDefaultRow RowOf(object sender) => (StepDefaultRow)((FrameworkElement)sender).Tag;
 
+    /// <summary>Appearance rows only link out: the editor follows Windows (F-025).</summary>
+    private async void OnOpenWindowsSettings(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await Windows.System.Launcher.LaunchUriAsync(new Uri((string)((FrameworkElement)sender).Tag));
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"Opening Windows settings failed: {ex.Message}");
+        }
+    }
+
     private void OnResetTimeout(object sender, RoutedEventArgs e) => RowOf(sender).ResetTimeout();
 
     private void OnResetRetryCount(object sender, RoutedEventArgs e) => RowOf(sender).ResetRetryCount();
