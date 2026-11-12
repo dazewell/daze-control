@@ -46,39 +46,8 @@ public static class PickResults
         return null;
     }
 
-    /// <summary>
-    /// The pick steps that always finish before <paramref name="nodeId"/> starts: ones it waits for, directly or through
-    /// other steps and cards (any edge), and the members of cards it waits for. Its own card's members start with it, so
-    /// they don't count. In flow order.
-    /// </summary>
-    public static IReadOnlyList<StepNode> Before(Flow flow, string nodeId)
-    {
-        ArgumentNullException.ThrowIfNull(flow);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var queue = new Queue<string>();
-        void Enqueue(Node? node)
-        {
-            if (node is null)
-                return;
-            foreach (var edge in node.After)
-            {
-                if (seen.Add(edge.From))
-                    queue.Enqueue(edge.From);
-            }
-        }
-        Enqueue(flow.FindNode(FlowShape.UnitOf(flow, nodeId)));
-        while (queue.Count > 0)
-        {
-            var node = flow.FindNode(queue.Dequeue());
-            if (node is GroupNode card)
-            {
-                foreach (var member in card.Members)
-                    seen.Add(member);
-            }
-            Enqueue(node);
-        }
-        return [.. flow.Nodes.OfType<StepNode>().Where(s => IsPick(s) && seen.Contains(s.Id))];
-    }
+    /// <summary>The pick steps that always finish before <paramref name="nodeId"/> starts (<see cref="StepValues.Before"/>), in flow order.</summary>
+    public static IReadOnlyList<StepNode> Before(Flow flow, string nodeId) => [.. StepValues.Before(flow, nodeId).Where(IsPick)];
 
     /// <summary>
     /// Why <paramref name="nodeId"/> can't use the result of <paramref name="pickId"/> in a setting needing <paramref name="kind"/>, or null.

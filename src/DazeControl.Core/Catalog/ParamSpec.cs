@@ -127,6 +127,12 @@ public sealed record ParamSpec(string Name, ParamKind Kind, string Title)
     /// <summary>The value is the key of another part of the config (a flow).</summary>
     public ConfigRef? RefersTo { get; init; }
 
+    /// <summary>
+    /// A <see cref="ParamKind.Text"/> or <see cref="ParamKind.MultilineText"/> that fills <c>{step.value}</c>, <c>{$input}</c>
+    /// and <c>{@run}</c> before the step runs (D-129). Off for everything else, so scripts, JSON and <c>%VAR%</c> stay as written.
+    /// </summary>
+    public bool TakesValues { get; init; }
+
     public int? Min { get; init; }
 
     public int? Max { get; init; }
