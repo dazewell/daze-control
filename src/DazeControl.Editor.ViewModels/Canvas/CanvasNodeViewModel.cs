@@ -329,6 +329,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         {
             if (!step.With.TryGetValue(spec.Name, out var value) || value is not ScalarParam { Text: { Length: > 0 } text })
                 continue;
+            // A text that takes values shows the titles ("Connected to Device at Time"), never ids (D-129).
+            if (StepValues.Takes(spec) && OwnerOf(step, config) is { } owner)
+                text = StepValues.Describe(owner, text, marks: false);
             values.Add(spec.Kind switch
             {
                 // "$output" shows as the input's name, like the picker (D-064).

@@ -388,11 +388,14 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
             {
                 case StepNode step:
                     LoadStep(step);
+                    LoadGivenValues(step);
                     break;
                 case GroupNode card:
                     LoadCard(card);
+                    LoadGivenValues(null);
                     break;
                 default:
+                    LoadGivenValues(null);
                     ClearFields();
                     if (flow is not null)
                         LoadFlow(flow);
