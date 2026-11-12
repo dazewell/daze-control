@@ -154,8 +154,9 @@ function ConvertFrom-ReplyPairs([string[]]$Pairs) {
 }
 
 function Resolve-ThreadId($D, [string]$IdOrPrefix) {
-  $m = @($D.Threads | Where-Object { $_.Id -eq $IdOrPrefix })
-  if (-not $m) { $m = @($D.Threads | Where-Object { $_.Id.StartsWith($IdOrPrefix) }) }
+  # Case-sensitive: GitHub node ids can differ only by case (PRRT_..MgP and PRRT_..Mgp on PR 193).
+  $m = @($D.Threads | Where-Object { $_.Id -ceq $IdOrPrefix })
+  if (-not $m) { $m = @($D.Threads | Where-Object { $_.Id.StartsWith($IdOrPrefix, [StringComparison]::Ordinal) }) }
   if ($m.Count -ne 1) { throw "thread '$IdOrPrefix' matches $($m.Count) threads of this PR" }
   $m[0]
 }
