@@ -1941,6 +1941,7 @@ Status: accepted, built
   the step "\"Pick device\" didn't run: this run started after it." (D-117: a device never falls back). A real run through the
   launcher: history, pop-up, events, Stop, `whenRunning` as Run; the trigger reads "Editor (from <step>)". The saved version
   runs (D-047); a step only in the draft is refused "Save the flow, then try again".
+  A `run` with `node` is stamped protocol 4 (`WithStartStep`): an older engine refuses it instead of running the whole flow.
 - Why: long flows whose first half works (G-83, PAD "Run from here"). Scheduler-level, because rewriting the flow can't keep
   the skip and D-112 alternative rules exact for a failure link from a step that didn't run.
 - Why not asking for a device value once (PLAN's first wording): a second prompt path for one editor command; the failed step

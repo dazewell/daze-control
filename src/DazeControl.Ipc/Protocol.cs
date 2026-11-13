@@ -28,15 +28,22 @@ public static class Protocol
     /// </summary>
     public const int WithControl = 3;
 
+    /// <summary>
+    /// What a <see cref="Ops.Run"/> with <see cref="PipeRequest.Node"/> says ("Run from this step", T27.4). An older engine would
+    /// ignore the field and run the whole flow; stamped 4, it refuses by version.
+    /// </summary>
+    public const int WithStartStep = 4;
+
     /// <summary>The newest version this build speaks; the engine accepts 1 up to this.</summary>
-    public const int Latest = WithControl;
+    public const int Latest = WithStartStep;
 
     /// <summary>What <see cref="PipeServer"/> says when the version is not one it speaks.</summary>
     public const string MismatchStart = "The engine speaks protocol ";
 
     /// <summary>The version a client stamps on <paramref name="request"/>.</summary>
     public static int VersionFor(PipeRequest request) =>
-        request.Op is Ops.Flag or Ops.Pause ? WithControl : request.Inputs is { Count: > 0 } ? WithInputs : Version;
+        request.Op is Ops.Run && !string.IsNullOrEmpty(request.Node) ? WithStartStep
+        : request.Op is Ops.Flag or Ops.Pause ? WithControl : request.Inputs is { Count: > 0 } ? WithInputs : Version;
 
     /// <summary>Pipe name for a user; the SID keeps sessions of different users apart.</summary>
     public static string PipeName(string userSid) => $"DazeControl-{userSid}";
@@ -134,7 +141,8 @@ public sealed class PipeRequest
     /// <summary>android-apps: true = ask the device now (connects), false = answer from the saved list (D-093).</summary>
     public bool Refresh { get; init; }
 
-    /// <summary>test-step: the step's id in <see cref="Flow"/>.</summary>
+    /// <summary>test-step: the step's id in <see cref="Flow"/>. run (protocol 4, T27.4): the step to start at; the steps before it
+    /// and on other branches count as done without running (D-148). Null or empty = the whole flow.</summary>
     public string? Node { get; init; }
 
     /// <summary>test-step: config.yaml text holding the flow and the library as the editor shows them, so a test
