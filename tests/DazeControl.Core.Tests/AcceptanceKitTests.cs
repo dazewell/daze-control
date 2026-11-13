@@ -45,6 +45,7 @@ public sealed partial class AcceptanceKitTests
             "script.powershell", "process.run", "audio.check", "bluetooth.check", "process.check", "file.check", "file.space",
             "network.wifi", "network.cable", "network.internet", "network.metered", "network.vpn", "power.source", "power.battery",
             "pc.idle", "pc.locked", "time.check", "value.check",
+            "text.extract", "process.open",
         ];
 
         foreach (var flow in config.Flows)
@@ -62,6 +63,31 @@ public sealed partial class AcceptanceKitTests
                 Assert.False(flow.Enabled, $"{flow.Name} has triggers and must start off");
         }
         Assert.Equal(4, config.Flows.Count(f => f.Name.StartsWith("LIVE-RISK ", StringComparison.Ordinal)));
+    }
+
+    /// <summary>Flow 39 may only open a local folder: never a web address or another scheme.</summary>
+    [Fact]
+    public void OpenStepsTargetOnlyLocalFolders()
+    {
+        var config = Kit(out _);
+        var targets = config.Flows.SelectMany(f => f.Nodes.OfType<StepNode>())
+            .Where(n => n.Step == "process.open").SelectMany(n => n.With).SelectMany(w => Texts(w.Value)).ToList();
+
+        Assert.All(targets, t => Assert.StartsWith("%", t));
+    }
+
+    /// <summary>The walkthrough flows 30-40 (features since v0.54.0) must stay in the kit.</summary>
+    [Fact]
+    public void KitHasTheSinceV054Flows()
+    {
+        var config = Kit(out _);
+
+        for (var n = 30; n <= 40; n++)
+            Assert.Contains(config.Flows, f => f.Name.StartsWith($"{n} ", StringComparison.Ordinal));
+        Assert.Contains(config.Flows, f => f.OnlyIf.Count > 0);
+        Assert.Contains(config.Flows, f => f.Nodes.OfType<StepNode>().Any(s => !s.Enabled));
+        Assert.Contains(config.Flows, f => f.Triggers.OfType<EventTrigger>().Any(t => t.Name == "file.created"));
+        Assert.Contains(config.Flows, f => f.Triggers.OfType<EventTrigger>().Any(t => t.Name == "flow.finished"));
     }
 
     [Fact]

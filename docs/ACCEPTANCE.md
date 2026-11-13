@@ -145,6 +145,13 @@ Everything here was tested **with fakes only** (nothing ran against real hardwar
 - Check address: `dctl check network.reach address=nas:445` (or a web page, a host) exits 0 / 1; no secret in a failure sentence.
 - Inputs: `dctl run <flow> name=value` with a Library key (device input) and with text; a wrong name exits 2 with the flow's input names; a Stream Deck key calling `dctl.exe run ...` (FEATURES F8 recipe).
 
+## Since v0.54.0 (flows 30-40; M24-M27 features, all harmless)
+
+30 Get from text (shows 42 and Hello) · 31 a value in a number setting (free-space check used 1 GB) · 32 Stop flow + Check value (first pop-up only, history "Stopped here") ·
+33 flow events and 34 file events (off: turn on, run 30; create `%TEMP%\daze-accept-x.txt`) · 35 / 35b Only run if (`dctl run` says "Held back" exit 1 / runs) ·
+36 a turned-off step is skipped · 37 right-click step B > Run from this step (no "step A") · 38 Repeat (three "round ran", Runs "Ran 3 times") ·
+39 opens only the dev folder · 40 `dctl run "<flow>" who=Ada`, `dctl list --json`. Blame: step/validator files named in FEATURES.
+
 ## Canvas gate (M21)
 
 **14 Drag, drop, auto-pan, Arrange** (flow "14 Arrange and shapes: Morning check", plus flow 1)
