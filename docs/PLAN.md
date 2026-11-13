@@ -820,7 +820,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   `session.back`. Files: `Core/Model/Triggers.cs` (`Events`, `EventLabel`), `Engine/Triggers/PowerSource.cs`, the event picker in
   `WhenThisRuns.cs`. Done when: only a change raises (the value Windows reports on registration is swallowed); Runtime tests with a
   fake source; a footprint row (0 ms CPU idle with all four subscribed); the PR lists the live check (screen-off time 1 min).
-- [ ] T24.5 Control media `audio.media` (Sonnet, S; solo on the catalog; after T24.3). Play or pause, Play, Pause, Stop, Next, Previous
+- [x] T24.5 (built, PR pending; not run live) Control media `audio.media` (Sonnet, S; solo on the catalog; after T24.3). Play or pause, Play, Pause, Stop, Next, Previous
   on this PC as app commands to the shell, **no key simulation** (that is T28.4's question). Files: `ProviderCatalog.cs`,
   `Providers/Audio/`, `BuiltInProviders.cs`. Done when: Providers tests behind an `IMediaCommands` fake (each action → its command);
   captions match `android.media`'s; not run live by the agent.

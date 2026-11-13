@@ -32,7 +32,7 @@ number-pad Num0–Num9 and Num* Num+ Num- Num. Num/ with or without them, D-071;
 
 **F3 Providers (step types)** — each declares id, glyph, title, typed params, default timeout, resources it
 locks, idempotency check ("already in state → no-op"), and an optional enumerator for editor pickers.
-- `audio.setDefault` (output/input, roles), `audio.setVolume`/`mute` · `bluetooth.connect`/`disconnect`
+- `audio.setDefault` (output/input, roles), `audio.setVolume`/`mute` · `audio.media` (Control media: play or pause, play, pause, stop, next, previous for this PC, sent as the app command a media key becomes: no key press, no focus change; D-138) · `bluetooth.connect`/`disconnect`
   (audio devices, KS one-shot, no admin) · `display.topology` (Win+P presets), `display.outputs` (only these
   ports on, in the arrangement Windows saved for them), `display.layout` (captured CCD layout), `display.screensOff` (Turn screens off: SC_MONITORPOWER, PC keeps running, 1 s guard so the triggering key release does not wake them, any input does); the first three fail when
   Windows sets the screens up differently · `process.run` (exe, args[], cwd, wait, exit codes,
