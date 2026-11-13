@@ -88,7 +88,10 @@ public sealed partial class FlowCanvas
     {
         if (ViewportWidth <= 0)
             return null;
+        // Null when no peer can be made for the viewport: the node keeps its default rect.
         var peer = FrameworkElementAutomationPeer.FromElement(Viewport) ?? FrameworkElementAutomationPeer.CreatePeerForElement(Viewport);
+        if (peer is null)
+            return null;
         var port = peer.GetBoundingRectangle();
         if (port.Width <= 0)
             return null;
