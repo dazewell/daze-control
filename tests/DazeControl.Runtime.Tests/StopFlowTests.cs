@@ -94,6 +94,23 @@ public sealed class StopFlowTests : IDisposable
     }
 
     [Fact]
+    public async Task AStopThatFinishesAParallelCardLastStartsNothingAfterTheCard()
+    {
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var runner = new FlowRunner([_provider, new GatedStop(release.Task)], _time);
+        Define("f", "Card", Step("a"), "{ id: s, step: flow.stop }", "{ id: card, group: [a, s] }", Step("after", "after: [card]"));
+        // The other member finishes first; the stop is the last one to finish and completes the card.
+        var run = Bound(runner.RunAsync(_flows["f"], Library.Empty, TestContext.Current.CancellationToken));
+        await _provider.Started("a");
+        release.SetResult();
+
+        var result = await run;
+
+        Assert.DoesNotContain("after", _provider.Attempts.Select(a => a.Step));
+        Assert.True(result.Quiet);
+    }
+
+    [Fact]
     public async Task AQuietStopInACalledFlowEndsOnlyThatFlowAndTheCallersStepIsDone()
     {
         Define("mk", "Make it the default", Stop("stop", "quiet", "", "after: []"), Step("never", "after: [stop]"));
@@ -175,6 +192,18 @@ public sealed class StopFlowTests : IDisposable
         var context = new StepContext(testFlow, quiet, ProviderCatalog.Find(ProviderCatalog.StopFlowId)!, Library.Empty, 1);
         await new StopProvider().ExecuteAsync(context, CancellationToken.None);
         Assert.Equal("Testing doesn't stop anything. Would stop here", context.Summary);
+    }
+
+    /// <summary>The real stop, held back until released, so it can be the last member of a card to finish.</summary>
+    private sealed class GatedStop(Task gate) : IStepProvider
+    {
+        public string Id => ProviderCatalog.StopFlowId;
+
+        public async Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
+        {
+            await gate.WaitAsync(cancellationToken);
+            await new StopProvider().ExecuteAsync(context, cancellationToken);
+        }
     }
 
     private sealed class EndsFlow : IStepProvider

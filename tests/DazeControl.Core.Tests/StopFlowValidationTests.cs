@@ -43,6 +43,26 @@ public class StopFlowValidationTests
     }
 
     [Fact]
+    public void AFailureLinkAfterAQuietStopIsAWarningButNotAfterAStopAsFailed()
+    {
+        var quiet = Assert.Single(Validate("{ id: s, step: flow.stop }", "{ id: w, step: wait, with: { duration: 1s }, after: [{ id: s, when: failure }] }"));
+        Assert.Equal("flows.f.nodes.w.after", quiet.Path);
+
+        Assert.Empty(Validate("{ id: s, step: flow.stop, with: { mode: failed } }", "{ id: w, step: wait, with: { duration: 1s }, after: [{ id: s, when: failure }] }"));
+    }
+
+    [Fact]
+    public void AStepAfterACardHoldingAStopIsAWarning()
+    {
+        var load = ConfigYaml.Load("flows:\n  f:\n    nodes:\n      - { id: s, step: flow.stop }\n      - { id: a, step: wait, with: { duration: 1s } }\n      - { id: card, group: [s, a] }\n      - { id: w, step: wait, with: { duration: 1s }, after: [card] }\n");
+        Assert.Empty(load.Problems);
+
+        var problem = Assert.Single(ConfigValidator.Validate(load.Config!));
+
+        Assert.Equal("flows.f.nodes.w.after", problem.Path);
+    }
+
+    [Fact]
     public void TheStepIsInTheFlowGroupWithPlainWording()
     {
         var stop = ProviderCatalog.Find(ProviderCatalog.StopFlowId)!;

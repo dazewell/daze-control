@@ -185,10 +185,15 @@ public static partial class ConfigValidator
     {
         foreach (var flow in flows)
         {
-            var stops = flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.StopFlowId).Select(s => s.Id).ToHashSet(StringComparer.Ordinal);
-            if (stops.Count == 0)
+            var stopSteps = flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.StopFlowId).ToList();
+            if (stopSteps.Count == 0)
                 continue;
-            foreach (var node in flow.Nodes.Where(n => n.After.Any(e => stops.Contains(e.From) && e.When != EdgeWhen.Failure)))
+            // A stop in a parallel card: links leave from the card, and the card never finishes (members have no edges, D-003).
+            var stops = stopSteps.Select(s => s.Id).Concat(flow.Nodes.OfType<GroupNode>().Where(g => g.Members.Any(m => stopSteps.Any(s => s.Id == m))).Select(g => g.Id))
+                .ToHashSet(StringComparer.Ordinal);
+            // Only "As failed" fires a failure link: that is the way to react to it, so it isn't warned about.
+            var failing = stopSteps.Where(s => s.With.TryGetValue("mode", out var m) && m is ScalarParam { Text: "failed" }).Select(s => s.Id).ToHashSet(StringComparer.Ordinal);
+            foreach (var node in flow.Nodes.Where(n => n.After.Any(e => stops.Contains(e.From) && !(e.When == EdgeWhen.Failure && failing.Contains(e.From)))))
                 problems.Add(new(Severity.Warning, $"flows.{flow.Id}.nodes.{node.Id}.after",
                     "A step after Stop flow never runs: it ends the flow. Remove the link, or put Stop flow last.", flow.Id));
         }

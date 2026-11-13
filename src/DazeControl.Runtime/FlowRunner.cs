@@ -178,16 +178,16 @@ public sealed class FlowRunner
                 scheduler.Cancel();
             if (run.Result == StepResult.Succeeded && run.Called?.Outcome == FlowOutcome.PartiallySucceeded)
                 scheduler.MarkPartialCall();
-            var next = scheduler.Complete(id, run.Result).ToList();
-            ReportFinished(); // before the next steps start, so a listener sees a step finish before its dependents begin
-            Launch(next);
-            if (run.Quiet)
+            if (run.Quiet) // before Complete: a stop that finishes a parallel card must not start the steps after it
             {
                 quiet = true; // a step ended the run on purpose, or the flow it called did (a menu, nothing picked)
                 otherQuiet |= !run.Stopped;
                 if (!scheduler.IsCancelled)
                     scheduler.Cancel();
             }
+            var next = scheduler.Complete(id, run.Result).ToList();
+            ReportFinished(); // before the next steps start, so a listener sees a step finish before its dependents begin
+            Launch(next);
             ReportFinished();
             if (scheduler.IsStopped || scheduler.IsCancelled)
                 await stepsCancel.CancelAsync().ConfigureAwait(false);
