@@ -197,6 +197,40 @@ public sealed partial class ParamFieldViewModel : ObservableObject
 
     public bool IsNumber => Kind is ParamKind.WholeNumber or ParamKind.Duration;
 
+    /// <summary>A number setting holds one value of an earlier step instead of a number (T25.3); <see cref="Text"/> then shows it.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsNumberBox))]
+    public partial bool UsesValue { get; private set; }
+
+    /// <summary>The number box; a value in its place leaves the same row height (a pill sits in the row below).</summary>
+    public bool ShowsNumberBox => IsNumber && !UsesValue;
+
+    /// <summary>"Use a value" beside a number box: only for whole numbers, with one step selected.</summary>
+    public bool ShowsValueButton => TakesValues && Kind == ParamKind.WholeNumber;
+
+    /// <summary>"Use a value for Volume (%)": the button's accessible name.</summary>
+    public string UseValueName => $"Use a value for {Title}";
+
+    /// <summary>Picks a value for a number setting: the box gives way to it. One write, so one undo step.</summary>
+    public void UseValue(ValueChoice choice)
+    {
+        ArgumentNullException.ThrowIfNull(choice);
+        if (!double.IsNaN(Number))
+        {
+            var was = _loading;
+            _loading = true;
+            try
+            {
+                Number = double.NaN;
+            }
+            finally
+            {
+                _loading = was;
+            }
+        }
+        Text = choice.Display;
+    }
+
     /// <summary>NumberBox suffix: durations are edited in seconds.</summary>
     public string Unit => Kind == ParamKind.Duration ? "s" : "";
 
@@ -296,6 +330,16 @@ public sealed partial class ParamFieldViewModel : ObservableObject
             switch (Kind)
             {
                 case ParamKind.WholeNumber:
+                    // One whole value instead of a number (T25.3): the box is replaced by its pill.
+                    if (!mixed && _values is { } numberContext && StepValues.WholeRef(scalar) is not null)
+                    {
+                        UsesValue = true;
+                        Number = double.NaN;
+                        Text = ValueText.ToDisplay(numberContext.Flow, scalar!.Trim(), _catalog, _flows);
+                        break;
+                    }
+                    UsesValue = false;
+                    Text = "";
                     Number = double.TryParse(scalar, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : double.NaN;
                     break;
                 case ParamKind.Duration:
@@ -579,13 +623,19 @@ public sealed partial class ParamFieldViewModel : ObservableObject
         if (changed)
         {
             OnPropertyChanged(nameof(TakesValues));
+            OnPropertyChanged(nameof(ShowsValueButton));
             OnPropertyChanged(nameof(ShowsPlainHelp));
         }
         RefreshPills();
     }
 
     /// <summary>The groups of the Insert value list; empty when the setting takes no values.</summary>
-    public IReadOnlyList<ValueGroup> ValueGroups => _values is { } c && TakesValues ? ValueText.Choices(c.Flow, c.StepId, _catalog, _flows) : [];
+    public IReadOnlyList<ValueGroup> ValueGroups => _values is { } c && TakesValues ? NumbersOnly(ValueText.Choices(c.Flow, c.StepId, _catalog, _flows)) : [];
+
+    /// <summary>A number setting can't hold a device, so its "Use a value" list leaves them out (and the headers left empty by that).</summary>
+    private IReadOnlyList<ValueGroup> NumbersOnly(IReadOnlyList<ValueGroup> groups) => Kind != ParamKind.WholeNumber
+        ? groups
+        : [.. groups.Select(g => g with { Rows = [.. g.Rows.Where(r => r.Kind != ValueKind.Device)] }).Where(g => g.Rows.Count > 0)];
 
     /// <summary>Puts a value at the caret (in place of a selection) and returns where the caret goes. One write, one undo step.</summary>
     public int InsertValue(ValueChoice choice, int selectionStart, int selectionLength)
@@ -609,10 +659,13 @@ public sealed partial class ParamFieldViewModel : ObservableObject
         }
         if (_loading)
             return;
+        if (Kind == ParamKind.WholeNumber)
+            UsesValue = _values is not null && StepValues.WholeRef(Stored(value)) is not null;
         Error = FileProblem();
         OnPropertyChanged(nameof(AutomationName));
         _write(this, Kind switch
         {
+            ParamKind.WholeNumber => value.Trim().Length == 0 ? null : Scalar(Stored(value.Trim())),
             ParamKind.TextList => Lines(value) is { Count: > 0 } lines ? new ListParam([.. lines.Select(l => (ParamValue)l)]) : null,
             ParamKind.TextMap => Lines(value).Where(l => l.Contains(':', StringComparison.Ordinal)).ToList() is { Count: > 0 } pairs
                 ? new MapParam(new(pairs.Select(p => new KeyValuePair<string, ParamValue>(p[..p.IndexOf(':', StringComparison.Ordinal)].Trim(),

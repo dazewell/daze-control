@@ -227,10 +227,19 @@
                                             AutomationProperties.Name="{x:Bind local:InspectorPane.BrowseName(Title)}" />
                                 </Grid>
                                 <StackPanel Visibility="{x:Bind IsNumber}" Orientation="Horizontal" Spacing="8">
-                                    <NumberBox Value="{x:Bind Number, Mode=TwoWay}" Minimum="{x:Bind Minimum}" Maximum="{x:Bind Maximum}"
+                                    <NumberBox Visibility="{x:Bind ShowsNumberBox, Mode=OneWay}" Value="{x:Bind Number, Mode=TwoWay}" Minimum="{x:Bind Minimum}" Maximum="{x:Bind Maximum}"
                                                PlaceholderText="{x:Bind Placeholder, Mode=OneWay}" SpinButtonPlacementMode="Inline" MinWidth="140"
                                                ValidationMode="InvalidInputOverwritten" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
+                                    <!-- T25.3: a number setting may use one value of an earlier step; its pill shows in the row below, so only this label takes the box's place. -->
+                                    <TextBlock Text="Uses a value" Visibility="{x:Bind UsesValue, Mode=OneWay}" MinWidth="140" MinHeight="32" VerticalAlignment="Center"
+                                               Padding="0,6,0,0" Style="{StaticResource SettingsCardDescription}" AutomationProperties.AccessibilityView="Raw" />
                                     <TextBlock Text="{x:Bind Unit}" VerticalAlignment="Center" />
+                                    <Button Content="Use a value" Visibility="{x:Bind ShowsValueButton, Mode=OneWay}" Tag="{x:Bind}"
+                                            AutomationProperties.Name="{x:Bind UseValueName}" ToolTipService.ToolTip="Use a value from an earlier step instead of a number">
+                                        <Button.Flyout>
+                                            <MenuFlyout Placement="BottomEdgeAlignedLeft" Opening="OnNumberValuesOpening" />
+                                        </Button.Flyout>
+                                    </Button>
                                 </StackPanel>
                                 <ToggleSwitch Visibility="{x:Bind IsBoolean}" IsOn="{x:Bind IsOn, Mode=TwoWay}" MinWidth="0"
                                               AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
