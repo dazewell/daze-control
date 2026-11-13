@@ -147,6 +147,42 @@ public sealed class DeviceValueRunTests : IDisposable
         Assert.Equal("Would use Previous default from Set default device", Node(run, "back").Summary);
     }
 
+    [Fact]
+    public async Task ADryFlowCallPassingTheValueRunsWithTheInputsDefault()
+    {
+        var load = ConfigYaml.Load(Library + """
+            flows:
+              f:
+                nodes:
+                  - { id: set, step: audio.setDefault, with: { device: technics } }
+                  - { id: call, step: flow.run, with: { flow: g, inputs: { output: "$result:set.previous" } }, after: [set] }
+              g:
+                inputs:
+                  output: { kind: audio, name: Output, default: sony }
+                nodes:
+                  - { id: s, step: audio.setDefault, with: { device: $output } }
+
+            """);
+        Assert.DoesNotContain(ConfigValidator.Validate(load.Config!), p => p.Severity == Severity.Error);
+        var config = load.Config!;
+        var dry = EngineController.CreateDryRunner(_time);
+        dry.Flows = new Calls(config);
+
+        var run = await Bound(dry.RunAsync(config.Flows[0], config.Library, TestContext.Current.CancellationToken));
+
+        Assert.Equal(FlowOutcome.Succeeded, run.Outcome);
+    }
+
+    private sealed class Calls(Configuration config) : IFlowStarter
+    {
+        public CalledFlow Resolve(string flowId) =>
+            config.Flows.FirstOrDefault(f => f.Id == flowId) is { } flow ? new(flow, config.Library, flow.Name, null) : new(null, config.Library, flowId, "gone");
+
+        public bool IsRunning(string flowId) => false;
+
+        public StartAnswer Start(string flowId, string trigger, IReadOnlyList<string> chain, IReadOnlyDictionary<string, string> inputs, string callerName) => new(true);
+    }
+
     /// <summary>Records each run's device and lock, and how many ran at once (each holds for a short real delay).</summary>
     private sealed class Overlap(string id) : IStepProvider
     {

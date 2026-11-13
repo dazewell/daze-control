@@ -330,9 +330,22 @@ public sealed class FlowRunner
         };
         // A Pick's dry result is its default (or it fails), so its missing key fails as in a real run. Other steps don't run
         // in a dry run, so their Device values (Previous default) aren't known: the reference stays, and the dry step says so.
-        return PickResults.Resolve(shown, (id, value) => values.Device(id, value)
+        var resolved = PickResults.Resolve(shown, (id, value) => values.Device(id, value)
             ?? (flow.FindNode(id) is StepNode p && PickResults.IsPick(p) && value == StepValues.DeviceName ? null : PickResults.Ref(id, value)),
             out missing, descriptor);
+        // A dry flow.run passing such a value: the called flow can't check a key nobody knows yet, so it dry-runs with that
+        // input's default instead (the validator already checked the reference).
+        if (missing is null && resolved.Step == ProviderCatalog.RunFlowId
+            && resolved.With.TryGetValue(FlowInputs.Param, out var given) && given is MapParam map
+            && map.Entries.Values.Any(v => PickResults.StepIn(v) is not null))
+        {
+            var kept = new MapParam(new(map.Entries.Where(e => PickResults.StepIn(e.Value) is null)));
+            resolved = resolved with
+            {
+                With = new(resolved.With.Select(e => KeyValuePair.Create(e.Key, e.Key == FlowInputs.Param ? kept : e.Value))),
+            };
+        }
+        return resolved;
     }
 
     /// <summary>
