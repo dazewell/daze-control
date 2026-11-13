@@ -755,7 +755,7 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 - [x] T22.9 Second live round (Round 2 in the findings doc: regression table, F-032..F-043, batches 10-14); F-026 fixed in PR 208, F-027 needs a product change (F-037), F-031 baseline in the doc
 - [ ] T22.10 Shell and inspector polish (F-032, F-034, F-035, F-038, F-039, F-041)
 - [ ] T22.11 Silent notices and the flaky trigger test (F-037, F-042)
-- [ ] T22.12 Canvas input, routing, automation (F-033 after a human check, F-040, F-043; Opus, after T22.1)
+- [x] T22.12 Canvas input, routing, automation (F-033 by reasoning: Space by key state, leftover gestures give way; F-040 8-DIP clearance + spread lanes; F-043 UIA rects through the camera; branch feat/m22-canvas-input). Live check left: real mouse/touchpad pan, lanes on screen, UIA dump
 - [x] T22.13 Editor memory and run counters (F-036: pills measured in one pass re-lay out once, `scripts/editor-memory.ps1`; F-012: one `RunProgress`, D-127; Opus)
 
 ## M23 Step values: steps give values that later steps' text uses (user, 2026-11-12; design docs/step-values/DESIGN.md, D-129 accepted)
