@@ -127,3 +127,11 @@ Tried in D-121: implicit `Style TargetType="DropDownButton" BasedOn="{StaticReso
 Every DropDownButton then fails to load: native stowed exception (0xc000027b in Microsoft.UI.Xaml.dll), the process exits at
 once, nothing in editor.log, no window (dev-run looked like it did nothing). The key exists, so `XamlStyleKeyTests` passed; a keyed
 copy applied by hand crashes the same. Found by bisecting App.xaml. Don't style DropDownButton; `XamlStyleKeyTests` forbids it.
+
+## X-014 · 2026-11-12 · A saved value shown only when the live list offers it (editable ComboBox, Choice)
+Check Wi-Fi's saved network sat in the YAML but the box showed "Optional" on reopen: the editable ComboBox's `Text` was bound
+alone, the live network list arrived later (rows replaced) and WinUI empties an editable ComboBox's text when its rows are
+replaced; a choice stored outside `Choices` had no row either. Rule: every picker must always have a row for the stored value
+(appended as "Not available right now" / "(not available)"), selection bound to a view-model property that is re-read after each
+rebuild, and opening never rewrites the file. `InspectorRoundTripTests` covers every step in `ProviderCatalog` (stored value not
+offered, padded value, late lists). Also in the UX §5.9 acceptance list.

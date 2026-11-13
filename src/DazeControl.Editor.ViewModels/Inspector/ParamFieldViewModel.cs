@@ -214,9 +214,22 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     public IReadOnlyList<string> Choices => Spec.Choices;
 
     /// <summary>The drop-down rows: value (as in YAML) and its words. Built once so the control's selection can be matched by reference.</summary>
-    public IReadOnlyList<ChoiceOption> ChoiceOptions => _choiceOptions ??= [.. Spec.Choices.Select(c => new ChoiceOption(c, Spec.CaptionOf(c)))];
+    public IReadOnlyList<ChoiceOption> ChoiceOptions => _choiceOptions ??= [.. Spec.Choices.Select(c => new ChoiceOption(c, Spec.CaptionOf(c))), .. new[] { _unknownChoice }.OfType<ChoiceOption>()];
 
     private IReadOnlyList<ChoiceOption>? _choiceOptions;
+
+    /// <summary>A stored value that isn't one of the choices (a typo, another case, a newer version's value): shown as its own row, never lost or rewritten.</summary>
+    private ChoiceOption? _unknownChoice;
+
+    private void SetUnknownChoice(string? stored)
+    {
+        var next = stored is { Length: > 0 } && !Spec.Choices.Contains(stored) ? new ChoiceOption(stored, $"{stored} (not available)") : null;
+        if (next == _unknownChoice)
+            return;
+        _unknownChoice = next;
+        _choiceOptions = null;
+        OnPropertyChanged(nameof(ChoiceOptions));
+    }
 
     /// <summary>The row of the current <see cref="Choice"/>; null while mixed or unset.</summary>
     public ChoiceOption? ChoiceOption
@@ -292,6 +305,7 @@ public sealed partial class ParamFieldViewModel : ObservableObject
                     IsOn = bool.TryParse(scalar ?? Spec.Default, out var b) && b;
                     break;
                 case ParamKind.Choice:
+                    SetUnknownChoice(scalar);
                     Choice = scalar ?? Spec.Default;
                     break;
                 case ParamKind.LibraryRef:
@@ -376,13 +390,31 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     {
         HintDevice = hintDevice;
         var rows = items.ToList();
+        SuggestionHint = rows.Count == 0 ? hint : "";
+        // A stored value the live list doesn't offer (a Wi-Fi network out of range, a renamed flag) stays selectable:
+        // an editable ComboBox empties its text when its rows are replaced, so the box needs a row to land on.
+        if (IsSuggestText && Text.Trim() is { Length: > 0 } stored && !rows.Any(r => r.Value == stored))
+            rows.Add(new SuggestionItem(stored, NotAvailableNow));
         if (!Suggestions.SequenceEqual(rows))
         {
             Suggestions.Clear();
             foreach (var row in rows)
                 Suggestions.Add(row);
         }
-        SuggestionHint = rows.Count == 0 ? hint : "";
+        OnPropertyChanged(nameof(SelectedSuggestion));
+    }
+
+    public const string NotAvailableNow = "Not available right now";
+
+    /// <summary>The row whose value is the stored text; null for free text. Picking a row writes it; the control clearing it writes nothing.</summary>
+    public SuggestionItem? SelectedSuggestion
+    {
+        get => Text.Trim() is { Length: > 0 } t ? Suggestions.FirstOrDefault(s => s.Value == t) : null;
+        set
+        {
+            if (value is not null && !_loading)
+                Text = value.Value;
+        }
     }
 
     internal void SetSuggestionHint(string hint) => SuggestionHint = hint;
@@ -568,6 +600,8 @@ public sealed partial class ParamFieldViewModel : ObservableObject
     partial void OnTextChanged(string value)
     {
         RefreshPills();
+        if (IsSuggestText)
+            OnPropertyChanged(nameof(SelectedSuggestion));
         if (IsAppPicker)
         {
             OnPropertyChanged(nameof(AppCaption));
