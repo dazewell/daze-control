@@ -47,25 +47,23 @@ public sealed partial class WindowsPcState : IPcState
 
     public unsafe bool? Locked()
     {
-        // WTSSessionInfoEx (25) → WTSINFOEXW: Level, then WTSINFOEX_LEVEL1_W: SessionId, SessionState, SessionFlags.
+        // WTSSessionInfoEx (25) → WTSINFOEXW: Level (4) + 4 padding (the union is 8-aligned), then WTSINFOEX_LEVEL1_W: SessionId (8), SessionState (12, the connect state: 0 = active, NOT lock), SessionFlags (16: 0 lock, 1 unlock; X-017).
         if (!WTSQuerySessionInformationW(0, -1 /* this session */, 25, out var buffer, out var size) || buffer == 0)
             return null;
         try
         {
-            if (size < 16)
+            if (size < 20)
                 return null;
-            return *(int*)(buffer + 12) switch
-            {
-                0 => true, // WTS_SESSIONSTATE_LOCK
-                1 => false, // WTS_SESSIONSTATE_UNLOCK
-                _ => null,
-            };
+            return FromSessionFlags(*(int*)(buffer + 16));
         }
         finally
         {
             WTSFreeMemory(buffer);
         }
     }
+
+    /// <summary>WTSINFOEX_LEVEL1 SessionFlags: 0 = WTS_SESSIONSTATE_LOCK, 1 = UNLOCK (the documented values hold on 10.0.26300).</summary>
+    internal static bool? FromSessionFlags(int flags) => flags switch { 0 => true, 1 => false, _ => null };
 
     public int ScreenCount() => GetSystemMetrics(80 /* SM_CMONITORS */);
 
