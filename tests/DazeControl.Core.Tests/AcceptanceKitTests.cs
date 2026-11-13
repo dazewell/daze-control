@@ -44,7 +44,7 @@ public sealed partial class AcceptanceKitTests
             "notify", "wait", "flag.set", "flag.check", "prompt.ask", "prompt.pick", "menu.show", "flow.run", "flow.stop", "text.make",
             "script.powershell", "process.run", "audio.check", "bluetooth.check", "process.check", "file.check", "file.space",
             "network.wifi", "network.cable", "network.internet", "network.metered", "network.vpn", "power.source", "power.battery",
-            "pc.idle", "pc.locked", "time.check",
+            "pc.idle", "pc.locked", "time.check", "value.check",
         ];
 
         foreach (var flow in config.Flows)

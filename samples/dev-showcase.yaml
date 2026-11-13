@@ -68,7 +68,7 @@ flows:
       - { id: l2, step: network.internet, onFailure: ignore }
       - { id: l3, step: file.space, with: { gb: "1" } }
       - { id: pick, step: prompt.ask, with: { mode: choose, question: "Which mood?", choices: [Focus, Relax, Party], timeout: 30s, onTimeout: use-default, default: Focus, flag: mood }, after: [long] }
-      - { id: focus, step: flag.check, with: { name: "mood:Focus" }, after: [pick], onFailure: skip }
+      - { id: focus, step: value.check, with: { value: "{pick.answer}", is: is, to: Focus }, after: [pick], onFailure: skip }
       - { id: focused, step: notify, with: { text: "Focus it is", sound: false }, after: [focus] }
       - { id: other, step: notify, with: { text: "Relax or Party", sound: false }, after: [{ id: focus, when: failure }] }
       - { id: yes, step: notify, with: { text: "Long part done", sound: false }, after: [{ id: focused, when: always }, { id: other, when: always }] }

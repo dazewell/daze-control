@@ -85,6 +85,7 @@ public static class BuiltInProviders
             new WaitProvider(time),
             new NotifyProvider(notifier),
             new MakeTextProvider(),
+            new ValueCheckProvider(),
             new FlagSetProvider(flags),
             new FlagCheckProvider(flags),
             new ProcessRunProvider(),

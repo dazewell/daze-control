@@ -501,7 +501,7 @@ public class StepValuesTests
             foreach (var step in flow.Nodes.OfType<StepNode>())
             {
                 var descriptor = ProviderCatalog.Find(step.Step);
-                if (!step.With.Values.Any(v => PickResults.StepIn(v) is not null || v is MapParam))
+                if (!step.With.Values.Any(v => PickResults.StepIn(v) is not null || v is MapParam || v is ScalarParam { Text: var written } && StepValues.Parse(written).Count > 0))
                     Assert.Same(step, StepValues.Fill(flow, step, new RunValues(), config.Library, out _));
                 foreach (var (setting, value) in step.With)
                 {

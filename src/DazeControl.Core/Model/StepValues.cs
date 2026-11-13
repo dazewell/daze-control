@@ -134,8 +134,19 @@ public static class StepValues
         if (step.Step == ProviderCatalog.MakeTextId && depth < MaxDepth && step.With.TryGetValue(MakeTextParam, out var made)
             && made is ScalarParam { Text: var text } && UsesSensitive(flow, text, flows, catalog, depth + 1))
             return [.. Of(descriptor).Select(v => v.Name == ErrorName ? v : v with { Sensitive = true })];
+        // Check value's result sentence quotes both sides (D-135): Sensitive when either one uses a Sensitive value.
+        if (step.Step == ProviderCatalog.ValueCheckId && depth < MaxDepth
+            && CheckedSides.Any(p => step.With.TryGetValue(p, out var side) && side is ScalarParam { Text: var sideText } && UsesSensitive(flow, sideText, flows, catalog, depth + 1)))
+            return [.. Of(descriptor).Select(v => v.Name == ErrorName ? v : v with { Sensitive = true })];
         return Of(descriptor);
     }
+
+    /// <summary>The two settings Check value compares.</summary>
+    public static readonly string[] CheckedSides = ["value", "to"];
+
+    /// <summary>A plain number as <c>value.check</c> reads it: invariant culture (<c>3.5</c>), no NaN or infinity; the caller trims first (D-135).</summary>
+    public static bool TryNumber(string text, out double number) =>
+        double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out number) && double.IsFinite(number);
 
     /// <summary>Whether <paramref name="text"/> names a Sensitive value of a step in <paramref name="flow"/>.</summary>
     private static bool UsesSensitive(Flow flow, string text, Func<string, Flow?>? flows, IReadOnlyList<ProviderDescriptor> catalog, int depth) =>
