@@ -98,6 +98,10 @@ public static class WhenThisRuns
         "display.changed" => "When the screens change",
         "network.connected" => "When the network connects",
         "network.disconnected" => "When the network disconnects",
+        "display.off" => "When the screens turn off",
+        "display.on" => "When the screens turn on",
+        "session.away" => "When you step away",
+        "session.back" => "When you come back",
         _ => "When " + TriggerText.EventLabel(name), // a source added later reads passably until its sentence is written here
     };
 

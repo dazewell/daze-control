@@ -96,6 +96,7 @@ public static class TriggerText
         "device.added", "device.removed",
         "audio.default-changed", "display.changed",
         "network.connected", "network.disconnected",
+        "display.off", "display.on", "session.away", "session.back",
     ];
 
     /// <summary>
@@ -167,6 +168,10 @@ public static class TriggerText
         "display.changed" => "screens changed",
         "network.connected" => "network connected",
         "network.disconnected" => "network disconnected",
+        "display.off" => "screens turned off",
+        "display.on" => "screens turned on",
+        "session.away" => "you stepped away",
+        "session.back" => "you came back",
         _ => name,
     };
 

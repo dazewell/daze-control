@@ -131,6 +131,23 @@ public sealed class TriggerServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ScreenAndAwayEventsStartFlowsAndLoadTheirSourceOnlyWhileSubscribed()
+    {
+        var screen = new FakeSource("display.off", "display.on", "session.away", "session.back");
+        using var service = new TriggerService([_session, screen], _launcher, new FakeFlows(this), _time, () => _paused, [_onBattery], _log.Add);
+
+        service.Apply([On("f", "display.off")]);
+        Assert.True(screen.Loaded);
+        screen.Raise("display.off");
+        screen.Raise("display.on");
+        await service.IdleAsync();
+        Assert.Equal("Event · screens turned off", Assert.Single(_history.Recent).Trigger);
+
+        service.Apply([]);
+        Assert.False(screen.Loaded);
+    }
+
+    [Fact]
     public void ABrokenSourceDisablesOnlyItself()
     {
         _session.Throws = true;
