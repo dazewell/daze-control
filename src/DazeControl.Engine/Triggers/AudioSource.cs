@@ -19,24 +19,42 @@ internal sealed class AudioSource : ITriggerSource
 
     public event Action<TriggerEvent>? Raised;
 
-    public void Load() => _watcher.Start();
+    public void Load()
+    {
+        _watcher.Start();
+        Interlocked.Increment(ref _generation);
+    }
 
-    public void Unload() => _watcher.Stop();
+    public void Unload()
+    {
+        Interlocked.Increment(ref _generation); // a name still being read belongs to the old subscription
+        _watcher.Stop();
+    }
 
-    public void Dispose() => _watcher.Dispose();
+    public void Dispose()
+    {
+        Interlocked.Increment(ref _generation);
+        _watcher.Dispose();
+    }
+
+    private int _generation;
 
     /// <summary>
     /// Reads the new default's name on the lazy COM worker (D-009), not inside the audio service's callback, then raises it
     /// as <see cref="TriggerEvent.Detail"/> with the flow as <see cref="TriggerEvent.Kind"/> (T24.6). A name that can't be
     /// read still raises, without a detail, so a trigger with no <c>device</c> filter works as before.
     /// </summary>
-    private async void OnDefault(AudioFlow flow, string endpointId)
+    private async void OnDefault(AudioFlow flow, string? endpointId)
     {
+        var generation = Volatile.Read(ref _generation);
         string? name = null;
         try
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            name = await CoreAudioEndpoints.NameOfAsync(endpointId, timeout.Token).ConfigureAwait(false);
+            if (endpointId is not null)
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                name = await CoreAudioEndpoints.NameOfAsync(endpointId, timeout.Token).ConfigureAwait(false);
+            }
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
@@ -44,6 +62,8 @@ internal sealed class AudioSource : ITriggerSource
         }
         try
         {
+            if (generation != Volatile.Read(ref _generation))
+                return; // unloaded (or reloaded) while the name was read: not this subscription's event
             Raised?.Invoke(new TriggerEvent("audio.default-changed", Detail: name, Kind: flow == AudioFlow.Input ? "input" : "output"));
         }
         catch (Exception e) when (e is not OutOfMemoryException)

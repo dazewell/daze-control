@@ -292,7 +292,7 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
 
         private readonly GCHandle _defaultHandle;
 
-        private DeviceChangeClient(Action changed, bool onDefault, Action<AudioFlow, string>? defaultChanged)
+        private DeviceChangeClient(Action changed, bool onDefault, Action<AudioFlow, string?>? defaultChanged)
         {
             _handle = GCHandle.Alloc(changed);
             var instance = (nint*)NativeMemory.Alloc((nuint)(4 * sizeof(nint)));
@@ -305,7 +305,7 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
             Pointer = (IMMNotificationClient*)instance;
         }
 
-        public static DeviceChangeClient Create(Action changed, bool onDefault = false, Action<AudioFlow, string>? defaultChanged = null) =>
+        public static DeviceChangeClient Create(Action changed, bool onDefault = false, Action<AudioFlow, string?>? defaultChanged = null) =>
             new(changed, onDefault, defaultChanged);
 
         public void Dispose()
@@ -387,11 +387,12 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
         {
             if (((nint*)self)[2] == 1) // every role: the trigger means any default sound device change (the service debounces the repeats)
             {
-                if (((nint*)self)[3] != 0 && id is not null && flow is EDataFlow.eRender or EDataFlow.eCapture)
+                if (((nint*)self)[3] != 0 && flow is EDataFlow.eRender or EDataFlow.eCapture)
                 {
                     try
                     {
-                        ((Action<AudioFlow, string>)GCHandle.FromIntPtr(((nint*)self)[3]).Target!)(flow == EDataFlow.eCapture ? AudioFlow.Input : AudioFlow.Output, new string(id));
+                        // A null id (a role with no default left) still raises, just without a device.
+                        ((Action<AudioFlow, string?>)GCHandle.FromIntPtr(((nint*)self)[3]).Target!)(flow == EDataFlow.eCapture ? AudioFlow.Input : AudioFlow.Output, id is null ? null : new string(id));
                     }
                     catch (Exception)
                     {

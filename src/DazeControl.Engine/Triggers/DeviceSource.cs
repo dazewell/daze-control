@@ -37,7 +37,7 @@ internal sealed unsafe partial class DeviceSource : ITriggerSource
             if (_self.IsAllocated)
                 return;
             _self = GCHandle.Alloc(this);
-            var generation = ++_generation;
+            var generation = Interlocked.Increment(ref _generation);
             _usb = Register(UsbDevice);
             _bluetooth = Register(BluetoothPort);
             if (_usb == 0 && _bluetooth == 0)
@@ -62,7 +62,7 @@ internal sealed unsafe partial class DeviceSource : ITriggerSource
                 _ = CM_Unregister_Notification(_bluetooth);
             _usb = _bluetooth = 0;
             _self.Free();
-            _generation++;
+            Interlocked.Increment(ref _generation);
             _names.Clear();
         }
     }
@@ -93,7 +93,8 @@ internal sealed unsafe partial class DeviceSource : ITriggerSource
                 // CM_NOTIFY_EVENT_DATA: FilterType, Reserved, ClassGuid, then the NUL-terminated symbolic link.
                 var link = size > 26 ? new string((char*)(data + 24)) : null;
                 var added = action == 0;
-                ThreadPool.QueueUserWorkItem(_ => self.Report(added, link));
+                var generation = Volatile.Read(ref self._generation);
+                ThreadPool.QueueUserWorkItem(_ => self.Report(added, link, generation));
             }
         }
         catch (Exception)
@@ -104,7 +105,7 @@ internal sealed unsafe partial class DeviceSource : ITriggerSource
     }
 
     /// <summary>Raises the event with the device's name; one that can't be read raises without a detail.</summary>
-    private void Report(bool added, string? link)
+    private void Report(bool added, string? link, int generation)
     {
         try
         {
@@ -126,6 +127,8 @@ internal sealed unsafe partial class DeviceSource : ITriggerSource
                     }
                 }
             }
+            if (generation != Volatile.Read(ref _generation))
+                return; // unloaded (or reloaded) since the notification: not this subscription's event
             Raised?.Invoke(new TriggerEvent(added ? "device.added" : "device.removed", Detail: name));
         }
         catch (Exception)
@@ -147,7 +150,7 @@ internal sealed unsafe partial class DeviceSource : ITriggerSource
                         continue;
                     lock (_lock)
                     {
-                        if (generation != _generation)
+                        if (generation != Volatile.Read(ref _generation))
                             return; // unloaded (or reloaded) meanwhile
                         _names.TryAdd(link, name);
                     }

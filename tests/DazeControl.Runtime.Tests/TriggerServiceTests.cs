@@ -576,6 +576,18 @@ public sealed class TriggerServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ADeviceFilterOnAnEventThatTakesNoneIsSkippedNotRunOnEveryEvent()
+    {
+        using var service = Service();
+        service.Apply([On("f", "session.unlock", device: "Xbox"), On("g", "session.unlock")]);
+
+        _session.Raise("session.unlock");
+
+        Assert.Equal(["g"], await StartedAsync(service));
+        Assert.Contains(_log, l => l.Contains("device only goes", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ADeviceFilterWithoutAKnownNameStartsNothingAndKeepsTheCooldown()
     {
         _library = Library.Empty with { Audio = [new AudioDevice("headphones", "Headphones")] };

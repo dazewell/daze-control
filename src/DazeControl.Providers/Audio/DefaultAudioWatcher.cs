@@ -7,7 +7,7 @@ namespace DazeControl.Providers.Audio;
 /// dedicated MTA thread that exists only between <see cref="Start"/> and <see cref="Stop"/> (idle = zero, D-009).
 /// The callback runs on a COM thread and only invokes <c>changed</c> with the flow and the new default's endpoint id (T24.6); no polling.
 /// </summary>
-public sealed class DefaultAudioWatcher(Action<AudioFlow, string> changed) : IDisposable
+public sealed class DefaultAudioWatcher(Action<AudioFlow, string?> changed) : IDisposable
 {
     private readonly Lock _lock = new();
     private ManualResetEventSlim? _stop;

@@ -84,6 +84,11 @@ public sealed class TriggerService : IDisposable
                     _log($"trigger: {flow.Id}: only \"{only}\" isn't a condition I know; skipped");
                     continue;
                 }
+                if (TriggerText.DeviceFilterProblem(trigger.Name, trigger.Device) is { } deviceProblem)
+                {
+                    _log($"trigger: {flow.Id}: {deviceProblem} skipped"); // the validator calls it ignored too
+                    continue;
+                }
                 if (!known.Contains(trigger.Name))
                 {
                     _log($"trigger: {flow.Id}: {trigger.Name} has no source in this build; skipped");
