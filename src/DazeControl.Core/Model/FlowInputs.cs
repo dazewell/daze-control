@@ -106,18 +106,9 @@ public static class FlowInputs
         ParamValue Resolve(ParamValue value) => NameIn(value) == name ? input.IsText ? StepValues.Escape(input.Default) : input.Default : value;
         if (input.IsText)
         {
-            // {$name} in text becomes the default text it showed (T23.7); a call's inputs map is text that takes values too.
+            // {$name} in text becomes the default text it showed (T23.7).
             string? Written(ValueRef r) => r.Source == ValueSource.Input && r.Name == name ? StepValues.Escape(input.Default) : null;
-            flow = StepValues.RewriteRefs(flow, (_, r) => Written(r), inOutputs: Written);
-            flow = flow with
-            {
-                Nodes = [.. flow.Nodes.Select(n => n is StepNode { Step: Catalog.ProviderCatalog.RunFlowId } s && s.With.TryGetValue(Param, out var v) && v is MapParam m
-                    ? s with { With = new(s.With.Select(e => e.Key == Param
-                        ? KeyValuePair.Create(e.Key, (ParamValue)new MapParam(new(m.Entries.Select(x => x.Value is ScalarParam { Text: var t }
-                            ? KeyValuePair.Create(x.Key, (ParamValue)new ScalarParam(StepValues.Rewrite(t, Written))) : x))))
-                        : e)) }
-                    : n)],
-            };
+            flow = StepValues.RewriteRefs(flow, (_, r) => Written(r), inOutputs: Written); // a call's text inputs too
         }
         return flow with
         {

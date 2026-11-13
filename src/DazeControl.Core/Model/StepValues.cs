@@ -594,6 +594,15 @@ public static class StepValues
             Dictionary<string, ParamValue>? changed = null;
             foreach (var (name, setting) in step.With)
             {
+                if (setting is MapParam map && name == FlowInputs.Param && step.Step == ProviderCatalog.RunFlowId)
+                {
+                    // A call's text inputs take values too (T23.7); device keys hold no braces, so they come back unchanged.
+                    var entries = map.Entries.Select(e => e.Value is ScalarParam { Text: var item } && Rewrite(item, r => replace(step, r)) is var rewritten
+                        && !ReferenceEquals(rewritten, item) ? KeyValuePair.Create(e.Key, (ParamValue)new ScalarParam(rewritten)) : e).ToList();
+                    if (!entries.SequenceEqual(map.Entries))
+                        (changed ??= new(step.With, StringComparer.Ordinal))[name] = new MapParam(new(entries));
+                    continue;
+                }
                 if (setting is not ScalarParam { Text: var text } || descriptor.FindParam(name) is not { } spec || !Takes(spec))
                     continue;
                 var next = Rewrite(text, r => replace(step, r));
@@ -673,8 +682,9 @@ public static class StepValues
                 }
             }
         }
-        // The flow's outputs (T23.7) are filled from its values when the run ends.
-        foreach (var text in flow.Outputs.Values)
+        // A call's text inputs (T23.7) are filled from the caller's values; the flow's outputs when its run ends.
+        var called = flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.RunFlowId).SelectMany(s => FlowInputs.Given(s).Values);
+        foreach (var text in flow.Outputs.Values.Concat(called))
         {
             foreach (var r in Parse(text).Where(r => r.Source == ValueSource.Step))
                 wanted.Add((r.Name, r.Value));
