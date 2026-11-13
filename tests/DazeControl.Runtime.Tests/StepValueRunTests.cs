@@ -70,6 +70,18 @@ public sealed class StepValueRunTests : IDisposable
     }
 
     [Fact]
+    public async Task AMessageNamesTheDeviceOrNetworkThatStartedTheRun()
+    {
+        var (flow, library) = Load("", Say("Plugged in: {@event}.", "[]"));
+        var runner = Runner();
+
+        await Bound(runner.RunAsync(flow, library, [], TestContext.Current.CancellationToken, "Event · device connected", eventDetail: "Xbox Wireless Controller"));
+        await Run(runner, (flow, library)); // started by a person: nothing to name
+
+        Assert.Equal(["Plugged in: Xbox Wireless Controller.", "Plugged in: ."], _said);
+    }
+
+    [Fact]
     public async Task ParallelBranchesEachKeepTheirOwnValue()
     {
         await Run(Runner(), Load("", Connect("a", "technics"), Connect("b", "sony"), Say("{a.device} + {b.device}", "[a, b]")));

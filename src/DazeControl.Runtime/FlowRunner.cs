@@ -83,15 +83,16 @@ public sealed class FlowRunner
     /// <param name="cancellationToken">Cancels the run.</param>
     /// <param name="trigger">What started the run ("Schedule · 22:30"): prompts there default to stopping (D-107).</param>
     /// <param name="inputs">Values from outside (the command line, T24.9), checked by the caller; null = the defaults.</param>
+    /// <param name="eventDetail">The device, Wi-Fi or cable name an event trigger brought (<c>{@event}</c>, T24.6); empty otherwise.</param>
     public Task<RunResult> RunAsync(Flow flow, Library library, IReadOnlyList<string> chain, CancellationToken cancellationToken, string trigger = "",
-        IReadOnlyDictionary<string, string>? inputs = null)
+        IReadOnlyDictionary<string, string>? inputs = null, string eventDetail = "")
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(chain);
         // Text given from outside may be a secret (D-014): masked in errors, summaries and history like a Sensitive value.
         HashSet<string>? external = inputs is null ? null
             : [.. inputs.Where(e => e.Value.Length > 0 && flow.Inputs.TryGetValue(e.Key, out var i) && i.IsText).Select(e => e.Key)];
-        return RunCoreAsync(flow, library, inputs ?? NoInputs, [.. chain, flow.Id], null, null, cancellationToken, trigger, external);
+        return RunCoreAsync(flow, library, inputs ?? NoInputs, [.. chain, flow.Id], null, null, cancellationToken, trigger, external, eventDetail);
     }
 
     /// <summary>
@@ -121,7 +122,7 @@ public sealed class FlowRunner
 
     /// <param name="sensitiveInputs">Text inputs the caller filled from a Sensitive value (T23.7): hidden in errors and summaries.</param>
     private async Task<RunResult> RunCoreAsync(Flow flow, Library library, IReadOnlyDictionary<string, string> inputs, string[] chain,
-        Guid? parentRunId, string? parentNodeId, CancellationToken cancellationToken, string trigger = "", HashSet<string>? sensitiveInputs = null)
+        Guid? parentRunId, string? parentNodeId, CancellationToken cancellationToken, string trigger = "", HashSet<string>? sensitiveInputs = null, string eventDetail = "")
     {
         // Inputs resolve before anything runs (D-064): steps, their locks and nested calls only ever see Library keys.
         flow = FlowInputs.Apply(flow, inputs);
@@ -140,7 +141,7 @@ public sealed class FlowRunner
         var otherQuiet = false;
         // D-117, D-129: what steps give, only what some setting references; thread-safe for parallel branches.
         var calls = CalledFlows;
-        var values = new RunValues(StepValues.Wanted(flow, _catalog, calls), _time) { FlowName = flow.Name, Trigger = trigger };
+        var values = new RunValues(StepValues.Wanted(flow, _catalog, calls), _time) { FlowName = flow.Name, Trigger = trigger, Event = eventDetail };
         foreach (var (name, input) in flow.Inputs)
         {
             var given = inputs.TryGetValue(name, out var key) ? key : input.Default;

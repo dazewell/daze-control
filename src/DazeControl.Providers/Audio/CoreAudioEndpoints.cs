@@ -41,6 +41,30 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
     public Task<IReadOnlyList<AudioEndpoint?>> DefaultsAsync(AudioFlow flow, AudioRoles roles, CancellationToken cancellationToken) =>
         ComThread.RunAsync<IReadOnlyList<AudioEndpoint?>>(() => [.. Roles(roles).Select(role => Default(flow, role))], cancellationToken);
 
+    /// <summary>The friendly name of endpoint <paramref name="id"/>, or null when it can't be read (T24.6: the new default's name for the event).</summary>
+    public static Task<string?> NameOfAsync(string id, CancellationToken cancellationToken) =>
+        ComThread.RunAsync<string?>(() =>
+        {
+            using var enumerator = Enumerator.Create();
+            IMMDevice* device;
+            try
+            {
+                enumerator.Value->GetDevice(id, &device);
+            }
+            catch (COMException)
+            {
+                return null;
+            }
+            try
+            {
+                return Describe(device).Name is { Length: > 0 } name ? name : null;
+            }
+            finally
+            {
+                device->Release();
+            }
+        }, cancellationToken);
+
     private static AudioEndpoint? Default(AudioFlow flow, ERole role = ERole.eConsole)
     {
         using var enumerator = Enumerator.Create();
@@ -266,22 +290,30 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
 
         public IMMNotificationClient* Pointer { get; }
 
-        private DeviceChangeClient(Action changed, bool onDefault)
+        private readonly GCHandle _defaultHandle;
+
+        private DeviceChangeClient(Action changed, bool onDefault, Action<AudioFlow, string?>? defaultChanged)
         {
             _handle = GCHandle.Alloc(changed);
-            var instance = (nint*)NativeMemory.Alloc((nuint)(3 * sizeof(nint)));
+            var instance = (nint*)NativeMemory.Alloc((nuint)(4 * sizeof(nint)));
             instance[0] = (nint)Vtable;
             instance[1] = GCHandle.ToIntPtr(_handle);
             instance[2] = onDefault ? 1 : 0; // also signal on a new default endpoint (the default-changed trigger, T20.4)
+            if (defaultChanged is not null)
+                _defaultHandle = GCHandle.Alloc(defaultChanged);
+            instance[3] = defaultChanged is null ? 0 : GCHandle.ToIntPtr(_defaultHandle); // which endpoint became the default (T24.6)
             Pointer = (IMMNotificationClient*)instance;
         }
 
-        public static DeviceChangeClient Create(Action changed, bool onDefault = false) => new(changed, onDefault);
+        public static DeviceChangeClient Create(Action changed, bool onDefault = false, Action<AudioFlow, string?>? defaultChanged = null) =>
+            new(changed, onDefault, defaultChanged);
 
         public void Dispose()
         {
             NativeMemory.Free(Pointer);
             _handle.Free();
+            if (_defaultHandle.IsAllocated)
+                _defaultHandle.Free();
         }
 
         private static void** CreateVtable()
@@ -354,7 +386,24 @@ public sealed unsafe class CoreAudioEndpoints : IAudioEndpoints
         private static HRESULT OnDefaultDeviceChanged(void* self, EDataFlow flow, ERole role, char* id)
         {
             if (((nint*)self)[2] == 1) // every role: the trigger means any default sound device change (the service debounces the repeats)
-                Signal(self);
+            {
+                if (((nint*)self)[3] != 0 && flow is EDataFlow.eRender or EDataFlow.eCapture)
+                {
+                    try
+                    {
+                        // A null id (a role with no default left) still raises, just without a device.
+                        ((Action<AudioFlow, string?>)GCHandle.FromIntPtr(((nint*)self)[3]).Target!)(flow == EDataFlow.eCapture ? AudioFlow.Input : AudioFlow.Output, id is null ? null : new string(id));
+                    }
+                    catch (Exception)
+                    {
+                        // Never unwind into the audio service.
+                    }
+                }
+                else
+                {
+                    Signal(self);
+                }
+            }
             return Ok;
         }
 

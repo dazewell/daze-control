@@ -1,11 +1,13 @@
+using DazeControl.Core.Model;
+
 namespace DazeControl.Providers.Audio;
 
 /// <summary>
 /// Tells when the default sound device changes (T20.4, <c>audio.default-changed</c>): an IMMNotificationClient on a
 /// dedicated MTA thread that exists only between <see cref="Start"/> and <see cref="Stop"/> (idle = zero, D-009).
-/// The callback runs on a COM thread and only invokes <c>changed</c>; no polling.
+/// The callback runs on a COM thread and only invokes <c>changed</c> with the flow and the new default's endpoint id (T24.6); no polling.
 /// </summary>
-public sealed class DefaultAudioWatcher(Action changed) : IDisposable
+public sealed class DefaultAudioWatcher(Action<AudioFlow, string?> changed) : IDisposable
 {
     private readonly Lock _lock = new();
     private ManualResetEventSlim? _stop;
@@ -63,7 +65,7 @@ public sealed class DefaultAudioWatcher(Action changed) : IDisposable
     private unsafe void Watch(ManualResetEventSlim stop, ManualResetEventSlim ready)
     {
         using var enumerator = CoreAudioEndpoints.Enumerator.Create();
-        using var client = CoreAudioEndpoints.DeviceChangeClient.Create(changed, onDefault: true);
+        using var client = CoreAudioEndpoints.DeviceChangeClient.Create(() => { }, onDefault: true, defaultChanged: changed);
         enumerator.Value->RegisterEndpointNotificationCallback(client.Pointer);
         ready.Set();
         stop.Wait();

@@ -183,6 +183,8 @@ public sealed class TriggerDocument
 
     public string? Via { get; set; }
 
+    public string? Device { get; set; }
+
     public string? IfMissed { get; set; }
 
     public string? Grace { get; set; }

@@ -322,7 +322,7 @@ public class StepValuesTests
     {
         var errors = Problems(Yaml("      - { id: note, step: notify, with: { text: \"{$nope} {@nope} {$output} {@flow} {@trigger} {@time} {@date}\" } }\n"))
             .Where(p => p.Severity == Severity.Error).Select(p => p.Message).ToList();
-        Assert.Equal(["This flow has no input called \"nope\".", "There's no run value called \"nope\" (flow, trigger, time, date)."], errors);
+        Assert.Equal(["This flow has no input called \"nope\".", "There's no run value called \"nope\" (flow, trigger, event, time, date)."], errors);
     }
 
     [Fact]

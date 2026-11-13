@@ -55,6 +55,19 @@ public sealed class WhenThisRunsTests
     }
 
     [Fact]
+    public void DeviceSentencesNameTheDeviceAndEditsKeepItAcrossConnectAndDisconnect()
+    {
+        Assert.Equal("When 'Xbox' is connected", WhenThisRuns.Sentence(new EventTrigger("device.added") { Device = "Xbox" }));
+        Assert.Equal("When the default sound device changes to 'headphones'", WhenThisRuns.Sentence(new EventTrigger("audio.default-changed") { Device = "headphones" }));
+
+        Trigger t = WhenThisRuns.WithDevice(new EventTrigger("device.added"), "  Xbox ");
+        Assert.Equal(new EventTrigger("device.added") { Device = "Xbox" }, t);
+        Assert.Equal(new EventTrigger("device.removed") { Device = "Xbox" }, WhenThisRuns.WithEvent(t, "device.removed"));
+        Assert.Equal(new EventTrigger("device.added"), WhenThisRuns.WithDevice(t, " "));
+        Assert.Equal(new EventTrigger("session.lock"), WhenThisRuns.WithDevice(new EventTrigger("session.lock"), "Xbox"));
+    }
+
+    [Fact]
     public void ConnectionEditsKeepTheFiltersConsistent()
     {
         Trigger t = new EventTrigger("network.connected") { Only = "onAC" };

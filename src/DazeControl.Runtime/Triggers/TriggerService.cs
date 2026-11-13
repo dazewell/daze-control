@@ -84,6 +84,11 @@ public sealed class TriggerService : IDisposable
                     _log($"trigger: {flow.Id}: only \"{only}\" isn't a condition I know; skipped");
                     continue;
                 }
+                if (TriggerText.DeviceFilterProblem(trigger.Name, trigger.Device) is { } deviceProblem)
+                {
+                    _log($"trigger: {flow.Id}: {deviceProblem} skipped"); // the validator calls it ignored too
+                    continue;
+                }
                 if (!known.Contains(trigger.Name))
                 {
                     _log($"trigger: {flow.Id}: {trigger.Name} has no source in this build; skipped");
@@ -237,6 +242,8 @@ public sealed class TriggerService : IDisposable
                 _log($"trigger: {flowId}: {e.Name} not started: {called.Refusal}");
                 return;
             }
+            if (subscription.Trigger is { Device: { } wanted } && TriggerText.IsAudioEvent(e.Name) && !IsAudioDevice(called.Library, wanted, e))
+                return; // the new default is another device than the Library item this trigger names (T24.6)
             var chain = e.Chain ?? [];
             if (FlowCalls.Guard(chain, flowId, called.Name) is { } loop)
             {
@@ -254,7 +261,7 @@ public sealed class TriggerService : IDisposable
             }
             var text = TriggerText.Describe(subscription.Trigger);
             // The launcher applies whenRunning; this doesn't wait for the run, only observes a fault.
-            var run = _launcher.TriggerAsync(flow, called.Library, text, chain);
+            var run = _launcher.TriggerAsync(flow, called.Library, text, chain, eventDetail: e.Detail ?? "");
             _ = run.ContinueWith(t => _log($"trigger: {flowId}: run failed: {t.Exception?.GetBaseException().Message}"),
                 CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }
@@ -270,11 +277,25 @@ public sealed class TriggerService : IDisposable
     /// </summary>
     internal static bool Matches(EventTrigger trigger, TriggerEvent e)
     {
+        // A device name filter: the name contains it (any case). An arrival whose name couldn't be read matches no filter.
+        if (TriggerText.IsDeviceEvent(e.Name) && trigger.Device is { } part
+            && e.Detail?.Contains(part, StringComparison.OrdinalIgnoreCase) != true)
+            return false;
         if (trigger.Via is { } via && !string.Equals(e.Kind, TriggerText.ViaText(via), StringComparison.Ordinal))
             return false;
         return trigger.Ssid is not { } ssid
             || (string.Equals(e.Kind, TriggerText.ViaText(NetworkVia.WiFi), StringComparison.Ordinal) && string.Equals(ssid, e.Detail, StringComparison.OrdinalIgnoreCase));
     }
+
+    /// <summary>
+    /// Whether the new default <paramref name="e"/> (its name and flow) is the Library audio device <paramref name="key"/>: the
+    /// item's name part is in the endpoint's name and its flow is the same. Needs the library the flow was validated with, so
+    /// it runs in <see cref="FireAsync"/>, after the cheap checks and before the cooldown is reserved.
+    /// </summary>
+    private static bool IsAudioDevice(Library library, string key, TriggerEvent e) =>
+        library.ResolveAudio(key) is { } item
+        && e.Detail?.Contains(item.Match, StringComparison.OrdinalIgnoreCase) == true
+        && string.Equals(e.Kind, item.Flow == AudioFlow.Input ? "input" : "output", StringComparison.Ordinal);
 
     /// <summary>Under the lock.</summary>
     private bool InCooldown(Subscription subscription, TriggerEvent e, long now) =>

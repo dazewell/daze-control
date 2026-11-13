@@ -824,7 +824,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   on this PC as app commands to the shell, **no key simulation** (that is T28.4's question). Files: `ProviderCatalog.cs`,
   `Providers/Audio/`, `BuiltInProviders.cs`. Done when: Providers tests behind an `IMediaCommands` fake (each action → its command);
   captions match `android.media`'s; not run live by the agent.
-- [ ] T24.6 Which device on events (Sonnet, M; Opus if the device-name reads fight AOT; parallel-safe with step tasks, after T24.4:
+- [x] T24.6 Which device on events (built, PR pending; live check pending; Sonnet, M; Opus if the device-name reads fight AOT; parallel-safe with step tasks, after T24.4:
   same files). `device:` on `device.added` / `device.removed` (name contains) and `audio.default-changed` (Library audio item);
   sources fill `TriggerEvent.Detail`; run value `{@event}` (the device, Wi-Fi or cable name that started the run; empty otherwise).
   Files: `Triggers.cs`, `Core/Yaml/TriggerMapper.cs`, `Core/Validation`, `Runtime/Triggers/TriggerService.cs` (`Matches`),

@@ -73,7 +73,7 @@ public static class WhenThisRuns
             AtTrigger at => $"{DaysText(at.Days)} at {TriggerText.FormatTime(at.Time)}",
             EveryTrigger every => Every(every),
             OnceTrigger once => OnceText(once.When),
-            EventTrigger e => TriggerText.IsNetworkEvent(e.Name) ? Network(e) : Event(e.Name),
+            EventTrigger e => TriggerText.IsNetworkEvent(e.Name) ? Network(e) : e.Device is { Length: > 0 } ? Device(e) : Event(e.Name),
             EngineStartTrigger => Event(EngineStartTrigger.Name),
             _ => "Starts by itself",
         };
@@ -122,6 +122,22 @@ public static class WhenThisRuns
             NetworkVia.Cable => connected ? "When a cable is plugged in" : "When a cable is unplugged",
             _ => Event(e.Name),
         };
+    }
+
+    /// <summary>"When 'Xbox' is connected", "When the default sound device changes to 'Headphones'" (a Library key).</summary>
+    public static string Device(EventTrigger e) => e.Name switch
+    {
+        "device.added" => $"When '{e.Device}' is connected",
+        "device.removed" => $"When '{e.Device}' is disconnected",
+        _ => $"When the default sound device changes to '{e.Device}'",
+    };
+
+    /// <summary>The text a device event looks for (empty = any device); null on an event with no device choice.</summary>
+    public static Trigger WithDevice(Trigger t, string? device)
+    {
+        if (t is not EventTrigger e || !(TriggerText.IsDeviceEvent(e.Name) || TriggerText.IsAudioEvent(e.Name)))
+            return t;
+        return e with { Device = string.IsNullOrWhiteSpace(device) ? null : device.Trim() };
     }
 
     /// <summary>A Wi-Fi name means Wi-Fi even without <c>via</c> (a hand-written <c>ssid:</c>).</summary>
@@ -268,6 +284,7 @@ public static class WhenThisRuns
     public static Trigger WithEvent(Trigger t, string name) =>
         name == EngineStartTrigger.Name ? new EngineStartTrigger { Only = t.Only }
         : t is EventTrigger e && TriggerText.IsNetworkEvent(e.Name) && TriggerText.IsNetworkEvent(name) ? e with { Name = name }
+        : t is EventTrigger d && TriggerText.IsDeviceEvent(d.Name) && TriggerText.IsDeviceEvent(name) ? d with { Name = name }
         : t is EventTrigger or EngineStartTrigger ? new EventTrigger(name) { Only = t.Only }
         : t;
 

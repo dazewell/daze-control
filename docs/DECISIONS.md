@@ -1830,6 +1830,13 @@ Status: proposed (the user's standing instruction, 2026-11-12: after the analysi
 - Revisit if: the user answers M28's rows, or a second user appears (signing, languages and sharing move up together).
 - Ref: docs/roadmap/GAPS.md (matrix, sketches, sources).
 
+## D-134 · 2026-11-13 · Which device on events: names read off the callback, `{@event}` run value (T24.6)
+
+- Decision: `device:` on `device.added/removed` (name contains, any case) and `audio.default-changed` (a Library audio key; matched by the item's `match` text and flow against the new default's name). Sources fill `TriggerEvent.Detail` (+ `Kind` input/output for audio); run value `{@event}` = Detail, passed `TriggerService` > `FlowLauncher` > `FlowRunner` > `RunValues.Event` (empty in a called flow).
+- How, AOT/idle-zero: names are read on the thread pool (devices: cfgmgr32 property calls) or the lazy COM worker (audio, D-009), never inside the system callback. A removed device is already unreadable, so `DeviceSource` keeps link > name for what it saw while loaded (seeded once on Load, dropped on Unload): no timer, no polling. Unreadable name = event raised without a detail; a trigger with a `device:` filter then skips it, one without works as before.
+- Why not fold different names of one device: the USB-device interface raises once per physical device; debounce and cooldown stay per detail (D-107).
+- Not verified live by the agent: plug a USB device in and out; switch the default sound device.
+
 ## D-133 · 2026-11-13 · `flow.stop`: a quiet stop is "done" for a caller, "As failed" is a failure (T24.1)
 Status: accepted, built
 - Decision: `flow.stop` (Flow group, last) has `mode` quiet (default) or failed, and `message` (takes values). Quiet throws
