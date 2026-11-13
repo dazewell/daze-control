@@ -831,7 +831,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   `Engine/Triggers/DeviceSource.cs`, `AudioSource.cs`, `Core/Model/StepValues.cs` + `Core/Runs/RunValues.cs`, `WhenThisRuns.cs`.
   Done when: Core round-trip and validation tests; Runtime tests (filter, several arrivals of one device fold into one start,
   `{@event}` in a message); existing samples round-trip byte-identical; the PR lists the live check (plug a USB device in and out).
-- [ ] T24.7 Wake over network `network.wake` (Sonnet, S; solo on the catalog; after T24.5). `mac`; a magic packet on each connected
+- [x] T24.7 Wake over network (built, D-139) `network.wake` (Sonnet, S; solo on the catalog; after T24.5). `mac`; a magic packet on each connected
   network's broadcast address. Files: `ProviderCatalog.cs`, `Providers/Network/`. Done when: Providers tests (packet bytes, bad MAC is
   a validation problem, no network fails with a sentence); AOT 0 warnings.
 - [ ] T24.8 Check address `network.reach` (Sonnet, S; solo on the catalog; after T24.7). `address` = `host:port` (TCP connect), a web

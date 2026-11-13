@@ -50,6 +50,7 @@ public static partial class ConfigValidator
         CheckStops(config.Flows, problems);
         CheckOpens(config.Flows, problems);
         CheckValues(config.Flows, problems);
+        CheckWakes(config.Flows, problems);
         CheckCalls(config.Flows, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, catalog, config.Settings.StepDefaults, problems);
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
@@ -244,6 +245,22 @@ public static partial class ConfigValidator
                             problems.Add(new(Severity.Error, $"{path}.{side}", $"\"{text}\" isn't a number. At least and below compare numbers, like 3 or 2.5.", flow.Id));
                     }
                 }
+            }
+        }
+    }
+
+    /// <summary>A written hardware address <c>network.wake</c> would always refuse is an error now (D-139). Text holding a reference is unknown until the run.</summary>
+    private static void CheckWakes(IReadOnlyList<Flow> flows, List<Problem> problems)
+    {
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == "network.wake"))
+            {
+                if (!step.With.TryGetValue("mac", out var setting) || setting is not ScalarParam { Text: var text } || text.Trim().Length == 0 || StepValues.Parse(text).Count > 0)
+                    continue;
+                if (!MacAddress.TryParse(text, out _))
+                    problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.with.mac",
+                        "That isn't a hardware address. Use six pairs of digits, like aa:bb:cc:dd:ee:ff.", flow.Id));
             }
         }
     }

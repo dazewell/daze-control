@@ -373,6 +373,15 @@ public static class ProviderCatalog
             Keywords = "disk drive storage full",
             Values = [new ValueSpec("free", ValueKind.Number, "Free space (GB)") { OnFailure = true, Help = "How many GB are free" }],
         },
+        new("network.wake", "Wake over network", Network, TimeSpan.FromSeconds(15),
+        [
+            new("mac", ParamKind.Text, "Hardware (MAC) address")
+            {
+                Required = true, TakesValues = true,
+                Help = "Of the PC or device to wake, like aa:bb:cc:dd:ee:ff (dashes or aabb.ccdd.eeff work too). Sent on every network this PC is connected to. It must be set up to wake on the network.",
+                Examples = [new("With colons", "aa:bb:cc:dd:ee:ff"), new("With dashes", "aa-bb-cc-dd-ee-ff")],
+            },
+        ]) { Keywords = "wol wake on lan magic packet power on turn on nas server" },
         // Network, power, PC and time checks (D-118): read-only, one read when the step runs.
         new("network.wifi", "Check Wi-Fi", Network, Short,
         [
