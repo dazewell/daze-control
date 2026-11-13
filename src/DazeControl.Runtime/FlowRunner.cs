@@ -426,7 +426,7 @@ public sealed class FlowRunner
 
     /// <summary>
     /// A Get from text's values are Sensitive when something it reads was marked Sensitive in this run (a called flow's output
-    /// filled from a Sensitive input): the static check cannot see that, so the runner marks them (D-143).
+    /// filled from a Sensitive input): the static check cannot see that, so the runner marks them (D-144).
     /// </summary>
     internal static void MarkExtractSensitive(RunValues values, StepNode node)
     {

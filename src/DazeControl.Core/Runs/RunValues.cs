@@ -18,7 +18,7 @@ public sealed class RunValues
     /// <summary>A value is cut here, with "…" (DESIGN §4.4).</summary>
     public const int MaxValueLength = 1000;
 
-    /// <summary>A value a Get from text reads is kept up to here instead (T25.2, D-143).</summary>
+    /// <summary>A value a Get from text reads is kept up to here instead (T25.2, D-144).</summary>
     public const int MaxLongValueLength = TextExtract.MaxFilled;
 
     private readonly Dictionary<(string Step, string Value), StepValue> _values = [];

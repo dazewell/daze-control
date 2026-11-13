@@ -5,7 +5,7 @@ using DazeControl.Runtime.Providers;
 namespace DazeControl.Providers.Basic;
 
 /// <summary>
-/// <c>text.extract</c> (T25.2, D-143): takes one part of a text already filled by the runner (D-129): a JSON field, a
+/// <c>text.extract</c> (T25.2, D-144): takes one part of a text already filled by the runner (D-129): a JSON field, a
 /// pattern's first group, what stands between two texts, or one line. All of it is <see cref="TextExtract"/>, the same code the
 /// validator uses. A part that isn't there fails the step with a sentence, so the failure link is the "else". Reads nothing
 /// from the system, holds nothing (idle = zero). The text is never put in a sentence or summary: it may be a secret.

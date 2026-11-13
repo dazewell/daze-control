@@ -185,6 +185,8 @@ public sealed class TriggerDocument
 
     public string? Device { get; set; }
 
+    public string? Flow { get; set; }
+
     public string? IfMissed { get; set; }
 
     public string? Grace { get; set; }

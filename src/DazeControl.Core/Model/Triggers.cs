@@ -82,6 +82,12 @@ public sealed record EventTrigger(string Name) : Trigger
     /// on <c>audio.default-changed</c> only when the new default is this Library audio device (its key). Null = any device.
     /// </summary>
     public string? Device { get; init; }
+
+    /// <summary>
+    /// <c>flow:</c> (T26.3) on <c>flow.finished</c>/<c>flow.failed</c>: only when that flow (its id, trimmed like every flow
+    /// reference) ended. Null = any flow. Renamed with the flow (<see cref="FlowRefs.Rename"/>, D-075).
+    /// </summary>
+    public string? Flow { get; init; }
 }
 
 /// <summary>The kind of connection a network event is about (<c>via:</c>); each connection raises its own event.</summary>
@@ -103,6 +109,7 @@ public static class TriggerText
         "audio.default-changed", "display.changed",
         "network.connected", "network.disconnected",
         "display.off", "display.on", "session.away", "session.back",
+        "flow.finished", "flow.failed",
     ];
 
     /// <summary>
@@ -138,6 +145,19 @@ public static class TriggerText
 
     /// <summary><c>audio.default-changed</c>: the event whose <c>device</c> is a Library audio device.</summary>
     public static bool IsAudioEvent(string? name) => name == "audio.default-changed";
+
+    /// <summary><c>flow.finished</c> and <c>flow.failed</c> (T26.3): raised by a flow's own run ending, in this process.</summary>
+    public static bool IsFlowEvent(string? name) => name is "flow.finished" or "flow.failed";
+
+    /// <summary>A <c>flow:</c> filter as every flow reference reads it: trimmed, and empty means any flow.</summary>
+    public static string? FlowFilter(string? flow) => string.IsNullOrWhiteSpace(flow) ? null : flow.Trim();
+
+    /// <summary>Why <c>flow</c> can't stand on this event of <paramref name="ownFlowId"/>, or null; the reader, validator and runtime say the same.</summary>
+    public static string? FlowFilterProblem(string name, string? flow, string? ownFlowId = null) =>
+        FlowFilter(flow) is not { } id ? null
+        : !IsFlowEvent(name) ? "flow only goes with flow.finished or flow.failed."
+        : id == ownFlowId ? "A flow can't wait for itself to end."
+        : null;
 
     /// <summary>Why <c>device</c> can't stand on this event, or null.</summary>
     public static string? DeviceFilterProblem(string name, string? device) =>
@@ -189,6 +209,8 @@ public static class TriggerText
         "display.on" => "screens turned on",
         "session.away" => "you stepped away",
         "session.back" => "you came back",
+        "flow.finished" => "a flow finished",
+        "flow.failed" => "a flow failed",
         _ => name,
     };
 

@@ -3,7 +3,7 @@ using DazeControl.Core.Runs;
 
 namespace DazeControl.Runtime.Tests;
 
-/// <summary>T25.2 (D-143): a Get from text reading a value marked Sensitive during the run (a called flow's output) is Sensitive too.</summary>
+/// <summary>T25.2 (D-144): a Get from text reading a value marked Sensitive during the run (a called flow's output) is Sensitive too.</summary>
 public class TextExtractSensitiveTests
 {
     private static StepNode Extract(string text, string find = "a") =>

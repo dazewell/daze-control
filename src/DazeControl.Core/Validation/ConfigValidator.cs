@@ -252,7 +252,7 @@ public static partial class ConfigValidator
     }
 
     /// <summary>
-    /// Get from text (D-143): a written field path, pattern or line the step would always refuse is an error now. It runs the same
+    /// Get from text (D-144): a written field path, pattern or line the step would always refuse is an error now. It runs the same
     /// <see cref="TextExtract.Check"/> as the step, on the text as the step will see it (escapes undone). A setting holding a
     /// reference is unknown until the run, so then only the choice of what to take is known.
     /// </summary>
@@ -263,7 +263,7 @@ public static partial class ConfigValidator
             foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.ExtractId))
             {
                 string? Written(string name) => step.With.TryGetValue(name, out var p) && p is ScalarParam { Text: var t } ? t : null;
-                // A called flow's answer is cut at 1,000 characters before this step could read it (D-143): refuse it as the text.
+                // A called flow's answer is cut at 1,000 characters before this step could read it (D-144): refuse it as the text.
                 if (StepValues.Parse(Written("text")).Any(r => r.Source == ValueSource.Step && flow.FindNode(r.Name) is StepNode { } called && FlowOutputs.Waits(called)))
                     problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.with.text", "A called flow's answer is cut at 1,000 characters, so Get from text can't read it. Take the part inside that flow instead.", flow.Id));
                 var by = (Written("by") ?? "json").Trim();
@@ -672,6 +672,9 @@ public static partial class ConfigValidator
                     EventTrigger e when !TriggerText.IsEvent(e.Name) => $"\"{e.Name}\" isn't an event I know.",
                     EventTrigger e when TriggerText.NetworkFilterProblem(e.Name, e.Via, e.Ssid) is { } filter => filter,
                     EventTrigger e when TriggerText.DeviceFilterProblem(e.Name, e.Device) is { } deviceProblem => deviceProblem,
+                    EventTrigger e when TriggerText.FlowFilterProblem(e.Name, e.Flow, flow.Id) is { } flowProblem => flowProblem,
+                    EventTrigger e when TriggerText.FlowFilter(e.Flow) is { } id && calls(id) is null =>
+                        $"{id} isn't there anymore. Pick another flow.",
                     EventTrigger { Device: { } sound } e when TriggerText.IsAudioEvent(e.Name) && !library.Contains(LibraryKind.Audio, sound) =>
                         Library.Missing(LibraryKind.Audio, sound),
                     EventTrigger { Via: { } via } when !Enum.IsDefined(via) => "via is wifi or cable.",

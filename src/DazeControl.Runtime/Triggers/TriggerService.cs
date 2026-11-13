@@ -89,6 +89,11 @@ public sealed class TriggerService : IDisposable
                     _log($"trigger: {flow.Id}: {deviceProblem} skipped"); // the validator calls it ignored too
                     continue;
                 }
+                if (TriggerText.FlowFilterProblem(trigger.Name, trigger.Flow, flow.Id) is { } flowProblem)
+                {
+                    _log($"trigger: {flow.Id}: {flowProblem} skipped"); // the validator calls it ignored too
+                    continue;
+                }
                 if (!known.Contains(trigger.Name))
                 {
                     _log($"trigger: {flow.Id}: {trigger.Name} has no source in this build; skipped");
@@ -247,7 +252,13 @@ public sealed class TriggerService : IDisposable
             var chain = e.Chain ?? [];
             if (FlowCalls.Guard(chain, flowId, called.Name) is { } loop)
             {
+                if (TriggerText.IsFlowEvent(e.Name))
+                    loop = chain.Contains(flowId)
+                        ? $"Didn't run {called.Name}: it was started by the flows that just ended, so running it again would loop."
+                        : $"Flows kept starting each other more than {FlowCalls.MaxDepth} deep, so this one stopped.";
                 _log($"trigger: {flowId}: {e.Name} not started: {loop}");
+                if (TriggerText.IsFlowEvent(e.Name))
+                    _launcher.RecordNotStarted(flow, TriggerText.Describe(subscription.Trigger), loop); // a flow chain is invisible otherwise: say it in Runs
                 return;
             }
             // Admitted: reserve the cooldown now (atomically: a concurrent event for the same trigger loses), not before the
@@ -281,7 +292,10 @@ public sealed class TriggerService : IDisposable
         if (TriggerText.IsDeviceEvent(e.Name) && trigger.Device is { } part
             && e.Detail?.Contains(part, StringComparison.OrdinalIgnoreCase) != true)
             return false;
-        if (trigger.Via is { } via && !string.Equals(e.Kind, TriggerText.ViaText(via), StringComparison.Ordinal))
+        // A flow filter names the ended flow's id (Kind), read as every flow reference is: trimmed.
+        if (TriggerText.FlowFilter(trigger.Flow) is { } flowId && !string.Equals(flowId, e.Kind, StringComparison.Ordinal))
+            return false;
+        if (trigger.Via is { } via &&!string.Equals(e.Kind, TriggerText.ViaText(via), StringComparison.Ordinal))
             return false;
         return trigger.Ssid is not { } ssid
             || (string.Equals(e.Kind, TriggerText.ViaText(NetworkVia.WiFi), StringComparison.Ordinal) && string.Equals(ssid, e.Detail, StringComparison.OrdinalIgnoreCase));

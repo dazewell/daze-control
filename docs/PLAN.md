@@ -881,7 +881,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   source like the others; `{@event}` = the program; a picker of running programs. Files: `Triggers.cs`, `Engine/Triggers/AppSource.cs`,
   `TriggerService.cs`, `WhenThisRuns.cs`, `IDeviceQueries` (`devices programs`). Done when: Runtime tests with a fake source, footprint
   row, D-entry (amends D-107 "program start/stop: not planned": window-owning programs only).
-- [ ] T26.3 Flow events (Sonnet, S; parallel-safe with T26.2). `flow.finished` / `flow.failed`, optional `flow:`, `{@event}` = its name.
+- [x] T26.3 Flow events (Sonnet, S; parallel-safe with T26.2). `flow.finished` / `flow.failed`, optional `flow:`, `{@event}` = its name.
   Files: `Triggers.cs`, `Runtime/FlowLauncher.cs` (`RunCompleted`), `TriggerService.cs`. Done when: Runtime tests (the chain guard
   refuses a flow that would start itself; a nested call raises nothing); a "tell me when any flow fails" sample.
 - [ ] T26.4 A shortcut only in one program (Opus, M; after T26.2). Hotkey `in: <program>`: registered only while it is in front.

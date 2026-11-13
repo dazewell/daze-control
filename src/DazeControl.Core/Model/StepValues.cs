@@ -142,7 +142,7 @@ public static class StepValues
         if (step.Step == ProviderCatalog.ReachId && depth < MaxDepth
             && step.With.TryGetValue("address", out var addr) && addr is ScalarParam { Text: var addrText } && UsesSensitive(flow, addrText, flows, catalog, depth + 1))
             return [.. Of(descriptor).Select(v => v.Name == ErrorName ? v : v with { Sensitive = true })];
-        // Get from text gives parts of its text: Sensitive when the text (or what it looks for) uses a Sensitive value (D-143).
+        // Get from text gives parts of its text: Sensitive when the text (or what it looks for) uses a Sensitive value (D-144).
         if (step.Step == ProviderCatalog.ExtractId && depth < MaxDepth
             && TextExtract.Sources.Any(p => step.With.TryGetValue(p, out var src) && src is ScalarParam { Text: var srcText } && UsesSensitive(flow, srcText, flows, catalog, depth + 1)))
             return [.. Of(descriptor).Select(v => v.Name == ErrorName ? v : v with { Sensitive = true })];
@@ -754,7 +754,7 @@ public static class StepValues
     }
 
     /// <summary>
-    /// The values a Get from text's text reads (D-143): the runner keeps these up to 64 KB, not 1,000 characters. Only
+    /// The values a Get from text's text reads (D-144): the runner keeps these up to 64 KB, not 1,000 characters. Only
     /// the step's <c>text</c>; a value that is also used elsewhere is just as long there.
     /// </summary>
     public static IReadOnlySet<(string Step, string Value)> LongValues(Flow flow)

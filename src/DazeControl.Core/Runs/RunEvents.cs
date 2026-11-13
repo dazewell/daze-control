@@ -26,6 +26,12 @@ public sealed record RunFinished(Guid RunId, string FlowId, DateTimeOffset At, F
 {
     /// <summary>The user ended the run on purpose (a menu closed with nothing picked, D-054): no pop-up, no tray problem.</summary>
     public bool Quiet { get; init; }
+
+    /// <summary>In process only (not sent on the pipe): the flow's name when it ended, for <c>flow.finished</c> events (T26.3).</summary>
+    public string? FlowName { get; init; }
+
+    /// <summary>In process only: the flows that started this run (a start-mode call or a flow event), top first; empty = a person or the OS.</summary>
+    public IReadOnlyList<string> Chain { get; init; } = [];
 }
 
 /// <summary>One finished run as kept in the history (last 100, <c>history.jsonl</c>).</summary>

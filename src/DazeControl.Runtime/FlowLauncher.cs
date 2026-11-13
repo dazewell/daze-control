@@ -73,6 +73,17 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
         return task;
     }
 
+    /// <summary>
+    /// Writes "it didn't start" into the history as a quiet, stopped run with <paramref name="note"/> on its first step: for a
+    /// start a guard refused (a flow event that would loop, T26.3), so the person can see why nothing ran. No events, no pop-up.
+    /// </summary>
+    public void RecordNotStarted(Flow flow, string trigger, string note)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        var result = NotStarted(flow, note);
+        history?.Add(new RunRecord(result.RunId, flow.Id, flow.Name, trigger, result.Started, TimeSpan.Zero, result.Outcome, [.. result.Nodes]));
+    }
+
     public bool IsRunning(string flowId)
     {
         lock (_lock)
@@ -200,7 +211,7 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
             }
         }
         if (result is not null)
-            RaiseCompleted(new RunFinished(result.RunId, flow.Id, result.Started + result.Duration, result.Outcome) { Quiet = result.Quiet });
+            RaiseCompleted(new RunFinished(result.RunId, flow.Id, result.Started + result.Duration, result.Outcome) { Quiet = result.Quiet, FlowName = flow.Name, Chain = chain });
         published?.SetResult();
         if (failure is not null)
         {
@@ -215,7 +226,10 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
 
     /// <summary>A run that ended before its first step because a prompt got no answer: quiet, the note on the first step for history.</summary>
     private static RunResult NotStarted(Flow flow, string note) =>
-        new(FlowOutcome.Cancelled, new(flow.Nodes.Select((n, i) => new NodeResult(n.Id, NodeOutcome.Cancelled, Attempts: 0, Error: i == 0 ? note : null))))
+        new(FlowOutcome.Cancelled, new(flow.Nodes.Count == 0
+            // A flow with no steps (the validator allows it) has no first step to carry the note: a stand-in keeps it in Runs.
+            ? [new NodeResult("(not started)", NodeOutcome.Cancelled, Attempts: 0, Error: note)]
+            : flow.Nodes.Select((n, i) => new NodeResult(n.Id, NodeOutcome.Cancelled, Attempts: 0, Error: i == 0 ? note : null))))
         {
             RunId = Guid.NewGuid(),
             Started = DateTimeOffset.UtcNow,

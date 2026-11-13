@@ -36,7 +36,7 @@ public static class WhenThisRuns
     private static List<EventGroup> BuildGroups()
     {
         (string Title, string[] Prefixes)[] groups =
-            [("Session", ["session."]), ("Power", ["power."]), ("Devices", ["device."]), ("Sound and screens", ["audio.", "display."]), ("Network", ["network."])];
+            [("Session", ["session."]), ("Power", ["power."]), ("Devices", ["device."]), ("Sound and screens", ["audio.", "display."]), ("Network", ["network."]), ("Flows", ["flow."])];
         var rest = TriggerText.Events.ToList();
         var result = new List<EventGroup>();
         foreach (var (title, prefixes) in groups)
@@ -66,13 +66,16 @@ public static class WhenThisRuns
     // ---- Sentences ----
 
     /// <summary>"Weekdays at 22:30", "Every 2 hours from 09:00 to 18:00", "When the PC is unlocked".</summary>
-    public static string Sentence(Trigger trigger)
+    /// <param name="flowName">A flow's name by its id, for "When 'Headphones' finishes"; null or unknown shows the id.</param>
+    public static string Sentence(Trigger trigger, Func<string, string?>? flowName = null)
     {
         var text = trigger switch
         {
             AtTrigger at => $"{DaysText(at.Days)} at {TriggerText.FormatTime(at.Time)}",
             EveryTrigger every => Every(every),
             OnceTrigger once => OnceText(once.When),
+            EventTrigger e when TriggerText.IsFlowEvent(e.Name) && TriggerText.FlowFilter(e.Flow) is { } id =>
+                $"When '{flowName?.Invoke(id) ?? id}' {(e.Name == "flow.failed" ? "fails" : "finishes")}",
             EventTrigger e => TriggerText.IsNetworkEvent(e.Name) ? Network(e) : e.Device is { Length: > 0 } ? Device(e) : Event(e.Name),
             EngineStartTrigger => Event(EngineStartTrigger.Name),
             _ => "Starts by itself",
@@ -102,6 +105,8 @@ public static class WhenThisRuns
         "display.on" => "When the screens turn on",
         "session.away" => "When you step away",
         "session.back" => "When you come back",
+        "flow.finished" => "When a flow finishes",
+        "flow.failed" => "When a flow fails",
         _ => "When " + TriggerText.EventLabel(name), // a source added later reads passably until its sentence is written here
     };
 
@@ -138,6 +143,14 @@ public static class WhenThisRuns
         if (t is not EventTrigger e || !(TriggerText.IsDeviceEvent(e.Name) || TriggerText.IsAudioEvent(e.Name)))
             return t;
         return e with { Device = string.IsNullOrWhiteSpace(device) ? null : device.Trim() };
+    }
+
+    /// <summary>The flow a flow event waits for, by id (null or empty = any flow); other events keep the trigger as it is.</summary>
+    public static Trigger WithFlow(Trigger t, string? flowId)
+    {
+        if (t is not EventTrigger e || !TriggerText.IsFlowEvent(e.Name))
+            return t;
+        return e with { Flow = TriggerText.FlowFilter(flowId) };
     }
 
     /// <summary>A Wi-Fi name means Wi-Fi even without <c>via</c> (a hand-written <c>ssid:</c>).</summary>
@@ -217,7 +230,7 @@ public static class WhenThisRuns
     }
 
     /// <summary>The Flows list chip: "Schedule" (clock), "Event" (bolt), both, or nothing. Tooltip lists every sentence.</summary>
-    public static string ChipTip(IReadOnlyList<Trigger> triggers) => string.Join("; ", triggers.Select(Sentence));
+    public static string ChipTip(IReadOnlyList<Trigger> triggers) => string.Join("; ", triggers.Select(t => Sentence(t)));
 
     public static bool HasSchedule(IReadOnlyList<Trigger> triggers) => triggers.Any(t => t is ScheduleTrigger);
 
@@ -285,6 +298,7 @@ public static class WhenThisRuns
         name == EngineStartTrigger.Name ? new EngineStartTrigger { Only = t.Only }
         : t is EventTrigger e && TriggerText.IsNetworkEvent(e.Name) && TriggerText.IsNetworkEvent(name) ? e with { Name = name }
         : t is EventTrigger d && TriggerText.IsDeviceEvent(d.Name) && TriggerText.IsDeviceEvent(name) ? d with { Name = name }
+        : t is EventTrigger f && TriggerText.IsFlowEvent(f.Name) && TriggerText.IsFlowEvent(name) ? f with { Name = name }
         : t is EventTrigger or EngineStartTrigger ? new EventTrigger(name) { Only = t.Only }
         : t;
 

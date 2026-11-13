@@ -497,7 +497,7 @@ public static class ProviderCatalog
             Keywords = "compose join combine value string",
             Values = [new ValueSpec(StepValues.MakeTextParam, ValueKind.Text, "Text") { Help = "The text it made" }],
         },
-        // T25.2 (D-143): takes one part of a text (a web answer, a file's text); fails with a sentence when it isn't there.
+        // T25.2 (D-144): takes one part of a text (a web answer, a file's text); fails with a sentence when it isn't there.
         new(ExtractId, "Get from text", TextGlyph, Short,
         [
             new("text", ParamKind.MultilineText, "Text")
