@@ -11,7 +11,7 @@ namespace DazeControl.Editor.ViewModels.Inspector;
 /// <param name="Display">As the text box shows it: <c>{Connect Technics: Device}</c>.</param>
 public sealed record ValueChoice(string Title, string Help, string Stored, string Display)
 {
-    /// <summary>What the value is (a number setting doesn't offer devices); null for inputs and run values, which are text.</summary>
+    /// <summary>What the value is (a number setting doesn't offer devices); null for run values, which are text.</summary>
     public ValueKind? Kind { get; init; }
 
     /// <summary>Narrator reads "Device, The Library name of the device it connected".</summary>
@@ -152,7 +152,7 @@ public static class ValueText
             if (rows.Count > 0)
                 groups.Add(new(label, FromSteps, rows));
         }
-        var inputs = flow.Inputs.Select(i => new ValueChoice(names.InputLabelOf(i.Key), "", $"{{${i.Key}}}", $"{{{InputLabel}: {names.InputLabelOf(i.Key)}}}")).ToList();
+        var inputs = flow.Inputs.Select(i => new ValueChoice(names.InputLabelOf(i.Key), "", $"{{${i.Key}}}", $"{{{InputLabel}: {names.InputLabelOf(i.Key)}}}") { Kind = i.Value.Kind is null ? ValueKind.Text : ValueKind.Device }).ToList();
         if (inputs.Count > 0)
             groups.Add(new(FromInputs, FromInputs, inputs));
         groups.Add(new(FromRun, FromRun, [.. StepValues.RunNames.Select(n =>

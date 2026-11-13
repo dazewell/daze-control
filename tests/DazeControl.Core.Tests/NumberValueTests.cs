@@ -85,6 +85,7 @@ public class NumberValueTests
 
     [Theory]
     [InlineData("{batt.percent|abc}", "isn't a whole number")]
+    [InlineData("{batt.percent|42.5}", "isn't a whole number")]
     [InlineData("{batt.percent|101}", "Use 0 to 100.")]
     public void AWrittenFallbackIsRangeChecked(string text, string expected)
     {
@@ -92,6 +93,9 @@ public class NumberValueTests
         Assert.Equal(Severity.Error, p.Severity);
         Assert.Contains(expected, p.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void AnIntegralWrittenFallbackIsAcceptedLikeTheStepReadsIt() => Assert.Empty(Problems(Volume("{batt.percent|42.0}")));
 
     [Fact]
     public void AnUnknownValueNameIsAnError()

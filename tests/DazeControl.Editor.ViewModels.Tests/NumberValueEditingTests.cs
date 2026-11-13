@@ -95,6 +95,27 @@ public sealed class NumberValueEditingTests
     }
 
     [Fact]
+    public void ADeviceInputIsNotOfferedButATextInputIs()
+    {
+        var flow = Flow with
+        {
+            Inputs = new(new Dictionary<string, FlowInput>
+            {
+                ["out"] = new(LibraryKind.Audio, "Output", "x"),
+                ["note"] = new(null, "Note", "5"),
+            }),
+        };
+        var spec = ProviderCatalog.Find("audio.setVolume")!.Params.First(p => p.Name == "percent");
+        var field = new ParamFieldViewModel(spec, (_, _) => { }, _ => true);
+        field.SetValueContext(flow, "vol");
+        field.Load(new ScalarParam("40"), null);
+
+        var titles = field.ValueGroups.SelectMany(g => g.Rows).Select(r => r.Stored).ToList();
+        Assert.Contains("{$note}", titles);
+        Assert.DoesNotContain("{$out}", titles);
+    }
+
+    [Fact]
     public void WithSeveralStepsSelectedTheBoxStaysAndNoButtonShows()
     {
         var field = Field(new ScalarParam("{ps.exitCode}"), [], context: false);

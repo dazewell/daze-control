@@ -193,7 +193,8 @@ public static class StepValues
         ArgumentNullException.ThrowIfNull(spec);
         ArgumentNullException.ThrowIfNull(text);
         var trimmed = text.Trim();
-        if (!int.TryParse(trimmed, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var n))
+        // The same reading the step applies to a filled value (StepParams.WholeNumber): "42.0" counts.
+        if (!TryNumber(trimmed, out var n) || n != Math.Floor(n))
             return $"\"{trimmed}\" isn't a whole number.";
         return n < spec.Min || n > spec.Max ? $"Use {spec.Min} to {spec.Max}." : null;
     }
