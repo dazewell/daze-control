@@ -240,7 +240,7 @@ public static partial class ConfigValidator
                     foreach (var side in StepValues.CheckedSides)
                     {
                         var text = Written(side)!;
-                        if (!text.Contains('{', StringComparison.Ordinal) && !StepValues.TryNumber(text, out _))
+                        if (StepValues.Parse(text).Count == 0 && !StepValues.TryNumber(text, out _))
                             problems.Add(new(Severity.Error, $"{path}.{side}", $"\"{text}\" isn't a number. At least and below compare numbers, like 3 or 2.5.", flow.Id));
                     }
                 }

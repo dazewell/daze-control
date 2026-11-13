@@ -33,6 +33,8 @@ public class ValueCheckValidationTests
     [InlineData("value: '3', is: below, to: three", "with.to")]
     [InlineData("value: NaN, is: atLeast, to: '3'", "with.value")]
     [InlineData("is: atLeast, to: '3'", "with.value")]
+    [InlineData("value: 'abc{', is: atLeast, to: '3'", "with.value")] // a stray brace is not a reference
+    [InlineData("value: '5', is: below, to: '{{3}'", "with.to")]
     public void ComparisonsItAlwaysRefusesAreErrors(string with, string setting)
     {
         var problem = Assert.Single(Validate(with), p => p.Severity == Severity.Error);
