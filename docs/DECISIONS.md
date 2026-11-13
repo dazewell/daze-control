@@ -1893,6 +1893,27 @@ Status: accepted, built (engine, YAML, validator, `dctl`); the editor's list is 
 - Why fail-open: the PLAN row and D-081; a wrong hold silently skips a morning routine, a needless start repeats an idempotent flow. Why no history row: a Wi-Fi blip with a guard would fill Runs (100 held-back events add none, tested). Why not evaluate in the launcher's slot: a held-back start would hold the slot and look like a run to `whenRunning` and `flow.finished`. Why not keep reading the checks to start later ("wait until"): idle = zero (D-009); a check's own retries are the bounded wait.
 - Not verified live: a real schedule or Wi-Fi event held back in the running engine.
 
+## D-148 · 2026-11-13 · A step turned off (`enabled: false`) ends Succeeded at once in the scheduler; "n of m" leaves it out (T25.4)
+Status: accepted (amends D-127's count)
+- Decision: `StepNode.Enabled` (YAML `enabled: false`, written only when off, so existing flows save byte-identical; a card
+  can't be off, its members can). The scheduler never hands an off step to the runner: when it would start, it ends
+  **Succeeded** with 0 attempts, so success and always links fire, failure links never do (its fallback ends Not needed),
+  and a card waits for its other members (all off = done at once). An off step after a failure is Skipped like any other.
+  It gives no values: a use without `|fallback` warns "… is turned off, so X is empty", a device setting warns that the
+  step fails; a step after a turned-off Stop flow isn't warned about. `NodeResult.TurnedOff` (null unless true) makes
+  Runs, the dry run and the canvas overlay say "Turned off" (grey, no bar). `RunProgress` counts only steps that are on;
+  the flow card's "17 steps" still counts every step. Editor: pill at 60 % with disabled text and a "Turned off" badge,
+  "Turned off" in its name and Outline line; menu "Turn off" / "Turn on" and Ctrl+/ on the selection (cards = their
+  members; all off → on, else off), the inspector's "Run this step" switch; one undo step each; Copy and Duplicate keep it.
+- Why: "does nothing, counts as done" is exactly a success with no side effect, so D-112 joins, cards, fallbacks and the
+  run's outcome need no new case; a new `NodeOutcome` would touch every reader of history and the pipe. Doing it in the
+  scheduler (not as a runner short-cut like Only if, D-081) keeps it out of locks, timeouts and NodeStarted, and makes
+  the semantics testable without threads.
+- Why not "Skipped" (HA style): a skip propagates and makes the run partial; the user turned it off on purpose. Why not
+  count it in m and finish it at once: the bar would jump at the start for work that never happens. Why not
+  Ctrl+Shift+D / a plain key: Ctrl+D is Duplicate and "/" is Add a step; Ctrl+/ is "comment out" in code editors.
+- Revisit if: cards need turning off as one (today: select the card, its members turn off).
+
 ## D-147 · 2026-11-13 · File events: `file.created` / `file.changed` / `file.deleted`, one watch per folder, no timer while idle (T26.5)
 Status: accepted, built (extends D-107, D-135; pattern of D-136 / D-143; amends the G-07 sketch)
 - Decision: `on: file.*` with `path:` (the folder, required) and `filter:` (a file name pattern). `path` is read through one `TriggerText.ResolveFolder` (reader, validator, runtime): `%VARS%` expanded, a full path only, any `..` segment, device paths and an unset `%NAME%` refused, trailing separator dropped. `filter` is `*` / `?`, any case, at most 128 characters, file name only, matched by one linear scan with a single backtrack point (never a regex: no ReDoS). Direct children only, no subfolders. `{@event}` = the file's full path capped at 1000 characters; a name is data in `{@event}`, never shell text, not Sensitive.
@@ -1939,3 +1960,21 @@ Status: accepted, built (extends D-129, D-137; DESIGN's old "whole value in a nu
 - Editor: a "Use a value" button beside the number box opens the Insert value list (no devices); the pill takes the box's place ("Uses a value" label, same row height) with the pill row below; removing it brings the box back. One write each, one Undo. Off with several steps selected.
 - Why: G-71 (PAD variables everywhere); battery or a web status into a volume. Why not a per-setting opt-in flag: it would touch the catalog (parallel work) and every number setting has a range the runner checks anyway. Why not clamp a value into range: a wrong value silently changing the volume is worse than a sentence. Why not Duration: not asked; a duration is edited in seconds.
 - Not verified live: the XAML (button, label, pill in light/dark/high contrast, Narrator), a real run that sets the volume from a value.
+
+## D-149 · 2026-11-13 · "Run from this step": the saved flow from one unit, the rest counts as done without running (T27.4)
+Status: accepted, built
+- Decision: `run` takes `node` (editor step menu "Run from this step"; dry runs too). The scheduler starts that unit (a card member
+  starts its card) whatever its incoming edges say; units reachable from it run as in a whole run; every other unit (earlier
+  steps and other branches) is Succeeded without running (`Scheduler.NotRun`), so its edges fire as a success: a failure link
+  from it never fires (its fallback is "not needed"). Not-run steps report at once with Attempts 0 and `SkippedBecause` "this
+  run started at <step>" (the "Only if" look, D-081). Their values are missing: text falls back as usual; a device value fails
+  the step "\"Pick device\" didn't run: this run started after it." (D-117: a device never falls back). A real run through the
+  launcher: history, pop-up, events, Stop, `whenRunning` as Run; the trigger reads "Editor (from <step>)". The saved version
+  runs (D-047); a step only in the draft is refused "Save the flow, then try again".
+  A `run` with `node` is stamped protocol 4 (`WithStartStep`): an older engine refuses it instead of running the whole flow.
+- Why: long flows whose first half works (G-83, PAD "Run from here"). Scheduler-level, because rewriting the flow can't keep
+  the skip and D-112 alternative rules exact for a failure link from a step that didn't run.
+- Why not asking for a device value once (PLAN's first wording): a second prompt path for one editor command; the failed step
+  names the step to start from instead. Why not running the on-screen draft (as Test this step): Run runs the saved flow,
+  and a live run locks the canvas to it.
+- Not verified live: the menu item in the running editor, a real partial run on this PC.

@@ -866,7 +866,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   the step runs. Files: `Core/Model/StepValues.cs`, `Core/Validation/ConfigValidator.cs`, `Providers/StepParams.cs`, the inspector's
   number control. Done when: Core tests (step-values/DESIGN "A whole value in a number setting"), Providers test (out of range fails
   with a sentence), view-model test; that DESIGN line is cut.
-- [ ] T25.4 Turn a step off (Opus, M). `enabled: false` on a step: does nothing, counts as done, dimmed on the canvas, left out of
+- [ ] T25.4 Turn a step off (Opus, M; built in #262, D-148; open: the light/dark/high-contrast screenshots). `enabled: false` on a step: does nothing, counts as done, dimmed on the canvas, left out of
   "n of m" (amends D-127: D-entry). Files: `Core/Model/Node.cs`, `Core/Yaml`, `Runtime/Scheduling/Scheduler.cs`, `Core/Runs`, canvas
   pill + inspector + context menu. Done when: Scheduler tests (followers run; a card with one member off; a failure link from an
   off step never fires), validator warns where its values are used, one Undo step, screenshots light/dark/high contrast.
@@ -912,7 +912,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   `Core/Backup` (`RestoreCompare`, `SecretScan`). Done when: round-trip, id-clash, missing-Library-item and tampered-file tests.
 - [ ] T27.3 Notes (Sonnet, S; parallel-safe). `note:` on flows and steps, inspector box, pill tooltip, list search. Done when: round-trip
   tests, samples byte-identical, view-model test.
-- [ ] T27.4 Run from this step (Opus, M). Editor command; earlier steps count as done, their values are missing (fallbacks; a device
+- [x] T27.4 Run from this step (Opus, M). D-149, branch feat/m27-run-from-step. Editor command; earlier steps count as done, their values are missing (fallbacks; a device
   value asks once). Files: `EngineController` (as `test-step`), `FlowRunner`, canvas menu. Done when: Runtime tests (parallel
   branches before the start point, a failure link whose source was not run).
 - [ ] T27.5 Mistyped settings become warnings (Sonnet, S-M; parallel-safe). Unknown YAML keys → Problems, with the nearest known name.

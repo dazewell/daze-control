@@ -52,6 +52,10 @@ public sealed record StepNode(string Id, string Step) : Node(Id)
     /// <summary>"Only if" (D-081): a <see cref="OnlyAlways"/> or a <c>ConditionSpec.Id</c> of the step type. Null = absent = always.</summary>
     public string? Only { get; init; }
 
+    /// <summary>False = turned off (<c>enabled: false</c>, T25.4): the step does nothing and counts as done; its success
+    /// and "always" links fire, its failure links never do, and it gives no values.</summary>
+    public bool Enabled { get; init; } = true;
+
     /// <summary>The explicit "run it every time" (kept in YAML so a later type default can't override it, B8).</summary>
     public const string OnlyAlways = "always";
 }

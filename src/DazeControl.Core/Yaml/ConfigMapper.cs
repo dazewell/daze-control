@@ -125,6 +125,7 @@ public static class ConfigMapper
                 document.Timeout = Duration.Format(step.Timeout);
                 document.Retry = RetryToDocument(step.RetryCount, step.RetryDelay);
                 document.Only = step.Only;
+                document.Enabled = step.Enabled ? null : "false";
                 break;
             case GroupNode group:
                 document.Group = [.. group.Members];
@@ -474,8 +475,9 @@ public static class ConfigMapper
             }
             if (document.Group is { } members)
             {
-                if (document.With is not null || document.Timeout is not null || document.Retry is not null || document.Only is not null)
-                    Error(path, "A card has no with, timeout, retry or only; set them on its members.");
+                if (document.With is not null || document.Timeout is not null || document.Retry is not null || document.Only is not null
+                    || document.Enabled is not null)
+                    Error(path, "A card has no with, timeout, retry, only or enabled; set them on its members.");
                 return new GroupNode(document.Id, new(members)) { Name = document.Name, After = new(after), OnFailure = onFailure };
             }
             if (string.IsNullOrWhiteSpace(document.Step))
@@ -493,6 +495,7 @@ public static class ConfigMapper
                 RetryCount = Int(document.Retry?.Count, path + ".retry.count"),
                 RetryDelay = DurationOrNull(document.Retry?.Delay, path + ".retry.delay"),
                 Only = string.IsNullOrWhiteSpace(document.Only) ? null : document.Only.Trim(),
+                Enabled = Bool(document.Enabled, path + ".enabled", true),
             };
         }
 

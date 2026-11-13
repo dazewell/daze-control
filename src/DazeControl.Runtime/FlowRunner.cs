@@ -84,15 +84,16 @@ public sealed class FlowRunner
     /// <param name="trigger">What started the run ("Schedule · 22:30"): prompts there default to stopping (D-107).</param>
     /// <param name="inputs">Values from outside (the command line, T24.9), checked by the caller; null = the defaults.</param>
     /// <param name="eventDetail">The device, Wi-Fi or cable name an event trigger brought (<c>{@event}</c>, T24.6); empty otherwise.</param>
+    /// <param name="startAt">"Run from this step" (T27.4, D-149): the step to start at, checked by the caller; null = the whole flow.</param>
     public Task<RunResult> RunAsync(Flow flow, Library library, IReadOnlyList<string> chain, CancellationToken cancellationToken, string trigger = "",
-        IReadOnlyDictionary<string, string>? inputs = null, string eventDetail = "")
+        IReadOnlyDictionary<string, string>? inputs = null, string eventDetail = "", string? startAt = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(chain);
         // Text given from outside may be a secret (D-014): masked in errors, summaries and history like a Sensitive value.
         HashSet<string>? external = inputs is null ? null
             : [.. inputs.Where(e => e.Value.Length > 0 && flow.Inputs.TryGetValue(e.Key, out var i) && i.IsText).Select(e => e.Key)];
-        return RunCoreAsync(flow, library, inputs ?? NoInputs, [.. chain, flow.Id], null, null, cancellationToken, trigger, external, eventDetail);
+        return RunCoreAsync(flow, library, inputs ?? NoInputs, [.. chain, flow.Id], null, null, cancellationToken, trigger, external, eventDetail, startAt);
     }
 
     /// <summary>
@@ -122,15 +123,15 @@ public sealed class FlowRunner
 
     /// <param name="sensitiveInputs">Text inputs the caller filled from a Sensitive value (T23.7): hidden in errors and summaries.</param>
     private async Task<RunResult> RunCoreAsync(Flow flow, Library library, IReadOnlyDictionary<string, string> inputs, string[] chain,
-        Guid? parentRunId, string? parentNodeId, CancellationToken cancellationToken, string trigger = "", HashSet<string>? sensitiveInputs = null, string eventDetail = "")
+        Guid? parentRunId, string? parentNodeId, CancellationToken cancellationToken, string trigger = "", HashSet<string>? sensitiveInputs = null, string eventDetail = "", string? startAt = null)
     {
         // Inputs resolve before anything runs (D-064): steps, their locks and nested calls only ever see Library keys.
         flow = FlowInputs.Apply(flow, inputs);
-        var scheduler = new Scheduler(flow);
+        var scheduler = new Scheduler(flow, startAt);
         var runId = Guid.NewGuid();
         var started = _time.GetUtcNow();
         var startedTicks = _time.GetTimestamp();
-        var scope = new RunScope(runId, chain, parentRunId, parentNodeId, trigger);
+        var scope = new RunScope(runId, chain, parentRunId, parentNodeId, trigger) { NotRun = scheduler.NotRun };
         Raise(new RunStarted(runId, flow.Id, started, flow.Nodes.Count) { Flow = flow, ParentRunId = parentRunId, ParentNodeId = parentNodeId });
         var reported = new HashSet<string>();
         using var stepsCancel = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -161,10 +162,16 @@ public sealed class FlowRunner
             }
         }
 
+        // Shown on every step a partial run didn't run (T27.4): counted as done, like an unmet "Only if" (D-081).
+        var startWords = startAt is null ? null : $"this run started at {NameOfNode(flow, startAt)}";
         NodeResult ResultOf(string id) => results.TryGetValue(id, out var r)
             ? new NodeResult(id, scheduler.Outcomes[id], r.Attempts, r.Error, r.Duration, r.Start, order[id],
                 r.Retries.Count > 0 ? [.. r.Retries] : null) { Called = r.Called, Summary = r.Summary, SkippedBecause = r.SkippedBecause, Values = r.Values, Used = r.Used, NotMet = r.NotMet }
-            : new NodeResult(id, scheduler.Outcomes[id], Attempts: 0);
+            : scheduler.NotRun.Contains(id) ? new NodeResult(id, scheduler.Outcomes[id], Attempts: 0) { SkippedBecause = startWords }
+            : new NodeResult(id, scheduler.Outcomes[id], Attempts: 0)
+            {
+                TurnedOff = scheduler.IsOff(id) && scheduler.Outcomes[id] == NodeOutcome.Succeeded ? true : null,
+            };
 
         void ReportFinished()
         {
@@ -173,6 +180,7 @@ public sealed class FlowRunner
         }
 
         Launch(scheduler.Start());
+        ReportFinished(); // a partial run's steps before the start count as done at once (T27.4)
         while (running.Count > 0)
         {
             var done = await Task.WhenAny(running.Keys).ConfigureAwait(false);
@@ -222,6 +230,13 @@ public sealed class FlowRunner
         return result;
     }
 
+    private string NameOfNode(Flow flow, string id) => flow.FindNode(id) switch
+    {
+        StepNode step => StepValues.NameOf(step, _catalog.FirstOrDefault(d => d.Id == step.Step)),
+        GroupNode card => card.Name is { Length: > 0 } name ? name : card.Id,
+        _ => id,
+    };
+
     private void Raise(RunEvent e)
     {
         try
@@ -250,7 +265,11 @@ public sealed class FlowRunner
     private readonly record struct AttemptResult(string? Error, bool EndsFlow = false, string? SkippedBecause = null, bool Stop = false, bool NotMet = false);
 
     /// <param name="Chain">Flow ids from the top run down to this run's flow.</param>
-    private sealed record RunScope(Guid RunId, string[] Chain, Guid? ParentRunId, string? ParentNodeId, string Trigger = "");
+    private sealed record RunScope(Guid RunId, string[] Chain, Guid? ParentRunId, string? ParentNodeId, string Trigger = "")
+    {
+        /// <summary>Steps a partial run counts as done without running them (T27.4): their values are missing.</summary>
+        public IReadOnlySet<string> NotRun { get; init; } = new HashSet<string>();
+    }
 
     /// <summary>One try of a call that waits.</summary>
     private readonly record struct CallTry(string? Error, CalledRun? Called, bool Quiet);
@@ -281,7 +300,7 @@ public sealed class FlowRunner
         // Values go in now (D-117, D-129): the lock, the provider and a called flow see plain text and Library keys.
         node = DryRun ? Describe(flow, node, values, out unpicked) : StepValues.Fill(flow, node, values, library, out unpicked, _catalog.FirstOrDefault(d => d.Id == node.Step));
         if (unpicked is not null) // a device setting never falls back (D-117, D-130): the step fails
-            return new(StepResult.Failed, 1, NotGiven(flow, unpicked), TimeSpan.Zero, offset, retries);
+            return new(StepResult.Failed, 1, NotGiven(flow, unpicked, scope.NotRun), TimeSpan.Zero, offset, retries);
         var descriptor = _catalog.FirstOrDefault(d => d.Id == node.Step);
         var waits = Flows is not null && node.Step == ProviderCatalog.RunFlowId && !IsOff(node, "wait");
         IStepProvider? provider = null;
@@ -422,11 +441,13 @@ public sealed class FlowRunner
     /// Why a device setting got no key: "Nothing was picked in "Pick device"." for a Pick's result (D-117), else
     /// ""Set default device" gave no Previous default." (D-130). <paramref name="written"/> is the reference after <c>$result:</c>.
     /// </summary>
-    private string NotGiven(Flow flow, string written)
+    private string NotGiven(Flow flow, string written, IReadOnlySet<string> notRun)
     {
         var (id, value) = PickResults.RefIn(PickResults.Prefix + written) ?? (written, StepValues.DeviceName);
         if (flow.FindNode(id) is not StepNode producer)
             return $"Nothing was picked in \"{id}\".";
+        if (notRun.Contains(id)) // a partial run (T27.4): the step that gives the device came before the start
+            return $"\"{StepValues.NameOf(producer, _catalog.FirstOrDefault(d => d.Id == producer.Step))}\" didn't run: this run started after it.";
         if (PickResults.IsPick(producer) && value == StepValues.DeviceName)
             return $"Nothing was picked in \"{PickResults.NameOf(producer)}\".";
         var descriptor = _catalog.FirstOrDefault(d => d.Id == producer.Step);

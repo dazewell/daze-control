@@ -110,6 +110,9 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   and selected alone (Ctrl adds); the marquee takes edges with both ends inside and shows its selection while dragging; Del removes a selected edge. Ctrl+C/V/D copy nodes + inner edges + library
   refs, paste into a new column to the right. Del; deleting B in A→B→C reconnects A→C; deleting a card
   deletes its members. Del on 10 or more selected items asks "Delete n items?" first (Ctrl+Z undoes either way); the Many-mode inspector says what applies to the whole selection (Del, Ctrl+G, Ctrl+C, Ctrl+Z). Undo/redo Ctrl+Z/Y, one entry per gesture, within the draft (Save or Cancel clears it).
+- Turn off (D-148): the step menu's "Turn off" / "Turn on" and Ctrl+/ act on the selection (a card = its members; all
+  off → on, else off), one undo entry, nothing moves. An off pill is drawn at 60 % with disabled text and a
+  "Turned off" badge; its name and Outline line say "Turned off". The inspector's "Run this step" switch does the same.
 - Navigate: the mouse wheel and Ctrl+wheel zoom 10–200 % (×1.1 a notch, D-126) with the point under the pointer staying
   put; Shift+wheel and a tilt wheel pan sideways; a touchpad's two-finger scroll pans and pinch zooms at the pointer;
   touch pans and pinches with a short glide (D-074, D-119 e). Space+drag /
@@ -277,7 +280,9 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
 ## 5.5 Runs
 - Live: canvas overlays states; CommandBar "Running · 2 of 4" + Stop; finished pill summary becomes its
   duration; editing locked with an InfoBar. Dry run numbers nodes in start order, missing refs show failed,
-  InfoBar summary.
+  InfoBar summary. Step menu **Run from this step** (one step or card selected; off while a run is out): a live run of
+  the saved flow from there, history trigger "Editor (from <step>)"; steps it didn't run show dimmed "Skipped: this run
+  started at <step>"; a step not in the saved version → InfoBar "Save the flow, then try again" (D-149).
 - Runs page: ListView grouped by day (glyph, name, trigger "Alt+Z"/"Tray"/"Command line", time, result chip,
   duration). Detail: result sentence + **timeline** — time axis, one row per lane (greedy interval packing so
   parallel steps get separate lanes), bars 20 DIP radius 4 by state, may-fail-failed dashed caution, a card is a
@@ -289,6 +294,7 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   the called flow's lanes show below under a bracket with its name (one level), and "Open in editor" with one of them
   selected opens that flow showing its part of the run. Live: the call's pill says the called flow's current step
   ("Connect…", #59), and a flow running inside another shows its states with InfoBar #64.
+- A step turned off (D-148) is listed "Turned off" (grey, no bar) in Runs, the dry run and the live overlay.
 - Values (T25.5, D-145): picking a bar also shows a **Values** heading (level 3) under the step's lines, with one
   selectable line per value it gave ("Wi-Fi network: Home") and per setting whose text changed when values went in
   ("Message used: On Home at Evening"). A Sensitive one reads "hidden". Texts are cut at 256 characters. The block is

@@ -257,7 +257,7 @@ public static partial class ConfigValidator
     {
         foreach (var flow in flows)
         {
-            var stopSteps = flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.StopFlowId).ToList();
+            var stopSteps = flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.StopFlowId && s.Enabled).ToList(); // one turned off ends nothing (D-148)
             if (stopSteps.Count == 0)
                 continue;
             // A stop in a parallel card: links leave from the card, and the card never finishes (members have no edges, D-003).

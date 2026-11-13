@@ -144,7 +144,8 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         return await guard.HeldBackAsync(StepDefaults.Apply(flow, state.Defaults), state.Library, trigger, cancellationToken).ConfigureAwait(false);
     }
 
-    private Task<RunResult?> TriggerAsync(FlowState? state, string flowId, string trigger, IReadOnlyDictionary<string, string>? inputs = null)
+    private Task<RunResult?> TriggerAsync(FlowState? state, string flowId, string trigger, IReadOnlyDictionary<string, string>? inputs = null,
+        string? startAt = null)
     {
         if (state?.Running is not { Enabled: true } flow)
         {
@@ -155,8 +156,8 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         var ready = StepDefaults.Apply(flow, state.Defaults);
         // Device inputs resolve here (an answered ask is never asked again, D-107); text inputs travel beside the flow.
         var run = inputs is null
-            ? launcher.TriggerAsync(ready, state.Library, trigger)
-            : launcher.TriggerAsync(FlowInputs.Apply(ready, inputs, keepAsked: true), state.Library, trigger, null, inputs);
+            ? launcher.TriggerAsync(ready, state.Library, trigger, startAt: startAt)
+            : launcher.TriggerAsync(FlowInputs.Apply(ready, inputs, keepAsked: true), state.Library, trigger, null, inputs, startAt: startAt);
         _ = run.ContinueWith(t =>
         {
             if (t.IsFaulted)
@@ -389,6 +390,14 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         if (!flow.Enabled)
             return Refuse(request, state.FlowId, NameOf(state), $"{NameOf(state)} is turned off.");
         var trigger = request.Trigger ?? "Command line";
+        // "Run from this step" (T27.4, D-149): a step of the version that runs (the saved one, D-047), named in the history.
+        var startAt = string.IsNullOrEmpty(request.Node) ? null : request.Node;
+        if (startAt is not null)
+        {
+            if (flow.FindNode(startAt) is null)
+                return PipeMessage.Fail(id, $"That step isn't in the saved {flow.Name}. Save the flow, then try again.");
+            trigger += $" (from {StartName(flow, startAt)})";
+        }
         // Inputs given from outside (T24.9): checked before anything starts, like a call's (the values are data, never logged).
         var inputs = request.Inputs is { Count: > 0 } given ? new Dictionary<string, string>(given, StringComparer.Ordinal) : null;
         if (inputs is not null && FlowInputs.CheckGiven(flow, state.Library, inputs) is { } bad)
@@ -396,7 +405,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
 
         if (request.DryRun)
         {
-            var dry = await dryRunner.RunAsync(WithoutRetries(StepDefaults.Apply(flow, state.Defaults)), state.Library, [], cancellationToken, "", inputs).ConfigureAwait(false);
+            var dry = await dryRunner.RunAsync(WithoutRetries(StepDefaults.Apply(flow, state.Defaults)), state.Library, [], cancellationToken, "", inputs, startAt: startAt).ConfigureAwait(false);
             return new PipeMessage { Id = id, Ok = true, Run = Record(dry, flow.Id, flow.Name, trigger + " (dry run)") };
         }
 
@@ -413,7 +422,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             if (inputs is not null && FlowInputs.CheckGiven(flow, state.Library, inputs) is { } changed)
                 return PipeMessage.BadUsage(id, changed);
         }
-        var run = TriggerAsync(state, state.FlowId, trigger, inputs);
+        var run = TriggerAsync(state, state.FlowId, trigger, inputs, startAt);
         if (!request.Wait)
         {
             // Ignored triggers resolve at once; anything else has started.
@@ -452,9 +461,24 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             .FirstOrDefault(p => !IsStepValue(p.Path));
         if (blocking is not null)
             return PipeMessage.Fail(request.Id, $"Fix this first: {blocking.Message}");
-        var dry = await dryRunner.RunAsync(WithoutRetries(StepDefaults.Apply(flow, load.Config.Settings.StepDefaults)), load.Config.Library, cancellationToken).ConfigureAwait(false);
+        var startAt = string.IsNullOrEmpty(request.Node) ? null : request.Node;
+        if (startAt is not null)
+        {
+            if (flow.FindNode(startAt) is null)
+                return PipeMessage.Fail(request.Id, "That step isn't in the flow.");
+            trigger += $" (from {StartName(flow, startAt)})";
+        }
+        var dry = await dryRunner.RunAsync(WithoutRetries(StepDefaults.Apply(flow, load.Config.Settings.StepDefaults)), load.Config.Library, [],
+            cancellationToken, "", startAt: startAt).ConfigureAwait(false);
         return new PipeMessage { Id = request.Id, Ok = true, Run = Record(dry, flow.Id, flow.Name, trigger + " (dry run)") };
     }
+
+    private static string StartName(Flow flow, string nodeId) => flow.FindNode(nodeId) switch
+    {
+        StepNode step => StepValues.NameOf(step),
+        { Name: { Length: > 0 } name } => name,
+        _ => nodeId,
+    };
 
     /// <summary>The pipe's answer; for a desktop shortcut also the pop-up's words (D-049).</summary>
     private PipeMessage Refuse(PipeRequest request, string flowId, string title, string message, PipeMessage? answer = null)

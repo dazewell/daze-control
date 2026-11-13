@@ -53,13 +53,13 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
     /// <summary>A live run of this flow is on the canvas.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRun), nameof(CanStop))]
-    [NotifyCanExecuteChangedFor(nameof(RunCommand), nameof(DryRunCommand), nameof(StopCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RunCommand), nameof(DryRunCommand), nameof(StopCommand), nameof(RunFromCommand))]
     public partial bool IsRunning { get; private set; }
 
     /// <summary>A dry run request is out.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRun))]
-    [NotifyCanExecuteChangedFor(nameof(RunCommand), nameof(DryRunCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RunCommand), nameof(DryRunCommand), nameof(RunFromCommand))]
     public partial bool IsBusy { get; private set; }
 
     public bool EngineRunning => _engine.IsRunning;
@@ -95,6 +95,26 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
         {
             var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.Run, Flow = _canvas.FlowId, Trigger = "Editor" });
             // The run itself arrives as events; only a refusal needs saying here.
+            if (answer is not { Ok: true })
+                Info(RunInfoSeverity.Error, "Couldn't run it", answer?.Error ?? "The engine isn't running.");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// "Run from this step" (T27.4, D-149): a real run of the saved flow (D-047) starting at <paramref name="nodeId"/>; the
+    /// steps before it count as done without running, and the values they would give are missing. Arrives as events like Run.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private async Task RunFromAsync(string nodeId)
+    {
+        IsBusy = true;
+        try
+        {
+            var answer = await _engine.SendAsync(new PipeRequest { Op = Ops.Run, Flow = _canvas.FlowId, Node = nodeId, Trigger = "Editor" });
             if (answer is not { Ok: true })
                 Info(RunInfoSeverity.Error, "Couldn't run it", answer?.Error ?? "The engine isn't running.");
         }
@@ -325,6 +345,7 @@ public sealed partial class RunOverlayViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanStop));
         RunCommand.NotifyCanExecuteChanged();
         DryRunCommand.NotifyCanExecuteChanged();
+        RunFromCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
         if (!_engine.IsRunning && IsRunning)
         {

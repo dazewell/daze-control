@@ -234,6 +234,9 @@ public sealed class NodeDocument
     public RetryDocument? Retry { get; set; }
 
     public string? Only { get; set; }
+
+    /// <summary>"false" turns the step off (T25.4); absent = on.</summary>
+    public string? Enabled { get; set; }
 }
 
 [YamlSerializable]

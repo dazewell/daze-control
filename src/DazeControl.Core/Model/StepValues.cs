@@ -376,7 +376,7 @@ public static class StepValues
     /// Whether <paramref name="value"/> of <paramref name="producerId"/> can be missing when <paramref name="consumerId"/>
     /// runs, although the producer always finishes first (DESIGN §4.5): the producer has an "Only if", runs the next steps
     /// anyway after failing (or its card does), or every way to the consumer passes an <c>always</c> edge or starts with a
-    /// <c>failure</c> edge. <c>error</c> is there only when the producer surely failed; <see cref="ValueSpec.OnFailure"/>
+    /// <c>failure</c> edge, or the producer is turned off (D-148). <c>error</c> is there only when the producer surely failed; <see cref="ValueSpec.OnFailure"/>
     /// values whenever it surely ran. A fallback producer reached through success edges is fine: the consumer ran, so it did.
     /// </summary>
     /// <param name="defaults"><c>settings.stepDefaults</c>, for steps that inherit their policy or "Only if" (D-080).</param>
@@ -439,8 +439,10 @@ public static class StepValues
             }
             return At(edge.From); // that unit ran (it succeeded, failed, or ignored a failure), so what held at its start holds
         }
-        var sure = At(FlowShape.UnitOf(flow, consumerId));
         var name = $"\"{NameOf(producer)}\"";
+        if (!producer.Enabled) // turned off (D-148): it never runs, so every value it would give is missing
+            return $"{name} is turned off, so {value.Title} is empty";
+        var sure = At(FlowShape.UnitOf(flow, consumerId));
         if (value.Name == ErrorName)
             return sure == Known.Failed ? null : $"{value.Title} has a value only when {name} fails";
         if (sure == Known.Succeeded || value.OnFailure && sure != Known.Nothing)
@@ -645,10 +647,17 @@ public static class StepValues
     {
         ArgumentNullException.ThrowIfNull(flow);
         catalog ??= ProviderCatalog.All;
-        if (PickResults.RefIn(text) is not { } named || flow.FindNode(named.Step) is not StepNode producer || PickResults.IsPick(producer)
-            || Descriptor(catalog, producer) is not { } descriptor || Find(descriptor, named.Value) is not { Kind: ValueKind.Device } value
+        if (PickResults.RefIn(text) is not { } named || flow.FindNode(named.Step) is not StepNode producer
             || Before(flow, stepId).All(s => s.Id != producer.Id))
             return null;
+        var off = $"\"{NameOf(producer)}\" is turned off, so this step has no device and fails.";
+        if (PickResults.IsPick(producer)) // a turned-off Pick gives no device either (D-148)
+            return producer.Enabled ? null : off;
+        // A broken reference keeps its own error and nothing else.
+        if (Descriptor(catalog, producer) is not { } descriptor || Find(descriptor, named.Value) is not { Kind: ValueKind.Device } value)
+            return null;
+        if (!producer.Enabled)
+            return off;
         return MissingWhy(flow, stepId, producer.Id, value, defaults) is { } why ? why + ". This step fails when it has none." : null;
     }
 

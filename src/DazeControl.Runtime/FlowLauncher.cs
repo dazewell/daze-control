@@ -38,12 +38,13 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
     /// <returns>The run's result; null when the trigger was ignored (or the engine is exiting).</returns>
     /// <param name="inputs">Values from the command line (T24.9), already checked: device inputs are already filled in
     /// <paramref name="flow"/>; text inputs are read from here. Null = defaults.</param>
+    /// <param name="startAt">"Run from this step" (T27.4, D-149): a step of <paramref name="flow"/>; null = the whole flow.</param>
     public Task<RunResult?> TriggerAsync(Flow flow, Library library, string trigger = "", IReadOnlyList<string>? chain = null,
-        IReadOnlyDictionary<string, string>? inputs = null, string eventDetail = "")
+        IReadOnlyDictionary<string, string>? inputs = null, string eventDetail = "", string? startAt = null)
     {
         CancellationTokenSource? toCancel = null;
         Task<RunResult?> task;
-        var request = new Request(flow, library, trigger, chain ?? [], inputs, eventDetail);
+        var request = new Request(flow, library, trigger, chain ?? [], inputs, eventDetail, startAt);
         lock (_lock)
         {
             if (!_slots.TryGetValue(flow.Id, out var slot))
@@ -165,7 +166,7 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
     private async Task<RunResult?> RunAsync(Slot slot, Request request, CancellationTokenSource cancel,
         TaskCompletionSource<RunResult?>? completion, Task? after)
     {
-        var (flow, library, trigger, chain, inputs, eventDetail) = request;
+        var (flow, library, trigger, chain, inputs, eventDetail, startAt) = request;
         await Task.Yield(); // the trigger (hotkey on the message thread) returns at once
         if (after is not null)
             await after.ConfigureAwait(false);
@@ -184,7 +185,7 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
             {
                 flow = FlowInputs.Apply(flow, new Dictionary<string, string>()); // an asked input nobody can ask takes its default
             }
-            result = note is not null ? NotStarted(flow, note) : await runner.RunAsync(flow, library, chain, cancel.Token, trigger, inputs, eventDetail).ConfigureAwait(false);
+            result = note is not null ? NotStarted(flow, note) : await runner.RunAsync(flow, library, chain, cancel.Token, trigger, inputs, eventDetail, startAt).ConfigureAwait(false);
             history?.Add(new RunRecord(result.RunId, flow.Id, flow.Name, trigger, result.Started, result.Duration,
                 result.Outcome, [.. result.Nodes]));
         }
@@ -261,5 +262,5 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
         public Request? PendingRequest { get; set; }
     }
 
-    private sealed record Request(Flow Flow, Library Library, string Trigger, IReadOnlyList<string> Chain, IReadOnlyDictionary<string, string>? Inputs, string EventDetail = "");
+    private sealed record Request(Flow Flow, Library Library, string Trigger, IReadOnlyList<string> Chain, IReadOnlyDictionary<string, string>? Inputs, string EventDetail = "", string? StartAt = null);
 }

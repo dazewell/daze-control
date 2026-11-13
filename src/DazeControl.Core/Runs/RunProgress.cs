@@ -16,10 +16,10 @@ public sealed class RunProgress
     public RunProgress(Flow flow)
     {
         ArgumentNullException.ThrowIfNull(flow);
-        _steps = new HashSet<string>(flow.Nodes.OfType<StepNode>().Select(s => s.Id), StringComparer.Ordinal);
+        _steps = new HashSet<string>(flow.Nodes.OfType<StepNode>().Where(s => s.Enabled).Select(s => s.Id), StringComparer.Ordinal);
     }
 
-    /// <summary>m: the flow's steps.</summary>
+    /// <summary>m: the flow's steps that are on.</summary>
     public int Total => _steps.Count;
 
     /// <summary>n: steps that finished (a repeat event for the same step counts once).</summary>

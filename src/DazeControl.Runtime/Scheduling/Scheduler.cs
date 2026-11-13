@@ -34,6 +34,8 @@ public enum StepResult
 /// partial success.
 /// A card starts all members together and finishes when all have; it fails when a member fails with stop or
 /// skip, and then its own policy applies.
+/// A step that is turned off (<see cref="StepNode.Enabled"/>, D-148) is never handed to the runner: when it would
+/// start it ends Succeeded at once, so its success and always edges fire and its failure edges never do.
 /// </remarks>
 public sealed class Scheduler
 {
@@ -47,17 +49,24 @@ public sealed class Scheduler
     private readonly IReadOnlySet<string> _fallbacks;
     private readonly IReadOnlySet<string> _withFallback;
     private readonly HashSet<string> _excused = []; // skipped only because a handled failure didn't fire success
+    private readonly HashSet<string> _notRun = [];
+    private readonly HashSet<string> _off = [];
 
     /// <param name="flow">A flow that passed <c>ConfigValidator</c>.</param>
-    public Scheduler(Flow flow)
+    /// <param name="startAt">"Run from this step" (T27.4): the step (or card) to start at. Its unit and everything after it run;
+    /// every other unit counts as done (Succeeded, <see cref="NotRun"/>) without running. Null = the whole flow.</param>
+    public Scheduler(Flow flow, string? startAt = null)
     {
         Flow = flow;
+        StartAt = startAt;
         _fallbacks = FlowShape.Fallbacks(flow);
         _withFallback = FlowShape.WithFallback(flow);
         foreach (var node in flow.Nodes)
         {
             _nodes[node.Id] = node;
             _outgoing[node.Id] = [];
+            if (node is StepNode { Enabled: false })
+                _off.Add(node.Id);
         }
         foreach (var card in flow.Nodes.OfType<GroupNode>())
         {
@@ -73,12 +82,21 @@ public sealed class Scheduler
 
     public Flow Flow { get; }
 
+    /// <summary>The step a partial run starts at (T27.4); null = the whole flow.</summary>
+    public string? StartAt { get; }
+
+    /// <summary>Nodes (units and members) a partial run counts as done without running them (T27.4). Their outcome is Succeeded.</summary>
+    public IReadOnlySet<string> NotRun => _notRun;
+
     /// <summary>A node failed with policy stop and no failure edge: the runner cancels what is still running.</summary>
     public bool IsStopped { get; private set; }
 
     public bool IsCancelled { get; private set; }
 
     public bool IsFinished => _outcomes.Count == _nodes.Count;
+
+    /// <summary>The step is turned off: it ends Succeeded without running (D-148).</summary>
+    public bool IsOff(string stepId) => _off.Contains(stepId);
 
     /// <summary>Steps started and not yet completed.</summary>
     public IReadOnlyCollection<string> Running => _running;
@@ -103,8 +121,60 @@ public sealed class Scheduler
     /// <summary>The steps to start first: units with no incoming edges (cards expanded to their members).</summary>
     public IReadOnlyList<string> Start()
     {
+        if (StartAt is { } at)
+            return StartFrom(at);
         foreach (var node in Flow.Nodes.Where(n => n.After.Count == 0 && !_cardOf.ContainsKey(n.Id)))
             StartUnit(node);
+        return TakeReady();
+    }
+
+    /// <summary>
+    /// A partial run (T27.4, D-149): the start unit runs whatever its incoming edges say; units after it run as they would after
+    /// it; every other unit counts as Succeeded without running, so its edges fire as a success would: a failure link from it
+    /// never fires and what only follows that link is skipped (a fallback: not needed). Steps on other branches don't run.
+    /// </summary>
+    private List<string> StartFrom(string at)
+    {
+        if (!_nodes.TryGetValue(at, out var named))
+            throw new ArgumentException($"Step \"{at}\" isn't in the flow.", nameof(at));
+        var first = _cardOf.TryGetValue(at, out var card) ? card : named;
+        var kept = new HashSet<string> { first.Id };
+        var queue = new Queue<string>([first.Id]);
+        while (queue.Count > 0)
+        {
+            foreach (var (target, _) in _outgoing[queue.Dequeue()])
+            {
+                if (kept.Add(target.Id))
+                    queue.Enqueue(target.Id);
+            }
+        }
+        var units = Flow.Nodes.Where(n => !_cardOf.ContainsKey(n.Id)).ToList();
+        var before = units.Where(u => !kept.Contains(u.Id)).ToList();
+        foreach (var unit in before)
+        {
+            _outcomes[unit.Id] = NodeOutcome.Succeeded;
+            _notRun.Add(unit.Id);
+            if (unit is GroupNode members)
+            {
+                foreach (var member in members.Members)
+                {
+                    _outcomes[member] = NodeOutcome.Succeeded;
+                    _notRun.Add(member);
+                }
+            }
+        }
+        StartUnit(first);
+        // Edges from the steps before fire now; the start unit's own incoming edges are ignored (it was asked for).
+        foreach (var unit in before)
+        {
+            foreach (var (target, index) in _outgoing[unit.Id])
+            {
+                if (target.Id == first.Id)
+                    continue;
+                _fired[(target.Id, index)] = Fires(NodeOutcome.Succeeded, target.After[index].When);
+                Evaluate(target);
+            }
+        }
         return TakeReady();
     }
 
@@ -240,6 +310,16 @@ public sealed class Scheduler
 
     private void StartStep(string id)
     {
+        if (_off.Contains(id))
+        {
+            // Done without running: as if it had succeeded at once (D-148). Its card waits for the other members.
+            _outcomes[id] = NodeOutcome.Succeeded;
+            if (_cardOf.TryGetValue(id, out var card))
+                CompleteMemberOf(card);
+            else
+                Finish(_nodes[id], NodeOutcome.Succeeded);
+            return;
+        }
         _running.Add(id);
         _ready.Add(id);
     }
