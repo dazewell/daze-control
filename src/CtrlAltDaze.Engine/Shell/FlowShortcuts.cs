@@ -37,6 +37,9 @@ internal static class FlowShortcuts
                 Environment.GetFolderPath(Environment.SpecialFolder.Programs, Environment.SpecialFolderOption.DoNotVerify),
                 Path.Combine(roaming, "Microsoft", "Internet Explorer", "Quick Launch", "User Pinned"),
             ],
+            OldTargets = stub is null
+                ? []
+                : [Path.Combine(OldName.InstallFolder, OldName.StubName), Path.Combine(OldName.InstallFolder, "current", OldName.EngineExe)],
         };
         return new DesktopShortcuts(places, new ShellLinkStore(), new FlowIconRenderer(), log);
     }

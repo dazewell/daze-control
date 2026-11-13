@@ -62,6 +62,9 @@ public static class Program
             Console.Out.WriteLine(Help);
             return args.Length == 0 ? Usage : Ok;
         }
+        // The rename (T29.2, D-152): the old folders are copied before anything reads the new ones; not for a test config.
+        if (!args.Contains("--config"))
+            OldSetup.CopyFolders();
         try
         {
             return await RunAsync(args[0], args[1..]).ConfigureAwait(false);

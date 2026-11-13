@@ -26,22 +26,24 @@ public sealed class Autostart
 
     private readonly string _runKey;
     private readonly string _approvedKey;
+    private readonly string _valueName;
 
-    public Autostart(string runKey = DefaultRunKey, string approvedKey = DefaultApprovedKey)
+    public Autostart(string runKey = DefaultRunKey, string approvedKey = DefaultApprovedKey, string valueName = ValueName)
     {
         _runKey = runKey;
         _approvedKey = approvedKey;
+        _valueName = valueName;
     }
 
     public AutostartStatus Read()
     {
         using var run = Registry.CurrentUser.OpenSubKey(_runKey);
-        if (run?.GetValue(ValueName) is not string command)
+        if (run?.GetValue(_valueName) is not string command)
             return new AutostartStatus(AutostartState.Off, null);
         var path = ExePathOf(command);
         using var approved = Registry.CurrentUser.OpenSubKey(_approvedKey);
         // Explorer writes 12 bytes; an odd first byte (03, 07) means turned off, even (02, 06) on. No value = on.
-        var disabled = approved?.GetValue(ValueName) is byte[] { Length: > 0 } flags && (flags[0] & 1) == 1;
+        var disabled = approved?.GetValue(_valueName) is byte[] { Length: > 0 } flags && (flags[0] & 1) == 1;
         return new AutostartStatus(disabled ? AutostartState.DisabledByWindows : AutostartState.On, path);
     }
 
@@ -54,7 +56,7 @@ public sealed class Autostart
         ArgumentException.ThrowIfNullOrWhiteSpace(exePath);
         var command = configPath is null ? $"\"{exePath}\"" : $"\"{exePath}\" \"{configPath}\"";
         using (var run = Registry.CurrentUser.CreateSubKey(_runKey))
-            run.SetValue(ValueName, command, RegistryValueKind.String);
+            run.SetValue(_valueName, command, RegistryValueKind.String);
         DeleteValue(_approvedKey);
     }
 
@@ -80,6 +82,25 @@ public sealed class Autostart
         return true;
     }
 
+    /// <summary>
+    /// The rename (T29.2, D-152): when <paramref name="old"/> (the old app's Run value) starts an exe inside
+    /// <paramref name="oldInstall"/>, it is removed (else the old engine starts at sign-in too), and if it was on and
+    /// <paramref name="current"/> is off, <paramref name="current"/> is turned on for <paramref name="exePath"/>. A line
+    /// for the log, or null when there was nothing to do.
+    /// </summary>
+    public static string? CarryFrom(Autostart old, string oldInstall, Autostart current, string exePath)
+    {
+        ArgumentNullException.ThrowIfNull(old);
+        ArgumentNullException.ThrowIfNull(current);
+        var was = old.Read().State;
+        if (!old.DisableIfUnder(oldInstall))
+            return null;
+        if (was != AutostartState.On || current.Read().State != AutostartState.Off)
+            return "setup: removed the old app's Start with Windows entry";
+        current.Enable(exePath);
+        return "setup: Start with Windows carried over from the old app";
+    }
+
     /// <summary>The exe of a Run command: the first quoted token, else up to the first space.</summary>
     internal static string ExePathOf(string command)
     {
@@ -93,9 +114,9 @@ public sealed class Autostart
         return space < 0 ? command : command[..space];
     }
 
-    private static void DeleteValue(string keyPath)
+    private void DeleteValue(string keyPath)
     {
         using var key = Registry.CurrentUser.OpenSubKey(keyPath, writable: true);
-        key?.DeleteValue(ValueName, throwOnMissingValue: false);
+        key?.DeleteValue(_valueName, throwOnMissingValue: false);
     }
 }

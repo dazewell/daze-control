@@ -1,9 +1,12 @@
+using System.Security.Principal;
+using CtrlAltDaze.Core;
 using CtrlAltDaze.Core.Updates;
 using CtrlAltDaze.Engine.Diagnostics;
 using CtrlAltDaze.Engine.Lifecycle;
 using CtrlAltDaze.Ipc;
 using CtrlAltDaze.Providers;
 using CtrlAltDaze.Runtime.Lifecycle;
+using Windows.Win32;
 
 namespace CtrlAltDaze.Engine;
 
@@ -29,7 +32,11 @@ public static class Program
                 ForwardRun(flowId, ConfigPathOf(arguments) ?? EnginePaths.DefaultConfig, arguments.RunInputs);
             return 0;
         }
+        // The rename (T29.2, D-152): the old engine exits before its files are copied and before hotkeys are taken.
+        var setup = new List<string?> { StopOldEngine(), OldSetup.CopyFolders() };
         Log.Initialize(Log.DefaultDirectory);
+        foreach (var line in setup.OfType<string>())
+            Log.Info(line);
         // Fail-soft: these only log; an unobserved task must never end the process (CLAUDE.md).
         AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Error("unhandled", (Exception)e.ExceptionObject);
         TaskScheduler.UnobservedTaskException += (_, e) =>
@@ -57,6 +64,9 @@ public static class Program
             installed = false;
         }
 
+        if (installed)
+            CarryOverAutostart();
+
         var paths = EnginePaths.Default(ConfigPathOf(arguments));
         Log.Info($"engine: config {paths.Config}");
         using var host = new EngineHost(paths, notifier => BuiltInProviders.Create(TimeProvider.System, notifier), BuiltInProviders.Devices(), BuiltInProviders.Probes());
@@ -66,6 +76,39 @@ public static class Program
         host.Run(arguments.RunFlowId, arguments.RunInputs);
         Log.Info("engine: exit");
         return 0;
+    }
+
+    private static string? StopOldEngine()
+    {
+        try
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            return OldEngine.Stop(OldName.EngineMutexName(identity.User!.Value), () =>
+            {
+                var window = PInvoke.FindWindow(OldName.TrayWindowClass, null);
+                if (!window.IsNull)
+                    PInvoke.PostMessage(window, PInvoke.WM_CLOSE, default, default);
+            }, OldEngine.ExitWait);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            return $"setup: couldn't stop the old engine: {e.Message}";
+        }
+    }
+
+    /// <summary>The installed copy only: a Debug engine must not take over the user's Start with Windows.</summary>
+    private static void CarryOverAutostart()
+    {
+        try
+        {
+            if (Autostart.CarryFrom(new Autostart(valueName: OldName.AutostartValueName), OldName.InstallFolder, new Autostart(),
+                    Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "CtrlAltDaze.exe")) is { } line)
+                Log.Info(line);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            Log.Error("setup: Start with Windows not carried over", e);
+        }
     }
 
     /// <summary>How long a shortcut's second engine waits for the first one's pipe (it may be starting up).</summary>

@@ -1997,7 +1997,7 @@ Status: accepted, built (D-063's revisit note: a bounded repeat, not calls)
 - Not verified live: the inspector fields in the running editor, a real repeated call on this PC.
 
 ## D-152 · 2026-11-13 · The product is renamed "Ctrl Alt Daze", everywhere, with `cad` as the CLI
-Status: accepted; T29.1 built (names, folders, installer id), T29.2 (carry the setup over) next
+Status: accepted, built (T29.1 names; T29.2 carry-over, live check T29.5 pending)
 - Decision: `Daze Control` → `Ctrl Alt Daze`; identifiers, projects, exe, data folders, installer id, pipe, mutexes and credential
   prefix `DazeControl…` → `CtrlAltDaze…`; `dctl` → `cad`, no alias; the GitHub repo → `ctrl-alt-daze`. The user's setup is carried
   over by code (copy of the data folders, credential fallback, old engine asked to quit), not by hand.
@@ -2005,4 +2005,6 @@ Status: accepted; T29.1 built (names, folders, installer id), T29.2 (carry the s
   as Ctrl+Alt+Del. Clear on GitHub repos and accounts, winget, web search and `.com` (2026-11-13).
 - Why not: CtrlFreak (an iOS/Android homelab app has the exact name), Dazy Chain (a software company), visible name only or
   keeping `dctl` (offered as the cheap options; the user chose "Everything" and `cad`).
+- Old engine: WM_CLOSE to its tray window (the updater's path, Installer) and a wait on its mutex, not a pipe
+  request as planned: no dependency on the old protocol, and no polling.
 - Revisit if: an exact-name product shows up before T29.1 starts (trademark registers and the Microsoft Store were not checked).

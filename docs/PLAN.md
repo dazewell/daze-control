@@ -957,7 +957,7 @@ Rules: start T29.1 only with zero open PRs and paused child sessions (every open
   workflows (asset names), `cut-release.ps1`'s asset check, CLAUDE.md, skills, README, the Resume block's paths. Done when: build
   + all tests green, AOT publish with zero warnings, `pack.ps1` gives `CtrlAltDazeApp-win-Setup.exe`, and
   `git grep -i -E "dazecontrol|daze control|\bdctl\b"` hits only the allowed lines.
-- [ ] T29.2 Bring the user's setup along (Opus, M; design section in the PR first; tests with fakes). On the PC today: config and
+- [x] T29.2 Bring the user's setup along (Opus, M; design section in the PR first; tests with fakes). On the PC today: config and
   backups in `%APPDATA%\DazeControl`, editor settings / update channel / shortcut icons / run history in
   `%LOCALAPPDATA%\DazeControl`, `DazeControl:<name>` credentials, desktop shortcuts and Start with Windows pointing into
   `%LOCALAPPDATA%\DazeControlApp`, and the old engine running. Wanted: (a) one Core entry point, called first by the engine, editor

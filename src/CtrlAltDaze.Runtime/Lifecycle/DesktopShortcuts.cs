@@ -51,6 +51,12 @@ public sealed record ShortcutPlaces(string Desktop, string IconFolder, string Ta
     /// Start menu, taskbar pins and Startup, the places Velopack's updater rewrites besides the Desktop.
     /// </summary>
     public IReadOnlyList<string> CopyFolders { get; init; } = [];
+
+    /// <summary>
+    /// The old app's stub and engine (T29.2, D-152): their links count as ours and <see cref="DesktopShortcuts.RepairIcons"/>
+    /// re-points them at <see cref="Target"/>. Set only for the installed copy.
+    /// </summary>
+    public IReadOnlyCollection<string> OldTargets { get; init; } = [];
 }
 
 /// <summary>
@@ -110,7 +116,8 @@ public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkSt
                 if (!byId.TryGetValue(shortcut.FlowId, out var flow) || links.Read(shortcut.Path) is not { } link)
                     continue;
                 var icon = IconPath(flow.Id);
-                if (link.IconPath is { } current && SamePath(current, icon) && File.Exists(icon))
+                var old = places.OldTargets.Any(t => SamePath(t, link.Target));
+                if (!old && link.IconPath is { } current && SamePath(current, icon) && File.Exists(icon))
                     continue;
                 if (WriteLink(shortcut.Path, flow))
                     fixedCount++;
@@ -225,7 +232,7 @@ public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkSt
     }
 
     private bool IsOurTarget(string target) =>
-        target.Length > 0 && places.OurTargets.Any(t => SamePath(t, target));
+        target.Length > 0 && places.OurTargets.Concat(places.OldTargets).Any(t => SamePath(t, target));
 
     private bool SameConfig(string? a, string? b) =>
         SamePath(a ?? places.DefaultConfig, b ?? places.DefaultConfig);

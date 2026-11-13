@@ -307,6 +307,35 @@ public sealed class DesktopShortcutsTests : IDisposable
         Assert.Empty(shortcuts.List());
     }
 
+    [Fact]
+    public void RepairRepointsTheOldAppsShortcutsAtTheNewStub()
+    {
+        // T29.2 (D-152): a shortcut made by the old app, with its icon already in place, still gets the new target.
+        var oldStub = Path.Combine(_root, "DazeControlApp", "Daze Control.exe");
+        var path = Path.Combine(Desktop, "TV.lnk");
+        var shortcuts = new DesktopShortcuts(new ShortcutPlaces(Desktop, Icons, Stub, [Stub, Exe], null, DefaultConfig)
+        {
+            OldTargets = [oldStub],
+        }, _links, _icons);
+        _links.Put(path, new(oldStub, "--run \"tv\"", shortcuts.IconPath("tv")));
+        shortcuts.Create(Flow("other", "Other"));
+
+        Assert.Equal(1, shortcuts.RepairIcons([Flow("tv", "TV"), Flow("other", "Other")]));
+
+        Assert.Equal(Stub, _links.Files[path].Target);
+        Assert.Equal(["Other", "TV"], shortcuts.List().Select(s => s.Name));
+    }
+
+    [Fact]
+    public void WithoutOldTargetsTheOldAppsShortcutsAreNotOurs()
+    {
+        var oldStub = Path.Combine(_root, "DazeControlApp", "Daze Control.exe");
+        _links.Put(Path.Combine(Desktop, "TV.lnk"), new(oldStub, "--run \"tv\"", Exe));
+
+        Assert.Equal(0, Make().RepairIcons([Flow("tv", "TV")]));
+        Assert.Equal(oldStub, _links.Files[Path.Combine(Desktop, "TV.lnk")].Target);
+    }
+
     /// <summary>Links as real (empty) files, so the Desktop scan and the name clash check see them.</summary>
     private sealed class FakeLinks : IShellLinkStore
     {

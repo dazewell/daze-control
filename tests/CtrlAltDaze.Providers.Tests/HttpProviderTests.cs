@@ -157,6 +157,29 @@ public sealed class HttpProviderTests : IDisposable
         }
     }
 
+    [Fact]
+    public void ASignInSavedUnderTheOldNameIsStillFoundAndListed()
+    {
+        // T29.2 (D-152): DazeControl:<name> is read when CtrlAltDaze:<name> is missing; the new one wins when both exist.
+        var name = "test-" + Guid.NewGuid().ToString("N");
+        Cmdkey($"/generic:{Core.OldName.CredentialPrefix}{name} /user:old /pass:pa55");
+        try
+        {
+            var store = new WindowsCredentials();
+            Assert.Equal(new Credential("old", "pa55"), store.Read(name));
+            Assert.Contains(name, WindowsCredentials.Names());
+
+            Cmdkey($"/generic:{WindowsCredentials.TargetPrefix}{name} /user:new /pass:pa55");
+            Assert.Equal(new Credential("new", "pa55"), store.Read(name));
+            Assert.Single(WindowsCredentials.Names(), n => n == name);
+        }
+        finally
+        {
+            Cmdkey($"/delete:{Core.OldName.CredentialPrefix}{name}");
+            Cmdkey($"/delete:{WindowsCredentials.TargetPrefix}{name}");
+        }
+    }
+
     private static void Cmdkey(string arguments)
     {
         using var process = System.Diagnostics.Process.Start(new ProcessStartInfo("cmdkey.exe", arguments)

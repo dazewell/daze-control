@@ -85,6 +85,51 @@ public sealed class AutostartTests : IDisposable
     [Fact]
     public void DisableWithoutKeysDoesNothing() => Autostart.Disable();
 
+    private Autostart Old => new(RunKey, ApprovedKey, "DazeControl");
+
+    private const string OldInstall = @"C:\Users\u\AppData\Local\DazeControlApp";
+
+    private const string NewExe = @"C:\Users\u\AppData\Local\CtrlAltDazeApp\current\CtrlAltDaze.exe";
+
+    [Fact]
+    public void CarryFromTurnsTheNewOneOnAndRemovesTheOldOne()
+    {
+        Old.Enable(OldInstall + @"\current\DazeControl.exe");
+
+        Assert.Equal("setup: Start with Windows carried over from the old app", Autostart.CarryFrom(Old, OldInstall, Autostart, NewExe));
+
+        Assert.Equal(AutostartState.Off, Old.Read().State);
+        Assert.Equal(new AutostartStatus(AutostartState.On, NewExe), Autostart.Read());
+    }
+
+    [Fact]
+    public void CarryFromLeavesItOffWhenWindowsHadTurnedTheOldOneOff()
+    {
+        Old.Enable(OldInstall + @"\current\DazeControl.exe");
+        using (var approved = Registry.CurrentUser.CreateSubKey(ApprovedKey))
+            approved.SetValue("DazeControl", new byte[] { 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, RegistryValueKind.Binary);
+
+        Assert.Equal("setup: removed the old app's Start with Windows entry", Autostart.CarryFrom(Old, OldInstall, Autostart, NewExe));
+
+        Assert.Equal(AutostartState.Off, Old.Read().State);
+        Assert.Equal(AutostartState.Off, Autostart.Read().State);
+    }
+
+    [Fact]
+    public void CarryFromIgnoresAnOldEntryOutsideTheOldInstall()
+    {
+        Old.Enable(@"C:\src\daze\bin\Debug\DazeControl.exe");
+
+        Assert.Null(Autostart.CarryFrom(Old, OldInstall, Autostart, NewExe));
+
+        Assert.Equal(AutostartState.On, Old.Read().State);
+        Assert.Equal(AutostartState.Off, Autostart.Read().State);
+    }
+
+    [Fact]
+    public void CarryFromWithoutAnOldEntryDoesNothing() =>
+        Assert.Null(Autostart.CarryFrom(Old, OldInstall, Autostart, NewExe));
+
     [Theory]
     [InlineData(@"C:\Users\u\AppData\Local\CtrlAltDazeApp\current\CtrlAltDaze.exe", true)]
     [InlineData(@"c:\users\u\appdata\local\ctrlaltdazeapp\current\CtrlAltDaze.exe", true)]

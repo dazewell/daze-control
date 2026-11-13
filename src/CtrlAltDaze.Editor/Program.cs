@@ -38,6 +38,11 @@ public static partial class Program
                 return 2;
             ConfigPath = Path.GetFullPath(args[at + 1]);
         }
+        else
+        {
+            // The rename (T29.2, D-152): the old folders are copied before anything reads the new ones.
+            Core.OldSetup.CopyFolders();
+        }
         var probe = Array.IndexOf(args, "--memory-probe");
         if (probe >= 0)
         {

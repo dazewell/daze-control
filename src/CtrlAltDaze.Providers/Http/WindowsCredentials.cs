@@ -13,9 +13,13 @@ public sealed unsafe partial class WindowsCredentials : ICredentialStore
 {
     public const string TargetPrefix = "CtrlAltDaze:";
 
-    public Credential? Read(string name)
+    /// <summary>Also finds a sign-in saved under the old name (T29.2, D-152); nothing is copied.</summary>
+    public Credential? Read(string name) =>
+        ReadTarget(TargetPrefix + name, name) ?? ReadTarget(Core.OldName.CredentialPrefix + name, name);
+
+    private static Credential? ReadTarget(string target, string name)
     {
-        if (!PInvoke.CredRead(TargetPrefix + name, CRED_TYPE.CRED_TYPE_GENERIC, out var credential))
+        if (!PInvoke.CredRead(target, CRED_TYPE.CRED_TYPE_GENERIC, out var credential))
         {
             var error = (WIN32_ERROR)Marshal.GetLastPInvokeError();
             return error == WIN32_ERROR.ERROR_NOT_FOUND
@@ -39,9 +43,13 @@ public sealed unsafe partial class WindowsCredentials : ICredentialStore
     /// <c>devices credentials</c>: the names of the saved sign-ins a flow can use (<c>CtrlAltDaze:&lt;name&gt;</c>),
     /// never their user names or secrets (D-031, D-050).
     /// </summary>
-    public static List<string> Names()
+    public static List<string> Names() =>
+        [.. Names(TargetPrefix).Union(Names(Core.OldName.CredentialPrefix), StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.CurrentCultureIgnoreCase)];
+
+    private static List<string> Names(string prefix)
     {
-        if (!CredEnumerateW(TargetPrefix + "*", 0, out var count, out var list))
+        if (!CredEnumerateW(prefix + "*", 0, out var count, out var list))
         {
             var error = Marshal.GetLastPInvokeError();
             return error == (int)WIN32_ERROR.ERROR_NOT_FOUND
@@ -56,10 +64,10 @@ public sealed unsafe partial class WindowsCredentials : ICredentialStore
                 var target = new string(list[i]->TargetName);
                 // Read() asks for generic credentials only: offer just those.
                 if (list[i]->Type == (uint)CRED_TYPE.CRED_TYPE_GENERIC
-                    && target.StartsWith(TargetPrefix, StringComparison.OrdinalIgnoreCase) && target.Length > TargetPrefix.Length)
-                    names.Add(target[TargetPrefix.Length..]);
+                    && target.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && target.Length > prefix.Length)
+                    names.Add(target[prefix.Length..]);
             }
-            return [.. names.Order(StringComparer.CurrentCultureIgnoreCase)];
+            return names;
         }
         finally
         {
