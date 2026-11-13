@@ -94,6 +94,16 @@ public class StepOffTests
     }
 
     [Fact]
+    public void ABrokenDeviceReferenceToAnOffStepKeepsOnlyItsError()
+    {
+        var problem = Assert.Single(ConfigValidator.Validate(Load(
+            "{ id: set, step: audio.setDefault, with: { device: technics }, enabled: false }",
+            "{ id: back, step: audio.setDefault, with: { device: \"$result:set.nmae\" }, after: [set] }")));
+
+        Assert.Equal(Severity.Error, problem.Severity);
+    }
+
+    [Fact]
     public void AStepAfterAnOffStopFlowIsNotWarnedAbout()
     {
         Assert.Empty(ConfigValidator.Validate(Load(

@@ -650,11 +650,14 @@ public static class StepValues
         if (PickResults.RefIn(text) is not { } named || flow.FindNode(named.Step) is not StepNode producer
             || Before(flow, stepId).All(s => s.Id != producer.Id))
             return null;
-        if (!producer.Enabled) // a turned-off Pick gives no device either (D-148)
-            return $"\"{NameOf(producer)}\" is turned off, so this step has no device and fails.";
-        if (PickResults.IsPick(producer) || Descriptor(catalog, producer) is not { } descriptor
-            || Find(descriptor, named.Value) is not { Kind: ValueKind.Device } value)
+        var off = $"\"{NameOf(producer)}\" is turned off, so this step has no device and fails.";
+        if (PickResults.IsPick(producer)) // a turned-off Pick gives no device either (D-148)
+            return producer.Enabled ? null : off;
+        // A broken reference keeps its own error and nothing else.
+        if (Descriptor(catalog, producer) is not { } descriptor || Find(descriptor, named.Value) is not { Kind: ValueKind.Device } value)
             return null;
+        if (!producer.Enabled)
+            return off;
         return MissingWhy(flow, stepId, producer.Id, value, defaults) is { } why ? why + ". This step fails when it has none." : null;
     }
 

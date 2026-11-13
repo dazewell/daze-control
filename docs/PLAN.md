@@ -862,7 +862,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   the step runs. Files: `Core/Model/StepValues.cs`, `Core/Validation/ConfigValidator.cs`, `Providers/StepParams.cs`, the inspector's
   number control. Done when: Core tests (step-values/DESIGN "A whole value in a number setting"), Providers test (out of range fails
   with a sentence), view-model test; that DESIGN line is cut.
-- [x] T25.4 Turn a step off (Opus, M; feat/m25-step-off, D-148). `enabled: false` on a step: does nothing, counts as done, dimmed on the canvas, left out of
+- [ ] T25.4 Turn a step off (Opus, M; built in #262, D-148; open: the light/dark/high-contrast screenshots). `enabled: false` on a step: does nothing, counts as done, dimmed on the canvas, left out of
   "n of m" (amends D-127: D-entry). Files: `Core/Model/Node.cs`, `Core/Yaml`, `Runtime/Scheduling/Scheduler.cs`, `Core/Runs`, canvas
   pill + inspector + context menu. Done when: Scheduler tests (followers run; a card with one member off; a failure link from an
   off step never fires), validator warns where its values are used, one Undo step, screenshots light/dark/high contrast.
