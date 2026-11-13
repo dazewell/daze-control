@@ -85,7 +85,10 @@ public sealed class FlowRunner
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(chain);
-        return RunCoreAsync(flow, library, inputs ?? NoInputs, [.. chain, flow.Id], null, null, cancellationToken, trigger);
+        // Text given from outside may be a secret (D-014): masked in errors, summaries and history like a Sensitive value.
+        HashSet<string>? external = inputs is null ? null
+            : [.. inputs.Where(e => e.Value.Length > 0 && flow.Inputs.TryGetValue(e.Key, out var i) && i.IsText).Select(e => e.Key)];
+        return RunCoreAsync(flow, library, inputs ?? NoInputs, [.. chain, flow.Id], null, null, cancellationToken, trigger, external);
     }
 
     /// <summary>

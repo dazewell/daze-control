@@ -15,6 +15,19 @@ public static class Protocol
 {
     public const int Version = 1;
 
+    /// <summary>
+    /// What a request that carries <see cref="PipeRequest.Inputs"/> says (T24.9). An engine that doesn't know the field would
+    /// ignore it and run the flow on its defaults, so such a request is stamped 2 and an older engine refuses it by version
+    /// ("speaks protocol 1, not 2"); every other request stays 1 and works against any engine.
+    /// </summary>
+    public const int WithInputs = 2;
+
+    /// <summary>What <see cref="PipeServer"/> says when the version is not one it speaks.</summary>
+    public const string MismatchStart = "The engine speaks protocol ";
+
+    /// <summary>The version a client stamps on <paramref name="request"/>.</summary>
+    public static int VersionFor(PipeRequest request) => request.Inputs is { Count: > 0 } ? WithInputs : Version;
+
     /// <summary>Pipe name for a user; the SID keeps sessions of different users apart.</summary>
     public static string PipeName(string userSid) => $"DazeControl-{userSid}";
 

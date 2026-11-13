@@ -262,7 +262,10 @@ public static class Program
         var answer = await client.SendAsync(request).ConfigureAwait(false);
         if (!answer.Ok)
         {
-            Console.Error.WriteLine(answer.Error);
+            // An engine from before T24.9 refuses the newer version instead of running the flow on its defaults.
+            Console.Error.WriteLine(request.Inputs is { Count: > 0 } && answer.Error?.StartsWith(Protocol.MismatchStart, StringComparison.Ordinal) == true
+                ? $"The running {AppInfo.ProductName} is an older version that can't take inputs. Quit it from the tray, start it again, then retry."
+                : answer.Error);
             return answer.Usage ? Usage : Failed;
         }
         return print(answer);

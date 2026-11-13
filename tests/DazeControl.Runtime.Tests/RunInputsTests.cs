@@ -4,6 +4,7 @@ using DazeControl.Core.Yaml;
 using DazeControl.Ipc;
 using DazeControl.Runtime.Control;
 using DazeControl.Runtime.Lifecycle;
+using DazeControl.Runtime.Providers;
 using static DazeControl.Runtime.Tests.PromptRunTests;
 
 namespace DazeControl.Runtime.Tests;
@@ -138,6 +139,36 @@ public sealed class RunInputsTests : IDisposable
     }
 
     [Fact]
+    public async Task AFailingStepNeverShowsAGivenTextInTheRecordOrHistory()
+    {
+        const string secret = "s3cret-token";
+        var load = ConfigYaml.Load("""
+            flows:
+              boom:
+                name: Boom
+                inputs:
+                  token: { kind: text, name: Token, default: none }
+                nodes:
+                  - { id: a, step: notify, with: { text: "{$token}" } }
+            """);
+        var snapshot = ConfigHost.Apply(ConfigSnapshot.Empty, load);
+        var runner = new FlowRunner([new Recorder("notify", c => throw new StepFailedException("Rejected " + secret))], _time);
+        var history = new RunHistory(null);
+        var controller = new EngineController(() => snapshot, new FlowLauncher(runner, history), history, EngineController.CreateDryRunner(_time),
+            new Autostart(_root + @"\Run", _root + @"\Approved"), new EngineInfo("1.2.3", 42, @"C:\x\DazeControl.exe", "c.yaml"), _ => { });
+
+        var answer = await controller.HandleAsync(new PipeRequest
+        {
+            Id = 7, Op = Ops.Run, Flow = "boom", Wait = true, Inputs = new() { ["token"] = secret },
+        }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(FlowOutcome.Failed, answer.Run!.Outcome);
+        Assert.NotNull(answer.Run.Nodes[0].Error);
+        Assert.DoesNotContain(secret, answer.Run.Nodes[0].Error, StringComparison.Ordinal);
+        Assert.DoesNotContain(history.Recent, r => r.Nodes.Any(n => n.Error?.Contains(secret, StringComparison.Ordinal) == true));
+    }
+
+    [Fact]
     public async Task ADesktopRunWithABadInputTellsThePopup()
     {
         var refused = new List<RunRefusal>();
@@ -165,6 +196,13 @@ public sealed class RunInputsTests : IDisposable
         Assert.Equal("sony", parsed.RunInputs!["out"]);
         Assert.Equal("a=b c", parsed.RunInputs["greeting"]);
         Assert.Null(EngineArguments.Parse(["--run", "connect"]).RunInputs);
+        // A config of the shape name=value goes before --run (Format does that) and is never taken for an input.
+        var shortcut = EngineArguments.Parse(EngineArguments.Split(EngineArguments.Format("connect", "settings=prod.yaml")));
+        Assert.Equal("settings=prod.yaml", shortcut.Config);
+        Assert.Equal("connect", shortcut.RunFlowId);
+        Assert.Null(shortcut.RunInputs);
+        Assert.Equal("settings=prod.yaml", EngineArguments.Parse(["settings=prod.yaml", "--run", "connect", "out=sony"]).Config);
+        Assert.Equal(@"C:\c.yaml", EngineArguments.Parse(["--run", "connect", @"C:\c.yaml"]).Config); // older shortcuts still work
         Assert.Equal("a=b", EngineArguments.Parse(["a=b"]).Config); // no --run: still a config path
     }
 
