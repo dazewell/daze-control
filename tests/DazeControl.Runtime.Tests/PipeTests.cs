@@ -101,7 +101,9 @@ public sealed class PipeTests : IAsyncDisposable
         async Task<int> Stamped(PipeRequest request) =>
             JsonSerializer.Deserialize((await client.SendAsync(request, Ct)).Error!, IpcJson.Default.PipeRequest)!.Protocol;
 
-        Assert.Equal(Protocol.WithControl, Protocol.Latest);
+        Assert.Equal(Protocol.WithStartStep, Protocol.Latest);
+        Assert.Equal(Protocol.WithStartStep, Protocol.VersionFor(new PipeRequest { Op = Ops.Run, Flow = "f", Node = "b" }));
+        Assert.Equal(Protocol.Version, Protocol.VersionFor(new PipeRequest { Op = Ops.Run, Flow = "f" }));
         Assert.Equal(Protocol.WithControl, Protocol.VersionFor(new PipeRequest { Op = Ops.Flag, Key = "a" }));
         Assert.Equal(Protocol.WithControl, Protocol.VersionFor(new PipeRequest { Op = Ops.Pause }));
         Assert.Equal(Protocol.Version, Protocol.VersionFor(new PipeRequest { Op = Ops.Status }));
@@ -164,7 +166,7 @@ public sealed class PipeTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("{\"protocol\":99,\"id\":3,\"op\":\"list\"}", 3, "protocol 3, not 99")]
+    [InlineData("{\"protocol\":99,\"id\":3,\"op\":\"list\"}", 3, "protocol 4, not 99")]
     [InlineData("not json", 0, "Not a valid request")]
     public async Task BadLinesGetAnError(string line, int id, string error)
     {

@@ -1951,3 +1951,21 @@ Status: accepted, built (extends D-129, D-137; DESIGN's old "whole value in a nu
 - Editor: a "Use a value" button beside the number box opens the Insert value list (no devices); the pill takes the box's place ("Uses a value" label, same row height) with the pill row below; removing it brings the box back. One write each, one Undo. Off with several steps selected.
 - Why: G-71 (PAD variables everywhere); battery or a web status into a volume. Why not a per-setting opt-in flag: it would touch the catalog (parallel work) and every number setting has a range the runner checks anyway. Why not clamp a value into range: a wrong value silently changing the volume is worse than a sentence. Why not Duration: not asked; a duration is edited in seconds.
 - Not verified live: the XAML (button, label, pill in light/dark/high contrast, Narrator), a real run that sets the volume from a value.
+
+## D-149 · 2026-11-13 · "Run from this step": the saved flow from one unit, the rest counts as done without running (T27.4)
+Status: accepted, built
+- Decision: `run` takes `node` (editor step menu "Run from this step"; dry runs too). The scheduler starts that unit (a card member
+  starts its card) whatever its incoming edges say; units reachable from it run as in a whole run; every other unit (earlier
+  steps and other branches) is Succeeded without running (`Scheduler.NotRun`), so its edges fire as a success: a failure link
+  from it never fires (its fallback is "not needed"). Not-run steps report at once with Attempts 0 and `SkippedBecause` "this
+  run started at <step>" (the "Only if" look, D-081). Their values are missing: text falls back as usual; a device value fails
+  the step "\"Pick device\" didn't run: this run started after it." (D-117: a device never falls back). A real run through the
+  launcher: history, pop-up, events, Stop, `whenRunning` as Run; the trigger reads "Editor (from <step>)". The saved version
+  runs (D-047); a step only in the draft is refused "Save the flow, then try again".
+  A `run` with `node` is stamped protocol 4 (`WithStartStep`): an older engine refuses it instead of running the whole flow.
+- Why: long flows whose first half works (G-83, PAD "Run from here"). Scheduler-level, because rewriting the flow can't keep
+  the skip and D-112 alternative rules exact for a failure link from a step that didn't run.
+- Why not asking for a device value once (PLAN's first wording): a second prompt path for one editor command; the failed step
+  names the step to start from instead. Why not running the on-screen draft (as Test this step): Run runs the saved flow,
+  and a live run locks the canvas to it.
+- Not verified live: the menu item in the running editor, a real partial run on this PC.

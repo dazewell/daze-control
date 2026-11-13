@@ -70,6 +70,8 @@ public sealed partial class ShellWindow : Window
         InspectorPaneControl.WindowHandle = hwnd;
         LibraryViewControl.ViewModel = ViewModel.Library;
         RunsViewControl.ViewModel = ViewModel.Runs;
+        FlowCanvasControl.RunFrom = id => _run?.RunFromCommand.Execute(id);
+        FlowCanvasControl.CanRunFrom = () => _run?.RunFromCommand.CanExecute(null) == true;
         RunsViewControl.OpenRequested += OnOpenRun;
         ViewModel.Library.FlowRequested += OnLibraryFlowRequested; // after the view model's own handler, which opens it
         ViewModel.CalledFlowRequested += OnCalledFlowRequested;

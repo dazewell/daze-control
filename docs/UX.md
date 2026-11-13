@@ -280,7 +280,9 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
 ## 5.5 Runs
 - Live: canvas overlays states; CommandBar "Running · 2 of 4" + Stop; finished pill summary becomes its
   duration; editing locked with an InfoBar. Dry run numbers nodes in start order, missing refs show failed,
-  InfoBar summary.
+  InfoBar summary. Step menu **Run from this step** (one step or card selected; off while a run is out): a live run of
+  the saved flow from there, history trigger "Editor (from <step>)"; steps it didn't run show dimmed "Skipped: this run
+  started at <step>"; a step not in the saved version → InfoBar "Save the flow, then try again" (D-149).
 - Runs page: ListView grouped by day (glyph, name, trigger "Alt+Z"/"Tray"/"Command line", time, result chip,
   duration). Detail: result sentence + **timeline** — time axis, one row per lane (greedy interval packing so
   parallel steps get separate lanes), bars 20 DIP radius 4 by state, may-fail-failed dashed caution, a card is a
