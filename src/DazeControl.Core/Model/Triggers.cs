@@ -88,6 +88,15 @@ public sealed record EventTrigger(string Name) : Trigger
     /// reference) ended. Null = any flow. Renamed with the flow (<see cref="FlowRefs.Rename"/>, D-075).
     /// </summary>
     public string? Flow { get; init; }
+
+    /// <summary>
+    /// <c>path:</c> (T26.5) on <c>file.created</c>/<c>file.changed</c>/<c>file.deleted</c>: the folder to watch, as written
+    /// (environment variables stay unexpanded; <see cref="TriggerText.ResolveFolder"/> makes the full path).
+    /// </summary>
+    public string? Path { get; init; }
+
+    /// <summary><c>filter:</c> (T26.5) on a file event: a file name pattern with <c>*</c> and <c>?</c> (like <c>*.pdf</c>). Null = any name.</summary>
+    public string? Filter { get; init; }
 }
 
 /// <summary>The kind of connection a network event is about (<c>via:</c>); each connection raises its own event.</summary>
@@ -110,6 +119,7 @@ public static class TriggerText
         "network.connected", "network.disconnected",
         "display.off", "display.on", "session.away", "session.back",
         "flow.finished", "flow.failed",
+        "file.created", "file.changed", "file.deleted",
     ];
 
     /// <summary>
@@ -158,6 +168,105 @@ public static class TriggerText
         : !IsFlowEvent(name) ? "flow only goes with flow.finished or flow.failed."
         : id == ownFlowId ? "A flow can't wait for itself to end."
         : null;
+
+    /// <summary><c>file.created</c>, <c>file.changed</c> and <c>file.deleted</c> (T26.5): a change directly inside a watched folder.</summary>
+    public static bool IsFileEvent(string? name) => name is "file.created" or "file.changed" or "file.deleted";
+
+    /// <summary>Longest <c>filter:</c>; the match is linear in name times pattern, so a long pattern can't be made to run away.</summary>
+    public const int MaxFilterLength = 128;
+
+    /// <summary>A <c>path:</c> or <c>filter:</c> as the reader keeps it: trimmed, and empty means none.</summary>
+    public static string? Trimmed(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+
+    /// <summary>
+    /// The full folder a <c>path:</c> names: environment variables expanded, no <c>..</c>, a full path (drive or share), no
+    /// trailing separator. Null with <paramref name="problem"/> when it can't be one. The reader, validator and runtime all go
+    /// through this, so each says the same (the folder need not exist: that is a validator warning, not a refusal).
+    /// </summary>
+    public static string? ResolveFolder(string? path, out string? problem)
+    {
+        problem = null;
+        if (Trimmed(path) is not { } written)
+        {
+            problem = "path needs the folder to watch (like %USERPROFILE%\\Downloads).";
+            return null;
+        }
+        var expanded = Environment.ExpandEnvironmentVariables(written.Trim('"'));
+        if (expanded.Contains('%'))
+        {
+            problem = $"{written} uses a % name that isn't set on this PC.";
+            return null;
+        }
+        if (expanded.Split('\\', '/').Any(part => part.Trim() == ".."))
+        {
+            problem = "path can't use .. (name the folder in full).";
+            return null;
+        }
+        if (expanded.StartsWith(@"\\.\", StringComparison.Ordinal) || expanded.StartsWith(@"\\?\", StringComparison.Ordinal))
+        {
+            problem = "path can't be a device path; use a drive or share folder.";
+            return null;
+        }
+        if (!System.IO.Path.IsPathFullyQualified(expanded))
+        {
+            problem = "path needs a full folder name, starting with a drive (like C:\\Users\\you\\Downloads).";
+            return null;
+        }
+        try
+        {
+            return System.IO.Path.TrimEndingDirectorySeparator(System.IO.Path.GetFullPath(expanded));
+        }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException or System.IO.PathTooLongException)
+        {
+            problem = "path isn't a folder name Windows accepts.";
+            return null;
+        }
+    }
+
+    /// <summary>Why <c>path</c> / <c>filter</c> can't stand on this event, or null; the reader, validator and runtime say the same.</summary>
+    public static string? FileFilterProblem(string name, string? path, string? filter)
+    {
+        if (!IsFileEvent(name))
+            return Trimmed(path) is not null || Trimmed(filter) is not null ? "path and filter only go with file.created, file.changed or file.deleted." : null;
+        if (ResolveFolder(path, out var problem) is null)
+            return problem;
+        if (Trimmed(filter) is not { } pattern)
+            return null;
+        return pattern.Length > MaxFilterLength ? $"filter is at most {MaxFilterLength} characters."
+            : pattern.AsSpan().IndexOfAny('\\', '/') >= 0 ? "filter is a file name pattern like *.pdf, not a path (the folder goes in path)."
+            : null;
+    }
+
+    /// <summary>Whether a file name fits a <c>filter:</c> (<c>*</c> any run, <c>?</c> one character, any case; null or empty = every name). One scan with one backtrack point, never a regex.</summary>
+    public static bool FilterMatches(string? filter, string name)
+    {
+        if (string.IsNullOrEmpty(filter))
+            return true;
+        int p = 0, n = 0, star = -1, mark = 0;
+        while (n < name.Length)
+        {
+            if (p < filter.Length && filter[p] != '*' && (filter[p] == '?' || char.ToUpperInvariant(filter[p]) == char.ToUpperInvariant(name[n])))
+            {
+                p++;
+                n++;
+            }
+            else if (p < filter.Length && filter[p] == '*')
+            {
+                star = p++;
+                mark = n;
+            }
+            else if (star >= 0)
+            {
+                p = star + 1;
+                n = ++mark;
+            }
+            else
+                return false;
+        }
+        while (p < filter.Length && filter[p] == '*')
+            p++;
+        return p == filter.Length;
+    }
 
     /// <summary>Why <c>device</c> can't stand on this event, or null.</summary>
     public static string? DeviceFilterProblem(string name, string? device) =>
@@ -211,6 +320,9 @@ public static class TriggerText
         "session.back" => "you came back",
         "flow.finished" => "a flow finished",
         "flow.failed" => "a flow failed",
+        "file.created" => "a file appeared",
+        "file.changed" => "a file changed",
+        "file.deleted" => "a file was removed",
         _ => name,
     };
 

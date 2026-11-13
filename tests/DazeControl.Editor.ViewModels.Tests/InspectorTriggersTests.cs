@@ -106,7 +106,7 @@ public sealed class InspectorTriggersTests : IDisposable
     [Fact]
     public void EventPickerListsEveryEventGroupedAndTicksTheUsedOnes()
     {
-        Assert.Equal(["Session", "Power", "Devices", "Sound and screens", "Network", "Flows"], _inspector.EventGroups.Select(g => g.Title));
+        Assert.Equal(["Session", "Power", "Devices", "Sound and screens", "Network", "Flows", "Files"], _inspector.EventGroups.Select(g => g.Title));
         Assert.Equal(TriggerText.Events.Order(), _inspector.EventGroups.SelectMany(g => g.Events).Select(e => e.Name).Order());
         Assert.True(Box("session.unlock").IsChecked);
         Assert.False(Box("power.resume").IsChecked);

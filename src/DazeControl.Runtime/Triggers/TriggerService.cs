@@ -11,6 +11,11 @@ namespace DazeControl.Runtime.Triggers;
 /// <param name="ConditionTimeout">How long <c>only</c> may take; past it the trigger fires anyway.</param>
 public sealed record TriggerOptions(TimeSpan Debounce, TimeSpan Cooldown, TimeSpan ConditionTimeout)
 {
+    /// <summary>A file trigger may start its flow this often within <see cref="FileStartWindow"/>; past it the start is refused (T26.5): a flow that writes into the folder it watches would otherwise start itself forever with new file names.</summary>
+    public int FileStartLimit { get; init; } = 6;
+
+    public TimeSpan FileStartWindow { get; init; } = TimeSpan.FromMinutes(1);
+
     public static TriggerOptions Default { get; } = new(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(5));
 }
 
@@ -37,6 +42,8 @@ public sealed class TriggerService : IDisposable
     private readonly Dictionary<(string Name, string? Kind, string? Detail), long> _lastEvent = [];
     private readonly Dictionary<(Subscription Subscription, string? Kind, string? Detail), long> _lastStart = [];
     private readonly HashSet<ITriggerSource> _started = [];
+    private readonly Dictionary<string, Queue<long>> _fileStarts = [];
+    private readonly Dictionary<string, long> _fileNoted = [];
 
     private Dictionary<string, List<Subscription>> _byEvent = [];
     private bool _disposed;
@@ -94,6 +101,11 @@ public sealed class TriggerService : IDisposable
                     _log($"trigger: {flow.Id}: {flowProblem} skipped"); // the validator calls it ignored too
                     continue;
                 }
+                if (TriggerText.FileFilterProblem(trigger.Name, trigger.Path, trigger.Filter) is { } fileProblem)
+                {
+                    _log($"trigger: {flow.Id}: {fileProblem} skipped"); // the validator calls it ignored too
+                    continue;
+                }
                 if (!known.Contains(trigger.Name))
                 {
                     _log($"trigger: {flow.Id}: {trigger.Name} has no source in this build; skipped");
@@ -107,6 +119,7 @@ public sealed class TriggerService : IDisposable
 
         List<ITriggerSource> toStart = [];
         List<ITriggerSource> toStop = [];
+        List<(IConfiguredTriggerSource Source, IReadOnlyList<EventTrigger> Triggers)> configured;
         lock (_lock)
         {
             if (_disposed)
@@ -124,8 +137,18 @@ public sealed class TriggerService : IDisposable
             var live = table.Values.SelectMany(l => l).ToHashSet();
             foreach (var key in _lastStart.Keys.Where(k => !live.Contains(k.Subscription)).ToList())
                 _lastStart.Remove(key);
+            var liveFlows = live.Select(s => s.FlowId).ToHashSet();
+            foreach (var key in _fileStarts.Keys.Where(k => !liveFlows.Contains(k)).ToList())
+                _fileStarts.Remove(key);
+            foreach (var key in _fileNoted.Keys.Where(k => !liveFlows.Contains(k)).ToList())
+                _fileNoted.Remove(key);
+            configured = [.. _sources.OfType<IConfiguredTriggerSource>().Select(s =>
+                (s, (IReadOnlyList<EventTrigger>)[.. s.Events.Where(table.ContainsKey).SelectMany(n => table[n]).Select(x => x.Trigger).Distinct()]))];
         }
-        // Outside the lock: a source may raise from inside Start/Stop.
+        // Outside the lock: a source may raise from inside Start/Stop. A source learns what its triggers say before it starts,
+        // and (with nothing subscribed) an empty list before it stops, so it never holds a watch for a flow that is gone.
+        foreach (var (source, triggers) in configured)
+            Guarded(source, "subscribe", () => source.Subscribe(triggers));
         foreach (var source in toStop)
             Guarded(source, "stop", source.Unload);
         foreach (var source in toStart)
@@ -263,12 +286,41 @@ public sealed class TriggerService : IDisposable
             }
             // Admitted: reserve the cooldown now (atomically: a concurrent event for the same trigger loses), not before the
             // condition, flow and chain checks, so an event that started nothing doesn't eat the cooldown.
+            var tooBusy = false;
+            var firstRefusal = false;
             lock (_lock)
             {
                 var now = _time.GetTimestamp();
                 if (InCooldown(subscription, e, now))
                     return;
-                _lastStart[(subscription, e.Kind, e.Detail)] = now;
+                if (TriggerText.IsFileEvent(e.Name))
+                {
+                    // Distinct file names slip past the per-file cooldown, so a flow that writes into its own folder is stopped by count.
+                    if (!_fileStarts.TryGetValue(flowId, out var starts))
+                        _fileStarts[flowId] = starts = [];
+                    while (starts.Count > 0 && _time.GetElapsedTime(starts.Peek(), now) >= _options.FileStartWindow)
+                        starts.Dequeue();
+                    if (starts.Count >= _options.FileStartLimit)
+                    {
+                        tooBusy = true;
+                        firstRefusal = !_fileNoted.TryGetValue(flowId, out var noted) || _time.GetElapsedTime(noted, now) >= _options.FileStartWindow;
+                        if (firstRefusal)
+                            _fileNoted[flowId] = now;
+                    }
+                    else
+                        starts.Enqueue(now);
+                }
+                if (!tooBusy)
+                    _lastStart[(subscription, e.Kind, e.Detail)] = now;
+            }
+            if (tooBusy)
+            {
+                var note = $"Didn't run {called.Name}: changes in the folder it watches started it {_options.FileStartLimit} times within a minute, so this one stopped. " +
+                    "If the flow writes into that folder, watch another folder or add a filter.";
+                _log($"trigger: {flowId}: {e.Name} not started: {note}");
+                if (firstRefusal)
+                    _launcher.RecordNotStarted(flow, TriggerText.Describe(subscription.Trigger), note); // a loop through the disk is invisible otherwise: say it in Runs
+                return;
             }
             var text = TriggerText.Describe(subscription.Trigger);
             // The launcher applies whenRunning; this doesn't wait for the run, only observes a fault.
@@ -291,6 +343,11 @@ public sealed class TriggerService : IDisposable
         // A device name filter: the name contains it (any case). An arrival whose name couldn't be read matches no filter.
         if (TriggerText.IsDeviceEvent(e.Name) && trigger.Device is { } part
             && e.Detail?.Contains(part, StringComparison.OrdinalIgnoreCase) != true)
+            return false;
+        // A file trigger: the folder it names (resolved as the source resolved it) and a filter on the file's name.
+        if (TriggerText.IsFileEvent(e.Name)
+            && (TriggerText.ResolveFolder(trigger.Path, out _) is not { } folder || !string.Equals(folder, e.Kind, StringComparison.OrdinalIgnoreCase)
+                || !TriggerText.FilterMatches(TriggerText.Trimmed(trigger.Filter), e.File ?? "")))
             return false;
         // A flow filter names the ended flow's id (Kind), read as every flow reference is: trimmed.
         if (TriggerText.FlowFilter(trigger.Flow) is { } flowId && !string.Equals(flowId, e.Kind, StringComparison.Ordinal))

@@ -7,7 +7,19 @@ namespace DazeControl.Runtime.Triggers;
 /// <param name="Chain">Flow ids the event descends from (a <c>flow.finished</c> event: the ended run's chain and the flow itself); null = a person or the OS.</param>
 /// <param name="Kind">On a network event, the connection's kind as <c>TriggerText.ViaText</c> says it ("wifi", "cable"); on a flow event, the
 /// flow's id (<c>Detail</c> is its name); else null.</param>
-public sealed record TriggerEvent(string Name, IReadOnlyList<string>? Chain = null, string? Detail = null, string? Kind = null);
+/// <param name="File">On a file event, the changed file's name inside the folder (what <c>filter:</c> reads); <c>Kind</c> is the watched
+/// folder's full path and <c>Detail</c> the file's full path, capped; else null.</param>
+public sealed record TriggerEvent(string Name, IReadOnlyList<string>? Chain = null, string? Detail = null, string? Kind = null, string? File = null);
+
+/// <summary>
+/// A source whose work depends on what the triggers say, not only on which events they name (file events: which folders).
+/// <see cref="TriggerService.Apply"/> hands it the event triggers that subscribe to its events on every change, before it
+/// <see cref="ITriggerSource.Load"/>s or <see cref="ITriggerSource.Unload"/>s it. Called from any thread; must be quick (do IO elsewhere).
+/// </summary>
+public interface IConfiguredTriggerSource : ITriggerSource
+{
+    void Subscribe(IReadOnlyList<DazeControl.Core.Model.EventTrigger> triggers);
+}
 
 /// <summary>
 /// A push source of system events (DESIGN §3, D-107): session, power, … Lazy like the gamepad reader (D-086): the

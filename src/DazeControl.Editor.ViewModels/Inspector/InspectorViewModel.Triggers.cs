@@ -190,6 +190,8 @@ public sealed partial class TriggerRowViewModel : ObservableObject
                 DeviceText = TriggerText.IsDeviceEvent(e.Name) ? e.Device ?? "" : "";
                 SoundDevice = TriggerText.IsAudioEvent(e.Name) ? Math.Max(0, SoundDevices.ToList().IndexOf(e.Device ?? "") ) : 0;
                 FlowChoice = TriggerText.IsFlowEvent(e.Name) ? Math.Max(0, Array.IndexOf(_flowIds, TriggerText.FlowFilter(e.Flow) ?? "")) : 0;
+                FolderText = TriggerText.IsFileEvent(e.Name) ? e.Path ?? "" : "";
+                FilterText = TriggerText.IsFileEvent(e.Name) ? e.Filter ?? "" : "";
                 break;
             case EngineStartTrigger:
                 EventIndex = 0;
@@ -256,6 +258,17 @@ public sealed partial class TriggerRowViewModel : ObservableObject
     public IReadOnlyList<string> FlowNames { get; }
 
     private readonly string[] _flowIds;
+
+    /// <summary>A file event: the folder and file name boxes show.</summary>
+    public bool IsFileEvent => Trigger is EventTrigger e && TriggerText.IsFileEvent(e.Name);
+
+    /// <summary>The folder to watch, as written (like %USERPROFILE%\Downloads); empty = none yet.</summary>
+    [ObservableProperty]
+    public partial string FolderText { get; set; } = "";
+
+    /// <summary>The file name pattern (like *.pdf); empty = any file.</summary>
+    [ObservableProperty]
+    public partial string FilterText { get; set; } = "";
 
     /// <summary>Time of day for "At a time" and "Once".</summary>
     public bool HasTime => Trigger is AtTrigger or OnceTrigger;
@@ -387,6 +400,10 @@ public sealed partial class TriggerRowViewModel : ObservableObject
     partial void OnDeviceTextChanged(string value) => Edit(t => WhenThisRuns.WithDevice(t, value));
 
     partial void OnSoundDeviceChanged(int value) => Edit(t => WhenThisRuns.WithDevice(t, value > 0 && value < SoundDevices.Count ? SoundDevices[value] : null));
+
+    partial void OnFolderTextChanged(string value) => Edit(t => WhenThisRuns.WithFolder(t, value));
+
+    partial void OnFilterTextChanged(string value) => Edit(t => WhenThisRuns.WithFilter(t, value));
 
     partial void OnFlowChoiceChanged(int value) => Edit(t => WhenThisRuns.WithFlow(t, value > 0 && value < _flowIds.Length ? _flowIds[value] : null));
 
