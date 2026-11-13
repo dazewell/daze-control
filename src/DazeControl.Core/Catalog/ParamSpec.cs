@@ -152,4 +152,11 @@ public enum FillRule
 
     /// <summary>One program argument per list item, never split or re-read by a shell; <c>%VAR%</c> in a value stays text.</summary>
     Argument,
+
+    /// <summary>
+    /// A thing to open: when the written text starts with a scheme (<c>https:</c>, <c>steam:</c>) a value is percent-encoded
+    /// like <see cref="Url"/>; otherwise it is a path or name and a value keeps its characters but <c>%</c> is guarded like
+    /// <see cref="Argument"/>. Either way it is one string handed to the shell, never a command line (D-134).
+    /// </summary>
+    Target,
 }

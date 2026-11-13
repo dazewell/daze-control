@@ -805,7 +805,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   quiet end also ends the caller, D-054), `Engine/EngineHost.cs`, `Runtime/FlowRunner.cs`, Runs wording in `Core/Runs`.
   Done when: Runtime tests (after a check's failure link: no pop-up, no tray failure glyph, history reads "Stopped here"; called
   flow, both modes; steps still running in parallel branches are cancelled); dry run says "Would stop here"; FEATURES F3 line.
-- [ ] T24.2 Open file or address `process.open` (Sonnet, S; solo on the catalog; after T24.1). One `target` that takes values, handed
+- [x] T24.2 Open file or address `process.open` (Sonnet, S; solo on the catalog; after T24.1). One `target` that takes values, handed
   to the shell as the thing to open (never a command line), no wait. Files: `ProviderCatalog.cs`, `Providers/Process/`, `BuiltInProviders.cs`.
   Done when: Providers tests behind a fake shell seam (file, folder, `https://`, `steam://`, `ms-settings:`; a missing file and "nothing
   opens this" fail with a sentence; an injection-shaped value can neither change a written scheme nor add arguments); examples in the

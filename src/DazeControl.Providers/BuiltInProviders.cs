@@ -88,6 +88,7 @@ public static class BuiltInProviders
             new FlagSetProvider(flags),
             new FlagCheckProvider(flags),
             new ProcessRunProvider(),
+            new ProcessOpenProvider(new ShellOpener()),
             new ProcessCloseProvider(new WindowsCloseTargets(), time),
             new PowerShellProvider(),
             new HttpRequestProvider(new WindowsCredentials()),

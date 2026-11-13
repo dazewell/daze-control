@@ -48,6 +48,7 @@ public static partial class ConfigValidator
         CheckTimeWindows(config.Flows, problems);
         CheckWaits(config.Flows, config.Settings.StepDefaults, problems);
         CheckStops(config.Flows, problems);
+        CheckOpens(config.Flows, problems);
         CheckCalls(config.Flows, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, catalog, config.Settings.StepDefaults, problems);
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
@@ -196,6 +197,28 @@ public static partial class ConfigValidator
             foreach (var node in flow.Nodes.Where(n => n.After.Any(e => stops.Contains(e.From) && !(e.When == EdgeWhen.Failure && failing.Contains(e.From)))))
                 problems.Add(new(Severity.Warning, $"flows.{flow.Id}.nodes.{node.Id}.after",
                     "A step after Stop flow never runs: it ends the flow. Remove the link, or put Stop flow last.", flow.Id));
+        }
+    }
+
+    /// <summary>A written target that <c>process.open</c> would always refuse is an error now, not a failed step later (D-134).</summary>
+    private static void CheckOpens(IReadOnlyList<Flow> flows, List<Problem> problems)
+    {
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == "process.open"))
+            {
+                if (!step.With.TryGetValue("target", out var setting) || setting is not ScalarParam { Text: var text })
+                    continue;
+                var written = text.Trim(' ');
+                var scheme = StepValues.SchemeOf(written);
+                var path = $"flows.{flow.Id}.nodes.{step.Id}.with.target";
+                if (scheme is not null && StepValues.RefusedSchemes.Contains(scheme))
+                    problems.Add(new(Severity.Error, path, $"Open file or address doesn't open {scheme}: addresses.", flow.Id));
+                else if (scheme is not null && written.Length == scheme.Length + 1)
+                    problems.Add(new(Severity.Error, path, $"Add what to open after \"{scheme}:\".", flow.Id));
+                else if (!written.Contains('{', StringComparison.Ordinal) && text.Any(c => char.IsControl(c) || c == '"'))
+                    problems.Add(new(Severity.Error, path, "What to open can't hold quotes or line breaks. It is one file, folder or address, not a command.", flow.Id));
+            }
         }
     }
 
