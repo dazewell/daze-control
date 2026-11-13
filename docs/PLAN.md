@@ -787,7 +787,7 @@ The user accepted all five open points as recommended (PR #217). One PR per task
   outputs have an Insert value flyout, no pills), editor rename doesn't rewrite other flows (warning + tip). Not seen live: the XAML.
 - [x] T23.8 Gate (Sonnet, S): ARCHITECTURE/FEATURES/UX take what was built, DESIGN cut to its open items (D-053), UX §5.9 M23 acceptance rows for the user (release-notes line is in the PR body). Branch docs/m23-gate.
 
-## Roadmap M24 to M28 (gap analysis 2026-11-13; [docs/roadmap/GAPS.md](roadmap/GAPS.md), D-132 proposed)
+## Roadmap M24 to M28 (gap analysis 2026-11-13; [docs/roadmap/GAPS.md](roadmap/GAPS.md), D-135 proposed)
 Standing instruction (user, 2026-11-12): after the analysis the coordinator builds as far as usage and model limits allow.
 **M24 to M27 reverse no recorded decision: start them in order. M28 is a list of questions: no M28 row starts before the
 user says yes to that row.** Each task: one PR (D-079), the `G-xx` sketch in GAPS §4 is its brief, Win32 API names there are
@@ -826,7 +826,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   captions match `android.media`'s; not run live by the agent.
 - [x] T24.6 Which device on events (built, PR pending; live check pending; Sonnet, M; Opus if the device-name reads fight AOT; parallel-safe with step tasks, after T24.4:
   same files). `device:` on `device.added` / `device.removed` (name contains) and `audio.default-changed` (Library audio item);
-  sources fill `TriggerEvent.Detail`; run value `{@event}` (the device, Wi-Fi or cable name that started the run; empty otherwise).
+  sources fill `TriggerEvent.Detail`; run value `{@event}` (the device, Wi-Fi or cable name that started the run; empty otherwise). (D-136)
   Files: `Triggers.cs`, `Core/Yaml/TriggerMapper.cs`, `Core/Validation`, `Runtime/Triggers/TriggerService.cs` (`Matches`),
   `Engine/Triggers/DeviceSource.cs`, `AudioSource.cs`, `Core/Model/StepValues.cs` + `Core/Runs/RunValues.cs`, `WhenThisRuns.cs`.
   Done when: Core round-trip and validation tests; Runtime tests (filter, several arrivals of one device fold into one start,

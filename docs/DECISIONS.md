@@ -1814,7 +1814,7 @@ Status: accepted, built. Amends D-029
 - Revisit if: notices become their own stack in the run pop-up.
 
 
-## D-132 · 2026-11-13 · Roadmap M24 to M28 from the gap analysis; M28 rows wait for a yes each
+## D-135 · 2026-11-13 · Roadmap M24 to M28 from the gap analysis; M28 rows wait for a yes each
 Status: proposed (the user's standing instruction, 2026-11-12: after the analysis the coordinator builds as far as limits allow)
 - Decision: the next work is PLAN M24 to M28, ranked in docs/roadmap/GAPS.md. M24 to M27 extend recorded decisions (D-081, D-082,
   D-107, D-118, D-129) and reverse none, so they start without another question. Every M28 row reverses a recorded "No" or "later"
@@ -1830,7 +1830,7 @@ Status: proposed (the user's standing instruction, 2026-11-12: after the analysi
 - Revisit if: the user answers M28's rows, or a second user appears (signing, languages and sharing move up together).
 - Ref: docs/roadmap/GAPS.md (matrix, sketches, sources).
 
-## D-134 · 2026-11-13 · Which device on events: names read off the callback, `{@event}` run value (T24.6)
+## D-136 · 2026-11-13 · Which device on events: names read off the callback, `{@event}` run value (T24.6)
 
 - Decision: `device:` on `device.added/removed` (name contains, any case) and `audio.default-changed` (a Library audio key; matched by the item's `match` text and flow against the new default's name). Sources fill `TriggerEvent.Detail` (+ `Kind` input/output for audio); run value `{@event}` = Detail, passed `TriggerService` > `FlowLauncher` > `FlowRunner` > `RunValues.Event` (empty in a called flow).
 - How, AOT/idle-zero: names are read on the thread pool (devices: cfgmgr32 property calls) or the lazy COM worker (audio, D-009), never inside the system callback. A removed device is already unreadable, so `DeviceSource` keeps link > name for what it saw while loaded (seeded once on Load, dropped on Unload): no timer, no polling. Unreadable name = event raised without a detail; a trigger with a `device:` filter then skips it, one without works as before.

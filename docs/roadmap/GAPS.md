@@ -1,7 +1,7 @@
 # Gap analysis: what people expect from a desktop automation engine, and what Daze Control lacks
 
 Snapshot of 2026-11-13 (main at c685f76, v0.54.0 about to ship). Asked for by the user (2026-11-12): a deep look at missing
-features against comparable tools, then a ranked roadmap. The roadmap itself is PLAN.md M24 to M28; the decision is D-132.
+features against comparable tools, then a ranked roadmap. The roadmap itself is PLAN.md M24 to M28; the decision is D-135.
 This file is research: it is not kept up to date. When a gap is built, its facts move to FEATURES / ARCHITECTURE / UX.
 
 How to read a gap: **who expects it** (tools that have it), **how common** (High = nearly every tool, people look for it in

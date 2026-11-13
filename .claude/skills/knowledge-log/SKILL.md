@@ -29,6 +29,7 @@ don't leave "previously we…" prose in ARCHITECTURE.
 ## Decision entry
 
 Next free number, newest at the bottom. Keep it under ~10 lines.
+Parallel agents: run `git fetch` and take the next free D-number (max on origin/main + 1) right before committing, and re-check at merge time; duplicates have happened (D-132, D-134).
 
 ```
 ## D-007 · 2026-11-03 · <decision as a short statement>
