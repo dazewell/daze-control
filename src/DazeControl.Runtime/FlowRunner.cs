@@ -290,6 +290,14 @@ public sealed class FlowRunner
             return new(StepResult.Failed, 1, $"This version can't run \"{node.Step}\" steps.", TimeSpan.Zero, offset, retries);
 
         var timeout = node.Timeout ?? descriptor.DefaultTimeout;
+        // Repeat (T27.6, D-150): read after values were filled, with the validator's own reader.
+        var repeat = new FlowRepeat.Plan(1, true, TimeSpan.Zero);
+        if (waits)
+        {
+            if (FlowRepeat.Read(node, out var repeatProblem) is not { } plan)
+                return new(StepResult.Failed, 1, repeatProblem, TimeSpan.Zero, offset, retries);
+            repeat = plan;
+        }
         var attempts = 1 + Math.Max(0, node.RetryCount ?? 0);
         string? error = null;
         for (var attempt = 1; attempt <= attempts; attempt++)
@@ -315,11 +323,35 @@ public sealed class FlowRunner
                 { ParentRunId = scope.ParentRunId, ParentNodeId = scope.ParentNodeId });
             if (waits)
             {
-                var call = await CallAsync(scope, flow, node, ConfigValidator.CalledFlow(node) ?? "", FlowInputs.Given(node), timeout, flowToken,
-                    values, library).ConfigureAwait(false);
-                (error, called, quiet) = (call.Error, call.Called ?? called, call.Quiet);
-                if (quiet)
-                    return Done(StepResult.Cancelled, attempt, null);
+                // Rounds (T27.6, D-150): each call has the step's time limit; the last round decides the step and its values stand.
+                var round = 0;
+                while (true)
+                {
+                    round++;
+                    if (round > 1)
+                    {
+                        try
+                        {
+                            if (repeat.Pause > TimeSpan.Zero)
+                                await Task.Delay(repeat.Pause, _time, flowToken).ConfigureAwait(false);
+                            flowToken.ThrowIfCancellationRequested(); // cancelled between rounds: no further round starts
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            summary = FlowRepeat.Summary(repeat, round - 1, false);
+                            return Done(StepResult.Cancelled, attempt, error);
+                        }
+                        values.Clear(node.Id);
+                    }
+                    var call = await CallAsync(scope, flow, node, ConfigValidator.CalledFlow(node) ?? "", FlowInputs.Given(node), timeout, flowToken,
+                        values, library).ConfigureAwait(false);
+                    (error, called, quiet) = (call.Error, call.Called ?? called, call.Quiet);
+                    if (quiet)
+                        return Done(StepResult.Cancelled, attempt, null);
+                    if ((error is null) == repeat.UntilWorks || round >= repeat.Rounds || flowToken.IsCancellationRequested)
+                        break;
+                }
+                summary = FlowRepeat.Summary(repeat, round, error is null);
             }
             else
             {

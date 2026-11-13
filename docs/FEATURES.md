@@ -47,7 +47,10 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
   VPN, power (plugged in / on battery), battery (%), idle time, locked, screen count (`display.count`), free space
   (`file.space`), time (days + From/To window, past midnight ok); "Only if" on `audio.setDefault` (`notDefault`), `process.run` (`notRunning`), `service.start` (`stopped`), `service.stop` (`running`) · `flow.run` (Run flow, D-061):
   waits for the called flow by default (its result is the step's, one pop-up and one history record, loops refused
-  and stopped at 8 deep) or just starts it (`wait: false`); the editor picks the flow by name; a flow can declare
+  and stopped at 8 deep) or just starts it (`wait: false`); a call that waits can **repeat** (T27.6, D-150: `repeat` 1 to 50,
+  `until: works` (default; try again until it works) or `fails` (run every time until one fails), `pause` 0 to 10m between;
+  each round has the step's time limit, the last round decides the step and gives its values; Runs say "Worked on round 3
+  of 5" / "Ran 5 times"; one history record; Stop ends it between rounds); the editor picks the flow by name; a flow can declare
   device **inputs** with defaults (`inputs:`, steps use `$name`) and a call passes devices to them, so one chain serves
   Technics and Sony (D-064); an input can be a **bound device** (`kind: bound`: Bluetooth steps use its Bluetooth side,
   audio steps its audio side, D-125); the editor adds inputs in flow settings, offers them in device pickers, and gives a call

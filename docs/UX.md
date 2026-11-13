@@ -238,7 +238,8 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
 - Bluetooth pickers list Windows' paired devices (D-052); ones without audio are disabled with #26.
 - **Run flow** (M13, built T13.10): **Flow** ComboBox (glyph + name +
   caption: the inputs it takes, "Turned off", "Needs fixing"; its own flow and loop-making flows off with #49/#50);
-  **Wait for it to finish** toggle, on by default (#55); **Inputs**: a device picker per input of the chosen flow,
+  **Wait for it to finish** toggle, on by default (#55); **Repeat (times)** 1 to 50, **Stop repeating when** It works /
+  It doesn't work, **Wait between** (catalog fields, D-150; Repeat over 1 with Wait off is an error); **Inputs**: a device picker per input of the chosen flow,
   first item "Its default: Technics", then "From this flow's inputs", then "Library" (#60); with no flow chosen
   "Choose a flow first.", with none to give "Night takes no inputs."; **Open this flow** link (D-047 prompt). Picking
   another flow drops the inputs it doesn't take. Pill: the called flow's glyph, title "Run Make it the default" (also the

@@ -45,6 +45,7 @@ public static partial class ConfigValidator
             checker.Check();
         CheckMenus(config.Flows, config.Settings.StepDefaults, problems);
         CheckPrompts(config.Flows, config.Settings.StepDefaults, problems);
+        CheckRepeats(config.Flows, problems);
         CheckPicks(config.Flows, config.Library, config.Settings.StepDefaults, problems);
         CheckTimeWindows(config.Flows, problems);
         CheckWaits(config.Flows, config.Settings.StepDefaults, problems);
@@ -398,6 +399,27 @@ public static partial class ConfigValidator
                     problems.Add(new(Severity.Error, $"{path}.{(Text("from") is null ? "from" : "to")}", "Give both From and To, or neither for all day.", flow.Id));
                 else if (from is not null && from == to)
                     problems.Add(new(Severity.Error, $"{path}.to", "To must differ from From.", flow.Id));
+            }
+        }
+    }
+
+    /// <summary>
+    /// "Repeat" on <c>flow.run</c> (T27.6, D-150): only a call that waits repeats, and the wait between rounds is bounded. The number,
+    /// the choice and the duration's form are checked like any setting; <see cref="FlowRepeat.Read"/> says the same at run time.
+    /// </summary>
+    private static void CheckRepeats(IReadOnlyList<Flow> flows, List<Problem> problems)
+    {
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.RunFlowId))
+            {
+                var path = $"flows.{flow.Id}.nodes.{step.Id}.with";
+                if (FlowRepeat.Repeats(step) && step.With.TryGetValue("wait", out var wait) && wait is ScalarParam { Text: var on }
+                    && bool.TryParse(on.Trim(), out var waits) && !waits)
+                    problems.Add(new(Severity.Error, $"{path}.{FlowRepeat.RepeatParam}", "Repeat needs \"Wait for it to finish\" on.", flow.Id));
+                if (step.With.TryGetValue(FlowRepeat.PauseParam, out var pause) && pause is ScalarParam { Text: var text }
+                    && Duration.TryParse(text, out var span) && span > FlowRepeat.MaxPause)
+                    problems.Add(new(Severity.Error, $"{path}.{FlowRepeat.PauseParam}", "Wait 0 to 10m between rounds.", flow.Id));
             }
         }
     }

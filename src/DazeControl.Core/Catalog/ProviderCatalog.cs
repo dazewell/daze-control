@@ -582,6 +582,21 @@ public static class ProviderCatalog
                 Help = "Which device each of its inputs gets. Inputs not given use that flow's defaults.",
                 Examples = [new("Another device", "output: sony")],
             },
+            // Repeat (T27.6, D-150): only while it waits; the last round decides the step.
+            new(FlowRepeat.RepeatParam, ParamKind.WholeNumber, "Repeat (times)")
+            {
+                Default = "1", Min = 1, Max = FlowRepeat.MaxRounds,
+                Help = "Runs it up to this many times (1 to 50). Needs \"Wait for it to finish\". Each time has its own time limit.",
+            },
+            new(FlowRepeat.UntilParam, ParamKind.Choice, "Stop repeating when")
+            {
+                Choices = [FlowRepeat.UntilWorks, FlowRepeat.UntilFails], Captions = ["It works", "It doesn't work"], Default = FlowRepeat.UntilWorks,
+                Help = "It works: try again until it does. It doesn't work: run it every time until one fails. The last time decides this step.",
+            },
+            new(FlowRepeat.PauseParam, ParamKind.Duration, "Wait between")
+            {
+                Default = "0s", Help = "0 to 10m before each time after the first.",
+            },
         ]),
         // No resources yet: T12.4 decides how menus serialize (the presenter's gate, DESIGN §3.2).
         new(MenuShowId, "Show menu", MenuGlyph, TimeSpan.FromMinutes(10),
