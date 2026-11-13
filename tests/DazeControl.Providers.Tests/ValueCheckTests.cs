@@ -7,7 +7,7 @@ using DazeControl.Runtime.Providers;
 
 namespace DazeControl.Providers.Tests;
 
-/// <summary>T24.3 (D-135): the Check value step, per comparison, and in a run with values from earlier steps.</summary>
+/// <summary>T24.3 (D-137): the Check value step, per comparison, and in a run with values from earlier steps.</summary>
 public sealed class ValueCheckTests
 {
     private static async Task<(bool Holds, string Result)> Check(string value, string op, string to = "", string? ignoreCase = null)

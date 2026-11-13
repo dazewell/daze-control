@@ -223,7 +223,7 @@ public static partial class ConfigValidator
         }
     }
 
-    /// <summary>A written comparison <c>value.check</c> would always refuse is an error now, not a failed step later (D-135). Text with a reference is unknown until the run.</summary>
+    /// <summary>A written comparison <c>value.check</c> would always refuse is an error now, not a failed step later (D-137). Text with a reference is unknown until the run.</summary>
     private static void CheckValues(IReadOnlyList<Flow> flows, List<Problem> problems)
     {
         foreach (var flow in flows)

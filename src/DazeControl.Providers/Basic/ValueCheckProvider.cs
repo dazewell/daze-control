@@ -5,7 +5,7 @@ using DazeControl.Runtime.Providers;
 namespace DazeControl.Providers.Basic;
 
 /// <summary>
-/// <c>value.check</c> (T24.3, D-135): compares a text, already filled by the runner (D-129), with another. It fails with a
+/// <c>value.check</c> (T24.3, D-137): compares a text, already filled by the runner (D-129), with another. It fails with a
 /// sentence when the comparison doesn't hold, so the failure link is the "else". Both sides lose spaces at the ends first.
 /// "Is" and "isn't" compare as numbers when both sides are numbers (<c>5</c> is <c>5.0</c>), else as text; "at least" and
 /// "below" need two numbers (invariant culture: <c>3.5</c>). Reads nothing from the system, holds nothing (idle = zero).

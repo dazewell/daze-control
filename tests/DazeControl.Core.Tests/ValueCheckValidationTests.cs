@@ -3,7 +3,7 @@ using DazeControl.Core.Yaml;
 
 namespace DazeControl.Core.Tests;
 
-/// <summary>T24.3 (D-135): the Check value step in the validator mirrors what the provider always refuses.</summary>
+/// <summary>T24.3 (D-137): the Check value step in the validator mirrors what the provider always refuses.</summary>
 public class ValueCheckValidationTests
 {
     private static Core.Model.ValueList<Problem> Validate(string with)

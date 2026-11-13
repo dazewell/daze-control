@@ -810,7 +810,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   Done when: Providers tests behind a fake shell seam (file, folder, `https://`, `steam://`, `ms-settings:`; a missing file and "nothing
   opens this" fail with a sentence; an injection-shaped value can neither change a written scheme nor add arguments); examples in the
   inspector; engine AOT publish 0 warnings.
-- [ ] T24.3 Check value `value.check` (Sonnet, S-M; solo on the catalog; after T24.2). `value` (takes values), `is` (is, isn't, contains,
+- [x] T24.3 Check value (built, D-137) `value.check` (Sonnet, S-M; solo on the catalog; after T24.2). `value` (takes values), `is` (is, isn't, contains,
   doesn't contain, starts with, ends with, is empty, isn't empty, at least, below), `to`, ignore case on by default; gives `result`;
   in `ProviderCatalog.Checks` so `dctl check value.check value=5 is=atLeast to=3` works. Files: `ProviderCatalog.cs`, `Providers/Basic/`,
   `Editor.ViewModels/Canvas/CanvasNodeViewModel.cs` (area → Flow group), FEATURES F3 + F10.

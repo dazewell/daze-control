@@ -452,7 +452,7 @@ public static class ProviderCatalog
             Keywords = "compose join combine value string",
             Values = [new ValueSpec(StepValues.MakeTextParam, ValueKind.Text, "Text") { Help = "The text it made" }],
         },
-        // T24.3 (D-135): compares two texts that take values; fails when it doesn't hold, so the failure link is the "else".
+        // T24.3 (D-137): compares two texts that take values; fails when it doesn't hold, so the failure link is the "else".
         new(ValueCheckId, "Check value", TextGlyph, Short,
         [
             new("value", ParamKind.Text, "Value")
