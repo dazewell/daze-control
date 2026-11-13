@@ -142,7 +142,7 @@ public class BluetoothProviderTests
             await run;
         else
             Assert.Equal(connected ? "Technics EAH-AZ80 is connected." : "Technics EAH-AZ80 isn't connected.",
-                (await Assert.ThrowsAsync<StepFailedException>(() => run)).Message);
+                (await Assert.ThrowsAsync<CheckNotMetException>(() => run)).Message);
     }
 
     [Fact]

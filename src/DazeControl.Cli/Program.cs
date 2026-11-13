@@ -336,7 +336,8 @@ public static class Program
             var state = !flow.Enabled ? "off" : !flow.Runnable ? "needs fixing" : flow.Stale ? "runs its last good version"
                 : flow.Running ? "running" : "ready";
             var hotkeys = flow.Hotkeys is { Length: > 0 } h ? $"  [{string.Join(", ", h)}]" : "";
-            Console.Out.WriteLine($"{flow.Id,-24} {flow.Name}{hotkeys} — {state}");
+            var held = flow.HeldBack is { Length: > 0 } h2 && flow.Runnable && !flow.Running ? $" ({h2.TrimEnd('.')})" : "";
+            Console.Out.WriteLine($"{flow.Id,-24} {flow.Name}{hotkeys} — {state}{held}");
         }
         return Ok;
     }

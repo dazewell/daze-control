@@ -44,6 +44,6 @@ public sealed class FlagCheckProvider(FlagStore flags) : IStepProvider
         context.SetValue("result", $"Flag \"{name}\" is {(flags.Get(name) ? "on" : "off")}");
         return flags.Get(name) == expected
             ? Task.CompletedTask
-            : Task.FromException(new StepFailedException($"Flag \"{name}\" is {(expected ? "off" : "on")}."));
+            : Task.FromException(new CheckNotMetException($"Flag \"{name}\" is {(expected ? "off" : "on")}."));
     }
 }

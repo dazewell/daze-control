@@ -57,12 +57,58 @@ public static partial class ConfigValidator
         CheckCalls(config.Flows, problems);
         CheckWatchedFolders(config.Flows, folderExists ?? Directory.Exists, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, catalog, config.Settings.StepDefaults, problems);
+        CheckOnlyIf(config, catalog, folderExists, problems);
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
         var hotkeyOwners = new Dictionary<Hotkey, string>();
         var rejected = FlowsWithErrors(problems.Concat(earlier ?? []));
         foreach (var checker in checkers)
             checker.ClaimHotkeys(hotkeyOwners, rejected);
         return new(problems);
+    }
+
+    /// <summary>
+    /// "Only run if" (T25.1, D-150): each entry must be a check step (<see cref="ProviderCatalog.Checks"/>). The checks are
+    /// validated by every step rule above, as a flow of their own with the flow's inputs (that is how the guard runs them), and
+    /// the problems are moved to <c>flows.&lt;id&gt;.onlyIf.&lt;check&gt;</c>. A problem there is a flow error, as for a step:
+    /// a broken guard must not let a flow start unguarded.
+    /// </summary>
+    private static void CheckOnlyIf(Configuration config, IReadOnlyList<ProviderDescriptor> catalog, Func<string, bool>? folderExists, List<Problem> problems)
+    {
+        var guarded = config.Flows.Where(f => f.OnlyIf.Count > 0).ToList();
+        if (guarded.Count == 0)
+            return;
+        foreach (var flow in guarded)
+        {
+            foreach (var check in flow.OnlyIf.Where(c => !ProviderCatalog.Checks.Contains(c.Step) && catalog.Any(d => d.Id == c.Step)))
+                problems.Add(new(Severity.Error, $"flows.{flow.Id}.onlyIf.{check.Id}.step",
+                    $"\"Only run if\" takes checks only; {catalog.First(d => d.Id == check.Step).Title} changes something.", flow.Id));
+        }
+        var checks = guarded.Select(f => GuardFlow(f)).ToList();
+        var found = Validate(config with { Flows = new(checks) }, catalog: catalog, folderExists: folderExists);
+        foreach (var problem in found)
+        {
+            if (problem.FlowId is not { } id)
+                continue;
+            var nodes = $"flows.{id}.nodes";
+            if (!problem.Path.StartsWith(nodes + ".", StringComparison.Ordinal))
+                continue; // the stand-in flow's own warnings (it has no hotkeys, triggers or outputs) aren't the flow's
+            problems.Add(problem with { Path = $"flows.{id}.onlyIf" + problem.Path[nodes.Length..] });
+        }
+    }
+
+    /// <summary>
+    /// The flow the guard runs (T25.1): the "Only run if" checks side by side, with the flow's inputs and nothing else. Each
+    /// is "skip what depends on it", so one check's failure doesn't cancel the others: a "no" from any of them must be seen
+    /// even when another one couldn't answer.
+    /// </summary>
+    public static Flow GuardFlow(Flow flow)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        return new Flow(flow.Id, flow.Name, new(flow.OnlyIf.Select(c => (Node)(c with { After = [], OnFailure = FailurePolicy.Skip, Only = null }))))
+        {
+            Inputs = flow.Inputs,
+            Popup = false,
+        };
     }
 
     /// <summary>Flows that must not run as written: an error carries their id.</summary>

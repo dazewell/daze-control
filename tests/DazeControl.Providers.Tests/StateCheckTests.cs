@@ -193,7 +193,7 @@ public class StateCheckTests
     public async Task CheckStepsFailWithTheReadingWhenTheFactIsntAsChosen()
     {
         var check = new FactCheckProvider("power.source", new PluggedInProbe(new FakePc(new(false, 50))), "pluggedIn");
-        var e = await Assert.ThrowsAsync<StepFailedException>(() => check.ExecuteAsync(Steps.Context("power.source"), Token));
+        var e = await Assert.ThrowsAsync<CheckNotMetException>(() => check.ExecuteAsync(Steps.Context("power.source"), Token));
         Assert.Equal("On battery", e.Message);
         await check.ExecuteAsync(Steps.Context("power.source", ("is", "onBattery")), Token);
     }

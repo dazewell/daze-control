@@ -61,7 +61,7 @@ public class BasicProviderTests
     public async Task UnsetFlagIsOff()
     {
         var check = new FlagCheckProvider(new FlagStore());
-        var failure = await Assert.ThrowsAsync<StepFailedException>(() => check.RunAsync(("name", "gaming")));
+        var failure = await Assert.ThrowsAsync<CheckNotMetException>(() => check.RunAsync(("name", "gaming")));
         Assert.Equal("Flag \"gaming\" is off.", failure.Message);
         await check.RunAsync(("name", "gaming"), ("value", "false"));
     }
@@ -73,7 +73,7 @@ public class BasicProviderTests
         await new FlagSetProvider(flags).RunAsync(("name", "Gaming"));
         await new FlagCheckProvider(flags).RunAsync(("name", "gaming"));
         await new FlagSetProvider(flags).RunAsync(("name", "GAMING"), ("value", "false"));
-        await Assert.ThrowsAsync<StepFailedException>(() => new FlagCheckProvider(flags).RunAsync(("name", "gaming")));
+        await Assert.ThrowsAsync<CheckNotMetException>(() => new FlagCheckProvider(flags).RunAsync(("name", "gaming")));
     }
 
     [Fact]

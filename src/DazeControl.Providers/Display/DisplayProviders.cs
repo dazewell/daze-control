@@ -113,9 +113,9 @@ public sealed class DisplayCheckProvider(IDisplays displays) : IStepProvider
         var wantMatch = context.Text("is") != "differs";
         context.SetValue("result", difference ?? $"The screens match {layout.Key}");
         if (wantMatch && difference is not null)
-            throw new StepFailedException(difference);
+            throw new CheckNotMetException(difference);
         if (!wantMatch && difference is null)
-            throw new StepFailedException($"The screens already match {layout.Key}.");
+            throw new CheckNotMetException($"The screens already match {layout.Key}.");
         context.SetSummary(difference is null ? $"The screens match {layout.Key}" : difference);
         return Task.CompletedTask;
     }

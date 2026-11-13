@@ -25,7 +25,7 @@ public sealed class ValueCheckProvider : IStepProvider
         var (holds, sentence) = Compare(op, value, to, ignoreCase, context);
         context.SetValue("result", sentence); // given even when it doesn't hold: a failure link can say why
         if (!holds)
-            throw new StepFailedException(sentence);
+            throw new CheckNotMetException(sentence);
         context.SetSummary(sentence);
         return Task.CompletedTask;
     }

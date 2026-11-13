@@ -212,6 +212,9 @@ public sealed class FlowInfo
     public string[]? Hotkeys { get; init; }
 
     public int Errors { get; init; }
+
+    /// <summary>"Only run if" (T25.1) held back its latest start, after its latest run: "Held back: Wi-Fi isn't Home." Null = not.</summary>
+    public string? HeldBack { get; init; }
 }
 
 public sealed class EngineStatus

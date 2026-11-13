@@ -21,7 +21,7 @@ public sealed class ValueCheckTests
         {
             await new ValueCheckProvider().ExecuteAsync(context, TestContext.Current.CancellationToken);
         }
-        catch (StepFailedException e)
+        catch (Exception e) when (e is StepFailedException or CheckNotMetException)
         {
             holds = false;
             Assert.Equal(e.Message, context.Values["result"].Text); // a failure link can say why

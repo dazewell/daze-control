@@ -166,7 +166,7 @@ public sealed class FlowRunner
         var startWords = startAt is null ? null : $"this run started at {NameOfNode(flow, startAt)}";
         NodeResult ResultOf(string id) => results.TryGetValue(id, out var r)
             ? new NodeResult(id, scheduler.Outcomes[id], r.Attempts, r.Error, r.Duration, r.Start, order[id],
-                r.Retries.Count > 0 ? [.. r.Retries] : null) { Called = r.Called, Summary = r.Summary, SkippedBecause = r.SkippedBecause, Values = r.Values, Used = r.Used }
+                r.Retries.Count > 0 ? [.. r.Retries] : null) { Called = r.Called, Summary = r.Summary, SkippedBecause = r.SkippedBecause, Values = r.Values, Used = r.Used, NotMet = r.NotMet }
             : scheduler.NotRun.Contains(id) ? new NodeResult(id, scheduler.Outcomes[id], Attempts: 0) { SkippedBecause = startWords }
             : new NodeResult(id, scheduler.Outcomes[id], Attempts: 0)
             {
@@ -258,10 +258,11 @@ public sealed class FlowRunner
     /// <param name="SkippedBecause">"Only if" wasn't met: the probe's sentence (D-081). The result is Succeeded.</param>
     private readonly record struct StepRun(StepResult Result, int Attempts, string? Error, TimeSpan Duration, TimeSpan Start,
         List<TimeSpan> Retries, CalledRun? Called = null, bool Quiet = false, string? Summary = null, string? SkippedBecause = null, bool Stopped = false,
-        ShownValue[]? Values = null, ShownValue[]? Used = null);
+        ShownValue[]? Values = null, ShownValue[]? Used = null, bool NotMet = false);
 
     /// <summary>One try of an ordinary step: null <paramref name="Error"/> = it worked; <paramref name="EndsFlow"/> = see <see cref="StepEndsFlowException"/>.</summary>
-    private readonly record struct AttemptResult(string? Error, bool EndsFlow = false, string? SkippedBecause = null, bool Stop = false);
+    /// <param name="NotMet">A check read its fact and it isn't as asked (<see cref="CheckNotMetException"/>), as opposed to failing to read it.</param>
+    private readonly record struct AttemptResult(string? Error, bool EndsFlow = false, string? SkippedBecause = null, bool Stop = false, bool NotMet = false);
 
     /// <param name="Chain">Flow ids from the top run down to this run's flow.</param>
     private sealed record RunScope(Guid RunId, string[] Chain, Guid? ParentRunId, string? ParentNodeId, string Trigger = "")
@@ -287,12 +288,13 @@ public sealed class FlowRunner
         var stopped = false;
         string? summary = null;
         string? skipped = null;
+        var notMet = false;
         var written = node;
         StepRun Done(StepResult result, int attempts, string? error)
         {
             var (shownValues, shownUsed) = skipped is null ? Snapshot(flow, written, node, values, library) : (null, null);
             return new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet, summary, skipped, stopped,
-                shownValues, shownUsed);
+                shownValues, shownUsed, result == StepResult.Failed && notMet);
         }
         string? unpicked = null;
         // Values go in now (D-117, D-129): the lock, the provider and a called flow see plain text and Library keys.
@@ -349,6 +351,7 @@ public sealed class FlowRunner
                     RunNested = Flows is null ? null : (target, token) => NestedAsync(scope, flow, node, target, c => called = c, token),
                 };
                 var attemptResult = await AttemptAsync(provider!, context, timeout, flowToken).ConfigureAwait(false);
+                notMet = attemptResult.NotMet;
                 // Sensitive values never reach the log or history (D-014): an error or summary that holds one shows its title.
                 var secrets = DryRun ? [] : StepValues.Secrets(flow, node.Id, values, library, _catalog, CalledFlows);
                 error = StepValues.Mask(attemptResult.Error, secrets);
@@ -647,6 +650,10 @@ public sealed class FlowRunner
         catch (StepEndsFlowException e)
         {
             return new(e.Message, EndsFlow: true, Stop: e.IsStop);
+        }
+        catch (CheckNotMetException e)
+        {
+            return new(e.Message, NotMet: true);
         }
 #pragma warning disable CA1031
         catch (Exception e)
