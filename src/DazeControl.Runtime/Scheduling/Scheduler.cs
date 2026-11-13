@@ -34,6 +34,8 @@ public enum StepResult
 /// partial success.
 /// A card starts all members together and finishes when all have; it fails when a member fails with stop or
 /// skip, and then its own policy applies.
+/// A step that is turned off (<see cref="StepNode.Enabled"/>, D-148) is never handed to the runner: when it would
+/// start it ends Succeeded at once, so its success and always edges fire and its failure edges never do.
 /// </remarks>
 public sealed class Scheduler
 {
@@ -47,6 +49,7 @@ public sealed class Scheduler
     private readonly IReadOnlySet<string> _fallbacks;
     private readonly IReadOnlySet<string> _withFallback;
     private readonly HashSet<string> _excused = []; // skipped only because a handled failure didn't fire success
+    private readonly HashSet<string> _off = [];
 
     /// <param name="flow">A flow that passed <c>ConfigValidator</c>.</param>
     public Scheduler(Flow flow)
@@ -58,6 +61,8 @@ public sealed class Scheduler
         {
             _nodes[node.Id] = node;
             _outgoing[node.Id] = [];
+            if (node is StepNode { Enabled: false })
+                _off.Add(node.Id);
         }
         foreach (var card in flow.Nodes.OfType<GroupNode>())
         {
@@ -79,6 +84,9 @@ public sealed class Scheduler
     public bool IsCancelled { get; private set; }
 
     public bool IsFinished => _outcomes.Count == _nodes.Count;
+
+    /// <summary>The step is turned off: it ends Succeeded without running (D-148).</summary>
+    public bool IsOff(string stepId) => _off.Contains(stepId);
 
     /// <summary>Steps started and not yet completed.</summary>
     public IReadOnlyCollection<string> Running => _running;
@@ -240,6 +248,16 @@ public sealed class Scheduler
 
     private void StartStep(string id)
     {
+        if (_off.Contains(id))
+        {
+            // Done without running: as if it had succeeded at once (D-148). Its card waits for the other members.
+            _outcomes[id] = NodeOutcome.Succeeded;
+            if (_cardOf.TryGetValue(id, out var card))
+                CompleteMemberOf(card);
+            else
+                Finish(_nodes[id], NodeOutcome.Succeeded);
+            return;
+        }
         _running.Add(id);
         _ready.Add(id);
     }

@@ -164,7 +164,10 @@ public sealed class FlowRunner
         NodeResult ResultOf(string id) => results.TryGetValue(id, out var r)
             ? new NodeResult(id, scheduler.Outcomes[id], r.Attempts, r.Error, r.Duration, r.Start, order[id],
                 r.Retries.Count > 0 ? [.. r.Retries] : null) { Called = r.Called, Summary = r.Summary, SkippedBecause = r.SkippedBecause, Values = r.Values, Used = r.Used }
-            : new NodeResult(id, scheduler.Outcomes[id], Attempts: 0);
+            : new NodeResult(id, scheduler.Outcomes[id], Attempts: 0)
+            {
+                TurnedOff = scheduler.IsOff(id) && scheduler.Outcomes[id] == NodeOutcome.Succeeded ? true : null,
+            };
 
         void ReportFinished()
         {

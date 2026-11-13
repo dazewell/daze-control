@@ -51,6 +51,10 @@ public sealed record NodeResult(string NodeId, NodeOutcome Outcome, int Attempts
     /// connected"). The outcome is Succeeded; readers prefix "Skipped: ". Null otherwise and in runs recorded before 0.41.</summary>
     public string? SkippedBecause { get; init; }
 
+    /// <summary>True when the step is turned off (<c>enabled: false</c>, D-148) and ended Succeeded without running.
+    /// Readers say "Turned off". Null otherwise and in runs recorded before T25.4.</summary>
+    public bool? TurnedOff { get; init; }
+
     /// <summary>The values the step gave that a later setting uses (T25.5, D-145): masked, cut, Sensitive ones hidden. Null
     /// when none, in a dry run, and in runs recorded before this was added.</summary>
     public ShownValue[]? Values { get; init; }
