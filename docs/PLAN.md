@@ -917,7 +917,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   cancel between rounds, one history record with the round count), D-entry (D-063's revisit note).
 - [ ] T27.7 Report (Sonnet, S; parallel-safe). `dctl doctor [file]` and About › "Save a report". Done when: a test proves no credential
   value, header value or Sensitive value is in the zip.
-- [ ] T27.8 Scripting output (Sonnet, S; parallel-safe). `--json` on list / status / history / devices / check; `dctl flag`; `dctl pause`.
+- [x] T27.8 Scripting output (Sonnet, S; parallel-safe). `--json` on list / status / history / devices / check; `dctl flag`; `dctl pause`. D-142.
 - [ ] T27.9 Gate (Sonnet, S).
 
 ## M28 Needs your yes (each row reverses a recorded "No" or "later", or costs money: answer per row, any order)

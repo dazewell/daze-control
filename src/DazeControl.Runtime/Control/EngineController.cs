@@ -60,6 +60,21 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         set => _shell = value;
     }
 
+    /// <summary>Longest flag name <c>dctl flag</c> takes (a name is a few words).</summary>
+    public const int MaxFlagName = 200;
+
+    /// <summary>
+    /// Reads (new value null) or sets a flag by name and returns what it is now (<c>dctl flag</c>, T27.8): the engine's
+    /// <c>FlagStore</c>, set by the host. Null = no flag store, the op says so.
+    /// </summary>
+    public Func<string, bool?, bool>? FlagAccess { get; set; }
+
+    /// <summary>
+    /// Pauses (true), resumes (false) or reads (null) the shortcuts, like the tray item, and returns whether they are paused now
+    /// (<c>dctl pause</c>, T27.8). The host runs it on the message thread, where the shortcuts are registered.
+    /// </summary>
+    public Func<bool?, Task<bool>>? PauseAccess { get; set; }
+
     /// <summary>
     /// An <see cref="PipeRequest.ExactId"/> run (a desktop shortcut) that didn't start: nobody sees the pipe's answer, so
     /// the shell says it in the pop-up. Any thread.
@@ -128,6 +143,10 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                 return History(request);
             case Ops.Autostart:
                 return Autostart(request);
+            case Ops.Flag:
+                return Flag(request);
+            case Ops.Pause:
+                return await PauseAsync(request).ConfigureAwait(false);
             case Ops.Devices:
                 return await DevicesAsync(request, cancellationToken).ConfigureAwait(false);
             case Ops.AndroidApps:
@@ -506,6 +525,29 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         if (request.Limit is > 0 and var limit)
             runs = runs.Take(limit);
         return new PipeMessage { Id = request.Id, Ok = true, History = [.. runs] };
+    }
+
+    private PipeMessage Flag(PipeRequest request)
+    {
+        var name = request.Key?.Trim();
+        if (string.IsNullOrEmpty(name) || name.Length > MaxFlagName || name.Any(char.IsControl))
+            return PipeMessage.BadUsage(request.Id, $"flag needs a name (up to {MaxFlagName} characters), then on or off.");
+        if (FlagAccess is not { } access)
+            return PipeMessage.Fail(request.Id, "Flags aren't available in this engine.");
+        var now = access(name, request.Enable);
+        if (request.Enable is { } enable)
+            log($"flag: \"{name}\" {(enable ? "on" : "off")} (command line)"); // the name is the user's own word, never a value
+        return new PipeMessage { Id = request.Id, Ok = true, State = now };
+    }
+
+    private async Task<PipeMessage> PauseAsync(PipeRequest request)
+    {
+        if (PauseAccess is not { } access)
+            return PipeMessage.Fail(request.Id, "Pausing shortcuts isn't available in this engine.");
+        var paused = await access(request.Enable).ConfigureAwait(false);
+        if (request.Enable is not null)
+            log($"hotkey: shortcuts {(paused ? "paused" : "resumed")} (command line)");
+        return new PipeMessage { Id = request.Id, Ok = true, State = paused };
     }
 
     private PipeMessage Autostart(PipeRequest request)
