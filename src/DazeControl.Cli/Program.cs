@@ -30,12 +30,16 @@ public static class Program
                                             start a flow (by id or name); --wait prints how it went. name=value gives
                                             the flow's inputs: a Library key for a device input, any text for a text input
           cancel <flow>                     stop a running flow
-          list                              flows and whether they can run
+          list [--json]                     flows and whether they can run
           validate [file]                   problems in config.yaml (or in the file given)
-          status                            what the engine is doing
-          history [flow] [--limit n]        recent runs, newest first
+          status [--json]                   what the engine is doing
+          history [flow] [--limit n] [--json]
+                                            recent runs, newest first
+          flag <name> [on|off] [--json]     turn a flag on or off, or say what it is (a flag is off until set)
+          pause [on|off] [--json]           pause or resume shortcuts, schedules and event triggers like the tray's
+                                            "Pause shortcuts", or say whether they are paused
           autostart [on|off]                start the engine with Windows
-          devices audio|bluetooth|displays|adb|services|credentials|wifi
+          devices audio|bluetooth|displays|adb|services|credentials|wifi [--json]
                                             what steps can name on this PC
           capture-display-layout <name>     the screens as they are now, as YAML for library.displays
           shortcut <flow> [--remove]        put a desktop shortcut that runs the flow (or take it away)
@@ -43,8 +47,11 @@ public static class Program
                                             save config.yaml (and the editor layout / run history if asked) to a .dcbackup file
           restore <file> [--merge|--replace] [--yes] [--dry-run] [--editor] [--config <path>]
                                             --dry-run shows what would change; --yes applies it (--replace is the default)
-          check <check> [name=value...]     read one fact now, like: check network.wifi network=Home (0 = yes, 1 = no)
+          check <check> [name=value...] [--json]
+                                            read one fact now, like: check network.wifi network=Home (0 = yes, 1 = no)
           update [--channel stable|rc]      download a newer version (release candidates with rc); it installs at the next start
+        --json (list, status, history, devices, check, flag, pause): one JSON document on stdout instead of sentences, for scripts.
+          Fields are only ever added. Errors still go to stderr with the exit codes below.
         Exit codes: 0 ok, 1 failed, 2 usage (restore: also refused without --yes; run: an input the flow doesn't have or a Library key that isn't there), 3 the engine isn't running.
         """;
 
@@ -92,17 +99,17 @@ public static class Program
             case "cancel":
                 return await SendAsync(new PipeRequest { Op = Ops.Cancel, Flow = line.Word }, _ => Ok).ConfigureAwait(false);
             case "list":
-                return await SendAsync(new PipeRequest { Op = Ops.List }, PrintFlows, offline: ListOffline).ConfigureAwait(false);
+                return await SendAsync(new PipeRequest { Op = Ops.List }, m => PrintFlows(m, line.Json), offline: () => ListOffline(line.Json)).ConfigureAwait(false);
             case "validate":
                 if (line.Word is { } file)
                     return ValidateOffline(file);
                 return await SendAsync(new PipeRequest { Op = Ops.Validate }, m => PrintProblems(m.Problems ?? []),
                     offline: () => ValidateOffline(DefaultConfigPath(), missingIsEmpty: true)).ConfigureAwait(false);
             case "status":
-                return await SendAsync(new PipeRequest { Op = Ops.Status }, PrintStatus).ConfigureAwait(false);
+                return await SendAsync(new PipeRequest { Op = Ops.Status }, m => PrintStatus(m, line.Json)).ConfigureAwait(false);
             case "history":
                 return await SendAsync(new PipeRequest { Op = Ops.History, Flow = line.Word, Limit = line.Limit },
-                    PrintHistory).ConfigureAwait(false);
+                    m => PrintHistory(m, line.Json)).ConfigureAwait(false);
             case "autostart":
                 bool? enable = line.Word switch
                 {
@@ -122,7 +129,23 @@ public static class Program
                     return Ok;
                 }).ConfigureAwait(false);
             case "devices":
-                return await SendAsync(new PipeRequest { Op = Ops.Devices, Kind = line.Word }, PrintDevices).ConfigureAwait(false);
+                return await SendAsync(new PipeRequest { Op = Ops.Devices, Kind = line.Word }, m => PrintDevices(m, line.Word, line.Json)).ConfigureAwait(false);
+            case "flag":
+                bool? flagValue = line.Words.Count < 2 ? null : OnOff(line.Words[1], "flag");
+                return await SendAsync(new PipeRequest { Op = Ops.Flag, Key = line.Word, Enable = flagValue }, m =>
+                {
+                    Console.Out.WriteLine(line.Json ? ScriptJson.Flag(line.Word!.Trim(), m.State == true)
+                        : $"Flag \"{line.Word!.Trim()}\" is {(m.State == true ? "on" : "off")}.");
+                    return Ok;
+                }).ConfigureAwait(false);
+            case "pause":
+                bool? pauseValue = line.Word is null ? null : OnOff(line.Word, "pause");
+                return await SendAsync(new PipeRequest { Op = Ops.Pause, Enable = pauseValue }, m =>
+                {
+                    Console.Out.WriteLine(line.Json ? ScriptJson.Pause(m.State == true)
+                        : m.State == true ? "Shortcuts are paused." : "Shortcuts are on.");
+                    return Ok;
+                }).ConfigureAwait(false);
             case "capture-display-layout":
                 return await SendAsync(new PipeRequest { Op = Ops.CaptureDisplayLayout, Key = line.Word }, m =>
                 {
@@ -139,11 +162,18 @@ public static class Program
             case "update":
                 return await UpdateAsync(line.Channel).ConfigureAwait(false);
             case "check":
-                return await CheckAsync(line.Words).ConfigureAwait(false);
+                return await CheckAsync(line.Words, line.Json).ConfigureAwait(false);
             default:
                 throw new UnreachableException();
         }
     }
+
+    private static bool OnOff(string word, string command) => word switch
+    {
+        "on" => true,
+        "off" => false,
+        _ => throw new UsageException($"{command} takes on or off."),
+    };
 
     private static BackupCommands Commands(CommandLine line)
     {
@@ -263,9 +293,13 @@ public static class Program
         if (!answer.Ok)
         {
             // An engine from before T24.9 refuses the newer version instead of running the flow on its defaults.
-            Console.Error.WriteLine(request.Inputs is { Count: > 0 } && answer.Error?.StartsWith(Protocol.MismatchStart, StringComparison.Ordinal) == true
+            // An engine from before T27.8 refuses flag and pause the same way.
+            var older = answer.Error?.StartsWith(Protocol.MismatchStart, StringComparison.Ordinal) == true;
+            Console.Error.WriteLine(older && request.Inputs is { Count: > 0 }
                 ? $"The running {AppInfo.ProductName} is an older version that can't take inputs. Quit it from the tray, start it again, then retry."
-                : answer.Error);
+                : older && request.Op is Ops.Flag or Ops.Pause
+                    ? $"The running {AppInfo.ProductName} is an older version that can't do {request.Op}. Quit it from the tray, start it again, then retry."
+                    : answer.Error);
             return answer.Usage ? Usage : Failed;
         }
         return print(answer);
@@ -288,8 +322,13 @@ public static class Program
         return run.Outcome is FlowOutcome.Succeeded ? Ok : Failed;
     }
 
-    private static int PrintFlows(PipeMessage message)
+    private static int PrintFlows(PipeMessage message, bool json, bool engineRunning = true)
     {
+        if (json)
+        {
+            Console.Out.WriteLine(ScriptJson.Flows(message.Flows ?? [], engineRunning));
+            return Ok;
+        }
         if (message.Flows is not { Length: > 0 })
             Console.Out.WriteLine("No flows yet.");
         foreach (var flow in message.Flows ?? [])
@@ -302,8 +341,13 @@ public static class Program
         return Ok;
     }
 
-    private static int PrintDevices(PipeMessage message)
+    private static int PrintDevices(PipeMessage message, string? kind, bool json)
     {
+        if (json)
+        {
+            Console.Out.WriteLine(ScriptJson.Devices(kind, message.Devices ?? []));
+            return Ok;
+        }
         if (message.Devices is not { Length: > 0 })
             Console.Out.WriteLine("None found.");
         foreach (var device in message.Devices ?? [])
@@ -316,9 +360,14 @@ public static class Program
         return Ok;
     }
 
-    private static int PrintStatus(PipeMessage message)
+    private static int PrintStatus(PipeMessage message, bool json)
     {
         var s = message.Status!;
+        if (json)
+        {
+            Console.Out.WriteLine(ScriptJson.Status(s));
+            return Ok;
+        }
         Console.Out.WriteLine($"{AppInfo.ProductName} {s.Version} (process {s.ProcessId})");
         Console.Out.WriteLine($"Config: {s.ConfigPath} — {s.Errors} error(s), {s.Warnings} warning(s)");
         Console.Out.WriteLine(s.Running is { Length: > 0 } running ? $"Running: {string.Join(", ", running)}" : "Nothing running.");
@@ -329,8 +378,13 @@ public static class Program
         return Ok;
     }
 
-    private static int PrintHistory(PipeMessage message)
+    private static int PrintHistory(PipeMessage message, bool json)
     {
+        if (json)
+        {
+            Console.Out.WriteLine(ScriptJson.History(message.History ?? []));
+            return Ok;
+        }
         foreach (var run in message.History ?? [])
         {
             var when = run.Started.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
@@ -364,7 +418,7 @@ public static class Program
     /// with the Library of config.yaml (so audio and Bluetooth checks can name its devices). Prints the check's
     /// sentence; exit 0 when the fact is as asked, 1 when not, so scripts can branch on it.
     /// </summary>
-    private static async Task<int> CheckAsync(IReadOnlyList<string> words)
+    private static async Task<int> CheckAsync(IReadOnlyList<string> words, bool json)
     {
         var path = DefaultConfigPath();
         var (request, error) = CheckCommand.Request(words, File.Exists(path) ? File.ReadAllText(path) : null);
@@ -373,20 +427,17 @@ public static class Program
             Console.Error.WriteLine(error);
             return Usage;
         }
-        return await SendAsync(request, PrintCheck).ConfigureAwait(false);
+        return await SendAsync(request, m => PrintCheck(m, words[0], json)).ConfigureAwait(false);
     }
 
-    private static int PrintCheck(PipeMessage message)
+    private static int PrintCheck(PipeMessage message, string check, bool json)
     {
         if (message.Run?.Nodes is not [var node, ..])
             return Failed;
-        if (node.Outcome == NodeOutcome.Succeeded)
-        {
-            Console.Out.WriteLine(node.Summary ?? "Yes");
-            return Ok;
-        }
-        Console.Out.WriteLine(node.Error ?? node.Outcome.ToString());
-        return Failed;
+        var ok = node.Outcome == NodeOutcome.Succeeded;
+        var text = ok ? node.Summary ?? "Yes" : node.Error ?? node.Outcome.ToString();
+        Console.Out.WriteLine(json ? ScriptJson.Check(check, ok, text) : text);
+        return ok ? Ok : Failed;
     }
 
     private static string DefaultConfigPath() =>
@@ -426,12 +477,13 @@ public static class Program
         }));
     }
 
-    private static int ListOffline()
+    private static int ListOffline(bool json)
     {
         var path = DefaultConfigPath();
         if (Load(path, missingIsEmpty: true) is not ({ } config, var problems))
             return Failed;
-        Console.Out.WriteLine($"({AppInfo.ProductName} isn't running; read {path})");
+        if (!json)
+            Console.Out.WriteLine($"({AppInfo.ProductName} isn't running; read {path})");
         var broken = ConfigValidator.FlowsWithErrors(problems);
         return PrintFlows(new PipeMessage
         {
@@ -439,6 +491,6 @@ public static class Program
             {
                 Id = f.Id, Name = f.Name, Enabled = f.Enabled, Runnable = f.Enabled && !broken.Contains(f.Id), Hotkeys = [.. f.Hotkeys],
             })],
-        });
+        }, json, engineRunning: false);
     }
 }

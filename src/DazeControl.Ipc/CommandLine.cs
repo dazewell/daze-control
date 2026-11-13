@@ -19,6 +19,9 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
     public bool Editor { get; init; }
     public bool History { get; init; }
 
+    /// <summary>list, status, history, devices, check, flag, pause: print one JSON document instead of sentences (T27.8).</summary>
+    public bool Json { get; init; }
+
     /// <summary>update: <c>stable</c> or <c>rc</c> (lower-case), the channel to switch to first (D-108).</summary>
     public string? Channel { get; init; }
 
@@ -54,18 +57,20 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
     {
         ["run"] = new(1, 1 + MaxInputs, $"run needs one flow, then at most {MaxInputs} inputs as name=value.", "--wait", "--dry-run"),
         ["cancel"] = new(1, 1, "cancel needs one flow."),
-        ["list"] = new(0, 0, "list takes no arguments."),
+        ["list"] = new(0, 0, "list takes no arguments but --json.", "--json"),
         ["validate"] = new(0, 1, "validate takes at most one file."),
-        ["status"] = new(0, 0, "status takes no arguments."),
-        ["history"] = new(0, 1, "history takes at most one flow.", "--limit"),
+        ["status"] = new(0, 0, "status takes no arguments but --json.", "--json"),
+        ["history"] = new(0, 1, "history takes at most one flow.", "--limit", "--json"),
         ["autostart"] = new(0, 1, "autostart takes on or off."),
-        ["devices"] = new(1, 1, "devices needs one kind: audio, bluetooth, displays, adb, services, credentials, wifi or gamepads."),
+        ["devices"] = new(1, 1, "devices needs one kind: audio, bluetooth, displays, adb, services, credentials, wifi or gamepads.", "--json"),
         ["capture-display-layout"] = new(1, 1, "capture-display-layout needs a name for the layout."),
         ["update"] = new(0, 0, "update takes no arguments but --channel stable|rc.", "--channel"),
         ["backup"] = new(0, 1, "backup takes at most one file.", "--config", "--editor", "--history"),
         ["restore"] = new(1, 1, "restore needs one backup file.", "--config", "--merge", "--replace", "--yes", "--dry-run", "--editor"),
         ["shortcut"] = new(1, 1, "shortcut needs one flow.", "--remove"),
-        ["check"] = new(1, 16, "check needs a check, like network.wifi, then its settings as name=value."),
+        ["check"] = new(1, 16, "check needs a check, like network.wifi, then its settings as name=value.", "--json"),
+        ["flag"] = new(1, 2, "flag needs a name, then on or off (without it, it tells).", "--json"),
+        ["pause"] = new(0, 1, "pause takes on or off (without it, it tells).", "--json"),
     };
 
     /// <exception cref="CommandLineException">The command, a flag or the words don't fit.</exception>
@@ -77,7 +82,7 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         bool wait = false, dryRun = false, remove = false;
         int? limit = null;
         string? config = null, channel = null;
-        bool merge = false, replace = false, yes = false, editor = false, history = false;
+        bool merge = false, replace = false, yes = false, editor = false, history = false, json = false;
         for (var i = 0; i < rest.Count; i++)
         {
             var arg = rest[i];
@@ -114,6 +119,9 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
                 case "--history":
                     history = true;
                     break;
+                case "--json":
+                    json = true;
+                    break;
                 case "--config":
                     if (config is not null || i + 1 >= rest.Count || rest[i + 1].StartsWith("--", StringComparison.Ordinal))
                         throw new CommandLineException("--config needs one file.");
@@ -140,7 +148,7 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
         return new CommandLine(command, words, wait, dryRun, limit)
         {
             Inputs = command == "run" && words.Count > 1 ? ParseInputs(words.Skip(1)) : null,
-            Remove = remove, Config = config, Merge = merge, Replace = replace, Yes = yes, Editor = editor, History = history, Channel = channel,
+            Remove = remove, Config = config, Merge = merge, Replace = replace, Yes = yes, Editor = editor, History = history, Channel = channel, Json = json,
         };
     }
 

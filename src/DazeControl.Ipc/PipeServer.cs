@@ -173,8 +173,8 @@ public sealed class PipeServer(string pipeName, Func<PipeRequest, CancellationTo
             request = JsonSerializer.Deserialize(line, IpcJson.Default.PipeRequest);
             if (request is null)
                 answer = PipeMessage.Fail(0, "Empty request.");
-            else if (request.Protocol is not (Protocol.Version or Protocol.WithInputs))
-                answer = PipeMessage.Fail(request.Id, $"{Protocol.MismatchStart}{Protocol.WithInputs}, not {request.Protocol}. Update Daze Control.");
+            else if (request.Protocol is < Protocol.Version or > Protocol.Latest)
+                answer = PipeMessage.Fail(request.Id, $"{Protocol.MismatchStart}{Protocol.Latest}, not {request.Protocol}. Update Daze Control.");
             else if (request.Op == Ops.Subscribe)
             {
                 connection.Subscribed = true;

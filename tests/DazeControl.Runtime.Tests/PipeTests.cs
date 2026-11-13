@@ -24,7 +24,7 @@ public sealed class PipeTests : IAsyncDisposable
                 _slowStarted.TrySetResult();
                 await _gate.Task.WaitAsync(token);
             }
-            if (request.Op == "echo")
+            if (request.Op is "echo" or Ops.Flag or Ops.Pause)
                 return new PipeMessage { Id = request.Id, Ok = true, Error = JsonSerializer.Serialize(request, IpcJson.Default.PipeRequest) };
             if (request.Op == "throw")
                 throw new InvalidOperationException("boom");
@@ -93,6 +93,37 @@ public sealed class PipeTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task FlagAndPauseAskForTheNewestProtocolAndTheServerSpeaksAllOfThem()
+    {
+        // An older engine refuses these by version instead of answering a bare flag/pause as something else (T27.8).
+        await using var client = await Connect();
+
+        async Task<int> Stamped(PipeRequest request) =>
+            JsonSerializer.Deserialize((await client.SendAsync(request, Ct)).Error!, IpcJson.Default.PipeRequest)!.Protocol;
+
+        Assert.Equal(Protocol.WithControl, Protocol.Latest);
+        Assert.Equal(Protocol.WithControl, Protocol.VersionFor(new PipeRequest { Op = Ops.Flag, Key = "a" }));
+        Assert.Equal(Protocol.WithControl, Protocol.VersionFor(new PipeRequest { Op = Ops.Pause }));
+        Assert.Equal(Protocol.Version, Protocol.VersionFor(new PipeRequest { Op = Ops.Status }));
+        Assert.Equal(Protocol.WithControl, await Stamped(new PipeRequest { Op = Ops.Pause }));
+        Assert.Equal(Protocol.Version, await Stamped(new PipeRequest { Op = "echo" }));
+    }
+
+    [Fact]
+    public async Task AVersionNewerThanTheServerSpeaksIsRefusedByName()
+    {
+        await using var pipe = new NamedPipeClientStream(".", _name, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await pipe.ConnectAsync(5000, Ct);
+        using var reader = new StreamReader(pipe, Encoding.UTF8);
+        await pipe.WriteAsync(Encoding.UTF8.GetBytes("{\"protocol\":" + (Protocol.Latest + 1) + ",\"id\":1,\"op\":\"flag\"}\n"), Ct);
+
+        var answer = JsonSerializer.Deserialize((await reader.ReadLineAsync(Ct))!, IpcJson.Default.PipeMessage)!;
+
+        Assert.False(answer.Ok);
+        Assert.StartsWith(Protocol.MismatchStart, answer.Error);
+    }
+
+    [Fact]
     public async Task ASlowRequestDoesNotBlockAnotherClient()
     {
         await using var slow = await Connect();
@@ -133,7 +164,7 @@ public sealed class PipeTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("{\"protocol\":99,\"id\":3,\"op\":\"list\"}", 3, "protocol 2, not 99")]
+    [InlineData("{\"protocol\":99,\"id\":3,\"op\":\"list\"}", 3, "protocol 3, not 99")]
     [InlineData("not json", 0, "Not a valid request")]
     public async Task BadLinesGetAnError(string line, int id, string error)
     {
