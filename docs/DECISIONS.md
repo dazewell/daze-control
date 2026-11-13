@@ -1813,3 +1813,19 @@ Status: accepted, built. Amends D-029
   progress, new window code, focus rules); a longer gap (the user waits for text already read).
 - Revisit if: notices become their own stack in the run pop-up.
 
+
+## D-132 · 2026-11-13 · Roadmap M24 to M28 from the gap analysis; M28 rows wait for a yes each
+Status: proposed (the user's standing instruction, 2026-11-12: after the analysis the coordinator builds as far as limits allow)
+- Decision: the next work is PLAN M24 to M28, ranked in docs/roadmap/GAPS.md. M24 to M27 extend recorded decisions (D-081, D-082,
+  D-107, D-118, D-129) and reverse none, so they start without another question. Every M28 row reverses a recorded "No" or "later"
+  (REVIEW §3 through D-102, D-029, D-107 / D-131 text prompts) or costs money (signing): none starts before the user says yes to
+  that row, and each yes is its own superseding entry.
+- Why: against AutoHotkey, Power Automate Desktop, PowerToys, Home Assistant, Stream Deck, Task Scheduler, Keyboard Maestro,
+  Hammerspoon and Shortcuts, the product is ahead on devices and failure handling and behind on deciding on a value, conditions on
+  automatic starts, events that name their device or program, a recipe gallery and being called from outside. REVIEW §3's "No" rows
+  (power, mute toggle, clipboard, keys, windows) were judged before schedules, events and values existed, so they are asked again.
+- Why not start with keys, windows and power (the widest expectation): recorded "No"; the hard rule says ask first. Why not
+  if / else, changing variables, plugins, UI automation, hotstrings, a web server, other languages: D-082, D-129, D-006, GOALS,
+  a resident keyboard hook, D-008 (firewall rule), cost per string change (GAPS §5).
+- Revisit if: the user answers M28's rows, or a second user appears (signing, languages and sharing move up together).
+- Ref: docs/roadmap/GAPS.md (matrix, sketches, sources).
