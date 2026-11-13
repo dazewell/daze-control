@@ -96,6 +96,7 @@ public static class BuiltInProviders
             new AudioSetDefaultProvider(audio),
             new AudioSetVolumeProvider(audio),
             new AudioMuteProvider(audio),
+            new AudioMediaProvider(new WindowsMediaCommands()),
             new BluetoothConnectProvider(bluetooth),
             new BluetoothDisconnectProvider(bluetooth),
             new BluetoothCheckProvider(new BluetoothConnectedProbe(new SystemBluetoothState(new CfgMgrPairedBluetooth()))),

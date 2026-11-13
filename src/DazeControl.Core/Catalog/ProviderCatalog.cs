@@ -92,6 +92,16 @@ public static class ProviderCatalog
             new("muted", ParamKind.Boolean, "Muted") { Default = "true" },
         ])
         { Resources = ["audio"] },
+        new("audio.media", "Control media", Audio, Short,
+        [
+            new("action", ParamKind.Choice, "Action")
+            {
+                Choices = ["playPause", "play", "pause", "stop", "next", "previous"],
+                Captions = ["Play or pause", "Play", "Pause", "Stop", "Next track", "Previous track"],
+                Default = "playPause", Help = "Goes to the app that is playing on this PC. It can't tell whether anything played.",
+            },
+        ])
+        { Keywords = "play pause next previous track music video media key" },
         new("bluetooth.connect", "Connect", Bluetooth, TimeSpan.FromSeconds(20),
             [Ref("device", "Bluetooth device", LibraryKind.Bluetooth)])
         {
