@@ -938,3 +938,44 @@ A yes becomes a superseding D-entry in that row's PR. Reasons for and against: G
 - [ ] T28.10 Flags that survive a restart (Sonnet, S). D-029's revisit note.
 - [ ] T28.11 MQTT: remote start, publish, state (Opus, L; spike on idle = zero first). New; the only resident network connection.
 - [ ] T28.12 Signed installer, then winget (yours: cost and an identity check; the workflow change is Sonnet, S).
+
+## M29 Rename to Ctrl Alt Daze (user, 2026-11-13; D-152). Planned only: the user starts the work separately
+Names (old → new). Product: `Daze Control` → `Ctrl Alt Daze`. Code, projects, solution, engine and editor exe: `DazeControl` →
+`CtrlAltDaze` (same length, so tables keep their columns). CLI: `dctl` → `cad`. Data folders under %APPDATA% and %LOCALAPPDATA%:
+`DazeControl` → `CtrlAltDaze`. Installer id and install folder: `DazeControlApp` → `CtrlAltDazeApp`. Pipe, mutexes, events:
+`DazeControl…` → `CtrlAltDaze…`. Credential prefix: `DazeControl:` → `CtrlAltDaze:`. `DAZECONTROL_UPDATE_SOURCE` →
+`CTRLALTDAZE_UPDATE_SOURCE`. Planned link scheme (T26.7): `ctrlaltdaze://`. GitHub: `dazewell/daze-control` → `dazewell/ctrl-alt-daze`.
+Not renamed: the folder `C:\Projects\scd-rewamp`, agent skill names, `daze-media-osd`.
+Size (2026-11-13): `DazeControl` 2052 hits, `Daze Control` 106, `dctl` 225, about 535 files; all `src/` and `tests/` project folders move.
+Rules: start T29.1 only with zero open PRs and paused child sessions (every open branch conflicts; afterwards each worktree merges
+`main`). T29.1 and T29.2 ship in the same release: without T29.2 the renamed app starts with an empty config and no credentials.
+- [ ] T29.1 The rename itself (Opus, L; one PR, no behaviour change). `git mv` the solution and every `DazeControl.*` folder and
+  project file; replace in this order: `DazeControlApp`, `DazeControl`, `Daze Control`, `DAZECONTROL_`, `dazecontrol://`, then the
+  word `dctl` (also `_dctl`). Leave `daze-control` (T29.4) and the lines that name the old product on purpose (GOALS working-name
+  line, D-152, this section, T29.2's old-name constants). Also: `AssemblyName` in the three exe projects, `pack.ps1`
+  (`packId`, `--packTitle`, `--mainExe`), `install.ps1`, `dev-run.ps1`, `display-check.ps1`, `stop.ps1`, CI and release
+  workflows (asset names), `cut-release.ps1`'s asset check, CLAUDE.md, skills, README, the Resume block's paths. Done when: build
+  + all tests green, AOT publish with zero warnings, `pack.ps1` gives `CtrlAltDazeApp-win-Setup.exe`, and
+  `git grep -i -E "dazecontrol|daze control|\bdctl\b"` hits only the allowed lines.
+- [ ] T29.2 Bring the user's setup along (Opus, M; design section in the PR first; tests with fakes). On the PC today: config and
+  backups in `%APPDATA%\DazeControl`, editor settings / update channel / shortcut icons / run history in
+  `%LOCALAPPDATA%\DazeControl`, `DazeControl:<name>` credentials, desktop shortcuts and Start with Windows pointing into
+  `%LOCALAPPDATA%\DazeControlApp`, and the old engine running. Wanted: (a) one Core entry point, called first by the engine, editor
+  and CLI: when the new `config.yaml` is absent and the old folder exists, copy (not move) the old folders; a failed copy logs and
+  the engine still starts (fail-soft). (b) `WindowsCredentials` reads `CtrlAltDaze:<name>`, then falls back to
+  `DazeControl:<name>`; secrets are never copied or logged (D-014). (c) At start, once: when the old engine's mutex exists, ask it
+  to quit over the old pipe before taking hotkeys (two engines = every hotkey fires twice). (d) Desktop shortcuts with the old
+  target count as ours and are rewritten to the new stub; Start with Windows is turned on under the new name when it was on.
+  (e) Removing the old install (`%LOCALAPPDATA%\DazeControlApp\Update.exe uninstall --silent`) after (d): ask the user whether the
+  app does it itself or offers it once; `install.ps1` does it on the dev PC. No timers or polling for any of this (idle = zero).
+  Done when: tests for each of (a) to (d); a clean-profile start and an old-profile start both come up with the right flows.
+- [ ] T29.3 Record (Sonnet, S; with T29.1 or right after). ARCHITECTURE, FEATURES, UX and ACCEPTANCE say the new names; GOALS'
+  working-name line becomes the final name; D-152 → "accepted, built".
+- [ ] T29.4 GitHub repository (S; changes something outside the repo: ask the user at that moment). `gh repo rename ctrl-alt-daze`,
+  then `UpdateClient.RepoUrl`, `cut-release.ps1`, `wait-pr.ps1`, README links, `git remote set-url origin …` (one shared config
+  for all worktrees). GitHub redirects the old URL. Old installed copies stop seeing updates (other package id): intended.
+- [ ] T29.5 Release and live check (the user): cut a release on request, install `CtrlAltDazeApp-win-Setup.exe`, then check:
+  flows and Library are there, Alt+Z connects the Technics, a step with a credential works, desktop shortcuts start their flows,
+  Start with Windows is on, one engine in Task Manager, the old app is gone from Installed apps, `cad list` answers.
+Open (the user): the order against the M20 release candidate (T20.13); T29.2 (e); `.dcflow` in T27.2 → `.cadflow`?
+Not checked for the name: trademark registers, Microsoft Store, NuGet (GitHub, winget, web search and ctrlaltdaze.com were clear on 2026-11-13).

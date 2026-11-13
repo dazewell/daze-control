@@ -1995,3 +1995,14 @@ Status: accepted, built (D-063's revisit note: a bounded repeat, not calls)
   Why not a time limit over all rounds: each round has the step's limit and rounds are bounded, so the total is bounded too.
   Why not "until fails" ending as a success: a failure link would then never see a real error; the last round decides, always.
 - Not verified live: the inspector fields in the running editor, a real repeated call on this PC.
+
+## D-152 · 2026-11-13 · The product is renamed "Ctrl Alt Daze", everywhere, with `cad` as the CLI
+Status: accepted, not built (plan: PLAN M29)
+- Decision: `Daze Control` → `Ctrl Alt Daze`; identifiers, projects, exe, data folders, installer id, pipe, mutexes and credential
+  prefix `DazeControl…` → `CtrlAltDaze…`; `dctl` → `cad`, no alias; the GitHub repo → `ctrl-alt-daze`. The user's setup is carried
+  over by code (copy of the data folders, credential fallback, old engine asked to quit), not by hand.
+- Why: the user found "Daze Control" a flat description; wanted a pun with no exact-name clash. It keeps both old words and reads
+  as Ctrl+Alt+Del. Clear on GitHub repos and accounts, winget, web search and `.com` (2026-11-13).
+- Why not: CtrlFreak (an iOS/Android homelab app has the exact name), Dazy Chain (a software company), visible name only or
+  keeping `dctl` (offered as the cheap options; the user chose "Everything" and `cad`).
+- Revisit if: an exact-name product shows up before T29.1 starts (trademark registers and the Microsoft Store were not checked).
