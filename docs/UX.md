@@ -255,7 +255,7 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
 
 **Motion (D-097).** Changes in the configuration pages animate instead of jumping: new rows fade in (120 ms) and their neighbours slide (WinUI's reposition timing); selecting another step fades the pane from 0.4 to full. Only opacity and position move, never size of text, and the control being used never moves under the pointer. Put `motion:Motion.Animate="True"` on a panel (or `AnimateItems` on an ItemsControl) in a new page. With Windows "Animation effects" off nothing animates.
 
-- **Use a value in a number setting** (T25.3, D-145). A whole-number box (volume, steps, screens, free space, charge) has a "Use a value" button after it
+- **Use a value in a number setting** (T25.3, D-146). A whole-number box (volume, steps, screens, free space, charge) has a "Use a value" button after it
   (tooltip "Use a value from an earlier step instead of a number", Narrator "Use a value for Volume (%)"); its flyout is Insert value's list without devices.
   A row replaces the box with the grey label "Uses a value" (same height, so nothing below moves) and the "Shows:" pill row below it; the pill menu changes
   it, sets the number to use when it has no value, or removes it, which brings the box back. A text value warns "fails when it runs if it isn't a whole
@@ -289,6 +289,10 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   the called flow's lanes show below under a bracket with its name (one level), and "Open in editor" with one of them
   selected opens that flow showing its part of the run. Live: the call's pill says the called flow's current step
   ("Connect…", #59), and a flow running inside another shows its states with InfoBar #64.
+- Values (T25.5, D-145): picking a bar also shows a **Values** heading (level 3) under the step's lines, with one
+  selectable line per value it gave ("Wi-Fi network: Home") and per setting whose text changed when values went in
+  ("Message used: On Home at Evening"). A Sensitive one reads "hidden". Texts are cut at 256 characters. The block is
+  inside the same panel and only changes when a bar is picked; runs recorded before it show none.
 
 ## 5.6 Tray menu and run pop-up
 - Clicks (user, 2026-11-02): left click, or Enter/Space on the focused icon, opens the editor (starts it or brings

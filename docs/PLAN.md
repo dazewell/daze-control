@@ -866,7 +866,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   "n of m" (amends D-127: D-entry). Files: `Core/Model/Node.cs`, `Core/Yaml`, `Runtime/Scheduling/Scheduler.cs`, `Core/Runs`, canvas
   pill + inspector + context menu. Done when: Scheduler tests (followers run; a card with one member off; a failure link from an
   off step never fires), validator warns where its values are used, one Undo step, screenshots light/dark/high contrast.
-- [ ] T25.5 Runs show values (Sonnet, M; parallel-safe). Each finished step's values and its text after filling, Sensitive masked, 256
+- [x] T25.5 Runs show values (Sonnet, M; parallel-safe). Each finished step's values and its text after filling, Sensitive masked, 256
   characters per value. Files: `Core/Runs/Outcomes.cs` (`NodeResult`), `Runtime/FlowRunner.cs`, `Runtime/RunHistory.cs`, IPC JSON
   context, the Runs page. Done when: history written before this change still loads; a Sensitive value never reaches `history.jsonl`
   or the log (test); history file size for 100 runs noted.

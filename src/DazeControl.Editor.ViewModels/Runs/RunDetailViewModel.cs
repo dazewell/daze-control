@@ -162,12 +162,26 @@ public sealed partial class RunDetailViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedLines))]
+    [NotifyPropertyChangedFor(nameof(SelectedValues))]
     public partial TimelineBarView? SelectedBar { get; set; }
 
     /// <summary>What happened to the picked step: outcome, tries, time, its error.</summary>
     public IReadOnlyList<string> SelectedLines => SelectedBar is { } bar && NodeOf(bar.NodeId) is { } node
         ? Lines(node, bar.Title)
         : [];
+
+    /// <summary>
+    /// "Values" of the picked step (T25.5): what it gave and the text its settings really got, one line each ("Output: 42",
+    /// "Message used: Connected to Technics"). A Sensitive one reads "hidden". Empty when the run recorded none.
+    /// </summary>
+    public IReadOnlyList<string> SelectedValues => SelectedBar is { } bar && NodeOf(bar.NodeId) is { } node ? ValueLines(node) : [];
+
+    internal static List<string> ValueLines(NodeResult node)
+    {
+        static string Line(string title, ShownValue v, string suffix) =>
+            $"{title}{suffix}: {(v.Hidden ? "hidden" : v.Text.ReplaceLineEndings(" "))}";
+        return [.. (node.Values ?? []).Select(v => Line(v.Title, v, "")), .. (node.Used ?? []).Select(v => Line(v.Title, v, " used"))];
+    }
 
     partial void OnSelectedBarChanged(TimelineBarView? value) => OnPropertyChanged(nameof(CanOpenInEditor));
 
