@@ -42,6 +42,47 @@ public sealed class RunHistoryTests : IDisposable
     }
 
     [Fact]
+    public void ShownValuesRoundTripAndOldLinesStillLoad()
+    {
+        var node = new NodeResult("w", NodeOutcome.Succeeded, Order: 1)
+        {
+            Values = [new ShownValue("Wi-Fi network", "Home"), new ShownValue("Output", "", Hidden: true)],
+            Used = [new ShownValue("Message", "On Home")],
+        };
+        var record = Record(3) with { Nodes = [node] };
+        var history = new RunHistory(HistoryFile);
+        history.Add(record);
+        // A line written before Values existed, and one from a newer engine with a field this one doesn't know.
+        File.AppendAllText(HistoryFile,
+            "{\"runId\":\"" + Guid.NewGuid() + "\",\"flowId\":\"old\",\"flowName\":\"Old\",\"trigger\":\"\",\"started\":\"2026-10-01T00:00:00+00:00\"," +
+            "\"duration\":\"00:00:01\",\"outcome\":\"succeeded\",\"nodes\":[{\"nodeId\":\"a\",\"outcome\":\"succeeded\",\"attempts\":1,\"later\":5}]}\n");
+
+        var reloaded = new RunHistory(HistoryFile).Recent;
+
+        Assert.Equal(2, reloaded.Count);
+        var back = reloaded[0].Nodes.Single();
+        Assert.Equal(node.Values, back.Values); // ShownValue is a record: element-wise
+        Assert.Equal(node.Used, back.Used);
+        Assert.Null(reloaded[1].Nodes.Single().Values);
+        Assert.Null(reloaded[1].Nodes.Single().Used);
+    }
+
+    [Fact]
+    public void ShownValuesOfAHundredRunsStayUnderAMegabyte()
+    {
+        var text = new string('x', ShownValues.MaxLength);
+        var history = new RunHistory(HistoryFile);
+        for (var i = 0; i < RunHistory.Capacity; i++)
+            history.Add(Record(i) with
+            {
+                Nodes = [.. Enumerable.Range(0, 10).Select(n => new NodeResult("s" + n, NodeOutcome.Succeeded, Order: n + 1)
+                    { Values = [new ShownValue("Value", text)], Used = [new ShownValue("Message", text)] })],
+            });
+
+        Assert.InRange(new FileInfo(HistoryFile).Length, 1, 900_000); // worst case, 100 runs x 10 steps x 2 full-length values: about 765 KB
+    }
+
+    [Fact]
     public void NotNeededRoundTrips()
     {
         var record = Record(2) with

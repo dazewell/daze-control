@@ -92,6 +92,75 @@ public sealed class StepValueFieldsTests : IDisposable
         Assert.Contains("‹Output›", web.Summary, StringComparison.Ordinal);
     }
 
+    private const string Wifi = "{ id: w, step: network.wifi }";
+
+    [Fact]
+    public async Task AFinishedStepShowsItsValuesAndTheTextItGot()
+    {
+        var loaded = Load(Wifi, "{ id: n, step: notify, after: [w], with: { text: \"On {w.network} at {@flow}\" } }");
+        var runner = new FlowRunner([new Recorder("network.wifi", c => c.SetValue("network", "Home")), new Recorder("notify", _ => { })], _time);
+        var result = await Run(runner, loaded);
+
+        var wifi = Assert.Single(result.Nodes, x => x.NodeId == "w");
+        Assert.Equal(new ShownValue("Wi-Fi network", "Home"), Assert.Single(wifi.Values!));
+        var notify = Assert.Single(result.Nodes, x => x.NodeId == "n");
+        Assert.Equal(new ShownValue("Message", "On Home at Evening"), Assert.Single(notify.Used!));
+        Assert.Null(notify.Values); // it gave nothing a later step uses
+    }
+
+    [Fact]
+    public async Task AValueAndTheTextItGotAreCutAtTwoHundredFiftySixCharacters()
+    {
+        var loaded = Load(Wifi, "{ id: n, step: notify, after: [w], with: { text: \"{w.network}\" } }");
+        var runner = new FlowRunner([new Recorder("network.wifi", c => c.SetValue("network", new string('x', 900))), new Recorder("notify", _ => { })], _time);
+        var result = await Run(runner, loaded);
+
+        var shown = Assert.Single(result.Nodes.Single(x => x.NodeId == "w").Values!);
+        Assert.Equal(ShownValues.MaxLength, shown.Text.Length);
+        Assert.EndsWith("…", shown.Text, StringComparison.Ordinal);
+        Assert.Equal(ShownValues.MaxLength, Assert.Single(result.Nodes.Single(x => x.NodeId == "n").Used!).Text.Length);
+    }
+
+    [Fact]
+    public async Task ASensitiveValueAndTheTextBuiltFromItAreNeverStored()
+    {
+        const string secret = "tok-123456";
+        var loaded = Load(Producer, "{ id: web, step: http.request, after: [p], with: { url: \"https://h.example/?k={p.output}\" } }",
+            "{ id: mk, step: text.make, after: [p], with: { text: \"key {p.output}\" } }",
+            "{ id: note, step: notify, after: [mk], with: { text: \"Got {mk.text} ({mk.text})\" } }");
+        var runner = new FlowRunner([new Recorder("process.run", c => c.SetValue("output", secret)),
+            new Recorder("http.request", _ => { }), new Recorder("text.make", c => c.SetValue("text", "key " + secret)), new Recorder("notify", _ => { })], _time);
+        var result = await Run(runner, loaded);
+
+        var file = Path.Combine(Path.GetTempPath(), "dc-shown-" + Guid.NewGuid().ToString("N") + ".jsonl");
+        try
+        {
+            new RunHistory(file).Add(new RunRecord(result.RunId, "f", "Evening", "Alt+Z", result.Started, result.Duration, result.Outcome, [.. result.Nodes]));
+            var stored = File.ReadAllText(file);
+            Assert.Contains("\"hidden\":true", stored, StringComparison.Ordinal);
+            Assert.DoesNotContain(secret, stored, StringComparison.Ordinal);
+            Assert.DoesNotContain(Uri.EscapeDataString(secret), stored, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+        Assert.True(Assert.Single(result.Nodes.Single(x => x.NodeId == "p").Values!).Hidden);
+        Assert.True(Assert.Single(result.Nodes.Single(x => x.NodeId == "web").Used!).Hidden);
+        Assert.True(Assert.Single(result.Nodes.Single(x => x.NodeId == "mk").Values!).Hidden);
+        Assert.True(Assert.Single(result.Nodes.Single(x => x.NodeId == "note").Used!).Hidden); // runtime-sensitive Make text
+    }
+
+    [Fact]
+    public async Task ADryRunStoresNoValues()
+    {
+        var loaded = Load(Wifi, "{ id: n, step: notify, after: [w], with: { text: \"On {w.network}\" } }");
+        var runner = new FlowRunner([new Recorder("network.wifi", c => c.SetValue("network", "Home")), new Recorder("notify", _ => { })], _time) { DryRun = true };
+        var result = await Run(runner, loaded);
+
+        Assert.All(result.Nodes, x => Assert.Null(x.Values ?? x.Used));
+    }
+
     [Fact]
     public async Task ASensitiveErrorMaskAlsoCoversTheStepsOwnErrorValue()
     {

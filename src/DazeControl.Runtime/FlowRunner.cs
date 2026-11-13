@@ -163,7 +163,7 @@ public sealed class FlowRunner
 
         NodeResult ResultOf(string id) => results.TryGetValue(id, out var r)
             ? new NodeResult(id, scheduler.Outcomes[id], r.Attempts, r.Error, r.Duration, r.Start, order[id],
-                r.Retries.Count > 0 ? [.. r.Retries] : null) { Called = r.Called, Summary = r.Summary, SkippedBecause = r.SkippedBecause }
+                r.Retries.Count > 0 ? [.. r.Retries] : null) { Called = r.Called, Summary = r.Summary, SkippedBecause = r.SkippedBecause, Values = r.Values, Used = r.Used }
             : new NodeResult(id, scheduler.Outcomes[id], Attempts: 0);
 
         void ReportFinished()
@@ -242,7 +242,8 @@ public sealed class FlowRunner
     /// <param name="Quiet">The step ended the run on purpose, or the called flow ended quietly: this run ends quietly too.</param>
     /// <param name="SkippedBecause">"Only if" wasn't met: the probe's sentence (D-081). The result is Succeeded.</param>
     private readonly record struct StepRun(StepResult Result, int Attempts, string? Error, TimeSpan Duration, TimeSpan Start,
-        List<TimeSpan> Retries, CalledRun? Called = null, bool Quiet = false, string? Summary = null, string? SkippedBecause = null, bool Stopped = false);
+        List<TimeSpan> Retries, CalledRun? Called = null, bool Quiet = false, string? Summary = null, string? SkippedBecause = null, bool Stopped = false,
+        ShownValue[]? Values = null, ShownValue[]? Used = null);
 
     /// <summary>One try of an ordinary step: null <paramref name="Error"/> = it worked; <paramref name="EndsFlow"/> = see <see cref="StepEndsFlowException"/>.</summary>
     private readonly record struct AttemptResult(string? Error, bool EndsFlow = false, string? SkippedBecause = null, bool Stop = false);
@@ -267,8 +268,13 @@ public sealed class FlowRunner
         var stopped = false;
         string? summary = null;
         string? skipped = null;
-        StepRun Done(StepResult result, int attempts, string? error) =>
-            new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet, summary, skipped, stopped);
+        var written = node;
+        StepRun Done(StepResult result, int attempts, string? error)
+        {
+            var (shownValues, shownUsed) = skipped is null ? Snapshot(flow, written, node, values, library) : (null, null);
+            return new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet, summary, skipped, stopped,
+                shownValues, shownUsed);
+        }
         string? unpicked = null;
         // Values go in now (D-117, D-129): the lock, the provider and a called flow see plain text and Library keys.
         node = DryRun ? Describe(flow, node, values, out unpicked) : StepValues.Fill(flow, node, values, library, out unpicked, _catalog.FirstOrDefault(d => d.Id == node.Step));
@@ -348,6 +354,28 @@ public sealed class FlowRunner
                 return Done(StepResult.Cancelled, attempt, error);
         }
         return Done(StepResult.Failed, attempts, error);
+    }
+
+    /// <summary>
+    /// What Runs shows for a finished step (T25.5, D-145): its values and the text its settings really got, both masked and cut.
+    /// Only built when a step ends, never in a dry run; fail-soft: a problem here costs the "Values", not the run.
+    /// </summary>
+    private (ShownValue[]? Values, ShownValue[]? Used) Snapshot(Flow flow, StepNode written, StepNode filled, RunValues values, Library library)
+    {
+        if (DryRun || _catalog.FirstOrDefault(d => d.Id == written.Step) is not { } descriptor)
+            return (null, null);
+        try
+        {
+            var secrets = StepValues.Secrets(flow, written.Id, values, library, _catalog, CalledFlows);
+            return (ShownValues.Values(flow, written, descriptor, values, library, secrets, _catalog, CalledFlows),
+                ShownValues.Used(flow, written, filled, descriptor, values, secrets, _catalog, CalledFlows));
+        }
+#pragma warning disable CA1031 // fail-soft
+        catch (Exception)
+#pragma warning restore CA1031
+        {
+            return (null, null);
+        }
     }
 
     /// <summary>A dry run (D-042) fills text with each value's title ("Connected to ‹Device›"), never a real or sample device; the Pick's key still goes into device settings.</summary>

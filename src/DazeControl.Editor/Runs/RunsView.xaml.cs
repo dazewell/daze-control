@@ -193,6 +193,9 @@ public sealed partial class RunsView : UserControl
     {
         var lines = _detail?.SelectedLines ?? [];
         SelectedLinesList.ItemsSource = lines;
+        var shown = _detail?.SelectedValues ?? [];
+        SelectedValuesList.ItemsSource = shown;
+        ValuesPanel.Visibility = Show(shown.Count > 0);
         SelectedPanel.Visibility = Show(lines.Count > 0);
         PickBarText.Visibility = Show(_detail is { HasTimeline: true } && lines.Count == 0);
     }
