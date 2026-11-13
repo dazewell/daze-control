@@ -41,12 +41,12 @@ public static class ValueText
     private const string InputLabel = "Input";
 
     /// <summary>The text as the box shows it: references become <c>{Step name: Value title}</c>.</summary>
-    public static string ToDisplay(Flow flow, string? stored, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    public static string ToDisplay(Flow flow, string? stored, IReadOnlyList<ProviderDescriptor>? catalog = null, Func<string, Flow?>? flows = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
         if (string.IsNullOrEmpty(stored) || !stored.Contains('{', StringComparison.Ordinal))
             return stored ?? "";
-        var names = new Names(flow, catalog ?? ProviderCatalog.All);
+        var names = new Names(flow, catalog ?? ProviderCatalog.All, flows);
         var result = new StringBuilder(stored.Length + 16);
         foreach (var part in StepValues.Split(stored))
         {
@@ -68,12 +68,12 @@ public static class ValueText
     }
 
     /// <summary>The stored form of what the box holds. Display tokens that name something become references.</summary>
-    public static string FromDisplay(Flow flow, string? shown, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    public static string FromDisplay(Flow flow, string? shown, IReadOnlyList<ProviderDescriptor>? catalog = null, Func<string, Flow?>? flows = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
         if (string.IsNullOrEmpty(shown) || !shown.Contains('{', StringComparison.Ordinal))
             return shown ?? "";
-        var names = new Names(flow, catalog ?? ProviderCatalog.All);
+        var names = new Names(flow, catalog ?? ProviderCatalog.All, flows);
         var result = new StringBuilder(shown.Length);
         var i = 0;
         while (i < shown.Length)
@@ -113,20 +113,36 @@ public static class ValueText
     /// waits for, in flow order (a step's <c>error</c> only where a failure edge leads straight to this step), the flow's
     /// inputs, and the run's own values. Empty groups are left out.
     /// </summary>
-    public static IReadOnlyList<ValueGroup> Choices(Flow flow, string stepId, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    public static IReadOnlyList<ValueGroup> Choices(Flow flow, string stepId, IReadOnlyList<ProviderDescriptor>? catalog = null, Func<string, Flow?>? flows = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
         catalog ??= ProviderCatalog.All;
-        var names = new Names(flow, catalog);
-        var groups = new List<ValueGroup>();
         var self = flow.FindNode(stepId);
         var direct = self?.After.Where(e => e.When == EdgeWhen.Failure).Select(e => e.From).ToHashSet() ?? [];
-        foreach (var step in StepValues.Before(flow, stepId))
+        return Choices(flow, StepValues.Before(flow, stepId), direct, catalog, flows);
+    }
+
+    /// <summary>
+    /// The "Insert value" list for a flow's output (T23.7): every step's values (outputs are filled when the run ends), the
+    /// flow's inputs and the run's values. A step's <c>error</c> isn't offered: it has a value only when the run failed.
+    /// </summary>
+    public static IReadOnlyList<ValueGroup> OutputChoices(Flow flow, IReadOnlyList<ProviderDescriptor>? catalog = null, Func<string, Flow?>? flows = null)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        return Choices(flow, [.. flow.Nodes.OfType<StepNode>()], [], catalog ?? ProviderCatalog.All, flows);
+    }
+
+    private static List<ValueGroup> Choices(Flow flow, IReadOnlyList<StepNode> steps, HashSet<string> direct, IReadOnlyList<ProviderDescriptor> catalog,
+        Func<string, Flow?>? flows)
+    {
+        var names = new Names(flow, catalog, flows);
+        var groups = new List<ValueGroup>();
+        foreach (var step in steps)
         {
             if (catalog.FirstOrDefault(d => d.Id == step.Step) is not { } descriptor)
                 continue;
             var label = names.LabelOf(step.Id);
-            var rows = StepValues.Of(descriptor)
+            var rows = StepValues.Of(flow, step, descriptor, flows, catalog)
                 .Where(v => v.Name != StepValues.ErrorName || direct.Contains(step.Id))
                 .Select(v => new ValueChoice(v.Title, v.Help ?? "", $"{{{step.Id}.{v.Name}}}", $"{{{label}: {v.Title}}}"))
                 .ToList();
@@ -152,10 +168,10 @@ public static class ValueText
     public readonly record struct PillWords(string Title, string From);
 
     /// <summary>The words of a reference's pill, or null when it names nothing in this flow.</summary>
-    public static PillWords? Words(Flow flow, ValueRef reference, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    public static PillWords? Words(Flow flow, ValueRef reference, IReadOnlyList<ProviderDescriptor>? catalog = null, Func<string, Flow?>? flows = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
-        var names = new Names(flow, catalog ?? ProviderCatalog.All);
+        var names = new Names(flow, catalog ?? ProviderCatalog.All, flows);
         return reference.Source switch
         {
             ValueSource.Step => flow.FindNode(reference.Name) is StepNode s && names.Title(s, reference.Value) is { } t ? new(t, names.LabelOf(s.Id)) : null,
@@ -168,12 +184,12 @@ public static class ValueText
     /// Whether <paramref name="shown"/> holds a <c>{Step name: Value}</c> that reads like a value of this flow (a step, "This run" or
     /// "Input" before the colon) but names none: a typo or a value that is gone. It stays plain text and the box says so.
     /// </summary>
-    public static bool HasUnknownValue(Flow flow, string? shown, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    public static bool HasUnknownValue(Flow flow, string? shown, IReadOnlyList<ProviderDescriptor>? catalog = null, Func<string, Flow?>? flows = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
         if (string.IsNullOrEmpty(shown) || !shown.Contains('{', StringComparison.Ordinal))
             return false;
-        var names = new Names(flow, catalog ?? ProviderCatalog.All);
+        var names = new Names(flow, catalog ?? ProviderCatalog.All, flows);
         for (var i = 0; i < shown.Length; i++)
         {
             if (shown[i] != '{')
@@ -207,15 +223,17 @@ public static class ValueText
     {
         private readonly Flow _flow;
         private readonly IReadOnlyList<ProviderDescriptor> _catalog;
+        private readonly Func<string, Flow?>? _flows; // a call's outputs (T23.7)
         private readonly Dictionary<string, string> _labelOf = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _idOf = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _inputLabelOf = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _inputKeyOf = new(StringComparer.Ordinal);
 
-        public Names(Flow flow, IReadOnlyList<ProviderDescriptor> catalog)
+        public Names(Flow flow, IReadOnlyList<ProviderDescriptor> catalog, Func<string, Flow?>? flows = null)
         {
             _flow = flow;
             _catalog = catalog;
+            _flows = flows;
             // Inputs may share a label: later ones read "Output (2)" by input order, like steps.
             foreach (var input in flow.Inputs)
             {
@@ -257,7 +275,7 @@ public static class ValueText
         public string LabelOf(string id) => _labelOf.GetValueOrDefault(id, id);
 
         private ValueSpec? Spec(StepNode step, string value) =>
-            _catalog.FirstOrDefault(d => d.Id == step.Step) is { } d ? StepValues.Find(d, value) : null;
+            _catalog.FirstOrDefault(d => d.Id == step.Step) is { } d ? StepValues.Find(_flow, step, d, value, _flows, _catalog) : null;
 
         /// <summary>The display token of a reference, or null when it names nothing in this flow.</summary>
         public string? Display(ValueRef r)
@@ -310,7 +328,7 @@ public static class ValueText
             {
                 var d = _catalog.FirstOrDefault(x => x.Id == step.Step);
                 return d is null ? null
-                    : StepValues.Of(d).FirstOrDefault(v => v.Title == title) is { } v ? new(ValueSource.Step, id, v.Name, null, 0, 0) : null;
+                    : StepValues.Of(_flow, step, d, _flows, _catalog).FirstOrDefault(v => v.Title == title) is { } v ? new(ValueSource.Step, id, v.Name, null, 0, 0) : null;
             }
             if (label == RunLabel)
                 return StepValues.RunNames.FirstOrDefault(n => StepValues.RunTitle(n) == title) is { } run

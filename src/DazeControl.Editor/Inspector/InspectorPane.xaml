@@ -253,10 +253,13 @@
                                         <DataTemplate x:DataType="vmi:CallInputViewModel">
                                             <StackPanel>
                                                 <TextBlock Text="{x:Bind Title}" Style="{StaticResource SettingsCardDescription}" Margin="0,0,0,4" />
-                                                <ComboBox ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}"
+                                                <ComboBox Visibility="{x:Bind IsDevice}" ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}"
                                                           Loaded="OnPickerLoaded" SelectionChanged="OnPickerSelectionChanged"
                                                           ItemTemplate="{StaticResource DeviceTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
                                                           DropDownOpened="OnPickerOpened" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
+                                                <!-- A text input (T23.7): text that may hold values of this flow's earlier steps, like {bt.device}. -->
+                                                <TextBox Visibility="{x:Bind IsText}" Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="{x:Bind TextPlaceholder}"
+                                                         KeyDown="OnCommitOnEnter" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}" />
                                                 <TextBlock Text="{x:Bind Error, Mode=OneWay}" Visibility="{x:Bind HasError, Mode=OneWay}" Style="{StaticResource FieldError}" />
                                             </StackPanel>
                                         </DataTemplate>
@@ -948,17 +951,19 @@
                                 </Grid>
                                 <ComboBox ItemsSource="{x:Bind vmi:FlowInputViewModel.KindNames}" SelectedIndex="{x:Bind KindIndex, Mode=TwoWay}"
                                           HorizontalAlignment="Stretch" AutomationProperties.Name="Kind" />
-                                <ComboBox ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}" PlaceholderText="{x:Bind DefaultPlaceholder, Mode=OneWay}"
+                                <ComboBox Visibility="{x:Bind IsDevice, Mode=OneWay}" ItemsSource="{x:Bind Devices}" SelectedItem="{x:Bind Device, Mode=TwoWay}" PlaceholderText="{x:Bind DefaultPlaceholder, Mode=OneWay}"
                                           Loaded="OnPickerLoaded" SelectionChanged="OnPickerSelectionChanged"
                                           ItemTemplate="{StaticResource DeviceTemplate}" HorizontalAlignment="Stretch" Tag="{x:Bind}"
                                           DropDownOpened="OnPickerOpened" AutomationProperties.Name="{x:Bind DefaultName, Mode=OneWay}" />
+                                <TextBox Visibility="{x:Bind IsText, Mode=OneWay}" Text="{x:Bind TextDefault, Mode=TwoWay}" PlaceholderText="Default text"
+                                         KeyDown="OnCommitOnEnter" AutomationProperties.Name="{x:Bind DefaultTextName, Mode=OneWay}" />
                                 <StackPanel Orientation="Horizontal" Spacing="4" Visibility="{x:Bind NoBoundDevices, Mode=OneWay}">
                                     <TextBlock Text="{x:Bind vmi:FlowInputViewModel.NoBoundDevicesHint}" VerticalAlignment="Center"
                                                Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     <HyperlinkButton Content="Bind devices in Library › Bound devices" Click="OnBindDevices" Tag="{x:Bind}"
                                                      AutomationProperties.Name="Bind devices in Library, Bound devices" />
                                 </StackPanel>
-                                <ToggleSwitch Header="Ask me when it runs" IsOn="{x:Bind Ask, Mode=TwoWay}" OnContent="Yes" OffContent="No"
+                                <ToggleSwitch Visibility="{x:Bind IsDevice, Mode=OneWay}" Header="Ask me when it runs" IsOn="{x:Bind Ask, Mode=TwoWay}" OnContent="Yes" OffContent="No"
                                               AutomationProperties.Name="{x:Bind AskName, Mode=OneWay}" />
                                 <StackPanel Spacing="8" Visibility="{x:Bind Ask, Mode=OneWay}">
                                     <NumberBox Value="{x:Bind TimeoutSeconds, Mode=TwoWay}" Minimum="5" Maximum="600" SpinButtonPlacementMode="Compact"
@@ -975,6 +980,54 @@
                            TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 <HyperlinkButton Content="Add an input" Command="{x:Bind ViewModel.AddInputCommand, Mode=OneWay}" />
                 <TextBlock Text="{x:Bind vmi:InspectorViewModel.AddInputHelp}" TextWrapping="Wrap" Style="{StaticResource SettingsCardDescription}" />
+
+                <!-- Values it gives back (T23.7, DESIGN §9): what a "Run a flow" that waits for this flow can use in its later steps. -->
+                <TextBlock Text="Values it gives back" Style="{StaticResource InspectorSection}" />
+                <ItemsControl x:Name="OutputsList" ItemsSource="{x:Bind ViewModel.Outputs, Mode=OneWay}" IsTabStop="False" AutomationProperties.Name="Values it gives back">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="16" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vmi:FlowOutputViewModel">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnSpacing="4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Text="{x:Bind EditName, Mode=TwoWay}" PlaceholderText="Name" KeyDown="OnCommitOnEnter"
+                                             AutomationProperties.Name="{x:Bind NameBoxName}" />
+                                    <Button Grid.Column="1" Click="OnRemoveOutput" Tag="{x:Bind}"
+                                            AutomationProperties.Name="{x:Bind RemoveName}" ToolTipService.ToolTip="Remove" Style="{StaticResource IconButton}">
+                                        <FontIcon Glyph="&#xE711;" FontSize="14" />
+                                    </Button>
+                                </Grid>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Text="{x:Bind Text, Mode=TwoWay}" PlaceholderText="What it gives, like a value of a step"
+                                             KeyDown="OnCommitOnEnter" AutomationProperties.Name="{x:Bind TextBoxName}" />
+                                    <Button Grid.Column="1" Style="{StaticResource SubtleIconButton}" VerticalAlignment="Top" Tag="{x:Bind}"
+                                            AutomationProperties.Name="{x:Bind InsertValueName}" ToolTipService.ToolTip="Insert a value from a step">
+                                        <FontIcon Glyph="&#xE943;" FontSize="14" />
+                                        <Button.Flyout>
+                                            <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="OnOutputValuesOpening" />
+                                        </Button.Flyout>
+                                    </Button>
+                                </Grid>
+                                <TextBlock Text="{x:Bind Error, Mode=OneWay}" Visibility="{x:Bind HasError, Mode=OneWay}" Style="{StaticResource FieldError}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{x:Bind ViewModel.OutputTip, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasOutputTip, Mode=OneWay}"
+                           TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <HyperlinkButton Content="Add a value" Command="{x:Bind ViewModel.AddOutputCommand, Mode=OneWay}" />
+                <TextBlock Text="{x:Bind vmi:InspectorViewModel.AddOutputHelp}" TextWrapping="Wrap" Style="{StaticResource SettingsCardDescription}" />
             </StackPanel>
             </ContentControl>
         </StackPanel>

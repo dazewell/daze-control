@@ -89,7 +89,7 @@ public sealed partial class ParamFieldViewModel
 
     /// <summary>The row as one name for Narrator: "Shows: Connected to Device from Connect Technics".</summary>
     public string PillsName => HasPills
-        ? "Shows: " + string.Join("", _pills.Select(p => p.IsPill ? p.Ref is { } r && ValueText.Words(_values!.Value.Flow, r, _catalog) is { } w ? $"{w.Title} from {w.From}" : p.Text : p.Text))
+        ? "Shows: " + string.Join("", _pills.Select(p => p.IsPill ? p.Ref is { } r && ValueText.Words(_values!.Value.Flow, r, _catalog, _flows) is { } w ? $"{w.Title} from {w.From}" : p.Text : p.Text))
         : "";
 
     private void RefreshPills()
@@ -105,7 +105,7 @@ public sealed partial class ParamFieldViewModel
         }
         var stored = Stored(Text);
         var spec = Spec;
-        var problems = StepValues.Problems(c.Flow, c.StepId, spec, stored, _catalog);
+        var problems = StepValues.Problems(c.Flow, c.StepId, spec, stored, _catalog, flows: _flows);
         var segments = new List<PillSegment>();
         var index = 0;
         foreach (var part in StepValues.Split(stored))
@@ -115,7 +115,7 @@ public sealed partial class ParamFieldViewModel
                 segments.Add(new(this, part.Text));
                 continue;
             }
-            var words = ValueText.Words(c.Flow, r, _catalog);
+            var words = ValueText.Words(c.Flow, r, _catalog, _flows);
             var label = words is { } w ? $"{w.Title} · {w.From}" : r.ToString();
             var name = words is { } n ? $"{n.Title} from {n.From}, in {Title}. Press to change or remove." : $"{r}, in {Title}. Not available in this flow. Press to remove.";
             var warning = problems.Where(p => p.Ref.Start == r.Start).Select(p => p.Message).FirstOrDefault()
@@ -125,7 +125,7 @@ public sealed partial class ParamFieldViewModel
         if (!segments.Any(s => s.IsPill))
             segments.Clear();
         Pills = segments;
-        HasUnknownValue = ValueText.HasUnknownValue(c.Flow, Text, _catalog);
+        HasUnknownValue = ValueText.HasUnknownValue(c.Flow, Text, _catalog, _flows);
         OnPropertyChanged(nameof(ShowsRow));
         OnPropertyChanged(nameof(ShowsHelp));
     }
@@ -141,7 +141,7 @@ public sealed partial class ParamFieldViewModel
             return;
         var r = refs[pill.Index];
         var next = string.Concat(text.AsSpan(0, r.Start), stored, text.AsSpan(r.Start + r.Length));
-        Text = ValueText.ToDisplay(c.Flow, next, _catalog);
+        Text = ValueText.ToDisplay(c.Flow, next, _catalog, _flows);
     }
 
     /// <summary>"Remove" and Delete on a focused pill.</summary>

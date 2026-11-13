@@ -425,6 +425,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         "power" => "Power",
         "pc" => "This PC",
         "time" => "Time",
+        "text" => "Text",
         _ => area,
     };
 }

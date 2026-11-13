@@ -197,6 +197,18 @@ public static partial class FlowOutputs
         return config with { Flows = [.. flows] };
     }
 
+    /// <summary>The flows that read output <paramref name="name"/> of <paramref name="flowId"/> through a waiting call (settings, a call's text inputs, outputs).</summary>
+    public static IReadOnlyList<Flow> Users(Configuration config, string flowId, string name)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        return [.. config.Flows.Where(f =>
+        {
+            bool Reads(string text) => StepValues.Parse(text).Any(r => Calls(f, r, flowId, name));
+            return StepValues.Uses(f).Any(u => Calls(f, u.Ref, flowId, name)) || f.Outputs.Values.Any(Reads)
+                || f.Nodes.OfType<StepNode>().Any(s => s.Step == ProviderCatalog.RunFlowId && FlowInputs.Given(s).Values.Any(Reads));
+        })];
+    }
+
     /// <summary>"Headphones doesn't give a value called "device", so {call.device} shows nothing." (T23.7: a warning, never an error.)</summary>
     internal static string NotGiven(StepNode call, ValueRef r, Func<string, Flow?>? flows)
     {

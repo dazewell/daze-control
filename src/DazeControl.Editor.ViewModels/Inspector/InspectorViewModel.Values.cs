@@ -47,7 +47,7 @@ public sealed partial class InspectorViewModel
 
     private void LoadGivenValues(StepNode? step)
     {
-        var next = step is null || Flow is not { } flow ? [] : GivenValuesOf(flow, step);
+        var next = step is null || Flow is not { } flow ? [] : GivenValuesOf(flow, step, flows: CalledFlowOf);
         if (GivenValues.Count == 0 && next.Count == 0)
             return;
         GivenValues = next;
@@ -59,7 +59,8 @@ public sealed partial class InspectorViewModel
     /// The step's values with how many steps use each. A step's <c>error</c> is listed only when a step waits for its failure or
     /// something already uses it, like the Insert list.
     /// </summary>
-    internal static List<GivenValueViewModel> GivenValuesOf(Flow flow, StepNode step, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    internal static List<GivenValueViewModel> GivenValuesOf(Flow flow, StepNode step, IReadOnlyList<ProviderDescriptor>? catalog = null,
+        Func<string, Flow?>? flows = null)
     {
         catalog ??= ProviderCatalog.All;
         if (catalog.FirstOrDefault(d => d.Id == step.Step) is not { } descriptor)
@@ -67,7 +68,7 @@ public sealed partial class InspectorViewModel
         var uses = StepValues.Uses(flow, catalog).Where(u => u.Ref.Source == ValueSource.Step && u.Ref.Name == step.Id).ToList();
         var failureEdge = flow.Nodes.Any(n => n.After.Any(e => e.From == step.Id && e.When == EdgeWhen.Failure));
         var shown = ValueText.LabelOf(flow, step.Id, catalog);
-        return [.. StepValues.Of(descriptor)
+        return [.. StepValues.Of(flow, step, descriptor, flows, catalog)
             .Where(v => v.Name != StepValues.ErrorName || failureEdge || uses.Any(u => u.Ref.Value == v.Name))
             .Select(v => new GivenValueViewModel(shown, v, uses.Where(u => u.Ref.Value == v.Name).Select(u => u.Consumer.Id).Distinct().Count()))];
     }
