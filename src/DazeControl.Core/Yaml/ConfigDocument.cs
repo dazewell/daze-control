@@ -187,6 +187,10 @@ public sealed class TriggerDocument
 
     public string? Flow { get; set; }
 
+    public string? Path { get; set; }
+
+    public string? Filter { get; set; }
+
     public string? IfMissed { get; set; }
 
     public string? Grace { get; set; }

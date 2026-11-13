@@ -64,10 +64,14 @@ internal static class TriggerMapper
             var flow = TriggerText.FlowFilter(d.Flow);
             if (TriggerText.FlowFilterProblem(name, flow) is { } flowProblem)
                 return (null, flowProblem);
+            var folder = TriggerText.Trimmed(d.Path);
+            var pattern = TriggerText.Trimmed(d.Filter);
+            if (TriggerText.FileFilterProblem(name, folder, pattern) is { } fileProblem)
+                return (null, fileProblem);
             if (name == EngineStartTrigger.Name)
                 return (new EngineStartTrigger { Only = only }, null);
             return TriggerText.IsEvent(name)
-                ? (new EventTrigger(name) { Only = only, Ssid = ssid, Via = via, Device = device, Flow = flow }, null)
+                ? (new EventTrigger(name) { Only = only, Ssid = ssid, Via = via, Device = device, Flow = flow, Path = folder, Filter = pattern }, null)
                 : (null, $"\"{name}\" isn't an event I know ({string.Join(", ", TriggerText.Events)}, {EngineStartTrigger.Name}).");
         }
 
@@ -161,7 +165,7 @@ internal static class TriggerMapper
             },
             OnceTrigger once => new TriggerDocument { Once = TriggerText.FormatDateTime(once.When) },
             EngineStartTrigger => new TriggerDocument { On = EngineStartTrigger.Name },
-            EventTrigger e => new TriggerDocument { On = e.Name, Ssid = e.Ssid, Via = e.Via is { } via ? TriggerText.ViaText(via) : null, Device = e.Device, Flow = e.Flow },
+            EventTrigger e => new TriggerDocument { On = e.Name, Ssid = e.Ssid, Via = e.Via is { } via ? TriggerText.ViaText(via) : null, Device = e.Device, Flow = e.Flow, Path = e.Path, Filter = e.Filter },
             _ => new TriggerDocument(),
         };
         document.Only = trigger.Only;

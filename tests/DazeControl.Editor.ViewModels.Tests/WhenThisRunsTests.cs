@@ -60,6 +60,23 @@ public sealed class WhenThisRunsTests
     }
 
     [Fact]
+    public void FileEventSentencesNameTheFolderAndTheEditsKeepItAcrossTheThreeEvents()
+    {
+        Assert.Equal("When a file appears in a folder", WhenThisRuns.Sentence(new EventTrigger("file.created")));
+        Assert.Equal("When a file appears in 'Downloads' (*.pdf)", WhenThisRuns.Sentence(new EventTrigger("file.created") { Path = @"%USERPROFILE%\Downloads\", Filter = "*.pdf" }));
+        Assert.Equal("When a file is removed from 'Scans'", WhenThisRuns.Sentence(new EventTrigger("file.deleted") { Path = @"D:\Scans" }));
+        Assert.Contains(WhenThisRuns.EventGroups, g => g.Title == "Files" && g.Events.Count == 3);
+        Assert.All(WhenThisRuns.EventGroups.SelectMany(g => g.Events).Where(e => TriggerText.IsFileEvent(e.Name)),
+            e => Assert.DoesNotContain("node", e.Sentence, StringComparison.OrdinalIgnoreCase));
+
+        var picked = WhenThisRuns.WithFilter(WhenThisRuns.WithFolder(new EventTrigger("file.created"), @" C:\In "), " *.txt ");
+        Assert.Equal(new EventTrigger("file.created") { Path = @"C:\In", Filter = "*.txt" }, picked);
+        Assert.Equal(new EventTrigger("file.changed") { Path = @"C:\In", Filter = "*.txt" }, WhenThisRuns.WithEvent(picked, "file.changed"));
+        Assert.Equal(new EventTrigger("session.lock"), WhenThisRuns.WithEvent(picked, "session.lock"));
+        Assert.Equal(new EventTrigger("session.lock"), WhenThisRuns.WithFolder(new EventTrigger("session.lock"), @"C:\In"));
+    }
+
+    [Fact]
     public void NetworkSentencesSayWhichConnection()
     {
         Assert.Equal("When the network connects", WhenThisRuns.Sentence(new EventTrigger("network.connected")));

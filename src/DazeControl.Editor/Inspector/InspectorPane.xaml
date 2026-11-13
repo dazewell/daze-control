@@ -851,6 +851,10 @@
                                                  Header="Device name contains" PlaceholderText="Any device" AutomationProperties.Name="Device name contains" />
                                         <ComboBox ItemsSource="{x:Bind SoundDevices}" SelectedIndex="{x:Bind SoundDevice, Mode=TwoWay}"
                                                   Visibility="{x:Bind IsSoundEvent}" HorizontalAlignment="Stretch" Header="Sound device" AutomationProperties.Name="Sound device" />
+                                        <TextBox Text="{x:Bind FolderText, Mode=TwoWay}" Visibility="{x:Bind IsFileEvent}"
+                                                 Header="Folder" PlaceholderText="C:\Users\you\Downloads" AutomationProperties.Name="Folder to watch" />
+                                        <TextBox Text="{x:Bind FilterText, Mode=TwoWay}" Visibility="{x:Bind IsFileEvent}"
+                                                 Header="File names" PlaceholderText="Any file, or like *.pdf" AutomationProperties.Name="File names" />
                                         <ComboBox ItemsSource="{x:Bind FlowNames}" SelectedIndex="{x:Bind FlowChoice, Mode=TwoWay}"
                                                   Visibility="{x:Bind IsFlowEvent}" HorizontalAlignment="Stretch" Header="Which flow" AutomationProperties.Name="Which flow" />
                                         <ComboBox ItemsSource="{x:Bind vmi:TriggerRowViewModel.OnlyNames}" SelectedIndex="{x:Bind OnlyIndex, Mode=TwoWay}"

@@ -887,7 +887,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
 - [ ] T26.4 A shortcut only in one program (Opus, M; after T26.2). Hotkey `in: <program>`: registered only while it is in front.
   Files: `Core/Input/Hotkey.cs`, `Runtime/Triggers/HotkeyTable.cs`, the shortcut recorder row. Done when: HotkeyTable tests (two flows
   share a key in different programs; the tracked program dies → key released), D-072's pause still works.
-- [ ] T26.5 File events (Sonnet, M; parallel-safe). `file.created` / `file.changed` / `file.deleted`, `path:`, `filter:`, `{@event}` =
+- [x] T26.5 File events (Sonnet, M; parallel-safe). `file.created` / `file.changed` / `file.deleted`, `path:`, `filter:`, `{@event}` =
   the path. Files: `Triggers.cs`, `Engine/Triggers/FileSource.cs`. Done when: tests on a temp folder (a burst of writes = one start;
   folder removed and back = the trigger works again without a timer); footprint row.
 - [ ] T26.6 More schedules (Sonnet, M; parallel-safe). `dayOfMonth: 1..31|last`, `every: Nd`, `at: sunrise|sunset±hh:mm` with

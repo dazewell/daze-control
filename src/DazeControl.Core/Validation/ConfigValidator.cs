@@ -22,8 +22,9 @@ public static partial class ConfigValidator
     /// <param name="earlier">Problems from loading (<c>ConfigLoad.Problems</c>): flows they reject get no hotkeys.</param>
     /// <param name="catalog">Step types; the compiled-in catalog by default.</param>
     /// <returns>Only the validator's own problems.</returns>
+    /// <param name="folderExists">Whether a watched folder is there (<see cref="Directory.Exists"/> by default); tests pass their own.</param>
     public static ValueList<Problem> Validate(Configuration config, IEnumerable<Problem>? earlier = null,
-        IReadOnlyList<ProviderDescriptor>? catalog = null)
+        IReadOnlyList<ProviderDescriptor>? catalog = null, Func<string, bool>? folderExists = null)
     {
         var problems = new List<Problem>();
         catalog ??= ProviderCatalog.All;
@@ -54,6 +55,7 @@ public static partial class ConfigValidator
         CheckExtracts(config.Flows, problems);
         CheckReaches(config.Flows, problems);
         CheckCalls(config.Flows, problems);
+        CheckWatchedFolders(config.Flows, folderExists ?? Directory.Exists, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, catalog, config.Settings.StepDefaults, problems);
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
         var hotkeyOwners = new Dictionary<Hotkey, string>();
@@ -186,6 +188,25 @@ public static partial class ConfigValidator
     }
 
     /// <summary>Stop flow (T24.1, D-133) ends the flow, so a step linked after it never runs: a warning, not an error (the link is harmless).</summary>
+    /// <summary>
+    /// A watched folder that isn't there is a plain warning (T26.5): the trigger stays and starts working when the folder appears.
+    /// A network share is not asked (a dead one can stall the editor for seconds); the engine logs it when it can't watch it.
+    /// </summary>
+    private static void CheckWatchedFolders(IReadOnlyList<Flow> flows, Func<string, bool> folderExists, List<Problem> problems)
+    {
+        foreach (var flow in flows)
+        {
+            for (var i = 0; i < flow.Triggers.Count; i++)
+            {
+                if (flow.Triggers[i] is not EventTrigger e || !TriggerText.IsFileEvent(e.Name) || TriggerText.ResolveFolder(e.Path, out _) is not { } folder
+                    || folder.StartsWith(@"\\", StringComparison.Ordinal) || folderExists(folder))
+                    continue;
+                problems.Add(new(Severity.Warning, $"flows.{flow.Id}.triggers[{i}].path",
+                    $"The folder {folder} isn't there. This trigger starts working once it is.", flow.Id));
+            }
+        }
+    }
+
     private static void CheckStops(IReadOnlyList<Flow> flows, List<Problem> problems)
     {
         foreach (var flow in flows)
@@ -673,6 +694,7 @@ public static partial class ConfigValidator
                     EventTrigger e when TriggerText.NetworkFilterProblem(e.Name, e.Via, e.Ssid) is { } filter => filter,
                     EventTrigger e when TriggerText.DeviceFilterProblem(e.Name, e.Device) is { } deviceProblem => deviceProblem,
                     EventTrigger e when TriggerText.FlowFilterProblem(e.Name, e.Flow, flow.Id) is { } flowProblem => flowProblem,
+                    EventTrigger e when TriggerText.FileFilterProblem(e.Name, e.Path, e.Filter) is { } fileProblem => fileProblem,
                     EventTrigger e when TriggerText.FlowFilter(e.Flow) is { } id && calls(id) is null =>
                         $"{id} isn't there anymore. Pick another flow.",
                     EventTrigger { Device: { } sound } e when TriggerText.IsAudioEvent(e.Name) && !library.Contains(LibraryKind.Audio, sound) =>

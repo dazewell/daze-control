@@ -36,7 +36,7 @@ public static class WhenThisRuns
     private static List<EventGroup> BuildGroups()
     {
         (string Title, string[] Prefixes)[] groups =
-            [("Session", ["session."]), ("Power", ["power."]), ("Devices", ["device."]), ("Sound and screens", ["audio.", "display."]), ("Network", ["network."]), ("Flows", ["flow."])];
+            [("Session", ["session."]), ("Power", ["power."]), ("Devices", ["device."]), ("Sound and screens", ["audio.", "display."]), ("Network", ["network."]), ("Flows", ["flow."]), ("Files", ["file."])];
         var rest = TriggerText.Events.ToList();
         var result = new List<EventGroup>();
         foreach (var (title, prefixes) in groups)
@@ -76,6 +76,7 @@ public static class WhenThisRuns
             OnceTrigger once => OnceText(once.When),
             EventTrigger e when TriggerText.IsFlowEvent(e.Name) && TriggerText.FlowFilter(e.Flow) is { } id =>
                 $"When '{flowName?.Invoke(id) ?? id}' {(e.Name == "flow.failed" ? "fails" : "finishes")}",
+            EventTrigger e when TriggerText.IsFileEvent(e.Name) => File(e),
             EventTrigger e => TriggerText.IsNetworkEvent(e.Name) ? Network(e) : e.Device is { Length: > 0 } ? Device(e) : Event(e.Name),
             EngineStartTrigger => Event(EngineStartTrigger.Name),
             _ => "Starts by itself",
@@ -107,6 +108,9 @@ public static class WhenThisRuns
         "session.back" => "When you come back",
         "flow.finished" => "When a flow finishes",
         "flow.failed" => "When a flow fails",
+        "file.created" => "When a file appears in a folder",
+        "file.changed" => "When a file in a folder changes",
+        "file.deleted" => "When a file in a folder is removed",
         _ => "When " + TriggerText.EventLabel(name), // a source added later reads passably until its sentence is written here
     };
 
@@ -136,6 +140,31 @@ public static class WhenThisRuns
         "device.removed" => $"When '{e.Device}' is disconnected",
         _ => $"When the default sound device changes to '{e.Device}'",
     };
+
+    /// <summary>"When a file appears in 'Downloads' (*.pdf)": the folder's own name, then the pattern when there is one; no folder yet keeps the event's sentence.</summary>
+    public static string File(EventTrigger e)
+    {
+        var verb = e.Name switch
+        {
+            "file.created" => "a file appears in",
+            "file.deleted" => "a file is removed from",
+            _ => "a file changes in",
+        };
+        var written = TriggerText.Trimmed(e.Path)?.TrimEnd('\\', '/');
+        if (written is null)
+            return Event(e.Name);
+        var name = written[(written.LastIndexOfAny(['\\', '/']) + 1)..];
+        var text = $"When {verb} '{(name.Length > 0 ? name : written)}'";
+        return TriggerText.Trimmed(e.Filter) is { } filter ? $"{text} ({filter})" : text;
+    }
+
+    /// <summary>The folder a file event watches, as written; empty = none yet. Other events keep the trigger as it is.</summary>
+    public static Trigger WithFolder(Trigger t, string? folder) =>
+        t is EventTrigger e && TriggerText.IsFileEvent(e.Name) ? e with { Path = TriggerText.Trimmed(folder) } : t;
+
+    /// <summary>The file name pattern of a file event (empty = any file), like <c>*.pdf</c>.</summary>
+    public static Trigger WithFilter(Trigger t, string? filter) =>
+        t is EventTrigger e && TriggerText.IsFileEvent(e.Name) ? e with { Filter = TriggerText.Trimmed(filter) } : t;
 
     /// <summary>The text a device event looks for (empty = any device); null on an event with no device choice.</summary>
     public static Trigger WithDevice(Trigger t, string? device)
@@ -299,6 +328,7 @@ public static class WhenThisRuns
         : t is EventTrigger e && TriggerText.IsNetworkEvent(e.Name) && TriggerText.IsNetworkEvent(name) ? e with { Name = name }
         : t is EventTrigger d && TriggerText.IsDeviceEvent(d.Name) && TriggerText.IsDeviceEvent(name) ? d with { Name = name }
         : t is EventTrigger f && TriggerText.IsFlowEvent(f.Name) && TriggerText.IsFlowEvent(name) ? f with { Name = name }
+        : t is EventTrigger g && TriggerText.IsFileEvent(g.Name) && TriggerText.IsFileEvent(name) ? g with { Name = name }
         : t is EventTrigger or EngineStartTrigger ? new EventTrigger(name) { Only = t.Only }
         : t;
 
