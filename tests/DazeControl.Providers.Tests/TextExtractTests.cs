@@ -250,8 +250,8 @@ public sealed class TextExtractTests
     [Fact]
     public async Task BetweenCountsUpperAndLowerCaseAndNeedsTheSecondTextAfterTheFirst()
     {
-        Assert.Contains("\"START\"", await Fails("between", "start x end", "START", "end"), StringComparison.Ordinal);
-        Assert.Contains("after that", await Fails("between", "end x start", "start", "end"), StringComparison.Ordinal);
+        Assert.Contains("before the part", await Fails("between", "start x end", "START", "end"), StringComparison.Ordinal);
+        Assert.Contains("after the part", await Fails("between", "end x start", "start", "end"), StringComparison.Ordinal);
     }
 
     [Fact]

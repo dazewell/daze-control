@@ -330,7 +330,10 @@ public sealed class FlowRunner
                 summary = StepValues.Mask(context.Summary, secrets);
                 skipped = attemptResult.SkippedBecause;
                 if (skipped is null) // an unmet "Only if" gives nothing (DESIGN §4.5), though its probe may have read values
+                {
                     GiveValues(values, node.Id, descriptor, context, error is null);
+                    MarkExtractSensitive(values, node);
+                }
                 called = context.Called ?? called;
                 if (attemptResult.EndsFlow)
                 {
@@ -419,6 +422,22 @@ public sealed class FlowRunner
             else
                 values.Set(step, name, given);
         }
+    }
+
+    /// <summary>
+    /// A Get from text's values are Sensitive when something it reads was marked Sensitive in this run (a called flow's output
+    /// filled from a Sensitive input): the static check cannot see that, so the runner marks them (D-143).
+    /// </summary>
+    internal static void MarkExtractSensitive(RunValues values, StepNode node)
+    {
+        if (node.Step != ProviderCatalog.ExtractId)
+            return;
+        var reads = TextExtract.Sources.Any(p => node.With.TryGetValue(p, out var s) && s is ScalarParam { Text: var text }
+            && StepValues.Parse(text).Any(r => r.Source == ValueSource.Step && values.IsMarkedSensitive(r.Name, r.Value)));
+        if (!reads)
+            return;
+        values.MarkSensitive(node.Id, "text");
+        values.MarkSensitive(node.Id, "number");
     }
 
     private static bool IsOff(StepNode node, string param) =>

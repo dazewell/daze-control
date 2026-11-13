@@ -9,7 +9,7 @@ namespace DazeControl.Core.Model;
 /// (<see cref="Extract"/>) are shared by the validator and the provider, so what the editor accepts is what the step does.
 /// Every limit is here: the text is at most <see cref="MaxText"/> characters, a pattern <see cref="MaxPattern"/>, a path
 /// <see cref="MaxPath"/>, JSON deeper than <see cref="MaxJsonDepth"/> is refused, and a pattern gets <see cref="PatternTimeout"/>.
-/// Sentences name the setting that was asked for, never the text it was asked of.
+/// Sentences never quote the text, nor a between-text (it may be a secret, and a cut quote could not be masked); only a field path, at most 200 characters, is shown whole.
 /// </summary>
 public static class TextExtract
 {
@@ -161,7 +161,7 @@ public static class TextExtract
     private static Result FromJson(string text, string path)
     {
         TryPath(path, out var parts, out _);
-        var shown = Shorten(path);
+        var shown = path; // at most 200 characters (Check); the whole path, so a Sensitive one is masked in full
         text = text.Trim().TrimStart('﻿').Trim();
         if (text.Length == 0)
             return new(null, "There is no JSON to read: the text is empty.");
@@ -254,7 +254,7 @@ public static class TextExtract
         {
             var at = text.IndexOf(before, StringComparison.Ordinal);
             if (at < 0)
-                return new(null, $"The text doesn't contain \"{Shorten(before)}\".");
+                return new(null, "The text doesn't contain the text before the part you want.");
             start = at + before.Length;
         }
         var end = text.Length;
@@ -262,7 +262,7 @@ public static class TextExtract
         {
             var at = text.IndexOf(after, start, StringComparison.Ordinal);
             if (at < 0)
-                return new(null, $"The text doesn't contain \"{Shorten(after)}\" after that.");
+                return new(null, "The text doesn't contain the text after the part you want, after the first one.");
             end = at;
         }
         return new(text[start..end], null);
@@ -288,8 +288,6 @@ public static class TextExtract
             start = end + 1;
         }
     }
-
-    private static string Shorten(string text) => text.Length <= 40 ? text : text[..40] + "…";
 
     /// <summary>A plain number as <c>number</c> gives it (the same reading as Check value), else null.</summary>
     public static bool IsNumber(string? text) => text is not null && StepValues.TryNumber(text.Trim(), out _);

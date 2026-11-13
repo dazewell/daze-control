@@ -89,6 +89,29 @@ public class TextExtractValidationTests
     }
 
     [Fact]
+    public void ACalledFlowsAnswerIsRefusedAsTheText()
+    {
+        var load = ConfigYaml.Load("""
+            flows:
+              inner:
+                name: Inner
+                outputs:
+                  said: 'x'
+                nodes:
+                  - { id: n, step: wait, with: { duration: 1s } }
+              f:
+                nodes:
+                  - { id: call, step: flow.run, with: { flow: inner } }
+                  - { id: g, step: text.extract, with: { text: '{call.said}', find: a }, after: [call] }
+            """);
+        Assert.Empty(load.Problems);
+
+        var problem = Assert.Single(ConfigValidator.Validate(load.Config!), p => p.Severity == Severity.Error);
+
+        Assert.EndsWith("nodes.g.with.text", problem.Path, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ItsValuesAreSensitiveWhenItsTextIs()
     {
         var load = ConfigYaml.Load("flows:\n  f:\n    nodes:\n      - { id: w, step: http.request, with: { url: 'https://x.test' } }\n      - { id: g, step: text.extract, with: { text: '{w.body}', find: a }, after: [w] }\n      - { id: h, step: text.extract, with: { text: 'plain', by: line, find: '1' } }\n      - { id: k, step: text.extract, with: { text: 'plain', find: '{w.body}' } }\n");

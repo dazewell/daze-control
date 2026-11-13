@@ -263,6 +263,9 @@ public static partial class ConfigValidator
             foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.ExtractId))
             {
                 string? Written(string name) => step.With.TryGetValue(name, out var p) && p is ScalarParam { Text: var t } ? t : null;
+                // A called flow's answer is cut at 1,000 characters before this step could read it (D-143): refuse it as the text.
+                if (StepValues.Parse(Written("text")).Any(r => r.Source == ValueSource.Step && flow.FindNode(r.Name) is StepNode { } called && FlowOutputs.Waits(called)))
+                    problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.with.text", "A called flow's answer is cut at 1,000 characters, so Get from text can't read it. Take the part inside that flow instead.", flow.Id));
                 var by = (Written("by") ?? "json").Trim();
                 var find = Written("find") ?? "";
                 var until = Written("until") ?? "";
