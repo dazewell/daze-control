@@ -65,6 +65,7 @@ public sealed class PipeTests : IAsyncDisposable
                 var t when t == typeof(string) => property.Name == "Op" ? "echo" : property.Name,
                 var t when t == typeof(bool) || t == typeof(bool?) => true,
                 var t when t == typeof(int?) => 3,
+                var t when t == typeof(Dictionary<string, string>) => new Dictionary<string, string> { ["audio"] = "sony", ["text"] = "a=b" },
                 var t => throw new InvalidOperationException($"Give {property.Name} ({t}) a test value."),
             };
             property.SetValue(sent, value);

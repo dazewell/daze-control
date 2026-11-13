@@ -22,11 +22,37 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
     /// <summary>update: <c>stable</c> or <c>rc</c> (lower-case), the channel to switch to first (D-108).</summary>
     public string? Channel { get; init; }
 
+    /// <summary>run: the flow's inputs given as <c>name=value</c> words after the flow (T24.9); null when none.</summary>
+    public IReadOnlyDictionary<string, string>? Inputs { get; init; }
+
+    /// <summary>Most <c>name=value</c> words a run takes (a flow has at most a handful of inputs).</summary>
+    public const int MaxInputs = 32;
+
+    /// <summary>
+    /// <c>name=value</c> words as a map (T24.9): the value is everything after the first "=", empty allowed, never interpreted.
+    /// Which names exist and what values fit is the engine's to check against the flow.
+    /// </summary>
+    /// <exception cref="CommandLineException">A word without "name=", or a name given twice.</exception>
+    public static Dictionary<string, string> ParseInputs(IEnumerable<string> words)
+    {
+        ArgumentNullException.ThrowIfNull(words);
+        var inputs = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var word in words)
+        {
+            var equals = word.IndexOf('=', StringComparison.Ordinal);
+            if (equals < 1)
+                throw new CommandLineException("Inputs after the flow are written name=value (a value is never shown here)."); // not echoed: it may be a secret (D-014)
+            if (!inputs.TryAdd(word[..equals], word[(equals + 1)..]))
+                throw new CommandLineException($"Input \"{word[..equals]}\" is given twice.");
+        }
+        return inputs;
+    }
+
     private sealed record Shape(int MinWords, int MaxWords, string WordsError, params string[] Flags);
 
     private static readonly Dictionary<string, Shape> Shapes = new(StringComparer.Ordinal)
     {
-        ["run"] = new(1, 1, "run needs one flow.", "--wait", "--dry-run"),
+        ["run"] = new(1, 1 + MaxInputs, $"run needs one flow, then at most {MaxInputs} inputs as name=value.", "--wait", "--dry-run"),
         ["cancel"] = new(1, 1, "cancel needs one flow."),
         ["list"] = new(0, 0, "list takes no arguments."),
         ["validate"] = new(0, 1, "validate takes at most one file."),
@@ -113,6 +139,7 @@ public sealed record CommandLine(string Command, IReadOnlyList<string> Words, bo
             throw new CommandLineException("Choose --merge or --replace, not both.");
         return new CommandLine(command, words, wait, dryRun, limit)
         {
+            Inputs = command == "run" && words.Count > 1 ? ParseInputs(words.Skip(1)) : null,
             Remove = remove, Config = config, Merge = merge, Replace = replace, Yes = yes, Editor = editor, History = history, Channel = channel,
         };
     }

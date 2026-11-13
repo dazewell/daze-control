@@ -84,9 +84,9 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         TriggerAsync(config().Flows.FirstOrDefault(f => f.FlowId == flowId), flowId, trigger);
 
     /// <summary>Starts this version of the flow (the one the caller checked), not whatever the config holds now.</summary>
-    public Task<RunResult?> TriggerAsync(FlowState state, string trigger) => TriggerAsync(state, state.FlowId, trigger);
+    public Task<RunResult?> TriggerAsync(FlowState state, string trigger) => TriggerAsync(state, state.FlowId, trigger, null);
 
-    private Task<RunResult?> TriggerAsync(FlowState? state, string flowId, string trigger)
+    private Task<RunResult?> TriggerAsync(FlowState? state, string flowId, string trigger, IReadOnlyDictionary<string, string>? inputs = null)
     {
         if (state?.Running is not { Enabled: true } flow)
         {
@@ -94,7 +94,11 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             return Task.FromResult<RunResult?>(null);
         }
         log($"run: {flowId} triggered by {trigger}");
-        var run = launcher.TriggerAsync(StepDefaults.Apply(flow, state.Defaults), state.Library, trigger);
+        var ready = StepDefaults.Apply(flow, state.Defaults);
+        // Device inputs resolve here (an answered ask is never asked again, D-107); text inputs travel beside the flow.
+        var run = inputs is null
+            ? launcher.TriggerAsync(ready, state.Library, trigger)
+            : launcher.TriggerAsync(FlowInputs.Apply(ready, inputs, keepAsked: true), state.Library, trigger, null, inputs);
         _ = run.ContinueWith(t =>
         {
             if (t.IsFaulted)
@@ -323,14 +327,18 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
         if (!flow.Enabled)
             return Refuse(request, state.FlowId, NameOf(state), $"{NameOf(state)} is turned off.");
         var trigger = request.Trigger ?? "Command line";
+        // Inputs given from outside (T24.9): checked before anything starts, like a call's (the values are data, never logged).
+        var inputs = request.Inputs is { Count: > 0 } given ? new Dictionary<string, string>(given, StringComparer.Ordinal) : null;
+        if (inputs is not null && FlowInputs.CheckGiven(flow, state.Library, inputs) is { } bad)
+            return Refuse(request, state.FlowId, NameOf(state), bad, PipeMessage.BadUsage(id, bad));
 
         if (request.DryRun)
         {
-            var dry = await dryRunner.RunAsync(WithoutRetries(StepDefaults.Apply(flow, state.Defaults)), state.Library, cancellationToken).ConfigureAwait(false);
+            var dry = await dryRunner.RunAsync(WithoutRetries(StepDefaults.Apply(flow, state.Defaults)), state.Library, [], cancellationToken, "", inputs).ConfigureAwait(false);
             return new PipeMessage { Id = id, Ok = true, Run = Record(dry, flow.Id, flow.Name, trigger + " (dry run)") };
         }
 
-        var run = TriggerAsync(state, trigger);
+        var run = TriggerAsync(state, state.FlowId, trigger, inputs);
         if (!request.Wait)
         {
             // Ignored triggers resolve at once; anything else has started.

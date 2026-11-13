@@ -74,6 +74,10 @@ public sealed class PipeRequest
     /// <summary>run: walk the flow with steps that do nothing (no history, no locks).</summary>
     public bool DryRun { get; init; }
 
+    /// <summary>run: the flow's inputs given from outside (T24.9), name → Library key (device inputs) or text. Data only:
+    /// checked against the flow's inputs by the engine, never read as a command or a reference.</summary>
+    public Dictionary<string, string>? Inputs { get; init; }
+
     /// <summary>autostart: true = on, false = off, null = just tell.</summary>
     public bool? Enable { get; init; }
 
@@ -140,7 +144,13 @@ public sealed class PipeMessage
     /// <summary>shortcuts: all of ours on the desktop; create-shortcut: the one written; remove-shortcut: those removed.</summary>
     public ShortcutInfo[]? Shortcuts { get; init; }
 
+    /// <summary>With <see cref="Ok"/> false: the request itself was wrong (an input the flow doesn't have), so a script
+    /// gets the usage exit code instead of "the run failed".</summary>
+    public bool Usage { get; init; }
+
     public static PipeMessage Fail(int id, string error) => new() { Id = id, Error = error };
+
+    public static PipeMessage BadUsage(int id, string error) => new() { Id = id, Error = error, Usage = true };
 }
 
 public sealed class FlowInfo

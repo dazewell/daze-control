@@ -837,7 +837,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
 - [ ] T24.8 Check address `network.reach` (Sonnet, S; solo on the catalog; after T24.7). `address` = `host:port` (TCP connect), a web
   address (any answer counts) or a host (ping); `is` reachable / not reachable; gives `ms`; in `Checks` (the "Wait until" help line).
   Done when: Providers tests behind a fake; `dctl check network.reach address=…` works; nothing is sent beyond the one probe.
-- [ ] T24.9 Inputs from the command line (Sonnet, S-M; parallel-safe). `dctl run <flow> [name=value…]` and the same after
+- [x] T24.9 Inputs from the command line (Sonnet, S-M; parallel-safe). `dctl run <flow> [name=value…]` and the same after
   `DazeControl.exe --run <flow>`; checked and applied as a call's inputs are (`FlowInputs.Check` / `Apply`). Files: `Ipc/CommandLine.cs`,
   `Ipc/Protocol.cs` (+ `PipeClient` copy, `PipeTests.EveryRequestFieldReachesTheServer`), `Runtime/Control/EngineController.cs`,
   `Runtime/Lifecycle/EngineArguments.cs`, `Cli/Program.cs` usage. Done when: CLI tests (device and text inputs, unknown name → exit 2

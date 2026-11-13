@@ -11,10 +11,17 @@ public sealed record EngineArguments(string? Config, string? RunFlowId)
 {
     public const string RunFlag = "--run";
 
+    /// <summary>
+    /// <c>--run &lt;flow&gt; name=value…</c> (T24.9): the flow's inputs, as <c>dctl run</c> takes them; null when none. A word
+    /// is an input when it is <c>name=…</c> and the name holds no path character, so a config path that contains "=" stays one.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? RunInputs { get; init; }
+
     public static EngineArguments Parse(IReadOnlyList<string> args)
     {
         ArgumentNullException.ThrowIfNull(args);
         string? config = null, run = null;
+        Dictionary<string, string>? inputs = null;
         for (var i = 0; i < args.Count; i++)
         {
             if (args[i] == RunFlag)
@@ -24,13 +31,22 @@ public sealed record EngineArguments(string? Config, string? RunFlowId)
                     run ??= args[i + 1];
                 i++;
             }
+            else if (run is not null && IsInput(args[i]))
+            {
+                // A repeated name: the first wins, like a repeated --run; the engine checks names against the flow.
+                var equals = args[i].IndexOf('=', StringComparison.Ordinal);
+                (inputs ??= new(StringComparer.Ordinal)).TryAdd(args[i][..equals], args[i][(equals + 1)..]);
+            }
             else if (!args[i].StartsWith("--", StringComparison.Ordinal) && args[i].Length > 0)
             {
                 config ??= args[i];
             }
         }
-        return new EngineArguments(config, run);
+        return new EngineArguments(config, run) { RunInputs = inputs };
     }
+
+    private static bool IsInput(string arg) =>
+        !arg.StartsWith('-') && arg.IndexOf('=', StringComparison.Ordinal) is > 0 and var equals && arg.AsSpan(0, equals).IndexOfAny('\\', '/', ':') < 0;
 
     /// <summary>A shortcut's arguments: the real flow id, then the config path when there is one.</summary>
     public static string Format(string flowId, string? config)

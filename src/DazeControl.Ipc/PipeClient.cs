@@ -51,6 +51,7 @@ public sealed class PipeClient : IAsyncDisposable
             DryRun = request.DryRun, Enable = request.Enable, On = request.On, Limit = request.Limit, Trigger = request.Trigger,
             Kind = request.Kind, Key = request.Key, Node = request.Node, Config = request.Config,
             ExactId = request.ExactId, ConfigPath = request.ConfigPath, Address = request.Address, Adb = request.Adb, Refresh = request.Refresh,
+            Inputs = request.Inputs,
         }, IpcJson.Default.PipeRequest);
         await _pipe.WriteAsync(Encoding.UTF8.GetBytes(line + "\n"), cancellationToken).ConfigureAwait(false);
         await _pipe.FlushAsync(cancellationToken).ConfigureAwait(false);
