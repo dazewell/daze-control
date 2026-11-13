@@ -426,7 +426,7 @@ public static partial class ConfigValidator
                         // A text input (T23.7): text that takes values, filled in this flow; or this flow's own text input.
                         message = FlowInputs.NameIn(value) is { } ownText && flow.Inputs.TryGetValue(ownText, out var mineText) && mineText.Kind is { } mineKind
                             ? $"{mineText.Label} is {WithArticle(mineKind)}; {input.Label} needs text."
-                            : value.Length > FlowOutputs.MaxTextLength ? $"{input.Label} holds at most {FlowOutputs.MaxTextLength} characters."
+                            : value.Length > RunValues.MaxValueLength ? $"{input.Label} holds at most {RunValues.MaxValueLength} characters."
                             : null;
                         if (message is null)
                         {

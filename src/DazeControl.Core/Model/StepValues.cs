@@ -790,7 +790,7 @@ public static class StepValues
         {
             if (Descriptor(catalog, producer) is not { } d)
                 continue;
-            foreach (var v in Of(flow, producer, d, flows, catalog).Where(v => v.Sensitive))
+            foreach (var v in Of(flow, producer, d, flows, catalog).Where(v => v.Sensitive || values.IsMarkedSensitive(producer.Id, v.Name)))
             {
                 if (values.TryGet(producer.Id, v.Name, out var given) && Show(given, library) is { Length: > 0 } text)
                     secrets.Add((text, v.Title));

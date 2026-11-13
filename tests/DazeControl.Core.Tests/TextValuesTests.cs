@@ -127,6 +127,15 @@ public sealed class TextValuesTests
     }
 
     [Fact]
+    public void PassedTextIsAtMostOneValueLong()
+    {
+        var problems = Problems(Caller($"      - {{ id: call, step: flow.run, with: {{ flow: inner, inputs: {{ greeting: \"{new string('x', 1001)}\" }} }} }}"));
+
+        Assert.Contains(problems, p => p is { Severity: Severity.Error, Path: "flows.caller.nodes.call.with.inputs.greeting" }
+            && p.Message == "Greeting holds at most 1000 characters.");
+    }
+
+    [Fact]
     public void ATextInputCantFillADeviceSettingNorBeAsked()
     {
         var problems = Problems(Caller("      - { id: bt, step: bluetooth.connect, with: { device: $note } }", """

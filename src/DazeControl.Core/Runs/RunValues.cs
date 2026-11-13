@@ -21,6 +21,7 @@ public sealed class RunValues
     private readonly Dictionary<(string Step, string Value), StepValue> _values = [];
     private readonly Dictionary<string, StepValue> _inputs = new(StringComparer.Ordinal);
     private readonly HashSet<string> _sensitiveInputs = new(StringComparer.Ordinal);
+    private readonly HashSet<(string Step, string Value)> _sensitive = [];
     private readonly IReadOnlySet<(string Step, string Value)>? _wanted;
     private readonly Lock _lock = new();
 
@@ -83,6 +84,23 @@ public sealed class RunValues
     {
         lock (_lock)
             return _values.TryGetValue((step, value), out found);
+    }
+
+    /// <summary>
+    /// Marks a value Sensitive in this run although its type doesn't say so (T23.7): a call's output filled from a
+    /// Sensitive value of the called run. <see cref="StepValues.Secrets"/> hides it like any other.
+    /// </summary>
+    public void MarkSensitive(string step, string value)
+    {
+        lock (_lock)
+            _sensitive.Add((step, value));
+    }
+
+    /// <summary>Whether <see cref="MarkSensitive"/> marked this value.</summary>
+    public bool IsMarkedSensitive(string step, string value)
+    {
+        lock (_lock)
+            return _sensitive.Contains((step, value));
     }
 
     /// <summary>The flow input <paramref name="name"/> holds <paramref name="key"/> in this run (<c>{$name}</c> shows its name).</summary>

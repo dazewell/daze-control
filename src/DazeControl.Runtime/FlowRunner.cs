@@ -25,6 +25,9 @@ public sealed record RunResult(FlowOutcome Outcome, ValueList<NodeResult> Nodes)
 
     /// <summary>The flow's outputs (T23.7), filled when it succeeded (fully or partly); empty otherwise.</summary>
     public ValueDictionary<string> Outputs { get; init; }
+
+    /// <summary>Outputs that hold a Sensitive value of the run (a step's, or a text input the caller filled from one).</summary>
+    public ValueList<string> SensitiveOutputs { get; init; } = [];
 }
 
 /// <summary>
@@ -192,6 +195,8 @@ public sealed class FlowRunner
         var outputs = flow.Outputs.Count == 0 || scheduler.Result is not (FlowOutcome.Succeeded or FlowOutcome.PartiallySucceeded) ? default
             : DryRun ? new ValueDictionary<string>(flow.Outputs.Select(o => KeyValuePair.Create(o.Key, StepValues.Describe(flow, o.Value, _catalog, flows: calls))))
             : new ValueDictionary<string>(FlowOutputs.Fill(flow, values, library));
+        var endSecrets = outputs.Count == 0 || DryRun ? [] : StepValues.Secrets(flow, null, values, library, _catalog, calls);
+        ValueList<string> sensitiveOutputs = [.. outputs.Where(o => endSecrets.Any(s => o.Value.Contains(s.Text, StringComparison.Ordinal))).Select(o => o.Key)];
         var result = new RunResult(scheduler.Result, new(flow.Nodes.Select(n => ResultOf(n.Id))))
         {
             RunId = runId,
@@ -199,6 +204,7 @@ public sealed class FlowRunner
             Duration = _time.GetElapsedTime(startedTicks),
             Quiet = quiet,
             Outputs = outputs,
+            SensitiveOutputs = sensitiveOutputs,
         };
         Raise(new RunFinished(runId, flow.Id, _time.GetUtcNow(), result.Outcome) { ParentRunId = parentRunId, ParentNodeId = parentNodeId, Quiet = quiet });
         return result;
@@ -468,7 +474,11 @@ public sealed class FlowRunner
         {
             // What the called flow gives back (T23.7); an output it no longer has stays missing: the fallback, else empty.
             foreach (var (name, text) in result.Outputs)
+            {
                 values.SetText(node.Id, name, text);
+                if (result.SensitiveOutputs.Contains(name))
+                    values.MarkSensitive(node.Id, name); // stays hidden in the caller's errors and summaries (D-014)
+            }
         }
         return result.Outcome switch
         {

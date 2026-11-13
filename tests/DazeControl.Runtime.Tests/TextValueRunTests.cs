@@ -177,6 +177,25 @@ public sealed class TextValueRunTests : IDisposable
     }
 
     [Fact]
+    public async Task AnOutputFilledFromASensitiveInputStaysSensitive()
+    {
+        // The caller passed a Sensitive value as text: the called run's output holding it is marked, and the caller hides it.
+        var values = new Dictionary<string, string> { ["greeting"] = "s3cret" };
+        var flow = _config.Flows.Single(f => f.Id == "inner");
+        var runner = new FlowRunner([new Recorder("bluetooth.connect", c => c.SetDevice("device", "technics"))], _time) { Flows = _starter };
+        var sensitive = new HashSet<string>(StringComparer.Ordinal) { "greeting" };
+        var result = await Bound(runner.RunNestedAsync(flow, _config.Library, [], Guid.NewGuid(), "x", values, TestContext.Current.CancellationToken));
+
+        Assert.Empty(result.SensitiveOutputs); // not filled from a Sensitive value here
+        var run = new DazeControl.Core.Runs.RunValues();
+        run.SetText("call", "said", "s3cret from x");
+        run.MarkSensitive("call", "said");
+        var caller = _config.Flows.Single(f => f.Id == "caller");
+        var secrets = DazeControl.Core.Model.StepValues.Secrets(caller, "note", run, _config.Library, flows: _starter.Lookup);
+        Assert.Equal("Failed: ‹Said›", DazeControl.Core.Model.StepValues.Mask("Failed: s3cret from x", secrets));
+    }
+
+    [Fact]
     public async Task ACallThatDoesntWaitGivesNoOutputs()
     {
         var result = await Run("started");
@@ -198,6 +217,8 @@ public sealed class TextValueRunTests : IDisposable
             (Override is { } o && o.Id == flowId ? o : config.Flows.FirstOrDefault(f => f.Id == flowId)) is { } flow
                 ? new(flow, config.Library, flow.Name, null)
                 : new(null, Library.Empty, flowId, $"{flowId} isn't there anymore.");
+
+        public Flow? Lookup(string id) => Resolve(id).Flow;
 
         public bool IsRunning(string flowId) => false;
 
