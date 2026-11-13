@@ -284,6 +284,10 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
   the called flow's lanes show below under a bracket with its name (one level), and "Open in editor" with one of them
   selected opens that flow showing its part of the run. Live: the call's pill says the called flow's current step
   ("Connect…", #59), and a flow running inside another shows its states with InfoBar #64.
+- Values (T25.5, D-145): picking a bar also shows a **Values** heading (level 3) under the step's lines, with one
+  selectable line per value it gave ("Wi-Fi network: Home") and per setting whose text changed when values went in
+  ("Message used: On Home at Evening"). A Sensitive one reads "hidden". Texts are cut at 256 characters. The block is
+  inside the same panel and only changes when a bar is picked; runs recorded before it show none.
 
 ## 5.6 Tray menu and run pop-up
 - Clicks (user, 2026-11-02): left click, or Enter/Space on the focused icon, opens the editor (starts it or brings

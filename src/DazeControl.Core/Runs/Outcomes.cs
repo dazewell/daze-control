@@ -51,6 +51,14 @@ public sealed record NodeResult(string NodeId, NodeOutcome Outcome, int Attempts
     /// connected"). The outcome is Succeeded; readers prefix "Skipped: ". Null otherwise and in runs recorded before 0.41.</summary>
     public string? SkippedBecause { get; init; }
 
+    /// <summary>The values the step gave that a later setting uses (T25.5, D-145): masked, cut, Sensitive ones hidden. Null
+    /// when none, in a dry run, and in runs recorded before this was added.</summary>
+    public ShownValue[]? Values { get; init; }
+
+    /// <summary>The settings whose text changed when values were filled in, as the step really got them (T25.5). Same rules
+    /// as <see cref="Values"/>.</summary>
+    public ShownValue[]? Used { get; init; }
+
     /// <summary>Succeeded, but the flow it ran ended with a problem: a problem for the caller (DESIGN §2.2).</summary>
     public bool IsPartialCall => Outcome == NodeOutcome.Succeeded && Called?.Outcome == FlowOutcome.PartiallySucceeded;
 }
