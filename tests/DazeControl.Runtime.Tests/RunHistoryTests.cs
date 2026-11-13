@@ -68,7 +68,7 @@ public sealed class RunHistoryTests : IDisposable
     }
 
     [Fact]
-    public void ShownValuesOfAHundredRunsStayUnderAMegabyte()
+    public void ShownValuesOfAHundredRunsStayNearAMegabyte()
     {
         var text = new string('x', ShownValues.MaxLength);
         var history = new RunHistory(HistoryFile);
@@ -76,10 +76,14 @@ public sealed class RunHistoryTests : IDisposable
             history.Add(Record(i) with
             {
                 Nodes = [.. Enumerable.Range(0, 10).Select(n => new NodeResult("s" + n, NodeOutcome.Succeeded, Order: n + 1)
-                    { Values = [new ShownValue("Value", text)], Used = [new ShownValue("Message", text)] })],
+                    {
+                        // The most a step can store: MaxChars of text over MaxLines lines.
+                        Values = [new ShownValue("Value", text), new ShownValue("Value", text), new ShownValue("Value", text)],
+                        Used = [new ShownValue("Message", text), new ShownValue("Message", "", Hidden: true), new ShownValue("Message", "", Hidden: true)],
+                    })],
             });
 
-        Assert.InRange(new FileInfo(HistoryFile).Length, 1, 900_000); // worst case, 100 runs x 10 steps x 2 full-length values: about 765 KB
+        Assert.InRange(new FileInfo(HistoryFile).Length, 1, 1_600_000); // at the step budget (6 lines, 1,024 characters): about 1.45 MB
     }
 
     [Fact]

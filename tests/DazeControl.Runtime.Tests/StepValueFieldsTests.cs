@@ -151,6 +151,100 @@ public sealed class StepValueFieldsTests : IDisposable
         Assert.True(Assert.Single(result.Nodes.Single(x => x.NodeId == "note").Used!).Hidden); // runtime-sensitive Make text
     }
 
+    private static (ShownValue[]? Values, ShownValue[]? Used) Shown(Flow flow, string stepId, RunValues values, Library library, StepNode filled, Configuration? config = null)
+    {
+        Func<string, Flow?>? flows = config is null ? null : id => config.Flows.FirstOrDefault(f => f.Id == id);
+        var step = (StepNode)flow.FindNode(stepId)!;
+        var secrets = StepValues.Secrets(flow, stepId, values, library, flows: flows);
+        var descriptor = DazeControl.Core.Catalog.ProviderCatalog.Find(step.Step)!;
+        return ShownValues.Of(flow, step, filled, descriptor, values, library, secrets, DazeControl.Core.Catalog.ProviderCatalog.All, flows);
+    }
+
+    [Fact]
+    public void ATextBuiltFromASensitiveInputIsHiddenWholeNotMasked()
+    {
+        var load = ConfigYaml.Load("""
+            flows:
+              f:
+                name: Evening
+                inputs:
+                  k: { kind: text, name: Key }
+                nodes:
+                  - { id: mk, step: text.make, with: { text: "key {$k}" } }
+                  - { id: n, step: notify, after: [mk], with: { text: "Got {mk.text}" } }
+            """);
+        var flow = load.Config!.Flows[0];
+        var values = new RunValues();
+        values.SetInputText("k", "s3cret", sensitive: true);
+        values.SetText("mk", "text", "key s3cret");
+        var mk = (StepNode)flow.FindNode("mk")!;
+
+        var made = Shown(flow, "mk", values, load.Config.Library, mk with { With = new([KeyValuePair.Create("text", (ParamValue)"key s3cret")]) });
+
+        Assert.Equal(new ShownValue("Text", "", Hidden: true), Assert.Single(made.Values!));
+        Assert.Equal(new ShownValue("Text", "", Hidden: true), Assert.Single(made.Used!));
+        // The step after it reads the made text: it is a derived text with the secret in it, hidden too.
+        values.MarkSensitive("mk", "text");
+        var note = (StepNode)flow.FindNode("n")!;
+        var used = Shown(flow, "n", values, load.Config.Library, note with { With = new([KeyValuePair.Create("text", (ParamValue)"Got key s3cret")]) });
+        Assert.True(Assert.Single(used.Used!).Hidden);
+        Assert.All(made.Values!.Concat(made.Used!).Concat(used.Used!), v => Assert.DoesNotContain("s3cret", v.Text, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AFlowCallsSensitiveOutputAndTheTextBuiltFromItAreHidden()
+    {
+        var load = ConfigYaml.Load("""
+            flows:
+              inner:
+                name: Inner
+                outputs:
+                  said: "x"
+                nodes:
+                  - { id: a, step: notify, with: { text: hi } }
+              f:
+                name: Evening
+                nodes:
+                  - { id: call, step: flow.run, with: { flow: inner } }
+                  - { id: n, step: notify, after: [call], with: { text: "Said: {call.said}" } }
+            """);
+        var flow = load.Config!.Flows.Single(x => x.Id == "f");
+        var values = new RunValues();
+        values.SetText("call", "said", "s3cret from x");
+        values.MarkSensitive("call", "said");
+        var call = (StepNode)flow.FindNode("call")!;
+
+        var called = Shown(flow, "call", values, load.Config.Library, call, load.Config);
+        var note = (StepNode)flow.FindNode("n")!;
+        var used = Shown(flow, "n", values, load.Config.Library, note with { With = new([KeyValuePair.Create("text", (ParamValue)"Said: s3cret from x")]) }, load.Config);
+
+        Assert.True(Assert.Single(called.Values!).Hidden);
+        Assert.True(Assert.Single(used.Used!).Hidden);
+        Assert.All(called.Values!.Concat(used.Used!), v => Assert.Equal("", v.Text));
+    }
+
+    [Fact]
+    public void AStepStoresNoMoreThanItsBudget()
+    {
+        var load = ConfigYaml.Load("""
+            flows:
+              f:
+                name: Evening
+                nodes:
+                  - { id: w, step: network.wifi }
+                  - { id: n, step: notify, after: [w], with: { text: "{w.network}" } }
+            """);
+        var flow = load.Config!.Flows[0];
+        var values = new RunValues();
+        values.SetText("w", "network", new string('x', 900));
+        var note = (StepNode)flow.FindNode("n")!;
+        var shown = Shown(flow, "w", values, load.Config.Library, (StepNode)flow.FindNode("w")!);
+        var used = Shown(flow, "n", values, load.Config.Library, note with { With = new([KeyValuePair.Create("text", (ParamValue)new string('y', 900))]) });
+
+        Assert.InRange(shown.Values!.Concat(used.Used!).Sum(v => v.Text.Length), 1, ShownValues.MaxChars);
+        Assert.All(shown.Values!.Concat(used.Used!), v => Assert.InRange(v.Text.Length, 0, ShownValues.MaxLength));
+    }
+
     [Fact]
     public async Task ADryRunStoresNoValues()
     {

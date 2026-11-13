@@ -8,7 +8,7 @@ namespace DazeControl.Core.Runs;
 /// A Sensitive one is <see cref="Hidden"/> and its <see cref="Text"/> is empty: the text itself is never stored (D-014).
 /// </summary>
 /// <param name="Title">The value's or setting's title in plain words ("Output", "Message").</param>
-/// <param name="Text">What it held, masked and cut at <see cref="ShownValues.MaxLength"/>.</param>
+/// <param name="Text">What it held, cut at <see cref="ShownValues.MaxLength"/>.</param>
 /// <param name="Hidden">It is Sensitive (or built from something that is): shown as hidden.</param>
 public sealed record ShownValue(string Title, string Text, bool Hidden = false);
 
@@ -18,74 +18,80 @@ public static class ShownValues
     /// <summary>Each text is cut here, with "…".</summary>
     public const int MaxLength = 256;
 
-    /// <summary>At most this many lines per list, so a step with many settings can't grow a history record without bound.</summary>
-    public const int MaxLines = 20;
+    /// <summary>A step stores at most this many lines in all (values and settings), and <see cref="MaxChars"/> characters of text,
+    /// so a record's size is bounded by its step count: 100 runs of 10 steps stay near 1 MB at the most.</summary>
+    public const int MaxLines = 6;
+
+    /// <summary>The text a step may store in all (see <see cref="MaxLines"/>): four full-length values.</summary>
+    public const int MaxChars = 4 * MaxLength;
 
     /// <summary>
-    /// The values <paramref name="step"/> gave (only those a later setting uses are kept by the run, D-129), in the order its
-    /// type lists them. Sensitive ones (by type, or marked in this run) are hidden; the rest are masked against
-    /// <paramref name="secrets"/> (Sensitive values of earlier steps) before they are cut.
+    /// What a finished step shows: the values it gave (only those a later setting uses are kept by the run, D-129) and the
+    /// settings whose text changed when values were filled in, as <paramref name="filled"/> holds them. Nothing derived from a
+    /// Sensitive value is stored, not even masked: such a value or setting is <see cref="ShownValue.Hidden"/> with no text.
     /// </summary>
-    public static ShownValue[]? Values(Flow flow, StepNode step, ProviderDescriptor descriptor, RunValues values, Library library,
-        IReadOnlyList<(string Text, string Title)> secrets, IReadOnlyList<ProviderDescriptor> catalog, Func<string, Flow?>? flows)
+    public static (ShownValue[]? Values, ShownValue[]? Used) Of(Flow flow, StepNode written, StepNode filled, ProviderDescriptor descriptor,
+        RunValues values, Library library, IReadOnlyList<(string Text, string Title)> secrets, IReadOnlyList<ProviderDescriptor> catalog,
+        Func<string, Flow?>? flows)
     {
-        var shown = new List<ShownValue>();
-        foreach (var spec in StepValues.Of(flow, step, descriptor, flows, catalog))
+        var lines = 0;
+        var chars = 0;
+
+        ShownValue Make(string title, string text, bool hidden)
         {
-            if (shown.Count >= MaxLines || !values.TryGet(step.Id, spec.Name, out var given))
+            lines++;
+            // A text that holds a secret is hidden whole: a mask would still keep what was built around it.
+            if (hidden || StepValues.Mask(text, secrets) != text)
+                return new ShownValue(title, "", Hidden: true);
+            var cut = RunValues.Cut(text, Math.Min(MaxLength, MaxChars - chars));
+            chars += cut.Length;
+            return new ShownValue(title, cut);
+        }
+
+        bool Full() => lines >= MaxLines || chars >= MaxChars - 1;
+
+        // A step that builds text from its settings gives values derived from whatever those settings use.
+        var derived = written.Step is ProviderCatalog.MakeTextId or ProviderCatalog.ValueCheckId or ProviderCatalog.ExtractId
+            && written.With.Values.Any(v => TextsOf(v).Any(t => MentionsSecret(flow, t, values, secrets, catalog, flows)));
+        var gave = new List<ShownValue>();
+        foreach (var spec in StepValues.Of(flow, written, descriptor, flows, catalog))
+        {
+            if (Full() || !values.TryGet(written.Id, spec.Name, out var given))
                 continue;
             var text = StepValues.Show(given, library);
             if (text.Length == 0)
                 continue;
-            shown.Add(spec.Sensitive || values.IsMarkedSensitive(step.Id, spec.Name)
-                ? new ShownValue(spec.Title, "", Hidden: true)
-                : new ShownValue(spec.Title, Fit(text, secrets)));
+            gave.Add(Make(spec.Title, text,
+                spec.Sensitive || values.IsMarkedSensitive(written.Id, spec.Name) || (derived && spec.Name != StepValues.ErrorName)));
         }
-        return shown.Count == 0 ? null : [.. shown];
-    }
 
-    /// <summary>
-    /// The settings of <paramref name="written"/> whose text changed when its values were filled, as <paramref name="filled"/>
-    /// holds them. A setting that mentions a Sensitive value is hidden whole: its filled text may carry the value in a changed
-    /// form (percent-encoded in an address), which masking would not find.
-    /// </summary>
-    public static ShownValue[]? Used(Flow flow, StepNode written, StepNode filled, ProviderDescriptor descriptor, RunValues values,
-        IReadOnlyList<(string Text, string Title)> secrets, IReadOnlyList<ProviderDescriptor> catalog, Func<string, Flow?>? flows)
-    {
-        var shown = new List<ShownValue>();
+        var used = new List<ShownValue>();
         foreach (var (key, was) in written.With)
         {
-            if (shown.Count >= MaxLines || descriptor.FindParam(key) is not { } spec || !filled.With.TryGetValue(key, out var now) || Equals(was, now))
+            if (Full() || descriptor.FindParam(key) is not { } spec || !filled.With.TryGetValue(key, out var now) || Equals(was, now))
                 continue;
-            var texts = was switch
-            {
-                ScalarParam { Text: var t } => [t],
-                ListParam list => list.Items.OfType<ScalarParam>().Select(i => i.Text).ToList(),
-                _ => [],
-            };
-            if (texts.Exists(t => MentionsSecret(flow, t, values, catalog, flows)))
-            {
-                shown.Add(new ShownValue(spec.Title, "", Hidden: true));
+            var text = string.Join(", ", TextsOf(now));
+            if (text.Length == 0)
                 continue;
-            }
-            var text = now switch
-            {
-                ScalarParam { Text: var t } => t,
-                ListParam list => string.Join(", ", list.Items.OfType<ScalarParam>().Select(i => i.Text)),
-                _ => "",
-            };
-            if (text.Length > 0)
-                shown.Add(new ShownValue(spec.Title, Fit(text, secrets)));
+            // Hidden whole when the setting mentions a Sensitive value: a fill rule changes the text (percent-encoding in an
+            // address), which masking would not find.
+            used.Add(Make(spec.Title, text, TextsOf(was).Any(t => MentionsSecret(flow, t, values, secrets, catalog, flows))));
         }
-        return shown.Count == 0 ? null : [.. shown];
+        return (gave.Count == 0 ? null : [.. gave], used.Count == 0 ? null : [.. used]);
     }
 
-    /// <summary>Masked first, then cut: a secret cut in half would no longer be found.</summary>
-    private static string Fit(string text, IReadOnlyList<(string Text, string Title)> secrets) =>
-        RunValues.Cut(StepValues.Mask(text, secrets) ?? "", MaxLength);
-
-    private static bool MentionsSecret(Flow flow, string text, RunValues values, IReadOnlyList<ProviderDescriptor> catalog, Func<string, Flow?>? flows)
+    private static IEnumerable<string> TextsOf(ParamValue value) => value switch
     {
+        ScalarParam { Text: var t } => [t],
+        ListParam list => list.Items.OfType<ScalarParam>().Select(i => i.Text),
+        _ => [],
+    };
+
+    private static bool MentionsSecret(Flow flow, string text, RunValues values, IReadOnlyList<(string Text, string Title)> secrets,
+        IReadOnlyList<ProviderDescriptor> catalog, Func<string, Flow?>? flows)
+    {
+        if (StepValues.Mask(text, secrets) != text)
+            return true;
         foreach (var r in StepValues.Parse(text))
         {
             switch (r.Source)

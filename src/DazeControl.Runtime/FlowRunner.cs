@@ -367,8 +367,7 @@ public sealed class FlowRunner
         try
         {
             var secrets = StepValues.Secrets(flow, written.Id, values, library, _catalog, CalledFlows);
-            return (ShownValues.Values(flow, written, descriptor, values, library, secrets, _catalog, CalledFlows),
-                ShownValues.Used(flow, written, filled, descriptor, values, secrets, _catalog, CalledFlows));
+            return ShownValues.Of(flow, written, filled, descriptor, values, library, secrets, _catalog, CalledFlows);
         }
 #pragma warning disable CA1031 // fail-soft
         catch (Exception)
