@@ -54,13 +54,25 @@ public static class StepParams
             : throw new StepFailedException($"\"{text}\" isn't a duration (like 500ms, 20s, 1m30s).");
     }
 
+    /// <summary>
+    /// A whole number setting, read after any value in it was filled (T25.3): trimmed, invariant culture (a value like "42.0"
+    /// counts), then the setting's range. The sentences never repeat the number: it may come from a Sensitive value.
+    /// </summary>
     public static int WholeNumber(this StepContext context, string name, int fallback)
     {
-        var text = context.Text(name);
+        var text = context.Text(name)?.Trim();
         if (text is null)
             return fallback;
-        return int.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : throw new StepFailedException($"\"{text}\" isn't a whole number.");
+        var spec = context.Descriptor.Params.FirstOrDefault(p => p.Name == name);
+        var title = spec?.Title ?? name;
+        if (text.Length == 0)
+            throw new StepFailedException($"{title} has no number: the value it uses was empty.");
+        if (!Core.Model.StepValues.TryNumber(text, out var number) || number != Math.Floor(number))
+            throw new StepFailedException($"{title} isn't a whole number.");
+        if (number < (spec?.Min ?? int.MinValue) || number > (spec?.Max ?? int.MaxValue))
+            throw new StepFailedException(spec is { Min: { } lo, Max: { } hi }
+                ? $"{title} must be {lo.ToString(CultureInfo.InvariantCulture)} to {hi.ToString(CultureInfo.InvariantCulture)}; the value it uses is outside that."
+                : $"{title} is outside the range this step takes.");
+        return (int)number;
     }
 }

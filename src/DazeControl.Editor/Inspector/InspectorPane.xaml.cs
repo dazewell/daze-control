@@ -383,6 +383,14 @@ public sealed partial class InspectorPane : UserControl
         });
     }
 
+    /// <summary>"Use a value" on a number setting (T25.3): the same list as Insert value, without devices; a row replaces the number.</summary>
+    private void OnNumberValuesOpening(object? sender, object e)
+    {
+        if (sender is not MenuFlyout { Target: Button { Tag: ParamFieldViewModel field } } menu)
+            return;
+        FillValueMenu(menu, field.ValueGroups, field.UseValue);
+    }
+
     /// <summary>A flow's value (T23.7): the same list, with every step's values, since all have run when it is filled.</summary>
     private void OnOutputValuesOpening(object? sender, object e)
     {

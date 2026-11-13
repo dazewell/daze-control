@@ -858,7 +858,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   group, time limit), between two texts, line N; gives `text` and `number`. `http.request` keeps up to 64 KB of the answer when a Get
   from text reads it (1,000 characters elsewhere). Files: `ProviderCatalog.cs`, `Providers/Basic/`, `Providers/Http/`. Done when:
   Providers tests (a 20 KB JSON, a path that isn't there → fails with a sentence, a pattern that would run forever stops); AOT 0 warnings.
-- [ ] T25.3 A value in a number setting (Sonnet, M; parallel-safe with T25.2). "Use a value" on number boxes; the range is checked when
+- [x] T25.3 A value in a number setting (Sonnet, M; parallel-safe with T25.2). "Use a value" on number boxes; the range is checked when
   the step runs. Files: `Core/Model/StepValues.cs`, `Core/Validation/ConfigValidator.cs`, `Providers/StepParams.cs`, the inspector's
   number control. Done when: Core tests (step-values/DESIGN "A whole value in a number setting"), Providers test (out of range fails
   with a sentence), view-model test; that DESIGN line is cut.

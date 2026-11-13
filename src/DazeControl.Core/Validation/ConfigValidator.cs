@@ -877,14 +877,17 @@ public static partial class ConfigValidator
             var valueProblems = StepValues.Problems(flow, _step, spec, text, catalog, defaults, calls);
             foreach (var problem in valueProblems)
                 Add(problem.Severity, path, problem.Message);
-            if (valueProblems.Any(p => p.Severity == Severity.Error) && !StepValues.Takes(spec)
-                && spec.Kind is not (ParamKind.Text or ParamKind.MultilineText or ParamKind.FilePath or ParamKind.FolderPath))
+            if (valueProblems.Any(p => p.Severity == Severity.Error) && (spec.Kind == ParamKind.WholeNumber
+                || !StepValues.Takes(spec) && spec.Kind is not (ParamKind.Text or ParamKind.MultilineText or ParamKind.FilePath or ParamKind.FolderPath)))
                 return;
             if (spec.Required && string.IsNullOrWhiteSpace(text))
             {
                 Error(path, $"{spec.Title} can't be empty.");
                 return;
             }
+            // One whole value in a number setting (T25.3): its range is checked when the step runs.
+            if (spec.Kind == ParamKind.WholeNumber && StepValues.WholeRef(text) is not null)
+                return;
             if (spec.Kind == ParamKind.LibraryRef && FlowInputs.NameIn(value) is { } name)
             {
                 var kind = spec.Library!.Value;

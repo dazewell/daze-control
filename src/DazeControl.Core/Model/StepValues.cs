@@ -164,11 +164,39 @@ public static class StepValues
     /// <summary>Make text's one setting, and the name of the value it gives.</summary>
     public const string MakeTextParam = "text";
 
-    /// <summary>Whether a setting fills references: marked <see cref="ParamSpec.TakesValues"/> and a text kind.</summary>
+    /// <summary>
+    /// Whether a setting fills references: a text setting marked <see cref="ParamSpec.TakesValues"/>, or any number setting, which
+    /// holds a written number or one whole value (<see cref="WholeRef"/>, T25.3).
+    /// </summary>
     public static bool Takes(ParamSpec spec)
     {
         ArgumentNullException.ThrowIfNull(spec);
-        return spec.TakesValues && spec.Kind is ParamKind.Text or ParamKind.MultilineText;
+        return spec.Kind == ParamKind.WholeNumber || spec.TakesValues && spec.Kind is ParamKind.Text or ParamKind.MultilineText;
+    }
+
+    /// <summary>
+    /// The one reference a number setting is made of: the text, trimmed, is a single <c>{step.value}</c> (with an optional
+    /// <c>|fallback</c>) and nothing else. Null for a written number or text with something around the reference.
+    /// </summary>
+    public static ValueRef? WholeRef(string? text)
+    {
+        var parts = Split(text?.Trim());
+        return parts.Count == 1 && parts[0].Ref is { } only ? only : null;
+    }
+
+    /// <summary>
+    /// Why <paramref name="text"/> isn't a whole number within the setting's range, or null. Invariant culture, like the
+    /// runner (D-137); used for a written number and for a reference's written fallback.
+    /// </summary>
+    public static string? NumberProblem(ParamSpec spec, string text)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        ArgumentNullException.ThrowIfNull(text);
+        var trimmed = text.Trim();
+        // The same reading the step applies to a filled value (StepParams.WholeNumber): "42.0" counts.
+        if (!TryNumber(trimmed, out var n) || n != Math.Floor(n))
+            return $"\"{trimmed}\" isn't a whole number.";
+        return n < spec.Min || n > spec.Max ? $"Use {spec.Min} to {spec.Max}." : null;
     }
 
     /// <summary>Whether each item of a list setting fills references (<c>process.run</c>'s arguments): one argument per item.</summary>
@@ -446,6 +474,8 @@ public static class StepValues
         if (refs.Count == 0 || spec.Kind == ParamKind.TextMap || spec.Kind == ParamKind.TextList && !TakesItems(spec))
             return problems;
         catalog ??= ProviderCatalog.All;
+        if (spec.Kind == ParamKind.WholeNumber)
+            return NumberProblems(flow, stepId, spec, text, refs, catalog, defaults, flows);
         var takes = Takes(spec) || TakesItems(spec);
         var textKind = spec.Kind is ParamKind.Text or ParamKind.MultilineText or ParamKind.FilePath or ParamKind.FolderPath;
         foreach (var r in refs)
@@ -463,6 +493,43 @@ public static class StepValues
                     : new(Severity.Error, $"Values from earlier steps only go in text settings; {spec.Title} can't use {r}.", r));
             }
         }
+        return problems;
+    }
+
+    /// <summary>
+    /// A number setting (T25.3): a written number has no reference; one whole reference is checked like a text setting's, must
+    /// not be a device, and warns when it gives text (it may fail at run time); a reference with text around it is an error.
+    /// </summary>
+    private static List<ValueProblem> NumberProblems(Flow flow, string stepId, ParamSpec spec, string text, IReadOnlyList<ValueRef> refs,
+        IReadOnlyList<ProviderDescriptor> catalog, ValueDictionary<StepDefault>? defaults, Func<string, Flow?>? flows)
+    {
+        var problems = new List<ValueProblem>();
+        if (WholeRef(text) is null)
+        {
+            foreach (var r in refs.Where(r => Exists(flow, r, catalog, flows)))
+                problems.Add(new(Severity.Error, $"{spec.Title} takes one number or one value like {r}, not text around it.", r));
+            return problems;
+        }
+        var only = refs[0];
+        var why = Check(flow, stepId, only, catalog, defaults, flows, out var warning);
+        if (why is not null)
+            problems.Add(new(warning ? Severity.Warning : Severity.Error, why, only));
+        if (Exists(flow, only, catalog, flows))
+        {
+            var kind = only.Source switch
+            {
+                ValueSource.Input => flow.Inputs.TryGetValue(only.Name, out var input) && input.Kind is not null ? ValueKind.Device : ValueKind.Text,
+                ValueSource.Run => ValueKind.Text,
+                _ => flow.FindNode(only.Name) is StepNode s && Descriptor(catalog, s) is { } d
+                    ? Find(flow, s, d, only.Value, flows, catalog)?.Kind ?? ValueKind.Text : ValueKind.Text,
+            };
+            if (kind == ValueKind.Device)
+                problems.Add(new(Severity.Error, $"{only} is a device, not a number.", only));
+            else if (kind == ValueKind.Text && why is null)
+                problems.Add(new(Severity.Warning, $"{only} is text: the step fails when it runs if it isn't a whole number from {spec.Min} to {spec.Max}.", only));
+        }
+        if (only.Fallback is { } fallback && fallback.Trim().Length > 0 && NumberProblem(spec, fallback) is { } bad)
+            problems.Add(new(Severity.Error, $"What to use when it has no value: {bad}", only));
         return problems;
     }
 
@@ -775,7 +842,7 @@ public static class StepValues
     /// <summary>The texts of a setting that fill references: one for a text setting, each item of a list whose items fill.</summary>
     private static IEnumerable<string> TextsOf(ParamValue setting, ParamSpec spec) => setting switch
     {
-        ScalarParam { Text: var text } when Takes(spec) => [text],
+        ScalarParam { Text: var text } when Takes(spec) && (spec.Kind != ParamKind.WholeNumber || WholeRef(text) is not null) => [text],
         ListParam list when TakesItems(spec) => list.Items.OfType<ScalarParam>().Select(i => i.Text),
         _ => [],
     };
@@ -903,6 +970,9 @@ public static class StepValues
 
     private static ParamValue FillParam(Flow flow, ParamValue setting, ParamSpec spec, RunValues values, Library library) => setting switch
     {
+        // A number setting is filled only when it is one whole reference; the step parses and range-checks what comes out (T25.3).
+        ScalarParam { Text: var number } when spec.Kind == ParamKind.WholeNumber =>
+            WholeRef(number) is null ? setting : new ScalarParam(FillText(flow, number.Trim(), values, library).Trim()),
         ScalarParam { Text: var text } when Takes(spec) => new ScalarParam(FillText(flow, text, values, library, spec.Kind == ParamKind.Text, spec.Fill, spec.LongText ? TextExtract.MaxFilled : MaxFilledLength)),
         ListParam list when TakesItems(spec) => new ListParam(new ValueList<ParamValue>(list.Items.Select(i =>
             i is ScalarParam { Text: var item } ? new ScalarParam(FillText(flow, item, values, library, singleLine: false, spec.Fill)) : i))),

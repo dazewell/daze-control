@@ -308,13 +308,11 @@ public class StepValuesTests
         Assert.Equal("flows.f.nodes.s.with.script", p.Path);
     }
 
-    [Theory]
-    [InlineData("audio.setVolume", "percent", "Volume (%)")]
-    [InlineData("audio.setDefault", "device", "Audio device")]
-    public void AReferenceInANumberOrDeviceSettingIsOneError(string type, string setting, string title)
+    [Fact]
+    public void AReferenceInADeviceSettingIsOneError()
     {
-        var yaml = Yaml(Bt + $"      - {{ id: x, step: {type}, after: [bt], with: {{ {setting}: \"{{bt.device}}\" }} }}\n");
-        Assert.Equal($"Values from earlier steps only go in text settings; {title} can't use {{bt.device}}.", Only(yaml, Severity.Error).Message);
+        var yaml = Yaml(Bt + "      - { id: x, step: audio.setDefault, after: [bt], with: { device: \"{bt.device}\" } }\n");
+        Assert.Equal("Values from earlier steps only go in text settings; Audio device can't use {bt.device}.", Only(yaml, Severity.Error).Message);
     }
 
     [Fact]
