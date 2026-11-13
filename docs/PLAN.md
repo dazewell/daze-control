@@ -847,13 +847,16 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   a "Call a flow from a Stream Deck key" recipe in FEATURES F8 (`dctl.exe run <flow> name=value`), UX §5.9 rows for the user.
 
 ## M25 Deciding and seeing (G-01, G-86, G-70, G-71, G-63, G-82)
-- [ ] T25.1 Only run if (Opus, M-L; after M24). Flow `onlyIf:` = a list of checks with their settings, read before a schedule or event
+- [x] T25.1 Only run if (Opus, M-L; after M24; engine side, branch feat/m25-only-run-if, D-150). Flow `onlyIf:` = a list of checks with their settings, read before a schedule or event
   starts the flow (and before a start by hand only when the flow says so); unmet = no run, no pop-up, a log line, and "Held back:
   <the check's sentence>" plus last fired / last started per trigger on the flow card and the "When this runs" card. `only: onBattery|onAC`
   keeps loading as a power check (supersedes that part of D-107: new D-entry). A check that can't be read lets the run start (D-081).
   Files: `Core/Model/Flow.cs`, `Core/Yaml`, `Core/Validation`, `Runtime/Triggers/TriggerService.cs`, `Runtime/FlowLauncher.cs`, the
   one-step path `dctl check` uses (`EngineController`), `WhenThisRuns.cs`. Done when: Core + Runtime tests (all checks must hold, a
   slow check times out and lets it start, 100 held-back events add no history rows), samples round-trip, `measure.ps1` idle unchanged.
+- [ ] T25.1b "Only run when…" in the editor (Opus, M; after T25.1). Flow settings get a plain list of checks reusing the check
+  picker and the step settings fields, "Also when I start it" (`onlyIfByHand`), and the "Held back: …" line on the flow card and the
+  "When this runs" card (`FlowInfo.HeldBack`); never says node/DAG/OSD. Done when: view-model tests, the list round-trips, UX row seen.
 - [x] T25.2 Get from text `text.extract` (Sonnet, M; solo on the catalog). From a text that takes values: JSON field, pattern (first
   group, time limit), between two texts, line N; gives `text` and `number`. `http.request` keeps up to 64 KB of the answer when a Get
   from text reads it (1,000 characters elsewhere). Files: `ProviderCatalog.cs`, `Providers/Basic/`, `Providers/Http/`. Done when:

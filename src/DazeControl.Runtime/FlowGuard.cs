@@ -8,7 +8,7 @@ using DazeControl.Runtime.Control;
 namespace DazeControl.Runtime;
 
 /// <summary>
-/// "Only run if" (T25.1, D-148): reads a flow's <see cref="Flow.OnlyIf"/> checks right before an automatic start (and a
+/// "Only run if" (T25.1, D-150): reads a flow's <see cref="Flow.OnlyIf"/> checks right before an automatic start (and a
 /// start by hand when <see cref="Flow.OnlyIfByHand"/>). The checks run side by side on a quiet runner (no pop-up, no
 /// history), each with its own timeout, retries and the run's cancellation; nothing runs at any other time (idle = zero).
 /// A check that read its fact and found it not as asked holds the start back; a check that couldn't answer (an error, a

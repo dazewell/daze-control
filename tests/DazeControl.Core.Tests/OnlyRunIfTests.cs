@@ -3,7 +3,7 @@ using DazeControl.Core.Yaml;
 
 namespace DazeControl.Core.Tests;
 
-/// <summary>T25.1 (D-148): a flow's "Only run if" list loads, saves and validates like steps, under <c>onlyIf</c>.</summary>
+/// <summary>T25.1 (D-150): a flow's "Only run if" list loads, saves and validates like steps, under <c>onlyIf</c>.</summary>
 public class OnlyRunIfTests
 {
     private const string Guarded = """

@@ -134,7 +134,7 @@ internal sealed class EngineHost : IDisposable
             EngineController.CreateDryRunner(TimeProvider.System), new Autostart(),
             new EngineInfo(version, Environment.ProcessId, exe, paths.Config, paths.ConfigArgument), Log.Info, devices,
             quietRunner, _shortcuts, _gamepads);
-        // "Only run if" (T25.1, D-148): read only at a start, never while idle.
+        // "Only run if" (T25.1, D-150): read only at a start, never while idle.
         var guard = new FlowGuard(quietRunner, Log.Info);
         _controller.Guard = guard;
         _triggers.Guard = guard;

@@ -52,7 +52,7 @@ public sealed record Flow(string Id, string Name, ValueList<Node> Nodes)
     public ValueList<Trigger> Triggers { get; init; } = [];
 
     /// <summary>
-    /// "Only run if" (T25.1, D-148): check steps (<see cref="Catalog.ProviderCatalog.Checks"/>) that must all hold before a
+    /// "Only run if" (T25.1, D-150): check steps (<see cref="Catalog.ProviderCatalog.Checks"/>) that must all hold before a
     /// schedule or event starts the flow; unmet = held back (no run, no pop-up, no history row). They carry their own
     /// settings, timeout and retries; no edges. A check that can't answer lets the run start (D-081).
     /// </summary>

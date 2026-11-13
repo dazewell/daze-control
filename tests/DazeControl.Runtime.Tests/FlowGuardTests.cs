@@ -8,7 +8,7 @@ using DazeControl.Runtime.Triggers;
 
 namespace DazeControl.Runtime.Tests;
 
-/// <summary>T25.1 (D-148): "Only run if" holds back automatic starts quietly; a check that can't answer lets the run start.</summary>
+/// <summary>T25.1 (D-150): "Only run if" holds back automatic starts quietly; a check that can't answer lets the run start.</summary>
 public sealed class FlowGuardTests
 {
     private readonly FlagCheck _flags = new();

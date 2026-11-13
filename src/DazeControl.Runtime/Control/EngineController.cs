@@ -94,7 +94,7 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
     public static FlowRunner CreateDryRunner(TimeProvider time) =>
         new(ProviderCatalog.All.Select(d => new DryProvider(d.Id)), time) { DryRun = true };
 
-    /// <summary>"Only run if" (T25.1, D-148); null = flows start unguarded (tests, an engine without a test-step runner).</summary>
+    /// <summary>"Only run if" (T25.1, D-150); null = flows start unguarded (tests, an engine without a test-step runner).</summary>
     public FlowGuard? Guard { get; set; }
 
     /// <summary>Starts a runnable flow by hand (hotkey, tray, pipe); null when it can't run, was held back or the trigger was ignored.</summary>

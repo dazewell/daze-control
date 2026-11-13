@@ -67,7 +67,7 @@ public static partial class ConfigValidator
     }
 
     /// <summary>
-    /// "Only run if" (T25.1, D-148): each entry must be a check step (<see cref="ProviderCatalog.Checks"/>). The checks are
+    /// "Only run if" (T25.1, D-150): each entry must be a check step (<see cref="ProviderCatalog.Checks"/>). The checks are
     /// validated by every step rule above, as a flow of their own with the flow's inputs (that is how the guard runs them), and
     /// the problems are moved to <c>flows.&lt;id&gt;.onlyIf.&lt;check&gt;</c>. A problem there is a flow error, as for a step:
     /// a broken guard must not let a flow start unguarded.
