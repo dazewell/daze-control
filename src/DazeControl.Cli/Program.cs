@@ -26,7 +26,9 @@ public static class Program
 
     private const string Help = """
         Usage: dctl <command>
-          run <flow> [--wait] [--dry-run]   start a flow (by id or name); --wait prints how it went
+          run <flow> [name=value...] [--wait] [--dry-run]
+                                            start a flow (by id or name); --wait prints how it went. name=value gives
+                                            the flow's inputs: a Library key for a device input, any text for a text input
           cancel <flow>                     stop a running flow
           list                              flows and whether they can run
           validate [file]                   problems in config.yaml (or in the file given)
@@ -43,7 +45,7 @@ public static class Program
                                             --dry-run shows what would change; --yes applies it (--replace is the default)
           check <check> [name=value...]     read one fact now, like: check network.wifi network=Home (0 = yes, 1 = no)
           update [--channel stable|rc]      download a newer version (release candidates with rc); it installs at the next start
-        Exit codes: 0 ok, 1 failed, 2 usage (restore: also refused without --yes), 3 the engine isn't running.
+        Exit codes: 0 ok, 1 failed, 2 usage (restore: also refused without --yes; run: an input the flow doesn't have or a Library key that isn't there), 3 the engine isn't running.
         """;
 
     public static async Task<int> Main(string[] args)
@@ -85,6 +87,7 @@ public static class Program
                 return await SendAsync(new PipeRequest
                 {
                     Op = Ops.Run, Flow = line.Word, Wait = line.Wait || line.DryRun, DryRun = line.DryRun, Trigger = "Command line",
+                    Inputs = line.Inputs is { } inputs ? new Dictionary<string, string>(inputs) : null,
                 }, PrintRun).ConfigureAwait(false);
             case "cancel":
                 return await SendAsync(new PipeRequest { Op = Ops.Cancel, Flow = line.Word }, _ => Ok).ConfigureAwait(false);
@@ -259,8 +262,11 @@ public static class Program
         var answer = await client.SendAsync(request).ConfigureAwait(false);
         if (!answer.Ok)
         {
-            Console.Error.WriteLine(answer.Error);
-            return Failed;
+            // An engine from before T24.9 refuses the newer version instead of running the flow on its defaults.
+            Console.Error.WriteLine(request.Inputs is { Count: > 0 } && answer.Error?.StartsWith(Protocol.MismatchStart, StringComparison.Ordinal) == true
+                ? $"The running {AppInfo.ProductName} is an older version that can't take inputs. Quit it from the tray, start it again, then retry."
+                : answer.Error);
+            return answer.Usage ? Usage : Failed;
         }
         return print(answer);
     }

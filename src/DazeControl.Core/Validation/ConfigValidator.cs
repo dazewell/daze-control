@@ -47,6 +47,7 @@ public static partial class ConfigValidator
         CheckPicks(config.Flows, config.Library, config.Settings.StepDefaults, problems);
         CheckTimeWindows(config.Flows, problems);
         CheckWaits(config.Flows, config.Settings.StepDefaults, problems);
+        CheckStops(config.Flows, problems);
         CheckCalls(config.Flows, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, catalog, config.Settings.StepDefaults, problems);
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
@@ -176,6 +177,25 @@ public static partial class ConfigValidator
                     problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.timeout",
                         "The step's time limit must be longer than the wait, or it ends the wait early.", flow.Id));
             }
+        }
+    }
+
+    /// <summary>Stop flow (T24.1, D-133) ends the flow, so a step linked after it never runs: a warning, not an error (the link is harmless).</summary>
+    private static void CheckStops(IReadOnlyList<Flow> flows, List<Problem> problems)
+    {
+        foreach (var flow in flows)
+        {
+            var stopSteps = flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.StopFlowId).ToList();
+            if (stopSteps.Count == 0)
+                continue;
+            // A stop in a parallel card: links leave from the card, and the card never finishes (members have no edges, D-003).
+            var stops = stopSteps.Select(s => s.Id).Concat(flow.Nodes.OfType<GroupNode>().Where(g => g.Members.Any(m => stopSteps.Any(s => s.Id == m))).Select(g => g.Id))
+                .ToHashSet(StringComparer.Ordinal);
+            // Only "As failed" fires a failure link: that is the way to react to it, so it isn't warned about.
+            var failing = stopSteps.Where(s => s.With.TryGetValue("mode", out var m) && m is ScalarParam { Text: "failed" }).Select(s => s.Id).ToHashSet(StringComparer.Ordinal);
+            foreach (var node in flow.Nodes.Where(n => n.After.Any(e => stops.Contains(e.From) && !(e.When == EdgeWhen.Failure && failing.Contains(e.From)))))
+                problems.Add(new(Severity.Warning, $"flows.{flow.Id}.nodes.{node.Id}.after",
+                    "A step after Stop flow never runs: it ends the flow. Remove the link, or put Stop flow last.", flow.Id));
         }
     }
 

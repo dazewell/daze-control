@@ -75,7 +75,7 @@ public sealed class StepValueRunTests : IDisposable
         var (flow, library) = Load("", Say("Plugged in: {@event}.", "[]"));
         var runner = Runner();
 
-        await Bound(runner.RunAsync(flow, library, [], TestContext.Current.CancellationToken, "Event · device connected", "Xbox Wireless Controller"));
+        await Bound(runner.RunAsync(flow, library, [], TestContext.Current.CancellationToken, "Event · device connected", eventDetail: "Xbox Wireless Controller"));
         await Run(runner, (flow, library)); // started by a person: nothing to name
 
         Assert.Equal(["Plugged in: Xbox Wireless Controller.", "Plugged in: ."], _said);

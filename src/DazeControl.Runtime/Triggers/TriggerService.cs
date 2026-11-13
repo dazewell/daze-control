@@ -256,7 +256,7 @@ public sealed class TriggerService : IDisposable
             }
             var text = TriggerText.Describe(subscription.Trigger);
             // The launcher applies whenRunning; this doesn't wait for the run, only observes a fault.
-            var run = _launcher.TriggerAsync(flow, called.Library, text, chain, e.Detail ?? "");
+            var run = _launcher.TriggerAsync(flow, called.Library, text, chain, eventDetail: e.Detail ?? "");
             _ = run.ContinueWith(t => _log($"trigger: {flowId}: run failed: {t.Exception?.GetBaseException().Message}"),
                 CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }

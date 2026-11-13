@@ -1830,9 +1830,23 @@ Status: proposed (the user's standing instruction, 2026-11-12: after the analysi
 - Revisit if: the user answers M28's rows, or a second user appears (signing, languages and sharing move up together).
 - Ref: docs/roadmap/GAPS.md (matrix, sketches, sources).
 
-## D-133 · 2026-11-13 · Which device on events: names read off the callback, `{@event}` run value (T24.6)
+## D-134 · 2026-11-13 · Which device on events: names read off the callback, `{@event}` run value (T24.6)
 
 - Decision: `device:` on `device.added/removed` (name contains, any case) and `audio.default-changed` (a Library audio key; matched by the item's `match` text and flow against the new default's name). Sources fill `TriggerEvent.Detail` (+ `Kind` input/output for audio); run value `{@event}` = Detail, passed `TriggerService` > `FlowLauncher` > `FlowRunner` > `RunValues.Event` (empty in a called flow).
 - How, AOT/idle-zero: names are read on the thread pool (devices: cfgmgr32 property calls) or the lazy COM worker (audio, D-009), never inside the system callback. A removed device is already unreadable, so `DeviceSource` keeps link > name for what it saw while loaded (seeded once on Load, dropped on Unload): no timer, no polling. Unreadable name = event raised without a detail; a trigger with a `device:` filter then skips it, one without works as before.
 - Why not fold different names of one device: the USB-device interface raises once per physical device; debounce and cooldown stay per detail (D-107).
 - Not verified live by the agent: plug a USB device in and out; switch the default sound device.
+
+## D-133 · 2026-11-13 · `flow.stop`: a quiet stop is "done" for a caller, "As failed" is a failure (T24.1)
+Status: accepted, built
+- Decision: `flow.stop` (Flow group, last) has `mode` quiet (default) or failed, and `message` (takes values). Quiet throws
+  `StepEndsFlowException { IsStop }`: the node ends Cancelled with "Stopped here" (": message" when given), the run is Quiet
+  and Cancelled (no pop-up, no tray problem glyph, EngineHost skips Cancelled), parallel branches are cancelled.
+  `RunResult.Stopped` = every quiet end of the run was a stop; a waiting caller (`flow.run`) then counts its step as done and
+  carries on. A menu closed with nothing picked still ends the caller too (D-054). Failed throws `StepFailedException`: the
+  step fails, a failure link or the flow's stop-on-failure rule decides the rest, the caller's step fails "X didn't finish:
+  message". Dry run and a step test say "Would stop here" and stop nothing. The validator warns about a step linked after a stop.
+- Why: the guard after a check needed a silent end (G-02); a guard inside a building block must not kill its callers (the
+  caller asked for a result, and the check found nothing to do), while "As failed" gives the caller a way to react.
+- Why not reuse the menu rule for callers: one silent stop would cancel the whole automatic flow, a surprise for a shared flow.
+- Known edge: "As failed" with `onFailure: ignore/skip` (step settings) goes on like any failed step; that is the user's choice.

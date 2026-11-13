@@ -76,6 +76,38 @@ public static class FlowInputs
         return null;
     }
 
+    /// <summary>Most characters a text input takes from outside (the same bound as a default, D-131).</summary>
+    public const int MaxTextLength = 1000; // keep in step with the message in CheckGiven
+
+    /// <summary>
+    /// Why values given from outside (<c>dctl run flow name=value</c>, T24.9) can't start <paramref name="flow"/>, or null:
+    /// an unknown name (the message lists the flow's own), a device input whose key isn't in the Library under that kind, or
+    /// a text longer than <see cref="MaxTextLength"/>. A value is never echoed for a text input (it may be a secret, D-014).
+    /// </summary>
+    public static string? CheckGiven(Flow flow, Library library, IReadOnlyDictionary<string, string> given)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        ArgumentNullException.ThrowIfNull(library);
+        ArgumentNullException.ThrowIfNull(given);
+        foreach (var (name, value) in given)
+        {
+            if (!flow.Inputs.TryGetValue(name, out var input))
+                return flow.Inputs.Count == 0
+                    ? $"{flow.Name} has no inputs, so \"{name}\" can't be given."
+                    : $"{flow.Name} has no input called \"{name}\". Its inputs: {string.Join(", ", flow.Inputs.Keys)}.";
+            if (input.Kind is { } kind)
+            {
+                if (!library.Contains(kind, value))
+                    return $"{input.Label} ({name}): {Library.Missing(kind, value)}";
+            }
+            else if (value.Length > MaxTextLength)
+            {
+                return $"{input.Label} ({name}) is longer than 1,000 characters.";
+            }
+        }
+        return null;
+    }
+
     /// <summary>Whether a step setting, or a value its <c>flow.run</c> steps pass, names <c>$name</c>.</summary>
     public static bool IsUsed(Flow flow, string name)
     {
