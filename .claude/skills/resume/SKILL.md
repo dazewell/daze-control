@@ -1,6 +1,6 @@
 ---
 name: resume
-description: Pick up Daze Control work exactly where the last (possibly cut-off) agent session stopped, and stop cleanly before a usage cap or context limit. Use at the start of every session in this repo, whenever the user says "continue", "resume", "where are we", "what's next", after a session was interrupted, and whenever you are close to a usage cap or the context is getting long — even if the task looks fresh.
+description: Pick up Ctrl Alt Daze work exactly where the last (possibly cut-off) agent session stopped, and stop cleanly before a usage cap or context limit. Use at the start of every session in this repo, whenever the user says "continue", "resume", "where are we", "what's next", after a session was interrupted, and whenever you are close to a usage cap or the context is getting long — even if the task looks fresh.
 ---
 
 # Resume

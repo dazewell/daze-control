@@ -1,4 +1,4 @@
-# Gap analysis: what people expect from a desktop automation engine, and what Daze Control lacks
+# Gap analysis: what people expect from a desktop automation engine, and what Ctrl Alt Daze lacks
 
 Snapshot of 2026-11-13 (main at c685f76, v0.54.0 about to ship). Asked for by the user (2026-11-12): a deep look at missing
 features against comparable tools, then a ranked roadmap. The roadmap itself is PLAN.md M24 to M28; the decision is D-135.
@@ -13,9 +13,9 @@ Verdicts: **Plan** (task id in PLAN), **Needs your yes** (reverses a recorded de
 Win32 API names in the sketches are from memory, not from a build: each task's first step is to check them (CsWin32
 metadata, Microsoft Learn) before designing around them.
 
-## 1. What Daze Control is today (from the code, not the docs)
+## 1. What Ctrl Alt Daze is today (from the code, not the docs)
 
-- **Ways a flow starts:** global shortcut (`RegisterHotKey` chords), tray item, `dctl run`, editor Run / Test, desktop shortcut
+- **Ways a flow starts:** global shortcut (`RegisterHotKey` chords), tray item, `cad run`, editor Run / Test, desktop shortcut
   (`--run`), a pick in a flow menu, another flow (`flow.run`), a schedule (`at` + days, `every` + window, `once`), engine
   start, and 13 system events: session lock / unlock / logon / logoff, power resume / AC / battery, device added / removed,
   default sound device changed, screens changed, network connected / disconnected (`via`, `ssid`). Trigger conditions: only
@@ -33,7 +33,7 @@ metadata, Microsoft Learn) before designing around them.
 - **Editor:** flows list (groups, search, sort, bulk actions, undo), canvas with auto layout, inspector rendered from the
   catalog, Library, pickers and examples, Dry run, Test this step, live run view, Runs timeline (last 100), Problems,
   backup / restore, three New flow templates.
-- **CLI / ops:** `dctl` run / cancel / list / validate / status / history / devices / check / shortcut / backup / restore /
+- **CLI / ops:** `cad` run / cancel / list / validate / status / history / devices / check / shortcut / backup / restore /
   update; per-user install with Stable and RC channels; logs 7 days; no admin; unsigned; win-x64; English only.
 
 ## 2. The benchmark, by capability
@@ -44,14 +44,14 @@ metadata, Microsoft Learn) before designing around them.
 | Power Automate Desktop | ~50 action groups: Variables, Conditionals, Loops, Flow control, Error handling, System (run / terminate / wait for process, Ping), Workstation (lock, log off, shut down, screenshot, sound, resolution), Mouse and keyboard, Clipboard, Message boxes (message, input, lists, files, custom forms), File / Folder, Text, Date time, HTTP, UI / browser automation, OCR, Excel… [S2] | If on a value, loops, input dialogs, lock / shut down, send keys, file actions, a debugger with "run from here" |
 | PowerToys | 31 utilities, among them Keyboard Manager (remap), FancyZones and Workspaces (window layouts, "launch a set of applications to custom positions"), Awake, Light Switch (theme by time of day), Power Display (monitor brightness, input source), Command Palette, Advanced Paste [S3] | Window layouts, keep awake, dark mode on a schedule, monitor input and brightness |
 | Home Assistant | Trigger → conditions → actions. 14 trigger types (state, numeric state, time, time pattern, sun, zone, webhook, MQTT, template, event, tag…), trigger ids and variables, modes single / restart / queued / parallel, per-step `enabled: false` and `continue_on_error`, traces, blueprints [S4] | Conditions on every automatic start, "why didn't it run", turn a step off, remote start, recipes to import |
-| Stream Deck | Keys run actions: Hotkey, Open, Website, Multimedia, Multi Action (sequence with delays), Run Command; Smart Profiles switch by the app in front; a marketplace of plugins and profiles [S5] | Press a shortcut, open things, media keys, per-app behaviour, a gallery; a way to call Daze Control from a key |
+| Stream Deck | Keys run actions: Hotkey, Open, Website, Multimedia, Multi Action (sequence with delays), Run Command; Smart Profiles switch by the app in front; a marketplace of plugins and profiles [S5] | Press a shortcut, open things, media keys, per-app behaviour, a gallery; a way to call Ctrl Alt Daze from a key |
 | Task Scheduler | Triggers: time, daily, weekly, monthly, monthly day-of-week, idle, boot, logon, session lock / unlock, event log; conditions (idle, AC, network), "wake the computer to run this task" [S6] | Monthly schedules, idle, conditions, wake to run |
 | Keyboard Maestro | 39 trigger kinds: Hot Key, Typed String, Application, Focused Window, Folder, USB Device, Wireless Network, Audio Output Changed, Display Layout Changed, Clipboard Changed, Idle, Sleep, Wake, Unlock, Login, Time of Day, Cron, Periodic, URL, Web Server, Remote, Public Web, MIDI, Status Menu, Macro Palette… [S7] | App and window events, a named USB device, folder events, a URL that runs a flow, remote start |
 | Hammerspoon | Watchers for application, audio device, battery, caffeinate (sleep / lock), path, USB, Wi-Fi, screen; `hs.window` / `hs.layout`, `hs.urlevent`, `hs.httpserver`, `hs.pasteboard`, `hs.brightness` [S8] | The same events; window layout; URL events |
 | Apple Shortcuts | Personal automations on time of day (sunrise / sunset too), Wi-Fi, Bluetooth device, app opened / closed, battery level, charger, Focus…; If, Repeat, Ask for Input, a gallery [S9] | A named Bluetooth device as a trigger, app events, ask for text, a gallery |
 | IFTTT / Zapier class | "When this happens there, do that here": webhooks in and out (not fetched; general knowledge; Home Assistant's webhook trigger and Keyboard Maestro's web triggers [S4][S7] stand in as sources) | A URL or message from outside that starts a flow |
 
-Reading across the rows, the expectations fall into five groups. Daze Control is **ahead** on device orchestration
+Reading across the rows, the expectations fall into five groups. Ctrl Alt Daze is **ahead** on device orchestration
 (Bluetooth audio, default device, screens, Android / Fire TV), failure handling (fallback branches, retries, policies), the
 no-focus pop-up and menu, footprint and fail-soft. It is **level** on schedules, session / power / network events,
 subflows and the editor basics. It is **behind** on five things, in this order:
@@ -61,7 +61,7 @@ subflows and the editor basics. It is **behind** on five things, in this order:
 3. **Everyday glue.** Open a file or address, stop a flow quietly, media keys, power, mute toggle, clipboard, keys, windows.
    Most of these are recorded "No" (REVIEW §3, 2026-11-06): they were judged before schedules, events and values existed.
 4. **Getting started and sharing.** Three templates, no gallery, no way to hand one flow to someone.
-5. **Being called from outside.** No inputs on `dctl run`, no link, nothing remote.
+5. **Being called from outside.** No inputs on `cad run`, no link, nothing remote.
 
 ## 3. Gap matrix
 
@@ -80,11 +80,11 @@ subflows and the editor basics. It is **behind** on five things, in this order:
 | G-07 | A file or folder changed | Keyboard Maestro Folder, Hammerspoon `pathwatcher`, HA folder watcher | Medium | M · Sonnet | Plan T26.5 |
 | G-08 | Day of the month, every N days, sunrise / sunset | Task Scheduler monthly, Keyboard Maestro Cron, HA sun, Shortcuts, PowerToys Light Switch | Medium | M · Sonnet | Plan T26.6 |
 | G-09 | A shortcut that works only while one program is in front | AHK `#HotIf`, Keyboard Maestro groups, Stream Deck Smart Profiles | Medium | M · Opus | Plan T26.4 |
-| G-10 | A link that starts a flow (`dazecontrol://run/…`) | Keyboard Maestro URL trigger, Hammerspoon `urlevent`, Shortcuts URL scheme | Medium | S–M · Sonnet | Plan T26.7 |
+| G-10 | A link that starts a flow (`ctrlaltdaze://run/…`) | Keyboard Maestro URL trigger, Hammerspoon `urlevent`, Shortcuts URL scheme | Medium | S–M · Sonnet | Plan T26.7 |
 | G-11 | "Idle for N minutes" with any N | Task Scheduler, Keyboard Maestro Idle | Medium | M | Later: needs a re-armed timer; G-04 gives Windows' own away signal for free |
 | G-12 | Wake the PC to run a schedule | Task Scheduler | Low | M | Later (D-107 rejected Task Scheduler for v1; a resume timer is unproven on Modern Standby) |
 | G-13 | Typed-text triggers, key remapping, key sequences, mouse-button triggers | AHK, Keyboard Maestro Typed String, PowerToys Keyboard Manager | High (in AHK's world) | L | Rejected (§5) |
-| G-14 | Controller, MIDI or deck-device triggers | Keyboard Maestro, Stream Deck | Low | – | Rejected (D-086); a deck key calls `dctl` or a link |
+| G-14 | Controller, MIDI or deck-device triggers | Keyboard Maestro, Stream Deck | Low | – | Rejected (D-086); a deck key calls `cad` or a link |
 | G-15 | Clipboard changed | Keyboard Maestro, AHK `OnClipboardChange` | Low | S | Rejected (§5) |
 | G-16 | Location, NFC, calendar, mail | Shortcuts, Home Assistant | Low on a PC | – | Rejected (§5) |
 
@@ -170,9 +170,9 @@ subflows and the editor basics. It is **behind** on five things, in this order:
 | G-92 | `winget install`; ARM64 build | PowerToys, AHK | Medium / Low | S / M | With T28.12 / Later |
 | G-93 | An imported flow can hold scripts: show them before importing | Shortcuts "untrusted shortcuts", HA blueprint review | High once sharing exists | – | Plan: inside T27.2 |
 | G-94 | Run steps as administrator | PAD (elevated), Task Scheduler | Medium | – | Rejected (D-008) |
-| G-95 | Inputs on the command line: `dctl run flow name=value` | Shortcuts `shortcuts run -i`, Keyboard Maestro trigger value, Stream Deck arguments | Medium | S–M · Sonnet | Plan T24.9 |
-| G-96 | `--json` output, `dctl flag`, `dctl pause` | scripting users | Low–Medium | S · Sonnet | Plan T27.8 |
-| G-97 | A Stream Deck plugin, a PowerToys Command Palette extension | Stream Deck Marketplace | Medium | M each | Rejected for now: a deck key runs `dctl.exe` or a link (recipe in the T24.10 gate) |
+| G-95 | Inputs on the command line: `cad run flow name=value` | Shortcuts `shortcuts run -i`, Keyboard Maestro trigger value, Stream Deck arguments | Medium | S–M · Sonnet | Plan T24.9 |
+| G-96 | `--json` output, `cad flag`, `cad pause` | scripting users | Low–Medium | S · Sonnet | Plan T27.8 |
+| G-97 | A Stream Deck plugin, a PowerToys Command Palette extension | Stream Deck Marketplace | Medium | M each | Rejected for now: a deck key runs `cad.exe` or a link (recipe in the T24.10 gate) |
 | G-98 | Screen-reader pass | Windows apps in general | – | – | Rejected by D-091 (your decision); keyboard, outline, high contrast and 225 % text are done |
 | G-99 | Other languages | Every mainstream tool | High for a public tool, zero today | L | Rejected for now (§5) |
 
@@ -219,9 +219,9 @@ longitude typed once in Settings (pure calculation in `ScheduleTable`, no locati
 program is in front (using G-05's activation events), so other apps keep the key. Risk: a register / unregister on every
 focus change must stay cheap and never leave a key registered after a crash of the tracked app.
 
-**G-10 Links (T26.7).** `dazecontrol://run/<flow>?name=value` registered under HKCU by the engine (no admin) only while at
+**G-10 Links (T26.7).** `ctrlaltdaze://run/<flow>?name=value` registered under HKCU by the engine (no admin) only while at
 least one flow has "Can be started from a link" on; other flows refuse. Any web page can show such a link, so the opt-in
-and the browser's own "Open Daze Control?" question are the two gates; inputs go through the same check as `flow.run`.
+and the browser's own "Open Ctrl Alt Daze?" question are the two gates; inputs go through the same check as `flow.run`.
 
 **G-20 Open (T24.2).** `process.open` "Open file or address": one target (path, folder, `https://…`, `steam://…`,
 `ms-settings:…`) handed to the shell as the thing to open, never as a command line; values are allowed and are escaped so
@@ -250,7 +250,7 @@ REVIEW's "clipboard: No", which predates values. Risk: the clipboard can hold a 
 broadcast address. With G-29 and Try again: "wake the NAS, wait until it answers, then…".
 
 **G-29 Check address (T24.8).** `network.reach`: `host:port` (a TCP connect), a web address (any answer counts) or a bare
-host (ping); gives `ms`. Read-only, in `dctl check`.
+host (ping); gives `ms`. Read-only, in `cad check`.
 
 **G-30 MQTT (T28.11, needs your yes).** Library item "MQTT broker" (address, credential by name); events `mqtt.message`
 (`topic:`), step `mqtt.publish`, optional state topics (flow started / finished, locked). Outbound connection only, so no
@@ -287,7 +287,7 @@ that ever takes keyboard focus; over a full-screen game it stays unanswered and 
 **G-60 Check value (T24.3).** `value.check`: a text that takes values, a comparison (is, isn't, contains, doesn't contain,
 starts with, ends with, is empty, isn't empty, at least, below) and what to compare with; fails with a sentence when it
 doesn't hold, so the failure link is the "else" (D-082 untouched). Branch on Ask's answer, a web status, a script's
-output, the battery, the Wi-Fi name. Also runs from `dctl check`.
+output, the battery, the Wi-Fi name. Also runs from `cad check`.
 
 **G-61 Repeat (T27.6).** `flow.run` gains "Repeat": up to N times (≤ 50), until it works or until it fails, with a wait
 between. The graph gains nothing new (D-063's own revisit note asks for "a bounded repeat step, not calls").
@@ -312,7 +312,7 @@ needs. Recipes are YAML in the editor, validated by a test against the live cata
 
 **G-81 Share a flow (T27.2).** Export = one `.dcflow` file with the flow, the flows it calls and the Library items they
 use (never secrets). Import previews it, maps each Library item to one of yours or adds it, lists every script and
-program before anything is saved (G-93), and reuses the backup merge code. `dctl export` / `dctl import`.
+program before anything is saved (G-93), and reuses the backup merge code. `cad export` / `cad import`.
 
 **G-82 Values in Runs (T25.5).** A finished step's row shows the values it gave and the text it used after filling
 (Sensitive ones masked); stored in history with a per-value size cap.
@@ -325,24 +325,24 @@ their values are missing (fallbacks, or a device asked for once). For long flows
 **G-87 Mistyped settings (T27.5).** An unknown key becomes a warning in Problems ("afer isn't a setting. Did you mean
 after?") instead of nothing.
 
-**G-90 Report (T27.7).** `dctl doctor` and About › "Save a report": versions, validate output, the last 500 log lines,
+**G-90 Report (T27.7).** `cad doctor` and About › "Save a report": versions, validate output, the last 500 log lines,
 device lists, trigger states; the config only if ticked; never secrets.
 
 **G-91 Signing (T28.12).** A code-signing identity (for example Azure Trusted Signing) in `release.yml`, then a winget
 manifest. Costs money and needs your identity check, so it is yours to decide; nothing technical blocks it.
 
-**G-95 Inputs from outside (T24.9).** `dctl run <flow> name=value…` and the same after `--run`, checked like a call's
+**G-95 Inputs from outside (T24.9).** `cad run <flow> name=value…` and the same after `--run`, checked like a call's
 inputs. One flow then serves several desktop shortcuts or deck keys ("Connect: Technics", "Connect: Sony").
 
-**G-96 Scripting output (T27.8).** `--json` on list / status / history / devices / check; `dctl flag <name> [on|off]`;
-`dctl pause [on|off]`.
+**G-96 Scripting output (T27.8).** `--json` on list / status / history / devices / check; `cad flag <name> [on|off]`;
+`cad pause [on|off]`.
 
 ## 5. Rejected, with reasons
 
 - **Hotstrings, key remapping, key sequences, mouse-button triggers (G-13).** They need a resident low-level keyboard hook:
   every key press on the PC would pass through the engine, anti-cheat and antivirus tools dislike it, and a stuck hook
   slows typing system-wide. AutoHotkey and PowerToys Keyboard Manager do this well and the user already runs AutoHotkey.
-- **Controller, MIDI and deck-device triggers (G-14).** D-086: built once, removed. A deck key calls `dctl` or a link.
+- **Controller, MIDI and deck-device triggers (G-14).** D-086: built once, removed. A deck key calls `cad` or a link.
 - **Clipboard-changed trigger (G-15).** A flow per copy is a privacy hazard (passwords pass through) for a niche need.
 - **Location, NFC, calendar, mail triggers (G-16).** Not PC state; calendar and mail need accounts and tokens.
 - **UI automation, OCR, browser, Office, mail, PDF, databases (G-22, G-74).** That is RPA: a different product, several

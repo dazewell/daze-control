@@ -1,4 +1,4 @@
-# Template for scripts/dev-run.ps1: copied once to %LOCALAPPDATA%\DazeControl\dev\config.yaml.
+# Template for scripts/dev-run.ps1: copied once to %LOCALAPPDATA%\CtrlAltDaze\dev\config.yaml.
 # Harmless flows (pop-ups only) to try triggers and prompts on a dev build. Edit the copy, not this file.
 version: 1
 flows:

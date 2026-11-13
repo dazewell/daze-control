@@ -1,0 +1,21 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/CtrlAltDaze.Core/CtrlAltDaze.Core.csproj" />
+    <Project Path="src/CtrlAltDaze.Runtime/CtrlAltDaze.Runtime.csproj" />
+    <Project Path="src/CtrlAltDaze.Providers/CtrlAltDaze.Providers.csproj" />
+    <Project Path="src/CtrlAltDaze.Ipc/CtrlAltDaze.Ipc.csproj" />
+    <Project Path="src/CtrlAltDaze.Engine/CtrlAltDaze.Engine.csproj" />
+    <Project Path="src/CtrlAltDaze.Cli/CtrlAltDaze.Cli.csproj" />
+    <Project Path="src/CtrlAltDaze.Editor.ViewModels/CtrlAltDaze.Editor.ViewModels.csproj" />
+    <Project Path="src/CtrlAltDaze.Editor/CtrlAltDaze.Editor.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CtrlAltDaze.Core.Tests/CtrlAltDaze.Core.Tests.csproj" />
+    <Project Path="tests/CtrlAltDaze.Runtime.Tests/CtrlAltDaze.Runtime.Tests.csproj" />
+    <Project Path="tests/CtrlAltDaze.Providers.Tests/CtrlAltDaze.Providers.Tests.csproj" />
+    <Project Path="tests/CtrlAltDaze.Editor.ViewModels.Tests/CtrlAltDaze.Editor.ViewModels.Tests.csproj" />
+  </Folder>
+</Solution>

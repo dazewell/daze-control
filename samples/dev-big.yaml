@@ -1,4 +1,4 @@
-# Dev sample for scripts/dev-run.ps1 -Sample big: copied once to %LOCALAPPDATA%\DazeControl\dev\big.yaml.
+# Dev sample for scripts/dev-run.ps1 -Sample big: copied once to %LOCALAPPDATA%\CtrlAltDaze\dev\big.yaml.
 # Large flows for canvas performance and motion checks (T21.8 frame probe: the 100-step flow). SAFE: steps only
 # wait, show messages, check network/power/disk/files/programs/time/lock state, or set this config's own flags.
 # No triggers or hotkeys. Mesh 60 and Probe 100 count every box (cards and their members too). Running Probe 100

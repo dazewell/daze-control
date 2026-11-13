@@ -6,7 +6,7 @@ param(
     [switch]$NoPublish,
     [int]$SettleSeconds = 30,
     [int]$IdleSeconds = 60,
-    # After the idle window: run this flow -Runs times through dctl, settle again and sample the "after a run" numbers.
+    # After the idle window: run this flow -Runs times through cad, settle again and sample the "after a run" numbers.
     [string]$RunFlow,
     # 1..100: RunHistory keeps the last 100 runs, and the runs are checked against it.
     [ValidateRange(1, 100)]
@@ -16,12 +16,12 @@ $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
 
 if (-not $Exe) {
-    $Exe = Join-Path $root 'artifacts\engine\DazeControl.exe'
+    $Exe = Join-Path $root 'artifacts\engine\CtrlAltDaze.exe'
     if (-not $NoPublish) {
         & (Join-Path $PSScriptRoot 'stop.ps1')
         # ILC finds the MSVC linker through vswhere on PATH (build skill -> Troubleshooting).
         $env:PATH = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer;$env:PATH"
-        dotnet publish (Join-Path $root 'src\DazeControl.Engine') -c Release -r win-x64 -o (Join-Path $root 'artifacts\engine') -nologo
+        dotnet publish (Join-Path $root 'src\CtrlAltDaze.Engine') -c Release -r win-x64 -o (Join-Path $root 'artifacts\engine') -nologo
         if ($LASTEXITCODE -ne 0) { throw "publish failed" }
     }
 }
@@ -44,19 +44,19 @@ try {
     $threads = $p.Threads.Count
     $exeMb = [math]::Round((Get-Item $Exe).Length / 1MB, 1)
     if ($RunFlow) {
-        $dctl = Join-Path $root 'artifacts\cli\dctl.exe'
-        if (-not (Test-Path $dctl)) { throw "no dctl at $dctl (dotnet publish src/DazeControl.Cli -c Release -r win-x64 -o artifacts/cli)" }
+        $cad = Join-Path $root 'artifacts\cli\cad.exe'
+        if (-not (Test-Path $cad)) { throw "no cad at $cad (dotnet publish src/CtrlAltDaze.Cli -c Release -r win-x64 -o artifacts/cli)" }
         # Exit 0 = the run succeeded, 1 = it ran and failed (expected until M4 brings providers); 2 = usage error,
-        # 3 = no engine, anything else = dctl broke: then no run happened and the "after" numbers mean nothing.
+        # 3 = no engine, anything else = cad broke: then no run happened and the "after" numbers mean nothing.
         $runsFrom = (Get-Date).AddSeconds(-1)
         for ($i = 0; $i -lt $Runs; $i++) {
-            & $dctl run $RunFlow --wait | Out-Null
-            if ($LASTEXITCODE -notin 0, 1) { throw "dctl run $RunFlow exited $($LASTEXITCODE): no run happened" }
+            & $cad run $RunFlow --wait | Out-Null
+            if ($LASTEXITCODE -notin 0, 1) { throw "cad run $RunFlow exited $($LASTEXITCODE): no run happened" }
         }
         # Exit 1 is also "no such flow": count the runs the history recorded since the first one started
         # (lines start with the local start time, yyyy-MM-dd HH:mm:ss).
-        $history = @(& $dctl history $RunFlow --limit $Runs)
-        if ($LASTEXITCODE -ne 0) { throw "dctl history $RunFlow exited $LASTEXITCODE" }
+        $history = @(& $cad history $RunFlow --limit $Runs)
+        if ($LASTEXITCODE -ne 0) { throw "cad history $RunFlow exited $LASTEXITCODE" }
         $recorded = @($history | Where-Object { [datetime]::ParseExact($_.Substring(0, 19), 'yyyy-MM-dd HH:mm:ss', [cultureinfo]::InvariantCulture) -ge $runsFrom })
         if ($recorded.Count -ne $Runs) { throw "expected $Runs new run(s) of $RunFlow in the history, got $($recorded.Count)" }
         Start-Sleep -Seconds $SettleSeconds

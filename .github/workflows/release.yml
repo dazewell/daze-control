@@ -1,6 +1,6 @@
 # Publishes a GitHub Release with the Velopack Setup.exe, portable zip and update feed (D-043) when a tag v<Version>
 # is pushed by hand; the tag is the version (D-079: PRs no longer bump <Version>). Only a tag releases, not a merge
-# to main (unlike the OSD's D-031): the user decides when Daze Control ships.
+# to main (unlike the OSD's D-031): the user decides when Ctrl Alt Daze ships.
 name: Release
 
 on:
@@ -38,8 +38,8 @@ jobs:
 
       - name: Build and test
         run: |
-          dotnet build DazeControl.slnx -c Release -nologo
-          dotnet test --solution DazeControl.slnx -c Release --no-build
+          dotnet build CtrlAltDaze.slnx -c Release -nologo
+          dotnet test --solution CtrlAltDaze.slnx -c Release --no-build
 
       - name: Restore vpk
         run: dotnet tool restore
@@ -85,4 +85,4 @@ jobs:
         run: >
           dotnet vpk upload github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
           -o artifacts/releases --tag v${{ steps.check.outputs.version }} --targetCommitish ${{ github.sha }}
-          --releaseName "Daze Control ${{ steps.check.outputs.version }}" --publish ${{ steps.check.outputs.pre == 'true' && '--pre' || '' }}
+          --releaseName "Ctrl Alt Daze ${{ steps.check.outputs.version }}" --publish ${{ steps.check.outputs.pre == 'true' && '--pre' || '' }}

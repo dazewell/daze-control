@@ -20,12 +20,12 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
 - Retry only if: never — cancel the I/O's token (CancelIoEx) instead, then dispose.
 
 ## X-002 · 2026-11-02 · Passing app arguments through Velopack's Setup.exe (`Setup.exe --silent -- <args>`)
-- Tried: a test install that starts the engine on a scratch config: `DazeControlApp-win-Setup.exe --silent
+- Tried: a test install that starts the engine on a scratch config: `CtrlAltDazeApp-win-Setup.exe --silent
   --installto <dir> -- "<config.yaml>"`.
 - Failed because: Setup 1.2.161 panics in clap ("Mismatch between definition and access of `EXE_ARGS`") and hangs;
   nothing is installed.
 - Evidence: `%LOCALAPPDATA%\velopack\velopack.log`, setup pid 50748, 2026-11-02.
-- Retry only if: a newer Velopack fixes it. Install without args, then start `current\DazeControl.exe <config>`.
+- Retry only if: a newer Velopack fixes it. Install without args, then start `current\CtrlAltDaze.exe <config>`.
 
 ## X-003 · 2026-11-02 · A MaxWidth grid as a ScrollViewer's direct content, to cap the pages' width
 - Tried: `<ScrollViewer><Grid MaxWidth="1000" HorizontalAlignment="Stretch">` for the Flows/Library/Settings pages;
@@ -46,11 +46,11 @@ Lessons from daze-media-osd that apply here (`C:\Projects\daze-media-osd\docs\DE
 - Retry only if: never — subscribe for the view's life (`Detach` on removal), order by `Canvas.ZIndex`.
 
 ## X-005 · 2026-11-02 · Listing Bluetooth devices from audio endpoints (ACTIVE | UNPLUGGED | NOTPRESENT)
-- Tried: `dctl devices bluetooth` and the editor's pickers grouped audio endpoints by the address in their path.
+- Tried: `cad devices bluetooth` and the editor's pickers grouped audio endpoints by the address in their path.
 - Failed because: Windows keeps the endpoints of devices that were unpaired, so SOUNDPEATS H3, Technics EAH-AZ40M2
   and WF-C710N showed as "not connected", while paired non-audio devices (MX Master 3S, MX Keys Mini, Steam
   controller, a phone) never appeared (user's report, 2026-11-02).
-- Evidence: `dctl devices bluetooth` vs `Get-PnpDevice` `BTHENUM\DEV_*` / `BTHLE\DEV_*` on the dev PC, 2026-11-02.
+- Evidence: `cad devices bluetooth` vs `Get-PnpDevice` `BTHENUM\DEV_*` / `BTHLE\DEV_*` on the dev PC, 2026-11-02.
 - Retry only if: never as the list's source (D-052). Endpoints stay right for connecting and its state (D-023).
 
 ## X-006 · 2026-11-03 · "Tidy up" as a button that only reorders steps within their columns

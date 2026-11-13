@@ -1,8 +1,8 @@
-# Dev sample for scripts/dev-run.ps1 -Sample showcase: copied once to %LOCALAPPDATA%\DazeControl\dev\showcase.yaml.
+# Dev sample for scripts/dev-run.ps1 -Sample showcase: copied once to %LOCALAPPDATA%\CtrlAltDaze\dev\showcase.yaml.
 # Larger, branchier flows to try the editor on. SAFE: nothing changes the PC. Steps only check things (network,
 # power, disk, files, programs, time, flags), show messages, wait, set this config's own flags or ask you.
 # The library items are fakes: steps using them fail on purpose (failure branches). No triggers or hotkeys:
-# run flows from the editor, the tray or `dctl run <id>`.
+# run flows from the editor, the tray or `cad run <id>`.
 version: 1
 library:
   audio:

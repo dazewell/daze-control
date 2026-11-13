@@ -5,12 +5,12 @@
 #   pwsh scripts/dev-run.ps1 -Restore     stop the dev engine/editor and start the installed app again
 #   pwsh scripts/dev-run.ps1 -ResetConfig overwrite the dev config with samples/dev-config.yaml
 #   pwsh scripts/dev-run.ps1 -Sample showcase   run on a larger sample instead: samples/dev-<name>.yaml, kept as
-#                                               %LOCALAPPDATA%\DazeControl\dev\<name>.yaml (showcase: branchy flows,
+#                                               %LOCALAPPDATA%\CtrlAltDaze\dev\<name>.yaml (showcase: branchy flows,
 #                                               cards, failure lines, prompts; big: 40/60/100-step flows). Safe: they
 #                                               only check, show messages, wait or ask. -ResetConfig works with it too.
-# The dev config lives at a fixed place outside the repo: %LOCALAPPDATA%\DazeControl\dev\config.yaml. It is
+# The dev config lives at a fixed place outside the repo: %LOCALAPPDATA%\CtrlAltDaze\dev\config.yaml. It is
 # copied from samples/dev-config.yaml once and then left alone, so edits you make in the editor stay across runs.
-# Logs and history are shared with the installed engine (%LOCALAPPDATA%\DazeControl).
+# Logs and history are shared with the installed engine (%LOCALAPPDATA%\CtrlAltDaze).
 # The editor is started here on the dev config. The dev engine's own tray "Open editor" stays off on purpose:
 # it would open your real config.
 # If the build fails after the installed app was stopped, the installed app is started again.
@@ -22,18 +22,18 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
-$devFolder = Join-Path $env:LOCALAPPDATA 'DazeControl\dev'
+$devFolder = Join-Path $env:LOCALAPPDATA 'CtrlAltDaze\dev'
 $config = if ($Sample) { Join-Path $devFolder "$Sample.yaml" } else { Join-Path $devFolder 'config.yaml' }
-$installed = Join-Path $env:LOCALAPPDATA 'DazeControlApp\current\DazeControl.exe'
-$engineExe = Join-Path $repo 'artifacts\engine\DazeControl.exe'
-$dctl = Join-Path $repo 'artifacts\cli\dctl.exe'
-$editorExe = Join-Path $repo 'src\DazeControl.Editor\bin\Debug\net10.0-windows10.0.26100.0\win-x64\DazeControl.Editor.exe'
+$installed = Join-Path $env:LOCALAPPDATA 'CtrlAltDazeApp\current\CtrlAltDaze.exe'
+$engineExe = Join-Path $repo 'artifacts\engine\CtrlAltDaze.exe'
+$cad = Join-Path $repo 'artifacts\cli\cad.exe'
+$editorExe = Join-Path $repo 'src\CtrlAltDaze.Editor\bin\Debug\net10.0-windows10.0.26100.0\win-x64\CtrlAltDaze.Editor.exe'
 
 function Stop-Editors {
-    # Editors on any dev config (%LOCALAPPDATA%\DazeControl\dev\*.yaml, so a previous -Sample's editor goes too, F-026);
+    # Editors on any dev config (%LOCALAPPDATA%\CtrlAltDaze\dev\*.yaml, so a previous -Sample's editor goes too, F-026);
     # editors on the user's real config are left alone.
     # Closed through the window first so the editor flushes pending edits; killed only if it doesn't exit.
-    $ids = @(Get-CimInstance Win32_Process -Filter "Name = 'DazeControl.Editor.exe'" |
+    $ids = @(Get-CimInstance Win32_Process -Filter "Name = 'CtrlAltDaze.Editor.exe'" |
         Where-Object { $_.CommandLine -and $_.CommandLine.Contains($devFolder, [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.ProcessId })
     foreach ($id in $ids) {
         $p = Get-Process -Id $id -ErrorAction SilentlyContinue
@@ -91,10 +91,10 @@ try {
 
     Push-Location $repo
     try {
-        Invoke-Step 'publishing the engine (Native AOT, a few minutes)' { dotnet publish src/DazeControl.Engine -c Release -r win-x64 -o artifacts/engine --nologo -v q }
-        Invoke-Step 'publishing dctl' { dotnet publish src/DazeControl.Cli -c Release -r win-x64 -o artifacts/cli --nologo -v q }
+        Invoke-Step 'publishing the engine (Native AOT, a few minutes)' { dotnet publish src/CtrlAltDaze.Engine -c Release -r win-x64 -o artifacts/engine --nologo -v q }
+        Invoke-Step 'publishing cad' { dotnet publish src/CtrlAltDaze.Cli -c Release -r win-x64 -o artifacts/cli --nologo -v q }
         if (-not $NoEditor) {
-            Invoke-Step 'building the editor' { dotnet build src/DazeControl.Editor -c Debug --nologo -v q }
+            Invoke-Step 'building the editor' { dotnet build src/CtrlAltDaze.Editor -c Debug --nologo -v q }
         }
     } finally { Pop-Location }
 
@@ -103,16 +103,16 @@ try {
     $up = $false
     for ($i = 0; $i -lt 15 -and -not $up; $i++) {
         Start-Sleep -Seconds 1
-        & $dctl status | Out-Null
+        & $cad status | Out-Null
         $up = ($LASTEXITCODE -eq 0)
     }
-    if (-not $up) { throw 'dev-run: the dev engine did not answer dctl status' }
-    & $dctl status
+    if (-not $up) { throw 'dev-run: the dev engine did not answer cad status' }
+    & $cad status
     if (-not $NoEditor) {
         $ed = Start-Process $editorExe -ArgumentList '--config', "`"$config`"" -PassThru
         # A XAML crash at start is native and leaves no editor.log line: say so instead of showing nothing.
         if ($ed.WaitForExit(6000)) {
-            Write-Host "dev-run: the editor exited at once (exit $($ed.ExitCode)), no window. See Windows Event Viewer > Application (DazeControl.Editor.exe) and $env:LOCALAPPDATA\DazeControl\logs\editor.log" -ForegroundColor Red
+            Write-Host "dev-run: the editor exited at once (exit $($ed.ExitCode)), no window. See Windows Event Viewer > Application (CtrlAltDaze.Editor.exe) and $env:LOCALAPPDATA\CtrlAltDaze\logs\editor.log" -ForegroundColor Red
         }
     }
 } catch {

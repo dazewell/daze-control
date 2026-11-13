@@ -1,7 +1,7 @@
 # The user's scd setup (%APPDATA%\scd\scd.toml), converted by hand once (D-004, T1.5).
 # Not carried over: scd's monitors, firetv and sunshine sections were empty or unused by any action,
-# and its daemon log settings have no equivalent (the engine logs to %LOCALAPPDATA%\DazeControl\logs).
-# Install: copy to %APPDATA%\DazeControl\config.yaml.
+# and its daemon log settings have no equivalent (the engine logs to %LOCALAPPDATA%\CtrlAltDaze\logs).
+# Install: copy to %APPDATA%\CtrlAltDaze\config.yaml.
 version: 1
 library:
   audio:

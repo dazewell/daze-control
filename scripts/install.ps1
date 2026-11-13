@@ -1,11 +1,11 @@
 # Daily-driver install from this checkout: the same Velopack package a GitHub Release ships (D-043), installed with its
-# Setup.exe, so a local build and a release share one folder (%LOCALAPPDATA%\DazeControlApp), one Apps entry and one
-# uninstall. Start with Windows is the editor's Settings toggle (or `dctl autostart on`).
+# Setup.exe, so a local build and a release share one folder (%LOCALAPPDATA%\CtrlAltDazeApp), one Apps entry and one
+# uninstall. Start with Windows is the editor's Settings toggle (or `cad autostart on`).
 # Example: pwsh scripts/install.ps1
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $packages = Join-Path $root 'artifacts/install'
-$exe = Join-Path $env:LOCALAPPDATA 'DazeControlApp/current/DazeControl.exe'
+$exe = Join-Path $env:LOCALAPPDATA 'CtrlAltDazeApp/current/CtrlAltDaze.exe'
 
 # Pack while the installed copy keeps running: a failed build changes nothing. A fresh folder each time, so vpk never
 # sees an earlier local package of the same version.
@@ -20,11 +20,11 @@ if (-not $setup) { throw "No Setup.exe in $packages." }
 # Not Start-Process -Wait: in PowerShell 7 it also waits for the engine Setup starts, which never exits.
 $process = Start-Process $setup.FullName -ArgumentList '--silent' -PassThru
 $process.WaitForExit()
-if ($process.ExitCode -ne 0) { throw "Setup failed ($($process.ExitCode)); see $env:LOCALAPPDATA\velopack\velopack_DazeControlApp.log." }
+if ($process.ExitCode -ne 0) { throw "Setup failed ($($process.ExitCode)); see $env:LOCALAPPDATA\velopack\velopack_CtrlAltDazeApp.log." }
 
-if (-not (Get-Process DazeControl -ErrorAction SilentlyContinue)) {
+if (-not (Get-Process CtrlAltDaze -ErrorAction SilentlyContinue)) {
     Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) | Out-Null
 }
-$run = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name DazeControl -ErrorAction SilentlyContinue).DazeControl
+$run = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name CtrlAltDaze -ErrorAction SilentlyContinue).CtrlAltDaze
 Write-Host "Installed and started: $exe"
-Write-Host "Start with Windows: $(if ($run) { $run } else { 'off - turn it on in the editor''s Settings or with dctl autostart on' })"
+Write-Host "Start with Windows: $(if ($run) { $run } else { 'off - turn it on in the editor''s Settings or with cad autostart on' })"

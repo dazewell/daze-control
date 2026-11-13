@@ -1,0 +1,23 @@
+using CtrlAltDaze.Core.Catalog;
+using CtrlAltDaze.Core.Model;
+using CtrlAltDaze.Core.Validation;
+using CtrlAltDaze.Runtime.Control;
+
+namespace CtrlAltDaze.Runtime.Providers;
+
+/// <summary>
+/// <c>flow.run</c> in start mode (<c>wait: false</c>, D-054): starts the flow the way the tray does and succeeds once
+/// the start was accepted. A call that waits never reaches a provider: the runner runs it nested (D-062).
+/// </summary>
+public sealed class FlowProvider(IFlowStarter flows) : IStepProvider
+{
+    public string Id => ProviderCatalog.RunFlowId;
+
+    public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        var target = ConfigValidator.CalledFlow(context.Node) ?? "";
+        var answer = flows.Start(target, "Flow · " + context.Flow.Name, context.Chain, FlowInputs.Given(context.Node), context.Flow.Name);
+        return answer.Started ? Task.CompletedTask : Task.FromException(new StepFailedException(answer.Message ?? "It didn't start."));
+    }
+}

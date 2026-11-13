@@ -7,7 +7,7 @@ Workflow (D-079): PRs don't bump `<Version>`, merge with `gh pr merge --auto --m
 Notes for next agent:
 - Never push a v-tag without the user (D-043). Live display tests: `scripts/display-check.ps1` (`-Go` changes the user's screens: ask first every time).
 - Try a checkout on the user's PC: `pwsh scripts/dev-run.ps1` (stops the engine, builds, runs on the dev config; `-Restore` brings the installed app back).
-- Installed app version: `%LOCALAPPDATA%\DazeControlApp\current\sq.version` (updates apply on the next engine start).
+- Installed app version: `%LOCALAPPDATA%\CtrlAltDazeApp\current\sq.version` (updates apply on the next engine start).
 - Runtime.Tests can stall when another session's tests use the per-user pipe: rerun alone. measure.ps1 can't run while the installed engine holds the pipe.
 - Win+[ and Win+] are held by the user's `SwitchDisplay.ahk` (leave it running). This PC runs with Num Lock off: live-test hotkeys with F-key chords.
 - The user's Connect Technics flow: `bt` should be "Skip what depends on it" (told in T13.7).
@@ -121,7 +121,7 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   `RunCoreAsync`, captured with the library at trigger), `Engine` run/test-step/dry-run entry, `Ipc` (config text already carries
   settings; check). Done when: Runtime tests: a type default timeout of 1 s fails a hanging step at 1 s, an explicit step timeout
   wins, a retry default retries, a default `skip` skips dependents; a default edited mid-run changes only the next run (D-021);
-  `dctl run` against a config with `stepDefaults` (fake or `wait`/`notify` steps) shows the effect; dry run and "Test this step"
+  `cad run` against a config with `stepDefaults` (fake or `wait`/`notify` steps) shows the effect; dry run and "Test this step"
   use the on-screen defaults. Idle gate unchanged.
 - [x] T14.3 Settings › Step defaults card (feat/m14-defaults-settings, after T14.1). Files: Settings page + `SettingsViewModel`,
   new `StepDefaultsEditor` service (add/edit/remove entry, "Used by n steps in m flows" counts) in `Editor.ViewModels`, UX §5.7
@@ -137,10 +137,10 @@ Safe in parallel: {T14.2, T14.3}, {T14.4, T14.5}, {T14.6, T14.8, T14.9}.
   timeout; cannot tell → run; skip = Succeeded + note), `NodeResult` note through events, IPC and run history, dry-run assumption,
   "Test this step" answer. Fake probe + fake provider only. Done when: Runtime tests for B4 (unmet → skipped with note and `success`
   dependents run, `failure` edge doesn't fire, flow Succeeded; probe throws → step runs; retry doesn't re-probe; card member), a
-  Core round-trip with `only: always`, old run-history files still read; `dctl run --dry-run` shows normal results.
+  Core round-trip with `only: always`, old run-history files still read; `cad run --dry-run` shows normal results.
 - [x] T14.6 Bluetooth condition + check (feat/m14-bluetooth-check, after T14.5). Files: `Providers/Bluetooth` (probe `bluetooth.connected` from the
   picker's device state), `bluetooth.check`, `Conditions` on connect/disconnect, catalog entries. Done when: provider tests with the
-  fake query; on the dev PC (read-only) `dctl run` of a one-step check flow reports connected / not connected for the Technics
+  fake query; on the dev PC (read-only) `cad run` of a one-step check flow reports connected / not connected for the Technics
   library entry in < 1 s. A live Connect/Disconnect is not run without asking the user.
 - [x] T14.7 Editor for conditions and checks (feat/m14-conditions-editor, PR open; after T14.4 and T14.5). Files: inspector "Only if" row, palette entries,
   "If it isn't" label, canvas chip and condition-skipped dashed ring + caption, Runs bar and log line, pop-up variant of #48 for checks,
@@ -219,10 +219,10 @@ One PR per task (D-079). T20.2 amends D-009 (done in D-107). `ifMissed` is set p
 - [x] T20.10 Post-merge Copilot review (#140–#143, #147, #148 merged without one): reviewed through review-only PRs #149–#151 (closed), valid findings fixed in #152 (duplicate schedules, backward clock jump, `only` on schedules, cooldown/debounce order, failed source load never retried, `ask` input saved without `onTimeout`, WLAN query, audio roles…).
 - [x] T20.12 Network events per connection: a cable plugged in or out while Wi-Fi stays up fires (`via: wifi|cable`, `ssid:` on both events, editor Connection picker). (fix/network-per-connection, #156; `Triggers.cs` `via`/`ssid`, Connection picker in `WhenThisRuns.cs`.) Live check stays in T20.11.
 - [x] T20.13 Release candidate v0.52.0-rc.1 cut 2026-11-09 (user): `cut-release.ps1 -Rc` tags v0.52.0-rc.1 (release.yml accepts `-rc.N` and marks it pre-release; installed apps follow stable only, so the RC is installed by hand from its Setup.exe). Feature-complete means T20.1–T20.12 on main; the stable v0.52.0 follows only after the T20.11 live checks pass or their fixes are released as rc.2…
-- [x] T20.14 Update channel selector: Stable / Release candidates in About › Updates and `dctl update --channel stable|rc`, per-user `update-channel.txt`, no automatic downgrade (D-108). (feat/update-channel, #158 merged: `UpdateChannel.cs`, `dctl update --channel`, About › Updates picker in `ShellWindow.xaml`.)
-- [ ] T20.11 The user's live check on real hardware with `scripts/dev-run.ps1` (#153; dev config `%LOCALAPPDATA%\DazeControl\dev\config.yaml`): wake from Modern Standby runs the flow, Wi-Fi/network events, USB/audio/display events, a schedule after sleep (`ifMissed`), a prompt over a game or app without taking focus, the "When this runs" card and multi-event picker. Anything wrong becomes a `fix/` PR.
+- [x] T20.14 Update channel selector: Stable / Release candidates in About › Updates and `cad update --channel stable|rc`, per-user `update-channel.txt`, no automatic downgrade (D-108). (feat/update-channel, #158 merged: `UpdateChannel.cs`, `cad update --channel`, About › Updates picker in `ShellWindow.xaml`.)
+- [ ] T20.11 The user's live check on real hardware with `scripts/dev-run.ps1` (#153; dev config `%LOCALAPPDATA%\CtrlAltDaze\dev\config.yaml`): wake from Modern Standby runs the flow, Wi-Fi/network events, USB/audio/display events, a schedule after sleep (`ifMissed`), a prompt over a game or app without taking focus, the "When this runs" card and multi-event picker. Anything wrong becomes a `fix/` PR.
 - [x] T20.15 Pick device step: pick a Library item mid-run, later steps use "Result of: <Pick step>" in device settings (user, 2026-11-11; D-117). (feat/pick-step) Not seen live in the editor or on screen yet.
-- [x] T20.17 PC-state checks (D-118): Wi-Fi, cable, internet, metered, VPN, power, battery, idle, locked, screen count, free space, time; `dctl check`. (feat/system-checks)
+- [x] T20.17 PC-state checks (D-118): Wi-Fi, cable, internet, metered, VPN, power, battery, idle, locked, screen count, free space, time; `cad check`. (feat/system-checks)
 - Rule learned (user, 2026-11-09): no PR with code merges before its Copilot review landed and every review thread is replied to AND resolved (repo-workflow); child sessions must turn on auto-fix themselves.
 
 ## M19 Backup and restore (user, 2026-11-06; design docs/backup-restore/DESIGN.md, D-103, accepted 2026-11-06)
@@ -232,11 +232,11 @@ One PR per task; usage is scarce (D-079). Choices answered by the user (all as r
   Done when: round trip, tamper, traversal, newer-format and old-version fixture tests; the engine AOT publish size is unchanged (±50 KB), no AOT warnings.
 - [x] T19.2 Preview and restore engine: compare with the current config, Replace and Add-missing, needs-attention list (machine-specific values, credential names), safety copy, atomic write, Undo. Depends on T19.1. Done: feat/m19-restore-engine.
   Done when: tests per DESIGN §11 (merge matrix, unreadable config, secret-looking header warning); never touches `%APPDATA%` in tests.
-- [x] T19.3 `dctl backup` / `dctl restore` (`--merge|--replace`, `--yes`, `--dry-run`, `--editor`, `--config`). Depends on T19.2; parallel with T19.4. Done: feat/m19-backup-cli.
+- [x] T19.3 `cad backup` / `cad restore` (`--merge|--replace`, `--yes`, `--dry-run`, `--editor`, `--config`). Depends on T19.2; parallel with T19.4. Done: feat/m19-backup-cli.
   Done when: CLI tests incl. exit codes and non-interactive refusal; usage text and ARCHITECTURE CLI list updated.
 - [x] T19.4 Editor: Settings › "Backup and restore" card (Backup now, Restore from file, drag-drop, recent list with Restore/Delete, Undo restore, auto on/off and count), restore dialog. Depends on T19.2; parallel with T19.3 (different files; keep to the Settings page to avoid `ShellWindow.xaml` conflicts). Done: feat/m19-backup-card (dark/light seen; high contrast and 225 % text left to the T19.6 UX acceptance pass). Left: the automatic-backups toggle and count setting (T19.5 defines where it lives) and the Editor layout tick (EditorSettingsStore can't reload a restored editor.json yet).
   Done when: VM tests (preview model, draft-open refusal, undo), screenshots light/dark/high contrast/225 % text.
-- [x] T19.5 Automatic backups: before-update in `dctl update`, after-save (24 h gate from file names) in the editor, no timers. Depends on T19.1; parallel with T19.2–T19.4 except the Settings toggle (needs T19.4). Done: feat/m19-auto-backup (D-104; setting in `backups\auto-backup.txt`).
+- [x] T19.5 Automatic backups: before-update in `cad update`, after-save (24 h gate from file names) in the editor, no timers. Depends on T19.1; parallel with T19.2–T19.4 except the Settings toggle (needs T19.4). Done: feat/m19-auto-backup (D-104; setting in `backups\auto-backup.txt`).
   Done when: tests with `TimeProvider`; `measure.ps1` unchanged (idle 0 ms CPU, +2 MB gate).
 - [x] T19.6 Gate: move as-built facts to ARCHITECTURE/FEATURES/UX, cut DESIGN (D-053), UX acceptance rows, release-notes line. Depends on T19.1–T19.5. Done: docs/m19-gate (release-notes line is in the PR body).
 
@@ -383,7 +383,7 @@ number + 1).
   shared source unless asked, and for a layout each screen's resolution and position) called after every write, the
   step failing with #70 when they differ; `Providers.Tests` for the source-id plan and the check (fakes, never
   `SetDisplayConfig`); `scripts/display-check.ps1` (the live matrix: saves the current config, runs each step through
-  a dev engine and `dctl run --wait`, prints the state, restores in `finally`, restarts the installed engine). Done
+  a dev engine and `cad run --wait`, prints the state, restores in `finally`, restarts the installed engine). Done
   when: those tests; the live matrix on the user's PC, **only with the user's OK at that time**, gives the user's
   arrangement for "Use only" both, DELL alone for "Use only" HDMI-0 from Extend, and Dual from every starting state
   (internal, external, extend, the old duplicate); screens restored and the installed engine restarted;
@@ -421,7 +421,7 @@ section rewritten, FEATURES where behaviour changed).
   Done when: ViewModel tests (glyph fallback, Run off reasons, Run ↔ Stop); running editor: icons match flow settings,
   Run starts the saved version and the pop-up shows, keyboard Tab/Enter opens; screenshots light/dark.
 - [x] T13.3 P9 **Collapsible nav pane + `editor.json`** (feat/m13-nav-collapse, D-068). Files: new
-  `Editor.ViewModels/Config/EditorSettingsStore.cs` (+ STJ context; `%LOCALAPPDATA%\DazeControl\editor.json`, atomic
+  `Editor.ViewModels/Config/EditorSettingsStore.cs` (+ STJ context; `%LOCALAPPDATA%\CtrlAltDaze\editor.json`, atomic
   write 300 ms after a change on `TimeProvider`, bad file → defaults + log), `ShellViewModel.cs` (`IsNavPaneOpen`),
   `ShellWindow.xaml` (`IsPaneToggleButtonVisible`, `IsPaneOpen` two-way, `CompactPaneLength` 48). Done when: store
   tests (missing / corrupt / round-trip / debounce); running editor collapses to icons with tooltips and reopens
@@ -451,7 +451,7 @@ section rewritten, FEATURES where behaviour changed).
   ARCHITECTURE Config + Runtime. Done when: Scheduler tests on the user's Connect Technics shape (Technics works →
   Succeeded, Sony branch NotNeeded; Technics fails and Sony works → Succeeded; both fail → Failed), a chain after a
   fallback, a join of normal + fallback; pop-up model tests ("1 of 2", Done + #48); history round-trip with NotNeeded;
-  `dctl run --dry-run` and a fake-provider run of that flow; AOT publish with zero warnings.
+  `cad run --dry-run` and a fake-provider run of that flow; AOT publish with zero warnings.
 - [x] T13.8 P6a **`flow.run`: nested runs, loops, history, pop-up** (feat/m13-flow-run, PR #41, D-061..D-063; after T13.7).
   Files: `Core/Catalog/ProviderCatalog.cs` (`flow.run`; adds `ParamSpec.RefersTo = Flow`, which M12's T12.3 then
   reuses), `Core/Validation/ConfigValidator.cs` (call graph incl. `menu.show` wait items when they exist),
@@ -460,7 +460,7 @@ section rewritten, FEATURES where behaviour changed).
   `Runtime/FlowLauncher.cs` (chain for start mode), `RunHistory`/`HistoryJson`, `RunPopupModel` (fold nested, #59),
   `Ipc/Protocol.cs`, `Engine/EngineHost.cs` wiring. Done when: tests for every row of DESIGN §2.2, both modes, own flow
   / cycle / unknown / turned-off validation, chain and depth guards (incl. a D-021 old+new mix), two parallel calls of
-  one flow both running, a nested step's lock blocking a top-level one; `dctl run` of DESIGN §1's shapes with safe
+  one flow both running, a nested step's lock blocking a top-level one; `cad run` of DESIGN §1's shapes with safe
   steps (notify, wait, flags); AOT zero warnings; `scripts/measure.ps1` idle unchanged.
 - [x] T13.9 P6b **Flow inputs** (feat/m13-flow-inputs, D-064). Files: `Core/Model` (`Flow.Inputs`, `FlowInput`),
   `Core/Yaml` DTO + mapper (`inputs:`), `ConfigValidator` (`$name` kinds, defaults, call `inputs:`), `Runtime/FlowRunner`
@@ -548,10 +548,10 @@ order (they touch different files). Can run alongside M13 (no shared files excep
 - [x] T3.3 GlobalHotkey from flows (per-chord failure non-fatal) (feat/m3-engine-shell).
 - [x] T3.4 Autostart (feat/m3-engine-shell).
 - [x] T3.5 PipeServer + protocol (feat/m3-engine-shell).
-- [x] T3.6 `dctl` CLI (feat/m3-engine-shell).
+- [x] T3.6 `cad` CLI (feat/m3-engine-shell).
 - [x] T3.7 Footprint gate (feat/m3-engine-shell).
 
-## M4 Providers ✔ (2026-11-01; PRs #5, #6, and the T4.7–T4.9 PR) (each CLI-testable via `dctl run`/`devices`; hardware steps verified on the dev PC)
+## M4 Providers ✔ (2026-11-01; PRs #5, #6, and the T4.7–T4.9 PR) (each CLI-testable via `cad run`/`devices`; hardware steps verified on the dev PC)
 - [x] T4.1 wait, notify, flag (branch feat/m4-basic-steps).
 - [x] T4.2 process.run, script.powershell (branch feat/m4-basic-steps).
 - [x] T4.3 audio (port OSD worker + IPolicyConfig; wait for endpoint via notification) (branch feat/m4-basic-steps).
@@ -559,7 +559,7 @@ order (they touch different files). Can run alongside M13 (no shared files excep
   Technics flow works on Alt+Z → user can stop scd.** Unit tests + dry run pass; live check waits on the user
   (GOALS → Waiting on the user).
 - [x] T4.5 display presets + outputs-only (port scd CCD) (branch feat/m4-system-steps).
-- [x] T4.6 Spike + display.layout capture/apply, `dctl devices` + `dctl capture-display-layout` (branch feat/m4-system-steps).
+- [x] T4.6 Spike + display.layout capture/apply, `cad devices` + `cad capture-display-layout` (branch feat/m4-system-steps).
 - [x] T4.7 http + credentials (branch feat/m4-net-steps).
 - [x] T4.8 firetv (branch feat/m4-net-steps).
 - [x] T4.9 service (branch feat/m4-net-steps).
@@ -597,7 +597,7 @@ order (they touch different files). Can run alongside M13 (no shared files excep
 
 ## M10 Ship (feat/m10-ship)
 - [x] T10.1 Velopack pack/install/update + release.yml (D-043). Verified: local pack, install into a scratch folder,
-  `dctl update` from a local feed, apply while running (engine exits cleanly) and at engine start, uninstall
+  `cad update` from a local feed, apply while running (engine exits cleanly) and at engine start, uninstall
   (folder, shortcut, Apps entry and Run value gone).
 - [x] T10.2 README.
 - [x] T10.3 UX acceptance pass (2026-11-02, screenshots at 175 % scale / 110 % text, the PC's settings). Passed: run
@@ -621,13 +621,13 @@ PRs bumped the minor version (until D-079; PRs no longer bump it).
   (connectable + Connected); `DeviceInfo.State`, a "not connectable" flag the editor disables (Library "Add from
   Windows" and the step picker, #26). Check one devnode property for non-audio Connected against Settings; none
   reliable → no state. Done when: tests on the merge with fake devnodes/endpoints (ghost endpoints dropped, LE+classic
-  of one address merged, non-audio listed not connectable); on the dev PC `dctl devices bluetooth` lists exactly MX
+  of one address merged, non-audio listed not connectable); on the dev PC `cad devices bluetooth` lists exactly MX
   Master 3S, MX Keys Mini, Steam Ctrl, OPPO dazewell, Zone 301, WH-1000XM5, Technics EAH-AZ80 and none of SOUNDPEATS
   H3 / Technics EAH-AZ40M2 / WF-C710N; editor screenshot of the picker. (fix/bluetooth-list, PR #23)
 - [x] T11.2 Catalog suggestions + examples (feat/m11-pickers, D-050). Core: `ParamSpec.Suggest` (Devices / Config /
   Static), `Ordered`, `Examples`; Android key table shared with the provider; examples per UX §5.4. Ipc/Providers:
-  `devices services` (EnumServicesStatusEx, no admin), `devices credentials` (CredEnumerate `DazeControl:*`, names
-  only), `DeviceInfo.Value`; `dctl devices services|credentials`. Done when: a catalog test says every Text/TextList/
+  `devices services` (EnumServicesStatusEx, no admin), `devices credentials` (CredEnumerate `CtrlAltDaze:*`, names
+  only), `DeviceInfo.Value`; `cad devices services|credentials`. Done when: a catalog test says every Text/TextList/
   MultilineText/TextMap param has a Suggest or Examples (or is on a short reviewed allow-list, e.g. `notify.text`);
   every Devices kind exists in `SystemDevices.Kinds`; key-table round-trip test with the provider.
 - [x] T11.3 Inspector pickers (feat/m11-pickers, D-050, D-051). Editable ComboBox, checklist, token list, Examples
@@ -637,7 +637,7 @@ PRs bumped the minor version (until D-079; PRs no longer bump it).
   checklist and token list. (feat/m11-pickers, PR #25; T11.2 too)
 - [x] T11.4 Desktop shortcuts, engine side (feat/m11-shortcuts, D-049; installed-copy update/uninstall unverified, GOALS). `--run`, second-instance forward, queue
   until first load, trigger "Desktop shortcut", `FlowShortcuts` (.lnk + glyph .ico), ops `shortcuts`/`create-shortcut`/
-  `remove-shortcut`, `dctl shortcut <flow> [--remove]`, uninstall hook cleanup, id-only resolution (`exactId`),
+  `remove-shortcut`, `cad shortcut <flow> [--remove]`, uninstall hook cleanup, id-only resolution (`exactId`),
   config path kept in the args. Done when: unit tests (args parse, scan matches only our target, name sanitising
   incl. `/` and reserved names, a deleted flow's id never matches another flow's name); a non-default config's
   shortcut cold-starts that config; on the dev PC a shortcut runs its flow with the engine running and
@@ -683,11 +683,11 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
   (key within 100 ms of the same pad move dropped); chord fires on first release only for the exact set, never inside
   a longer chord; table diff on reload, Pause, `record-gamepad` pausing chords.
 - [x] T12.6 Engine (chord, `record-gamepad` and suspend/resume parts superseded by D-086): `GamepadSource` (S1's backend) + `DeviceArrival`, loaded only while a menu is open; op
-  `devices gamepads`; `dctl devices gamepads` (feat/m12-gamepad). Done when: unit tests on the seams
+  `devices gamepads`; `cad devices gamepads` (feat/m12-gamepad). Done when: unit tests on the seams
   (no chord → never started; last pad gone → stopped; `record-gamepad` with no chord in the config starts the source,
   records the first chord and releases it on answer, timeout and client gone; `devices gamepads` lists a pad with no
   chord configured); on the dev PC a chord on a test flow runs it with another app
-  in front and history says "Controller · View + Menu"; `dctl devices gamepads` lists the pad; footprint per DESIGN
+  in front and history says "Controller · View + Menu"; `cad devices gamepads` lists the pad; footprint per DESIGN
   §3.8 measured (no chord; chord + no pad; pad on) and recorded; S1's leftovers: pad on and untouched with the pad
   kept awake ≤ 300 ms over 10 min (S1: ~410 ms at 20 Hz, so 10 Hz while only chords listen, D-056), reads under a
   full-screen game, sleep/resume only with the user's OK.
@@ -695,12 +695,12 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 - [x] T12.7 Engine: `AcrylicSurface` cut from `RunPopup`, `FlowMenu` (list, grid, large, focus visual, hint row,
   close countdown, empty state), `MenuKeys`, mouse hook, placement, full-screen check, animation and high contrast
   (feat/m12-menu-window, DESIGN §3.3, §4). Done when: RunPopup unchanged (screenshots before/after); screenshots of
-  the menu light/dark/high contrast, list and grid, normal and large, empty state, at 175 % scale; `dctl run` of a
+  the menu light/dark/high contrast, list and grid, normal and large, empty state, at 175 % scale; `cad run` of a
   menu flow navigated by keys, mouse and the pad on the dev PC; foreground window unchanged; keys free after each
   close path (a test app registers Up); footprint after 10 menus within D-036. The menu must check
   `SHQueryUserNotificationState` before drawing or taking keys: QUNS = 3 (exclusive mode or FSO) → #32 in history
   and one log line, no window, no pop-up (D-055, X-010); a unit seam fakes QUNS for the test.
-  **Done 2026-11-04 (#65), pad navigation deferred to T12.6:** `IMenuPadFeed` seam, the model's pad path is tested in T12.5; the pad leg of the live `dctl run` check and "Controller" hint row live-look wait for T12.6. Not built: open scale, tile scale, pick flash (polish). Footprint: flat, +6.3 MB after 10 menus, ~1.8 MB over D-036's line, absolute budget holds (ARCHITECTURE → Footprint).
+  **Done 2026-11-04 (#65), pad navigation deferred to T12.6:** `IMenuPadFeed` seam, the model's pad path is tested in T12.5; the pad leg of the live `cad run` check and "Controller" hint row live-look wait for T12.6. Not built: open scale, tile scale, pick flash (polish). Footprint: flat, +6.3 MB after 10 menus, ~1.8 MB over D-036's line, absolute budget holds (ARCHITECTURE → Footprint).
 - [x] T12.8 Editor: `menu.show` inspector (flow token list, title, layout, size, close after, wait), Test shows the
   menu, ~~"Controller buttons" recorder~~ (removed, D-086), "Controller menu" template, trigger texts (feat/m12-editor, DESIGN §3.7). Done
   when: VM tests (add/remove/reorder items, own flow not offered, missing flow chip, recorder states incl. engine off
@@ -812,7 +812,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   inspector; engine AOT publish 0 warnings.
 - [x] T24.3 Check value (built, D-137) `value.check` (Sonnet, S-M; solo on the catalog; after T24.2). `value` (takes values), `is` (is, isn't, contains,
   doesn't contain, starts with, ends with, is empty, isn't empty, at least, below), `to`, ignore case on by default; gives `result`;
-  in `ProviderCatalog.Checks` so `dctl check value.check value=5 is=atLeast to=3` works. Files: `ProviderCatalog.cs`, `Providers/Basic/`,
+  in `ProviderCatalog.Checks` so `cad check value.check value=5 is=atLeast to=3` works. Files: `ProviderCatalog.cs`, `Providers/Basic/`,
   `Editor.ViewModels/Canvas/CanvasNodeViewModel.cs` (area → Flow group), FEATURES F3 + F10.
   Done when: Providers tests per comparison incl. a non-number in a number comparison (fails with a sentence) and a missing value
   (fallback rules as today); a sample flow in `samples/dev-showcase.yaml` branches on an Ask answer; D-082 untouched (no new edge kind).
@@ -836,24 +836,24 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   a validation problem, no network fails with a sentence); AOT 0 warnings.
 - [x] T24.8 (built, D-140; not run live) Check address `network.reach` (Sonnet, S; solo on the catalog; after T24.7). `address` = `host:port` (TCP connect), a web
   address (any answer counts) or a host (ping); `is` reachable / not reachable; gives `ms`; in `Checks` (the "Wait until" help line).
-  Done when: Providers tests behind a fake; `dctl check network.reach address=…` works; nothing is sent beyond the one probe.
-- [x] T24.9 Inputs from the command line (Sonnet, S-M; parallel-safe). `dctl run <flow> [name=value…]` and the same after
-  `DazeControl.exe --run <flow>`; checked and applied as a call's inputs are (`FlowInputs.Check` / `Apply`). Files: `Ipc/CommandLine.cs`,
+  Done when: Providers tests behind a fake; `cad check network.reach address=…` works; nothing is sent beyond the one probe.
+- [x] T24.9 Inputs from the command line (Sonnet, S-M; parallel-safe). `cad run <flow> [name=value…]` and the same after
+  `CtrlAltDaze.exe --run <flow>`; checked and applied as a call's inputs are (`FlowInputs.Check` / `Apply`). Files: `Ipc/CommandLine.cs`,
   `Ipc/Protocol.cs` (+ `PipeClient` copy, `PipeTests.EveryRequestFieldReachesTheServer`), `Runtime/Control/EngineController.cs`,
   `Runtime/Lifecycle/EngineArguments.cs`, `Cli/Program.cs` usage. Done when: CLI tests (device and text inputs, unknown name → exit 2
   with the flow's input names); ARCHITECTURE IPC + FEATURES F8.
 - [x] T24.10 Gate (docs, samples and footprint rows done) (Sonnet, S; after the rest). The five flows: guard and answer in `samples/dev-showcase.yaml` (read-only by test); screens-off event (13e), Open and wake + wait (LIVE-RISK 24, 25) in `samples/acceptance/config.yaml`, because dev samples may not change the PC or hold triggers. FEATURES / UX / ARCHITECTURE as built, footprint rows, five flows in
   `samples/dev-showcase.yaml` (guard with Stop flow; Open; Check value on an answer; screens-off event; wake + wait until it answers),
-  a "Call a flow from a Stream Deck key" recipe in FEATURES F8 (`dctl.exe run <flow> name=value`), UX §5.9 rows for the user.
+  a "Call a flow from a Stream Deck key" recipe in FEATURES F8 (`cad.exe run <flow> name=value`), UX §5.9 rows for the user.
 
 ## M25 Deciding and seeing (G-01, G-86, G-70, G-71, G-63, G-82)
 - [x] T25.1 Only run if (Opus, M-L; after M24; engine side, branch feat/m25-only-run-if, D-150). Flow `onlyIf:` = a list of checks with their settings, read before a schedule or event
   starts the flow (and before a start by hand only when the flow says so); unmet = no run, no pop-up, a log line, and "Held back:
-  <the check's sentence>" (built: log + `dctl list`; the flow card and "When this runs" card lines, with last fired / last started per
+  <the check's sentence>" (built: log + `cad list`; the flow card and "When this runs" card lines, with last fired / last started per
   trigger, moved to T25.1b). `only: onBattery|onAC`
   keeps loading as a power check (supersedes that part of D-107: new D-entry). A check that can't be read lets the run start (D-081).
   Files: `Core/Model/Flow.cs`, `Core/Yaml`, `Core/Validation`, `Runtime/Triggers/TriggerService.cs`, `Runtime/FlowLauncher.cs`, the
-  one-step path `dctl check` uses (`EngineController`), `WhenThisRuns.cs`. Done when: Core + Runtime tests (all checks must hold, a
+  one-step path `cad check` uses (`EngineController`), `WhenThisRuns.cs`. Done when: Core + Runtime tests (all checks must hold, a
   slow check times out and lets it start, 100 held-back events add no history rows), samples round-trip, `measure.ps1` idle unchanged.
 - [ ] T25.1b "Only run when…" in the editor (Opus, M; after T25.1). Flow settings get a plain list of checks reusing the check
   picker and the step settings fields, "Also when I start it" (`onlyIfByHand`), and the "Held back: …" line on the flow card and the
@@ -897,7 +897,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
 - [ ] T26.6 More schedules (Sonnet, M; parallel-safe). `dayOfMonth: 1..31|last`, `every: Nd`, `at: sunrise|sunset±hh:mm` with
   latitude / longitude in Settings. Files: `Core/Model/ScheduleTable.cs`, `Triggers.cs`, `TriggerMapper.cs`, the schedule editor.
   Done when: `ManualTime` tests (month ends, DST, polar day = skipped with a sentence); samples round-trip.
-- [ ] T26.7 Links (Sonnet, S-M; after T24.9). `dazecontrol://run/<flow>?name=value`, per-flow "Can be started from a link" (off by
+- [ ] T26.7 Links (Sonnet, S-M; after T24.9). `ctrlaltdaze://run/<flow>?name=value`, per-flow "Can be started from a link" (off by
   default), HKCU registration only while a flow has it on, removed on uninstall. Files: `Core/Model/Flow.cs`, `Engine/Lifecycle`,
   `EngineArguments.cs`, flow settings. Done when: tests (a flow without the switch refuses and logs; inputs checked as in T24.9);
   D-entry with the threat note (any web page can show the link).
@@ -908,7 +908,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   needs, search. Done when: a test loads every recipe against the live catalog and validates it with stand-in devices; screenshots
   light/dark/high contrast/225 %; later gates add recipes for their features.
 - [ ] T27.2 Share one flow (Opus, L; design section in the PR first). `.dcflow` export / import with Library mapping, called flows
-  included, scripts and programs listed before saving, no secrets; `dctl export <flow> [file]` / `dctl import <file>`; reuses
+  included, scripts and programs listed before saving, no secrets; `cad export <flow> [file]` / `cad import <file>`; reuses
   `Core/Backup` (`RestoreCompare`, `SecretScan`). Done when: round-trip, id-clash, missing-Library-item and tampered-file tests.
 - [ ] T27.3 Notes (Sonnet, S; parallel-safe). `note:` on flows and steps, inspector box, pill tooltip, list search. Done when: round-trip
   tests, samples byte-identical, view-model test.
@@ -919,9 +919,9 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   Files: `Core/Yaml`. Done when: tests per level (flow, step, trigger, library, settings); the ARCHITECTURE open question is deleted.
 - [x] T27.6 Repeat (Opus, M). D-151, branch feat/m27-repeat. `flow.run`: `repeat` 1 to 50, `until: works|fails`, `pause`. Done when: Runtime tests (stops early,
   cancel between rounds, one history record with the round count), D-entry (D-063's revisit note).
-- [ ] T27.7 Report (Sonnet, S; parallel-safe). `dctl doctor [file]` and About › "Save a report". Done when: a test proves no credential
+- [ ] T27.7 Report (Sonnet, S; parallel-safe). `cad doctor [file]` and About › "Save a report". Done when: a test proves no credential
   value, header value or Sensitive value is in the zip.
-- [x] T27.8 Scripting output (Sonnet, S; parallel-safe). `--json` on list / status / history / devices / check; `dctl flag`; `dctl pause`. D-142.
+- [x] T27.8 Scripting output (Sonnet, S; parallel-safe). `--json` on list / status / history / devices / check; `cad flag`; `cad pause`. D-142.
 - [ ] T27.9 Gate (Sonnet, S).
 
 ## M28 Needs your yes (each row reverses a recorded "No" or "later", or costs money: answer per row, any order)
@@ -949,7 +949,7 @@ Not renamed: the folder `C:\Projects\scd-rewamp`, agent skill names, `daze-media
 Size (2026-11-13): `DazeControl` 2052 hits, `Daze Control` 106, `dctl` 225, about 535 files; all `src/` and `tests/` project folders move.
 Rules: start T29.1 only with zero open PRs and paused child sessions (every open branch conflicts; afterwards each worktree merges
 `main`). T29.1 and T29.2 ship in the same release: without T29.2 the renamed app starts with an empty config and no credentials.
-- [ ] T29.1 The rename itself (Opus, L; one PR, no behaviour change). `git mv` the solution and every `DazeControl.*` folder and
+- [x] T29.1 The rename itself (Opus, L; one PR, no behaviour change). `git mv` the solution and every `DazeControl.*` folder and
   project file; replace in this order: `DazeControlApp`, `DazeControl`, `Daze Control`, `DAZECONTROL_`, `dazecontrol://`, then the
   word `dctl` (also `_dctl`). Leave `daze-control` (T29.4) and the lines that name the old product on purpose (GOALS working-name
   line, D-152, this section, T29.2's old-name constants). Also: `AssemblyName` in the three exe projects, `pack.ps1`
@@ -969,7 +969,7 @@ Rules: start T29.1 only with zero open PRs and paused child sessions (every open
   (e) Removing the old install (`%LOCALAPPDATA%\DazeControlApp\Update.exe uninstall --silent`) after (d): ask the user whether the
   app does it itself or offers it once; `install.ps1` does it on the dev PC. No timers or polling for any of this (idle = zero).
   Done when: tests for each of (a) to (d); a clean-profile start and an old-profile start both come up with the right flows.
-- [ ] T29.3 Record (Sonnet, S; with T29.1 or right after). ARCHITECTURE, FEATURES, UX and ACCEPTANCE say the new names; GOALS'
+- [x] T29.3 Record (Sonnet, S; with T29.1 or right after). ARCHITECTURE, FEATURES, UX and ACCEPTANCE say the new names; GOALS'
   working-name line becomes the final name; D-152 → "accepted, built".
 - [ ] T29.4 GitHub repository (S; changes something outside the repo: ask the user at that moment). `gh repo rename ctrl-alt-daze`,
   then `UpdateClient.RepoUrl`, `cut-release.ps1`, `wait-pr.ps1`, README links, `git remote set-url origin …` (one shared config

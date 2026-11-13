@@ -7,8 +7,8 @@ into `C:\Projects\daze-media-osd\docs`. D-001..D-021 were seeded from the approv
 
 ## D-001 · 2026-10-31 · Stack: .NET 10; engine Native AOT headless, editor WinUI 3
 Status: accepted
-- Decision: C# / .NET 10. The resident engine (`DazeControl.exe`) is Native AOT with no UI framework;
-  the editor (`DazeControl.Editor.exe`) is WinUI 3 and runs only when opened.
+- Decision: C# / .NET 10. The resident engine (`CtrlAltDaze.exe`) is Native AOT with no UI framework;
+  the editor (`CtrlAltDaze.Editor.exe`) is WinUI 3 and runs only when opened.
 - Why: the engine must cost ~nothing idle (user); AOT + plain Win32 is the smallest .NET resident; WinUI
   gives the editor the Windows 11 look the OSD already has; interop code from the OSD carries over.
 - Why not one WinUI process: the OSD measured ~86 MB private resident. Why not Rust: two toolchains and
@@ -17,7 +17,7 @@ Status: accepted
 
 ## D-002 · 2026-10-31 · Three executables, no launcher or watchdog
 Status: accepted
-- Decision: engine (resident), editor (on demand), CLI `dctl.exe`. They talk over the pipe (D-011).
+- Decision: engine (resident), editor (on demand), CLI `cad.exe`. They talk over the pipe (D-011).
 - Why: keeps WinUI out of the resident process; the CLI stays tiny and scriptable.
 - Why not a launcher/watchdog like the OSD (OSD D-006): nothing system-wide needs restoring if the engine dies.
 - Revisit if: the engine changes system state that must be undone on a crash.
@@ -34,7 +34,7 @@ Status: accepted
 
 ## D-004 · 2026-10-31 · YAML config owned by the editor, hot reload, one-time manual conversion
 Status: accepted
-- Decision: `%APPDATA%\DazeControl\config.yaml` (`version: 1`). The editor writes it (atomic + backups);
+- Decision: `%APPDATA%\CtrlAltDaze\config.yaml` (`version: 1`). The editor writes it (atomic + backups);
   the engine hot-reloads it and keeps the last good version. The user's scd.toml is converted once by an
   agent (T1.5), no importer code. Comments are lost on editor save; hand edits still load.
 - Why: user choice (2026-10-31): readable and hand-editable; one source of truth for engine and editor.
@@ -51,7 +51,7 @@ Status: accepted (verified in T0.5: YamlDotNet 18.1.0 + Vecc static generator, z
 
 ## D-006 · 2026-10-31 · Providers are compiled in; no runtime plugins
 Status: accepted
-- Decision: `IStepProvider` implementations in `DazeControl.Providers`, descriptors (`ParamSpec`) in
+- Decision: `IStepProvider` implementations in `CtrlAltDaze.Providers`, descriptors (`ParamSpec`) in
   `Core/Catalog`, registered by hand in the engine composition root.
 - Why: Native AOT can't load assemblies at runtime; compile-time registration is testable (one
   implementation per descriptor).
@@ -97,7 +97,7 @@ Status: accepted
 
 ## D-011 · 2026-10-31 · Named-pipe IPC, current user only, versioned JSON lines
 Status: accepted
-- Decision: `\\.\pipe\DazeControl-<user SID>`, `PipeOptions.CurrentUserOnly`, newline-delimited
+- Decision: `\\.\pipe\CtrlAltDaze-<user SID>`, `PipeOptions.CurrentUserOnly`, newline-delimited
   source-generated JSON, `protocol: 1`, request/response by id plus an event stream.
 - Why: local, per-user, no ports or firewall prompts; JSON source-gen is AOT-safe.
 - Why not localhost HTTP/gRPC: ports, firewall, heavier. Why not COM/WinRT servers: registration, complexity.
@@ -136,7 +136,7 @@ Status: accepted
 ## D-016 · 2026-10-31 · Own rolling log + `history.jsonl`
 Status: accepted
 - Decision: OSD-style rolling text log (7 days, OSD D-028) and a `history.jsonl` of the last 100 runs.
-- Why: no logging framework in the AOT engine; history feeds the Runs page and `dctl history`.
+- Why: no logging framework in the AOT engine; history feeds the Runs page and `cad history`.
 - Why not Microsoft.Extensions.Logging / Serilog: size, reflection, not needed.
 - Revisit if: structured log querying becomes a need.
 
@@ -236,7 +236,7 @@ Status: accepted
   the pipe transport (PipeServer/PipeClient) stays in Ipc.
 - Why: one place decides what "run this flow" means for every trigger, tested in Runtime.Tests without a pipe or
   Win32. The CLI and editor reference only Ipc, so they don't carry the runtime.
-- Why not the handler in the Engine exe: it has no test project (AOT WinExe). Why not Ipc → Runtime: dctl would
+- Why not the handler in the Engine exe: it has no test project (AOT WinExe). Why not Ipc → Runtime: cad would
   carry the runner.
 - Revisit if: the editor needs runtime types itself (then split protocol records from the transport).
 
@@ -251,13 +251,13 @@ Status: accepted; mark changed by D-044
 
 ## D-028 · 2026-11-01 · One engine per user across sessions: Global\ mutex keyed by the user SID
 Status: accepted
-- Decision: `SingleInstance` uses `Global\DazeControl.Engine-<user SID>`, taken before `Log.Initialize`.
+- Decision: `SingleInstance` uses `Global\CtrlAltDaze.Engine-<user SID>`, taken before `Log.Initialize`.
 - Why: the pipe name is per user and named pipes are machine-wide, so two sessions of one user would run two
   engines on one pipe and two writers of history.jsonl and engine.log (PR #4 review). Plain users may create
   `Global\` mutexes (only file mappings need SeCreateGlobalPrivilege).
 - Why not: per-session pipe names — clients would need the session id, and history/log would still be shared;
   `Local\` mutex — the bug. Cost accepted: a second interactive session of the same user gets no tray or hotkeys
-  (hotkeys are per desktop), and its dctl drives the first session's engine.
+  (hotkeys are per desktop), and its cad drives the first session's engine.
 - Revisit if: per-session engines are ever wanted (then per-session pipe, history and log paths too).
 
 ## D-029 · 2026-11-01 · Flags live in engine memory; `notify` shows a tray notification until M5
@@ -284,11 +284,11 @@ Status: accepted
   map address → container: more interop for the same answer; no profile connect API there anyway (OSD D-023).
 - Revisit if: a driver puts the address in neither property (then map the address to a container via CfgMgr).
 
-## D-031 · 2026-11-01 · Credentials are generic Credential Manager entries named `DazeControl:<name>`
+## D-031 · 2026-11-01 · Credentials are generic Credential Manager entries named `CtrlAltDaze:<name>`
 Status: accepted
-- Decision: `http.request`'s `credential: sunshine` reads the generic credential `DazeControl:sunshine`
+- Decision: `http.request`'s `credential: sunshine` reads the generic credential `CtrlAltDaze:sunshine`
   (`CredRead`); with a user name it becomes Basic auth, without one the secret is a Bearer token. Users save it
-  with `cmdkey /generic:DazeControl:sunshine /user:admin /pass` (the editor writes it later). Errors name the
+  with `cmdkey /generic:CtrlAltDaze:sunshine /user:admin /pass` (the editor writes it later). Errors name the
   host and status code only (never the secret or the server's reason text). TLS is checked as usual; no "trust any
   certificate" switch. A sign-in goes only over https:// or to loopback. No cookies, no redirects (one request).
 - Why: the prefix keeps a flow from reaching the PC's other saved passwords; cmdkey needs no admin and no UI.
@@ -302,7 +302,7 @@ Status: accepted
   (name → up/down moves). Each step runs `adb connect` (3 tries, 1 s apart; success only when the answer says
   "connected to", since adb exits 0 on failure), then one `adb -s <serial> shell "a && b && c"` (scd's
   sequence for inputs: WAKEUP, TV_INPUT, moves, DPAD_CENTER). Keys must be `[A-Za-z0-9_]` (they go into a shell
-  line); `home` → `KEYCODE_HOME`. Lock `adb:<address>`. `dctl devices adb` = `adb devices`.
+  line); `home` → `KEYCODE_HOME`. Lock `adb:<address>`. `cad devices adb` = `adb devices`.
 - Why: a port of what scd did and the user relies on; nothing resident between steps (D-009).
 - Why not an adb protocol client in-process: RSA auth + framing to maintain for three key presses.
 - Revisit if: adb's start-up (~1 s cold daemon) makes the TV flow feel slow.
@@ -393,18 +393,18 @@ Status: accepted
   one asked for it yet. Why not bridge failure edges: "if B fails" can't become a condition on A.
 - Revisit if: users paste between config files, or undo across page switches is wanted.
 
-## D-043 · 2026-11-02 · Ship as one Velopack package; dctl checks for updates, the engine applies; release on tag only
+## D-043 · 2026-11-02 · Ship as one Velopack package; cad checks for updates, the engine applies; release on tag only
 Status: accepted
 Refines: D-015
-- Decision: `scripts/pack.ps1` publishes the editor (self-contained) then the AOT engine and dctl into one folder and
-  packs it (packId `DazeControlApp`, mainExe `DazeControl.exe`, Start-menu shortcut). The engine runs Velopack's hooks
+- Decision: `scripts/pack.ps1` publishes the editor (self-contained) then the AOT engine and cad into one folder and
+  packs it (packId `CtrlAltDazeApp`, mainExe `CtrlAltDaze.exe`, Start-menu shortcut). The engine runs Velopack's hooks
   first: before-update closes a running engine with WM_CLOSE and waits for its mutex; before-uninstall removes our Run
   value if it points into the install. At start (after the single-instance check) it hands a downloaded update to the
-  updater with its own args and exits; skipped when `VELOPACK_RESTART` is set. Checks run in `dctl update` (find +
+  updater with its own args and exits; skipped when `VELOPACK_RESTART` is set. Checks run in `cad update` (find +
   download, never apply), which the installed engine starts hidden 1 min after start and every 24 h. The editor's
   Settings › Updates card checks on demand and offers Restart now. `release.yml` runs only on a pushed `v<Version>` tag.
-  CI runs `pack.ps1` on every PR. `DAZECONTROL_UPDATE_SOURCE` points at a local feed folder for testing.
-- Why: one install, one Apps entry, three exes side by side (the engine starts the editor and dctl from its folder).
+  CI runs `pack.ps1` on every PR. `CTRLALTDAZE_UPDATE_SOURCE` points at a local feed folder for testing.
+- Why: one install, one Apps entry, three exes side by side (the engine starts the editor and cad from its folder).
   Checking in a child process keeps the HTTP/TLS stack out of the resident engine (footprint budget, D-009); applying
   at engine start is the OSD's apply-on-next-launch (OSD D-030) for an app that has no launcher. Tag-only: the user
   authorized merges, not releases (2026-11-02); a release is outward-facing.
@@ -450,7 +450,7 @@ Status: accepted
   that flow as on screen (unsaved values included). The engine maps it, validates just that step, and runs it as a
   one-node flow `test:<flow>` (no edges, stop on failure) on a second `FlowRunner` sharing the providers and
   `ResourceLocks` but raising no events: no pop-up, no history. The editor sends it on a pipe connection of its own;
-  Cancel closes that connection, which cancels the request (`cancel test:<flow>` works too, for `dctl`).
+  Cancel closes that connection, which cancels the request (`cancel test:<flow>` works too, for `cad`).
 - Why: "with on-screen values" (UX §5.4) without waiting for autosave + the engine's reload; the shared locks make a
   test wait for a running flow that uses the same device instead of fighting it.
 - Why not by flow/node id against the engine's config: races the 300 ms save and the reload, and tests the last
@@ -524,11 +524,11 @@ Status: accepted
 
 ## D-049 · 2026-11-02 · Desktop shortcut per flow: a .lnk to the engine with `--run <flow id>`, made by the engine
 Status: accepted (M11)
-- Decision: the shortcut targets the installed Velopack stub (`%LOCALAPPDATA%\DazeControlApp\Daze Control.exe`, which
+- Decision: the shortcut targets the installed Velopack stub (`%LOCALAPPDATA%\CtrlAltDazeApp\Ctrl Alt Daze.exe`, which
   survives updates and forwards args; the running exe outside an install) with `--run <flow id>`, plus the quoted
 absolute config path when the engine runs a non-default config (as `Autostart.Enable` does), named after the flow,
   icon = the flow's glyph on the app tile, rendered by the engine (D-012's DirectWrite path) into
-  `%LOCALAPPDATA%\DazeControl\shortcuts\<safe id>.ico`; file names (.ico and .lnk) are made filename-safe (reserved
+  `%LOCALAPPDATA%\CtrlAltDaze\shortcuts\<safe id>.ico`; file names (.ico and .lnk) are made filename-safe (reserved
   characters and `/` replaced, reserved device names avoided, plus a short hash of the id when anything changed),
   while the .lnk's arguments keep the real id. The engine writes it (IShellLinkW + IPersistFile, Desktop via
   `SHGetKnownFolderPath`, so a OneDrive desktop works). No YAML state: pipe op `shortcuts` scans the Desktop for .lnk
@@ -536,13 +536,13 @@ absolute config path when the engine runs a non-default config (as `Autostart.En
   shortcut") over the pipe and exits; a first one starts as usual and runs the flow after the first config load.
   The id, not the name, is the link: renaming a flow keeps the shortcut working (the editor offers "Update"). A
   desktop run resolves by id only, cold start and forwarded alike (the pipe `run` gets an `exactId` flag), so a
-  deleted flow's shortcut never runs another flow whose name equals that id; `dctl run` keeps its name fallback. Pause
+  deleted flow's shortcut never runs another flow whose name equals that id; `cad run` keeps its name fallback. Pause
   shortcuts doesn't apply (a double-click is deliberate, like the tray). The uninstall hook removes our shortcuts and
   icons.
 - Why: one double-click per flow, also when the engine isn't running (user, 2026-11-02).
-- Why not `dctl.exe run` as the target: a console window flashes. Why not `shortcut: true` in YAML kept in sync by the
+- Why not `cad.exe run` as the target: a console window flashes. Why not `shortcut: true` in YAML kept in sync by the
   engine: it would rewrite the desktop on every reload and bring back a shortcut the user deleted. Why not the editor
-  writing it: `dctl shortcut` would need a second copy, and the glyph renderer lives in the engine.
+  writing it: `cad shortcut` would need a second copy, and the glyph renderer lives in the engine.
 - Built (T11.4/T11.5, 0.21.0): the scan also matches the config (a link without one = the default config), so each
   engine lists only its own; a name taken by a file that isn't this flow's shortcut gets " (2)" and up, never an
   overwrite; the icon is the flow's glyph, else its first step's (`FlowGlyph.CodeOf`, as the flow settings show it);
@@ -589,7 +589,7 @@ Status: accepted (M11, fixes the user's report)
 - Decision: `devices bluetooth` lists present device nodes `BTHENUM\DEV_<addr>` (classic) and `BTHLE\DEV_<addr>` (LE)
   through CfgMgr32 (`CM_Get_Device_ID_List`, `DEVPKEY_Device_FriendlyName`), merged by address. A device with audio
   endpoints is "can connect here" and takes Connected from them; others are listed but not pickable for
-  connect/disconnect ("Daze Control can connect only headphones and speakers."). Connected for non-audio devices
+  connect/disconnect ("Ctrl Alt Daze can connect only headphones and speakers."). Connected for non-audio devices
   comes from the devnode's undocumented `{83DA6326-97A6-4088-9453-A1923F573B29} 15` (bool): it matched Settings' AEP
   `IsConnected` on all 8 nodes of the dev PC (T11.1, 2026-11-02); missing → no state shown.
 - Why: the old list came from audio endpoints, including NOTPRESENT ones, so it showed unpaired devices and missed
@@ -874,7 +874,7 @@ its "why not circular or tree" and "no undo" superseded by D-115
   flow, and every toggle would hot-reload the engine.
 - Revisit if: the user asks for top-to-bottom (own task) or wants layouts to follow the config to another PC.
 
-## D-068 · 2026-11-03 · Editor view state lives in `%LOCALAPPDATA%\DazeControl\editor.json`
+## D-068 · 2026-11-03 · Editor view state lives in `%LOCALAPPDATA%\CtrlAltDaze\editor.json`
 Status: accepted (M13 design); built T13.3 (an editor started with `--config` keeps it next to that file)
 - Decision: `Editor.ViewModels/Config/EditorSettingsStore`: STJ source-generated, read once at start (missing or bad
   → defaults, logged), written atomically 300 ms after a change. Holds the nav pane's open state (P9) and per-flow
@@ -1000,7 +1000,7 @@ Status: accepted (user, 2026-11-03: "transparently convert the name to safe form
   `create-shortcut` then `remove-shortcut`, both `exactId`). The open flow stays open under the new id. Undo inside
   the draft reverts the name before Save; after Save, renaming back gives the old id again when it's free.
 - Not rewritten: history and logs keep the id each run had (a record of what ran; the Runs list shows the recorded
-  name); `dctl run <old id>` stops resolving (`dctl run "<name>"` still works). Hotkeys, controller buttons and tray
+  name); `cad run <old id>` stops resolving (`cad run "<name>"` still works). Hotkeys, controller buttons and tray
   placement live inside the flow, so they follow on reload. Per-flow view state in `editor.json` (T13.6 layouts) must
   follow too: T13.6 keys it by id and calls the same rename.
 - Why: the user matches log lines to flows by id, and nothing in the UI shows it; an id made from the name is
@@ -1009,7 +1009,7 @@ Status: accepted (user, 2026-11-03: "transparently convert the name to safe form
   two would disagree. Why not a separate stable id plus a display slug: two ids for one flow, and the YAML key is
   already the id. Why not ASCII only: a Cyrillic name would become "flow". Why not on every keystroke: the draft
   (D-047) isn't saved, and other flows' references would change for nothing.
-- Revisit if: users script `dctl run <id>` and lose it on rename (then keep an `aliases:` list), or the Flows card's
+- Revisit if: users script `cad run <id>` and lose it on rename (then keep an `aliases:` list), or the Flows card's
   last run (by id) going blank after a rename bothers them.
 
 ## D-076 · 2026-11-03 · Delete a flow from the Flows list, with Undo; off while another flow runs it
@@ -1176,7 +1176,7 @@ Status: accepted (user, 2026-11-04); supersedes D-057 and the chord parts of D-0
   chord validation and clash checks, the sleep/resume wiring, and the 10 Hz chord poll. Kept: the menu driven by a pad
   (D-pad/stick move, A run, B close; `MenuModel`'s pad path and released-since-open), XInput at 60 Hz **only while a menu
   is open** (the first listener starts the reader, closing the menu stops it), `DeviceArrival` while it runs, and
-  `dctl devices gamepads` (a one-shot enumeration, useful for diagnosis). The "Controller menu" template has no trigger.
+  `cad devices gamepads` (a one-shot enumeration, useful for diagnosis). The "Controller menu" template has no trigger.
 - Compatibility: a `gamepad:` key in a file from v0.40.0 loads: one warning on the flow ("chords were removed"), the key
   is ignored and not written back (D-021, D-023).
 - Why: the user found button chords impractical: Steam Input remaps buttons per pad, the recorder can't see a pad
@@ -1256,7 +1256,7 @@ Status: accepted (design docs/android-start-app/DESIGN.md)
 
 ## D-093 · 2026-11-06 · The app list is cached on disk per device, refreshed only when the user focuses the box
 Status: accepted
-- Decision: the engine answers `android-apps` from `%LOCALAPPDATA%\DazeControl\android-apps\<serial>.txt` and only
+- Decision: the engine answers `android-apps` from `%LOCALAPPDATA%\CtrlAltDaze\android-apps\<serial>.txt` and only
   runs adb when the request says `refresh`; a successful listing rewrites the file. The editor refreshes once when the
   app box gets focus. No timer, no resident worker.
 - Why: Idle = zero (D-009); adb connect and list take seconds and the TV may be off; the last list is still useful.
@@ -1312,7 +1312,7 @@ Status: accepted (user, 2026-11-06: big flows meant resizing every launch)
 
 ## D-100 · 2026-11-06 · Controller menu: the number pad works as a d-pad (Steam Controller reaches us as keys)
 Status: reverted 2026-11-06 (user): the Num keys were not the cause (D-101) and the user fixed it in Steam.
-- Finding (user's PC, Steam running): no XInput pad in slots 0–3 (`dctl devices gamepads`: none), no HID gamepad or virtual
+- Finding (user's PC, Steam running): no XInput pad in slots 0–3 (`cad devices gamepads`: none), no HID gamepad or virtual
   Xbox pad; the Steam Controller exists only as a Bluetooth LE device (`BTHLE`, "Steam Ctrl (BT)"). As D-056 found, it is
   never an XInput/GameInput pad on the desktop: Steam turns it into keys/mouse. The pad reader is not at fault.
 - Cause: the user's Steam layout sends number-pad keys (Num Lock is on), and the menu registered only arrows, Enter, Esc, Tab,
@@ -1323,7 +1323,7 @@ Status: reverted 2026-11-06 (user): the Num keys were not the cause (D-101) and 
 
 ## D-101 · 2026-11-06 · Steam Controller and Big Picture: documented limit, no second input path
 Status: accepted (user report: the menu works from the Steam Controller until Steam Big Picture is open). Corrects D-100's cause.
-- Finding (user's PC, Big Picture open and foreground, 2026-11-06): still no XInput pad in slots 0–3, `dctl devices gamepads` none,
+- Finding (user's PC, Big Picture open and foreground, 2026-11-06): still no XInput pad in slots 0–3, `cad devices gamepads` none,
   no HID/virtual pad; only the Bluetooth LE controller and Steam's "Enhanced Features" driver. So the Steam Controller is
   invisible to us with Big Picture open too: it works as keys only through Steam's desktop layout, and Big Picture swaps that
   layout for its own UI navigation, so no keys reach the menu. Nothing to fix in the pad reader. D-100's Num keys stay (harmless
@@ -1334,15 +1334,15 @@ Status: accepted (user report: the menu works from the Steam Controller until St
 
 ## D-104 · 2026-11-07 · Automatic backups: setting in `backups\auto-backup.txt`, gate from file names
 Status: accepted (follows D-103 choices 4-5)
-- Decision: the on/off switch and count (default on, 10, 3-50) live in `%LOCALAPPDATA%\DazeControl\backups\auto-backup.txt` (`enabled=`, `keep=`), read by the editor and `dctl`. Triggers: `dctl update` when a newer version was found (before the download; no gate), and after every successful editor save, on a background task, only if the newest backup in the folder by file name is under 24 h old (`Core/Backup/AutoBackup`). Never throws; a failed backup is logged and the update or save goes on.
-- Why: `dctl` and the editor must agree, and neither can read the other's store (editor.json is editor-only). Not config.yaml: it would change the engine's schema, show up in restores and trigger a hot reload for a per-PC policy.
-- Why not a timer or watcher: idle = zero (D-009). The editor's own update download does not back up (the engine applies it at start; `dctl update` is the scripted path).
+- Decision: the on/off switch and count (default on, 10, 3-50) live in `%LOCALAPPDATA%\CtrlAltDaze\backups\auto-backup.txt` (`enabled=`, `keep=`), read by the editor and `cad`. Triggers: `cad update` when a newer version was found (before the download; no gate), and after every successful editor save, on a background task, only if the newest backup in the folder by file name is under 24 h old (`Core/Backup/AutoBackup`). Never throws; a failed backup is logged and the update or save goes on.
+- Why: `cad` and the editor must agree, and neither can read the other's store (editor.json is editor-only). Not config.yaml: it would change the engine's schema, show up in restores and trigger a hot reload for a per-PC policy.
+- Why not a timer or watcher: idle = zero (D-009). The editor's own update download does not back up (the engine applies it at start; `cad update` is the scripted path).
 
 ## D-103 · 2026-11-06 · Backup and restore: one zip, byte-for-byte config.yaml, restore through the normal loader
 Status: accepted (user, 2026-11-06, all open choices as recommended; docs/backup-restore/DESIGN.md)
 - Decision: `.dcbackup` = zip (`System.IO.Compression`) with `manifest.yaml` (format, app and config versions, SHA-256 per entry, reason), `config.yaml`
   byte for byte, optional `editor.json` and `history.jsonl`. Never secrets (D-014: only credential names; restore lists names missing in Credential Manager).
-  Logic in `Core/Backup/BackupService`; zip work runs in the editor and `dctl backup|restore`, never resident in the engine (no timer, no new engine path, D-009).
+  Logic in `Core/Backup/BackupService`; zip work runs in the editor and `cad backup|restore`, never resident in the engine (no timer, no new engine path, D-009).
   Automatic copies only at existing events (before update, after an editor save, at most daily; newest 10). Restore: preview, Replace or Add-missing, safety copy
   first, one atomic config.yaml replace, the engine's hot reload judges every flow (D-021), Undo from the safety copy. An unreadable backup config disables Restore.
 - Why: the repo already writes only config.yaml for the engine; copying it verbatim keeps hand comments and needs no schema; the normal loader is the one fail-soft path.
@@ -1386,7 +1386,7 @@ Status: accepted (user via coordinator, 2026-11-07: "broader than key events"; t
 ## D-106 · 2026-11-08 · Flow shortcut icons: the engine puts them back at each start
 Status: accepted
 - Cause: Velopack's updater "updates" every .lnk on the Desktop/Start menu whose target is under the app root, and resets
-  its icon to `current\DazeControl.exe` (velopack_DazeControlApp.log, 2026-11-07 15:11, 0.49 → 0.50). Our D-049 links
+  its icon to `current\CtrlAltDaze.exe` (velopack_CtrlAltDazeApp.log, 2026-11-07 15:11, 0.49 → 0.50). Our D-049 links
   target the stub, so they match.
 - Decision: once per engine start, off the message thread, `DesktopShortcuts.RepairIcons` rewrites (same path and
   name) any of our shortcuts whose icon isn't its flow's .ico or whose .ico is gone. Shortcuts of flows no longer in the
@@ -1419,14 +1419,14 @@ Status: accepted (user answers to docs/triggers/DESIGN.md §7, 2026-11-08)
 
 ## D-108 · 2026-11-09 · Update channel: Stable or Release candidates, a per-user file, no automatic downgrade
 Status: accepted (user, 2026-11-09: opt in to release candidates from the app)
-- Decision: `UpdateChannel` Stable (default) or ReleaseCandidates, kept in `%LOCALAPPDATA%\DazeControl\update-channel.txt`
+- Decision: `UpdateChannel` Stable (default) or ReleaseCandidates, kept in `%LOCALAPPDATA%\CtrlAltDaze\update-channel.txt`
   (`channel=stable|rc`). `VelopackUpdateClient` passes `prerelease: true` on the RC channel. Set from About › Updates ("Updates to
-  follow", a drop-down that saves at once) or `dctl update --channel stable|rc`; the engine's daily check, `dctl update` and
+  follow", a drop-down that saves at once) or `cad update --channel stable|rc`; the engine's daily check, `cad update` and
   the editor all read the file. Switching to Stable never downgrades: an RC newer than the latest stable stays until a newer
   stable ships (Velopack orders `0.52.0-rc.1 < 0.52.0`; `AllowVersionDowngrade` stays off). UI words: "Release candidates"
   and "Stable", never "pre-release" or "semver".
 - Why a small text file: same reasons as the auto-backup switch (D-104): per PC, so a restore, a hot reload or a config copied
-  from another PC never moves this PC onto RCs; readable by `dctl` without the editor or the engine running.
+  from another PC never moves this PC onto RCs; readable by `cad` without the editor or the engine running.
 - Why default Stable: an RC may have rough edges; the user opts in. Unreadable file = Stable.
 - Why no downgrade: a downgrade replaces a newer install with an older one and can leave config the old version can't read
   (a newer schema); the user can reinstall an older Setup.exe by hand.
@@ -1440,7 +1440,7 @@ Status: accepted (user, 2026-11-09: opt in to release candidates from the app)
 Status: accepted (user report: the update installed the version found at check time, not the newest)
 - Decision: `IUpdateClient.RefreshBeforeApplyAsync` looks at the feed again (current channel, D-108) and downloads a release newer than
   the downloaded one; offline or failing it keeps the downloaded one. Called by the editor's "Restart now" and by the engine's apply at
-  start (30 s cap, so a bad network can't hold the start). `dctl update` already checks fresh, and the daily check stays the only timer.
+  start (30 s cap, so a bad network can't hold the start). `cad update` already checks fresh, and the daily check stays the only timer.
 - Why not apply at once and let the next daily check catch up: the user restarts to get the newest, then has to repeat the cycle.
 
 
@@ -1544,7 +1544,7 @@ Status: accepted (user, 2026-11-11: "selecting items from the library that can b
   result fits audio and Bluetooth settings (`PickResults.Fits`). Another Library kind joins with a `kind` word in
   `PickResults.KindWords` and rows in `InputPrompts.ItemsOf`.
 
-## D-118 · 2026-11-11 · Twelve PC-state checks on the D-081 probe model; `dctl check` runs one
+## D-118 · 2026-11-11 · Twelve PC-state checks on the D-081 probe model; `cad check` runs one
 Status: accepted (user asked 2026-11-11: "different device checks, like what wifi is connected … at least 10")
 - Decision: new read-only check steps, each a `FactCheckProvider` over a one-shot probe: `network.wifi` (any Wi-Fi or a
   named network), `network.cable`, `network.internet` and `network.metered` (Windows' own NLM hint via
@@ -1554,7 +1554,7 @@ Status: accepted (user asked 2026-11-11: "different device checks, like what wif
   `time.check` (days + optional From/To window, past midnight belongs to the start day). Their outcome is pass/fail, so
   branching, "wait until" (retries) and "skip what depends on it" work unchanged (D-082). `ProviderCatalog.Checks` is now
   what makes a step a check (palette order, Test result wording), not the `.check` id suffix: one area has several.
-  Palette groups Network and This PC (power, pc, time). `dctl check <check> [name=value…]` sends one check as a
+  Palette groups Network and This PC (power, pc, time). `cad check <check> [name=value…]` sends one check as a
   test-step with config.yaml's Library; exit 0 = as asked, 1 = not. Wi-Fi names come from the WLAN API, shared with
   the network trigger (`Providers/Network/WindowsNetworkState`); the Wi-Fi setting suggests connected + saved networks.
 - Why these: the conditions automation tools most often gate on (Home Assistant/Tasker/Shortcuts/Power Automate style:
@@ -1672,7 +1672,7 @@ Status: accepted (user, 2026-11-11: "let's add an ability to add any library ite
   made by hand from two items (D-116); programs and Wi-Fi networks aren't Library kinds (D-041; an SSID is a trigger's
   value). Why not one page-level "Add item" with a kind picker: the Pivot already is the kind, and a second chooser
   duplicates it. Why not a `manual: true` flag: nothing behaves differently, and a flag would block the merge with the
-  live device. No `dctl library` commands exist, so none were added.
+  live device. No `cad library` commands exist, so none were added.
 - Revisit if: users want to type a screen layout (monitor names) or name programs once (then a Programs kind, D-041).
 
 ## D-124 · 2026-11-12 · No line through a step in any shape: Tree side joins, lane detours elsewhere
@@ -1860,7 +1860,7 @@ Status: accepted, built
 
 ## D-137 · 2026-11-13 · `value.check`: two texts compared, normalised first, the failure link is the "else" (T24.3)
 Status: accepted, built
-- Decision: `value.check` "Check value" (Flow group, a check: `dctl check value.check value=5 is=atLeast to=3` works). `value` and `to` take values (plain fill, no escaping: nothing is run, only compared); `is` is one of is, isNot, contains, doesNotContain, startsWith, endsWith, isEmpty, isNotEmpty, atLeast, below; `ignoreCase` on by default (ordinal, never culture). Both sides are trimmed of spaces first. is / isNot compare as numbers when both sides are numbers (`5` is `5.0`), else as text; atLeast / below need two numbers (invariant culture, no NaN or infinity, `3,5` is not a number) and fail with a sentence otherwise, as does contains/startsWith/endsWith with nothing to look for. A missing value follows D-129 (fallback, else empty): empty is not zero, so a number comparison with it fails with the sentence. Gives `result` even on failure (D-117); it quotes both sides, so it is Sensitive when either side uses a Sensitive value (errors and summaries are masked by the runner as for any step). The validator errors on a written comparison it would always refuse (empty `to`, a written non-number for atLeast/below) and leaves text holding a reference to the run.
+- Decision: `value.check` "Check value" (Flow group, a check: `cad check value.check value=5 is=atLeast to=3` works). `value` and `to` take values (plain fill, no escaping: nothing is run, only compared); `is` is one of is, isNot, contains, doesNotContain, startsWith, endsWith, isEmpty, isNotEmpty, atLeast, below; `ignoreCase` on by default (ordinal, never culture). Both sides are trimmed of spaces first. is / isNot compare as numbers when both sides are numbers (`5` is `5.0`), else as text; atLeast / below need two numbers (invariant culture, no NaN or infinity, `3,5` is not a number) and fail with a sentence otherwise, as does contains/startsWith/endsWith with nothing to look for. A missing value follows D-129 (fallback, else empty): empty is not zero, so a number comparison with it fails with the sentence. Gives `result` even on failure (D-117); it quotes both sides, so it is Sensitive when either side uses a Sensitive value (errors and summaries are masked by the runner as for any step). The validator errors on a written comparison it would always refuse (empty `to`, a written non-number for atLeast/below) and leaves text holding a reference to the run.
 - Why: every comparable tool has If on a value (G-60); a failing check keeps D-082's two kinds of link, no new edge kind. Why not text compare for atLeast ("10" below "9"): wrong for the common case (battery, status codes). Why not locale numbers: the same flow must behave the same on every PC.
 - Revisit if: users compare dates or versions, or want and/or in one step (chain checks instead).
 
@@ -1879,14 +1879,14 @@ Status: accepted, built
 
 ## D-140 · 2026-11-13 · `network.reach`: one probe, the form of the address picks it, host only in messages (T24.8)
 Status: accepted, built
-- Decision: `network.reach` "Check address" (Network group, last check; in `Checks` so `dctl check network.reach address=nas:445` works). `address` takes values (plain fill). `ReachAddress.TryParse` (Core, shared by validator and provider) trims, then classifies: `http(s)://...` = web (one GET, or HEAD, no redirects, no cookies, headers only, default TLS validation), `host:port` / `[v6]:port` = TCP connect, a bare host or IP (also bare IPv6) = ping (unprivileged ICMP). Host = IP (IPv4 needs four parts, no IPv6 scope) or dot-separated labels of letters, digits, `-`, `_`; port = plain digits 1-65535; anything with whitespace, control characters or quotes is refused whole. `is` reachable / notReachable (fails when not as chosen, so the failure link is the else); web `status` = empty (any answer counts, the row) or `200`, `200-299, 401`; `timeout` 1-20 s, default 5 s (step limit 30 s). Gives `ms` (when it answered), `status` (web), `result`. Probes open, ask once and are disposed in the step (a fresh handler per web probe, no pooling: idle = zero, D-009); the caller's cancellation is not reported as a timeout.
+- Decision: `network.reach` "Check address" (Network group, last check; in `Checks` so `cad check network.reach address=nas:445` works). `address` takes values (plain fill). `ReachAddress.TryParse` (Core, shared by validator and provider) trims, then classifies: `http(s)://...` = web (one GET, or HEAD, no redirects, no cookies, headers only, default TLS validation), `host:port` / `[v6]:port` = TCP connect, a bare host or IP (also bare IPv6) = ping (unprivileged ICMP). Host = IP (IPv4 needs four parts, no IPv6 scope) or dot-separated labels of letters, digits, `-`, `_`; port = plain digits 1-65535; anything with whitespace, control characters or quotes is refused whole. `is` reachable / notReachable (fails when not as chosen, so the failure link is the else); web `status` = empty (any answer counts, the row) or `200`, `200-299, 401`; `timeout` 1-20 s, default 5 s (step limit 30 s). Gives `ms` (when it answered), `status` (web), `result`. Probes open, ask once and are disposed in the step (a fresh handler per web probe, no pooling: idle = zero, D-009); the caller's cancellation is not reported as a timeout.
 - Credentials: an address with `user:password@` is refused with a sentence and never repeated; sentences name the host (and port) only, never path or query (tokens often ride there). The result is Sensitive when the address uses a Sensitive value (as D-137).
 - Why: G-29, "wake the NAS, wait until it answers" with D-139 and Try again. Why not follow redirects: the first answer is the answer, and a login redirect must not hide a down service (set `status` to count 3xx). Why not reuse `http.request`'s client: it is resident by design and sends auth; a check needs neither.
 - Not verified live: a real ping or web request over the network (tests use a fake probe, a loopback listener and a fake HTTP handler).
 
 ## D-150 · 2026-11-13 · "Only run if": a flow's checks read once before an automatic start; a "no" holds it back quietly (T25.1)
-Status: accepted, built (engine, YAML, validator, `dctl`); the editor's list is T25.1b. Extends D-081, D-107, D-118; amends D-107's T20.3 note.
-- Decision: `onlyIf:` on a flow = a list of check steps (`ProviderCatalog.Checks`) with their own settings, timeout and retries, no edges (`id` optional, `if1`… by place, not written back). `FlowGuard` runs them side by side on the engine's quiet runner (the test-step one: no pop-up, no history, shared locks) right before a schedule or event starts the flow, after debounce, cooldown, `only` and the chain guard, before the cooldown is reserved; all must hold. Held back = no run, no pop-up, no history row, no cooldown used, one log line, and an in-memory note per flow ("Held back: Wi-Fi isn't Home.") that `list` shows until the flow next runs. Starts by a person (shortcut, tray, `dctl run`, the editor's Run, a desktop shortcut) ignore the list unless `onlyIfByHand: true`; then `dctl run` fails with the sentence (exit 1). A `flow.run` from another flow never reads it (the caller decided). After the checks, the version in the config now is started (a reload meanwhile wins; a removed flow doesn't start).
+Status: accepted, built (engine, YAML, validator, `cad`); the editor's list is T25.1b. Extends D-081, D-107, D-118; amends D-107's T20.3 note.
+- Decision: `onlyIf:` on a flow = a list of check steps (`ProviderCatalog.Checks`) with their own settings, timeout and retries, no edges (`id` optional, `if1`… by place, not written back). `FlowGuard` runs them side by side on the engine's quiet runner (the test-step one: no pop-up, no history, shared locks) right before a schedule or event starts the flow, after debounce, cooldown, `only` and the chain guard, before the cooldown is reserved; all must hold. Held back = no run, no pop-up, no history row, no cooldown used, one log line, and an in-memory note per flow ("Held back: Wi-Fi isn't Home.") that `list` shows until the flow next runs. Starts by a person (shortcut, tray, `cad run`, the editor's Run, a desktop shortcut) ignore the list unless `onlyIfByHand: true`; then `cad run` fails with the sentence (exit 1). A `flow.run` from another flow never reads it (the caller decided). After the checks, the version in the config now is started (a reload meanwhile wins; a removed flow doesn't start).
 - "No" vs "can't tell": a check that read its fact and found it not as asked throws `CheckNotMetException` (all check providers); `NodeResult.NotMet` (in-process, `[JsonIgnore]`) carries it. Any other failure (an error, a bad comparison, a timeout) = can't tell = the run starts, like an "Only if" probe (D-081). Each check runs "skip what depends on it", so one that can't answer doesn't cancel another's "no".
 - Validator: every step rule runs on the checks as a stand-in flow with the flow's inputs (`ConfigValidator.GuardFlow`, the same flow the guard runs) and the problems move to `flows.<id>.onlyIf.<check>`; a non-check step is an error. Inputs take their defaults in the guard; an asked input is asked after it.
 - Trigger `only: onBattery|onAC` stays as it is (per trigger, round-trips unchanged); D-107's "fact probes can't answer a trigger" no longer limits flows: any check can guard them through `onlyIf`.
@@ -1941,9 +1941,9 @@ Status: accepted, built (extends D-107, D-135; same pattern as D-136)
 - Why not count a stopped run as finished: a person stopping a flow is not an outcome to react to, and "tell me when any flow fails" must stay quiet then.
 - Not verified live by the agent: a real flow failing in the running engine and the handler's pop-up.
 
-## D-142 · 2026-11-13 · `dctl --json`, `dctl flag`, `dctl pause`: hand-written JSON, protocol 3 (T27.8)
+## D-142 · 2026-11-13 · `cad --json`, `cad flag`, `cad pause`: hand-written JSON, protocol 3 (T27.8)
 Status: accepted, built
-- Decision: `--json` on list, status, history, devices, check (also flag, pause): one compact JSON line on stdout, written by `ScriptJson` with `Utf8JsonWriter` (no reflection, AOT-clean), golden-tested; fields are only added. It holds only what the sentences already print: no run nodes, inputs, step values, header values, device ids (D-014). Errors stay on stderr with the existing exit codes; `check` keeps 0 yes / 1 no and still prints its document on "no". `list` offline reads config.yaml and says `engineRunning:false`. `dctl flag <name> [on|off]` (name ≤ 200, no control characters, trimmed, case ignored) goes to `FlagStore` (D-029: in memory, off until set); `dctl pause [on|off]` is the tray's "Pause shortcuts" (D-107: hotkeys, schedules, event triggers), applied on the message thread; no argument = tell. Both are pipe ops stamped protocol 3 (`Protocol.WithControl`; the server speaks 1 to `Latest`), so an older engine refuses with "speaks protocol 2, not 3" and dctl says to restart the engine (as D-064's inputs, T24.9) instead of a bare op being misread.
+- Decision: `--json` on list, status, history, devices, check (also flag, pause): one compact JSON line on stdout, written by `ScriptJson` with `Utf8JsonWriter` (no reflection, AOT-clean), golden-tested; fields are only added. It holds only what the sentences already print: no run nodes, inputs, step values, header values, device ids (D-014). Errors stay on stderr with the existing exit codes; `check` keeps 0 yes / 1 no and still prints its document on "no". `list` offline reads config.yaml and says `engineRunning:false`. `cad flag <name> [on|off]` (name ≤ 200, no control characters, trimmed, case ignored) goes to `FlagStore` (D-029: in memory, off until set); `cad pause [on|off]` is the tray's "Pause shortcuts" (D-107: hotkeys, schedules, event triggers), applied on the message thread; no argument = tell. Both are pipe ops stamped protocol 3 (`Protocol.WithControl`; the server speaks 1 to `Latest`), so an older engine refuses with "speaks protocol 2, not 3" and cad says to restart the engine (as D-064's inputs, T24.9) instead of a bare op being misread.
 - Why: scripts need a stable shape; a human sentence is not one. Why not source-generated serializer over the pipe types: those types grow for the editor and would leak fields into a script contract. Why not `--json` on run/validate/backup: not in the row; `run --wait` has its exit code.
 - Not verified live: against a real engine (tests use fakes).
 
@@ -1997,7 +1997,7 @@ Status: accepted, built (D-063's revisit note: a bounded repeat, not calls)
 - Not verified live: the inspector fields in the running editor, a real repeated call on this PC.
 
 ## D-152 · 2026-11-13 · The product is renamed "Ctrl Alt Daze", everywhere, with `cad` as the CLI
-Status: accepted, not built (plan: PLAN M29)
+Status: accepted; T29.1 built (names, folders, installer id), T29.2 (carry the setup over) next
 - Decision: `Daze Control` → `Ctrl Alt Daze`; identifiers, projects, exe, data folders, installer id, pipe, mutexes and credential
   prefix `DazeControl…` → `CtrlAltDaze…`; `dctl` → `cad`, no alias; the GitHub repo → `ctrl-alt-daze`. The user's setup is carried
   over by code (copy of the data folders, credential fallback, old engine asked to quit), not by hand.
