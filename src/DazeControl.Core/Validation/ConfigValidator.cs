@@ -51,6 +51,7 @@ public static partial class ConfigValidator
         CheckOpens(config.Flows, problems);
         CheckValues(config.Flows, problems);
         CheckWakes(config.Flows, problems);
+        CheckReaches(config.Flows, problems);
         CheckCalls(config.Flows, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, catalog, config.Settings.StepDefaults, problems);
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
@@ -261,6 +262,26 @@ public static partial class ConfigValidator
                 if (!MacAddress.TryParse(text, out _))
                     problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.with.mac",
                         "That isn't a hardware address. Use six pairs of digits, like aa:bb:cc:dd:ee:ff.", flow.Id));
+            }
+        }
+    }
+
+    /// <summary>Check address (D-140): a written address, answer range or wait it would always refuse is an error now. Text holding a reference is unknown until the run.</summary>
+    private static void CheckReaches(IReadOnlyList<Flow> flows, List<Problem> problems)
+    {
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.ReachId))
+            {
+                var path = $"flows.{flow.Id}.nodes.{step.Id}.with";
+                if (step.With.TryGetValue("address", out var address) && address is ScalarParam { Text: var text } && text.Trim().Length > 0 && StepValues.Parse(text).Count == 0
+                    && !ReachAddress.TryParse(text, out _, out var why))
+                    problems.Add(new(Severity.Error, $"{path}.address", why, flow.Id));
+                if (step.With.TryGetValue("status", out var status) && status is ScalarParam { Text: var codes } && ReachAddress.TryStatuses(codes) is null)
+                    problems.Add(new(Severity.Error, $"{path}.status", "Use answer codes like 200, 200-299 or 200-299, 401 (100 to 599).", flow.Id));
+                if (step.With.TryGetValue("timeout", out var wait) && wait is ScalarParam { Text: var span } && Duration.TryParse(span, out var parsed)
+                    && (parsed < ReachAddress.MinTimeout || parsed > ReachAddress.MaxTimeout))
+                    problems.Add(new(Severity.Error, $"{path}.timeout", "Use 1 s to 20 s.", flow.Id));
             }
         }
     }

@@ -41,7 +41,7 @@ public static class ProviderCatalog
     {
         "audio.check", "bluetooth.check", "process.check", "service.check", "file.check", "file.space", "display.count",
         "android.check", "display.check", "flag.check",
-        "network.wifi", "network.cable", "network.internet", "network.metered", "network.vpn",
+        "network.wifi", "network.cable", "network.internet", "network.metered", "network.vpn", "network.reach",
         "power.source", "power.battery", "pc.idle", "pc.locked", "time.check", "value.check",
     };
 
@@ -417,6 +417,32 @@ public static class ProviderCatalog
             new("name", ParamKind.Text, "VPN") { Help = "Part of the VPN adapter's name, like WireGuard. Empty = any VPN." },
             new("is", ParamKind.Choice, "Is") { Choices = ["connected", "notConnected"], Captions = ["Connected", "Not connected"], Default = "connected", Help = WaitUntilHelp },
         ]) { Keywords = "tunnel work remote" },
+        // T24.8 (D-140): one probe, only when the step runs: a TCP connect, a web request or a ping, then closed.
+        new("network.reach", "Check address", Network, TimeSpan.FromSeconds(30),
+        [
+            new("address", ParamKind.Text, "Address")
+            {
+                Required = true, TakesValues = true,
+                Help = "host:port connects to that port, a web address (http:// or https://) asks for the page, a host name alone pings it. Only this one probe is sent.",
+                Examples = [new("A port", "nas:445"), new("A web page", "https://example.com"), new("A ping", "192.168.1.1")],
+            },
+            new("is", ParamKind.Choice, "Is") { Choices = ["reachable", "notReachable"], Captions = ["Reachable", "Not reachable"], Default = "reachable", Help = WaitUntilHelp },
+            new("status", ParamKind.Text, "Web answers that count")
+            {
+                Help = "For a web address: like 200-299 or 200, 401. Empty = any answer counts.",
+                Examples = [new("Any good answer", "200-299")],
+            },
+            new("method", ParamKind.Choice, "Ask for") { Choices = ["GET", "HEAD"], Captions = ["The page (GET)", "Only its headers (HEAD)"], Default = "GET", Help = "For a web address. Nothing of the page is kept." },
+            new("timeout", ParamKind.Duration, "Give up after") { Default = "5s", Help = "1 to 20 s for an answer." },
+        ])
+        {
+            Keywords = "ping reachable online up server nas port tcp connect website host answer",
+            Values =
+            [
+                new ValueSpec("ms", ValueKind.Number, "Answer time (ms)") { OnFailure = true, Help = "How long the answer took, in milliseconds" },
+                new ValueSpec("status", ValueKind.Number, "Status code") { OnFailure = true, Help = "The number a web address answered with (200 = fine)" },
+            ],
+        },
         new("power.source", "Check power", Power, Short,
         [
             new("is", ParamKind.Choice, "Is") { Choices = ["pluggedIn", "onBattery"], Captions = ["Plugged in", "On battery"], Default = "pluggedIn", Help = WaitUntilHelp },
@@ -655,6 +681,9 @@ public static class ProviderCatalog
 
     public const string ValueCheckId = "value.check";
 
+    /// <summary>Check address (T24.8).</summary>
+    public const string ReachId = "network.reach";
+
     /// <summary>
     /// The read-only check steps (D-081, D-118): they change nothing and fail when the fact isn't what was chosen.
     /// <c>dctl check</c> runs only these.
@@ -663,7 +692,7 @@ public static class ProviderCatalog
     {
         "audio.check", "bluetooth.check", "display.check", "display.count", "process.check", "android.check", "service.check",
         "file.check", "file.space", "flag.check", "network.wifi", "network.cable", "network.internet", "network.metered",
-        "network.vpn", "power.source", "power.battery", "pc.idle", "pc.locked", "time.check", "value.check",
+        "network.vpn", "network.reach", "power.source", "power.battery", "pc.idle", "pc.locked", "time.check", "value.check",
     };
 
     public static ProviderDescriptor? Find(string id) => All.FirstOrDefault(d => d.Id == id);
