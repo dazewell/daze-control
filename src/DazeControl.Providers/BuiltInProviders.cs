@@ -86,6 +86,7 @@ public static class BuiltInProviders
             new NotifyProvider(notifier),
             new MakeTextProvider(),
             new ValueCheckProvider(),
+            new TextExtractProvider(),
             new FlagSetProvider(flags),
             new FlagCheckProvider(flags),
             new ProcessRunProvider(),

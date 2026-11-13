@@ -136,6 +136,9 @@ public sealed record ParamSpec(string Name, ParamKind Kind, string Title)
     /// <summary>How filled values are written into this setting (D-129, DESIGN §4.8); only where <see cref="TakesValues"/>.</summary>
     public FillRule Fill { get; init; }
 
+    /// <summary>A <see cref="TakesValues"/> text that may be filled with a long value (up to 64 KB, not 4,000 characters): Get from text's text (D-142).</summary>
+    public bool LongText { get; init; }
+
     public int? Min { get; init; }
 
     public int? Max { get; init; }

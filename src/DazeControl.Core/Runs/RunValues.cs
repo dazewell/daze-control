@@ -18,6 +18,9 @@ public sealed class RunValues
     /// <summary>A value is cut here, with "…" (DESIGN §4.4).</summary>
     public const int MaxValueLength = 1000;
 
+    /// <summary>A value a Get from text reads is kept up to here instead (T25.2, D-142).</summary>
+    public const int MaxLongValueLength = TextExtract.MaxFilled;
+
     private readonly Dictionary<(string Step, string Value), StepValue> _values = [];
     private readonly Dictionary<string, StepValue> _inputs = new(StringComparer.Ordinal);
     private readonly HashSet<string> _sensitiveInputs = new(StringComparer.Ordinal);
@@ -44,11 +47,17 @@ public sealed class RunValues
 
     public TimeProvider Time { get; }
 
+    /// <summary>The values a Get from text reads (<see cref="StepValues.LongValues"/>): kept up to <see cref="MaxLongValueLength"/>. Empty = none.</summary>
+    public IReadOnlySet<(string Step, string Value)> LongValues { get; init; } = new HashSet<(string, string)>();
+
+    public bool IsLong(string step, string value) => LongValues.Contains((step, value));
+
     /// <summary>Whether a setting references this value (so a provider can skip costly work, e.g. reading stdout).</summary>
     public bool Wants(string step, string value) => _wanted is null || _wanted.Contains((step, value));
 
     /// <summary>A text value, trimmed and cut at <see cref="MaxValueLength"/>.</summary>
-    public void SetText(string step, string value, string text) => Set(step, value, new(ValueKind.Text, Cut(text.Trim())));
+    public void SetText(string step, string value, string text) =>
+        Set(step, value, new(ValueKind.Text, Cut(text.Trim(), IsLong(step, value) ? MaxLongValueLength : MaxValueLength)));
 
     public void SetNumber(string step, string value, long number) =>
         Set(step, value, new(ValueKind.Number, number.ToString(CultureInfo.InvariantCulture)));

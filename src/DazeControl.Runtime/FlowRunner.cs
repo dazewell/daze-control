@@ -141,7 +141,7 @@ public sealed class FlowRunner
         var otherQuiet = false;
         // D-117, D-129: what steps give, only what some setting references; thread-safe for parallel branches.
         var calls = CalledFlows;
-        var values = new RunValues(StepValues.Wanted(flow, _catalog, calls), _time) { FlowName = flow.Name, Trigger = trigger, Event = eventDetail };
+        var values = new RunValues(StepValues.Wanted(flow, _catalog, calls), _time) { FlowName = flow.Name, Trigger = trigger, Event = eventDetail, LongValues = StepValues.LongValues(flow) };
         foreach (var (name, input) in flow.Inputs)
         {
             var given = inputs.TryGetValue(name, out var key) ? key : input.Default;
@@ -319,6 +319,7 @@ public sealed class FlowRunner
                     Chain = scope.Chain,
                     Trigger = scope.Trigger,
                     WantsValue = name => values.Wants(node.Id, name),
+                    WantsLongValue = name => values.IsLong(node.Id, name),
                     Variables = node.Step == ProviderCatalog.PowerShellId ? StepValues.Variables(flow, node.Id, values, library, _catalog, CalledFlows) : null,
                     RunNested = Flows is null ? null : (target, token) => NestedAsync(scope, flow, node, target, c => called = c, token),
                 };

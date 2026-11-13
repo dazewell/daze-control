@@ -51,6 +51,7 @@ public static partial class ConfigValidator
         CheckOpens(config.Flows, problems);
         CheckValues(config.Flows, problems);
         CheckWakes(config.Flows, problems);
+        CheckExtracts(config.Flows, problems);
         CheckReaches(config.Flows, problems);
         CheckCalls(config.Flows, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, catalog, config.Settings.StepDefaults, problems);
@@ -246,6 +247,29 @@ public static partial class ConfigValidator
                             problems.Add(new(Severity.Error, $"{path}.{side}", $"\"{text}\" isn't a number. At least and below compare numbers, like 3 or 2.5.", flow.Id));
                     }
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get from text (D-142): a written field path, pattern or line the step would always refuse is an error now. It runs the same
+    /// <see cref="TextExtract.Check"/> as the step, on the text as the step will see it (escapes undone). A setting holding a
+    /// reference is unknown until the run, so then only the choice of what to take is known.
+    /// </summary>
+    private static void CheckExtracts(IReadOnlyList<Flow> flows, List<Problem> problems)
+    {
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.ExtractId))
+            {
+                string? Written(string name) => step.With.TryGetValue(name, out var p) && p is ScalarParam { Text: var t } ? t : null;
+                var by = (Written("by") ?? "json").Trim();
+                var find = Written("find") ?? "";
+                var until = Written("until") ?? "";
+                if (!TextExtract.Modes.Contains(by) || StepValues.Parse(find).Count > 0 || StepValues.Parse(until).Count > 0)
+                    continue;
+                if (TextExtract.Check(by, TextExtract.AsFilled(find), TextExtract.AsFilled(until)) is { } why)
+                    problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.with.find", why, flow.Id));
             }
         }
     }
