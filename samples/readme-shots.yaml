@@ -1,0 +1,62 @@
+# Flows for the README screenshots (scripts/make-hero.ps1 has the banner). Made-up devices and addresses: open it in
+# the editor with --config on a copy, never as the real config.
+version: 1
+library:
+  audio:
+    headphones: { match: "Studio Headphones" }
+    speakers: { match: "Desk Speakers" }
+    tv: { match: "Living Room TV" }
+  bluetooth:
+    headphones: { address: "00:11:22:33:44:55", name: "Studio Headphones" }
+    keyboard: { address: "00:11:22:33:44:66", name: "Travel Keyboard" }
+flows:
+  headphones:
+    name: Headphones on
+    hotkeys: [Alt+Z]
+    nodes:
+      - { id: bt, step: bluetooth.connect, with: { device: headphones } }
+      - { id: out, step: audio.setDefault, with: { device: headphones }, after: [bt] }
+      - { id: done, step: notify, with: { text: "Headphones ready", sound: false }, after: [out] }
+  desk:
+    name: Start the work day
+    hotkeys: [Ctrl+Alt+W]
+    triggers:
+      - { on: session.unlock }
+    nodes:
+      - { id: weekday, step: time.check, with: { from: "08:00", to: "11:00" } }
+      - { id: kb, step: bluetooth.connect, with: { device: keyboard }, after: [weekday], onFailure: ignore }
+      - { id: speakers, step: audio.setDefault, with: { device: speakers }, after: [weekday] }
+      - { id: net, step: network.internet, after: [weekday], retry: { count: 3, delay: 2s } }
+      - { id: vpn, step: network.vpn, after: [net], onFailure: ignore }
+      - { id: apps, group: [mail, chat, music], after: [vpn, kb] }
+      - { id: mail, step: process.check, with: { program: olk } }
+      - { id: chat, step: process.check, with: { program: Teams } }
+      - { id: music, step: process.check, with: { program: Spotify } }
+      - { id: ready, step: notify, with: { text: "Good morning: desk ready", sound: false }, after: [apps, speakers] }
+      - { id: offline, step: notify, with: { text: "No internet yet", sound: false }, after: [{ id: net, when: failure }] }
+  movie:
+    name: Movie night
+    hotkeys: [Ctrl+Alt+M]
+    nodes:
+      - { id: tv, step: audio.setDefault, with: { device: tv } }
+      - { id: power, step: power.source, after: [tv], onFailure: ignore }
+      - { id: go, step: notify, with: { text: "Enjoy the film", sound: false }, after: [tv] }
+  wake-nas:
+    name: Wake the NAS
+    nodes:
+      - { id: ping, step: network.reach, with: { address: "nas.local" }, onFailure: ignore }
+      - { id: hello, step: notify, with: { text: "NAS is up", sound: false }, after: [ping] }
+  focus:
+    name: Focus for 25 minutes
+    hotkeys: [Ctrl+Alt+F]
+    nodes:
+      - { id: quiet, step: process.check, with: { program: Teams, is: notRunning }, onFailure: ignore }
+      - { id: wait, step: wait, with: { duration: 25m }, after: [quiet], timeout: 30m }
+      - { id: up, step: notify, with: { text: "Time for a break", sound: true }, after: [wait] }
+  battery:
+    name: Low battery warning
+    triggers:
+      - { every: 15m }
+    nodes:
+      - { id: plugged, step: power.source, onFailure: skip }
+      - { id: warn, step: notify, with: { text: "Plug in soon", sound: true }, after: [{ id: plugged, when: failure }] }

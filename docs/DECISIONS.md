@@ -460,7 +460,7 @@ Status: accepted
   the library items it references.
 
 ## D-044 · 2026-11-02 · App icon: a fork-and-join flow on the OSD's violet→blue tile
-Status: accepted
+Status: superseded by D-153 (the tile; the mark stays)
 - Decision: `scripts/make-icon.ps1` draws `assets/app.ico` + `app.png`: one step fanning out to two that join
   again (horizontal Béziers, as on the canvas), white on the OSD's gradient tile, the last step amber. Every exe
   gets it via `ApplicationIcon` (SDK-built resource, no rc.exe), the editor window and About card from
@@ -2008,3 +2008,13 @@ Status: accepted, built (T29.1 names; T29.2 carry-over, live check T29.5 pending
 - Old engine: WM_CLOSE to its tray window (the updater's path, Installer) and a wait on its mutex, not a pipe
   request as planned: no dependency on the old protocol, and no polling.
 - Revisit if: an exact-name product shows up before T29.1 starts (trademark registers and the Microsoft Store were not checked).
+
+## D-153 · 2026-11-13 · Icon and banner: the flow mark on an orange keycap
+Status: accepted
+- Decision: `make-icon.ps1` draws the same fork-and-join mark (D-044) on an orange keycap (top face #FF8A3D→#F25C24
+  over a #B83A0E lip, no lip at 16 px), the last step charcoal #24292F. `TrayGlyph` and the shortcut tile use the
+  same orange; busy is a charcoal dot. `make-hero.ps1` draws `assets/hero.png` (Ctrl · Alt · the app key, name, one
+  line); README screenshots come from `samples/readme-shots.yaml` (made-up devices).
+- Why: the user wanted no "typical AI" purple with the rename (D-152); a keycap is the Ctrl+Alt pun.
+- Why not keep the OSD family look: the user asked for the change; the OSD can follow later or not.
+- Revisit if: orange is hard to tell from a taskbar warning badge in real use.

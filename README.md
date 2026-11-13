@@ -1,5 +1,7 @@
 # Ctrl Alt Daze
 
+![Ctrl Alt Daze](assets/hero.png)
+
 A Windows 11 tray app that runs **flows**: named sets of steps (connect Bluetooth headphones, switch the default
 audio device, change the display layout, start a program, switch the TV input…) started by a global hotkey, the tray
 menu or the command line. Steps can run one after another or together, and you decide which ones may fail.
@@ -10,6 +12,10 @@ menu or the command line. Steps can run one after another or together, and you d
 - **`cad`**: the same from a terminal.
 
 Per-user install, no admin rights. Windows 11 24H2 or later, x64.
+
+![Your flows, each with its shortcut, triggers and a Run button](docs/readme/flows.png)
+
+![A flow on the canvas: steps that run one after another, together, or only if another fails](docs/readme/flow-editor.png)
 
 ## Install
 

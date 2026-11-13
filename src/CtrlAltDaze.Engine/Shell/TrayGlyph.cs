@@ -14,17 +14,17 @@ internal enum TrayGlyphKind
 
 /// <summary>
 /// The tray icon, drawn in code at the small-icon size so the AOT engine ships no image files (UX §5.6 variants):
-/// the app mark (scripts/make-icon.ps1: a step fanning out to two that join again, on the violet→blue tile), all
-/// white here; busy adds an amber dot; paused is a grey tile with pause bars. Reads on light and dark taskbars
+/// the app mark (scripts/make-icon.ps1: a step fanning out to two that join again, on the orange keycap tile, D-153), all
+/// white here; busy adds a charcoal dot; paused is a grey tile with pause bars. Reads on light and dark taskbars
 /// alike. 4×4 supersampling for the edges.
 /// </summary>
 internal static unsafe class TrayGlyph
 {
-    private const uint Violet = 0xFF8B5CF6;
-    private const uint Blue = 0xFF2563EB;
+    private const uint Orange = 0xFFFF8A3D;
+    private const uint DeepOrange = 0xFFF25C24;
     private const uint Grey = 0xFF6E6E6E;
     private const uint White = 0xFFFFFFFF;
-    private const uint Amber = 0xFFFFB900;
+    private const uint Charcoal = 0xFF24292F;
     private const int Samples = 4;
 
     /// <summary>A new icon handle; the caller destroys it (<c>DestroyIcon</c>).</summary>
@@ -69,9 +69,9 @@ internal static unsafe class TrayGlyph
     /// <summary>Straight-alpha ARGB, row-major, top-down.</summary>
     internal static uint[] Paint(TrayGlyphKind kind, int size) => Paint(size, (u, v) => Sample(kind, u, v));
 
-    /// <summary>The app tile alone (violet→blue, rounded), for a desktop shortcut's icon under a flow's glyph (D-049).</summary>
+    /// <summary>The app tile alone (orange, rounded), for a desktop shortcut's icon under a flow's glyph (D-049).</summary>
     internal static uint[] PaintTile(int size) =>
-        Paint(size, (u, v) => InRoundedSquare(u, v, inset: 0.04, radius: 0.24) ? Lerp(Violet, Blue, Math.Clamp((u + v) / 2, 0, 1)) : 0);
+        Paint(size, (u, v) => InRoundedSquare(u, v, inset: 0.04, radius: 0.24) ? Lerp(Orange, DeepOrange, Math.Clamp((u + v) / 2, 0, 1)) : 0);
 
     private static uint[] Paint(int size, Func<double, double, uint> sample)
     {
@@ -111,7 +111,7 @@ internal static unsafe class TrayGlyph
         {
             var d = Math.Sqrt((u - 0.78) * (u - 0.78) + (v - 0.78) * (v - 0.78));
             if (d <= 0.17)
-                return Amber;
+                return Charcoal;
             if (d <= 0.23)
                 return White;
         }
@@ -126,7 +126,7 @@ internal static unsafe class TrayGlyph
         }
         if (!InRoundedSquare(u, v, inset: 0.04, radius: 0.24))
             return 0;
-        return kind == TrayGlyphKind.Paused ? Grey : Lerp(Violet, Blue, Math.Clamp((u + v) / 2, 0, 1));
+        return kind == TrayGlyphKind.Paused ? Grey : Lerp(Orange, DeepOrange, Math.Clamp((u + v) / 2, 0, 1));
     }
 
     // The mark in unit space, as make-icon.ps1 draws it on its 16 grid: steps of radius 1.7, edges 1.2 wide.
