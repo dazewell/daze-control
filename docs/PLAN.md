@@ -785,4 +785,4 @@ The user accepted all five open points as recommended (PR #217). One PR per task
 - [x] T23.7 Text inputs, flow outputs, Make text (Opus, L; after T23.5; DESIGN §9, accepted 2026-11-12; D-131). Branch feat/m23-text-values, PR #230.
   Not done: asking for text at start (D-107), Insert value/pills in a call's text-input box and the outputs box (plain text boxes;
   outputs have an Insert value flyout, no pills), editor rename doesn't rewrite other flows (warning + tip). Not seen live: the XAML.
-- [ ] T23.8 Gate (Sonnet, S): ARCHITECTURE/FEATURES/UX take what was built, DESIGN cut (D-053), release-notes line.
+- [x] T23.8 Gate (Sonnet, S): ARCHITECTURE/FEATURES/UX take what was built, DESIGN cut to its open items (D-053), UX §5.9 M23 acceptance rows for the user (release-notes line is in the PR body). Branch docs/m23-gate.
