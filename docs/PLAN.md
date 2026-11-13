@@ -786,3 +786,151 @@ The user accepted all five open points as recommended (PR #217). One PR per task
   Not done: asking for text at start (D-107), Insert value/pills in a call's text-input box and the outputs box (plain text boxes;
   outputs have an Insert value flyout, no pills), editor rename doesn't rewrite other flows (warning + tip). Not seen live: the XAML.
 - [x] T23.8 Gate (Sonnet, S): ARCHITECTURE/FEATURES/UX take what was built, DESIGN cut to its open items (D-053), UX §5.9 M23 acceptance rows for the user (release-notes line is in the PR body). Branch docs/m23-gate.
+
+## Roadmap M24 to M28 (gap analysis 2026-11-13; [docs/roadmap/GAPS.md](roadmap/GAPS.md), D-132 proposed)
+Standing instruction (user, 2026-11-12): after the analysis the coordinator builds as far as usage and model limits allow.
+**M24 to M27 reverse no recorded decision: start them in order. M28 is a list of questions: no M28 row starts before the
+user says yes to that row.** Each task: one PR (D-079), the `G-xx` sketch in GAPS §4 is its brief, Win32 API names there are
+from memory (check them first), a new step follows REVIEW "Adding a step" (`StepConventionTests`), a choice between real
+alternatives becomes a D-entry in the same PR. Tags: (model, size). "Solo on the catalog" = it edits
+`Core/Catalog/ProviderCatalog.cs` and the catalog id tests, so only one such task is open at a time (or the second merges
+main before its PR). Agents never run a step live that changes the user's sound, screens, Bluetooth, power state or music:
+fakes and dry run only, and the PR lists what the user should try with `scripts/dev-run.ps1`.
+
+## M24 Quick wins: stop, open, decide, react (G-02, G-20, G-60, G-04, G-25, G-03, G-28, G-29, G-95)
+Self-contained: nothing resident is added, no scheduler semantics change, every task ships alone. The first five are the quick wins.
+- [ ] T24.1 Stop flow `flow.stop` (Sonnet, S; solo on the catalog). "Quietly" or "As failed" + a message that takes values. A quiet
+  stop in a called flow ends only that flow and the caller's step is done; "As failed" fails the caller's step (record the D-entry).
+  Files: `ProviderCatalog.cs`, `Runtime/Providers/` (next to `MenuProvider`: `StepEndsFlowException` is the model, but a menu's
+  quiet end also ends the caller, D-054), `Engine/EngineHost.cs`, `Runtime/FlowRunner.cs`, Runs wording in `Core/Runs`.
+  Done when: Runtime tests (after a check's failure link: no pop-up, no tray failure glyph, history reads "Stopped here"; called
+  flow, both modes; steps still running in parallel branches are cancelled); dry run says "Would stop here"; FEATURES F3 line.
+- [ ] T24.2 Open file or address `process.open` (Sonnet, S; solo on the catalog; after T24.1). One `target` that takes values, handed
+  to the shell as the thing to open (never a command line), no wait. Files: `ProviderCatalog.cs`, `Providers/Process/`, `BuiltInProviders.cs`.
+  Done when: Providers tests behind a fake shell seam (file, folder, `https://`, `steam://`, `ms-settings:`; a missing file and "nothing
+  opens this" fail with a sentence; an injection-shaped value can neither change a written scheme nor add arguments); examples in the
+  inspector; engine AOT publish 0 warnings.
+- [ ] T24.3 Check value `value.check` (Sonnet, S-M; solo on the catalog; after T24.2). `value` (takes values), `is` (is, isn't, contains,
+  doesn't contain, starts with, ends with, is empty, isn't empty, at least, below), `to`, ignore case on by default; gives `result`;
+  in `ProviderCatalog.Checks` so `dctl check value.check value=5 is=atLeast to=3` works. Files: `ProviderCatalog.cs`, `Providers/Basic/`,
+  `Editor.ViewModels/Canvas/CanvasNodeViewModel.cs` (area → Flow group), FEATURES F3 + F10.
+  Done when: Providers tests per comparison incl. a non-number in a number comparison (fails with a sentence) and a missing value
+  (fallback rules as today); a sample flow in `samples/dev-showcase.yaml` branches on an Ask answer; D-082 untouched (no new edge kind).
+- [ ] T24.4 Screen and away events (Sonnet, S; parallel-safe with the step tasks). `display.off`, `display.on`, `session.away`,
+  `session.back`. Files: `Core/Model/Triggers.cs` (`Events`, `EventLabel`), `Engine/Triggers/PowerSource.cs`, the event picker in
+  `WhenThisRuns.cs`. Done when: only a change raises (the value Windows reports on registration is swallowed); Runtime tests with a
+  fake source; a footprint row (0 ms CPU idle with all four subscribed); the PR lists the live check (screen-off time 1 min).
+- [ ] T24.5 Control media `audio.media` (Sonnet, S; solo on the catalog; after T24.3). Play or pause, Play, Pause, Stop, Next, Previous
+  on this PC as app commands to the shell, **no key simulation** (that is T28.4's question). Files: `ProviderCatalog.cs`,
+  `Providers/Audio/`, `BuiltInProviders.cs`. Done when: Providers tests behind an `IMediaCommands` fake (each action → its command);
+  captions match `android.media`'s; not run live by the agent.
+- [ ] T24.6 Which device on events (Sonnet, M; Opus if the device-name reads fight AOT; parallel-safe with step tasks, after T24.4:
+  same files). `device:` on `device.added` / `device.removed` (name contains) and `audio.default-changed` (Library audio item);
+  sources fill `TriggerEvent.Detail`; run value `{@event}` (the device, Wi-Fi or cable name that started the run; empty otherwise).
+  Files: `Triggers.cs`, `Core/Yaml/TriggerMapper.cs`, `Core/Validation`, `Runtime/Triggers/TriggerService.cs` (`Matches`),
+  `Engine/Triggers/DeviceSource.cs`, `AudioSource.cs`, `Core/Model/StepValues.cs` + `Core/Runs/RunValues.cs`, `WhenThisRuns.cs`.
+  Done when: Core round-trip and validation tests; Runtime tests (filter, several arrivals of one device fold into one start,
+  `{@event}` in a message); existing samples round-trip byte-identical; the PR lists the live check (plug a USB device in and out).
+- [ ] T24.7 Wake over network `network.wake` (Sonnet, S; solo on the catalog; after T24.5). `mac`; a magic packet on each connected
+  network's broadcast address. Files: `ProviderCatalog.cs`, `Providers/Network/`. Done when: Providers tests (packet bytes, bad MAC is
+  a validation problem, no network fails with a sentence); AOT 0 warnings.
+- [ ] T24.8 Check address `network.reach` (Sonnet, S; solo on the catalog; after T24.7). `address` = `host:port` (TCP connect), a web
+  address (any answer counts) or a host (ping); `is` reachable / not reachable; gives `ms`; in `Checks` (the "Wait until" help line).
+  Done when: Providers tests behind a fake; `dctl check network.reach address=…` works; nothing is sent beyond the one probe.
+- [ ] T24.9 Inputs from the command line (Sonnet, S-M; parallel-safe). `dctl run <flow> [name=value…]` and the same after
+  `DazeControl.exe --run <flow>`; checked and applied as a call's inputs are (`FlowInputs.Check` / `Apply`). Files: `Ipc/CommandLine.cs`,
+  `Ipc/Protocol.cs` (+ `PipeClient` copy, `PipeTests.EveryRequestFieldReachesTheServer`), `Runtime/Control/EngineController.cs`,
+  `Runtime/Lifecycle/EngineArguments.cs`, `Cli/Program.cs` usage. Done when: CLI tests (device and text inputs, unknown name → exit 2
+  with the flow's input names); ARCHITECTURE IPC + FEATURES F8.
+- [ ] T24.10 Gate (Sonnet, S; after the rest). FEATURES / UX / ARCHITECTURE as built, footprint rows, five flows in
+  `samples/dev-showcase.yaml` (guard with Stop flow; Open; Check value on an answer; screens-off event; wake + wait until it answers),
+  a "Call a flow from a Stream Deck key" recipe in FEATURES F8 (`dctl.exe run <flow> name=value`), UX §5.9 rows for the user.
+
+## M25 Deciding and seeing (G-01, G-86, G-70, G-71, G-63, G-82)
+- [ ] T25.1 Only run if (Opus, M-L; after M24). Flow `onlyIf:` = a list of checks with their settings, read before a schedule or event
+  starts the flow (and before a start by hand only when the flow says so); unmet = no run, no pop-up, a log line, and "Held back:
+  <the check's sentence>" plus last fired / last started per trigger on the flow card and the "When this runs" card. `only: onBattery|onAC`
+  keeps loading as a power check (supersedes that part of D-107: new D-entry). A check that can't be read lets the run start (D-081).
+  Files: `Core/Model/Flow.cs`, `Core/Yaml`, `Core/Validation`, `Runtime/Triggers/TriggerService.cs`, `Runtime/FlowLauncher.cs`, the
+  one-step path `dctl check` uses (`EngineController`), `WhenThisRuns.cs`. Done when: Core + Runtime tests (all checks must hold, a
+  slow check times out and lets it start, 100 held-back events add no history rows), samples round-trip, `measure.ps1` idle unchanged.
+- [ ] T25.2 Get from text `text.extract` (Sonnet, M; solo on the catalog). From a text that takes values: JSON field, pattern (first
+  group, time limit), between two texts, line N; gives `text` and `number`. `http.request` keeps up to 64 KB of the answer when a Get
+  from text reads it (1,000 characters elsewhere). Files: `ProviderCatalog.cs`, `Providers/Basic/`, `Providers/Http/`. Done when:
+  Providers tests (a 20 KB JSON, a path that isn't there → fails with a sentence, a pattern that would run forever stops); AOT 0 warnings.
+- [ ] T25.3 A value in a number setting (Sonnet, M; parallel-safe with T25.2). "Use a value" on number boxes; the range is checked when
+  the step runs. Files: `Core/Model/StepValues.cs`, `Core/Validation/ConfigValidator.cs`, `Providers/StepParams.cs`, the inspector's
+  number control. Done when: Core tests (step-values/DESIGN "A whole value in a number setting"), Providers test (out of range fails
+  with a sentence), view-model test; that DESIGN line is cut.
+- [ ] T25.4 Turn a step off (Opus, M). `enabled: false` on a step: does nothing, counts as done, dimmed on the canvas, left out of
+  "n of m" (amends D-127: D-entry). Files: `Core/Model/Node.cs`, `Core/Yaml`, `Runtime/Scheduling/Scheduler.cs`, `Core/Runs`, canvas
+  pill + inspector + context menu. Done when: Scheduler tests (followers run; a card with one member off; a failure link from an
+  off step never fires), validator warns where its values are used, one Undo step, screenshots light/dark/high contrast.
+- [ ] T25.5 Runs show values (Sonnet, M; parallel-safe). Each finished step's values and its text after filling, Sensitive masked, 256
+  characters per value. Files: `Core/Runs/Outcomes.cs` (`NodeResult`), `Runtime/FlowRunner.cs`, `Runtime/RunHistory.cs`, IPC JSON
+  context, the Runs page. Done when: history written before this change still loads; a Sensitive value never reaches `history.jsonl`
+  or the log (test); history file size for 100 runs noted.
+- [ ] T25.6 Gate (Sonnet, S): docs as built, UX §5.9 rows, three sample flows (home-only schedule, web answer → message, a step turned off).
+
+## M26 More ways to start (G-05, G-06, G-09, G-07, G-08, G-10)
+- [ ] T26.1 Spike: app events at 0 idle CPU (Opus, S; `spike/app-events`). One shell-hook registration on `MessageWindow`: windows
+  created / destroyed / activated → exe name; "closed" by a wait on the process handle. Done when: a `docs/research/` note with
+  `measure.ps1` numbers (10 idle minutes; 5 minutes of Alt+Tab and typing), what elevated and windowless programs do, and a go / no-go;
+  no-go → an X-entry and T26.2 / T26.4 are dropped.
+- [ ] T26.2 App events (Opus, M; after a "go" in T26.1). `app.opened`, `app.closed`, `app.front`, `app.back` with `program:`; lazy
+  source like the others; `{@event}` = the program; a picker of running programs. Files: `Triggers.cs`, `Engine/Triggers/AppSource.cs`,
+  `TriggerService.cs`, `WhenThisRuns.cs`, `IDeviceQueries` (`devices programs`). Done when: Runtime tests with a fake source, footprint
+  row, D-entry (amends D-107 "program start/stop: not planned": window-owning programs only).
+- [ ] T26.3 Flow events (Sonnet, S; parallel-safe with T26.2). `flow.finished` / `flow.failed`, optional `flow:`, `{@event}` = its name.
+  Files: `Triggers.cs`, `Runtime/FlowLauncher.cs` (`RunCompleted`), `TriggerService.cs`. Done when: Runtime tests (the chain guard
+  refuses a flow that would start itself; a nested call raises nothing); a "tell me when any flow fails" sample.
+- [ ] T26.4 A shortcut only in one program (Opus, M; after T26.2). Hotkey `in: <program>`: registered only while it is in front.
+  Files: `Core/Input/Hotkey.cs`, `Runtime/Triggers/HotkeyTable.cs`, the shortcut recorder row. Done when: HotkeyTable tests (two flows
+  share a key in different programs; the tracked program dies → key released), D-072's pause still works.
+- [ ] T26.5 File events (Sonnet, M; parallel-safe). `file.created` / `file.changed` / `file.deleted`, `path:`, `filter:`, `{@event}` =
+  the path. Files: `Triggers.cs`, `Engine/Triggers/FileSource.cs`. Done when: tests on a temp folder (a burst of writes = one start;
+  folder removed and back = the trigger works again without a timer); footprint row.
+- [ ] T26.6 More schedules (Sonnet, M; parallel-safe). `dayOfMonth: 1..31|last`, `every: Nd`, `at: sunrise|sunset±hh:mm` with
+  latitude / longitude in Settings. Files: `Core/Model/ScheduleTable.cs`, `Triggers.cs`, `TriggerMapper.cs`, the schedule editor.
+  Done when: `ManualTime` tests (month ends, DST, polar day = skipped with a sentence); samples round-trip.
+- [ ] T26.7 Links (Sonnet, S-M; after T24.9). `dazecontrol://run/<flow>?name=value`, per-flow "Can be started from a link" (off by
+  default), HKCU registration only while a flow has it on, removed on uninstall. Files: `Core/Model/Flow.cs`, `Engine/Lifecycle`,
+  `EngineArguments.cs`, flow settings. Done when: tests (a flow without the switch refuses and logs; inputs checked as in T24.9);
+  D-entry with the threat note (any web page can show the link).
+- [ ] T26.8 Gate (Sonnet, S).
+
+## M27 Start faster, share, look inside (G-80, G-81, G-93, G-85, G-83, G-87, G-61, G-90, G-96)
+- [ ] T27.1 Recipes (Sonnet, M). New flow › "From a recipe": 20+ recipes as YAML in `Editor.ViewModels`, a form for the devices each
+  needs, search. Done when: a test loads every recipe against the live catalog and validates it with stand-in devices; screenshots
+  light/dark/high contrast/225 %; later gates add recipes for their features.
+- [ ] T27.2 Share one flow (Opus, L; design section in the PR first). `.dcflow` export / import with Library mapping, called flows
+  included, scripts and programs listed before saving, no secrets; `dctl export <flow> [file]` / `dctl import <file>`; reuses
+  `Core/Backup` (`RestoreCompare`, `SecretScan`). Done when: round-trip, id-clash, missing-Library-item and tampered-file tests.
+- [ ] T27.3 Notes (Sonnet, S; parallel-safe). `note:` on flows and steps, inspector box, pill tooltip, list search. Done when: round-trip
+  tests, samples byte-identical, view-model test.
+- [ ] T27.4 Run from this step (Opus, M). Editor command; earlier steps count as done, their values are missing (fallbacks; a device
+  value asks once). Files: `EngineController` (as `test-step`), `FlowRunner`, canvas menu. Done when: Runtime tests (parallel
+  branches before the start point, a failure link whose source was not run).
+- [ ] T27.5 Mistyped settings become warnings (Sonnet, S-M; parallel-safe). Unknown YAML keys → Problems, with the nearest known name.
+  Files: `Core/Yaml`. Done when: tests per level (flow, step, trigger, library, settings); the ARCHITECTURE open question is deleted.
+- [ ] T27.6 Repeat (Opus, M). `flow.run`: `repeat` 1 to 50, `until: works|fails`, `pause`. Done when: Runtime tests (stops early,
+  cancel between rounds, one history record with the round count), D-entry (D-063's revisit note).
+- [ ] T27.7 Report (Sonnet, S; parallel-safe). `dctl doctor [file]` and About › "Save a report". Done when: a test proves no credential
+  value, header value or Sensitive value is in the zip.
+- [ ] T27.8 Scripting output (Sonnet, S; parallel-safe). `--json` on list / status / history / devices / check; `dctl flag`; `dctl pause`.
+- [ ] T27.9 Gate (Sonnet, S).
+
+## M28 Needs your yes (each row reverses a recorded "No" or "later", or costs money: answer per row, any order)
+A yes becomes a superseding D-entry in that row's PR. Reasons for and against: GAPS §4 and §5. Ranked by expected use.
+- [ ] T28.1 Power: `pc.power` Lock / Sleep / Hibernate / Shut down / Restart / Sign out (Sonnet, S). Reverses REVIEW §3 "System: No".
+- [ ] T28.2 Sound: Toggle on `audio.mute` (+ value `muted`), `audio.changeVolume`, check `audio.muted` (Sonnet, S). Reverses REVIEW §3 Audio "No".
+- [ ] T28.3 Clipboard: `clipboard.set`, `clipboard.get` (Sonnet, S). Reverses REVIEW §3 "clipboard: No".
+- [ ] T28.4 Press keys: `input.keys`, later "Type text" (Opus, M). Reverses REVIEW §3 "keyboard macros: No". No recorder, mouse or hotstrings.
+- [ ] T28.5 Windows: `window.move`, `window.state`, `window.focus` (Opus, L; design first). Reverses REVIEW §3 "window moving/focus: No".
+- [ ] T28.6 Ask for text or a number (Opus, M-L). Reverses "text later" in D-107 / D-131: the first window of ours that takes keyboard focus (after a click).
+- [ ] T28.7 Theme: `pc.theme` Dark / Light (Sonnet, S). Reverses REVIEW §3 "Windows toggles: examples instead".
+- [ ] T28.8 Keep awake: `pc.keepAwake` (Sonnet, S-M). New engine-held state between flows.
+- [ ] T28.9 Monitor brightness and input over DDC/CI (Opus, M; spike first). REVIEW §3 had brightness as "spike, low".
+- [ ] T28.10 Flags that survive a restart (Sonnet, S). D-029's revisit note.
+- [ ] T28.11 MQTT: remote start, publish, state (Opus, L; spike on idle = zero first). New; the only resident network connection.
+- [ ] T28.12 Signed installer, then winget (yours: cost and an identity check; the workflow change is Sonnet, S).
