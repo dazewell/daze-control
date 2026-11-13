@@ -22,6 +22,9 @@ public class ProcessOpenValidationTests
 
     [Theory]
     [InlineData("javascript:alert(1)")]
+    [InlineData("javascript:{@time}")]
+    [InlineData("https:")]
+    [InlineData("ms-settings:")]
     [InlineData("ms-msdt:/id x")]
     [InlineData("\"C:\a.exe\" -x")]
     public void TargetsItNeverOpensAreErrors(string target)

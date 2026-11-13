@@ -879,7 +879,7 @@ public static class StepValues
         ArgumentNullException.ThrowIfNull(library);
         var result = new StringBuilder();
         if (rule == FillRule.Target)
-            rule = SchemeOf(text) is null ? FillRule.Argument : FillRule.Url;
+            rule = SchemeOf(text.Trim(' ')) is null ? FillRule.Argument : FillRule.Url;
         foreach (var part in Split(text))
         {
             if (part.Ref is not { } r)

@@ -207,13 +207,17 @@ public static partial class ConfigValidator
         {
             foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == "process.open"))
             {
-                if (!step.With.TryGetValue("target", out var setting) || setting is not ScalarParam { Text: var text } || text.Contains('{', StringComparison.Ordinal))
+                if (!step.With.TryGetValue("target", out var setting) || setting is not ScalarParam { Text: var text })
                     continue;
-                var scheme = StepValues.SchemeOf(text.Trim());
+                var written = text.Trim(' ');
+                var scheme = StepValues.SchemeOf(written);
+                var path = $"flows.{flow.Id}.nodes.{step.Id}.with.target";
                 if (scheme is not null && StepValues.RefusedSchemes.Contains(scheme))
-                    problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.with.target", $"Open file or address doesn't open {scheme}: addresses.", flow.Id));
-                else if (text.Any(c => char.IsControl(c) || c == '"'))
-                    problems.Add(new(Severity.Error, $"flows.{flow.Id}.nodes.{step.Id}.with.target", "What to open can't hold quotes or line breaks. It is one file, folder or address, not a command.", flow.Id));
+                    problems.Add(new(Severity.Error, path, $"Open file or address doesn't open {scheme}: addresses.", flow.Id));
+                else if (scheme is not null && written.Length == scheme.Length + 1)
+                    problems.Add(new(Severity.Error, path, $"Add what to open after \"{scheme}:\".", flow.Id));
+                else if (!written.Contains('{', StringComparison.Ordinal) && text.Any(c => char.IsControl(c) || c == '"'))
+                    problems.Add(new(Severity.Error, path, "What to open can't hold quotes or line breaks. It is one file, folder or address, not a command.", flow.Id));
             }
         }
     }

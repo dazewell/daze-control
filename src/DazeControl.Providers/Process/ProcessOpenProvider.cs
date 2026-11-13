@@ -36,7 +36,7 @@ public sealed class ProcessOpenProvider(IShellOpener shell) : IStepProvider
     public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken)
     {
         // %VAR% in the written text only: a value's % was guarded when it was filled (D-129).
-        var target = StepValues.Unguard(Environment.ExpandEnvironmentVariables(context.RequiredText("target"))).Trim();
+        var target = StepValues.Unguard(Environment.ExpandEnvironmentVariables(context.RequiredText("target"))).Trim(' ');
         Validate(target);
         cancellationToken.ThrowIfCancellationRequested();
         shell.Open(target);
