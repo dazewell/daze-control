@@ -108,6 +108,8 @@ public class NetworkWakeTests
         Assert.Equal("192.168.1.255", WindowsWakeNetwork.BroadcastOf(IPAddress.Parse("192.168.1.77"), IPAddress.Parse("255.255.255.0"))!.ToString());
         Assert.Equal("10.255.255.255", WindowsWakeNetwork.BroadcastOf(IPAddress.Parse("10.3.4.5"), IPAddress.Parse("255.0.0.0"))!.ToString());
         Assert.Equal("172.16.3.255", WindowsWakeNetwork.BroadcastOf(IPAddress.Parse("172.16.2.9"), IPAddress.Parse("255.255.252.0"))!.ToString());
-        Assert.Null(WindowsWakeNetwork.BroadcastOf(IPAddress.Parse("10.0.0.1"), IPAddress.Parse("255.255.255.255")));
+        Assert.Null(WindowsWakeNetwork.BroadcastOf(IPAddress.Parse("10.0.0.1"), IPAddress.Parse("255.255.255.255"))); // /32
+        Assert.Null(WindowsWakeNetwork.BroadcastOf(IPAddress.Parse("10.0.0.0"), IPAddress.Parse("255.255.255.254"))); // /31: no broadcast
+        Assert.Equal("10.0.0.3", WindowsWakeNetwork.BroadcastOf(IPAddress.Parse("10.0.0.1"), IPAddress.Parse("255.255.255.252"))!.ToString()); // /30 is the smallest
     }
 }

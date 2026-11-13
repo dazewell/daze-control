@@ -50,12 +50,13 @@ public sealed class WindowsWakeNetwork : IWakeNetwork
         return targets;
     }
 
-    /// <summary>The address with every host bit set; null for a mask without host bits (/32).</summary>
+    /// <summary>The address with every host bit set; null for a /31 or /32 (no broadcast address).</summary>
     public static IPAddress? BroadcastOf(IPAddress address, IPAddress mask)
     {
         var a = address.GetAddressBytes();
         var m = mask.GetAddressBytes();
-        if (a.Length != 4 || m.Length != 4 || m.All(b => b == 0xFF))
+        // A /31 link has no broadcast (the all-ones address is the peer host) and a /32 has nobody to reach: two host bits at least.
+        if (a.Length != 4 || m.Length != 4 || m.Sum(b => System.Numerics.BitOperations.PopCount(b)) > 30)
             return null;
         return new IPAddress(a.Select((b, i) => (byte)(b | ~m[i])).ToArray());
     }
