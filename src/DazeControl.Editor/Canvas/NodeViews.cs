@@ -63,6 +63,12 @@ internal abstract class NodeView : Grid
 
     public CanvasNodeViewModel Node { get; }
 
+    /// <summary>
+    /// The view's screen rect for UI Automation and whether it is off screen, through the canvas camera (F-043); null
+    /// before the canvas can tell (no viewport yet). The default peer rect ignores Host's camera transform.
+    /// </summary>
+    public Func<NodeView, (Windows.Foundation.Rect Bounds, bool Offscreen)?>? ScreenBounds { get; set; }
+
     public bool IsCard => this is CardView;
 
     public abstract void Refresh(bool showDetails);
@@ -333,4 +339,10 @@ internal sealed partial class NodePeer(NodeView owner) : FrameworkElementAutomat
     protected override string GetClassNameCore() => owner.IsCard ? "Card" : "Step";
 
     protected override bool IsKeyboardFocusableCore() => false;
+
+    protected override Windows.Foundation.Rect GetBoundingRectangleCore() =>
+        owner.ScreenBounds?.Invoke(owner) is { } screen ? screen.Bounds : base.GetBoundingRectangleCore();
+
+    protected override bool IsOffscreenCore() =>
+        owner.ScreenBounds?.Invoke(owner) is { } screen ? screen.Offscreen : base.IsOffscreenCore();
 }

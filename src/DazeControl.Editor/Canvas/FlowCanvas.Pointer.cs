@@ -31,9 +31,19 @@ public sealed partial class FlowCanvas
     private static bool ShiftDown() =>
         InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down);
 
+    private static bool SpaceDown() =>
+        InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Space).HasFlag(CoreVirtualKeyStates.Down);
+
     private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (_viewModel is null || _gesture != Gesture.None)
+        if (_viewModel is null)
+            return;
+        // A gesture whose release never reached the canvas (a right press released over a canvas button, which handles
+        // it) used to block every later press until the pointer left the canvas (F-033).
+        if (_gesture != Gesture.None && PanInput.IsStale(true, _gesture == Gesture.RightPan && _rightPan is { IsPanning: false },
+                Root.PointerCaptures?.Any(p => p.PointerId == _pointerId) == true))
+            CancelGesture();
+        if (_gesture != Gesture.None)
             return;
         var point = e.GetCurrentPoint(Host);
         _rightPan = null; // a swallow no RightTapped consumed must not eat this press's menu
@@ -49,13 +59,16 @@ public sealed partial class FlowCanvas
         var touch = e.Pointer.PointerDeviceType == PointerDeviceType.Touch;
         _portRadius = touch ? 20 : FlowCanvasViewModel.PortRadius; // 40-DIP touch target (UX §5.3)
 
-        if (props.IsMiddleButtonPressed || (_spaceDown && props.IsLeftButtonPressed))
+        // Space counts by its key state, not only when the canvas saw it go down (F-033).
+        var pan = PanInput.OnPress(props.IsLeftButtonPressed, props.IsMiddleButtonPressed, props.IsRightButtonPressed,
+            _spaceDown || SpaceDown(), e.Pointer.PointerDeviceType == PointerDeviceType.Mouse, touch);
+        if (pan == PanPress.Pan)
         {
             _gesture = Gesture.Pan;
         }
-        else if (props.IsRightButtonPressed)
+        else if (pan is PanPress.RightArm or PanPress.Menu)
         {
-            if (e.Pointer.PointerDeviceType == PointerDeviceType.Mouse)
+            if (pan == PanPress.RightArm)
             {
                 // Armed only: a still click falls through to RightTapped (the menus); capture waits for the pan (D-069).
                 _rightPan = NewRightPan();
@@ -310,9 +323,10 @@ public sealed partial class FlowCanvas
     private DazeControl.Core.Layout.Rect BoundsOf(CanvasNodeViewModel node) =>
         _viewModel?.Scene is { } scene && scene.Find(node.Id) is not null ? scene.ShownBounds(node.Id) : node.Bounds;
 
+    /// <summary>Registered with handledEventsToo: a right press released over a canvas button still ends here (F-033).</summary>
     private void OnPointerReleased(object sender, PointerRoutedEventArgs e)
     {
-        if (_viewModel is null || e.Pointer.PointerId != _pointerId)
+        if (_viewModel is null || _gesture == Gesture.None || e.Pointer.PointerId != _pointerId)
             return;
         if (_gesture == Gesture.RightPan)
         {
