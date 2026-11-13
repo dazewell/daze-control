@@ -1245,6 +1245,36 @@ public sealed partial class FlowCanvasViewModel : ObservableObject, IDisposable
         return id;
     }
 
+    /// <summary>The steps "Turn off" acts on: the selected steps and the members of selected cards (D-148).</summary>
+    private List<StepNode> OffTargets(Flow flow)
+    {
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var id in _selected)
+        {
+            if (flow.FindNode(id) is GroupNode card)
+                ids.UnionWith(card.Members);
+            else
+                ids.Add(id);
+        }
+        return [.. flow.Nodes.OfType<StepNode>().Where(s => ids.Contains(s.Id))];
+    }
+
+    /// <summary>Null = nothing to turn off or on; true = every selected step is off (the menu says "Turn on").</summary>
+    public bool? OffState => Flow is { } flow && OffTargets(flow) is { Count: > 0 } steps ? steps.All(s => !s.Enabled) : null;
+
+    /// <summary>
+    /// Ctrl+/ and the menu's "Turn off" / "Turn on" (D-148): every selected step off, or on again when all already are.
+    /// One undo step; the selection and the layout stay as they were (an off step keeps its place).
+    /// </summary>
+    public void ToggleOff()
+    {
+        if (!CanEdit || Flow is not { } flow || OffTargets(flow) is not { Count: > 0 } steps)
+            return;
+        var on = steps.All(s => !s.Enabled);
+        var ids = steps.Select(s => s.Id).ToHashSet(StringComparer.Ordinal);
+        Edit(f => f with { Nodes = [.. f.Nodes.Select(n => n is StepNode s && ids.Contains(s.Id) ? s with { Enabled = on } : n)] });
+    }
+
     /// <summary>Del: the selected steps, reconnecting around them, and the selected edges. One undo step.</summary>
     public void DeleteSelection()
     {

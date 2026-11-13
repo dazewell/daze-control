@@ -167,6 +167,12 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         _ => "If this fails, the whole flow stops.",
     };
 
+    /// <summary>The step runs; off = <c>enabled: false</c> (D-148): it does nothing and the steps after it go on.</summary>
+    [ObservableProperty]
+    public partial bool StepOn { get; set; } = true;
+
+    partial void OnStepOnChanged(bool value) => EditStep(s => s with { Enabled = value });
+
     /// <summary>0 Stop, 1 Skip, 2 Run the next steps anyway (RadioButtons' SelectedIndex).</summary>
     [ObservableProperty]
     public partial int PolicyIndex { get; set; }
@@ -411,6 +417,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
 
     private void LoadStep(StepNode step)
     {
+        StepOn = step.Enabled;
         var descriptor = ProviderCatalog.Find(step.Step);
         Glyph = FlowItemViewModel.DecodeGlyph(descriptor?.Glyph ?? "E9CE");
         Kind = descriptor is null ? step.Step : $"{CanvasNodeViewModel.Group(descriptor.Area)} › {descriptor.Title}";

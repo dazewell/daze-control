@@ -347,6 +347,10 @@
                 <TextBox x:Name="NameBox" Text="{x:Bind ViewModel.Name, Mode=TwoWay}" PlaceholderText="{x:Bind ViewModel.NamePlaceholder, Mode=OneWay}"
                          FontWeight="SemiBold" AutomationProperties.Name="Name" IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}"
                          KeyDown="OnCommitOnEnter" />
+                <!-- Turn a step off (D-148): it does nothing, the steps after it still run -->
+                <ToggleSwitch Header="Run this step" IsOn="{x:Bind ViewModel.StepOn, Mode=TwoWay}" OnContent="On"
+                              OffContent="Off: does nothing, the steps after it still run" AutomationProperties.Name="Run this step"
+                              IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsStep, Mode=OneWay}" />
 
                 <!-- Test this step -->
                 <StackPanel Visibility="{x:Bind ViewModel.IsStep, Mode=OneWay}" Spacing="8" motion:Motion.Animate="True">
