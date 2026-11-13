@@ -1884,6 +1884,27 @@ Status: accepted, built
 - Why: G-29, "wake the NAS, wait until it answers" with D-139 and Try again. Why not follow redirects: the first answer is the answer, and a login redirect must not hide a down service (set `status` to count 3xx). Why not reuse `http.request`'s client: it is resident by design and sends auth; a check needs neither.
 - Not verified live: a real ping or web request over the network (tests use a fake probe, a loopback listener and a fake HTTP handler).
 
+## D-148 · 2026-11-13 · A step turned off (`enabled: false`) ends Succeeded at once in the scheduler; "n of m" leaves it out (T25.4)
+Status: accepted (amends D-127's count)
+- Decision: `StepNode.Enabled` (YAML `enabled: false`, written only when off, so existing flows save byte-identical; a card
+  can't be off, its members can). The scheduler never hands an off step to the runner: when it would start, it ends
+  **Succeeded** with 0 attempts, so success and always links fire, failure links never do (its fallback ends Not needed),
+  and a card waits for its other members (all off = done at once). An off step after a failure is Skipped like any other.
+  It gives no values: a use without `|fallback` warns "… is turned off, so X is empty", a device setting warns that the
+  step fails; a step after a turned-off Stop flow isn't warned about. `NodeResult.TurnedOff` (null unless true) makes
+  Runs, the dry run and the canvas overlay say "Turned off" (grey, no bar). `RunProgress` counts only steps that are on;
+  the flow card's "17 steps" still counts every step. Editor: pill at 60 % with disabled text and a "Turned off" badge,
+  "Turned off" in its name and Outline line; menu "Turn off" / "Turn on" and Ctrl+/ on the selection (cards = their
+  members; all off → on, else off), the inspector's "Run this step" switch; one undo step each; Copy and Duplicate keep it.
+- Why: "does nothing, counts as done" is exactly a success with no side effect, so D-112 joins, cards, fallbacks and the
+  run's outcome need no new case; a new `NodeOutcome` would touch every reader of history and the pipe. Doing it in the
+  scheduler (not as a runner short-cut like Only if, D-081) keeps it out of locks, timeouts and NodeStarted, and makes
+  the semantics testable without threads.
+- Why not "Skipped" (HA style): a skip propagates and makes the run partial; the user turned it off on purpose. Why not
+  count it in m and finish it at once: the bar would jump at the start for work that never happens. Why not
+  Ctrl+Shift+D / a plain key: Ctrl+D is Duplicate and "/" is Add a step; Ctrl+/ is "comment out" in code editors.
+- Revisit if: cards need turning off as one (today: select the card, its members turn off).
+
 ## D-147 · 2026-11-13 · File events: `file.created` / `file.changed` / `file.deleted`, one watch per folder, no timer while idle (T26.5)
 Status: accepted, built (extends D-107, D-135; pattern of D-136 / D-143; amends the G-07 sketch)
 - Decision: `on: file.*` with `path:` (the folder, required) and `filter:` (a file name pattern). `path` is read through one `TriggerText.ResolveFolder` (reader, validator, runtime): `%VARS%` expanded, a full path only, any `..` segment, device paths and an unset `%NAME%` refused, trailing separator dropped. `filter` is `*` / `?`, any case, at most 128 characters, file name only, matched by one linear scan with a single backtrack point (never a regex: no ReDoS). Direct children only, no subfolders. `{@event}` = the file's full path capped at 1000 characters; a name is data in `{@event}`, never shell text, not Sensitive.
@@ -1931,7 +1952,7 @@ Status: accepted, built (extends D-129, D-137; DESIGN's old "whole value in a nu
 - Why: G-71 (PAD variables everywhere); battery or a web status into a volume. Why not a per-setting opt-in flag: it would touch the catalog (parallel work) and every number setting has a range the runner checks anyway. Why not clamp a value into range: a wrong value silently changing the volume is worse than a sentence. Why not Duration: not asked; a duration is edited in seconds.
 - Not verified live: the XAML (button, label, pill in light/dark/high contrast, Narrator), a real run that sets the volume from a value.
 
-## D-148 · 2026-11-13 · "Run from this step": the saved flow from one unit, the rest counts as done without running (T27.4)
+## D-149 · 2026-11-13 · "Run from this step": the saved flow from one unit, the rest counts as done without running (T27.4)
 Status: accepted, built
 - Decision: `run` takes `node` (editor step menu "Run from this step"; dry runs too). The scheduler starts that unit (a card member
   starts its card) whatever its incoming edges say; units reachable from it run as in a whole run; every other unit (earlier

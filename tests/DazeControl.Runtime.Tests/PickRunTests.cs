@@ -152,7 +152,7 @@ public sealed class PickRunTests : IDisposable
     [Fact]
     public async Task StartedAfterThePickTheDeviceStepFailsClearly()
     {
-        // T27.4, D-148: the Pick counts as done but gave nothing; a device setting never falls back (D-117).
+        // T27.4, D-149: the Pick counts as done but gave nothing; a device setting never falls back (D-117).
         var loaded = PickThenUse();
         var result = await Bound(Runner().RunAsync(loaded.Flow, loaded.Library, [], TestContext.Current.CancellationToken, "Editor", startAt: "use"));
 

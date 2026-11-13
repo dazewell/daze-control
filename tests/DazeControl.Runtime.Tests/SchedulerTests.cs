@@ -25,7 +25,7 @@ public class SchedulerTests
     /// Runs the scheduler to the end: steps complete in start order with the given results (default success),
     /// each "wave" being what was ready at once. Returns the waves.
     /// </summary>
-    private static List<string[]> Run(Scheduler scheduler, params (string Step, StepResult Result)[] results)
+    internal static List<string[]> Run(Scheduler scheduler, params (string Step, StepResult Result)[] results)
     {
         var lookup = results.ToDictionary(r => r.Step, r => r.Result);
         var waves = new List<string[]>();
@@ -50,7 +50,7 @@ public class SchedulerTests
         return waves;
     }
 
-    private static void AssertOutcomes(Scheduler scheduler, params (string Id, NodeOutcome Outcome)[] expected) =>
+    internal static void AssertOutcomes(Scheduler scheduler, params (string Id, NodeOutcome Outcome)[] expected) =>
         Assert.Equal(expected.OrderBy(e => e.Id), scheduler.Outcomes.Select(o => (o.Key, o.Value)).OrderBy(e => e.Key));
 
     [Fact]
@@ -455,7 +455,7 @@ public class SchedulerTests
         Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
     }
 
-    // ---- "Run from this step" (T27.4, D-148) ----
+    // ---- "Run from this step" (T27.4, D-149) ----
 
     [Fact]
     public void StartAtRunsThatStepAndWhatFollowsAndCountsTheRestAsDone()
@@ -524,6 +524,16 @@ public class SchedulerTests
         Assert.True(scheduler.IsStopped);
         Assert.Equal(NodeOutcome.Cancelled, scheduler.Outcomes["c"]);
         Assert.Equal(FlowOutcome.Failed, scheduler.Result);
+    }
+
+    [Fact]
+    public void StartingAtATurnedOffStepGoesOnAfterIt()
+    {
+        // D-148 meets D-149: the start step is off, so it ends Succeeded at once and what follows runs.
+        var scheduler = new Scheduler(Flow(Step("a"), Step("b", "after: [a], enabled: false"), Step("c", "after: [b]")), startAt: "b");
+
+        Assert.Equal([["c"]], Run(scheduler));
+        AssertOutcomes(scheduler, ("a", NodeOutcome.Succeeded), ("b", NodeOutcome.Succeeded), ("c", NodeOutcome.Succeeded));
     }
 
     [Fact]

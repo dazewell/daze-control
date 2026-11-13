@@ -52,6 +52,7 @@ public static class RunWords
         var took = showDuration && node.Attempts > 0 ? " · " + Seconds(node.Duration) : "";
         return node.Outcome switch
         {
+            NodeOutcome.Succeeded when node.TurnedOff == true => new(NodeRunState.Skipped, "Turned off", order), // D-148
             NodeOutcome.Succeeded when node.SkippedBecause is { Length: > 0 } why => new(NodeRunState.Succeeded, "Skipped: " + why, order, true),
             NodeOutcome.Succeeded => new(NodeRunState.Succeeded, showDuration ? Seconds(node.Duration) : "", order),
             NodeOutcome.Failed => new(NodeRunState.Failed, "Didn't work" + took, order),

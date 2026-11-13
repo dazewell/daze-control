@@ -287,7 +287,11 @@ public sealed partial class RunDetailViewModel : ObservableObject
     private static List<string> Lines(NodeResult node, string title)
     {
         // "Skipped: Technics was already connected" (D-081); a skip is still a Succeeded record.
-        var lines = new List<string> { node.SkippedBecause is { Length: > 0 } why ? $"Skipped: {why}" : $"{title}: {Describe(node.Outcome)}" };
+        var lines = new List<string>
+        {
+            node.TurnedOff == true ? $"{title}: Turned off" // D-148
+            : node.SkippedBecause is { Length: > 0 } why ? $"Skipped: {why}" : $"{title}: {Describe(node.Outcome)}",
+        };
         if (node.Attempts > 0)
             lines.Add(node.Attempts == 1
                 ? $"Started at {RunWords.Seconds(node.Start)}, took {RunWords.Seconds(node.Duration)}."

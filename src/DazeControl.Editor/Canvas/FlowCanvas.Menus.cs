@@ -104,6 +104,8 @@ public sealed partial class FlowCanvas
             menu.Items.Add(Item("Move up", "", () => vm.MoveInColumn(anchor.Id, -1), "Alt+Up", editable));
             menu.Items.Add(Item("Move down", "", () => vm.MoveInColumn(anchor.Id, 1), "Alt+Down", editable));
         }
+        if (vm.OffState is { } off) // D-148: one item; it says what it will do to the whole selection
+            menu.Items.Add(Item(off ? "Turn on" : "Turn off", off ? "" : "", vm.ToggleOff, "Ctrl+/", editable));
         if (selected.Count == 1 && anchor is not null && RunFrom is { } runFrom)
             menu.Items.Add(Item("Run from this step", "", () => runFrom(anchor.Id), enabled: CanRunFrom?.Invoke() == true));
         if (vm.SelectedStepType is { } stepType)

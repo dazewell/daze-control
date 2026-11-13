@@ -167,7 +167,7 @@ public sealed class RunOverlayViewModelTests : IDisposable
     [Fact]
     public async Task RunFromThisStepAsksTheEngineAndShowsTheStepsBeforeAsSkipped()
     {
-        // T27.4, D-148: the engine runs the saved flow from "out"; "bt" counted as done without running.
+        // T27.4, D-149: the engine runs the saved flow from "out"; "bt" counted as done without running.
         await _run.RunFromCommand.ExecuteAsync("out");
         Raise(EventKinds.RunStarted);
         Raise(EventKinds.NodeFinished, result: new NodeResult("bt", NodeOutcome.Succeeded, Attempts: 0) { SkippedBecause = "this run started at Set default device" });

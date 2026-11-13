@@ -84,7 +84,7 @@ public sealed class FlowRunner
     /// <param name="trigger">What started the run ("Schedule · 22:30"): prompts there default to stopping (D-107).</param>
     /// <param name="inputs">Values from outside (the command line, T24.9), checked by the caller; null = the defaults.</param>
     /// <param name="eventDetail">The device, Wi-Fi or cable name an event trigger brought (<c>{@event}</c>, T24.6); empty otherwise.</param>
-    /// <param name="startAt">"Run from this step" (T27.4, D-148): the step to start at, checked by the caller; null = the whole flow.</param>
+    /// <param name="startAt">"Run from this step" (T27.4, D-149): the step to start at, checked by the caller; null = the whole flow.</param>
     public Task<RunResult> RunAsync(Flow flow, Library library, IReadOnlyList<string> chain, CancellationToken cancellationToken, string trigger = "",
         IReadOnlyDictionary<string, string>? inputs = null, string eventDetail = "", string? startAt = null)
     {
@@ -168,7 +168,10 @@ public sealed class FlowRunner
             ? new NodeResult(id, scheduler.Outcomes[id], r.Attempts, r.Error, r.Duration, r.Start, order[id],
                 r.Retries.Count > 0 ? [.. r.Retries] : null) { Called = r.Called, Summary = r.Summary, SkippedBecause = r.SkippedBecause, Values = r.Values, Used = r.Used }
             : scheduler.NotRun.Contains(id) ? new NodeResult(id, scheduler.Outcomes[id], Attempts: 0) { SkippedBecause = startWords }
-            : new NodeResult(id, scheduler.Outcomes[id], Attempts: 0);
+            : new NodeResult(id, scheduler.Outcomes[id], Attempts: 0)
+            {
+                TurnedOff = scheduler.IsOff(id) && scheduler.Outcomes[id] == NodeOutcome.Succeeded ? true : null,
+            };
 
         void ReportFinished()
         {

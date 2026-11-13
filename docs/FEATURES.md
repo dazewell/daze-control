@@ -56,6 +56,11 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
 
 **Wait until:** a check step with "Try again" and "Wait between tries" waits for a fact (a program running, a file, a connection) before the next step; no separate step (D-081). The PowerShell step's examples also cover sleep, power plan and dark mode.
 
+**Turn a step off (T25.4, D-148):** `enabled: false` on a step (menu "Turn off", Ctrl+/, or the inspector's "Run this
+step"): it does nothing and counts as done, the steps after it run, its failure links never fire, its values are empty
+(a written fallback shows; the editor warns otherwise). Dimmed on the canvas, "Turned off" in Runs and the dry run, left
+out of "n of m".
+
 **M14 (designed, D-080..D-082):** per-step-type defaults for Try again / Wait between tries / Give up after / If it fails
 (`settings.stepDefaults`, set in Settings or "Use these for all <type> steps"); per-step **Only if…** (skips a step that has
 nothing to do, e.g. Connect when already connected; the flow carries on) and **Check** steps (Bluetooth, audio, screen layout, Android connection, program,
@@ -68,7 +73,7 @@ Windows Credential Manager, only the name in YAML). Each has a Test action. Audi
 
 **F5 Runtime** — DAG scheduler with parallel branches, engine-wide resource locks, timeouts + cancellation
 on every step, retries, run events stream, run history (last 100, persisted), dry run. **Run from this step** (canvas
-menu, D-148): a real run of the saved flow starting at one step; the steps before it and on other branches count as done
+menu, D-149): a real run of the saved flow starting at one step; the steps before it and on other branches count as done
 without running ("Skipped: this run started at …"), their values are missing (fallbacks; a device value fails the step).
 
 **F6 Feedback** — run pop-up (no-activate, acrylic, flow name, progress, failure summary, position/duration

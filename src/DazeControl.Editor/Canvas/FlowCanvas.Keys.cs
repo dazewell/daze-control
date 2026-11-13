@@ -47,7 +47,7 @@ public sealed partial class FlowCanvas
 
     /// <summary>
     /// The edit shortcuts the canvas and the Outline view share (UX §5.2): Ctrl+G, Ctrl+Shift+G, Ctrl+Z/Y, Ctrl+C/V/D,
-    /// Del and "/". False when <paramref name="key"/> isn't one of them.
+    /// Del, "/" and Ctrl+/ (turn off / on, D-148). False when <paramref name="key"/> isn't one of them.
     /// </summary>
     public bool RunCommandKey(VirtualKey key)
     {
@@ -86,6 +86,9 @@ public sealed partial class FlowCanvas
                     _ = ConfirmDeleteAsync(vm);
                 else
                     vm.DeleteSelection();
+                break;
+            case (VirtualKey)191 or VirtualKey.Divide when ctrl && vm.CanEdit: // Ctrl+/ like "comment out" in a code editor
+                vm.ToggleOff();
                 break;
             case (VirtualKey)191 or VirtualKey.Divide when vm.CanEdit: // "/" (VK_OEM_2)
                 ShowQuickAdd(null, [.. vm.SelectedIds], null);
