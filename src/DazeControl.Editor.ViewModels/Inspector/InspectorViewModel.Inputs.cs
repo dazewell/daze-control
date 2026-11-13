@@ -72,8 +72,11 @@ public sealed partial class InspectorViewModel
             var input = flow.Inputs[row.Name];
             row.Load(input);
             row.SetNoBoundDevices(input.Kind == LibraryKind.Bound && !LibraryDevices.Items(library, LibraryKind.Bound).Any());
-            row.SetDevices(LibraryDevices.Options(input.Kind, library, _live.GetValueOrDefault(input.Kind), input.Default,
-                required: true, canCapture: false), input.Default);
+            if (input.Kind is { } kind)
+            {
+                row.SetDevices(LibraryDevices.Options(kind, library, _live.GetValueOrDefault(kind), input.Default,
+                    required: true, canCapture: false), input.Default);
+            }
             var path = $"flows.{flow.Id}.inputs.{row.Name}";
             row.Error = _session.Problems.FirstOrDefault(p => p.Severity == Severity.Error
                 && (p.Path == path || p.Path.StartsWith(path + ".", StringComparison.Ordinal)))?.Message;
@@ -124,19 +127,27 @@ public sealed partial class InspectorViewModel
         EditInput(name, (f, input) => input.Label == label ? f : WithInput(f, name, input with { Label = label }));
     }
 
-    /// <summary>A new kind gets that kind's first device; steps that used the input keep its old default (#61).</summary>
-    internal void SetInputKind(string name, LibraryKind kind)
+    /// <summary>
+    /// A new kind gets that kind's first device (a text input: no text); steps that used the input keep its old default (#61).
+    /// </summary>
+    /// <param name="kind">Null = text (T23.7).</param>
+    internal void SetInputKind(string name, LibraryKind? kind)
     {
         if (Flow is not { } flow || !flow.Inputs.TryGetValue(name, out var input) || input.Kind == kind)
             return;
         InputTip = Tip(flow, name, input);
-        var first = LibraryDevices.Items(_session.Current.Library, kind).Select(i => i.Key).FirstOrDefault() ?? "";
+        var first = kind is { } k ? LibraryDevices.Items(_session.Current.Library, k).Select(i => i.Key).FirstOrDefault() ?? "" : "";
         var label = FlowInputViewModel.KindNames.Contains(input.Label)
-            ? UniqueLabel(flow, FlowInputViewModel.KindNames[Array.IndexOf(FlowInputViewModel.Kinds, kind)])
+            ? UniqueLabel(flow, FlowInputViewModel.KindNames[kind is { } named ? Array.IndexOf(FlowInputViewModel.Kinds, named) : FlowInputViewModel.TextIndex])
             : input.Label;
         EditFlow(f => WithInput(FlowInputs.Detach(f, name), name, new FlowInput(kind, label, first)));
-        _ = RefreshDevicesAsync(kind);
+        if (kind is { } refresh)
+            _ = RefreshDevicesAsync(refresh);
     }
+
+    /// <summary>A text input's default text (T23.7), as typed.</summary>
+    internal void SetInputText(string name, string text) =>
+        EditInput(name, (f, input) => !input.IsText || input.Default == text ? f : WithInput(f, name, input with { Default = text }));
 
     internal void SetInputAsk(string name, bool ask) =>
         EditInput(name, (f, input) => input.Ask == ask ? f : WithInput(f, name, input with { Ask = ask }));
@@ -184,9 +195,10 @@ public sealed partial class InspectorViewModel
         EditFlow(f => FlowInputs.Detach(f, name) with { Inputs = new(f.Inputs.Where(i => i.Key != name)) });
     }
 
-    private string? Tip(Flow flow, string name, FlowInput input) => FlowInputs.IsUsed(flow, name)
-        ? $"Steps that used {input.Label} now use {LibraryDevices.NameOf(_session.Current.Library, input.Kind, input.Default)}."
-        : null;
+    private string? Tip(Flow flow, string name, FlowInput input) => !FlowInputs.IsUsed(flow, name) ? null
+        : input.Kind is { } kind ? $"Steps that used {input.Label} now use {LibraryDevices.NameOf(_session.Current.Library, kind, input.Default)}."
+        : input.Default.Length == 0 ? $"Steps that used {input.Label} now leave it out."
+        : $"Steps that used {input.Label} now show \"{input.Default}\".";
 
     // ---- "Run a flow": the called flow's inputs ----
 
@@ -196,9 +208,9 @@ public sealed partial class InspectorViewModel
         var called = target is { Length: > 0 } ? _session.Current.Flows.FirstOrDefault(f => f.Id == target) : null;
         CalledFlowId = called?.Id;
         var given = FlowInputs.Given(step);
-        if (field.SetCallInputs(called?.Inputs.ToList() ?? [], (name, input) => new CallInputViewModel(name, input, OnCallInputPicked)))
+        if (field.SetCallInputs(called?.Inputs.ToList() ?? [], (name, input) => new CallInputViewModel(name, input, OnCallInputPicked, OnCallInputTyped)))
         {
-            foreach (var kind in field.CallInputs.Select(r => r.Input.Kind).Distinct())
+            foreach (var kind in field.CallInputs.Where(r => r.IsDevice).Select(r => r.Kind).Distinct())
                 _ = RefreshDevicesAsync(kind);
         }
         var library = _session.Current.Library;
@@ -207,7 +219,13 @@ public sealed partial class InspectorViewModel
         foreach (var row in field.CallInputs)
         {
             var current = given.GetValueOrDefault(row.Name);
-            var kind = row.Input.Kind;
+            row.Error = errors.FirstOrDefault(p => p.Path == path + row.Name)?.Message;
+            if (row.IsText)
+            {
+                row.LoadText(current ?? "");
+                continue;
+            }
+            var kind = row.Kind;
             List<DeviceOption> options =
             [
                 new(DeviceSource.None, null, "Its default: " + LibraryDevices.NameOf(library, kind, row.Input.Default), "", LibraryDevices.Glyph(kind)),
@@ -215,7 +233,6 @@ public sealed partial class InspectorViewModel
                     Flow?.Inputs, FromThisFlowsInputs, DevicesBefore(kind)),
             ];
             row.SetDevices(options, current);
-            row.Error = errors.FirstOrDefault(p => p.Path == path + row.Name)?.Message;
         }
         // An input passed that the called flow doesn't have (anymore): said under the field, there's no picker for it.
         if (field.Error is null && errors.FirstOrDefault(p => field.CallInputs.All(r => path + r.Name != p.Path)) is { } stale)
@@ -237,21 +254,34 @@ public sealed partial class InspectorViewModel
                 value = key;
                 break;
             case DeviceSource.Windows when option.Device is { } device:
-                (var library, value) = LibraryDevices.Add(_session.Current.Library, row.Input.Kind, device);
+                (var library, value) = LibraryDevices.Add(_session.Current.Library, row.Kind, device);
                 _session.Update(c => c with { Library = library });
                 step = Node as StepNode ?? step;
                 break;
             default:
                 return;
         }
+        PassInput(field, step, row.Name, value);
+    }
+
+    /// <summary>A text input's box (T23.7): empty passes nothing, so the called flow's default is used.</summary>
+    private void OnCallInputTyped(CallInputViewModel row, string text)
+    {
+        if (Node is not StepNode step || Fields.FirstOrDefault(f => f.IsCallInputs) is not { } field || !CanEdit)
+            return;
+        PassInput(field, step, row.Name, text.Length == 0 ? null : text);
+    }
+
+    private void PassInput(ParamFieldViewModel field, StepNode step, string name, string? value)
+    {
         var entries = step.With.TryGetValue(FlowInputs.Param, out var old) && old is MapParam map ? map.Entries.ToList() : [];
-        var at = entries.FindIndex(e => e.Key == row.Name);
+        var at = entries.FindIndex(e => e.Key == name);
         if (value is null && at >= 0)
             entries.RemoveAt(at);
         else if (value is not null && at >= 0)
-            entries[at] = KeyValuePair.Create(row.Name, (ParamValue)value);
+            entries[at] = KeyValuePair.Create(name, (ParamValue)value);
         else if (value is not null)
-            entries.Add(KeyValuePair.Create(row.Name, (ParamValue)value));
+            entries.Add(KeyValuePair.Create(name, (ParamValue)value));
         WriteParam(field, entries.Count == 0 ? null : new MapParam(new(entries)));
     }
 

@@ -38,12 +38,14 @@ public sealed partial class InspectorPane : UserControl
             {
                 _viewModel.PropertyChanged -= OnViewModelChanged;
                 _viewModel.InputAdded -= OnInputAdded;
+                _viewModel.OutputAdded -= OnOutputAdded;
             }
             _viewModel = value;
             if (value is not null)
             {
                 value.PropertyChanged += OnViewModelChanged;
                 value.InputAdded += OnInputAdded;
+                value.OutputAdded += OnOutputAdded;
             }
             GlyphGrid.ItemsSource = value?.GlyphOptions;
             Bindings.Update();
@@ -69,6 +71,21 @@ public sealed partial class InspectorPane : UserControl
             row.UpdateLayout();
             row.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = true });
             if (FindName(row, "Input name") is TextBox box && box.Focus(FocusState.Programmatic))
+                box.SelectAll();
+        });
+    }
+
+    /// <summary>"Add a value" (T23.7): as "Add an input", the new row's name box gets the focus.</summary>
+    private void OnOutputAdded(string name)
+    {
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            var index = _viewModel?.Outputs.ToList().FindIndex(o => o.Name == name) ?? -1;
+            if (index < 0 || OutputsList.ContainerFromIndex(index) is not FrameworkElement row)
+                return;
+            row.UpdateLayout();
+            row.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = true });
+            if (FindName(row, $"Name of the value {name}") is TextBox box && box.Focus(FocusState.Programmatic))
                 box.SelectAll();
         });
     }
@@ -356,7 +373,7 @@ public sealed partial class InspectorPane : UserControl
     {
         if (sender is not MenuFlyout { Target: Button { Tag: ParamFieldViewModel field, Parent: Grid { Children: [TextBox box, ..] } } } menu)
             return;
-        FillValueMenu(menu, field, row =>
+        FillValueMenu(menu, field.ValueGroups, row =>
         {
             if (box.Text != field.Text)
                 field.Text = box.Text;
@@ -366,10 +383,25 @@ public sealed partial class InspectorPane : UserControl
         });
     }
 
-    private static void FillValueMenu(MenuFlyout menu, ParamFieldViewModel field, Action<ValueChoice> pick)
+    /// <summary>A flow's value (T23.7): the same list, with every step's values, since all have run when it is filled.</summary>
+    private void OnOutputValuesOpening(object? sender, object e)
+    {
+        if (sender is not MenuFlyout { Target: Button { Tag: FlowOutputViewModel output, Parent: Grid { Children: [TextBox box, ..] } } } menu)
+            return;
+        if (box.Text != output.Text)
+            output.Text = box.Text;
+        FillValueMenu(menu, output.ValueGroups, row =>
+        {
+            var caret = output.InsertValue(row, box.SelectionStart, box.SelectionLength);
+            box.Focus(FocusState.Programmatic);
+            box.Select(Math.Min(caret, box.Text.Length), 0);
+        });
+    }
+
+    private static void FillValueMenu(MenuFlyout menu, IReadOnlyList<ValueGroup> groups, Action<ValueChoice> pick)
     {
         menu.Items.Clear();
-        foreach (var group in field.ValueGroups)
+        foreach (var group in groups)
         {
             var first = !menu.Items.OfType<MenuFlyoutItem>().Any(i => i.Text == group.Section);
             if (menu.Items.Count > 0 && first)
@@ -411,7 +443,7 @@ public sealed partial class InspectorPane : UserControl
             {
                 flyout.Hide();
                 var menu = new MenuFlyout();
-                FillValueMenu(menu, field, choice => field.ChangePill(pill, choice));
+                FillValueMenu(menu, field.ValueGroups, choice => field.ChangePill(pill, choice));
                 menu.ShowAt(button);
             };
             panel.Children.Add(change);
@@ -489,6 +521,12 @@ public sealed partial class InspectorPane : UserControl
     {
         if ((sender as FrameworkElement)?.Tag is FlowInputViewModel input)
             input.Remove();
+    }
+
+    private void OnRemoveOutput(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is FlowOutputViewModel output)
+            output.Remove();
     }
 
     private void OnPolicyHover(object sender, RoutedEventArgs e)

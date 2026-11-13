@@ -365,7 +365,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             .Where(e => called.Inputs.ContainsKey(e.Key))
             .Select(e => FlowInputs.NameIn(new ScalarParam(e.Value)) is { } own
                 ? OwnerOf(step, config)?.Inputs.GetValueOrDefault(own)?.Label ?? e.Value
-                : Inspector.LibraryDevices.NameOf(config.Library, called.Inputs[e.Key].Kind, e.Value))
+                : called.Inputs[e.Key].Kind is { } kind ? Inspector.LibraryDevices.NameOf(config.Library, kind, e.Value)
+                : StepValues.Describe(OwnerOf(step, config) ?? called, e.Value, marks: false))
             .Distinct(StringComparer.Ordinal)
             .Take(2)
             .ToList();
@@ -425,6 +426,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         "power" => "Power",
         "pc" => "This PC",
         "time" => "Time",
+        "text" => "Text",
         _ => area,
     };
 }

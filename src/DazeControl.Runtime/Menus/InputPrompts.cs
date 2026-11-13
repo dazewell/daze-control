@@ -24,7 +24,9 @@ public sealed class InputPrompts(IMenuPresenter presenter)
         var answers = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var (name, input) in flow.Inputs.Where(i => i.Value.Ask && FlowInputs.IsUsed(flow, i.Key)))
         {
-            var items = ItemsOf(library, input.Kind);
+            if (input.Kind is not { } kind)
+                continue; // text is never asked (T23.7; validation refuses it)
+            var items = ItemsOf(library, kind);
             if (items.Count < 2)
                 continue; // nothing to choose between: the default as always
             MenuOutcome outcome;

@@ -9,7 +9,7 @@ public static class ProviderCatalog
 {
     private const string Audio = "E767", Bluetooth = "E702", Display = "E7F4", Process = "E756", Script = "E943",
         Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", File = "E8A5", RunFlow = "E768", MenuGlyph = "E700", AskGlyph = "E897", PickGlyph = "E8FD",
-        Network = "E701", Power = "E83F", Pc = "E7F8", Clock = "E787", Drive = "EDA2";
+        Network = "E701", Power = "E83F", Pc = "E7F8", Clock = "E787", Drive = "EDA2", TextGlyph = "E8D2";
 
     /// <summary>The fact id of <c>BluetoothConnectedProbe</c> (D-081).</summary>
     public const string BluetoothConnected = "bluetooth.connected";
@@ -422,6 +422,20 @@ public static class ProviderCatalog
             new("text", ParamKind.Text, "Message") { Required = true, TakesValues = true },
             new("sound", ParamKind.Boolean, "Play the notification sound") { Default = "true" },
         ]),
+        // T23.7 (DESIGN §9): one composed text, set once per run, that several later steps use as {id.text}. Not a variable.
+        new(MakeTextId, "Make text", TextGlyph, Short,
+        [
+            new(StepValues.MakeTextParam, ParamKind.MultilineText, "Text")
+            {
+                Required = true, TakesValues = true,
+                Help = "Put values from earlier steps together once; later steps use the result as one value.",
+                Examples = [new("A device and the time", "{bt.device} at {@time}")],
+            },
+        ])
+        {
+            Keywords = "compose join combine value string",
+            Values = [new ValueSpec(StepValues.MakeTextParam, ValueKind.Text, "Text") { Help = "The text it made" }],
+        },
         new("flag.set", "Set flag", Flag, Short,
         [
             new("name", ParamKind.Text, "Flag") { Required = true, Suggest = ParamSuggest.Config(ParamSuggest.Flags) },
@@ -560,6 +574,9 @@ public static class ProviderCatalog
 
     /// <summary>The <c>flow.run</c> step type (D-061, D-062).</summary>
     public const string RunFlowId = "flow.run";
+
+    /// <summary>Make text (T23.7): gives its filled <c>text</c> setting as the value <c>text</c>.</summary>
+    public const string MakeTextId = "text.make";
 
     /// <summary>
     /// The read-only check steps (D-081, D-118): they change nothing and fail when the fact isn't what was chosen.

@@ -22,6 +22,12 @@ public sealed record RunResult(FlowOutcome Outcome, ValueList<NodeResult> Nodes)
 
     /// <summary>A step ended the run on purpose (<see cref="StepEndsFlowException"/>): the pop-up shows nothing.</summary>
     public bool Quiet { get; init; }
+
+    /// <summary>The flow's outputs (T23.7), filled when it succeeded (fully or partly); empty otherwise.</summary>
+    public ValueDictionary<string> Outputs { get; init; }
+
+    /// <summary>Outputs that hold a Sensitive value of the run (a step's, or a text input the caller filled from one).</summary>
+    public ValueList<string> SensitiveOutputs { get; init; } = [];
 }
 
 /// <summary>
@@ -102,8 +108,12 @@ public sealed class FlowRunner
 
     private static readonly IReadOnlyDictionary<string, string> NoInputs = new Dictionary<string, string>();
 
+    /// <summary>Finds a called flow for its outputs (T23.7); null when calls don't descend (the dry runner).</summary>
+    private Func<string, Flow?>? CalledFlows => Flows is null ? null : id => Flows.Resolve(id).Flow;
+
+    /// <param name="sensitiveInputs">Text inputs the caller filled from a Sensitive value (T23.7): hidden in errors and summaries.</param>
     private async Task<RunResult> RunCoreAsync(Flow flow, Library library, IReadOnlyDictionary<string, string> inputs, string[] chain,
-        Guid? parentRunId, string? parentNodeId, CancellationToken cancellationToken, string trigger = "")
+        Guid? parentRunId, string? parentNodeId, CancellationToken cancellationToken, string trigger = "", HashSet<string>? sensitiveInputs = null)
     {
         // Inputs resolve before anything runs (D-064): steps, their locks and nested calls only ever see Library keys.
         flow = FlowInputs.Apply(flow, inputs);
@@ -120,10 +130,15 @@ public sealed class FlowRunner
         var order = new Dictionary<string, int>();
         var quiet = false;
         // D-117, D-129: what steps give, only what some setting references; thread-safe for parallel branches.
-        var values = new RunValues(StepValues.Wanted(flow, _catalog), _time) { FlowName = flow.Name, Trigger = trigger };
+        var calls = CalledFlows;
+        var values = new RunValues(StepValues.Wanted(flow, _catalog, calls), _time) { FlowName = flow.Name, Trigger = trigger };
         foreach (var (name, input) in flow.Inputs)
         {
-            values.SetInput(name, input.Kind, (inputs.TryGetValue(name, out var key) ? key : input.Default).Trim());
+            var given = inputs.TryGetValue(name, out var key) ? key : input.Default;
+            if (input.Kind is { } kind)
+                values.SetInput(name, kind, given.Trim());
+            else
+                values.SetInputText(name, given, sensitiveInputs?.Contains(name) == true); // T23.7: as the caller filled it
         }
 
         void Launch(IEnumerable<string> ids)
@@ -176,12 +191,20 @@ public sealed class FlowRunner
             scheduler.Cancel(); // cancelled after the last step finished: the outcome stays as run
         ReportFinished(); // nodes resolved without running (empty flow, cancel before start)
 
+        // Outputs (T23.7) are filled once, from what the steps gave, when the run has worked.
+        var outputs = flow.Outputs.Count == 0 || scheduler.Result is not (FlowOutcome.Succeeded or FlowOutcome.PartiallySucceeded) ? default
+            : DryRun ? new ValueDictionary<string>(flow.Outputs.Select(o => KeyValuePair.Create(o.Key, StepValues.Describe(flow, o.Value, _catalog, flows: calls))))
+            : new ValueDictionary<string>(FlowOutputs.Fill(flow, values, library));
+        var endSecrets = outputs.Count == 0 || DryRun ? [] : StepValues.Secrets(flow, null, values, library, _catalog, calls);
+        ValueList<string> sensitiveOutputs = [.. outputs.Where(o => endSecrets.Any(s => o.Value.Contains(s.Text, StringComparison.Ordinal))).Select(o => o.Key)];
         var result = new RunResult(scheduler.Result, new(flow.Nodes.Select(n => ResultOf(n.Id))))
         {
             RunId = runId,
             Started = started,
             Duration = _time.GetElapsedTime(startedTicks),
             Quiet = quiet,
+            Outputs = outputs,
+            SensitiveOutputs = sensitiveOutputs,
         };
         Raise(new RunFinished(runId, flow.Id, _time.GetUtcNow(), result.Outcome) { ParentRunId = parentRunId, ParentNodeId = parentNodeId, Quiet = quiet });
         return result;
@@ -270,8 +293,8 @@ public sealed class FlowRunner
                 { ParentRunId = scope.ParentRunId, ParentNodeId = scope.ParentNodeId });
             if (waits)
             {
-                var call = await CallAsync(scope, flow, node, ConfigValidator.CalledFlow(node) ?? "", FlowInputs.Given(node), timeout, flowToken)
-                    .ConfigureAwait(false);
+                var call = await CallAsync(scope, flow, node, ConfigValidator.CalledFlow(node) ?? "", FlowInputs.Given(node), timeout, flowToken,
+                    values, library).ConfigureAwait(false);
                 (error, called, quiet) = (call.Error, call.Called ?? called, call.Quiet);
                 if (quiet)
                     return Done(StepResult.Cancelled, attempt, null);
@@ -283,12 +306,12 @@ public sealed class FlowRunner
                     Chain = scope.Chain,
                     Trigger = scope.Trigger,
                     WantsValue = name => values.Wants(node.Id, name),
-                    Variables = node.Step == ProviderCatalog.PowerShellId ? StepValues.Variables(flow, node.Id, values, library, _catalog) : null,
+                    Variables = node.Step == ProviderCatalog.PowerShellId ? StepValues.Variables(flow, node.Id, values, library, _catalog, CalledFlows) : null,
                     RunNested = Flows is null ? null : (target, token) => NestedAsync(scope, flow, node, target, c => called = c, token),
                 };
                 var attemptResult = await AttemptAsync(provider!, context, timeout, flowToken).ConfigureAwait(false);
                 // Sensitive values never reach the log or history (D-014): an error or summary that holds one shows its title.
-                var secrets = DryRun ? [] : StepValues.Secrets(flow, node.Id, values, library, _catalog);
+                var secrets = DryRun ? [] : StepValues.Secrets(flow, node.Id, values, library, _catalog, CalledFlows);
                 error = StepValues.Mask(attemptResult.Error, secrets);
                 summary = StepValues.Mask(context.Summary, secrets);
                 skipped = attemptResult.SkippedBecause;
@@ -392,8 +415,12 @@ public sealed class FlowRunner
     /// One try of a <c>flow.run</c> that waits (DESIGN §2.2): runs the called flow nested and maps its outcome. The
     /// nested run honours the token itself, so it is awaited to the end (its steps are bounded by their own timeouts).
     /// </summary>
+    /// <param name="values">The caller's values: text inputs are filled from them, and a <c>flow.run</c> gives the called
+    /// flow's outputs into them (T23.7). Null for a menu's call.</param>
+    /// <param name="callerLibrary">The library the caller was validated with, for device names in filled text.</param>
     private async Task<CallTry> CallAsync(RunScope scope, Flow caller, StepNode node, string target,
-        IReadOnlyDictionary<string, string> inputs, TimeSpan timeout, CancellationToken flowToken)
+        IReadOnlyDictionary<string, string> inputs, TimeSpan timeout, CancellationToken flowToken,
+        RunValues? values = null, Library? callerLibrary = null)
     {
         var resolved = Flows!.Resolve(target);
         if (FlowCalls.Guard(scope.Chain, target, resolved.Name) is { } loop)
@@ -403,6 +430,22 @@ public sealed class FlowRunner
         // The caller's own $names are already resolved (RunCoreAsync).
         if (FlowInputs.Check(flow, resolved.Library, inputs, caller.Name) is { } missing)
             return new(missing, null, false);
+        HashSet<string>? sensitive = null;
+        if (values is not null && callerLibrary is not null && inputs.Keys.Any(n => flow.Inputs.TryGetValue(n, out var i) && i.IsText))
+        {
+            // Text inputs take values from the caller's steps (T23.7): filled here, so the called flow sees plain text.
+            var secrets = StepValues.Secrets(caller, node.Id, values, callerLibrary, _catalog, CalledFlows);
+            var filled = new Dictionary<string, string>(inputs, StringComparer.Ordinal);
+            foreach (var (name, text) in inputs)
+            {
+                if (!flow.Inputs.TryGetValue(name, out var input) || !input.IsText)
+                    continue;
+                filled[name] = StepValues.FillText(caller, text, values, callerLibrary, singleLine: false);
+                if (secrets.Any(s => filled[name].Contains(s.Text, StringComparison.Ordinal)))
+                    (sensitive ??= new(StringComparer.Ordinal)).Add(name);
+            }
+            inputs = filled;
+        }
         CancellationTokenSource timeoutCancel;
         try
         {
@@ -417,8 +460,8 @@ public sealed class FlowRunner
         RunResult result;
         try
         {
-            result = await RunCoreAsync(flow, resolved.Library, inputs, [.. scope.Chain, flow.Id], scope.RunId, node.Id, linked.Token, scope.Trigger)
-                .ConfigureAwait(false);
+            result = await RunCoreAsync(flow, resolved.Library, inputs, [.. scope.Chain, flow.Id], scope.RunId, node.Id, linked.Token, scope.Trigger,
+                sensitive).ConfigureAwait(false);
         }
 #pragma warning disable CA1031 // a runner bug in the nested run fails this step only
         catch (Exception e)
@@ -427,6 +470,16 @@ public sealed class FlowRunner
             return new(e.Message, null, false);
         }
         var called = new CalledRun(result.RunId, flow.Id, flow.Name, result.Outcome, [.. result.Nodes]);
+        if (values is not null && node.Step == ProviderCatalog.RunFlowId)
+        {
+            // What the called flow gives back (T23.7); an output it no longer has stays missing: the fallback, else empty.
+            foreach (var (name, text) in result.Outputs)
+            {
+                values.SetText(node.Id, name, text);
+                if (result.SensitiveOutputs.Contains(name))
+                    values.MarkSensitive(node.Id, name); // stays hidden in the caller's errors and summaries (D-014)
+            }
+        }
         return result.Outcome switch
         {
             FlowOutcome.Succeeded or FlowOutcome.PartiallySucceeded => new(null, called, false),

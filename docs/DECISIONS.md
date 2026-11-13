@@ -1779,3 +1779,20 @@ Status: accepted (M23 T23.6, as D-129 / DESIGN §4.3 planned). Supersedes D-117'
   need a second identity everywhere. A previous default outside the Library gives no value (the step says so) rather than
   guessing. Why not a separate "remember default" step: the value is exactly what the step replaced, at that moment.
 - Revisit if: users want to put back a device that isn't in the Library (add it silently, as pickers do from Windows).
+
+## D-131 · 2026-11-12 · Text inputs, flow outputs and Make text are single-assignment values (T23.7, DESIGN §9)
+- Decision: a flow input may be `kind: text` (`FlowInput.Kind` null): any default (empty allowed, ≤ 1,000 chars), used as
+  `{$name}` in text that takes values, never in a device setting, never asked (`ask: true` on text is an error: typing needs
+  focus, D-107). A `flow.run` passes it text that takes values, filled in the caller before the call; passing one's own text
+  input on (`greeting: $greeting`) passes it escaped, so a value that looks like a reference is never read twice. A flow's
+  `outputs:` (name → text that takes values, ≤ 20) are filled once when its run succeeds (fully or partly); a waiting
+  `flow.run` gives them as its values (`{call.device}`, Text, title from the name). A call's output the called flow doesn't
+  give is a **warning** (run time: fallback, else empty), so renaming or removing an output never stops its callers.
+  `text.make` (Make text, Flow group) gives its filled text as `text`; Sensitive when its text uses a Sensitive value, as a
+  call's output that holds one, and a text input the caller filled from one is masked in the called run.
+- Why: DESIGN §9 accepted; no variable a branch can overwrite, every reference stays checkable before a run. Why the
+  outputs lookup is a `Func<string, Flow?>` parameter and not catalog data: a call's values depend on another flow, so the
+  validator, runner (`IFlowStarter.Resolve`) and editor pass their own view of the flows; null = unknown, any name is text.
+- Why rename in the editor touches only the open flow: callers live in other files' flows (a draft is saved alone, D-047);
+  `FlowOutputs.Rename` rewrites callers for a config-level change, the inspector tip names who now shows a fallback.
+- Revisit if: users want asking for text at start (needs a no-focus typing prompt), or Make text in a separate palette group.

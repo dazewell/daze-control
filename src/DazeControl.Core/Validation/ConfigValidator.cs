@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using DazeControl.Core.Catalog;
 using DazeControl.Core.Input;
 using DazeControl.Core.Model;
+using DazeControl.Core.Runs;
 
 namespace DazeControl.Core.Validation;
 
@@ -37,7 +38,8 @@ public static partial class ConfigValidator
             }
         }
         CheckBound(config.Library, badLibraryItems, problems);
-        var checkers = config.Flows.Select(f => new FlowChecker(f, config.Library, badLibraryItems, catalog, config.Settings.StepDefaults, problems)).ToList();
+        Flow? Calls(string id) => config.Flows.FirstOrDefault(f => f.Id == id);
+        var checkers = config.Flows.Select(f => new FlowChecker(f, config.Library, badLibraryItems, catalog, config.Settings.StepDefaults, problems, Calls)).ToList();
         foreach (var checker in checkers)
             checker.Check();
         CheckMenus(config.Flows, config.Settings.StepDefaults, problems);
@@ -46,7 +48,7 @@ public static partial class ConfigValidator
         CheckTimeWindows(config.Flows, problems);
         CheckWaits(config.Flows, config.Settings.StepDefaults, problems);
         CheckCalls(config.Flows, problems);
-        CheckPassedInputs(config.Flows, config.Library, badLibraryItems, problems);
+        CheckPassedInputs(config.Flows, config.Library, badLibraryItems, catalog, config.Settings.StepDefaults, problems);
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
         var hotkeyOwners = new Dictionary<Hotkey, string>();
         var rejected = FlowsWithErrors(problems.Concat(earlier ?? []));
@@ -404,8 +406,9 @@ public static partial class ConfigValidator
     /// the caller's own inputs (<c>$name</c>) of the same kind. Calls of unknown flows are <see cref="CheckCalls"/>' error.
     /// </summary>
     private static void CheckPassedInputs(IReadOnlyList<Flow> flows, Library library, HashSet<(LibraryKind, string)> badLibraryItems,
-        List<Problem> problems)
+        IReadOnlyList<ProviderDescriptor> catalog, ValueDictionary<StepDefault> defaults, List<Problem> problems)
     {
+        Flow? Calls(string id) => flows.FirstOrDefault(f => f.Id == id);
         foreach (var flow in flows)
         {
             foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.RunFlowId))
@@ -418,14 +421,28 @@ public static partial class ConfigValidator
                     string? message;
                     if (!called.Inputs.TryGetValue(name, out var input))
                         message = $"{called.Name} has no input called \"{name}\".";
+                    else if (input.Kind is not { } kind)
+                    {
+                        // A text input (T23.7): text that takes values, filled in this flow; or this flow's own text input.
+                        message = FlowInputs.NameIn(value) is { } ownText && flow.Inputs.TryGetValue(ownText, out var mineText) && mineText.Kind is { } mineKind
+                            ? $"{mineText.Label} is {WithArticle(mineKind)}; {input.Label} needs text."
+                            : value.Length > RunValues.MaxValueLength ? $"{input.Label} holds at most {RunValues.MaxValueLength} characters."
+                            : null;
+                        if (message is null)
+                        {
+                            foreach (var problem in StepValues.Problems(flow, step.Id, FlowInputs.TextSpec(input.Label), value, catalog, defaults, Calls))
+                                problems.Add(new(problem.Severity, path, problem.Message, flow.Id));
+                        }
+                    }
                     else if (PickResults.StepIn(value) is not null)
-                        message = PickResults.ResultProblem(flow, step.Id, value, input.Kind);
+                        message = PickResults.ResultProblem(flow, step.Id, value, kind);
                     else if (FlowInputs.NameIn(value) is { } own)
                         message = !flow.Inputs.TryGetValue(own, out var mine) ? $"This flow has no input called \"{own}\"."
-                            : !LibraryEdits.Refers(mine.Kind, input.Kind) ? $"{mine.Label} is {WithArticle(mine.Kind)}; {input.Label} needs {WithArticle(input.Kind)}."
+                            : mine.Kind is not { } myKind ? $"{mine.Label} is text; {input.Label} needs {WithArticle(kind)}."
+                            : !LibraryEdits.Refers(myKind, kind) ? $"{mine.Label} is {WithArticle(myKind)}; {input.Label} needs {WithArticle(kind)}."
                             : null;
                     else
-                        message = LibraryKeyProblem(library, badLibraryItems, input.Kind, value);
+                        message = LibraryKeyProblem(library, badLibraryItems, kind, value);
                     if (message is not null)
                         problems.Add(new(Severity.Error, path, message, flow.Id));
                 }
@@ -442,8 +459,9 @@ public static partial class ConfigValidator
     [GeneratedRegex("^[0-9A-Fa-f]{4,5}$")]
     private static partial Regex GlyphCode();
 
+    /// <param name="calls">Finds a called flow by id, for the outputs of <c>flow.run</c> steps (T23.7).</param>
     private sealed class FlowChecker(Flow flow, Library library, HashSet<(LibraryKind, string)> badLibraryItems,
-        IReadOnlyList<ProviderDescriptor> catalog, ValueDictionary<StepDefault> defaults, List<Problem> problems)
+        IReadOnlyList<ProviderDescriptor> catalog, ValueDictionary<StepDefault> defaults, List<Problem> problems, Func<string, Flow?> calls)
     {
         private readonly string _path = $"flows.{flow.Id}";
         private readonly Dictionary<string, Node> _nodes = [];
@@ -480,13 +498,22 @@ public static partial class ConfigValidator
                 var path = $"{_path}.inputs.{name}";
                 if (!InputName().IsMatch(name))
                     Error(path, "Name inputs with small letters, digits and dashes, starting with a letter (like output).");
-                if (input.Default.Length == 0)
-                    Error(path + ".default", input.Kind == LibraryKind.Bound
+                if (input.Kind is not { } kind)
+                {
+                    // A text input (T23.7): any default, even empty; asking needs typing, which takes focus (D-107).
+                    if (input.Default.Length > RunValues.MaxValueLength)
+                        Error(path + ".default", $"{input.Label}: a text input holds at most {RunValues.MaxValueLength} characters.");
+                    if (input.Ask)
+                        Error(path + ".ask", $"{input.Label}: text can't be asked for before a run yet; the default is used.");
+                }
+                else if (input.Default.Length == 0)
+                    Error(path + ".default", kind == LibraryKind.Bound
                         ? $"{input.Label}: choose a bound device."
                         : $"{input.Label} needs a default device.");
-                else if (LibraryKeyProblem(library, badLibraryItems, input.Kind, input.Default) is { } message)
+                else if (LibraryKeyProblem(library, badLibraryItems, kind, input.Default) is { } message)
                     Error(path + ".default", message);
             }
+            CheckOutputs();
             CheckTriggers();
             CheckAsks();
             foreach (var text in flow.Hotkeys)
@@ -594,10 +621,22 @@ public static partial class ConfigValidator
             }
         }
 
+        /// <summary>The flow's outputs (T23.7): at most <see cref="FlowOutputs.MaxCount"/>, each named and checked like text that takes values.</summary>
+        private void CheckOutputs()
+        {
+            if (flow.Outputs.Count > FlowOutputs.MaxCount)
+                Error(_path + ".outputs", $"A flow gives at most {FlowOutputs.MaxCount} values back.");
+            foreach (var (name, text) in flow.Outputs)
+            {
+                foreach (var problem in FlowOutputs.Problems(flow, name, text, catalog, defaults, calls))
+                    Add(problem.Severity, $"{_path}.outputs.{name}", problem.Message);
+            }
+        }
+
         /// <summary><c>ask: true</c> inputs (D-107): the wait is 5 s to 10 min, and a start with no answer stops or takes the default.</summary>
         private void CheckAsks()
         {
-            foreach (var (name, input) in flow.Inputs.Where(i => i.Value.Ask))
+            foreach (var (name, input) in flow.Inputs.Where(i => i.Value.Ask && !i.Value.IsText))
             {
                 var path = $"{_path}.inputs.{name}";
                 if (input.Timeout is { } timeout && (timeout < Prompts.MinTimeout || timeout > Prompts.MaxTimeout))
@@ -675,7 +714,7 @@ public static partial class ConfigValidator
                         CheckNoInputs(list.Items, path);
                         foreach (var item in list.Items.OfType<ScalarParam>())
                         {
-                            foreach (var problem in StepValues.Problems(flow, _step, spec, item.Text, catalog, defaults))
+                            foreach (var problem in StepValues.Problems(flow, _step, spec, item.Text, catalog, defaults, calls))
                                 Add(problem.Severity, path, problem.Message);
                         }
                     }
@@ -695,7 +734,7 @@ public static partial class ConfigValidator
                 return;
             }
             // Step values (D-129, DESIGN §4.6). Outside text settings a reference is the only error said: "isn't a number" adds nothing.
-            var valueProblems = StepValues.Problems(flow, _step, spec, text, catalog, defaults);
+            var valueProblems = StepValues.Problems(flow, _step, spec, text, catalog, defaults, calls);
             foreach (var problem in valueProblems)
                 Add(problem.Severity, path, problem.Message);
             if (valueProblems.Any(p => p.Severity == Severity.Error) && !StepValues.Takes(spec)
@@ -711,8 +750,10 @@ public static partial class ConfigValidator
                 var kind = spec.Library!.Value;
                 if (!flow.Inputs.TryGetValue(name, out var input))
                     Error(path, $"This flow has no input called \"{name}\".");
-                else if (!LibraryEdits.Refers(input.Kind, kind))
-                    Error(path, $"{input.Label} is {WithArticle(input.Kind)}; this setting needs {WithArticle(kind)}.");
+                else if (input.Kind is not { } inputKind)
+                    Error(path, $"{input.Label} is text; this setting needs {WithArticle(kind)}.");
+                else if (!LibraryEdits.Refers(inputKind, kind))
+                    Error(path, $"{input.Label} is {WithArticle(inputKind)}; this setting needs {WithArticle(kind)}.");
                 // A bound input's default must have this step's side (D-125); a missing default is the input's own error.
                 else if (input.Kind == LibraryKind.Bound && kind != LibraryKind.Bound && library.Contains(LibraryKind.Bound, input.Default)
                     && !library.Contains(kind, input.Default))

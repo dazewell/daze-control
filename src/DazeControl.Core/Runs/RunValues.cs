@@ -20,6 +20,8 @@ public sealed class RunValues
 
     private readonly Dictionary<(string Step, string Value), StepValue> _values = [];
     private readonly Dictionary<string, StepValue> _inputs = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _sensitiveInputs = new(StringComparer.Ordinal);
+    private readonly HashSet<(string Step, string Value)> _sensitive = [];
     private readonly IReadOnlySet<(string Step, string Value)>? _wanted;
     private readonly Lock _lock = new();
 
@@ -84,11 +86,55 @@ public sealed class RunValues
             return _values.TryGetValue((step, value), out found);
     }
 
+    /// <summary>
+    /// Marks a value Sensitive in this run although its type doesn't say so (T23.7): a call's output filled from a
+    /// Sensitive value of the called run. <see cref="StepValues.Secrets"/> hides it like any other.
+    /// </summary>
+    public void MarkSensitive(string step, string value)
+    {
+        lock (_lock)
+            _sensitive.Add((step, value));
+    }
+
+    /// <summary>Whether <see cref="MarkSensitive"/> marked this value.</summary>
+    public bool IsMarkedSensitive(string step, string value)
+    {
+        lock (_lock)
+            return _sensitive.Contains((step, value));
+    }
+
     /// <summary>The flow input <paramref name="name"/> holds <paramref name="key"/> in this run (<c>{$name}</c> shows its name).</summary>
     public void SetInput(string name, LibraryKind kind, string key)
     {
         lock (_lock)
             _inputs[name] = new(ValueKind.Device, key, kind);
+    }
+
+    /// <summary>
+    /// The text input <paramref name="name"/> holds <paramref name="text"/> in this run (T23.7), trimmed and cut at
+    /// <see cref="MaxValueLength"/>. <paramref name="sensitive"/>: the caller filled it from a Sensitive value, so errors and
+    /// summaries of this run show its title instead (D-014).
+    /// </summary>
+    public void SetInputText(string name, string text, bool sensitive = false)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        lock (_lock)
+        {
+            _inputs[name] = new(ValueKind.Text, Cut(text.Trim()));
+            if (sensitive)
+                _sensitiveInputs.Add(name);
+            else
+                _sensitiveInputs.Remove(name);
+        }
+    }
+
+    /// <summary>The text inputs filled from a Sensitive value, with their text (empty ones left out).</summary>
+    public IReadOnlyList<(string Name, string Text)> SensitiveInputs()
+    {
+        lock (_lock)
+        {
+            return [.. _sensitiveInputs.Where(n => _inputs.TryGetValue(n, out var v) && v.Text.Length > 0).Select(n => (n, _inputs[n].Text))];
+        }
     }
 
     public bool TryGetInput(string name, out StepValue found)

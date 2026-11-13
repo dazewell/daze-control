@@ -40,6 +40,16 @@ public class BasicProviderTests
     }
 
     [Fact]
+    public async Task MakeTextGivesItsFilledTextAsOneValue()
+    {
+        // T23.7: the runner filled the references already; the step only gives the result, untrimmed text trimmed by the run.
+        var context = Steps.Context("text.make", ("text", "Technics at 22:30"));
+        await new MakeTextProvider().ExecuteAsync(context, TestContext.Current.CancellationToken);
+        Assert.Equal("Technics at 22:30", context.Values["text"].Text);
+        Assert.Null(context.Summary); // a Sensitive value may be in it
+    }
+
+    [Fact]
     public async Task NotifyCanBeSilent()
     {
         var notifier = new RecordingNotifier();

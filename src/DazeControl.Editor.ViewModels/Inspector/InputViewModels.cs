@@ -73,8 +73,11 @@ public abstract partial class DevicePickerViewModel : ObservableObject
 /// </summary>
 public sealed partial class FlowInputViewModel : DevicePickerViewModel
 {
-    /// <summary>The kind ComboBox's rows, in <see cref="Kinds"/> order.</summary>
-    public static IReadOnlyList<string> KindNames { get; } = ["Audio device", "Bluetooth device", "Bound device", "Android device", "Screen layout"];
+    /// <summary>The kind ComboBox's rows, in <see cref="Kinds"/> order, then Text (T23.7).</summary>
+    public static IReadOnlyList<string> KindNames { get; } = ["Audio device", "Bluetooth device", "Bound device", "Android device", "Screen layout", "Text"];
+
+    /// <summary>The kind row of a text input: after the devices.</summary>
+    internal static int TextIndex => Kinds.Length;
 
     internal static readonly LibraryKind[] Kinds = [LibraryKind.Audio, LibraryKind.Bluetooth, LibraryKind.Bound, LibraryKind.Android, LibraryKind.Display];
 
@@ -97,9 +100,21 @@ public sealed partial class FlowInputViewModel : DevicePickerViewModel
     public partial string Label { get; set; } = "";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsText), nameof(IsDevice))]
     public partial int KindIndex { get; set; }
 
     public override LibraryKind Kind => Kinds[Math.Clamp(KindIndex, 0, Kinds.Length - 1)];
+
+    /// <summary>A text input (T23.7): a default text box instead of the device picker, and no "Ask me".</summary>
+    public bool IsText => KindIndex == TextIndex;
+
+    public bool IsDevice => !IsText;
+
+    /// <summary>A text input's default: the text steps get as <c>{$name}</c> when the caller passes none. Commits on leaving the box.</summary>
+    [ObservableProperty]
+    public partial string TextDefault { get; set; } = "";
+
+    public string DefaultTextName => $"{Title}: default text";
 
     /// <summary>"Ask me when it runs" (D-107): a prompt offers the Library items of the kind before each run.</summary>
     [ObservableProperty]
@@ -142,7 +157,8 @@ public sealed partial class FlowInputViewModel : DevicePickerViewModel
         try
         {
             Label = input.Label;
-            KindIndex = Math.Max(0, Array.IndexOf(Kinds, input.Kind));
+            KindIndex = input.Kind is { } kind ? Math.Max(0, Array.IndexOf(Kinds, kind)) : TextIndex;
+            TextDefault = input.IsText ? input.Default : "";
             OnPropertyChanged(nameof(DefaultPlaceholder));
             Ask = input.Ask;
             TimeoutSeconds = (input.Timeout ?? Prompts.DefaultTimeout).TotalSeconds;
@@ -180,8 +196,14 @@ public sealed partial class FlowInputViewModel : DevicePickerViewModel
 
     partial void OnKindIndexChanged(int value)
     {
-        if (!Loading && value >= 0 && value < Kinds.Length)
-            _owner.SetInputKind(Name, Kinds[value]);
+        if (!Loading && value >= 0 && value <= TextIndex)
+            _owner.SetInputKind(Name, value == TextIndex ? null : Kinds[value]);
+    }
+
+    partial void OnTextDefaultChanged(string value)
+    {
+        if (!Loading && IsText)
+            _owner.SetInputText(Name, value);
     }
 
     private protected override void Picked(DeviceOption option) => _owner.SetInputDefault(Name, Kind, option);
@@ -197,11 +219,15 @@ public sealed partial class CallInputViewModel : DevicePickerViewModel
 {
     private readonly Action<CallInputViewModel, DeviceOption> _picked;
 
-    internal CallInputViewModel(string name, FlowInput input, Action<CallInputViewModel, DeviceOption> picked)
+    private readonly Action<CallInputViewModel, string>? _typed;
+
+    internal CallInputViewModel(string name, FlowInput input, Action<CallInputViewModel, DeviceOption> picked,
+        Action<CallInputViewModel, string>? typed = null)
     {
         Name = name;
         Input = input;
         _picked = picked;
+        _typed = typed;
     }
 
     public string Name { get; }
@@ -210,7 +236,39 @@ public sealed partial class CallInputViewModel : DevicePickerViewModel
 
     public override string Title => Input.Label;
 
-    public override LibraryKind Kind => Input.Kind;
+    /// <summary>A text input's rows are never shown; the kind only matters for device inputs.</summary>
+    public override LibraryKind Kind => Input.Kind ?? LibraryKind.Audio;
+
+    /// <summary>A text input (T23.7): a text box that may hold values of this flow's earlier steps, filled when the call runs.</summary>
+    public bool IsText => Input.IsText;
+
+    public bool IsDevice => !Input.IsText;
+
+    /// <summary>What this call passes to a text input; empty = the called flow's default. Commits on leaving the box.</summary>
+    [ObservableProperty]
+    public partial string Text { get; set; } = "";
+
+    /// <summary>"Its default: Hi" under an empty box.</summary>
+    public string TextPlaceholder => Input.Default.Length == 0 ? "Its default: nothing" : "Its default: " + Input.Default;
+
+    internal void LoadText(string text)
+    {
+        Loading = true;
+        try
+        {
+            Text = text;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    partial void OnTextChanged(string value)
+    {
+        if (!Loading)
+            _typed?.Invoke(this, value);
+    }
 
     private protected override void Picked(DeviceOption option) => _picked(this, option);
 }

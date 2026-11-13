@@ -6,6 +6,9 @@ public static class FlowInputs
     /// <summary><c>flow.run</c>'s map of input name → Library key or the caller's own <c>$name</c>.</summary>
     public const string Param = "inputs";
 
+    /// <summary>How a text input's passed text is read (T23.7): text that takes values, on several lines.</summary>
+    public static Catalog.ParamSpec TextSpec(string label) => new(Param, Catalog.ParamKind.MultilineText, label) { TakesValues = true };
+
     /// <summary>The input a setting names (<c>$output</c> → "output"), or null for a plain value.</summary>
     public static string? NameIn(ParamValue value) =>
         value is ScalarParam { Text: var text } && text.Trim() is ['$', .. var name] && PickResults.StepIn(text) is null ? name : null;
@@ -32,12 +35,17 @@ public static class FlowInputs
         ArgumentNullException.ThrowIfNull(given);
         if (flow.Inputs.Count == 0)
             return flow;
-        ParamValue Resolve(ParamValue value) => NameIn(value) is { } name && flow.Inputs.TryGetValue(name, out var input)
+        ParamValue Resolve(ParamValue value) => NameIn(value) is { } name && flow.Inputs.TryGetValue(name, out var input) && !input.IsText
             ? given.TryGetValue(name, out var key) ? key : keepAsked && input.Ask ? value : input.Default
             : value;
+        // A text input passed on ($greeting in a call's inputs, T23.7) goes as literal text: the next call fills references
+        // in what it passes, so a value that looks like a reference ("{bt.device}") must not be read again.
+        ParamValue Passed(ParamValue value) => NameIn(value) is { } name && flow.Inputs.TryGetValue(name, out var input) && input.IsText
+            ? StepValues.Escape(given.TryGetValue(name, out var text) ? text : input.Default)
+            : Resolve(value);
         ParamValue Setting(StepNode step, string param, ParamValue value) =>
             value is MapParam map && param == Param && step.Step == Catalog.ProviderCatalog.RunFlowId
-                ? new MapParam(new(map.Entries.Select(e => KeyValuePair.Create(e.Key, Resolve(e.Value)))))
+                ? new MapParam(new(map.Entries.Select(e => KeyValuePair.Create(e.Key, Passed(e.Value)))))
                 : Resolve(value);
         return flow with
         {
@@ -62,8 +70,8 @@ public static class FlowInputs
         {
             if (!called.Inputs.TryGetValue(name, out var input))
                 return $"{called.Name} has no input called \"{name}\" anymore.";
-            if (!library.Contains(input.Kind, key))
-                return $"{callerName} passes {input.Label} \"{key}\", but there's no {Library.KindName(input.Kind)} called that in your Library.";
+            if (input.Kind is { } kind && !library.Contains(kind, key))
+                return $"{callerName} passes {input.Label} \"{key}\", but there's no {Library.KindName(kind)} called that in your Library.";
         }
         return null;
     }
@@ -73,7 +81,17 @@ public static class FlowInputs
     {
         ArgumentNullException.ThrowIfNull(flow);
         return flow.Nodes.OfType<StepNode>().Any(s => s.With.Any(e => NameIn(e.Value) == name
-            || e.Key == Param && e.Value is MapParam map && map.Entries.Values.Any(v => NameIn(v) == name)));
+            || e.Key == Param && e.Value is MapParam map && map.Entries.Values.Any(v => NameIn(v) == name)))
+            || flow.Inputs.TryGetValue(name, out var input) && input.IsText && TextUses(flow, name);
+    }
+
+    /// <summary>Whether text in the flow (settings that take values, a call's text inputs, outputs) names <c>{$name}</c>.</summary>
+    private static bool TextUses(Flow flow, string name)
+    {
+        bool Names(string text) => StepValues.Parse(text).Any(r => r.Source == ValueSource.Input && r.Name == name);
+        return StepValues.Uses(flow).Any(u => u.Ref.Source == ValueSource.Input && u.Ref.Name == name)
+            || flow.Outputs.Values.Any(Names)
+            || flow.Nodes.OfType<StepNode>().Any(s => s.Step == Catalog.ProviderCatalog.RunFlowId && Given(s).Values.Any(Names));
     }
 
     /// <summary>
@@ -85,7 +103,13 @@ public static class FlowInputs
         ArgumentNullException.ThrowIfNull(flow);
         if (!flow.Inputs.TryGetValue(name, out var input))
             return flow;
-        ParamValue Resolve(ParamValue value) => NameIn(value) == name ? input.Default : value;
+        ParamValue Resolve(ParamValue value) => NameIn(value) == name ? input.IsText ? StepValues.Escape(input.Default) : input.Default : value;
+        if (input.IsText)
+        {
+            // {$name} in text becomes the default text it showed (T23.7).
+            string? Written(ValueRef r) => r.Source == ValueSource.Input && r.Name == name ? StepValues.Escape(input.Default) : null;
+            flow = StepValues.RewriteRefs(flow, (_, r) => Written(r), inOutputs: Written); // a call's text inputs too
+        }
         return flow with
         {
             Nodes = [.. flow.Nodes.Select(n => n is StepNode step && IsUsed(flow with { Nodes = [step] }, name)
