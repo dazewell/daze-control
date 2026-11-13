@@ -53,6 +53,11 @@ public sealed partial class AcceptanceKitTests
             if (flow.Name.StartsWith("LIVE-RISK ", StringComparison.Ordinal))
                 continue;
             Assert.All(steps, s => Assert.Contains(s, safe));
+            // flow.run and menu.show can start another flow: they must never reach a LIVE-RISK one.
+            var started = flow.Nodes.OfType<StepNode>().SelectMany(n => n.With)
+                .SelectMany(w => Texts(w.Value));
+            var risky = config.Flows.Where(f => f.Name.StartsWith("LIVE-RISK ", StringComparison.Ordinal)).Select(f => f.Id).ToHashSet();
+            Assert.DoesNotContain(started, risky.Contains);
             if (flow.Triggers.Count > 0)
                 Assert.False(flow.Enabled, $"{flow.Name} has triggers and must start off");
         }
@@ -66,6 +71,13 @@ public sealed partial class AcceptanceKitTests
 
         Assert.All(config.Flows.SelectMany(f => f.Hotkeys), h => Assert.Matches(@"^Ctrl\+Alt\+F\d+$", h));
     }
+
+    private static IEnumerable<string> Texts(ParamValue value) => value switch
+    {
+        ScalarParam sp => [sp.Text],
+        ListParam lp => lp.Items.SelectMany(Texts),
+        _ => [],
+    };
 
     [GeneratedRegex(@"^(\d+[a-z]? |LIVE-RISK \d+ )\S")]
     private static partial Regex NameShape();

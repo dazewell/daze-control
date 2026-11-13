@@ -39,6 +39,12 @@ if ($Restore) {
 
 if (-not (Test-Path -LiteralPath $kit)) { throw "accept-run: kit not found at $kit" }
 New-Item -ItemType Directory -Force $devFolder | Out-Null
+# A dev editor that is still open may hold unsaved edits: close it through its window first so it flushes them, then back up.
+foreach ($ed in @(Get-CimInstance Win32_Process -Filter "Name = 'DazeControl.Editor.exe'" |
+        Where-Object { $_.CommandLine -and $_.CommandLine.Contains($devFolder, [StringComparison]::OrdinalIgnoreCase) })) {
+    $p = Get-Process -Id $ed.ProcessId -ErrorAction SilentlyContinue
+    if ($p) { [void]$p.CloseMainWindow(); if (-not $p.WaitForExit(8000)) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
+}
 $already = (Test-Path -LiteralPath $backup) -or (Test-Path -LiteralPath $noPrevious)
 if (-not $already) {
     if (Test-Path -LiteralPath $config) {
