@@ -38,7 +38,7 @@ lives in [DECISIONS.md](DECISIONS.md).
   values. Built (M23, D-129..D-131; PLAN → M23); not tried live yet: UX §5.9 M23 is the user's checklist. Open items: [step-values/DESIGN.md](step-values/DESIGN.md).
 - **Roadmap from a gap analysis** (user, 2026-11-12): compare with what users of automation tools expect (AutoHotkey, Power
   Automate Desktop, PowerToys, Home Assistant, Stream Deck…), rank the missing features, then build as far as limits allow.
-  Done: [roadmap/GAPS.md](roadmap/GAPS.md), PLAN M24 to M28, D-132 (proposed). M28's rows each need the user's yes first.
+  Done: [roadmap/GAPS.md](roadmap/GAPS.md), PLAN M24 to M28, D-135 (proposed). M28's rows each need the user's yes first.
 - Working name **Daze Control** (namespace `DazeControl`, exe `DazeControl.exe`, CLI `dctl.exe`); the user may rename it.
 
 ## Must keep from scd
@@ -74,7 +74,7 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
 - [ ] M14 Step defaults and conditions (user, 2026-11-04; designed D-080..D-082; PLAN → M14), before the rest of the plan:
   default Try again / Wait / Give up after / If it fails per step type; "Only if…" on steps (Connect skips when already
   connected, "always" forces it) and Check steps (is it connected? …). Small scope: no general if/else.
-- [ ] M24 to M27 from the gap analysis (D-132; PLAN → Roadmap): M24 quick wins (Stop flow, Open, Check value, screen and away
+- [ ] M24 to M27 from the gap analysis (D-135; PLAN → Roadmap): M24 quick wins (Stop flow, Open, Check value, screen and away
   events, media keys, which device on events, Wake over network, Check address, inputs on `dctl run`), M25 "Only run if" and
   values in Runs, M26 app / flow / file events and links, M27 recipes and sharing. M28 = questions for the user (power, mute
   toggle, clipboard, keys, windows, ask for text, MQTT, signing).
