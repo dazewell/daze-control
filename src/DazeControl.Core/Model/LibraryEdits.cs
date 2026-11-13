@@ -156,6 +156,9 @@ public static class LibraryEdits
     /// Whether a setting or input of kind <paramref name="refKind"/> can hold a <paramref name="kind"/> key: its own kind,
     /// and a bound device's key in Bluetooth and audio settings (D-116).
     /// </summary>
+    /// <summary>As <see cref="Refers(LibraryKind, LibraryKind)"/>; a text input (null kind, T23.7) refers to no Library item.</summary>
+    public static bool Refers(LibraryKind kind, LibraryKind? refKind) => refKind is { } r && Refers(kind, r);
+
     public static bool Refers(LibraryKind kind, LibraryKind refKind) =>
         refKind == kind || (kind == LibraryKind.Bound && refKind is LibraryKind.Audio or LibraryKind.Bluetooth);
 

@@ -20,6 +20,7 @@ public sealed class RunValues
 
     private readonly Dictionary<(string Step, string Value), StepValue> _values = [];
     private readonly Dictionary<string, StepValue> _inputs = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _sensitiveInputs = new(StringComparer.Ordinal);
     private readonly IReadOnlySet<(string Step, string Value)>? _wanted;
     private readonly Lock _lock = new();
 
@@ -89,6 +90,33 @@ public sealed class RunValues
     {
         lock (_lock)
             _inputs[name] = new(ValueKind.Device, key, kind);
+    }
+
+    /// <summary>
+    /// The text input <paramref name="name"/> holds <paramref name="text"/> in this run (T23.7), trimmed and cut at
+    /// <see cref="MaxValueLength"/>. <paramref name="sensitive"/>: the caller filled it from a Sensitive value, so errors and
+    /// summaries of this run show its title instead (D-014).
+    /// </summary>
+    public void SetInputText(string name, string text, bool sensitive = false)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        lock (_lock)
+        {
+            _inputs[name] = new(ValueKind.Text, Cut(text.Trim()));
+            if (sensitive)
+                _sensitiveInputs.Add(name);
+            else
+                _sensitiveInputs.Remove(name);
+        }
+    }
+
+    /// <summary>The text inputs filled from a Sensitive value, with their text (empty ones left out).</summary>
+    public IReadOnlyList<(string Name, string Text)> SensitiveInputs()
+    {
+        lock (_lock)
+        {
+            return [.. _sensitiveInputs.Where(n => _inputs.TryGetValue(n, out var v) && v.Text.Length > 0).Select(n => (n, _inputs[n].Text))];
+        }
     }
 
     public bool TryGetInput(string name, out StepValue found)

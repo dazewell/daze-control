@@ -93,6 +93,57 @@ public static class StepValues
 
     public static ValueSpec? Find(ProviderDescriptor descriptor, string name) => Of(descriptor).FirstOrDefault(v => v.Name == name);
 
+    /// <summary>
+    /// The values one step gives (T23.7): its type's (<see cref="Of(ProviderDescriptor)"/>), except a <c>flow.run</c> that waits,
+    /// which gives the called flow's declared outputs (and <c>error</c>), and a Make text, which is Sensitive when its text uses
+    /// a Sensitive value. <paramref name="flows"/> finds a flow by id; null = unknown, so a call's outputs aren't listed (and
+    /// <c>Find</c> takes any name of a call as text, fail-soft).
+    /// </summary>
+    public static IReadOnlyList<ValueSpec> Of(Flow flow, StepNode step, ProviderDescriptor descriptor, Func<string, Flow?>? flows = null,
+        IReadOnlyList<ProviderDescriptor>? catalog = null) => Of(flow, step, descriptor, flows, catalog ?? ProviderCatalog.All, 0);
+
+    /// <summary>One value of one step (see <c>Of(Flow, StepNode, …)</c>), or null.</summary>
+    public static ValueSpec? Find(Flow flow, StepNode step, ProviderDescriptor descriptor, string name, Func<string, Flow?>? flows = null,
+        IReadOnlyList<ProviderDescriptor>? catalog = null) => Find(flow, step, descriptor, name, flows, catalog ?? ProviderCatalog.All, 0);
+
+    /// <summary>Nested calls deeper than this aren't followed for Sensitive outputs (a loop is refused elsewhere).</summary>
+    private const int MaxDepth = 8;
+
+    private static ValueSpec? Find(Flow flow, StepNode step, ProviderDescriptor descriptor, string name, Func<string, Flow?>? flows,
+        IReadOnlyList<ProviderDescriptor> catalog, int depth)
+    {
+        if (flows is null && name != ErrorName && FlowOutputs.Waits(step))
+            return new ValueSpec(name, ValueKind.Text, FlowOutputs.Title(name)); // the called flow is unknown here: fail-soft
+        return Of(flow, step, descriptor, flows, catalog, depth).FirstOrDefault(v => v.Name == name);
+    }
+
+    private static IReadOnlyList<ValueSpec> Of(Flow flow, StepNode step, ProviderDescriptor descriptor, Func<string, Flow?>? flows,
+        IReadOnlyList<ProviderDescriptor> catalog, int depth)
+    {
+        if (FlowOutputs.Waits(step))
+        {
+            if (flows is null || ConfigValidator.CalledFlow(step) is not { } target || flows(target) is not { } called)
+                return Of(descriptor);
+            return [.. called.Outputs.Select(o => new ValueSpec(o.Key, ValueKind.Text, FlowOutputs.Title(o.Key))
+            {
+                Help = $"What {called.Name} gives back",
+                Sensitive = depth < MaxDepth && UsesSensitive(called, o.Value, flows, catalog, depth + 1),
+            }), Error];
+        }
+        if (step.Step == ProviderCatalog.MakeTextId && depth < MaxDepth && step.With.TryGetValue(MakeTextParam, out var made)
+            && made is ScalarParam { Text: var text } && UsesSensitive(flow, text, flows, catalog, depth + 1))
+            return [.. Of(descriptor).Select(v => v.Name == ErrorName ? v : v with { Sensitive = true })];
+        return Of(descriptor);
+    }
+
+    /// <summary>Whether <paramref name="text"/> names a Sensitive value of a step in <paramref name="flow"/>.</summary>
+    private static bool UsesSensitive(Flow flow, string text, Func<string, Flow?>? flows, IReadOnlyList<ProviderDescriptor> catalog, int depth) =>
+        Parse(text).Any(r => r.Source == ValueSource.Step && flow.FindNode(r.Name) is StepNode producer
+            && Descriptor(catalog, producer) is { } d && Find(flow, producer, d, r.Value, flows, catalog, depth)?.Sensitive == true);
+
+    /// <summary>Make text's one setting, and the name of the value it gives.</summary>
+    public const string MakeTextParam = "text";
+
     /// <summary>Whether a setting fills references: marked <see cref="ParamSpec.TakesValues"/> and a text kind.</summary>
     public static bool Takes(ParamSpec spec)
     {
@@ -364,8 +415,9 @@ public static class StepValues
     /// a device, number, choice or duration setting gets an error for them. Unknown step ids only warn (old text that
     /// looked like a reference stays as written).
     /// </summary>
+    /// <param name="flows">Finds a called flow by id, for its outputs (T23.7); null = a call's values aren't checked.</param>
     public static IReadOnlyList<ValueProblem> Problems(Flow flow, string stepId, ParamSpec spec, string text,
-        IReadOnlyList<ProviderDescriptor>? catalog = null, ValueDictionary<StepDefault>? defaults = null)
+        IReadOnlyList<ProviderDescriptor>? catalog = null, ValueDictionary<StepDefault>? defaults = null, Func<string, Flow?>? flows = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(spec);
@@ -378,13 +430,13 @@ public static class StepValues
         var textKind = spec.Kind is ParamKind.Text or ParamKind.MultilineText or ParamKind.FilePath or ParamKind.FolderPath;
         foreach (var r in refs)
         {
-            var why = Check(flow, stepId, r, catalog, defaults, out var warning);
+            var why = Check(flow, stepId, r, catalog, defaults, flows, out var warning);
             if (takes)
             {
                 if (why is not null)
                     problems.Add(new(warning ? Severity.Warning : Severity.Error, why, r));
             }
-            else if (Exists(flow, r, catalog))
+            else if (Exists(flow, r, catalog, flows))
             {
                 problems.Add(textKind
                     ? new(Severity.Warning, $"This setting doesn't take values; {r} is used as written.", r)
@@ -395,15 +447,15 @@ public static class StepValues
     }
 
     /// <summary>Whether the reference names something real (so outside a setting that takes values it is worth a word).</summary>
-    private static bool Exists(Flow flow, ValueRef r, IReadOnlyList<ProviderDescriptor> catalog) => r.Source switch
+    private static bool Exists(Flow flow, ValueRef r, IReadOnlyList<ProviderDescriptor> catalog, Func<string, Flow?>? flows) => r.Source switch
     {
         ValueSource.Input => flow.Inputs.ContainsKey(r.Name),
         ValueSource.Run => RunTitle(r.Name) is not null,
-        _ => flow.FindNode(r.Name) is StepNode s && Descriptor(catalog, s) is { } d && Find(d, r.Value) is not null,
+        _ => flow.FindNode(r.Name) is StepNode s && Descriptor(catalog, s) is { } d && Find(flow, s, d, r.Value, flows, catalog) is not null,
     };
 
     private static string? Check(Flow flow, string stepId, ValueRef r, IReadOnlyList<ProviderDescriptor> catalog,
-        ValueDictionary<StepDefault>? defaults, out bool warning)
+        ValueDictionary<StepDefault>? defaults, Func<string, Flow?>? flows, out bool warning)
     {
         warning = false;
         switch (r.Source)
@@ -422,8 +474,12 @@ public static class StepValues
         if (Descriptor(catalog, producer) is not { } descriptor)
             return null; // the unknown step type is its own error
         var name = NameOf(producer, descriptor);
-        if (Find(descriptor, r.Value) is not { } value)
-            return $"{name} gives no value called \"{r.Value}\" (it gives {string.Join(", ", Of(descriptor).Select(v => v.Title))}).";
+        if (Find(flow, producer, descriptor, r.Value, flows, catalog) is not { } value)
+        {
+            // A call's output the called flow doesn't give (anymore): at run time it is missing, so only a warning (T23.7).
+            warning = r.Value != ErrorName && FlowOutputs.Waits(producer);
+            return warning ? FlowOutputs.NotGiven(producer, r, flows) : GivesNo(flow, producer, descriptor, name, r.Value, flows, catalog);
+        }
         if (producer.Id == stepId)
             return $"A step can't use its own values: {r}.";
         if (FlowShape.UnitOf(flow, producer.Id) is var card && card != producer.Id && card == FlowShape.UnitOf(flow, stepId))
@@ -437,6 +493,10 @@ public static class StepValues
         }
         return null;
     }
+
+    private static string GivesNo(Flow flow, StepNode producer, ProviderDescriptor descriptor, string name, string value,
+        Func<string, Flow?>? flows, IReadOnlyList<ProviderDescriptor> catalog) =>
+        $"{name} gives no value called \"{value}\" (it gives {string.Join(", ", Of(flow, producer, descriptor, flows, catalog).Select(v => v.Title))}).";
 
     /// <summary>
     /// Why value <paramref name="valueName"/> of <paramref name="producerId"/> can't fill <paramref name="stepId"/>'s device setting
@@ -452,8 +512,8 @@ public static class StepValues
         if (flow.FindNode(producerId) is not StepNode producer || Descriptor(catalog, producer) is not { } descriptor)
             return $"There's no step called \"{producerId}\" in this flow.";
         var name = NameOf(producer, descriptor);
-        if (Find(descriptor, valueName) is not { } value)
-            return $"{name} gives no value called \"{valueName}\" (it gives {string.Join(", ", Of(descriptor).Select(v => v.Title))}).";
+        if (Find(flow, producer, descriptor, valueName, null, catalog) is not { } value)
+            return GivesNo(flow, producer, descriptor, name, valueName, null, catalog);
         if (value.Kind != ValueKind.Device)
             return $"{value.Title} of \"{name}\" is text; this setting needs {Article(setting)}.";
         var kind = value.Library ?? (PickResults.IsPick(producer) ? PickResults.KindOf(producer) : null);
@@ -516,7 +576,9 @@ public static class StepValues
     /// The flow with <paramref name="replace"/> applied to every reference in its settings that take values (see
     /// <see cref="Rewrite"/>); the same instance when nothing changed.
     /// </summary>
-    public static Flow RewriteRefs(Flow flow, Func<StepNode, ValueRef, string?> replace, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    /// <param name="inOutputs">Applied to the references in the flow's outputs (T23.7); null leaves them.</param>
+    public static Flow RewriteRefs(Flow flow, Func<StepNode, ValueRef, string?> replace, IReadOnlyList<ProviderDescriptor>? catalog = null,
+        Func<ValueRef, string?>? inOutputs = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
         catalog ??= ProviderCatalog.All;
@@ -546,15 +608,26 @@ public static class StepValues
             any = true;
             nodes.Add(step with { With = new(changed) });
         }
-        return any ? flow with { Nodes = [.. nodes] } : flow;
+        var outputs = flow.Outputs;
+        if (inOutputs is not null && flow.Outputs.Any(o => !ReferenceEquals(Rewrite(o.Value, inOutputs), o.Value)))
+            outputs = new(flow.Outputs.Select(o => KeyValuePair.Create(o.Key, Rewrite(o.Value, inOutputs))));
+        if (!any && outputs.Equals(flow.Outputs))
+            return flow;
+        return flow with { Nodes = any ? [.. nodes] : flow.Nodes, Outputs = outputs };
     }
 
     /// <summary>
     /// Deleting steps: their references become the fallback text (nothing when none was written), so no setting keeps
     /// pointing at a step that is gone.
     /// </summary>
-    public static Flow DropRefsTo(Flow flow, IReadOnlySet<string> goneIds, IReadOnlyList<ProviderDescriptor>? catalog = null) =>
-        goneIds.Count == 0 ? flow : RewriteRefs(flow, (_, r) => r.Source == ValueSource.Step && goneIds.Contains(r.Name) ? Escape(r.Fallback ?? "") : null, catalog);
+    public static Flow DropRefsTo(Flow flow, IReadOnlySet<string> goneIds, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    {
+        ArgumentNullException.ThrowIfNull(goneIds);
+        if (goneIds.Count == 0)
+            return flow;
+        string? Drop(ValueRef r) => r.Source == ValueSource.Step && goneIds.Contains(r.Name) ? Escape(r.Fallback ?? "") : null;
+        return RewriteRefs(flow, (_, r) => Drop(r), catalog, Drop); // the flow's outputs too (T23.7)
+    }
 
     // ---- Run time (DESIGN §4.7) ----
 
@@ -562,7 +635,9 @@ public static class StepValues
     /// The values some setting of the flow references: <c>{step.value}</c> in settings that take values and
     /// <c>$result:&lt;id&gt;</c> (= the step's <c>device</c>) anywhere. The runner keeps only these.
     /// </summary>
-    public static IReadOnlySet<(string Step, string Value)> Wanted(Flow flow, IReadOnlyList<ProviderDescriptor>? catalog = null)
+    /// <param name="flows">Finds a called flow, so a script can read a call's outputs (T23.7).</param>
+    public static IReadOnlySet<(string Step, string Value)> Wanted(Flow flow, IReadOnlyList<ProviderDescriptor>? catalog = null,
+        Func<string, Flow?>? flows = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
         catalog ??= ProviderCatalog.All;
@@ -593,10 +668,16 @@ public static class StepValues
                 {
                     if (Descriptor(catalog, producer) is not { } d)
                         continue;
-                    foreach (var v in Of(d).Where(v => code.Contains(Variable(producer.Id, v.Name), StringComparison.OrdinalIgnoreCase)))
+                    foreach (var v in Of(flow, producer, d, flows, catalog).Where(v => code.Contains(Variable(producer.Id, v.Name), StringComparison.OrdinalIgnoreCase)))
                         wanted.Add((producer.Id, v.Name));
                 }
             }
+        }
+        // The flow's outputs (T23.7) are filled from its values when the run ends.
+        foreach (var text in flow.Outputs.Values)
+        {
+            foreach (var r in Parse(text).Where(r => r.Source == ValueSource.Step))
+                wanted.Add((r.Name, r.Value));
         }
         return wanted;
     }
@@ -618,7 +699,7 @@ public static class StepValues
     /// its Library name). The script's text is never changed, so a device named <c>'; Remove-Item …</c> stays data.
     /// </summary>
     public static IReadOnlyDictionary<string, string> Variables(Flow flow, string stepId, RunValues values, Library library,
-        IReadOnlyList<ProviderDescriptor>? catalog = null)
+        IReadOnlyList<ProviderDescriptor>? catalog = null, Func<string, Flow?>? flows = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(values);
@@ -632,7 +713,7 @@ public static class StepValues
         {
             if (Descriptor(catalog, producer) is not { } d)
                 continue;
-            foreach (var v in Of(d))
+            foreach (var v in Of(flow, producer, d, flows, catalog))
             {
                 if (code.Contains(Variable(producer.Id, v.Name), StringComparison.OrdinalIgnoreCase) && values.TryGet(producer.Id, v.Name, out var given))
                     variables[Variable(producer.Id, v.Name)] = Show(given, library).Replace("\0", "", StringComparison.Ordinal);
@@ -645,24 +726,28 @@ public static class StepValues
     /// The Sensitive values (<see cref="ValueSpec.Sensitive"/>) that earlier steps gave, with their titles, so the runner can keep
     /// them out of errors and summaries (D-014): see <see cref="Mask"/>.
     /// </summary>
-    public static IReadOnlyList<(string Text, string Title)> Secrets(Flow flow, string stepId, RunValues values, Library library,
-        IReadOnlyList<ProviderDescriptor>? catalog = null)
+    /// <param name="stepId">The step about to report; null = the run's end (every step, for the flow's outputs).</param>
+    public static IReadOnlyList<(string Text, string Title)> Secrets(Flow flow, string? stepId, RunValues values, Library library,
+        IReadOnlyList<ProviderDescriptor>? catalog = null, Func<string, Flow?>? flows = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(values);
         ArgumentNullException.ThrowIfNull(library);
         catalog ??= ProviderCatalog.All;
         var secrets = new List<(string Text, string Title)>();
-        foreach (var producer in Before(flow, stepId))
+        foreach (var producer in stepId is null ? flow.Nodes.OfType<StepNode>() : Before(flow, stepId))
         {
             if (Descriptor(catalog, producer) is not { } d)
                 continue;
-            foreach (var v in Of(d).Where(v => v.Sensitive))
+            foreach (var v in Of(flow, producer, d, flows, catalog).Where(v => v.Sensitive))
             {
                 if (values.TryGet(producer.Id, v.Name, out var given) && Show(given, library) is { Length: > 0 } text)
                     secrets.Add((text, v.Title));
             }
         }
+        // A text input filled from a Sensitive value in the caller (T23.7) stays hidden in this run too.
+        foreach (var (name, text) in values.SensitiveInputs())
+            secrets.Add((text, flow.Inputs.TryGetValue(name, out var input) ? input.Label : name));
         // Longest first, so a secret that contains another is hidden whole.
         return [.. secrets.OrderByDescending(s => s.Text.Length)];
     }
@@ -779,7 +864,8 @@ public static class StepValues
     /// The text with each reference shown as its title, for dry runs and summaries of Sensitive values:
     /// "Connected to ‹Device› at ‹Time›" (without <paramref name="marks"/>: "Connected to Device at Time", for the canvas). References that name nothing stay as written.
     /// </summary>
-    public static string Describe(Flow flow, string text, IReadOnlyList<ProviderDescriptor>? catalog = null, bool marks = true)
+    public static string Describe(Flow flow, string text, IReadOnlyList<ProviderDescriptor>? catalog = null, bool marks = true,
+        Func<string, Flow?>? flows = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
         catalog ??= ProviderCatalog.All;
@@ -790,7 +876,7 @@ public static class StepValues
             {
                 ValueSource.Input => flow.Inputs.TryGetValue(r.Name, out var input) ? input.Label : null,
                 ValueSource.Run => RunTitle(r.Name),
-                _ => flow.FindNode(r.Name) is StepNode s && Descriptor(catalog, s) is { } d ? Find(d, r.Value)?.Title : null,
+                _ => flow.FindNode(r.Name) is StepNode s && Descriptor(catalog, s) is { } d ? Find(flow, s, d, r.Value, flows, catalog)?.Title : null,
             };
             result.Append(title is null ? part.Text : marks ? "‹" + title + "›" : title);
         }

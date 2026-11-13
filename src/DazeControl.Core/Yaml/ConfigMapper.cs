@@ -13,6 +13,9 @@ namespace DazeControl.Core.Yaml;
 /// </summary>
 public static class ConfigMapper
 {
+    /// <summary>A text input's <c>kind</c> (T23.7).</summary>
+    public const string TextInputKind = "text";
+
     public static Configuration ToModel(ConfigDocument document, ICollection<Problem> problems)
     {
         var reader = new Reader(problems);
@@ -88,13 +91,14 @@ public static class ConfigMapper
         Enabled = flow.Enabled ? null : "false",
         Inputs = flow.Inputs.Count == 0 ? null : flow.Inputs.ToDictionary(i => i.Key, i => new InputDocument
         {
-            Kind = EnumText(i.Value.Kind),
+            Kind = i.Value.Kind is { } kind ? EnumText(kind) : TextInputKind,
             Name = i.Value.Label == i.Key ? null : i.Value.Label,
             Default = i.Value.Default,
             Ask = i.Value.Ask ? "true" : null,
             Timeout = i.Value.Ask && i.Value.Timeout is { } timeout ? Duration.Format(timeout) : null,
             OnTimeout = i.Value.Ask && !string.IsNullOrEmpty(i.Value.OnTimeout) ? i.Value.OnTimeout : null,
         }),
+        Outputs = flow.Outputs.Count == 0 ? null : flow.Outputs.ToDictionary(o => o.Key, o => o.Value),
         Nodes = [.. flow.Nodes.Select(ToDocument)],
     };
 
@@ -360,6 +364,7 @@ public static class ConfigMapper
                 Popup = Bool(document.Popup, path + ".popup", true),
                 Enabled = Bool(document.Enabled, path + ".enabled", true),
                 Inputs = ReadInputs(document.Inputs, path + ".inputs"),
+                Outputs = new((document.Outputs ?? []).Select(o => KeyValuePair.Create(o.Key, o.Value ?? ""))),
             };
             if (document.Gamepad is { Count: > 0 })
                 problems.Add(new Problem(Severity.Warning, path + ".gamepad", "Controller chords were removed (a controller now drives the menu step only): this setting is ignored and dropped on the next save.", id));
@@ -374,7 +379,10 @@ public static class ConfigMapper
             foreach (var (name, item) in document ?? [])
             {
                 if (item?.Kind is null)
-                    Error($"{path}.{name}.kind", "Say what kind of device it takes (kind: audio, bluetooth, bound, android or display).");
+                    Error($"{path}.{name}.kind", "Say what kind of device it takes (kind: audio, bluetooth, bound, android or display), or kind: text.");
+                else if (item.Kind.Trim() == TextInputKind)
+                    inputs.Add(KeyValuePair.Create(name, new FlowInput(null, string.IsNullOrWhiteSpace(item.Name) ? name : item.Name,
+                        item.Default ?? "", Bool(item.Ask, $"{path}.{name}.ask", false))));
                 else if (TryEnum(item.Kind, $"{path}.{name}.kind", LibraryKind.Audio, out var kind))
                 {
                     TimeSpan? timeout = null;

@@ -135,6 +135,9 @@ public sealed class FlowDocument
 
     public Dictionary<string, InputDocument>? Inputs { get; set; }
 
+    /// <summary>T23.7: output name → text that takes values.</summary>
+    public Dictionary<string, string>? Outputs { get; set; }
+
     public List<NodeDocument>? Nodes { get; set; }
 }
 

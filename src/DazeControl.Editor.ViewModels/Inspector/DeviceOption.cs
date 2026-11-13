@@ -150,8 +150,10 @@ public static class LibraryDevices
     /// <summary>"$output" → the input's row: "Output" / "Technics unless the caller picks another".</summary>
     public static DeviceOption InputRow(Library library, string name, FlowInput input) =>
         new(DeviceSource.Input, "$" + name, input.Label,
-            input.Default.Length == 0 ? "No default yet" : $"{NameOf(library, input.Kind, input.Default)} unless the caller picks another",
-            Glyph(input.Kind));
+            input.Default.Length == 0 ? "No default yet"
+                : input.Kind is { } kind ? $"{NameOf(library, kind, input.Default)} unless the caller picks another"
+                : $"\"{input.Default}\" unless the caller passes other text",
+            input.Kind is { } glyph ? Glyph(glyph) : "\uE8D2");
 
     /// <summary>A heading row of a picker's group.</summary>
     public static DeviceOption Header(string title) => new(DeviceSource.Header, null, title, "", "") { IsEnabled = false };
@@ -169,7 +171,7 @@ public static class LibraryDevices
         if (!required)
             options.Add(new(DeviceSource.None, null, "Current default device", "", glyph));
         // A bound input fits Bluetooth and audio settings too (D-116, D-125).
-        var own = (inputs ?? []).Where(i => LibraryEdits.Refers(i.Value.Kind, kind)).ToList();
+        var own = (inputs ?? []).Where(i => i.Value.Kind is { } inputKind && LibraryEdits.Refers(inputKind, kind)).ToList();
         if (own.Count > 0)
         {
             options.Add(Header(inputsGroup));
