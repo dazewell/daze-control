@@ -285,6 +285,7 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Text="Shows:" Visibility="{x:Bind HasPills, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Top"
                                                        Margin="0,2,0,0" AutomationProperties.AccessibilityView="Raw" />
@@ -303,15 +304,17 @@
                                                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                                                     <FontIcon Glyph="&#xE7BA;" FontSize="11" Visibility="{x:Bind HasWarning}"
                                                                               Foreground="{ThemeResource SystemFillColorCautionBrush}" />
-                                                                    <TextBlock Text="{x:Bind Text}" FontSize="12" VerticalAlignment="Center" />
+                                                                    <TextBlock Text="{x:Bind Text}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Text}" />
                                                                 </StackPanel>
                                                             </Button>
                                                         </Grid>
                                                     </DataTemplate>
                                                 </ItemsRepeater.ItemTemplate>
                                             </ItemsRepeater>
+                                            <!-- Beside the pills, never under them: a field can hold both and nothing below may jump. -->
+                                            <TextBlock Grid.Column="2" Text="Not a value from this flow" Visibility="{x:Bind HasUnknownValue, Mode=OneWay}"
+                                                       Style="{StaticResource FieldError}" Margin="0,2,0,0" TextWrapping="NoWrap" VerticalAlignment="Top" />
                                         </Grid>
-                                        <TextBlock Text="Not a value from this flow" Visibility="{x:Bind HasUnknownValue, Mode=OneWay}" Style="{StaticResource FieldError}" Margin="0,2,0,0" />
                                     </StackPanel>
                                 </Grid>
                             </StackPanel>
@@ -818,6 +821,7 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <NumberBox Value="{x:Bind IntervalCount, Mode=TwoWay}" Minimum="1" Maximum="{x:Bind IntervalMax, Mode=OneWay}" SpinButtonPlacementMode="Compact"
                                                        Header="Every" AutomationProperties.Name="Interval" />

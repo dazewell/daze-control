@@ -65,4 +65,19 @@ public sealed class NoticeSpacerTests : IDisposable
         Assert.Equal(21, _shown.Count);
         Assert.Equal(["0", "10", "29"], new[] { _shown[0], _shown[1], _shown[^1] });
     }
+
+    [Fact]
+    public void AfterDisposeNothingMoreShows()
+    {
+        var queue = Queue();
+        queue.Show("f", "a", true);
+        queue.Show("f", "b", true);
+        queue.Dispose();
+
+        _time.Advance(NoticeSpacer.Gap);
+        queue.Show("f", "c", true);
+
+        Assert.Equal(["a"], _shown);
+    }
 }
+
