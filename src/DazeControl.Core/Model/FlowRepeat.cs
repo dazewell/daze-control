@@ -29,10 +29,16 @@ public static class FlowRepeat
     /// Reads <paramref name="step"/>'s repeat settings; null with <paramref name="problem"/> set when one is unusable. The sentences
     /// never repeat the setting's text: it may come from a Sensitive value.
     /// </summary>
-    public static Plan? Read(StepNode step, out string? problem)
+    public static Plan? Read(StepNode step, out string? problem) => Read(step, out problem, out _);
+
+    /// <param name="step">A <c>flow.run</c> step, values filled (the runner) or as written (the validator).</param>
+    /// <param name="problem">Why the settings can't run, or null.</param>
+    /// <param name="param">The setting <paramref name="problem"/> is about.</param>
+    public static Plan? Read(StepNode step, out string? problem, out string? param)
     {
         ArgumentNullException.ThrowIfNull(step);
         problem = null;
+        param = null;
         var rounds = 1;
         if (Text(step, RepeatParam) is { } repeat)
         {
@@ -44,10 +50,11 @@ public static class FlowRepeat
                 problem = $"Repeat must be 1 to {MaxRounds.ToString(CultureInfo.InvariantCulture)} times.";
             else
                 rounds = (int)n;
+            param = problem is null ? null : RepeatParam;
         }
         var until = Text(step, UntilParam) is { Length: > 0 } u ? u : UntilWorks;
         if (problem is null && until is not (UntilWorks or UntilFails))
-            problem = $"Repeat until must be \"{UntilWorks}\" or \"{UntilFails}\".";
+            (problem, param) = ($"Repeat until must be \"{UntilWorks}\" or \"{UntilFails}\".", UntilParam);
         var pause = TimeSpan.Zero;
         if (problem is null && Text(step, PauseParam) is { Length: > 0 } p)
         {
@@ -55,6 +62,7 @@ public static class FlowRepeat
                 problem = "The wait between rounds isn't a duration (like 500ms, 20s, 1m30s).";
             else if (pause < TimeSpan.Zero || pause > MaxPause)
                 problem = "Wait 0 to 10m between rounds.";
+            param = problem is null ? null : PauseParam;
         }
         return problem is null ? new Plan(rounds, until == UntilWorks, pause) : null;
     }
@@ -68,14 +76,24 @@ public static class FlowRepeat
     }
 
     /// <summary>The step's line in Runs: how many rounds ran and why it stopped.</summary>
-    public static string? Summary(Plan plan, int ran, bool worked)
+    /// <param name="cancelled">Stop came between rounds: says how many ran, not how the plan would have ended.</param>
+    public static string? Summary(Plan plan, int ran, bool worked, bool cancelled = false)
     {
         if (plan.Rounds <= 1)
             return null;
         var of = $"{ran.ToString(CultureInfo.InvariantCulture)} of {plan.Rounds.ToString(CultureInfo.InvariantCulture)}";
+        if (cancelled)
+            return $"Stopped after round {of}";
         return plan.UntilWorks
             ? worked ? $"Worked on round {of}" : $"Didn't work in {plan.Rounds.ToString(CultureInfo.InvariantCulture)} rounds"
             : worked ? $"Ran {plan.Rounds.ToString(CultureInfo.InvariantCulture)} times" : $"Stopped at round {of}: it didn't work";
+    }
+
+    /// <summary>A repeat setting holds a value reference: only the runner can read it (D-146).</summary>
+    public static bool TakesValues(StepNode step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        return new[] { RepeatParam, UntilParam, PauseParam }.Any(name => StepValues.Parse(Text(step, name)).Count > 0);
     }
 
     private static string? Text(StepNode step, string name) =>

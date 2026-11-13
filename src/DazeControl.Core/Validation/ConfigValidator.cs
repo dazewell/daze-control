@@ -417,9 +417,11 @@ public static partial class ConfigValidator
                 if (FlowRepeat.Repeats(step) && step.With.TryGetValue("wait", out var wait) && wait is ScalarParam { Text: var on }
                     && bool.TryParse(on.Trim(), out var waits) && !waits)
                     problems.Add(new(Severity.Error, $"{path}.{FlowRepeat.RepeatParam}", "Repeat needs \"Wait for it to finish\" on.", flow.Id));
-                if (step.With.TryGetValue(FlowRepeat.PauseParam, out var pause) && pause is ScalarParam { Text: var text }
-                    && Duration.TryParse(text, out var span) && span > FlowRepeat.MaxPause)
-                    problems.Add(new(Severity.Error, $"{path}.{FlowRepeat.PauseParam}", "Wait 0 to 10m between rounds.", flow.Id));
+                // The runner's own reader (D-150); a setting holding a value is read when the step runs. A setting the generic check
+                // already refused keeps that one sentence.
+                if (!FlowRepeat.TakesValues(step) && FlowRepeat.Read(step, out var problem, out var param) is null
+                    && !problems.Exists(p => p.Path == $"{path}.{param}"))
+                    problems.Add(new(Severity.Error, $"{path}.{param}", problem!, flow.Id));
             }
         }
     }

@@ -33,6 +33,7 @@ public class FlowRepeatTests
     [InlineData(", pause: soon", "with.pause")]
     [InlineData(", repeat: 3, pause: 11m", "with.pause")]
     [InlineData(", repeat: 3, wait: false", "with.repeat")]
+    [InlineData(", repeat: 3, pause: -1s", "with.pause")]
     public void RepeatsThatCantRunAreErrors(string with, string where) =>
         Assert.Equal("flows.f.nodes.c." + where, Assert.Single(Validate(with)).Path);
 

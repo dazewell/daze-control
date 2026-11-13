@@ -1976,10 +1976,11 @@ Status: accepted, built (D-063's revisit note: a bounded repeat, not calls)
   the first round that works; `fails`: stop at the first that fails) and `pause` (0 to 10m before each round after the first). Rounds
   run inside the step: each is one nested call with the step's own time limit, the last round's result and outputs stand (values
   cleared between rounds), retries wrap the whole loop. The step's Summary says "Worked on round 3 of 5", "Didn't work in 5 rounds",
-  "Ran 5 times" or "Stopped at round 2 of 5: it didn't work"; nested runs add no history records, so the run stays one record.
+  "Ran 5 times", "Stopped at round 2 of 5: it didn't work" or, after Stop, "Stopped after round 2 of 5"; nested runs add no history records, so the run stays one record.
   The pause is `Task.Delay` on the run's TimeProvider with the run's token: Stop ends it and no round starts after; nothing waits
   while idle. `FlowRepeat.Read` (Core) is the one reader for the validator and the runner; its sentences never echo the text.
-  Validator: Repeat over 1 (or a value) with `wait: false` is an error; the number, choice and duration form are checked as any setting.
+  Validator: Repeat over 1 (or a value) with `wait: false` is an error; the number, choice and duration form are checked as any setting,
+  then `FlowRepeat.Read` itself (pause bound and the rest) unless a setting holds a value or the generic check already refused it.
 - Why: retry-until-it-works (Bluetooth that needs three tries) and "do it N times" without a script or a call loop (G-61).
 - Why not a new graph node or a loop edge: the DAG and D-063 stay; a called flow is already the unit of "a few steps".
   Why not a time limit over all rounds: each round has the step's limit and rounds are bounded, so the total is bounded too.

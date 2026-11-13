@@ -523,6 +523,8 @@ public sealed class FlowCallTests : IDisposable
 
         var result = await run;
         Assert.Equal((NodeOutcome.Cancelled, 1), (NodeOf(result, "call").Outcome, Rounds));
+        Assert.Equal("Stopped after round 1 of 5", NodeOf(result, "call").Summary); // during the pause or inside the round
+
         Assert.Equal(FlowOutcome.Cancelled, result.Outcome);
     }
 

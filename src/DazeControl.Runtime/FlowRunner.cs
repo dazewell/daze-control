@@ -354,7 +354,7 @@ public sealed class FlowRunner
                         }
                         catch (OperationCanceledException)
                         {
-                            summary = FlowRepeat.Summary(repeat, round - 1, false);
+                            summary = FlowRepeat.Summary(repeat, round - 1, false, cancelled: true);
                             return Done(StepResult.Cancelled, attempt, error);
                         }
                         values.Clear(node.Id);
@@ -367,7 +367,7 @@ public sealed class FlowRunner
                     if ((error is null) == repeat.UntilWorks || round >= repeat.Rounds || flowToken.IsCancellationRequested)
                         break;
                 }
-                summary = FlowRepeat.Summary(repeat, round, error is null);
+                summary = FlowRepeat.Summary(repeat, round, error is null, cancelled: flowToken.IsCancellationRequested);
             }
             else
             {
