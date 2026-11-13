@@ -1,6 +1,7 @@
 using DazeControl.Editor.ViewModels.Canvas;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.System;
@@ -77,6 +78,28 @@ public sealed partial class FlowCanvas
             foreach (var view in _views.Values)
                 view.ShowDetails(_viewModel.ShowDetails);
         }
+    }
+
+    /// <summary>
+    /// A step's rect for UI Automation (F-043): where the camera shows it, in the viewport's automation rect (screen
+    /// pixels), so automation tools and screen readers follow pan and zoom. Computed when asked: nothing runs per frame.
+    /// </summary>
+    private (Windows.Foundation.Rect Bounds, bool Offscreen)? AutomationBounds(NodeView view)
+    {
+        if (ViewportWidth <= 0)
+            return null;
+        // Null when no peer can be made for the viewport: the node keeps its default rect.
+        var peer = FrameworkElementAutomationPeer.FromElement(Viewport) ?? FrameworkElementAutomationPeer.CreatePeerForElement(Viewport);
+        if (peer is null)
+            return null;
+        var port = peer.GetBoundingRectangle();
+        if (port.Width <= 0)
+            return null;
+        var shown = BoundsOf(view.Node);
+        var world = shown with { Height = view.ActualHeight > 0 ? view.ActualHeight : shown.Height };
+        var viewport = new DazeControl.Core.Layout.Rect(port.X, port.Y, port.Width, port.Height);
+        var screen = CanvasAutomation.ScreenRect(_camera, world, viewport, ViewportWidth);
+        return (new Windows.Foundation.Rect(screen.X, screen.Y, screen.Width, screen.Height), CanvasAutomation.IsOffscreen(screen, viewport));
     }
 
     /// <summary>Keyboard focus and new steps: the smallest pan that shows the step (no ScrollViewer to bring it into view).</summary>

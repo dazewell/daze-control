@@ -1692,7 +1692,11 @@ line from check ran through connect; then "this must work in every layout mode",
   run order) or the user's. Why not dummy-node layers: a column/row of empty slots per long line (D-111).
 - Known limit: steps placed by hand closer than 16 DIP to a port (the detour's first step) can't be cleared by any lane;
   the line then stays as it was (fewest crossings). Auto shapes always leave more room than that.
-- Revisit if: lanes of several lines overlap (lane per line), or lines should dodge other lines.
+- Revisit if: lines should dodge other lines.
+- Amended 2026-11-12 (F-040): a line within 8 DIP of a step (`LineClearance`) also detours; lane candidates include the
+  gap next to each step beside the run (14 DIP off), least stray wins; detours sharing a lane over the same stretch are
+  spread 12 DIP apart (`Separate`), shortest run innermost, so lanes nest. Commit and drag preview both spread.
+  Why not one lane per line always: lines that never meet would wander off for nothing.
 
 ## D-125 · 2026-11-12 · A flow input can be a bound device (`kind: bound`)
 Status: accepted (user, 2026-11-12: "let's add bound devices as inputs for the Flows")

@@ -84,7 +84,7 @@ public sealed partial class FlowCanvas : UserControl
         // coordinates, through the camera transform.
         Root.PointerPressed += OnPointerPressed;
         Root.PointerMoved += OnPointerMoved;
-        Root.PointerReleased += OnPointerReleased;
+        Root.AddHandler(PointerReleasedEvent, new PointerEventHandler(OnPointerReleased), handledEventsToo: true);
         Root.PointerCaptureLost += (_, _) => EndGesture();
         Root.PointerExited += (_, _) =>
         {
@@ -221,6 +221,7 @@ public sealed partial class FlowCanvas : UserControl
             if (view is null)
             {
                 view = node.Kind == CanvasNodeKind.Card ? new CardView(node) : new PillView(node);
+                view.ScreenBounds = AutomationBounds; // UIA rects through the camera (F-043)
                 if (view is PillView pill)
                     pill.SizeChanged += (_, _) => Report(pill);
                 _views[node.Id] = view;

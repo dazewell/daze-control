@@ -135,14 +135,15 @@ public sealed class DragPreviewTests : IDisposable
         var scene = _canvas.Scene;
         scene.BeginDrag(preview);
 
+        // bt → vol runs in the gap left of the card (F-040: 14 DIP off it, not round everything), so it starts following
+        // the card on the first frame: the live set grows and the static set is redrawn without it.
         Assert.True(scene.DragTo(preview.Offset(0, 8)));
-        var still = scene.LiveCurves.Keys.Where(k => !preview.Touching.Contains(k)).ToList();
-        Assert.Empty(still);
+        Assert.True(scene.LiveSetChanged);
+        Assert.Equal([("bt", "vol")], scene.LiveCurves.Keys.Where(k => !preview.Touching.Contains(k)));
 
         // The card moves onto or off bt → vol's way: it re-routes (D-124). Where 90, 210 would crowd a step, it takes the
         // nearest spot that keeps the gaps (176, 296; UX §5.9).
         Assert.True(scene.DragTo(preview.Offset(90, 210)));
-        Assert.True(scene.LiveSetChanged);
         Assert.Contains(("bt", "vol"), scene.LiveCurves.Keys);
         Assert.NotEqual(preview.StaticCurve("bt", "vol"), scene.LiveCurves[("bt", "vol")]);
 

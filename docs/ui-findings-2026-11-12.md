@@ -179,7 +179,7 @@ Run after Opus batch 1 (T22.1) where they share canvas files.
 
 10. **Shell and inspector polish** (Sonnet, done: F-032/034/035/038/039/041; F-039 only narrowed, not live-checked): F-032, F-034, F-035, F-038, F-039, F-041. Files: `InspectorPane.xaml`, `InspectorViewModel.Many.cs`, `ShellWindow.xaml(.cs)`, `ProviderCatalog.cs` (help line).
 11. **Silent notices and the flaky test** (Sonnet): F-037, F-042. Files: `TrayIcon.cs`, `TrayNotifier.cs`, `TriggerServiceTests.cs`. Disjoint from everything else.
-12. **Canvas input, routing and automation** (Opus, after T22.1): F-033 (verify by hand with a real mouse and touchpad first), F-040, F-043. Files: `Canvas/FlowCanvas.Pointer.cs`, `Motion.cs`, `NodeViews.cs`.
+12. **Canvas input, routing and automation** (Opus, after T22.1; done in code, see Batch 12 results, nothing seen live): F-033 (verify by hand with a real mouse and touchpad first), F-040, F-043. Files: `Canvas/FlowCanvas.Pointer.cs`, `Motion.cs`, `NodeViews.cs`.
 13. **Editor memory and run counters** (Opus): F-036 and F-012. Files: undo stack, scene rebuild, runtime progress events.
 14. **Human check list**: right/middle/Space pan and pinch with real input, 225 % text scale, high contrast, tray folders and hotkeys, Library "Test" on real audio/Bluetooth, the F-029 design decision.
 
@@ -207,6 +207,16 @@ all, copy, paste, undo ×3, close, open/close ×3; memory after a full GC). Priv
 - Left: ~+80 MB stays after the first flow is closed (XAML templates, native heap high-water); it does not grow
   with more open/close. Not measured: UIA walks (the tester saw them inflate memory), the installed build.
 - F-012: covered by unit tests only (pop-up, canvas, nested call); not watched on a live run.
+
+## Batch 12 results (F-033, F-040, F-043)
+
+| ID | Status | Note |
+|----|--------|------|
+| F-033 | fixed by reasoning, not seen live | Read every pan path. Middle-drag and right-drag (arm, threshold, capture on the first move, menu swallowed after a pan) are correct in code: no fix found, so the tester's failure is most likely the synthetic input. Two real gaps fixed: Space counted only if the canvas had keyboard focus when Space went down (now the key state at the press), and a right press released over a canvas button (which handles the release) left an armed gesture that blocked every later press (release now registered with handledEventsToo; a leftover gesture gives way to the next press). Decisions in `PanInput` (unit tests); the right-click/right-drag threshold stays in `RightDragPan` (D-069) |
+| F-040 | fixed in code, not seen live | Refit after Arrange: unit test for all four shapes (camera shows every step). Routing: a line closer than 8 DIP to a step counts against it, so it detours; lanes may also run in the gap next to one step (14 DIP off), not only round everything; detours that share a lane over the same stretch are spread 12 DIP apart, longest outermost (nested, no crossings). 3 in → 1 Top to bottom: lanes 294/306/318; Tree: 1-4 DIP from a pill before, 14 now. The drag preview spreads the same way (D-120) |
+| F-043 | fixed in code, not seen live | Node peers report the camera's rect inside the viewport's own automation rect (unit-free scale) and are off screen when panned out of view; computed on request, nothing per frame. No UIA client or screen reader was run |
+
+Not seen live (needs the user): right/middle/Space pan with a real mouse, touchpad pan and pinch, the new lanes on screen, a UIA dump after panning.
 
 ## Round 2 restore verification
 
