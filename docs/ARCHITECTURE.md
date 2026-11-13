@@ -289,10 +289,10 @@ D-043. `scripts/pack.ps1` → one folder (editor self-contained + AOT `CtrlAltDa
   real engine runs). `Program` then applies a downloaded update (exit; the updater restarts the engine with the same
   args). `Engine/Lifecycle/UpdateCheck`: installed copies only, runs `cad update` hidden at +1 min and daily, logs
   its output.
-- Carry-over from the old name (T29.2, D-152; old names only in `Core/OldName`): the engine, after taking its own
+- Carry-over from the old name (T29.2, D-152; old names only in `Core/OldName`): the engine (default config only), after taking its own
   mutex and before the log and hotkeys, stops a running old engine (`Runtime/Lifecycle/OldEngine`: WM_CLOSE to
   `DazeControl.Tray`, wait on its mutex ≤ 10 s), then `Core/OldSetup.CopyFolders` copies `%APPDATA%` and
-  `%LOCALAPPDATA%\DazeControl` (only while the new config.yaml is absent; existing files stay; config last; never
+  `%LOCALAPPDATA%\DazeControl` (only while the new config.yaml is absent; existing files stay; config last, via a temp file; never
   throws). The editor and `cad` call the copy first too (not with `--config`). `WindowsCredentials` reads
   `CtrlAltDaze:<name>`, then `DazeControl:<name>`, and lists both. Installed copy only: `Autostart.CarryFrom` removes
   the old Run value (inside `DazeControlApp` only) and turns ours on if it was on; `ShortcutPlaces.OldTargets` makes

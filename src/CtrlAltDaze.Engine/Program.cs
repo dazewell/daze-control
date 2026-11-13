@@ -33,7 +33,8 @@ public static class Program
             return 0;
         }
         // The rename (T29.2, D-152): the old engine exits before its files are copied and before hotkeys are taken.
-        var setup = new List<string?> { StopOldEngine(), OldSetup.CopyFolders() };
+        // Not for a custom config (a dev run): it must leave the user's running app and folders alone.
+        var setup = arguments.Config is null ? new List<string?> { StopOldEngine(), OldSetup.CopyFolders() } : [];
         Log.Initialize(Log.DefaultDirectory);
         foreach (var line in setup.OfType<string>())
             Log.Info(line);

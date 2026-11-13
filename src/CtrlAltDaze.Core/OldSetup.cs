@@ -30,7 +30,10 @@ public static class OldSetup
             var files = CopyTree(Path.Combine(local, OldName.FolderName), Path.Combine(local, AppInfo.FolderName), skip: null)
                 + CopyTree(oldRoaming, newRoaming, skip: oldConfig);
             Directory.CreateDirectory(newRoaming);
-            File.Copy(oldConfig, newConfig);
+            // Through a temporary file: a half-written config.yaml would stop the copy from ever being tried again.
+            var partial = newConfig + ".copying";
+            File.Copy(oldConfig, partial, overwrite: true);
+            File.Move(partial, newConfig);
             return $"setup: copied {files + 1} files from the {OldName.FolderName} folders";
         }
         catch (Exception e) when (e is not OutOfMemoryException)

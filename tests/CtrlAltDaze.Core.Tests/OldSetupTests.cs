@@ -75,4 +75,16 @@ public sealed class OldSetupTests : IDisposable
         Assert.StartsWith("setup: copying from the DazeControl folders stopped:", OldSetup.CopyFolders(Roaming, Local), StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(Roaming, "CtrlAltDaze", "config.yaml")));
     }
+
+    [Fact]
+    public void ALeftoverPartialConfigIsReplacedAndNotLeftBehind()
+    {
+        Put(Path.Combine(Roaming, "DazeControl", "config.yaml"), "flows: {}");
+        Put(Path.Combine(Roaming, "CtrlAltDaze", "config.yaml.copying"), "flo");
+
+        Assert.NotNull(OldSetup.CopyFolders(Roaming, Local));
+
+        Assert.Equal("flows: {}", File.ReadAllText(Path.Combine(Roaming, "CtrlAltDaze", "config.yaml")));
+        Assert.False(File.Exists(Path.Combine(Roaming, "CtrlAltDaze", "config.yaml.copying")));
+    }
 }
