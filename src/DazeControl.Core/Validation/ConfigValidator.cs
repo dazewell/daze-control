@@ -252,7 +252,7 @@ public static partial class ConfigValidator
     }
 
     /// <summary>
-    /// Get from text (D-142): a written field path, pattern or line the step would always refuse is an error now. It runs the same
+    /// Get from text (D-143): a written field path, pattern or line the step would always refuse is an error now. It runs the same
     /// <see cref="TextExtract.Check"/> as the step, on the text as the step will see it (escapes undone). A setting holding a
     /// reference is unknown until the run, so then only the choice of what to take is known.
     /// </summary>

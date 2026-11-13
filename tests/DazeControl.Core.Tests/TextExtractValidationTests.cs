@@ -5,7 +5,7 @@ using DazeControl.Core.Yaml;
 
 namespace DazeControl.Core.Tests;
 
-/// <summary>T25.2 (D-142): the validator refuses what Get from text would always refuse, with the provider's own checks.</summary>
+/// <summary>T25.2 (D-143): the validator refuses what Get from text would always refuse, with the provider's own checks.</summary>
 public class TextExtractValidationTests
 {
     private static ValueList<Problem> Validate(string with)

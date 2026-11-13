@@ -107,7 +107,7 @@ public sealed class HttpRequestProvider(HttpMessageHandler handler, ICredentialS
         }
     }
 
-    /// <summary>The first <paramref name="limit"/> characters of the answer (one over the value's limit, so the cut shows): never the whole body. 64 KB when a Get from text reads it (D-142), else 1,000.</summary>
+    /// <summary>The first <paramref name="limit"/> characters of the answer (one over the value's limit, so the cut shows): never the whole body. 64 KB when a Get from text reads it (D-143), else 1,000.</summary>
     private static async Task<string> ReadStartAsync(HttpResponseMessage response, int limit, CancellationToken cancellationToken)
     {
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);

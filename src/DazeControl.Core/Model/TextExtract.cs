@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 namespace DazeControl.Core.Model;
 
 /// <summary>
-/// <c>text.extract</c> (T25.2, D-142): takes one part of a text. The settings check (<see cref="Check"/>) and the run
+/// <c>text.extract</c> (T25.2, D-143): takes one part of a text. The settings check (<see cref="Check"/>) and the run
 /// (<see cref="Extract"/>) are shared by the validator and the provider, so what the editor accepts is what the step does.
 /// Every limit is here: the text is at most <see cref="MaxText"/> characters, a pattern <see cref="MaxPattern"/>, a path
 /// <see cref="MaxPath"/>, JSON deeper than <see cref="MaxJsonDepth"/> is refused, and a pattern gets <see cref="PatternTimeout"/>.
@@ -294,7 +294,7 @@ public static class TextExtract
     /// <summary>A plain number as <c>number</c> gives it (the same reading as Check value), else null.</summary>
     public static bool IsNumber(string? text) => text is not null && StepValues.TryNumber(text.Trim(), out _);
 
-    /// <summary>The settings that fill references and may hold a Sensitive value: the output is Sensitive when any does (D-142).</summary>
+    /// <summary>The settings that fill references and may hold a Sensitive value: the output is Sensitive when any does (D-143).</summary>
     public static readonly string[] Sources = ["text", "find", "until"];
 
     /// <summary>The text with its <c>{{</c> escapes undone, for a setting written without any reference: what the run sees after filling.</summary>

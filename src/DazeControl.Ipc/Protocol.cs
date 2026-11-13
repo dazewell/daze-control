@@ -22,11 +22,21 @@ public static class Protocol
     /// </summary>
     public const int WithInputs = 2;
 
+    /// <summary>
+    /// What <see cref="Ops.Flag"/> and <see cref="Ops.Pause"/> say (T27.8). An older engine would answer "unknown operation" at best
+    /// and, worse, could read a bare flag/pause as a status request; stamped 3, it refuses by version.
+    /// </summary>
+    public const int WithControl = 3;
+
+    /// <summary>The newest version this build speaks; the engine accepts 1 up to this.</summary>
+    public const int Latest = WithControl;
+
     /// <summary>What <see cref="PipeServer"/> says when the version is not one it speaks.</summary>
     public const string MismatchStart = "The engine speaks protocol ";
 
     /// <summary>The version a client stamps on <paramref name="request"/>.</summary>
-    public static int VersionFor(PipeRequest request) => request.Inputs is { Count: > 0 } ? WithInputs : Version;
+    public static int VersionFor(PipeRequest request) =>
+        request.Op is Ops.Flag or Ops.Pause ? WithControl : request.Inputs is { Count: > 0 } ? WithInputs : Version;
 
     /// <summary>Pipe name for a user; the SID keeps sessions of different users apart.</summary>
     public static string PipeName(string userSid) => $"DazeControl-{userSid}";
@@ -56,6 +66,12 @@ public static class Ops
     public const string Shortcuts = "shortcuts";
     public const string CreateShortcut = "create-shortcut";
     public const string RemoveShortcut = "remove-shortcut";
+
+    /// <summary>flag: <see cref="PipeRequest.Key"/> is the flag's name; <see cref="PipeRequest.Enable"/> sets it, null just tells (T27.8).</summary>
+    public const string Flag = "flag";
+
+    /// <summary>pause: <see cref="PipeRequest.Enable"/> true pauses shortcuts, false resumes, null just tells, like the tray item (T27.8).</summary>
+    public const string Pause = "pause";
 
     /// <summary>The editor's shortcut box has focus (<see cref="PipeRequest.On"/>) or lost it: the engine lets go of
     /// its shortcuts meanwhile, so the box can record a chord the engine owns (D-072). Ends when the connection does.</summary>
@@ -91,7 +107,7 @@ public sealed class PipeRequest
     /// checked against the flow's inputs by the engine, never read as a command or a reference.</summary>
     public Dictionary<string, string>? Inputs { get; init; }
 
-    /// <summary>autostart: true = on, false = off, null = just tell.</summary>
+    /// <summary>autostart, flag, pause: true = on, false = off, null = just tell.</summary>
     public bool? Enable { get; init; }
 
     /// <summary>record-hotkey: true = the box is recording, false = it stopped.</summary>
@@ -106,7 +122,7 @@ public sealed class PipeRequest
     /// <summary>devices: audio, bluetooth, displays, adb or gamepads.</summary>
     public string? Kind { get; init; }
 
-    /// <summary>capture-display-layout: the library key the layout is saved under.</summary>
+    /// <summary>capture-display-layout: the library key the layout is saved under; flag: the flag's name.</summary>
     public string? Key { get; init; }
 
     /// <summary>android-apps: the device's address ("host" or "host:port", as in the library).</summary>
@@ -160,6 +176,9 @@ public sealed class PipeMessage
     /// <summary>With <see cref="Ok"/> false: the request itself was wrong (an input the flow doesn't have), so a script
     /// gets the usage exit code instead of "the run failed".</summary>
     public bool Usage { get; init; }
+
+    /// <summary>flag: the flag is on now; pause: shortcuts are paused now.</summary>
+    public bool? State { get; init; }
 
     public static PipeMessage Fail(int id, string error) => new() { Id = id, Error = error };
 
