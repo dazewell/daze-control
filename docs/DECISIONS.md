@@ -805,7 +805,7 @@ Status: accepted, built (T13.8; user, 2026-11-03: "no infinite loops")
 - Revisit if: someone needs recursion on purpose (retry-until loops); then a bounded "repeat" step, not calls.
 
 ## D-064 · 2026-11-03 · Flow inputs are Library devices with defaults; steps use `$name`; calls pass `inputs:`
-Status: accepted (M13 design; user, 2026-11-03: inputs ship inside P6); amended by D-129 (values in text settings)
+Status: accepted (M13 design; user, 2026-11-03: inputs ship inside P6); amended by D-129 (values in text settings) and D-131 (text inputs)
 - Decision: `Flow.Inputs` = name → (`LibraryKind`, label, default key); the default is always given (YAML `kind`,
   `name`, `default`; no "required" flag, every input is optional for a caller). A `LibraryRef` param of the same
   kind may hold `$name`; the runner resolves it (caller's value, else the default) before resources are filled.
@@ -1529,7 +1529,7 @@ Status: accepted (user, 2026-11-11: "binding audio and BT devices - so that they
 - Revisit if: users want more than two sides (a dock = display + audio + USB). A bound flow input kind: D-125.
 
 ## D-117 · 2026-11-11 · Pick device step: its result fills later steps' device settings as `$result:<step id>`
-Status: accepted (user, 2026-11-11: "selecting items from the library that can be then used in other steps"); amended by D-129 (step values); Pick-only `$result:` superseded by D-130
+Status: accepted (user, 2026-11-11: "selecting items from the library that can be then used in other steps"); amended by D-129 (step values), built; Pick-only `$result:` superseded by D-130
 - Decision: a `prompt.pick` step ("Pick device", Questions group) offers the Library's items of one `kind`
   (audio/bluetooth/display/android) on the prompt window (D-107: never takes focus, timeout, `onTimeout: stop|use-default`).
   Any `LibraryRef` setting, and a value `flow.run` passes as `inputs`, may hold `$result:<id>`; the runner substitutes the
@@ -1749,7 +1749,7 @@ Status: accepted (F-029, M22 T22.6; user chose option A; supersedes nothing, D-1
 - Rejected: a new `LibraryRef` kind with a dynamic `Library` (every `spec.Library!` site would need a null path); rewriting names to keys on load.
 
 ## D-129 · 2026-11-12 · Step values: typed values declared per step type, `{step.value}` in text settings that take them
-Status: accepted (user, 2026-11-12: all five PR #217 questions as recommended; design docs/step-values/DESIGN.md). Amends D-064, D-117
+Status: accepted, built (M23 T23.1-T23.7, PRs 223-230; user, 2026-11-12: all five PR #217 questions as recommended; open items in docs/step-values/DESIGN.md). Amends D-064, D-117
 - Decision: `ProviderDescriptor.Values` (`ValueSpec`: name, Text/Number/Device kind, title, Sensitive, OnFailure) + `error`
   on every step + run values (`@flow`, `@trigger`, `@time`, `@date`) + `{$input}`. Text settings opt in
   (`ParamSpec.TakesValues`) and hold `{step.value|fallback}`; device settings keep `$result:<id>` (widened later to
@@ -1766,7 +1766,7 @@ Status: accepted (user, 2026-11-12: all five PR #217 questions as recommended; d
 - Revisit if: a value must survive a restart (flags, D-029), or format specifiers are asked for.
 
 ## D-130 · 2026-11-12 · Device values beyond Pick: `$result:<id>.<value>`; `audio.setDefault` gives `previous`
-Status: accepted (M23 T23.6, as D-129 / DESIGN §4.3 planned). Supersedes D-117's rule that `$result:` names only a Pick step
+Status: accepted, built (M23 T23.6, as D-129 planned; no live default-device switch yet). Supersedes D-117's rule that `$result:` names only a Pick step
 - Decision: a device setting (or a value `flow.run` passes) may hold `$result:<id>.<value>` for any Device value of a step
   that always finishes first and whose Library kind fits (D-116 `Fits`); `$result:<id>` alone = its `device` (a Pick's
   keeps D-117's sentences). Filled in `StepValues.Fill` before the lock, so the lock is the filled device's (two keys of one
@@ -1781,6 +1781,7 @@ Status: accepted (M23 T23.6, as D-129 / DESIGN §4.3 planned). Supersedes D-117'
 - Revisit if: users want to put back a device that isn't in the Library (add it silently, as pickers do from Windows).
 
 ## D-131 · 2026-11-12 · Text inputs, flow outputs and Make text are single-assignment values (T23.7, DESIGN §9)
+Status: accepted, built (M23 T23.7, PR 230). Amends D-064 (text inputs)
 - Decision: a flow input may be `kind: text` (`FlowInput.Kind` null): any default (empty allowed, ≤ 1,000 chars), used as
   `{$name}` in text that takes values, never in a device setting, never asked (`ask: true` on text is an error: typing needs
   focus, D-107). A `flow.run` passes it text that takes values, filled in the caller before the call; passing one's own text

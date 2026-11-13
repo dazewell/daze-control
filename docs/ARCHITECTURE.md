@@ -520,6 +520,41 @@ view), every change goes through `Commit` (20-step Undo, restores order, enabled
 `ActionIds`. Sort, filter and collapsed groups live in `editor.json` `flowList`. No engine change: the engine rebuilds the tray from the
 saved file. Footprint: editor only, no timers.
 
+## Step values (M23, D-129..D-131)
+
+Steps give typed values; later steps' text uses them as `{step.value|fallback}`. Every reference is checkable before a run.
+- **Catalog** (`Core/Catalog`): `ProviderDescriptor.Values` (`ValueSpec`: name, `ValueKind` Text/Number/Device, title, `Help`, `Library`,
+  `Sensitive`, `OnFailure`); `ParamSpec.TakesValues` and `ParamSpec.Fill` (`None|Url|Argument`). `StepValues.Of` adds `error` ("Why it
+  failed", OnFailure) to every step; `ProviderCatalog.ResultSteps` (the fact checks) add `result`. Producers: `device` (`prompt.pick`,
+  `bluetooth.connect/disconnect`, `audio.setDefault`), `previous` (`audio.setDefault`), `percent`, `network`, `idle`, `free`, `count`, `answer`,
+  `picked` (`menu.show`), `exitCode`/`output` (`process.run`, `script.powershell`), `status`/`body` (`http.request`), `text` (`text.make`).
+  `output` and `body` are Sensitive. Text that takes values: `notify.text`, both prompt questions, `menu.show.title`, `text.make.text`,
+  `http.request` url (Url), `android.open` address (Url), `process.run` args (Argument); not scripts, bodies or headers.
+- **Resolver** `Core/Model/StepValues` (hand-written scanner, no Regex): `Parse/Split/Escape` (`{step.value|fb}`, `{$input}`, `{@flow|trigger|time|date}`,
+  `{{` writes a brace), `Before` (the one must-wait-for rule; `PickResults.Before` delegates), `Problems` + `MayBeMissing` (validator sentences),
+  `Wanted(flow)`, `Fill/FillText`, `Describe` (dry run titles), `Uses/Rewrite/RewriteRefs/DropRefsTo` (editor remap). `ConfigValidator` reports a
+  reference in a device/number/choice/duration setting as an error; an unknown step, or a setting that takes no values, only warns.
+- **Run** (`Runtime/FlowRunner`): one `Core/Runs/RunValues` per run holding only `Wanted` values (each cut at 1,000 chars; a filled setting at 4,000).
+  `StepValues.Fill` runs just before the lock, where `PickResults.Resolve` did, so providers only see plain text and Library keys. An attempt
+  `Clear`s its step's values; after it the `StepContext.SetValue/SetNumber/SetDevice` values are copied (all on success; `OnFailure` ones and
+  `error` on failure). Missing: the fallback, else empty text; in a device setting the step fails. `StepContext.Wants` lets a provider skip work
+  no one reads (stdout, response body, the previous default). Dry run shows titles ("Connected to ‹Device›"), never a device.
+- **Secrets** (D-014): a script gets the values its text names as `DAZE_<STEP>_<VALUE>` environment variables (`StepValues.EnvironmentName`), never
+  spliced into code; `Url` fill percent-encodes the value only; `Argument` fills one argv item per line, with `%` guarded (`PercentGuard`) so
+  `%VAR%` expansion never reads a value; the runner masks a Sensitive value of an earlier step in a step's error/summary as its title
+  (`StepValues.Secrets/Mask`); `output` of a failed program isn't given.
+- **Device values** (D-130): `$result:<id>.<value>` in a device setting or a `flow.run` input; filled before the lock, so the lock is the filled
+  device's. `audio.setDefault`'s `previous` is read before the switch, only when wanted, and mapped to the Library audio item.
+- **Text inputs, outputs, Make text** (D-131): `FlowInput.Kind` null = text (default up to 1,000 chars, never asked, never in a device setting);
+  `Flow.Outputs` (up to 20, text up to 4,000) are filled when the run succeeds into `RunResult.Outputs` (`Core/Model/FlowOutputs`:
+  Fill/Problems/Rename/Remove/Users); a waiting `flow.run` gives them as values. The called flow's outputs come through a `Func<string, Flow?>`
+  (validator, runner, editor); null = unknown, any name is text. `text.make` (Flow group) gives `text`.
+- **Editor** (`Editor.ViewModels/Inspector`): `ValueText` codec (`{bt.device}` and `{Connect Technics: Device}`, duplicate names "(2)" by flow order)
+  and the Insert value groups; `ParamFieldViewModel(.Pills)` the "Shows:" row (reserved slot, D-104); `InspectorViewModel.Values` "Values it gives",
+  `.Outputs` "Values it gives back"; `FlowCommands.Delete` turns references to deleted steps into their fallback text, `Paste` points copies at copies.
+- **Footprint**: engine image 15,853,568 to 16,111,616 B over T23.2/T23.5/T23.7 (+97 KB, +59 KB, +106 KB, AOT publish per PR, 0 warnings).
+  Idle unchanged by construction (no timer, nothing resident; the dictionary lives for one run); `measure.ps1` was not re-run for M23.
+
 ## Adding a provider
 
 1. Add a descriptor in `Core/Catalog/` (id, glyph, title, params as `ParamSpec`, default timeout, resources).
@@ -527,7 +562,7 @@ saved file. Footprint: editor only, no timers.
    params, ct)`, optional `IEnumerator` for pickers); interop behind a small interface with a fake.
 3. Register in the engine composition root. A test asserts every descriptor has exactly one implementation.
 4. Tests: descriptor/param validation, YAML round-trip of a sample node, runner behaviour with the fake.
-No change to Runner, YAML mapper or editor: the inspector renders from `ParamSpec`. A free-text param should say
+No change to Runner, YAML mapper or editor: the inspector renders from `ParamSpec`. A step that gives a value declares it in `Values` and sets it with `ctx.SetValue/SetNumber/SetDevice`; a text setting that should take values sets `TakesValues` (Step values). A free-text param should say
 where its values come from (`Suggest`) or show `Examples` (D-050); a `Devices(kind)` source needs a kind in
 `IDeviceQueries` (`Providers/SystemDevices`), a `Static` table lives in Core and is shared with the provider.
 A read-only check = an `IFactProbe` + `FactCheckProvider` registration (`BuiltInProviders.StateChecks`) + its id in
@@ -587,8 +622,6 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 
 ## Open questions
 
-- Step values (D-129, accepted 2026-11-12): steps give typed values that later steps' text uses (`{step.value}`), pills in the editor.
-  Design: [step-values/DESIGN.md](step-values/DESIGN.md); nothing built (PLAN → M23).
 - Display, after Duplicate (F5 live run 2026-11-03, notes `f5-display/fix-runs/`): leaving Duplicate, the next one or
   two switches can be undone by Windows seconds later, `display.topology` included (Extend → Duplicate; "use only"
   DELL passed its check, then both came back on). The DELL's target id changes 0x1009038 → 0x9038 then, which looks
