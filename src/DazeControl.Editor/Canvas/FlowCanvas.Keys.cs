@@ -182,7 +182,10 @@ public sealed partial class FlowCanvas
                 return;
         }
         UpdateFocusRing();
-        if (_viewModel.FocusedId is { } focused && _viewModel.Find(focused) is { } node)
+        // Space (and its key-repeat) only arms the pan: scrolling the focused step into view here moved the camera under
+        // a Space+left-drag, so the chart jumped (F-034).
+        if (PanInput.RevealsFocusOnKeyDown(e.Key == VirtualKey.Space, _gesture != Gesture.None)
+            && _viewModel.FocusedId is { } focused && _viewModel.Find(focused) is { } node)
             BringIntoView(node);
     }
 

@@ -44,4 +44,10 @@ public static class PanInput
     /// </summary>
     public static bool IsStale(bool gestureRunning, bool armedOnly, bool hasCapture) =>
         gestureRunning && (armedOnly || !hasCapture);
+
+    /// <summary>
+    /// Whether a key press scrolls the focused step into view. Space only arms panning (held and auto-repeating
+    /// during a Space+left-drag), and nothing moves the camera under a running gesture.
+    /// </summary>
+    public static bool RevealsFocusOnKeyDown(bool isSpace, bool gestureRunning) => !isSpace && !gestureRunning;
 }
