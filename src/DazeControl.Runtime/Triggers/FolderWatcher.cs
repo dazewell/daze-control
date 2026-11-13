@@ -49,7 +49,7 @@ public sealed class SystemFolderWatcher : IFolderWatcher
         var watcher = new FileSystemWatcher(folder)
         {
             IncludeSubdirectories = false,
-            NotifyFilter = directoriesOnly ? NotifyFilters.DirectoryName : NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
+            NotifyFilter = directoriesOnly ? NotifyFilters.DirectoryName : NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size, // no DirectoryName: a subfolder isn't a file
             InternalBufferSize = 32 * 1024, // a burst of 500 files; an overflow only loses events, it doesn't break the watch
         };
         try
@@ -57,7 +57,12 @@ public sealed class SystemFolderWatcher : IFolderWatcher
             if (nameFilter is not null)
                 watcher.Filter = nameFilter;
             watcher.Created += (_, e) => changed(FileChange.Created, e.Name ?? "");
-            watcher.Changed += (_, e) => changed(FileChange.Changed, e.Name ?? "");
+            // A folder's own write time also reports as "changed"; the file watch is about files.
+            watcher.Changed += (_, e) =>
+            {
+                if (directoriesOnly || !Directory.Exists(e.FullPath))
+                    changed(FileChange.Changed, e.Name ?? "");
+            };
             watcher.Deleted += (_, e) => changed(FileChange.Deleted, e.Name ?? "");
             watcher.Renamed += (_, e) =>
             {

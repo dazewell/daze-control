@@ -434,6 +434,58 @@ public sealed class FileEventTests : IDisposable
     }
 
     [Fact]
+    public async Task TheStartLimitIsOneBudgetForAllTheFileTriggersOfAFlow()
+    {
+        Make("sort", Created(), new EventTrigger("file.changed") { Path = Folder }, new EventTrigger("file.deleted") { Path = Folder });
+        using var service = Service(TriggerOptions.Default with { FileStartLimit = 2 });
+        await ApplyAsync(service);
+
+        var kinds = new[] { FileChange.Created, FileChange.Changed, FileChange.Deleted };
+        for (var i = 0; i < 3; i++)
+        {
+            _fs.Raise(Folder, kinds[i], $"f{i}.txt");
+            await SettleAsync(service);
+            if (i < 2)
+                await Completed(i + 1);
+        }
+
+        Assert.Equal(2, _history.Recent.Count(r => r.Outcome != FlowOutcome.Cancelled));
+        Assert.Single(_history.Recent, r => r.Outcome == FlowOutcome.Cancelled);
+    }
+
+    [Fact]
+    public async Task ChangesSeenBeforeAWatchWasRearmedAreNotRaisedAfterIt()
+    {
+        Make("sort", Created());
+        using var service = Service();
+        await ApplyAsync(service);
+
+        _fs.Raise(Folder, FileChange.Created, "old.txt"); // waiting to settle
+        _fs.Live.First(h => !h.DirectoriesOnly).Broken(); // the folder was lost and found again
+        await _source.IdleAsync();
+        _time.Advance(FileEventSource.DefaultQuiet);
+
+        Assert.Empty(Events());
+        Assert.False(_source.HasTimer);
+    }
+
+    [Fact]
+    public async Task IdleAsyncEndsEvenWhenAnArmingFinishesAtOnce()
+    {
+        Make("sort", Created());
+        using var service = Service();
+        for (var i = 0; i < 50; i++)
+        {
+            await ApplyAsync(service);
+            _flows.Clear();
+            service.Apply([]); // unloads while the arming may still be starting: it returns at once
+            Make("sort", Created());
+        }
+
+        await _source.IdleAsync().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task AFolderThatKeepsFlappingStopsBeingRearmed()
     {
         Make("sort", Created());

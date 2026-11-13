@@ -42,8 +42,8 @@ public sealed class TriggerService : IDisposable
     private readonly Dictionary<(string Name, string? Kind, string? Detail), long> _lastEvent = [];
     private readonly Dictionary<(Subscription Subscription, string? Kind, string? Detail), long> _lastStart = [];
     private readonly HashSet<ITriggerSource> _started = [];
-    private readonly Dictionary<Subscription, Queue<long>> _fileStarts = [];
-    private readonly Dictionary<Subscription, long> _fileNoted = [];
+    private readonly Dictionary<string, Queue<long>> _fileStarts = [];
+    private readonly Dictionary<string, long> _fileNoted = [];
 
     private Dictionary<string, List<Subscription>> _byEvent = [];
     private bool _disposed;
@@ -137,9 +137,10 @@ public sealed class TriggerService : IDisposable
             var live = table.Values.SelectMany(l => l).ToHashSet();
             foreach (var key in _lastStart.Keys.Where(k => !live.Contains(k.Subscription)).ToList())
                 _lastStart.Remove(key);
-            foreach (var key in _fileStarts.Keys.Where(k => !live.Contains(k)).ToList())
+            var liveFlows = live.Select(s => s.FlowId).ToHashSet();
+            foreach (var key in _fileStarts.Keys.Where(k => !liveFlows.Contains(k)).ToList())
                 _fileStarts.Remove(key);
-            foreach (var key in _fileNoted.Keys.Where(k => !live.Contains(k)).ToList())
+            foreach (var key in _fileNoted.Keys.Where(k => !liveFlows.Contains(k)).ToList())
                 _fileNoted.Remove(key);
             configured = [.. _sources.OfType<IConfiguredTriggerSource>().Select(s =>
                 (s, (IReadOnlyList<EventTrigger>)[.. s.Events.Where(table.ContainsKey).SelectMany(n => table[n]).Select(x => x.Trigger).Distinct()]))];
@@ -295,16 +296,16 @@ public sealed class TriggerService : IDisposable
                 if (TriggerText.IsFileEvent(e.Name))
                 {
                     // Distinct file names slip past the per-file cooldown, so a flow that writes into its own folder is stopped by count.
-                    if (!_fileStarts.TryGetValue(subscription, out var starts))
-                        _fileStarts[subscription] = starts = [];
+                    if (!_fileStarts.TryGetValue(flowId, out var starts))
+                        _fileStarts[flowId] = starts = [];
                     while (starts.Count > 0 && _time.GetElapsedTime(starts.Peek(), now) >= _options.FileStartWindow)
                         starts.Dequeue();
                     if (starts.Count >= _options.FileStartLimit)
                     {
                         tooBusy = true;
-                        firstRefusal = !_fileNoted.TryGetValue(subscription, out var noted) || _time.GetElapsedTime(noted, now) >= _options.FileStartWindow;
+                        firstRefusal = !_fileNoted.TryGetValue(flowId, out var noted) || _time.GetElapsedTime(noted, now) >= _options.FileStartWindow;
                         if (firstRefusal)
-                            _fileNoted[subscription] = now;
+                            _fileNoted[flowId] = now;
                     }
                     else
                         starts.Enqueue(now);

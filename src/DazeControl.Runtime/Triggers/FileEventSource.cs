@@ -235,9 +235,14 @@ public sealed class FileEventSource : IConfiguredTriggerSource
 
     private void Spawn(Watch watch, int? onlyIfEpoch)
     {
-        var task = Task.Run(() => Arm(watch, onlyIfEpoch));
+        Task task;
         lock (_lock)
+        {
+            // Started and tracked under the lock: Arm takes it first thing, and so does the removal below, so a task that
+            // finishes at once can't be removed before it is added (it would stay in the set and IdleAsync would never end).
+            task = Task.Run(() => Arm(watch, onlyIfEpoch));
             _tasks.Add(task);
+        }
         _ = task.ContinueWith(t =>
         {
             lock (_lock)
@@ -271,6 +276,10 @@ public sealed class FileEventSource : IConfiguredTriggerSource
                 watch.Handles.Clear();
                 watch.Armed = false;
                 epoch = ++watch.Epoch;
+                // Changes seen under the old epoch belong to a folder that may be gone or another one: drop them, as the epoch drops late callbacks.
+                foreach (var key in _pending.Keys.Where(k => k.Watch == watch).ToList())
+                    _pending.Remove(key);
+                RearmTimer();
             }
             Release(old);
             if (giveUp)
