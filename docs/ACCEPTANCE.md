@@ -29,6 +29,7 @@ one at a time: say the number and the flow to open, give the **Do** actions, ask
 see?". Record one line per number in the Report table; on a fail, note its **Blame** line. Never run a LIVE-RISK flow
 without asking. At the end: Cleanup, `-Restore`, post the filled Report and the failing numbers with their Blame lines.
 Each check is `**N title** (flow ...)` then Do, Pass, Fail, Blame, so it can be iterated mechanically.
+Computer use cannot see the engine's pop-ups, the tray menu, dropdown lists or Windows settings: ask the user for those (do not guess).
 
 ## Quick checks (flows open in the editor; no setup)
 
@@ -155,7 +156,7 @@ text, run states distinguishable without colour. (Put back to None after.)
 inspector, the pop-up (run flow 3) or the flows list rows. (Put back to 100 % after.)
 **15d Narrow window**: drag the editor to its minimum width. Pass: the Steps pane hides, a flow card keeps its name,
 the canvas keeps most of the width. Fail wording: which page, what is cut.
-**15e Cards and menu**: right-click a flow card: Rename, Move to, shortcuts shown (Alt+Up/Down). The card's buttons read
+**15e Cards and menu**: right-click a flow card: Move to, shortcuts shown (Alt+Up/Down). The card's buttons read
 "Run <name>", not "Run Run others". Pass if sensible. (Narrator not needed.)
 
 ## Library Test buttons on real devices (touches real devices: ask yourself first)
