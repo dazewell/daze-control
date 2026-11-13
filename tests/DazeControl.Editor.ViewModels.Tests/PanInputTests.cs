@@ -33,6 +33,30 @@ public sealed class PanInputTests
     public void LeftoverGesturesGiveWayToANewPress(bool running, bool armedOnly, bool captured, bool stale) =>
         Assert.Equal(stale, PanInput.IsStale(running, armedOnly, captured));
 
+    [Theory]
+    [InlineData(false, false, true)] // an arrow or Enter with no gesture: scroll to the focused step
+    [InlineData(true, false, false)] // Space, key-repeat included, only arms the pan
+    [InlineData(true, true, false)] // Space during a Space+left-drag: the camera must not move (F-034)
+    [InlineData(false, true, false)] // no key moves the camera under a running gesture
+    public void OnlyRealNavigationKeysScrollTheFocusedStepIntoView(bool space, bool gesture, bool reveals) =>
+        Assert.Equal(reveals, PanInput.RevealsFocusOnKeyDown(space, gesture));
+
+    [Fact]
+    public void SpaceDragTracksThePointerThroughKeyRepeat()
+    {
+        // Press with Space held, then moves with auto-repeating Space KeyDowns between them. A KeyDown that reveals
+        // the focused step shifts the camera by a step-sized jump (the old behaviour, F-034).
+        var start = new Camera(10, 20, 1);
+        var camera = start;
+        for (var i = 1; i <= 20; i++)
+        {
+            if (PanInput.RevealsFocusOnKeyDown(isSpace: true, gestureRunning: true))
+                camera = camera.PanBy(999, 999);
+            camera = start.PanBy(i * 7, -i * 3); // the move: press-time camera + pointer delta
+            Assert.Equal(new Camera(10 + i * 7, 20 - i * 3, 1), camera);
+        }
+    }
+
     [Fact]
     public void AStillRightClickStillOpensItsMenuAndADragSwallowsIt()
     {
