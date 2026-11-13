@@ -308,7 +308,7 @@ public sealed class FlowRunner
             return new(StepResult.Failed, 1, $"This version can't run \"{node.Step}\" steps.", TimeSpan.Zero, offset, retries);
 
         var timeout = node.Timeout ?? descriptor.DefaultTimeout;
-        // Repeat (T27.6, D-150): read after values were filled, with the validator's own reader.
+        // Repeat (T27.6, D-151): read after values were filled, with the validator's own reader.
         var repeat = new FlowRepeat.Plan(1, true, TimeSpan.Zero);
         if (waits)
         {
@@ -341,7 +341,7 @@ public sealed class FlowRunner
                 { ParentRunId = scope.ParentRunId, ParentNodeId = scope.ParentNodeId });
             if (waits)
             {
-                // Rounds (T27.6, D-150): each call has the step's time limit; the last round decides the step and its values stand.
+                // Rounds (T27.6, D-151): each call has the step's time limit; the last round decides the step and its values stand.
                 var round = 0;
                 while (true)
                 {

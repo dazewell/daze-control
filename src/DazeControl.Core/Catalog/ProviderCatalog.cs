@@ -582,7 +582,7 @@ public static class ProviderCatalog
                 Help = "Which device each of its inputs gets. Inputs not given use that flow's defaults.",
                 Examples = [new("Another device", "output: sony")],
             },
-            // Repeat (T27.6, D-150): only while it waits; the last round decides the step.
+            // Repeat (T27.6, D-151): only while it waits; the last round decides the step.
             new(FlowRepeat.RepeatParam, ParamKind.WholeNumber, "Repeat (times)")
             {
                 Default = "1", Min = 1, Max = FlowRepeat.MaxRounds,
