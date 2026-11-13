@@ -133,7 +133,11 @@ $info = gh release view $Version --repo $Repo --json url,assets | ConvertFrom-Js
 $names = @($info.assets | ForEach-Object name)
 $want = @{ 'Setup.exe' = '*Setup.exe'; 'Portable.zip' = '*Portable.zip'; 'full nupkg' = '*-full.nupkg'; 'delta nupkg' = '*-delta.nupkg'; 'RELEASES' = 'RELEASES*' }
 $missing = @($want.Keys | Where-Object { $p = $want[$_]; -not ($names | Where-Object { $_ -like $p }) })
-$assets = if ($missing) { "MISSING: $($missing -join ', ')" } else { 'ok' }
+$noDelta = @($missing) -eq 'delta nupkg'
+# A missing delta alone is not a broken release: the full package still installs and updates (the Release workflow
+# retries the previous-release download and warns when it still finds nothing; the first release has no delta either).
+$missing = @($missing | Where-Object { $_ -ne 'delta nupkg' })
+$assets = if ($missing) { "MISSING: $($missing -join ', ')" } elseif ($noDelta) { 'ok, no delta (expected only for a first release; otherwise the previous-release download found nothing, see the run log "Download previous release")' } else { 'ok' }
 Write-Output "---"
 Write-Output "version: $Version"
 Write-Output "sha: $sha"
