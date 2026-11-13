@@ -226,7 +226,10 @@ public sealed class FlowLauncher(FlowRunner runner, RunHistory? history = null)
 
     /// <summary>A run that ended before its first step because a prompt got no answer: quiet, the note on the first step for history.</summary>
     private static RunResult NotStarted(Flow flow, string note) =>
-        new(FlowOutcome.Cancelled, new(flow.Nodes.Select((n, i) => new NodeResult(n.Id, NodeOutcome.Cancelled, Attempts: 0, Error: i == 0 ? note : null))))
+        new(FlowOutcome.Cancelled, new(flow.Nodes.Count == 0
+            // A flow with no steps (the validator allows it) has no first step to carry the note: a stand-in keeps it in Runs.
+            ? [new NodeResult("(not started)", NodeOutcome.Cancelled, Attempts: 0, Error: note)]
+            : flow.Nodes.Select((n, i) => new NodeResult(n.Id, NodeOutcome.Cancelled, Attempts: 0, Error: i == 0 ? note : null))))
         {
             RunId = Guid.NewGuid(),
             Started = DateTimeOffset.UtcNow,

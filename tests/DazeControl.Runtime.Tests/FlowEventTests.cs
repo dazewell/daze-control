@@ -182,6 +182,18 @@ public sealed class FlowEventTests : IDisposable
     }
 
     [Fact]
+    public void AFlowWithNoStepsStillGetsTheNoteInTheHistory()
+    {
+        var empty = Make("empty", "ok") with { Nodes = [] };
+
+        _launcher.RecordNotStarted(empty, "Event · a flow finished", "Didn't run empty: it would loop.");
+
+        var record = Assert.Single(_history.Recent);
+        Assert.Equal(FlowOutcome.Cancelled, record.Outcome);
+        Assert.Equal("Didn't run empty: it would loop.", Assert.Single(record.Nodes).Error);
+    }
+
+    [Fact]
     public async Task ARingOfFlowsStopsWhereItComesBackToTheStart()
     {
         Make("a", "ok", Finished("b"));
