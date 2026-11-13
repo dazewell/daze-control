@@ -774,7 +774,7 @@ The user accepted all five open points as recommended (PR #217). One PR per task
   Flyout, caret insert, focus back to the box, names. Files: Editor.ViewModels/Inspector, Editor text param control. Done when: codec
   tests (duplicate names, rename, unmapped token); screenshots light/dark/high contrast/225 % text. Branch feat/m23-insert-value (live look not done: no provider marks `TakesValues` until T23.2).
 - [x] T23.4 Editor: pills row, "Values it gives", delete/duplicate/paste remap, canvas summary (Sonnet, M; after T23.3): DESIGN §5.3-5.7.
-  Done when: view-model tests for remap and delete-to-fallback (one Undo); reserved row shows no jump (D-104); Narrator names checked.
+  Done when: view-model tests for remap and delete-to-fallback (one Undo); reserved row shows no jump (D-141); Narrator names checked.
   Branch feat/m23-pills. Remap lives in Core (`StepValues.RewriteRefs/DropRefsTo`, `FlowCommands.Delete/Paste`). Delete has no confirmation dialog in the editor (Undo), so DESIGN §5.6's "uses its Device" sentence is not shown. Not seen live: the XAML (pills row, flyout, Values it gives) in light/dark/high contrast/225 % text; no screen reader run.
 - [x] T23.5 More values and fields (Sonnet, M; after T23.2; engine AOT 0 warnings, image +59 KB): `output` (stdout only when referenced, Sensitive), `http.request`
   `status`/`body`, `menu.show` `picked`, checks' `result`, `idle`/`free`/`count`; fill rules Url/Argument for http url, `android.open`,
@@ -842,7 +842,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   `Ipc/Protocol.cs` (+ `PipeClient` copy, `PipeTests.EveryRequestFieldReachesTheServer`), `Runtime/Control/EngineController.cs`,
   `Runtime/Lifecycle/EngineArguments.cs`, `Cli/Program.cs` usage. Done when: CLI tests (device and text inputs, unknown name → exit 2
   with the flow's input names); ARCHITECTURE IPC + FEATURES F8.
-- [ ] T24.10 Gate (Sonnet, S; after the rest). FEATURES / UX / ARCHITECTURE as built, footprint rows, five flows in
+- [ ] T24.10 Gate (docs and samples built in PR; footprint rows and T24.4's footprint part pending: coordinator) (Sonnet, S; after the rest). The five flows: guard and answer in `samples/dev-showcase.yaml` (read-only by test); screens-off event (13e), Open and wake + wait (LIVE-RISK 24, 25) in `samples/acceptance/config.yaml`, because dev samples may not change the PC or hold triggers. FEATURES / UX / ARCHITECTURE as built, footprint rows, five flows in
   `samples/dev-showcase.yaml` (guard with Stop flow; Open; Check value on an answer; screens-off event; wake + wait until it answers),
   a "Call a flow from a Stream Deck key" recipe in FEATURES F8 (`dctl.exe run <flow> name=value`), UX §5.9 rows for the user.
 

@@ -904,7 +904,7 @@
                         <BreadcrumbBar x:Name="FlowBreadcrumb" VerticalAlignment="Center" ItemClicked="OnBreadcrumbClicked" />
                         <!-- Save / Cancel (D-047): flow edits are a draft until Save. -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <!-- Unsaved edits: a dot in a slot that is always there (no text, nothing moves, D-104); Save turns enabled as well. -->
+                            <!-- Unsaved edits: a dot in a slot that is always there (no text, nothing moves, D-141); Save turns enabled as well. -->
                             <Grid x:Name="DraftSlot" Width="12" Height="12" VerticalAlignment="Center" Background="Transparent">
                                 <Ellipse x:Name="DraftDot" Width="8" Height="8" Opacity="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
                             </Grid>

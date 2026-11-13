@@ -80,7 +80,7 @@ public sealed partial class ParamFieldViewModel
     /// <summary>The row has something to say: pills, or "Not a value from this flow".</summary>
     public bool ShowsRow => HasPills || HasUnknownValue;
 
-    /// <summary>With no value to show the row holds the setting's help (or stays empty), so the slot never changes height (D-104).</summary>
+    /// <summary>With no value to show the row holds the setting's help (or stays empty), so the slot never changes height (D-141).</summary>
     public bool ShowsHelp => !ShowsRow && HasHelp;
 
     /// <summary>"Not a value from this flow" under the box while a typed token names nothing.</summary>

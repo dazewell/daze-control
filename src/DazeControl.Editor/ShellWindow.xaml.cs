@@ -478,7 +478,7 @@ public sealed partial class ShellWindow : Window
         PagesScroller.Visibility = Show(!editing && ViewModel.Page != EditorPage.Runs);
     }
 
-    /// <summary>For a control whose slot stays reserved (D-104): invisible, and disabled alongside, instead of collapsed.</summary>
+    /// <summary>For a control whose slot stays reserved (D-141): invisible, and disabled alongside, instead of collapsed.</summary>
     public static double Fade(bool visible) => visible ? 1 : 0;
 
     /// <summary>Visible when <paramref name="flag"/> equals <paramref name="expected"/>.</summary>

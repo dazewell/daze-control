@@ -61,7 +61,7 @@ public sealed partial class AcceptanceKitTests
             if (flow.Triggers.Count > 0)
                 Assert.False(flow.Enabled, $"{flow.Name} has triggers and must start off");
         }
-        Assert.Equal(2, config.Flows.Count(f => f.Name.StartsWith("LIVE-RISK ", StringComparison.Ordinal)));
+        Assert.Equal(4, config.Flows.Count(f => f.Name.StartsWith("LIVE-RISK ", StringComparison.Ordinal)));
     }
 
     [Fact]
