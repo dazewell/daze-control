@@ -2,14 +2,14 @@ using DazeControl.Core.Catalog;
 
 namespace DazeControl.Core.Model;
 
-/// <summary>Steps that name another flow by id (<c>flow.run</c>'s <c>flow</c>, any param with <see cref="ConfigRef.Flow"/>).</summary>
+/// <summary>Steps that name another flow by id (<c>flow.run</c>'s <c>flow</c>, any param with <see cref="ConfigRef.Flow"/>) and flow-event triggers (<c>flow:</c>, T26.3).</summary>
 public static class FlowRefs
 {
     /// <summary>The other flows with a step that names <paramref name="flowId"/>, in YAML order (D-076: Delete is off).</summary>
     public static IReadOnlyList<Flow> Callers(Configuration config, string flowId)
     {
         ArgumentNullException.ThrowIfNull(config);
-        return [.. config.Flows.Where(f => f.Id != flowId && f.Nodes.OfType<StepNode>().Any(s => Names(s, flowId)))];
+        return [.. config.Flows.Where(f => f.Id != flowId && Uses(f, flowId))];
     }
 
     /// <summary>
@@ -19,15 +19,26 @@ public static class FlowRefs
     public static Configuration Rename(Configuration config, string oldId, string newId)
     {
         ArgumentNullException.ThrowIfNull(config);
-        if (oldId == newId || !config.Flows.Any(f => f.Nodes.OfType<StepNode>().Any(s => Names(s, oldId))))
+        if (oldId == newId || !config.Flows.Any(f => Uses(f, oldId)))
             return config;
         return config with
         {
-            Flows = [.. config.Flows.Select(f => f.Nodes.OfType<StepNode>().Any(s => Names(s, oldId))
-                ? f with { Nodes = [.. f.Nodes.Select(n => n is StepNode s && Names(s, oldId) ? Renamed(s, oldId, newId) : n)] }
+            Flows = [.. config.Flows.Select(f => Uses(f, oldId)
+                ? f with
+                {
+                    Nodes = [.. f.Nodes.Select(n => n is StepNode s && Names(s, oldId) ? Renamed(s, oldId, newId) : n)],
+                    Triggers = new([.. f.Triggers.Select(t => t is EventTrigger e && Waits(e, oldId) ? e with { Flow = newId } : t)]),
+                }
                 : f)],
         };
     }
+
+    private static bool Uses(Flow flow, string flowId) =>
+        flow.Nodes.OfType<StepNode>().Any(s => Names(s, flowId)) || flow.Triggers.OfType<EventTrigger>().Any(e => Waits(e, flowId));
+
+    /// <summary>A flow-event trigger's <c>flow:</c> names the flow, trimmed as the reader and the runtime read it.</summary>
+    private static bool Waits(EventTrigger trigger, string flowId) =>
+        TriggerText.IsFlowEvent(trigger.Name) && TriggerText.FlowFilter(trigger.Flow) == flowId;
 
     private static IEnumerable<string> FlowParams(StepNode step) =>
         ProviderCatalog.Find(step.Step)?.Params.Where(p => p.RefersTo == ConfigRef.Flow).Select(p => p.Name) ?? [];

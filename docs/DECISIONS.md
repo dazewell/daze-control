@@ -1883,3 +1883,12 @@ Status: accepted, built
 - Credentials: an address with `user:password@` is refused with a sentence and never repeated; sentences name the host (and port) only, never path or query (tokens often ride there). The result is Sensitive when the address uses a Sensitive value (as D-137).
 - Why: G-29, "wake the NAS, wait until it answers" with D-139 and Try again. Why not follow redirects: the first answer is the answer, and a login redirect must not hide a down service (set `status` to count 3xx). Why not reuse `http.request`'s client: it is resident by design and sends auth; a check needs neither.
 - Not verified live: a real ping or web request over the network (tests use a fake probe, a loopback listener and a fake HTTP handler).
+
+## D-142 · 2026-11-13 · Flow events: `flow.finished` / `flow.failed`, an in-process source, one chain guard (T26.3)
+Status: accepted, built (extends D-107, D-135; same pattern as D-136)
+- Decision: two events on the one list in Core, raised by `FlowEventSource` when a run started through the launcher ends. Finished = ran to its end (Succeeded or PartiallySucceeded), failed = Failed (also `flow.stop` "As failed", D-133). A stopped or cancelled run raises nothing, and a nested waiting `flow.run` never goes through the launcher, so it raises nothing. Optional `flow: <id>` (only on these events), matched by id after trimming, empty = any flow; `{@event}` = the ended flow's name (Kind carries the id, Detail the name).
+- Loops: the event's chain is the ended run's chain plus the flow itself, so `FlowCalls.Guard` refuses a flow that is already in it (itself, a ring A to B to A) and any chain 8 deep; the refusal is written into Runs as a stopped run with a plain note (`FlowLauncher.RecordNotStarted`), not only the log. The 2 s debounce and 10 s cooldown per flow still apply, so a busy flow can't flood a handler either.
+- Checks: one `TriggerText.FlowFilterProblem` for the reader, validator and `TriggerService.Apply` (wrong event, itself); the validator also warns on a flow that isn't there. `FlowRefs.Rename` and `Callers` cover `flow:` (D-075, "Used by").
+- Idle = zero: the source hooks `RunCompleted` only while some flow subscribes; no timer, thread or handle (D-009).
+- Why not count a stopped run as finished: a person stopping a flow is not an outcome to react to, and "tell me when any flow fails" must stay quiet then.
+- Not verified live by the agent: a real flow failing in the running engine and the handler's pop-up.

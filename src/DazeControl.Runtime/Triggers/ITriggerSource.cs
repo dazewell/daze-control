@@ -4,8 +4,9 @@ namespace DazeControl.Runtime.Triggers;
 /// <param name="Name">The event name, e.g. <c>session.unlock</c>.</param>
 /// <param name="Detail">Extra the source knows (on a network event: the Wi-Fi name, or the cable adapter's name), else null.
 /// Debounce and cooldown are kept per detail, so one connection doesn't swallow another's event.</param>
-/// <param name="Chain">Flow ids the event descends from (a future <c>flow.finished</c> source); null = a person or the OS.</param>
-/// <param name="Kind">On a network event, the connection's kind as <c>TriggerText.ViaText</c> says it ("wifi", "cable"), else null.</param>
+/// <param name="Chain">Flow ids the event descends from (a <c>flow.finished</c> event: the ended run's chain and the flow itself); null = a person or the OS.</param>
+/// <param name="Kind">On a network event, the connection's kind as <c>TriggerText.ViaText</c> says it ("wifi", "cable"); on a flow event, the
+/// flow's id (<c>Detail</c> is its name); else null.</param>
 public sealed record TriggerEvent(string Name, IReadOnlyList<string>? Chain = null, string? Detail = null, string? Kind = null);
 
 /// <summary>

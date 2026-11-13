@@ -645,6 +645,9 @@ public static partial class ConfigValidator
                     EventTrigger e when !TriggerText.IsEvent(e.Name) => $"\"{e.Name}\" isn't an event I know.",
                     EventTrigger e when TriggerText.NetworkFilterProblem(e.Name, e.Via, e.Ssid) is { } filter => filter,
                     EventTrigger e when TriggerText.DeviceFilterProblem(e.Name, e.Device) is { } deviceProblem => deviceProblem,
+                    EventTrigger e when TriggerText.FlowFilterProblem(e.Name, e.Flow, flow.Id) is { } flowProblem => flowProblem,
+                    EventTrigger e when TriggerText.FlowFilter(e.Flow) is { } id && calls(id) is null =>
+                        $"{id} isn't there anymore. Pick another flow.",
                     EventTrigger { Device: { } sound } e when TriggerText.IsAudioEvent(e.Name) && !library.Contains(LibraryKind.Audio, sound) =>
                         Library.Missing(LibraryKind.Audio, sound),
                     EventTrigger { Via: { } via } when !Enum.IsDefined(via) => "via is wifi or cable.",

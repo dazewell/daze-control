@@ -207,7 +207,7 @@ public class TriggerTests
     [Fact]
     public void EventNamesAreTheV1List()
     {
-        Assert.Equal(17,TriggerText.Events.Count);
+        Assert.Equal(19, TriggerText.Events.Count);
         Assert.All(TriggerText.Events, e => Assert.True(TriggerText.IsEvent(e)));
         Assert.False(TriggerText.IsEvent("window.opened"));
     }
@@ -229,5 +229,58 @@ public class TriggerTests
     {
         Assert.Equal("Event · PC unlocked", TriggerText.Describe(new EventTrigger("session.unlock")));
         Assert.All(TriggerText.Events, e => Assert.NotEqual(e, TriggerText.EventLabel(e)));
+    }
+
+    private const string TwoFlows = "version: 1\nflows:\n  src:\n    nodes: []\n  lights:\n    nodes: []\n    triggers:\n";
+
+    [Fact]
+    public void AFlowEventRoundTripsAndItsFlowIsReadTrimmed()
+    {
+        var load = ConfigYaml.Load(TwoFlows + "      - { on: flow.failed }\n      - { on: flow.finished, flow: ' src ' }\n");
+        Assert.Empty(load.Problems);
+        Assert.Equal([new EventTrigger("flow.failed"), new EventTrigger("flow.finished") { Flow = "src" }], load.Config!.Flows[1].Triggers);
+        var saved = ConfigYaml.Save(load.Config);
+        Assert.Contains("flow: src", saved, StringComparison.Ordinal);
+        Assert.Equal(load.Config, ConfigYaml.Load(saved).Config);
+        Assert.DoesNotContain(ConfigValidator.Validate(load.Config), p => p.Path.Contains("triggers", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AFlowFilterOnAnotherEventIsAProblemOnThatTriggerOnly()
+    {
+        var load = ConfigYaml.Load(TwoFlows + "      - { on: session.unlock, flow: src }\n      - { on: flow.failed }\n");
+
+        Assert.Contains(load.Problems, p => p.Message.Contains("flow only goes", StringComparison.Ordinal));
+        Assert.Equal([new EventTrigger("flow.failed")], load.Config!.Flows[1].Triggers);
+    }
+
+    [Fact]
+    public void TheValidatorWarnsAboutAFlowFilterTheRuntimeSkips()
+    {
+        var config = ConfigYaml.Load(TwoFlows + "      - { on: flow.failed }\n").Config!;
+        var lights = config.Flows[1] with
+        {
+            Triggers = [new EventTrigger("session.lock") { Flow = "src" }, new EventTrigger("flow.finished") { Flow = " lights " },
+                new EventTrigger("flow.failed") { Flow = "gone" }, new EventTrigger("flow.failed") { Flow = " src" }, new EventTrigger("flow.failed") { Flow = "  " }],
+        };
+        var problems = ConfigValidator.Validate(config with { Flows = [config.Flows[0], lights] });
+
+        Assert.Contains(problems, p => p.Path.EndsWith("triggers[0]", StringComparison.Ordinal) && p.Message.Contains("flow only goes", StringComparison.Ordinal));
+        Assert.Contains(problems, p => p.Path.EndsWith("triggers[1]", StringComparison.Ordinal) && p.Message.Contains("itself", StringComparison.Ordinal));
+        Assert.Contains(problems, p => p.Path.EndsWith("triggers[2]", StringComparison.Ordinal) && p.Message.Contains("gone isn't there", StringComparison.Ordinal));
+        Assert.DoesNotContain(problems, p => p.Path.EndsWith("triggers[3]", StringComparison.Ordinal) || p.Path.EndsWith("triggers[4]", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ARenamedFlowIsFollowedByTheTriggersThatWaitForIt()
+    {
+        var config = ConfigYaml.Load(TwoFlows + "      - { on: flow.failed, flow: src }\n      - { on: flow.finished }\n").Config!;
+
+        Assert.Equal(["lights"], FlowRefs.Callers(config, "src").Select(f => f.Id));
+        var renamed = FlowRefs.Rename(config, "src", "source");
+
+        Assert.Equal([new EventTrigger("flow.failed") { Flow = "source" }, new EventTrigger("flow.finished")], renamed.Flows[1].Triggers);
+        Assert.Empty(FlowRefs.Callers(renamed, "src"));
+        Assert.Same(config, FlowRefs.Rename(config, "other", "x"));
     }
 }

@@ -20,6 +20,10 @@ public sealed partial class InspectorViewModel
     /// <summary>The Library's audio device keys: what an audio event's device picker offers (T24.6).</summary>
     internal IEnumerable<string> LibraryAudioKeys => _session.Current.Library.Audio.Select(d => d.Key);
 
+    /// <summary>The other flows a "when a flow finishes" row can wait for (a flow can't wait for itself), in YAML order.</summary>
+    internal IReadOnlyList<(string Id, string Name)> OtherFlows =>
+        [.. _session.Current.Flows.Where(f => f.Id != FlowId).Select(f => (f.Id, f.Name))];
+
     /// <summary>The "Add events" flyout: every event of the one list in Core, grouped, ticked when a row of the flow has it.</summary>
     public IReadOnlyList<EventGroupViewModel> EventGroups => _eventGroups ??= BuildEventGroups();
 
@@ -152,7 +156,12 @@ public sealed partial class TriggerRowViewModel : ObservableObject
         // A key the Library no longer has stays in the list, so the row still shows what the file says.
         var missing = trigger is EventTrigger { Device: { } own } audio && TriggerText.IsAudioEvent(audio.Name) ? [own] : Array.Empty<string>();
         SoundDevices = ["Any sound device", .. owner.LibraryAudioKeys.Concat(missing).Distinct()];
-        Sentence = WhenThisRuns.Sentence(trigger);
+        var others = owner.OtherFlows;
+        var wanted = trigger is EventTrigger { Flow: not null } flowEvent && TriggerText.IsFlowEvent(flowEvent.Name) ? TriggerText.FlowFilter(flowEvent.Flow) : null;
+        // A flow the file names but the config no longer has stays in the list, so the row still shows what the file says.
+        _flowIds = ["", .. others.Select(f => f.Id), .. wanted is not null && others.All(f => f.Id != wanted) ? [wanted] : Array.Empty<string>()];
+        FlowNames = ["Any flow", .. others.Select(f => f.Name), .. _flowIds.Skip(1 + others.Count)];
+        Sentence = WhenThisRuns.Sentence(trigger, id => others.FirstOrDefault(f => f.Id == id).Name);
         KindIndex = WhenThisRuns.KindOf(trigger);
         OnlyIndex = WhenThisRuns.OnlyIndex(trigger);
         switch (trigger)
@@ -180,6 +189,7 @@ public sealed partial class TriggerRowViewModel : ObservableObject
                 NetworkName = e.Ssid ?? "";
                 DeviceText = TriggerText.IsDeviceEvent(e.Name) ? e.Device ?? "" : "";
                 SoundDevice = TriggerText.IsAudioEvent(e.Name) ? Math.Max(0, SoundDevices.ToList().IndexOf(e.Device ?? "") ) : 0;
+                FlowChoice = TriggerText.IsFlowEvent(e.Name) ? Math.Max(0, Array.IndexOf(_flowIds, TriggerText.FlowFilter(e.Flow) ?? "")) : 0;
                 break;
             case EngineStartTrigger:
                 EventIndex = 0;
@@ -239,6 +249,13 @@ public sealed partial class TriggerRowViewModel : ObservableObject
     public bool IsSoundEvent => Trigger is EventTrigger e && TriggerText.IsAudioEvent(e.Name);
 
     public IReadOnlyList<string> SoundDevices { get; }
+
+    /// <summary>A flow event: the flow picker shows ("Any flow", then the other flows by name).</summary>
+    public bool IsFlowEvent => Trigger is EventTrigger e && TriggerText.IsFlowEvent(e.Name);
+
+    public IReadOnlyList<string> FlowNames { get; }
+
+    private readonly string[] _flowIds;
 
     /// <summary>Time of day for "At a time" and "Once".</summary>
     public bool HasTime => Trigger is AtTrigger or OnceTrigger;
@@ -318,6 +335,10 @@ public sealed partial class TriggerRowViewModel : ObservableObject
     [ObservableProperty]
     public partial int SoundDevice { get; set; }
 
+    /// <summary>The picked flow (0 = any).</summary>
+    [ObservableProperty]
+    public partial int FlowChoice { get; set; }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGrace))]
     public partial int IfMissedIndex { get; set; }
@@ -366,6 +387,8 @@ public sealed partial class TriggerRowViewModel : ObservableObject
     partial void OnDeviceTextChanged(string value) => Edit(t => WhenThisRuns.WithDevice(t, value));
 
     partial void OnSoundDeviceChanged(int value) => Edit(t => WhenThisRuns.WithDevice(t, value > 0 && value < SoundDevices.Count ? SoundDevices[value] : null));
+
+    partial void OnFlowChoiceChanged(int value) => Edit(t => WhenThisRuns.WithFlow(t, value > 0 && value < _flowIds.Length ? _flowIds[value] : null));
 
     partial void OnIfMissedIndexChanged(int value) => Edit(t => WhenThisRuns.WithIfMissed(t, value == 1 ? IfMissed.Skip : IfMissed.Run));
 

@@ -61,10 +61,13 @@ internal static class TriggerMapper
             var device = string.IsNullOrWhiteSpace(d.Device) ? null : d.Device.Trim();
             if (TriggerText.DeviceFilterProblem(name, device) is { } deviceProblem)
                 return (null, deviceProblem);
+            var flow = TriggerText.FlowFilter(d.Flow);
+            if (TriggerText.FlowFilterProblem(name, flow) is { } flowProblem)
+                return (null, flowProblem);
             if (name == EngineStartTrigger.Name)
                 return (new EngineStartTrigger { Only = only }, null);
             return TriggerText.IsEvent(name)
-                ? (new EventTrigger(name) { Only = only, Ssid = ssid, Via = via, Device = device }, null)
+                ? (new EventTrigger(name) { Only = only, Ssid = ssid, Via = via, Device = device, Flow = flow }, null)
                 : (null, $"\"{name}\" isn't an event I know ({string.Join(", ", TriggerText.Events)}, {EngineStartTrigger.Name}).");
         }
 
@@ -158,7 +161,7 @@ internal static class TriggerMapper
             },
             OnceTrigger once => new TriggerDocument { Once = TriggerText.FormatDateTime(once.When) },
             EngineStartTrigger => new TriggerDocument { On = EngineStartTrigger.Name },
-            EventTrigger e => new TriggerDocument { On = e.Name, Ssid = e.Ssid, Via = e.Via is { } via ? TriggerText.ViaText(via) : null, Device = e.Device },
+            EventTrigger e => new TriggerDocument { On = e.Name, Ssid = e.Ssid, Via = e.Via is { } via ? TriggerText.ViaText(via) : null, Device = e.Device, Flow = e.Flow },
             _ => new TriggerDocument(),
         };
         document.Only = trigger.Only;
