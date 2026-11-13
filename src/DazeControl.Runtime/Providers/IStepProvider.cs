@@ -35,6 +35,11 @@ public sealed record StepContext(Flow Flow, StepNode Node, ProviderDescriptor De
 
     public bool Wants(string name) => WantsValue?.Invoke(name) ?? true;
 
+    /// <summary>Whether a Get from text reads this value, so it may be kept long (64 KB, T25.2). False where unknown.</summary>
+    public Func<string, bool>? WantsLongValue { get; init; }
+
+    public bool WantsLong(string name) => WantsLongValue?.Invoke(name) ?? false;
+
     /// <summary>
     /// What earlier steps gave, as environment variables for a script (<c>DAZE_BT_DEVICE</c>; DESIGN §4.8): values reach a script
     /// only this way, never pasted into its text. Set only for <c>script.powershell</c>.

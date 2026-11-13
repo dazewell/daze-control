@@ -141,7 +141,7 @@ public sealed class FlowRunner
         var otherQuiet = false;
         // D-117, D-129: what steps give, only what some setting references; thread-safe for parallel branches.
         var calls = CalledFlows;
-        var values = new RunValues(StepValues.Wanted(flow, _catalog, calls), _time) { FlowName = flow.Name, Trigger = trigger, Event = eventDetail };
+        var values = new RunValues(StepValues.Wanted(flow, _catalog, calls), _time) { FlowName = flow.Name, Trigger = trigger, Event = eventDetail, LongValues = StepValues.LongValues(flow) };
         foreach (var (name, input) in flow.Inputs)
         {
             var given = inputs.TryGetValue(name, out var key) ? key : input.Default;
@@ -319,6 +319,7 @@ public sealed class FlowRunner
                     Chain = scope.Chain,
                     Trigger = scope.Trigger,
                     WantsValue = name => values.Wants(node.Id, name),
+                    WantsLongValue = name => values.IsLong(node.Id, name),
                     Variables = node.Step == ProviderCatalog.PowerShellId ? StepValues.Variables(flow, node.Id, values, library, _catalog, CalledFlows) : null,
                     RunNested = Flows is null ? null : (target, token) => NestedAsync(scope, flow, node, target, c => called = c, token),
                 };
@@ -329,7 +330,10 @@ public sealed class FlowRunner
                 summary = StepValues.Mask(context.Summary, secrets);
                 skipped = attemptResult.SkippedBecause;
                 if (skipped is null) // an unmet "Only if" gives nothing (DESIGN §4.5), though its probe may have read values
+                {
                     GiveValues(values, node.Id, descriptor, context, error is null);
+                    MarkExtractSensitive(values, node);
+                }
                 called = context.Called ?? called;
                 if (attemptResult.EndsFlow)
                 {
@@ -418,6 +422,22 @@ public sealed class FlowRunner
             else
                 values.Set(step, name, given);
         }
+    }
+
+    /// <summary>
+    /// A Get from text's values are Sensitive when something it reads was marked Sensitive in this run (a called flow's output
+    /// filled from a Sensitive input): the static check cannot see that, so the runner marks them (D-144).
+    /// </summary>
+    internal static void MarkExtractSensitive(RunValues values, StepNode node)
+    {
+        if (node.Step != ProviderCatalog.ExtractId)
+            return;
+        var reads = TextExtract.Sources.Any(p => node.With.TryGetValue(p, out var s) && s is ScalarParam { Text: var text }
+            && StepValues.Parse(text).Any(r => r.Source == ValueSource.Step && values.IsMarkedSensitive(r.Name, r.Value)));
+        if (!reads)
+            return;
+        values.MarkSensitive(node.Id, "text");
+        values.MarkSensitive(node.Id, "number");
     }
 
     private static bool IsOff(StepNode node, string param) =>

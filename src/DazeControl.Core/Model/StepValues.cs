@@ -142,6 +142,10 @@ public static class StepValues
         if (step.Step == ProviderCatalog.ReachId && depth < MaxDepth
             && step.With.TryGetValue("address", out var addr) && addr is ScalarParam { Text: var addrText } && UsesSensitive(flow, addrText, flows, catalog, depth + 1))
             return [.. Of(descriptor).Select(v => v.Name == ErrorName ? v : v with { Sensitive = true })];
+        // Get from text gives parts of its text: Sensitive when the text (or what it looks for) uses a Sensitive value (D-144).
+        if (step.Step == ProviderCatalog.ExtractId && depth < MaxDepth
+            && TextExtract.Sources.Any(p => step.With.TryGetValue(p, out var src) && src is ScalarParam { Text: var srcText } && UsesSensitive(flow, srcText, flows, catalog, depth + 1)))
+            return [.. Of(descriptor).Select(v => v.Name == ErrorName ? v : v with { Sensitive = true })];
         return Of(descriptor);
     }
 
@@ -749,6 +753,25 @@ public static class StepValues
         return wanted;
     }
 
+    /// <summary>
+    /// The values a Get from text's text reads (D-144): the runner keeps these up to 64 KB, not 1,000 characters. Only
+    /// the step's <c>text</c>; a value that is also used elsewhere is just as long there.
+    /// </summary>
+    public static IReadOnlySet<(string Step, string Value)> LongValues(Flow flow)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        var longer = new HashSet<(string Step, string Value)>();
+        foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.ExtractId))
+        {
+            if (step.With.TryGetValue("text", out var setting) && setting is ScalarParam { Text: var text })
+            {
+                foreach (var r in Parse(text).Where(r => r.Source == ValueSource.Step))
+                    longer.Add((r.Name, r.Value));
+            }
+        }
+        return longer;
+    }
+
     /// <summary>The texts of a setting that fill references: one for a text setting, each item of a list whose items fill.</summary>
     private static IEnumerable<string> TextsOf(ParamValue setting, ParamSpec spec) => setting switch
     {
@@ -880,7 +903,7 @@ public static class StepValues
 
     private static ParamValue FillParam(Flow flow, ParamValue setting, ParamSpec spec, RunValues values, Library library) => setting switch
     {
-        ScalarParam { Text: var text } when Takes(spec) => new ScalarParam(FillText(flow, text, values, library, spec.Kind == ParamKind.Text, spec.Fill)),
+        ScalarParam { Text: var text } when Takes(spec) => new ScalarParam(FillText(flow, text, values, library, spec.Kind == ParamKind.Text, spec.Fill, spec.LongText ? TextExtract.MaxFilled : MaxFilledLength)),
         ListParam list when TakesItems(spec) => new ListParam(new ValueList<ParamValue>(list.Items.Select(i =>
             i is ScalarParam { Text: var item } ? new ScalarParam(FillText(flow, item, values, library, singleLine: false, spec.Fill)) : i))),
         _ => setting,
@@ -888,7 +911,8 @@ public static class StepValues
 
     /// <summary>One text with its references filled (see <see cref="Fill"/>); cut at <see cref="MaxFilledLength"/>.</summary>
     /// <param name="rule">How a value is written: percent-encoded in an address, <c>%</c> guarded in a program argument.</param>
-    public static string FillText(Flow flow, string text, RunValues values, Library library, bool singleLine = true, FillRule rule = FillRule.None)
+    public static string FillText(Flow flow, string text, RunValues values, Library library, bool singleLine = true, FillRule rule = FillRule.None,
+        int maxLength = MaxFilledLength)
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(values);
@@ -922,7 +946,7 @@ public static class StepValues
                 value = rule == FillRule.Url ? Uri.EscapeDataString(value) : value.Replace('%', PercentGuard);
             result.Append(value);
         }
-        return RunValues.Cut(result.ToString(), MaxFilledLength);
+        return RunValues.Cut(result.ToString(), maxLength);
     }
 
     /// <summary>A value as text: a Device shows its Library name (the key when it has none).</summary>

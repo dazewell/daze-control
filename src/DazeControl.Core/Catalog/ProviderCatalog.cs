@@ -230,7 +230,7 @@ public static class ProviderCatalog
             Values =
             [
                 new ValueSpec("status", ValueKind.Number, "Status code") { OnFailure = true, Help = "The number the server answered with (200 = fine)" },
-                new ValueSpec("body", ValueKind.Text, "Response") { Sensitive = true, Help = "What the server sent back (the first 1,000 characters). Only read when a later step uses it" },
+                new ValueSpec("body", ValueKind.Text, "Response") { Sensitive = true, Help = "What the server sent back (the first 1,000 characters, or 64 KB when a Get from text reads it). Only read when a later step uses it" },
             ],
         },
         // Android order (REVIEW F6): connect, apps, input and keys, media and sound, screen, wake/sleep.
@@ -497,6 +497,43 @@ public static class ProviderCatalog
             Keywords = "compose join combine value string",
             Values = [new ValueSpec(StepValues.MakeTextParam, ValueKind.Text, "Text") { Help = "The text it made" }],
         },
+        // T25.2 (D-144): takes one part of a text (a web answer, a file's text); fails with a sentence when it isn't there.
+        new(ExtractId, "Get from text", TextGlyph, Short,
+        [
+            new("text", ParamKind.MultilineText, "Text")
+            {
+                Required = true, TakesValues = true, LongText = true,
+                Help = "The text to take a part of, usually a value from an earlier step, like a web answer. Up to 64 KB.",
+                Examples = [new("A web answer", "{web.body}")],
+            },
+            new("by", ParamKind.Choice, "Take")
+            {
+                Choices = ["json", "pattern", "between", "line"],
+                Captions = ["A field of JSON", "A pattern (the first match)", "What is between two texts", "One line"],
+                Default = "json",
+                Help = "Fails with a sentence when the part isn't there, so a link for \"if it fails\" is the else.",
+            },
+            new("find", ParamKind.Text, "Look for")
+            {
+                TakesValues = true,
+                Help = "A field like data.items[0].name; a pattern (its first group, else the whole match); the text before the part you want; or a line number, starting at 1.",
+                Examples = [new("A JSON field", "data.items[0].name"), new("A number", "(\\d+)"), new("A line", "2")],
+            },
+            new("until", ParamKind.Text, "Up to")
+            {
+                TakesValues = true,
+                Help = "For \"between two texts\": the text after the part you want. Empty = to the end. Upper and lower case count.",
+                Examples = [new("Between tags", "</b>")],
+            },
+        ])
+        {
+            Keywords = "extract parse json field regex pattern match substring between line split answer response web text",
+            Values =
+            [
+                new ValueSpec("text", ValueKind.Text, "The part") { Help = "What was taken (the first 1,000 characters)" },
+                new ValueSpec("number", ValueKind.Number, "The part as a number") { Help = "Only when the part is a number" },
+            ],
+        },
         // T24.3 (D-137): compares two texts that take values; fails when it doesn't hold, so the failure link is the "else".
         new(ValueCheckId, "Check value", TextGlyph, Short,
         [
@@ -680,6 +717,9 @@ public static class ProviderCatalog
     public const string MakeTextId = "text.make";
 
     public const string ValueCheckId = "value.check";
+
+    /// <summary>Get from text (T25.2).</summary>
+    public const string ExtractId = "text.extract";
 
     /// <summary>Check address (T24.8).</summary>
     public const string ReachId = "network.reach";

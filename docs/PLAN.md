@@ -854,7 +854,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   Files: `Core/Model/Flow.cs`, `Core/Yaml`, `Core/Validation`, `Runtime/Triggers/TriggerService.cs`, `Runtime/FlowLauncher.cs`, the
   one-step path `dctl check` uses (`EngineController`), `WhenThisRuns.cs`. Done when: Core + Runtime tests (all checks must hold, a
   slow check times out and lets it start, 100 held-back events add no history rows), samples round-trip, `measure.ps1` idle unchanged.
-- [ ] T25.2 Get from text `text.extract` (Sonnet, M; solo on the catalog). From a text that takes values: JSON field, pattern (first
+- [x] T25.2 Get from text `text.extract` (Sonnet, M; solo on the catalog). From a text that takes values: JSON field, pattern (first
   group, time limit), between two texts, line N; gives `text` and `number`. `http.request` keeps up to 64 KB of the answer when a Get
   from text reads it (1,000 characters elsewhere). Files: `ProviderCatalog.cs`, `Providers/Basic/`, `Providers/Http/`. Done when:
   Providers tests (a 20 KB JSON, a path that isn't there → fails with a sentence, a pattern that would run forever stops); AOT 0 warnings.
