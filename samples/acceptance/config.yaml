@@ -267,6 +267,13 @@ flows:
       - { on: device.added }
     nodes:
       - { id: n, step: notify, with: { text: "13f plugged in: {@event|something}", sound: false } }
+  a13g-failed:
+    name: "13g Tell me when any flow fails (off)"
+    enabled: false
+    triggers:
+      - { on: flow.failed }
+    nodes:
+      - { id: n, step: notify, with: { text: "13g {@event|a flow} failed", sound: false } }
 
   a14-morning:
     name: "14 Arrange and shapes: Morning check"

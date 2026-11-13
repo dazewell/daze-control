@@ -17,7 +17,7 @@ previous dev config back and starts the installed app again. Add `-KeepEdits` on
 First run builds the engine (a few minutes).
 
 Rules: flows named **LIVE-RISK** touch real devices and run only when you start them. Every other flow only shows
-messages, waits, checks or asks. Hotkeys are `Ctrl+Alt+F9` / `Ctrl+Alt+F10`. Flows 13a-13f start **off**. Windows
+messages, waits, checks or asks. Hotkeys are `Ctrl+Alt+F9` / `Ctrl+Alt+F10`. Flows 13a-13g start **off**. Windows
 settings you change (text size, contrast, theme) must be put back at the end (checklist after check 16).
 
 How to read a line: **Do** what to click · **Pass** one sentence · **Fail** what to tell me (a few words are enough).
@@ -138,7 +138,7 @@ Computer use cannot see the engine's pop-ups, the tray menu, dropdown lists or W
 Everything here was tested **with fakes only** (nothing ran against real hardware or the real shell). One line each:
 - Stop flow: showcase flows "Guard then stop" and "Decide on an answer" (answer Off): no pop-up after the stop, history "Stopped here"; the failed variant says "Needed folder is missing".
 - Check value: "Decide on an answer": Loud and Quiet take different branches; `dctl check value.check value=5 is=atLeast to=3` exits 0; a word where a number is needed says so.
-- Events: turn on **13e**, turn the screens off and on again: one pop-up per change, none at start; stay away until Windows says away and come back. Turn on **13f**, plug a USB device in and out: the pop-up names it.
+- Events: turn on **13e**, turn the screens off and on again: one pop-up per change, none at start; stay away until Windows says away and come back. Turn on **13f**, plug a USB device in and out: the pop-up names it. Turn on **13g**, run a flow that fails: the pop-up names that flow; stop a flow by hand: nothing.
 - Open file or address: run "LIVE-RISK 24 Open a folder" (opens `%WINDIR%` in Explorer); then try `https://` and `ms-settings:display` as the target in the inspector; a missing file fails with a sentence.
 - Control media (not in the kit): add it to a flow with music playing; Play or pause, Next and Previous act on the player, no key is pressed.
 - Wake over network: edit "LIVE-RISK 25" to your sleeping PC's hardware address and `host:port`; it wakes a real PC and the second step waits until it answers and shows the time in ms.

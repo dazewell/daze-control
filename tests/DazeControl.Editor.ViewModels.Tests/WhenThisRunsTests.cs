@@ -43,6 +43,23 @@ public sealed class WhenThisRunsTests
     }
 
     [Fact]
+    public void FlowEventSentencesNameTheFlowAndEditsKeepItAcrossFinishedAndFailed()
+    {
+        Assert.Equal("When a flow finishes", WhenThisRuns.Sentence(new EventTrigger("flow.finished")));
+        Assert.Equal("When a flow fails", WhenThisRuns.Sentence(new EventTrigger("flow.failed")));
+        Assert.Equal("When 'Headphones' fails", WhenThisRuns.Sentence(new EventTrigger("flow.failed") { Flow = "hp" }, id => id == "hp" ? "Headphones" : null));
+        Assert.Equal("When 'hp' finishes", WhenThisRuns.Sentence(new EventTrigger("flow.finished") { Flow = "hp" }));
+        Assert.Contains(WhenThisRuns.EventGroups, g => g.Title == "Flows" && g.Events.Count == 2);
+
+        var picked = WhenThisRuns.WithFlow(new EventTrigger("flow.finished"), " hp ");
+        Assert.Equal(new EventTrigger("flow.finished") { Flow = "hp" }, picked);
+        Assert.Equal(new EventTrigger("flow.failed") { Flow = "hp" }, WhenThisRuns.WithEvent(picked, "flow.failed"));
+        Assert.Equal(new EventTrigger("flow.finished"), WhenThisRuns.WithFlow(picked, ""));
+        Assert.Equal(new EventTrigger("session.lock"), WhenThisRuns.WithFlow(new EventTrigger("session.lock"), "hp"));
+        Assert.Equal(new EventTrigger("session.lock"), WhenThisRuns.WithEvent(picked, "session.lock"));
+    }
+
+    [Fact]
     public void NetworkSentencesSayWhichConnection()
     {
         Assert.Equal("When the network connects", WhenThisRuns.Sentence(new EventTrigger("network.connected")));

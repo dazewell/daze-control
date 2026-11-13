@@ -851,6 +851,8 @@
                                                  Header="Device name contains" PlaceholderText="Any device" AutomationProperties.Name="Device name contains" />
                                         <ComboBox ItemsSource="{x:Bind SoundDevices}" SelectedIndex="{x:Bind SoundDevice, Mode=TwoWay}"
                                                   Visibility="{x:Bind IsSoundEvent}" HorizontalAlignment="Stretch" Header="Sound device" AutomationProperties.Name="Sound device" />
+                                        <ComboBox ItemsSource="{x:Bind FlowNames}" SelectedIndex="{x:Bind FlowChoice, Mode=TwoWay}"
+                                                  Visibility="{x:Bind IsFlowEvent}" HorizontalAlignment="Stretch" Header="Which flow" AutomationProperties.Name="Which flow" />
                                         <ComboBox ItemsSource="{x:Bind vmi:TriggerRowViewModel.OnlyNames}" SelectedIndex="{x:Bind OnlyIndex, Mode=TwoWay}"
                                                   HorizontalAlignment="Stretch" Header="Run it" AutomationProperties.Name="Run it" />
                                     </StackPanel>
