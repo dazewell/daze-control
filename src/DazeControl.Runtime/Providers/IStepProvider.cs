@@ -122,6 +122,9 @@ public sealed class StepFailedException : Exception
 /// </summary>
 public sealed class StepEndsFlowException : Exception
 {
+    /// <summary>Ended by a Stop flow step (T24.1, D-133): a flow that called this one carries on, unlike after a menu closed with nothing picked.</summary>
+    public bool IsStop { get; init; }
+
     public StepEndsFlowException()
     {
     }

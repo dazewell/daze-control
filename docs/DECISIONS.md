@@ -1829,3 +1829,17 @@ Status: proposed (the user's standing instruction, 2026-11-12: after the analysi
   a resident keyboard hook, D-008 (firewall rule), cost per string change (GAPS §5).
 - Revisit if: the user answers M28's rows, or a second user appears (signing, languages and sharing move up together).
 - Ref: docs/roadmap/GAPS.md (matrix, sketches, sources).
+
+## D-133 · 2026-11-13 · `flow.stop`: a quiet stop is "done" for a caller, "As failed" is a failure (T24.1)
+Status: accepted, built
+- Decision: `flow.stop` (Flow group, last) has `mode` quiet (default) or failed, and `message` (takes values). Quiet throws
+  `StepEndsFlowException { IsStop }`: the node ends Cancelled with "Stopped here" (": message" when given), the run is Quiet
+  and Cancelled (no pop-up, no tray problem glyph, EngineHost skips Cancelled), parallel branches are cancelled.
+  `RunResult.Stopped` = every quiet end of the run was a stop; a waiting caller (`flow.run`) then counts its step as done and
+  carries on. A menu closed with nothing picked still ends the caller too (D-054). Failed throws `StepFailedException`: the
+  step fails, a failure link or the flow's stop-on-failure rule decides the rest, the caller's step fails "X didn't finish:
+  message". Dry run and a step test say "Would stop here" and stop nothing. The validator warns about a step linked after a stop.
+- Why: the guard after a check needed a silent end (G-02); a guard inside a building block must not kill its callers (the
+  caller asked for a result, and the check found nothing to do), while "As failed" gives the caller a way to react.
+- Why not reuse the menu rule for callers: one silent stop would cancel the whole automatic flow, a surprise for a shared flow.
+- Known edge: "As failed" with `onFailure: ignore/skip` (step settings) goes on like any failed step; that is the user's choice.

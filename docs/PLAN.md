@@ -799,7 +799,7 @@ fakes and dry run only, and the PR lists what the user should try with `scripts/
 
 ## M24 Quick wins: stop, open, decide, react (G-02, G-20, G-60, G-04, G-25, G-03, G-28, G-29, G-95)
 Self-contained: nothing resident is added, no scheduler semantics change, every task ships alone. The first five are the quick wins.
-- [ ] T24.1 Stop flow `flow.stop` (Sonnet, S; solo on the catalog). "Quietly" or "As failed" + a message that takes values. A quiet
+- [x] T24.1 Stop flow `flow.stop` (Sonnet, S; solo on the catalog). "Quietly" or "As failed" + a message that takes values. A quiet
   stop in a called flow ends only that flow and the caller's step is done; "As failed" fails the caller's step (record the D-entry).
   Files: `ProviderCatalog.cs`, `Runtime/Providers/` (next to `MenuProvider`: `StepEndsFlowException` is the model, but a menu's
   quiet end also ends the caller, D-054), `Engine/EngineHost.cs`, `Runtime/FlowRunner.cs`, Runs wording in `Core/Runs`.
