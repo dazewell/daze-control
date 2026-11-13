@@ -199,6 +199,15 @@ public class StateCheckTests
     }
 
     [Fact]
+    public void SessionFlagsMapLockAndUnlock()
+    {
+        // X-017: the flags sit at offset 16; offset 12 is the connect state (0 = active) and read as "locked".
+        Assert.True(WindowsPcState.FromSessionFlags(0));
+        Assert.False(WindowsPcState.FromSessionFlags(1));
+        Assert.Null(WindowsPcState.FromSessionFlags(7));
+    }
+
+    [Fact]
     public void RealReadersAnswerOnThisPc()
     {
         // Values depend on the PC; this only proves the native reads work without admin and don't throw.
