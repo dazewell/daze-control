@@ -183,6 +183,28 @@ public sealed class CanvasPlacementTests : IDisposable
         Assert.Equal(before, Everything());
     }
 
+    [Theory]
+    [InlineData(LayoutShape.LeftToRight)]
+    [InlineData(LayoutShape.TopToBottom)]
+    [InlineData(LayoutShape.Tree)]
+    [InlineData(LayoutShape.Circle)]
+    public void AfterEachArrangeTheFitShowsEveryStep(LayoutShape shape)
+    {
+        var raised = 0;
+        _canvas.Rearranged += (_, _) => raised++;
+        _canvas.MoveBy(["vol"], 400, 400); // placed far off by hand first (F-015, F-040)
+
+        _canvas.Arrange(shape);
+        var camera = _canvas.FitView(1000, 700);
+
+        Assert.Equal(1, raised); // the canvas fits on it (FlowCanvas.OnRearranged)
+        Assert.All(_canvas.Nodes, n =>
+        {
+            var (from, to) = (camera.ToScreen(new Point(n.X, n.Y)), camera.ToScreen(new Point(n.X + n.Width, n.Y + n.Height)));
+            Assert.True(from.X >= 0 && from.Y >= 0 && to.X <= 1000 && to.Y <= 700, $"{n.Id} at {from}–{to}");
+        });
+    }
+
     [Fact]
     public void ArrangeAndResetLayoutAskTheCanvasToFit()
     {

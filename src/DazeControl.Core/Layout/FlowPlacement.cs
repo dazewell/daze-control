@@ -53,7 +53,7 @@ public static class FlowPlacement
             boxes.Add(box with { Bounds = box.Bounds with { X = box.Bounds.X + now.X - was.X, Y = box.Bounds.Y + now.Y - was.Y } });
         }
         var final = boxes.Where(b => b.Card is null).ToDictionary(b => b.Id, b => b.Bounds, StringComparer.Ordinal);
-        var routes = edges.Select(e => Route(e.From, e.To, e.When, final, o.Shape, o.Lines)).ToList();
+        var routes = Separate([.. edges.Select(e => Route(e.From, e.To, e.When, final, o.Shape, o.Lines))], final, o.Lines).ToList();
 
         // A lane round the outside may run left of or above everything: make room for it.
         var dx = Math.Max(0, o.Padding / 2 - routes.Where(r => r.Lane is not null && IsVertical(r.StartSide)).Select(r => r.Lane!.Value).DefaultIfEmpty(double.MaxValue).Min());
@@ -97,18 +97,49 @@ public static class FlowPlacement
         return Clear(new EdgeRoute(from, to, when, Port(a, startSide), Port(b, endSide), null, startSide, endSide), boxes, lines);
     }
 
-    /// <summary>How many steps other than its own two the line is drawn through (sampled).</summary>
+    /// <summary>
+    /// How badly a line fits (sampled): 1000 for each step other than its own two it is drawn through, plus 1 for each
+    /// it passes closer than <see cref="LineClearance"/> to (F-040: a line along a pill's border reads as its outline).
+    /// </summary>
     private static int Hits(EdgeRoute route, IReadOnlyDictionary<string, Rect> boxes, LayoutLines lines)
     {
         var curve = EdgeCurve.For(route, lines);
-        var points = Enumerable.Range(1, 127).Select(i => curve.At(i / 128.0)).ToList();
-        return boxes.Count(kv => kv.Key != route.From && kv.Key != route.To
-            && points.Any(p => p.X > kv.Value.X && p.X < kv.Value.Right && p.Y > kv.Value.Y && p.Y < kv.Value.Bottom));
+        var points = new Point[127];
+        for (var i = 0; i < points.Length; i++)
+            points[i] = curve.At((i + 1) / 128.0);
+        var score = 0;
+        foreach (var (id, r) in boxes)
+        {
+            if (id == route.From || id == route.To)
+                continue;
+            var near = false;
+            foreach (var p in points)
+            {
+                if (p.X > r.X && p.X < r.Right && p.Y > r.Y && p.Y < r.Bottom)
+                {
+                    score += 1000;
+                    near = false;
+                    break;
+                }
+                near |= p.X > r.X - LineClearance && p.X < r.Right + LineClearance && p.Y > r.Y - LineClearance && p.Y < r.Bottom + LineClearance;
+            }
+            if (near)
+                score++;
+        }
+        return score;
     }
 
+    /// <summary>How close a line may pass a step that isn't one of its ends, in DIP (F-040).</summary>
+    public const double LineClearance = 8;
+
+    /// <summary>How far apart lines that share a lane are drawn, in DIP (F-040).</summary>
+    public const double LaneGap = 12;
+
     /// <summary>
-    /// A line drawn through a step detours (D-124): out of its port, along a lane just past every step beside its run
-    /// (the nearer side; right or below on a tie), and back in. The detour is kept only if it crosses fewer steps.
+    /// A line drawn through a step, or along one, detours (D-124, F-040): out of its port, along a lane
+    /// <see cref="LaneClearance"/> past the steps beside its run (outside all of them, or in a gap next to one),
+    /// and back in. The detour that fits best is kept, and only if it fits better than the plain line; on a tie the
+    /// one that strays least wins.
     /// </summary>
     private static EdgeRoute Clear(EdgeRoute route, IReadOnlyDictionary<string, Rect> boxes, LayoutLines lines)
     {
@@ -126,17 +157,103 @@ public static class FlowPlacement
         var before = band.Select(r => alongX ? r.X : r.Y).Append(near).Min() - LaneClearance;
         var after = band.Select(r => alongX ? r.Right : r.Bottom).Append(far).Max() + LaneClearance;
         var mid = (near + far) / 2;
+        // Outside everything (D-124's lanes, nearer side first), then just past each step beside the run.
+        var lanes = (mid - before < after - mid ? new[] { before, after } : [after, before]).ToList();
+        foreach (var r in band.OrderBy(r => alongX ? r.X : r.Y))
+            lanes.AddRange([(alongX ? r.X : r.Y) - LaneClearance, (alongX ? r.Right : r.Bottom) + LaneClearance]);
         var best = route;
-        foreach (var lane in mid - before < after - mid ? [before, after] : new[] { after, before })
+        var bestReach = double.MaxValue;
+        foreach (var lane in lanes.Distinct())
         {
             var tried = route with { Lane = lane };
             var count = Hits(tried, boxes, lines);
-            if (count < hits)
-                (best, hits) = (tried, count);
-            if (hits == 0)
-                break;
+            var reach = Math.Abs(lane - near) + Math.Abs(lane - far); // how far the detour strays
+            if (count < hits || (count == hits && !ReferenceEquals(best, route) && reach < bestReach))
+                (best, hits, bestReach) = (tried, count, reach);
         }
         return best;
+    }
+
+    /// <summary>
+    /// Lines whose detours run along the same lane (overlapping runs) are spread <see cref="LaneGap"/> apart, so each
+    /// can be followed (F-040): the shortest run keeps the lane, longer ones go further out (away from the line's
+    /// ports), so the lanes nest instead of crossing. A spread that would make a line fit worse keeps it where it was.
+    /// The commit and the drag preview both spread with it, so the drop draws what the drag showed (D-120).
+    /// </summary>
+    public static IReadOnlyList<EdgeRoute> Separate(IReadOnlyList<EdgeRoute> routes, IReadOnlyDictionary<string, Rect> boxes, LayoutLines lines)
+    {
+        ArgumentNullException.ThrowIfNull(routes);
+        ArgumentNullException.ThrowIfNull(boxes);
+        var laned = routes.Select((r, i) => (Route: r, Index: i)).Where(x => x.Route.Lane is not null).ToList();
+        if (laned.Count < 2)
+            return routes;
+        var result = routes.ToArray();
+        var done = new HashSet<int>();
+        foreach (var (route, index) in laned)
+        {
+            if (done.Contains(index))
+                continue;
+            var vertical = IsVertical(route.StartSide);
+            var group = laned.Where(x => !done.Contains(x.Index) && x.Index != index && IsVertical(x.Route.StartSide) == vertical
+                && Math.Abs(x.Route.Lane!.Value - route.Lane!.Value) < 1).ToList();
+            // Only runs that overlap share the lane: grow the group from this line by overlap.
+            var span = Span(route);
+            var members = new List<(EdgeRoute Route, int Index)> { (route, index) };
+            bool grew;
+            do
+            {
+                grew = false;
+                foreach (var x in group)
+                {
+                    if (members.Contains(x))
+                        continue;
+                    var s = Span(x.Route);
+                    if (s.Lo < span.Hi && s.Hi > span.Lo)
+                    {
+                        members.Add(x);
+                        span = (Math.Min(span.Lo, s.Lo), Math.Max(span.Hi, s.Hi));
+                        grew = true;
+                    }
+                }
+            }
+            while (grew);
+            foreach (var m in members)
+                done.Add(m.Index);
+            if (members.Count < 2)
+                continue;
+            var ordered = members.OrderBy(m => Span(m.Route).Hi - Span(m.Route).Lo)
+                .ThenBy(m => m.Route.From, StringComparer.Ordinal).ThenBy(m => m.Route.To, StringComparer.Ordinal).ToList();
+            for (var i = 1; i < ordered.Count; i++)
+            {
+                var (r, at) = ordered[i];
+                var outward = Outward(r);
+                var was = Hits(r, boxes, lines);
+                var moved = r with { Lane = r.Lane + outward * i * LaneGap };
+                if (Hits(moved, boxes, lines) > was)
+                {
+                    moved = r with { Lane = r.Lane - outward * i * LaneGap };
+                    if (Hits(moved, boxes, lines) > was)
+                        continue;
+                }
+                result[at] = moved;
+            }
+        }
+        return result;
+
+        // The lane's run, along the lane (y for an x lane), from where the line reaches it to where it leaves.
+        static (double Lo, double Hi) Span(EdgeRoute r)
+        {
+            var c = EdgeCurve.Detour(r.Start, r.End, r.StartSide, r.EndSide, 0);
+            var (a, b) = IsVertical(r.StartSide) ? (c.Control1.Y, c.Control2.Y) : (c.Control1.X, c.Control2.X);
+            return (Math.Min(a, b), Math.Max(a, b));
+        }
+
+        // Away from the line's ports: the lane lies past them on that side (right or below on a tie).
+        static double Outward(EdgeRoute r)
+        {
+            var (a, b) = IsVertical(r.StartSide) ? (r.Start.X, r.End.X) : (r.Start.Y, r.End.Y);
+            return r.Lane!.Value < (a + b) / 2 ? -1 : 1;
+        }
     }
 
     /// <summary>

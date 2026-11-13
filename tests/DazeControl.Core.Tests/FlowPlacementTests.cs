@@ -128,7 +128,60 @@ public class FlowPlacementTests
         ["skip-two-levels"] = () => FlowOf(Step("a"), Step("b", "a"), Step("c", "b"), Step("j", "a", "c"), Step("k", "j")),
         ["skip-with-sibling"] = () => FlowOf(Step("a"), Step("b", "a"), Step("c", "b"), Step("e", "b"), Step("j", "a", "c")),
         ["fan-in-of-three"] = () => FlowOf(Step("a"), Step("b", "a"), Step("c", "b"), Step("d", "c"), Step("j", "a", "b", "c", "d")),
+        ["three-in-one"] = () => FlowOf(Step("a"), Step("b"), Step("c"), Step("j", "a", "b", "c"), Step("k", "j")),
+        ["fork-three-join"] = () => FlowOf(Step("s"), Step("a", "s"), Step("b", "s"), Step("c", "s"), Step("j", "a", "b", "c")),
     };
+
+    [Theory]
+    [MemberData(nameof(JoinCases))]
+    public void LinesKeepClearOfStepsAndLanesAreNotShared(LayoutShape shape, string flow)
+    {
+        foreach (var lines in new[] { LayoutLines.Curved, LayoutLines.RightAngles })
+        {
+            var a = FlowPlacement.Arrange(JoinFlows[flow](), _ => Pill, LayoutOptions.Default with { Shape = shape, Lines = lines });
+            foreach (var e in a.Edges)
+            {
+                var curve = EdgeCurve.For(e, lines);
+                foreach (var box in a.Boxes.Where(b => b.Card is null && b.Id != e.From && b.Id != e.To))
+                {
+                    var r = box.Bounds;
+                    for (var i = 0; i <= 200; i++)
+                    {
+                        var p = curve.At(i / 200.0);
+                        var dx = Math.Max(Math.Max(r.X - p.X, p.X - r.Right), 0);
+                        var dy = Math.Max(Math.Max(r.Y - p.Y, p.Y - r.Bottom), 0);
+                        Assert.True(Math.Sqrt(dx * dx + dy * dy) >= FlowPlacement.LineClearance - 0.01,
+                            $"{lines}: {e.From} → {e.To} runs {Math.Sqrt(dx * dx + dy * dy):0.0} DIP from {box.Id}");
+                    }
+                }
+            }
+            // No two detours run along one lane over the same stretch (F-040).
+            var runs = a.Edges.Where(e => e.Lane is not null).Select(e =>
+            {
+                var c = EdgeCurve.For(e, lines).Corners; // [start, out, lane start, lane end, in, end]
+                var vertical = c[2].X == c[3].X;
+                var (from, to) = vertical ? (c[2].Y, c[3].Y) : (c[2].X, c[3].X);
+                return (e, Lane: e.Lane!.Value, Lo: Math.Min(from, to), Hi: Math.Max(from, to), Vertical: vertical);
+            }).ToList();
+            foreach (var x in runs)
+            {
+                Assert.DoesNotContain(runs, y => !ReferenceEquals(x.e, y.e) && x.Vertical == y.Vertical && Math.Abs(x.Lane - y.Lane) < 1
+                    && x.Lo < y.Hi && y.Lo < x.Hi);
+            }
+        }
+    }
+
+    [Fact]
+    public void AWideJoinTopToBottomNestsItsLanesLaneGapApart()
+    {
+        var a = Arrange(JoinFlows["fan-in-of-three"](), LayoutShape.TopToBottom);
+        var lanes = a.Edges.Where(e => e.Lane is not null).OrderBy(e => e.From, StringComparer.Ordinal).Select(e => e.Lane!.Value).ToList();
+
+        Assert.Equal(3, lanes.Count); // a, b and c each skip to j round the steps under them
+        Assert.Equal(lanes.Order().Reverse(), lanes); // the longest line outermost: nested, no crossing
+        Assert.Equal(FlowPlacement.LaneGap, lanes[0] - lanes[1]);
+        Assert.Equal(FlowPlacement.LaneGap, lanes[1] - lanes[2]);
+    }
 
     [Theory]
     [MemberData(nameof(JoinCases))]

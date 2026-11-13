@@ -78,19 +78,27 @@ public sealed class DragPreview
         var top = new Dictionary<string, Rect>(_topLevel.Count, StringComparer.Ordinal);
         foreach (var id in _topLevel)
             top[id] = BoundsOf(id, rects);
-        var routes = new List<EdgeRoute>(_touching.Count);
+        var all = new List<EdgeRoute>(_touching.Count + StaticEdges.Count);
         foreach (var edge in _touching)
-            routes.Add(FlowPlacement.Route(edge.From, edge.To, edge.When, top, _shape, Lines));
+            all.Add(FlowPlacement.Route(edge.From, edge.To, edge.When, top, _shape, Lines));
         // A line between steps that don't move detours round a moved step it would cross, and drops a detour the move
-        // made needless (D-124): those follow the drag too, so the drop shows what the commit draws.
+        // made needless (D-124): those follow the drag too, so the drop shows what the commit draws. Every detour is
+        // routed again (lanes are spread over all of them, F-040), the other still lines only when a moved step is near.
         var moved = _moved.Values.Where(b => b.Card is null).Select(b => rects[b.Id]).ToList();
+        var still = new List<EdgeRoute>();
         foreach (var edge in StaticEdges)
         {
             if (edge.Lane is null && !moved.Any(r => Near(EdgeCurve.For(edge, Lines), r)))
                 continue;
-            var route = FlowPlacement.Route(edge.From, edge.To, edge.When, top, _shape, Lines);
-            if (route != edge)
-                routes.Add(route);
+            still.Add(edge);
+            all.Add(FlowPlacement.Route(edge.From, edge.To, edge.When, top, _shape, Lines));
+        }
+        var spread = FlowPlacement.Separate(all, top, Lines);
+        var routes = new List<EdgeRoute>(_touching.Count);
+        for (var i = 0; i < spread.Count; i++)
+        {
+            if (i < _touching.Count || spread[i] != still[i - _touching.Count])
+                routes.Add(spread[i]);
         }
         return new DragFrame(offset, rects, routes, routes.ConvertAll(r => EdgeCurve.For(r, Lines)));
     }
