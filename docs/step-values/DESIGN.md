@@ -251,3 +251,5 @@ Not mutable variables (§3 C). Instead, three single-assignment pieces that stay
 - **Make text** step (`text.make`, Values group): one `text` setting that takes values; gives `text`. A named, composed
   value used by several later steps, set once per run.
 - Memory across runs stays flags (D-029). A "remember this text" store is not proposed.
+- Built in T23.7 (D-131): text inputs are never asked; a call's missing output is a warning (fallback at run time); Make text sits in
+  the Flow palette group (D-102's eleven groups); `RunResult.Outputs`, `FlowOutputs` (Fill/Problems/Rename/Remove/Users).
