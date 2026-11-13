@@ -120,6 +120,7 @@ public static class BuiltInProviders
             new AndroidOpenProvider(android),
             new AndroidCheckProvider(android, new WindowsProcesses()),
             new NetworkWakeProvider(new WindowsWakeNetwork()),
+            new NetworkReachProvider(new WindowsReachProbe()),
             new ServiceStartProvider(services, time),
             new ServiceStopProvider(services, time),
             new FactCheckProvider("audio.check", probes["audio.isDefault"], "default"),

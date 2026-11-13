@@ -834,7 +834,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
 - [x] T24.7 Wake over network (built, D-139) `network.wake` (Sonnet, S; solo on the catalog; after T24.5). `mac`; a magic packet on each connected
   network's broadcast address. Files: `ProviderCatalog.cs`, `Providers/Network/`. Done when: Providers tests (packet bytes, bad MAC is
   a validation problem, no network fails with a sentence); AOT 0 warnings.
-- [ ] T24.8 Check address `network.reach` (Sonnet, S; solo on the catalog; after T24.7). `address` = `host:port` (TCP connect), a web
+- [x] T24.8 (built, D-140; not run live) Check address `network.reach` (Sonnet, S; solo on the catalog; after T24.7). `address` = `host:port` (TCP connect), a web
   address (any answer counts) or a host (ping); `is` reachable / not reachable; gives `ms`; in `Checks` (the "Wait until" help line).
   Done when: Providers tests behind a fake; `dctl check network.reach address=…` works; nothing is sent beyond the one probe.
 - [x] T24.9 Inputs from the command line (Sonnet, S-M; parallel-safe). `dctl run <flow> [name=value…]` and the same after

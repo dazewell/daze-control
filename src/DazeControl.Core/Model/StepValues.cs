@@ -138,6 +138,10 @@ public static class StepValues
         if (step.Step == ProviderCatalog.ValueCheckId && depth < MaxDepth
             && CheckedSides.Any(p => step.With.TryGetValue(p, out var side) && side is ScalarParam { Text: var sideText } && UsesSensitive(flow, sideText, flows, catalog, depth + 1)))
             return [.. Of(descriptor).Select(v => v.Name == ErrorName ? v : v with { Sensitive = true })];
+        // Check address's result sentence names the host it probed (D-140): Sensitive when the address uses a Sensitive value.
+        if (step.Step == ProviderCatalog.ReachId && depth < MaxDepth
+            && step.With.TryGetValue("address", out var addr) && addr is ScalarParam { Text: var addrText } && UsesSensitive(flow, addrText, flows, catalog, depth + 1))
+            return [.. Of(descriptor).Select(v => v.Name == ErrorName ? v : v with { Sensitive = true })];
         return Of(descriptor);
     }
 
