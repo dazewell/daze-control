@@ -819,6 +819,22 @@ public static class StepValues
     /// </summary>
     public const char PercentGuard = '\uE000';
 
+    /// <summary>The scheme a written address starts with ("https", "steam", "ms-settings"), else null. Two letters or more: <c>C:</c> is a drive.</summary>
+    public static string? SchemeOf(string text)
+    {
+        var colon = text.IndexOf(':', StringComparison.Ordinal);
+        if (colon < 2 || !char.IsAsciiLetter(text[0]))
+            return null;
+        for (var i = 1; i < colon; i++)
+            if (!char.IsAsciiLetterOrDigit(text[i]) && text[i] is not ('+' or '-' or '.'))
+                return null;
+        return text[..colon];
+    }
+
+    /// <summary>Schemes <c>process.open</c> never opens: they run script or a diagnostic tool in the app that gets them (D-134).</summary>
+    public static readonly IReadOnlySet<string> RefusedSchemes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "javascript", "vbscript", "data", "ms-msdt", "search-ms", "ms-officecmd" };
+
     public static string Unguard(string text) => text.Replace(PercentGuard, '%');
     /// <summary>
     /// The step as its provider should see it: settings that take values filled from <paramref name="values"/> (Device values
@@ -862,6 +878,8 @@ public static class StepValues
         ArgumentNullException.ThrowIfNull(values);
         ArgumentNullException.ThrowIfNull(library);
         var result = new StringBuilder();
+        if (rule == FillRule.Target)
+            rule = SchemeOf(text) is null ? FillRule.Argument : FillRule.Url;
         foreach (var part in Split(text))
         {
             if (part.Ref is not { } r)

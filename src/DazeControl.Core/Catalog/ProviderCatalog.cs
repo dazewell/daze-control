@@ -162,6 +162,22 @@ public static class ProviderCatalog
             Conditions = [new ConditionSpec("notRunning", "It isn't running", "process.running", false)],
             Values = [ExitCode, Output],
         },
+        new("process.open", "Open file or address", Process, TimeSpan.FromSeconds(30),
+        [
+            new("target", ParamKind.Text, "File, folder or address")
+            {
+                Required = true, TakesValues = true, Fill = FillRule.Target,
+                Help = "Opens in the app that handles it, without waiting. A value from an earlier step stays part of the name or address, never a command.",
+                Examples =
+                [
+                    new("A web page", "https://example.com"),
+                    new("A Steam game", "steam://rungameid/730"),
+                    new("Windows settings", "ms-settings:display"),
+                    new("A folder", @"%USERPROFILE%\Downloads"),
+                ],
+            },
+        ])
+        { Keywords = "launch website url link document folder default app steam" },
         new("process.close", "Close program", Process, TimeSpan.FromSeconds(30),
         [
             new("program", ParamKind.Text, "Program") { Required = true, Help = "Its name or path, like Spotify or Spotify.exe. Not running counts as done." },

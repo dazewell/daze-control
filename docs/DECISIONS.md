@@ -1843,3 +1843,7 @@ Status: accepted, built
   caller asked for a result, and the check found nothing to do), while "As failed" gives the caller a way to react.
 - Why not reuse the menu rule for callers: one silent stop would cancel the whole automatic flow, a surprise for a shared flow.
 - Known edge: "As failed" with `onFailure: ignore/skip` (step settings) goes on like any failed step; that is the user's choice.
+
+## D-134 · 2026-11-13 · `process.open`: one target handed to the shell, values escaped by where they sit (T24.2)
+Status: accepted, built
+- Decision: `process.open` "Open file or address" (Programs, after Run program): `target` takes values (new `FillRule.Target`) and goes to ShellExecute as the file name only, no arguments, no wait. Where the written text starts with a scheme (two letters or more: `https:`, `steam:`, `ms-settings:`) a value is percent-encoded like `Url`, so it cannot change the scheme or break out of the address; otherwise it is a path or name and `
