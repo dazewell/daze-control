@@ -849,7 +849,8 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
 ## M25 Deciding and seeing (G-01, G-86, G-70, G-71, G-63, G-82)
 - [x] T25.1 Only run if (Opus, M-L; after M24; engine side, branch feat/m25-only-run-if, D-150). Flow `onlyIf:` = a list of checks with their settings, read before a schedule or event
   starts the flow (and before a start by hand only when the flow says so); unmet = no run, no pop-up, a log line, and "Held back:
-  <the check's sentence>" plus last fired / last started per trigger on the flow card and the "When this runs" card. `only: onBattery|onAC`
+  <the check's sentence>" (built: log + `dctl list`; the flow card and "When this runs" card lines, with last fired / last started per
+  trigger, moved to T25.1b). `only: onBattery|onAC`
   keeps loading as a power check (supersedes that part of D-107: new D-entry). A check that can't be read lets the run start (D-081).
   Files: `Core/Model/Flow.cs`, `Core/Yaml`, `Core/Validation`, `Runtime/Triggers/TriggerService.cs`, `Runtime/FlowLauncher.cs`, the
   one-step path `dctl check` uses (`EngineController`), `WhenThisRuns.cs`. Done when: Core + Runtime tests (all checks must hold, a

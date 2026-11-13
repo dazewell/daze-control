@@ -24,6 +24,9 @@ public sealed class FlowGuard(FlowRunner runner, Action<string>? log = null, Tim
     /// <summary>The latest held-back start of a flow (in memory, one per flow: the flow card's "Held back: …"); null = none since the engine started.</summary>
     public HeldBackNote? LastHeldBack(string flowId) => _last.TryGetValue(flowId, out var note) ? note : null;
 
+    /// <summary>A run of the flow ended: its note is old news.</summary>
+    public void Forget(string flowId) => _last.TryRemove(flowId, out _);
+
     /// <summary>Whether this start must read the list: automatic starts always, a person's only when the flow says so.</summary>
     public static bool Applies(Flow flow, bool byHand) => flow.OnlyIf.Count > 0 && (!byHand || flow.OnlyIfByHand);
 
