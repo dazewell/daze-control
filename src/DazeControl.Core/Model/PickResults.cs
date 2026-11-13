@@ -23,11 +23,34 @@ public static class PickResults
     /// <summary>The value a step stores to use a pick step's result.</summary>
     public static string Ref(string pickId) => Prefix + pickId;
 
-    /// <summary>The pick step a setting names (<c>$result:pick</c> → "pick"), or null for any other value.</summary>
-    public static string? StepIn(ParamValue value) => value is ScalarParam { Text: var text } ? StepIn(text) : null;
+    /// <summary>
+    /// The value a device setting stores to use <paramref name="value"/> of step <paramref name="stepId"/> (D-130):
+    /// <c>$result:id</c> for <c>device</c> (D-117's form), else <c>$result:id.value</c>.
+    /// </summary>
+    public static string Ref(string stepId, string value) =>
+        value == StepValues.DeviceName ? Prefix + stepId : Prefix + stepId + "." + value;
 
-    public static string? StepIn(string text) =>
-        text.Trim() is var t && t.StartsWith(Prefix, StringComparison.Ordinal) && t.Length > Prefix.Length ? t[Prefix.Length..] : null;
+    /// <summary>The step a setting names (<c>$result:pick</c> → "pick", <c>$result:set.previous</c> → "set"), or null for any other value.</summary>
+    public static string? StepIn(ParamValue value) => RefIn(value)?.Step;
+
+    public static string? StepIn(string text) => RefIn(text)?.Step;
+
+    /// <summary>
+    /// The step and value a <c>$result:</c> setting names (D-130): <c>$result:set.previous</c> → ("set", "previous");
+    /// <c>$result:pick</c> → ("pick", "device"). Step ids hold no '.', so the first one splits. Null for any other value.
+    /// </summary>
+    public static (string Step, string Value)? RefIn(ParamValue value) => value is ScalarParam { Text: var text } ? RefIn(text) : null;
+
+    public static (string Step, string Value)? RefIn(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        var t = text.Trim();
+        if (!t.StartsWith(Prefix, StringComparison.Ordinal) || t.Length == Prefix.Length)
+            return null;
+        var rest = t[Prefix.Length..];
+        var dot = rest.IndexOf('.', StringComparison.Ordinal);
+        return dot < 0 ? (rest, StepValues.DeviceName) : (rest[..dot], rest[(dot + 1)..]);
+    }
 
     public static bool IsPick(Node node) => node is StepNode { Step: ProviderCatalog.PromptPickId };
 
@@ -65,6 +88,40 @@ public static class PickResults
     }
 
     /// <summary>
+    /// Why <paramref name="nodeId"/>'s setting needing <paramref name="kind"/> can't hold <paramref name="text"/>, a
+    /// <c>$result:</c> value (D-130), or null. A Pick's <c>device</c> keeps D-117's sentences; any other step's value goes
+    /// through <see cref="StepValues.DeviceProblem"/> (a Device of a kind that fits, always finished first). A <c>$result:id</c>
+    /// naming no step keeps "There's no Pick step called …".
+    /// </summary>
+    public static string? ResultProblem(Flow flow, string nodeId, string text, LibraryKind kind,
+        IReadOnlyList<ProviderDescriptor>? catalog = null)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        if (RefIn(text) is not { } named)
+            return null;
+        var (step, value) = named;
+        if (value == StepValues.DeviceName && (flow.FindNode(step) is not StepNode producer || IsPick(producer)))
+            return Problem(flow, nodeId, step, kind);
+        return StepValues.DeviceProblem(flow, nodeId, step, value, kind, catalog);
+    }
+
+    /// <summary>
+    /// What a <c>$result:</c> setting stands for, in words: "Result of Pick speakers" for a Pick's device, "Previous default
+    /// from Set default device" for another step's value (<paramref name="separator"/> after "of"/"from"); null when it names
+    /// nothing in <paramref name="flow"/>.
+    /// </summary>
+    public static string? Describe(Flow flow, string text, string separator = " ")
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        if (RefIn(text) is not { Step: var step, Value: var value } || flow.FindNode(step) is not StepNode producer)
+            return null;
+        if (IsPick(producer) && value == StepValues.DeviceName)
+            return "Result of" + separator + NameOf(producer);
+        var title = ProviderCatalog.Find(producer.Step) is { } d ? StepValues.Find(d, value)?.Title : null;
+        return title is null ? null : title + " from" + separator + StepValues.NameOf(producer);
+    }
+
+    /// <summary>
     /// The step with every <c>$result:id</c> in a device setting (or <c>flow.run</c>'s <c>inputs</c>) replaced by its picked
     /// key; other settings keep the text as written. <paramref name="missing"/> names a pick that has no result.
     /// </summary>
@@ -72,19 +129,32 @@ public static class PickResults
     public static StepNode Resolve(StepNode step, IReadOnlyDictionary<string, string> picked, out string? missing,
         ProviderDescriptor? descriptor = null)
     {
-        ArgumentNullException.ThrowIfNull(step);
         ArgumentNullException.ThrowIfNull(picked);
+        return Resolve(step, (id, value) => value == StepValues.DeviceName && picked.TryGetValue(id, out var key) ? key : null,
+            out missing, descriptor);
+    }
+
+    /// <summary>
+    /// The step with every <c>$result:id[.value]</c> in a device setting (or <c>flow.run</c>'s <c>inputs</c>) replaced by the
+    /// Library key <paramref name="device"/> gives for (step id, value name), D-130; other settings keep the text as written.
+    /// <paramref name="missing"/> is the first reference with no key, as written after the prefix ("pick", "set.previous").
+    /// </summary>
+    public static StepNode Resolve(StepNode step, Func<string, string, string?> device, out string? missing,
+        ProviderDescriptor? descriptor = null)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        ArgumentNullException.ThrowIfNull(device);
         descriptor ??= ProviderCatalog.Find(step.Step);
         bool IsDevice(string name) => descriptor?.FindParam(name)?.Kind == ParamKind.LibraryRef;
         bool IsCallInputs(string name) => name == FlowInputs.Param && step.Step == ProviderCatalog.RunFlowId;
         string? lost = null;
         ParamValue Swap(ParamValue value)
         {
-            if (StepIn(value) is not { } id)
+            if (RefIn(value) is not { Step: var id, Value: var name })
                 return value;
-            if (picked.TryGetValue(id, out var key))
+            if (device(id, name) is { } key)
                 return new ScalarParam(key);
-            lost ??= id;
+            lost ??= ((ScalarParam)value).Text.Trim()[Prefix.Length..];
             return value;
         }
         if (!step.With.Any(e => IsDevice(e.Key) && StepIn(e.Value) is not null

@@ -623,6 +623,12 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             foreach (var spec in context.Descriptor.Params.Where(p => p.Kind == ParamKind.LibraryRef && p.Library is not null))
             {
                 var key = context.Node.With.TryGetValue(spec.Name, out var value) && value is ScalarParam s ? s.Text : "";
+                if (PickResults.StepIn(key) is not null)
+                {
+                    // Another step's device (D-130), known only when it really runs.
+                    context.SetSummary($"Would use {PickResults.Describe(context.Flow, key) ?? key}");
+                    continue;
+                }
                 if (key.Length == 0 && spec.Required)
                     return Task.FromException(new StepFailedException("Choose a device."));
                 if (key.Length > 0 && !context.Library.Contains(spec.Library!.Value, key))

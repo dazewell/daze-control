@@ -743,7 +743,7 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
 
     private List<DeviceOption> Options(ParamFieldViewModel field, LibraryKind kind, string? current) =>
         LibraryDevices.Options(kind, _session.Current.Library, _live.GetValueOrDefault(kind), current, field.Spec.Required,
-            canCapture: EngineRunning && CanEdit, Flow?.Inputs, picks: PicksBefore());
+            canCapture: EngineRunning && CanEdit, Flow?.Inputs, earlier: DevicesBefore(kind));
 
     /// <summary>
     /// Pick's Default (D-128): the Library items of the step's kind, stored as the key. A name typed by hand in an older flow
@@ -762,9 +762,9 @@ public sealed partial class InspectorViewModel : ObservableObject, IDisposable
         field.SetDevices(rows, current);
     }
 
-    /// <summary>The Pick steps that finish before the selected step (D-117): their results can fill its device settings.</summary>
-    private IReadOnlyList<StepNode> PicksBefore() =>
-        Mode != InspectorMode.Many && Flow is { } flow && Node is StepNode step ? PickResults.Before(flow, step.Id) : [];
+    /// <summary>The Device values of steps that finish before the selected step (D-117, D-130): they can fill its settings of <paramref name="kind"/>.</summary>
+    private IReadOnlyList<(StepNode Step, ValueSpec Value)> DevicesBefore(LibraryKind kind) =>
+        Mode != InspectorMode.Many && Flow is { } flow && Node is StepNode step ? StepValues.DevicesBefore(flow, step.Id, kind) : [];
 
     /// <summary>Asks the engine what's on this PC now (on load and each time a picker opens, UX §5.4).</summary>
     public async Task RefreshDevicesAsync(LibraryKind kind)

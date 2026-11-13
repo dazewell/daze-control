@@ -236,12 +236,8 @@ public sealed class FlowRunner
         string? unpicked = null;
         // Values go in now (D-117, D-129): the lock, the provider and a called flow see plain text and Library keys.
         node = DryRun ? Describe(flow, node, values, out unpicked) : StepValues.Fill(flow, node, values, library, out unpicked, _catalog.FirstOrDefault(d => d.Id == node.Step));
-        if (unpicked is not null)
-        {
-            var pick = flow.FindNode(unpicked) as StepNode;
-            return new(StepResult.Failed, 1, $"Nothing was picked in \"{(pick is null ? unpicked : PickResults.NameOf(pick))}\".",
-                TimeSpan.Zero, offset, retries);
-        }
+        if (unpicked is not null) // a device setting never falls back (D-117, D-130): the step fails
+            return new(StepResult.Failed, 1, NotGiven(flow, unpicked), TimeSpan.Zero, offset, retries);
         var descriptor = _catalog.FirstOrDefault(d => d.Id == node.Step);
         var waits = Flows is not null && node.Step == ProviderCatalog.RunFlowId && !IsOff(node, "wait");
         IStepProvider? provider = null;
@@ -332,7 +328,40 @@ public sealed class FlowRunner
         {
             With = new(step.With.Select(e => KeyValuePair.Create(e.Key, DescribeParam(flow, e.Value, descriptor.FindParam(e.Key))))),
         };
-        return PickResults.Resolve(shown, values.Picked(), out missing, descriptor);
+        // A Pick's dry result is its default (or it fails), so its missing key fails as in a real run. Other steps don't run
+        // in a dry run, so their Device values (Previous default) aren't known: the reference stays, and the dry step says so.
+        var resolved = PickResults.Resolve(shown, (id, value) => values.Device(id, value)
+            ?? (flow.FindNode(id) is StepNode p && PickResults.IsPick(p) && value == StepValues.DeviceName ? null : PickResults.Ref(id, value)),
+            out missing, descriptor);
+        // A dry flow.run passing such a value: the called flow can't check a key nobody knows yet, so it dry-runs with that
+        // input's default instead (the validator already checked the reference).
+        if (missing is null && resolved.Step == ProviderCatalog.RunFlowId
+            && resolved.With.TryGetValue(FlowInputs.Param, out var given) && given is MapParam map
+            && map.Entries.Values.Any(v => PickResults.StepIn(v) is not null))
+        {
+            var kept = new MapParam(new(map.Entries.Where(e => PickResults.StepIn(e.Value) is null)));
+            resolved = resolved with
+            {
+                With = new(resolved.With.Select(e => KeyValuePair.Create(e.Key, e.Key == FlowInputs.Param ? kept : e.Value))),
+            };
+        }
+        return resolved;
+    }
+
+    /// <summary>
+    /// Why a device setting got no key: "Nothing was picked in "Pick device"." for a Pick's result (D-117), else
+    /// ""Set default device" gave no Previous default." (D-130). <paramref name="written"/> is the reference after <c>$result:</c>.
+    /// </summary>
+    private string NotGiven(Flow flow, string written)
+    {
+        var (id, value) = PickResults.RefIn(PickResults.Prefix + written) ?? (written, StepValues.DeviceName);
+        if (flow.FindNode(id) is not StepNode producer)
+            return $"Nothing was picked in \"{id}\".";
+        if (PickResults.IsPick(producer) && value == StepValues.DeviceName)
+            return $"Nothing was picked in \"{PickResults.NameOf(producer)}\".";
+        var descriptor = _catalog.FirstOrDefault(d => d.Id == producer.Step);
+        var title = descriptor is null ? value : StepValues.Find(descriptor, value)?.Title ?? value;
+        return $"\"{StepValues.NameOf(producer, descriptor)}\" gave no {title}.";
     }
 
     /// <summary>

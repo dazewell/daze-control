@@ -77,8 +77,30 @@ public sealed class AudioSetDefaultProvider(IAudioEndpoints audio) : IStepProvid
         var device = AudioSteps.Device(context) ?? throw new StepFailedException("Choose a device.");
         var roles = AudioSteps.Roles(context);
         var endpoint = await audio.WaitForAsync(device.Match, device.Flow, cancellationToken).ConfigureAwait(false);
+        // D-130: read the default it replaces before changing it, only when a later step uses it (one COM read).
+        var previous = context.Wants(Previous)
+            ? (await audio.DefaultsAsync(device.Flow, roles, cancellationToken).ConfigureAwait(false)).FirstOrDefault(e => e is not null)
+            : null;
         await audio.SetDefaultAsync(endpoint.Id, roles, cancellationToken).ConfigureAwait(false);
         context.SetDevice("device", context.RequiredText("device"), LibraryKind.Audio);
+        if (previous is not null && KeyOf(context.Library, previous.Name, device.Flow) is { } key)
+            context.SetDevice(Previous, key, LibraryKind.Audio);
+    }
+
+    public const string Previous = "previous";
+
+    /// <summary>
+    /// The Library audio device an endpoint is (D-130): the one whose match its name contains, in the same direction, as
+    /// <c>WaitForAsync</c> finds endpoints; the longest match wins ("Technics EAH" over "Technics"), then Library order.
+    /// Null when no Library item matches: a device outside the Library can't fill a device setting.
+    /// </summary>
+    public static string? KeyOf(Library library, string endpointName, AudioFlow flow)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+        return library.Audio
+            .Where(d => d.Flow == flow && d.Match.Length > 0 && endpointName.Contains(d.Match, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(d => d.Match.Length)
+            .FirstOrDefault()?.Key;
     }
 }
 

@@ -68,7 +68,12 @@ public static class ProviderCatalog
         {
             Resources = ["audio"],
             Conditions = [new ConditionSpec("notDefault", "It isn't the default", "audio.isDefault", false)],
-            Values = [new ValueSpec("device", ValueKind.Device, "Device") { Library = LibraryKind.Audio, Help = "The Library name of the device it made the default" }],
+            Values =
+            [
+                new ValueSpec("device", ValueKind.Device, "Device") { Library = LibraryKind.Audio, Help = "The Library name of the device it made the default" },
+                // D-130: a later Set default device can put it back. Only a device in the Library can be given.
+                new ValueSpec("previous", ValueKind.Device, "Previous default") { Library = LibraryKind.Audio, Help = "The device that was the default before, if it's in your Library" },
+            ],
         },
         new("audio.check", "Check default device", Audio, Short,
         [
