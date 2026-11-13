@@ -4,7 +4,7 @@ using DazeControl.Core.Runs;
 namespace DazeControl.Runtime.Triggers;
 
 /// <summary>
-/// <c>file.created</c> / <c>file.changed</c> / <c>file.deleted</c> (T26.5, D-146): changes directly inside the folders some flow
+/// <c>file.created</c> / <c>file.changed</c> / <c>file.deleted</c> (T26.5, D-147): changes directly inside the folders some flow
 /// names in <c>path:</c>. Idle = zero (D-009): nothing is watched until a flow subscribes; <see cref="Subscribe"/> and
 /// <see cref="Load"/> open one watch per distinct folder, a flow that goes away, turns off or is reloaded closes its watch, and
 /// the only timer is a one-shot that exists while a burst of changes waits to settle.
