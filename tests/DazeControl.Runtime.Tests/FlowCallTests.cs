@@ -450,7 +450,7 @@ public sealed class FlowCallTests : IDisposable
         public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken) => inner.ExecuteAsync(context, cancellationToken);
     }
 
-    // ---- Repeat (T27.6, D-150) ----
+    // ---- Repeat (T27.6, D-151) ----
 
     private int Rounds => _provider.Attempts.Count(a => a.Step == "set");
 

@@ -4,7 +4,7 @@ using DazeControl.Core.Catalog;
 namespace DazeControl.Core.Model;
 
 /// <summary>
-/// "Repeat" on a <c>flow.run</c> that waits (T27.6, D-150): run the flow up to <see cref="MaxRounds"/> times, until a round works
+/// "Repeat" on a <c>flow.run</c> that waits (T27.6, D-151): run the flow up to <see cref="MaxRounds"/> times, until a round works
 /// or until one fails, with a pause between rounds. One reader for the validator and the runner, so both say the same.
 /// </summary>
 public static class FlowRepeat

@@ -450,7 +450,7 @@ public static partial class ConfigValidator
     }
 
     /// <summary>
-    /// "Repeat" on <c>flow.run</c> (T27.6, D-150): only a call that waits repeats, and the wait between rounds is bounded. The number,
+    /// "Repeat" on <c>flow.run</c> (T27.6, D-151): only a call that waits repeats, and the wait between rounds is bounded. The number,
     /// the choice and the duration's form are checked like any setting; <see cref="FlowRepeat.Read"/> says the same at run time.
     /// </summary>
     private static void CheckRepeats(IReadOnlyList<Flow> flows, List<Problem> problems)

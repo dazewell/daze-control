@@ -802,7 +802,7 @@ Status: accepted, built (T13.8; user, 2026-11-03: "no infinite loops")
 - Why not runtime only: the user would meet the loop as a failed run instead of a problem in the editor. Why not
   validation only: the D-021 mix above. Why not counting menu picks: a person picks every time, and "Back" items are
   loops by design (D-054); a chain through picks would stop Back working after 8 hops.
-- Revisit if: someone needs recursion on purpose (retry-until loops); then a bounded "repeat" step, not calls. (Done: D-150.)
+- Revisit if: someone needs recursion on purpose (retry-until loops); then a bounded "repeat" step, not calls. (Done: D-151.)
 
 ## D-064 · 2026-11-03 · Flow inputs are Library devices with defaults; steps use `$name`; calls pass `inputs:`
 Status: accepted (M13 design; user, 2026-11-03: inputs ship inside P6); amended by D-129 (values in text settings) and D-131 (text inputs)
@@ -1979,7 +1979,7 @@ Status: accepted, built
   and a live run locks the canvas to it.
 - Not verified live: the menu item in the running editor, a real partial run on this PC.
 
-## D-150 · 2026-11-13 · Repeat: a waiting `flow.run` runs up to 50 rounds; the last round decides the step (T27.6)
+## D-151 · 2026-11-13 · Repeat: a waiting `flow.run` runs up to 50 rounds; the last round decides the step (T27.6)
 Status: accepted, built (D-063's revisit note: a bounded repeat, not calls)
 - Decision: `flow.run` gains `repeat` (WholeNumber 1 to 50, default 1, may hold a value per D-146), `until` (`works` default: stop at
   the first round that works; `fails`: stop at the first that fails) and `pause` (0 to 10m before each round after the first). Rounds

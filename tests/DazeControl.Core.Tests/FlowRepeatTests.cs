@@ -4,7 +4,7 @@ using DazeControl.Core.Yaml;
 
 namespace DazeControl.Core.Tests;
 
-/// <summary>T27.6 (D-150): "Repeat" on Run flow, in the validator and in the reader the runner uses.</summary>
+/// <summary>T27.6 (D-151): "Repeat" on Run flow, in the validator and in the reader the runner uses.</summary>
 public class FlowRepeatTests
 {
     private static List<Problem> Validate(string with)
