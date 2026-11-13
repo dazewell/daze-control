@@ -1,0 +1,285 @@
+# Acceptance kit (docs/ACCEPTANCE.md): one dev config with a flow for every live check the user still owes.
+# Started by scripts/accept-run.ps1 on the DEV config only (%LOCALAPPDATA%\DazeControl\dev\config.yaml, backed up first).
+# SAFE by default: flows only show messages, wait, check or ask. Nothing touches audio, Bluetooth or screens.
+# Flows named "LIVE-RISK ..." act on real devices: they use the Library items accept-a / accept-b / accept-bt, which
+# are fakes until YOU edit them in the Library (Audio / Bluetooth) to your own devices. Run them only on purpose.
+# Flows 13a-13d are switched off: turn the one you want on in the Flows list. No secrets here.
+version: 1
+library:
+  audio:
+    accept-a: { match: "Edit me: sound device A" }
+    accept-b: { match: "Edit me: sound device B" }
+    fake-speakers: { match: "Dev Speakers (fake)" }
+  bluetooth:
+    accept-bt: { address: "00:11:22:33:44:66", name: "Edit me: your Bluetooth device" }
+    # Check 11: a device name shaped like code. Only ever text; calc must never open.
+    evil-name: { address: "00:11:22:33:44:77", name: "'; $(calc) \"q\" %TEMP%" }
+flows:
+  a01-probe:
+    name: "1 Pan and zoom: 95-step probe"
+    nodes:
+      - { id: p1, step: notify, with: { text: "Step 1", sound: false } }
+      - { id: p2, step: network.internet, onFailure: ignore }
+      - { id: p3, step: power.source, onFailure: ignore }
+      - { id: p4, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p1, p2] }
+      - { id: p5, step: file.check, with: { path: "%WINDIR%" }, after: [p3] }
+      - { id: p6, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p2, p3, p1] }
+      - { id: p7, step: time.check, onFailure: ignore, after: [p2] }
+      - { id: p8, step: flag.set, with: { name: big-8 }, after: [p1] }
+      - { id: p9, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p7, p5] }
+      - { id: p10, step: wait, with: { duration: 1s }, after: [p7, p5] }
+      - { id: p11, step: notify, with: { text: "Step 11", sound: false }, after: [p4] }
+      - { id: p12, step: network.internet, onFailure: ignore, after: [p8] }
+      - { id: p13, step: power.source, onFailure: ignore, after: [p10] }
+      - { id: p14, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p12, p9, p11] }
+      - { id: p15, step: file.check, with: { path: "%WINDIR%" }, after: [p11, p12, p10] }
+      - { id: p16, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p14, p13] }
+      - { id: p17, group: [p17a, p17b], after: [p14, p15, p13] }
+      - { id: p17a, step: wait, with: { duration: 1s } }
+      - { id: p17b, step: time.check, onFailure: ignore }
+      - { id: p18, step: flag.set, with: { name: big-18 }, after: [{ id: p14, when: failure }, p15, p13] }
+      - { id: p19, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p14] }
+      - { id: p20, step: wait, with: { duration: 1s }, after: [p16, p18, p19] }
+      - { id: p21, step: notify, with: { text: "Step 21", sound: false }, after: [{ id: p18, when: failure }, p17, p19] }
+      - { id: p22, step: network.internet, onFailure: ignore, after: [p20, p21] }
+      - { id: p23, step: power.source, onFailure: ignore, after: [p20, { id: p21, when: failure }] }
+      - { id: p24, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p22] }
+      - { id: p25, step: file.check, with: { path: "%WINDIR%" }, after: [p22] }
+      - { id: p26, step: process.check, with: { program: explorer }, onFailure: ignore, after: [{ id: p22, when: failure }] }
+      - { id: p27, step: time.check, onFailure: ignore, after: [p22] }
+      - { id: p28, step: flag.set, with: { name: big-28 }, after: [{ id: p23, when: failure }] }
+      - { id: p29, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p27, p26] }
+      - { id: p30, step: wait, with: { duration: 1s }, after: [p28, p26, p25] }
+      - { id: p31, step: notify, with: { text: "Step 31", sound: false }, after: [p26, p27, p25] }
+      - { id: p32, step: network.internet, onFailure: ignore, after: [p27] }
+      - { id: p33, step: power.source, onFailure: ignore, after: [p26] }
+      - { id: p34, group: [p34a, p34b], after: [p33] }
+      - { id: p34a, step: wait, with: { duration: 1s } }
+      - { id: p34b, step: file.space, with: { gb: "1" }, onFailure: ignore }
+      - { id: p35, step: file.check, with: { path: "%WINDIR%" }, after: [p29, p33] }
+      - { id: p36, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p35] }
+      - { id: p37, step: time.check, onFailure: ignore, after: [p34, p35] }
+      - { id: p38, step: flag.set, with: { name: big-38 }, after: [p36, { id: p37, when: failure }] }
+      - { id: p39, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p36, p37] }
+      - { id: p40, step: wait, with: { duration: 1s }, after: [p37, p36] }
+      - { id: p41, step: notify, with: { text: "Step 41", sound: false }, after: [p37, p36] }
+      - { id: p42, step: network.internet, onFailure: ignore, after: [p38, p40] }
+      - { id: p43, step: power.source, onFailure: ignore, after: [p39, p38, p41] }
+      - { id: p44, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [{ id: p38, when: failure }] }
+      - { id: p45, step: file.check, with: { path: "%WINDIR%" }, after: [p42, p44] }
+      - { id: p46, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p44, p42] }
+      - { id: p47, step: time.check, onFailure: ignore, after: [p42] }
+      - { id: p48, step: flag.set, with: { name: big-48 }, after: [p44, p42, p43] }
+      - { id: p49, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p44, p42, p43] }
+      - { id: p50, step: wait, with: { duration: 1s }, after: [p46, p47] }
+      - { id: p51, group: [p51a, p51b], after: [p49] }
+      - { id: p51a, step: wait, with: { duration: 1s } }
+      - { id: p51b, step: notify, with: { text: "Step 51", sound: false } }
+      - { id: p52, step: network.internet, onFailure: ignore, after: [p46] }
+      - { id: p53, step: power.source, onFailure: ignore, after: [p48] }
+      - { id: p54, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [{ id: p46, when: failure }, p48] }
+      - { id: p55, step: file.check, with: { path: "%WINDIR%" }, after: [p54] }
+      - { id: p56, step: process.check, with: { program: explorer }, onFailure: ignore, after: [{ id: p51, when: failure }] }
+      - { id: p57, step: time.check, onFailure: ignore, after: [{ id: p51, when: failure }, p53, p52] }
+      - { id: p58, step: flag.set, with: { name: big-58 }, after: [p52] }
+      - { id: p59, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p58, p57, p55] }
+      - { id: p60, step: wait, with: { duration: 1s }, after: [p56, p55, p58] }
+      - { id: p61, step: notify, with: { text: "Step 61", sound: false }, after: [p56, p57] }
+      - { id: p62, step: network.internet, onFailure: ignore, after: [p56] }
+      - { id: p63, step: power.source, onFailure: ignore, after: [p59, p61] }
+      - { id: p64, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [{ id: p62, when: failure }] }
+      - { id: p65, step: file.check, with: { path: "%WINDIR%" }, after: [p60, p59] }
+      - { id: p66, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p64] }
+      - { id: p67, step: time.check, onFailure: ignore, after: [{ id: p64, when: failure }, p65] }
+      - { id: p68, group: [p68a, p68b], after: [p63, p65, p64] }
+      - { id: p68a, step: wait, with: { duration: 1s } }
+      - { id: p68b, step: flag.set, with: { name: big-68 } }
+      - { id: p69, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p64, p65, p63] }
+      - { id: p70, step: wait, with: { duration: 1s }, after: [p68, p66] }
+      - { id: p71, step: notify, with: { text: "Step 71", sound: false }, after: [p66] }
+      - { id: p72, step: network.internet, onFailure: ignore, after: [p71, p70] }
+      - { id: p73, step: power.source, onFailure: ignore, after: [p70] }
+      - { id: p74, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p71, p70] }
+      - { id: p75, step: file.check, with: { path: "%WINDIR%" }, after: [p70, p71] }
+      - { id: p76, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p74, p73, p72] }
+      - { id: p77, step: time.check, onFailure: ignore, after: [p74] }
+      - { id: p78, step: flag.set, with: { name: big-78 }, after: [p76, p77] }
+      - { id: p79, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p77, { id: p76, when: failure }] }
+      - { id: p80, step: wait, with: { duration: 1s }, after: [p76, p77] }
+      - { id: p81, step: notify, with: { text: "Step 81", sound: false }, after: [p77, p76] }
+      - { id: p82, step: network.internet, onFailure: ignore, after: [p80, p78] }
+      - { id: p83, step: power.source, onFailure: ignore, after: [p79, p80, p78] }
+      - { id: p84, step: file.space, with: { gb: "1" }, onFailure: ignore, after: [p83, p82] }
+      - { id: p85, group: [p85a, p85b], after: [p82] }
+      - { id: p85a, step: wait, with: { duration: 1s } }
+      - { id: p85b, step: file.check, with: { path: "%WINDIR%" } }
+      - { id: p86, step: process.check, with: { program: explorer }, onFailure: ignore, after: [p85, p84] }
+      - { id: p87, step: time.check, onFailure: ignore, after: [p84, p85] }
+      - { id: p88, step: flag.set, with: { name: big-88 }, after: [p86, p87] }
+      - { id: p89, step: pc.locked, with: { is: unlocked }, onFailure: ignore, after: [p86] }
+      - { id: p90, step: wait, with: { duration: 1s }, after: [p86] }
+
+  a02-join:
+    name: "2 Join layout 3 in -> 1"
+    nodes:
+      - { id: in1, step: wait, with: { duration: 1s } }
+      - { id: in2, step: notify, with: { text: "Second input", sound: false } }
+      - { id: in3, step: network.internet, onFailure: ignore }
+      - { id: join, step: notify, with: { text: "Joined: three inputs, one step", sound: false }, after: [in1, in2, in3] }
+      - { id: out, step: notify, with: { text: "After the join", sound: false }, after: [join] }
+
+  a03-values:
+    name: "3 Step values: Show message"
+    nodes:
+      - { id: batt, step: power.battery, with: { percent: "1" }, onFailure: ignore }
+      - { id: wifi, step: network.wifi, onFailure: ignore }
+      - { id: idle, step: pc.idle, with: { for: 1s, is: active }, onFailure: ignore }
+      - { id: say, step: notify, with: { text: "Battery {batt.percent|unknown}% on {wifi.network|no Wi-Fi}, flow {@flow} at {@time}", sound: false }, after: [{ id: batt, when: always }, { id: wifi, when: always }, { id: idle, when: always }] }
+
+  a04-pick:
+    name: "4 Pick device default"
+    nodes:
+      - { id: pick, step: prompt.pick, with: { kind: audio, timeout: 60s, onTimeout: use-default, default: fake-speakers } }
+      - { id: check, step: audio.check, with: { device: "$result:pick" }, after: [pick], onFailure: ignore }
+      - { id: told, step: notify, with: { text: "You picked {pick.device|nothing}", sound: false }, after: [{ id: check, when: always }] }
+
+  a05-text-caller:
+    name: "5 Text input and flow output"
+    nodes:
+      - { id: call, step: flow.run, with: { flow: a05b-text-callee, wait: true, inputs: { greeting: "Hello from flow 5" } } }
+      - { id: said, step: notify, with: { text: "Callee said: {call.said} | {call.stamp}", sound: false }, after: [call] }
+
+  a05b-text-callee:
+    name: "5b Text callee (called by 5)"
+    tray: { show: false }
+    inputs:
+      greeting: { kind: text, name: Greeting, default: "default greeting" }
+    outputs:
+      said: "{$greeting} (received)"
+      stamp: "{@date} {@time}"
+    nodes:
+      - { id: show, step: notify, with: { text: "Callee got: {$greeting}", sound: false } }
+
+  a06-maketext:
+    name: "6 Make text"
+    nodes:
+      - { id: mk, step: text.make, with: { text: "Kit run {@date} {@time} from {@flow}" } }
+      - { id: one, step: notify, with: { text: "One: {mk.text}", sound: false }, after: [mk] }
+      - { id: two, step: notify, with: { text: "Two: {mk.text}", sound: false }, after: [mk] }
+
+  a07-wifi:
+    name: "7 Wi-Fi network dropdown round trip"
+    nodes:
+      - { id: w, step: network.wifi, with: { network: "Daze Not In Range", is: connected }, timeout: 5s, onFailure: ignore }
+      - { id: done, step: notify, with: { text: "Wi-Fi check finished", sound: false }, after: [{ id: w, when: always }] }
+
+  a08a-tray-a1:
+    name: "8a Tray folder A: first"
+    tray: { folder: "Kit A" }
+    nodes:
+      - { id: n, step: notify, with: { text: "Tray 8a (folder A)", sound: false } }
+  a08b-tray-a2:
+    name: "8b Tray folder A: second"
+    tray: { folder: "Kit A" }
+    nodes:
+      - { id: n, step: notify, with: { text: "Tray 8b (folder A)", sound: false } }
+  a08c-tray-b:
+    name: "8c Tray folder B"
+    tray: { folder: "Kit B" }
+    nodes:
+      - { id: n, step: notify, with: { text: "Tray 8c (folder B)", sound: false } }
+
+  a09-hotkey:
+    name: "9 Hotkey F-chord flow"
+    hotkeys: [Ctrl+Alt+F9]
+    nodes:
+      - { id: n, step: notify, with: { text: "Hotkey Ctrl+Alt+F9 fired", sound: false } }
+
+  a10-menu:
+    name: "10 Controller menu"
+    hotkeys: [Ctrl+Alt+F10]
+    nodes:
+      - { id: m, step: menu.show, with: { items: [a09-hotkey, a06-maketext, a02-join, a03-values, a07-wifi, a08c-tray-b], title: "Kit menu", layout: grid } }
+
+  a10b-menu-list:
+    name: "10b Menu as a list"
+    nodes:
+      - { id: m, step: menu.show, with: { items: [a09-hotkey, a06-maketext, a02-join], title: "Kit list", layout: list } }
+
+  a11-injection:
+    name: "11 Injection-shaped device name"
+    nodes:
+      - { id: pick, step: prompt.pick, with: { kind: bluetooth, timeout: 60s, onTimeout: use-default, default: evil-name } }
+      - { id: ps, step: script.powershell, with: { script: "Write-Output ('PS got: ' + $env:DAZE_PICK_DEVICE)" }, after: [pick] }
+      - { id: run, step: process.run, with: { path: "%SystemRoot%\\System32\\cmd.exe", args: ["/c", "echo", "{pick.device}"] }, after: [pick] }
+      - { id: told, step: notify, with: { text: "Name: {pick.device} | PS: {ps.output} | cmd: {run.output}", sound: false }, after: [ps, run] }
+
+  a12-ask:
+    name: "12 Ask me: yes/no and choose"
+    nodes:
+      - { id: q, step: prompt.ask, with: { question: "Run the long part?", timeout: 30s, onTimeout: use-default, default: no } }
+      - { id: pick, step: prompt.ask, with: { mode: choose, question: "Which mood?", choices: [Focus, Relax, Party], timeout: 30s, onTimeout: use-default, default: Focus, flag: mood }, after: [q] }
+      - { id: yes, step: notify, with: { text: "Answered: {pick.answer|nothing}", sound: false }, after: [pick] }
+      - { id: no, step: notify, with: { text: "Said No or didn't answer", sound: false }, after: [{ id: q, when: failure }] }
+
+  a13a-schedule:
+    name: "13a Schedule every minute (off)"
+    enabled: false
+    triggers:
+      - { every: 1m }
+    nodes:
+      - { id: n, step: notify, with: { text: "13a schedule fired at {@time}", sound: false } }
+  a13b-wake:
+    name: "13b On wake (off)"
+    enabled: false
+    triggers:
+      - { on: power.resume }
+    nodes:
+      - { id: n, step: notify, with: { text: "13b PC woke at {@time}", sound: false } }
+  a13c-network:
+    name: "13c On network change (off)"
+    enabled: false
+    triggers:
+      - { on: network.connected }
+      - { on: network.disconnected }
+    nodes:
+      - { id: n, step: notify, with: { text: "13c network event: {@trigger}", sound: false } }
+  a13d-unlock:
+    name: "13d On unlock (off)"
+    enabled: false
+    triggers:
+      - { on: session.unlock }
+    nodes:
+      - { id: n, step: notify, with: { text: "13d unlocked at {@time}", sound: false } }
+
+  a14-morning:
+    name: "14 Arrange and shapes: Morning check"
+    nodes:
+      - { id: start, step: notify, with: { text: "Morning check: starting", sound: false } }
+      - { id: net, step: network.internet, after: [start], timeout: 10s }
+      - { id: power, step: power.source, after: [start] }
+      - { id: disk, step: file.space, with: { drive: "C:", gb: "5" }, after: [start] }
+      - { id: hours, step: time.check, with: { days: weekdays, from: "06:00", to: "11:00" }, after: [start], onFailure: ignore }
+      - { id: idle, step: pc.idle, with: { for: 1m, is: active }, after: [start], onFailure: ignore }
+      - { id: ready, group: [w1, w2, w3], after: [net, power, disk] }
+      - { id: w1, step: wait, with: { duration: 1s } }
+      - { id: w2, step: wait, with: { duration: 2s } }
+      - { id: w3, step: flag.set, with: { name: morning-done } }
+      - { id: explorer, step: process.check, with: { program: explorer }, after: [ready] }
+      - { id: winfolder, step: file.check, with: { path: "%WINDIR%" }, after: [ready] }
+      - { id: ok, step: notify, with: { text: "Morning check: all good", sound: false }, after: [explorer, winfolder, hours, idle] }
+      - { id: nonet, step: notify, with: { text: "No internet this morning", sound: false }, after: [{ id: net, when: failure }] }
+      - { id: lowdisk, step: notify, with: { text: "C: is short on space", sound: false }, after: [{ id: disk, when: failure }] }
+
+  a17-live-bluetooth:
+    name: "LIVE-RISK 17 Connect your Bluetooth device and name it"
+    nodes:
+      - { id: bt, step: bluetooth.connect, with: { device: accept-bt }, onFailure: ignore }
+      - { id: say, step: notify, with: { text: "Connected to {bt.device|nothing (it failed)}", sound: false }, after: [{ id: bt, when: always }] }
+
+  a18-live-audio:
+    name: "LIVE-RISK 18 Switch default sound and back"
+    nodes:
+      - { id: set, step: audio.setDefault, with: { device: accept-b }, onFailure: skip }
+      - { id: told, step: notify, with: { text: "Was {set.previous|unknown}; going back", sound: false }, after: [set] }
+      - { id: back, step: audio.setDefault, with: { device: "$result:set.previous" }, after: [told] }
