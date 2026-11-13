@@ -325,4 +325,17 @@ public sealed class RunsPageViewModelTests : IDisposable
         Assert.DoesNotContain(detail.Bars, b => b.IsNested);
         Assert.Same(run, detail.RecordToOpen);
     }
+
+    [Fact]
+    public void ValueLinesReadInPlainWordsAndNeverShowAHiddenOne()
+    {
+        var node = new NodeResult("w", NodeOutcome.Succeeded, Order: 1)
+        {
+            Values = [new ShownValue("Wi-Fi network", "Home"), new ShownValue("Output", "", Hidden: true)],
+            Used = [new ShownValue("Message", "On\nHome")],
+        };
+
+        Assert.Equal(["Wi-Fi network: Home", "Output: hidden", "Message used: On Home"], RunDetailViewModel.ValueLines(node));
+        Assert.Empty(RunDetailViewModel.ValueLines(new NodeResult("a", NodeOutcome.Succeeded)));
+    }
 }

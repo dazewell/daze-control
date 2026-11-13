@@ -113,6 +113,17 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <StackPanel x:Name="ValuesPanel" Spacing="2" Visibility="Collapsed">
+                        <TextBlock Text="Values" Style="{StaticResource SettingsSection}" Margin="0,8,0,4"
+                                   AutomationProperties.HeadingLevel="Level3" />
+                        <ItemsControl x:Name="SelectedValuesList" AutomationProperties.Name="Values of this step">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <TextBlock Text="{x:Bind}" TextWrapping="Wrap" IsTextSelectionEnabled="True" FontFamily="Consolas" FontSize="13" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
                 </StackPanel>
                 <TextBlock x:Name="PickBarText" Text="Pick a bar to see what happened to that step." Style="{StaticResource SettingsCardDescription}" />
 
