@@ -72,6 +72,7 @@ Timeout = default "Give up after". Lock = resource name held while the step runs
 | Flags | Check a flag | `flag.check` | `name` "Flag" · `value` "Is on" (bool, true) | 10 s | – | – |
 | Flows | Run a flow | `flow.run` | `flow` "Flow" (req) · `wait` "Wait for it to finish" (bool, true) · `inputs` "Inputs" (map) | 10 min | – | – |
 | Menu | Show a menu | `menu.show` | `items` "Flows" (ordered, 1–12, req) · `title` "Title" · `layout` "Layout" (list/grid) · `size` "Size" (normal/large) · `closeAfter` "Close after" (5 s–10 min, 30 s) · `wait` "Wait for it to finish" (bool, **false**) | 10 min | – | – |
+| Flow | Stop flow | `flow.stop` | `mode` "Stop" (quiet/failed, **quiet**) · `message` "Message" (text, takes values) | 10 s | – | – |
 
 Glyph: one per area; the check steps reuse their area's. Palette search also finds checks by "check".
 

@@ -105,6 +105,7 @@ internal sealed class EngineHost : IDisposable
         // menu.show (M12, D-055): one menu at a time; none over a full-screen game (#32); the window answers on the message thread.
         var menus = new GatedMenuPresenter(new FullScreenGuardPresenter(_menu, FullScreen.OverGame, Log.Info));
         stepProviders.Add(new MenuProvider(menus, calls));
+        stepProviders.Add(new StopProvider()); // flow.stop (T24.1, D-133)
         // prompt.ask and ask-at-start inputs (M20, D-107) use the same window, so they never take focus either.
         var flagStore = stepProviders.OfType<DazeControl.Providers.Basic.FlagSetProvider>().FirstOrDefault()?.Flags;
         stepProviders.Add(new PromptProvider(menus, flagStore is null ? null : flagStore.Set));

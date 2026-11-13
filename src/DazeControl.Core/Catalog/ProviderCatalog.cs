@@ -9,7 +9,7 @@ public static class ProviderCatalog
 {
     private const string Audio = "E767", Bluetooth = "E702", Display = "E7F4", Process = "E756", Script = "E943",
         Http = "E774", Tv = "E8B2", Service = "E912", Wait = "E823", Message = "E8BD", Flag = "E7C1", File = "E8A5", RunFlow = "E768", MenuGlyph = "E700", AskGlyph = "E897", PickGlyph = "E8FD",
-        Network = "E701", Power = "E83F", Pc = "E7F8", Clock = "E787", Drive = "EDA2", TextGlyph = "E8D2";
+        Network = "E701", Power = "E83F", Pc = "E7F8", Clock = "E787", Drive = "EDA2", TextGlyph = "E8D2", StopGlyph = "E71A";
 
     /// <summary>The fact id of <c>BluetoothConnectedProbe</c> (D-081).</summary>
     public const string BluetoothConnected = "bluetooth.connected";
@@ -553,7 +553,27 @@ public static class ProviderCatalog
         {
             Values = [new ValueSpec("device", ValueKind.Device, "Device") { Help = "The Library name of the one picked" }],
         },
+        // T24.1, D-133: no resources, nothing to wait for; the guard after a check.
+        new(StopFlowId, "Stop flow", StopGlyph, Short,
+        [
+            new("mode", ParamKind.Choice, "Stop")
+            {
+                Choices = ["quiet", "failed"], Captions = ["Quietly", "As failed"], Default = "quiet",
+                Help = "Quietly: nothing is shown and it isn't a problem. As failed: the flow counts as not finished, with your message.",
+            },
+            new("message", ParamKind.Text, "Message")
+            {
+                TakesValues = true, Help = "Shown in the run's history, and as the reason when it stops as failed.",
+                Examples = [new("Say why", "Not at home")],
+            },
+        ])
+        {
+            Keywords = "guard end exit quit cancel abort halt return only if",
+        },
     ];
+
+    /// <summary>The <c>flow.stop</c> step type (T24.1, D-133).</summary>
+    public const string StopFlowId = "flow.stop";
 
     /// <summary>The <c>prompt.pick</c> step type (D-117).</summary>
     public const string PromptPickId = "prompt.pick";

@@ -603,6 +603,11 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
                 context.SetSummary($"Would show {count} {(count == 1 ? "choice" : "choices")}");
                 return Task.CompletedTask;
             }
+            if (context.Node.Step == ProviderCatalog.StopFlowId)
+            {
+                context.SetSummary(StopProvider.DrySummary(context.Node));
+                return Task.CompletedTask;
+            }
             if (context.Node.Step == ProviderCatalog.PromptAskId)
             {
                 context.SetSummary(PromptProvider.DrySummary(context.Node));

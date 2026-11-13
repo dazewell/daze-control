@@ -23,6 +23,9 @@ public sealed record RunResult(FlowOutcome Outcome, ValueList<NodeResult> Nodes)
     /// <summary>A step ended the run on purpose (<see cref="StepEndsFlowException"/>): the pop-up shows nothing.</summary>
     public bool Quiet { get; init; }
 
+    /// <summary>The run ended quietly only because a Stop flow step said so (T24.1): a caller that waited counts its step as done.</summary>
+    public bool Stopped { get; init; }
+
     /// <summary>The flow's outputs (T23.7), filled when it succeeded (fully or partly); empty otherwise.</summary>
     public ValueDictionary<string> Outputs { get; init; }
 
@@ -129,6 +132,7 @@ public sealed class FlowRunner
         var results = new Dictionary<string, StepRun>();
         var order = new Dictionary<string, int>();
         var quiet = false;
+        var otherQuiet = false;
         // D-117, D-129: what steps give, only what some setting references; thread-safe for parallel branches.
         var calls = CalledFlows;
         var values = new RunValues(StepValues.Wanted(flow, _catalog, calls), _time) { FlowName = flow.Name, Trigger = trigger };
@@ -174,15 +178,16 @@ public sealed class FlowRunner
                 scheduler.Cancel();
             if (run.Result == StepResult.Succeeded && run.Called?.Outcome == FlowOutcome.PartiallySucceeded)
                 scheduler.MarkPartialCall();
-            var next = scheduler.Complete(id, run.Result).ToList();
-            ReportFinished(); // before the next steps start, so a listener sees a step finish before its dependents begin
-            Launch(next);
-            if (run.Quiet)
+            if (run.Quiet) // before Complete: a stop that finishes a parallel card must not start the steps after it
             {
                 quiet = true; // a step ended the run on purpose, or the flow it called did (a menu, nothing picked)
+                otherQuiet |= !run.Stopped;
                 if (!scheduler.IsCancelled)
                     scheduler.Cancel();
             }
+            var next = scheduler.Complete(id, run.Result).ToList();
+            ReportFinished(); // before the next steps start, so a listener sees a step finish before its dependents begin
+            Launch(next);
             ReportFinished();
             if (scheduler.IsStopped || scheduler.IsCancelled)
                 await stepsCancel.CancelAsync().ConfigureAwait(false);
@@ -203,6 +208,7 @@ public sealed class FlowRunner
             Started = started,
             Duration = _time.GetElapsedTime(startedTicks),
             Quiet = quiet,
+            Stopped = quiet && !otherQuiet,
             Outputs = outputs,
             SensitiveOutputs = sensitiveOutputs,
         };
@@ -230,10 +236,10 @@ public sealed class FlowRunner
     /// <param name="Quiet">The step ended the run on purpose, or the called flow ended quietly: this run ends quietly too.</param>
     /// <param name="SkippedBecause">"Only if" wasn't met: the probe's sentence (D-081). The result is Succeeded.</param>
     private readonly record struct StepRun(StepResult Result, int Attempts, string? Error, TimeSpan Duration, TimeSpan Start,
-        List<TimeSpan> Retries, CalledRun? Called = null, bool Quiet = false, string? Summary = null, string? SkippedBecause = null);
+        List<TimeSpan> Retries, CalledRun? Called = null, bool Quiet = false, string? Summary = null, string? SkippedBecause = null, bool Stopped = false);
 
     /// <summary>One try of an ordinary step: null <paramref name="Error"/> = it worked; <paramref name="EndsFlow"/> = see <see cref="StepEndsFlowException"/>.</summary>
-    private readonly record struct AttemptResult(string? Error, bool EndsFlow = false, string? SkippedBecause = null);
+    private readonly record struct AttemptResult(string? Error, bool EndsFlow = false, string? SkippedBecause = null, bool Stop = false);
 
     /// <param name="Chain">Flow ids from the top run down to this run's flow.</param>
     private sealed record RunScope(Guid RunId, string[] Chain, Guid? ParentRunId, string? ParentNodeId, string Trigger = "");
@@ -252,10 +258,11 @@ public sealed class FlowRunner
         List<TimeSpan> retries = [];
         CalledRun? called = null;
         var quiet = false;
+        var stopped = false;
         string? summary = null;
         string? skipped = null;
         StepRun Done(StepResult result, int attempts, string? error) =>
-            new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet, summary, skipped);
+            new(result, attempts, error, _time.GetElapsedTime(started), offset, retries, called, quiet, summary, skipped, stopped);
         string? unpicked = null;
         // Values go in now (D-117, D-129): the lock, the provider and a called flow see plain text and Library keys.
         node = DryRun ? Describe(flow, node, values, out unpicked) : StepValues.Fill(flow, node, values, library, out unpicked, _catalog.FirstOrDefault(d => d.Id == node.Step));
@@ -320,7 +327,7 @@ public sealed class FlowRunner
                 called = context.Called ?? called;
                 if (attemptResult.EndsFlow)
                 {
-                    quiet = true;
+                    (quiet, stopped) = (true, attemptResult.Stop);
                     return Done(StepResult.Cancelled, attempt, error);
                 }
             }
@@ -484,6 +491,7 @@ public sealed class FlowRunner
         {
             FlowOutcome.Succeeded or FlowOutcome.PartiallySucceeded => new(null, called, false),
             FlowOutcome.Failed => new($"{flow.Name} didn't finish: {FirstFailure(flow, result.Nodes)}", called, false),
+            _ when result.Stopped => new(null, called, false), // the called flow ended itself on purpose (T24.1): this step is done
             _ when flowToken.IsCancellationRequested => new("Cancelled.", called, false),
             _ when timeoutCancel.IsCancellationRequested => new($"{flow.Name} didn't finish in {Duration.Format(timeout)}.", called, false),
             _ => new(null, called, true), // ended quietly from inside (a menu with nothing picked, D-054)
@@ -564,7 +572,7 @@ public sealed class FlowRunner
         }
         catch (StepEndsFlowException e)
         {
-            return new(e.Message, EndsFlow: true);
+            return new(e.Message, EndsFlow: true, Stop: e.IsStop);
         }
 #pragma warning disable CA1031
         catch (Exception e)

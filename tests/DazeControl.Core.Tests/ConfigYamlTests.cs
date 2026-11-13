@@ -46,7 +46,7 @@ public class ConfigYamlTests
             "process.close", "android.stop", "display.screensOff", "android.open", "android.media", "android.setVolume", "android.changeVolume",
             "android.mute", "android.setBrightness", "android.wake", "display.check", "android.check", "prompt.ask", "prompt.pick",
             "display.count", "file.space", "network.wifi", "network.cable", "network.internet", "network.metered", "network.vpn",
-            "power.source", "power.battery", "pc.idle", "pc.locked", "time.check", "text.make",
+            "power.source", "power.battery", "pc.idle", "pc.locked", "time.check", "text.make", "flow.stop",
         ];
         Assert.Equal(ids.Order(), DazeControl.Core.Catalog.ProviderCatalog.All.Select(d => d.Id).Order());
 
