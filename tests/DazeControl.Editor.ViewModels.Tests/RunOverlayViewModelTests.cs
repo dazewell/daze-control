@@ -165,6 +165,21 @@ public sealed class RunOverlayViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task RunFromThisStepAsksTheEngineAndShowsTheStepsBeforeAsSkipped()
+    {
+        // T27.4, D-148: the engine runs the saved flow from "out"; "bt" counted as done without running.
+        await _run.RunFromCommand.ExecuteAsync("out");
+        Raise(EventKinds.RunStarted);
+        Raise(EventKinds.NodeFinished, result: new NodeResult("bt", NodeOutcome.Succeeded, Attempts: 0) { SkippedBecause = "this run started at Set default device" });
+
+        var request = _engine.Requests.Single();
+        Assert.Equal((Ops.Run, "f", "out", "Editor", false), (request.Op, request.Flow, request.Node, request.Trigger, request.DryRun));
+        Assert.Equal(NodeRunState.Succeeded, State("bt"));
+        Assert.Equal("Skipped: this run started at Set default device", _canvas.Find("bt")!.RunText);
+        Assert.True(_run.IsRunning);
+    }
+
+    [Fact]
     public async Task ARefusedRunSaysWhy()
     {
         _engine.Answer = r => PipeMessage.Fail(r.Id, "Connect Technics needs fixing before it can run.");

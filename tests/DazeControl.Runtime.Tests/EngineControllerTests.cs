@@ -636,6 +636,32 @@ public sealed class EngineControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task DryRunFromAStepWalksOnlyThatStepAndWhatFollows()
+    {
+        var answer = await _controller.HandleAsync(
+            new PipeRequest { Id = 3, Op = Ops.Run, Flow = "tv", DryRun = true, Config = DryYaml, Trigger = "Editor", Node = "after" }, CancellationToken.None);
+
+        Assert.True(answer.Ok, answer.Error);
+        var nodes = answer.Run!.Nodes.ToDictionary(n => n.NodeId);
+        Assert.Equal(0, nodes["here"].Order);
+        Assert.Equal(0, nodes["gone"].Order);
+        Assert.NotNull(nodes["gone"].SkippedBecause);
+        Assert.Equal(NodeOutcome.Succeeded, nodes["after"].Outcome);
+        Assert.Equal(1, nodes["after"].Order);
+        Assert.Equal("Editor (from Show message) (dry run)", answer.Run.Trigger);
+    }
+
+    [Fact]
+    public async Task RunFromAStepTheFlowDoesntHaveIsRefused()
+    {
+        var answer = await _controller.HandleAsync(
+            new PipeRequest { Id = 3, Op = Ops.Run, Flow = "tv", DryRun = true, Config = DryYaml, Node = "nope" }, CancellationToken.None);
+
+        Assert.False(answer.Ok);
+        Assert.Equal("That step isn't in the flow.", answer.Error);
+    }
+
+    [Fact]
     public async Task DryRunOfTheSentConfigRefusesAFlowThatCantBeWalked()
     {
         var loop = DryYaml.Replace("onFailure: skip }", "onFailure: skip, after: [after] }", StringComparison.Ordinal);

@@ -67,7 +67,9 @@ the Bluetooth side, audio steps on the audio side; listed in both pickers, D-116
 Windows Credential Manager, only the name in YAML). Each has a Test action. Audio, Bluetooth and Android devices can also be **added by hand** (name text / address, D-123), for a device that is off, away or not paired yet; it matches the real one when it shows up.
 
 **F5 Runtime** — DAG scheduler with parallel branches, engine-wide resource locks, timeouts + cancellation
-on every step, retries, run events stream, run history (last 100, persisted), dry run.
+on every step, retries, run events stream, run history (last 100, persisted), dry run. **Run from this step** (canvas
+menu, D-148): a real run of the saved flow starting at one step; the steps before it and on other branches count as done
+without running ("Skipped: this run started at …"), their values are missing (fallbacks; a device value fails the step).
 
 **F6 Feedback** — run pop-up (no-activate, acrylic, flow name, progress, failure summary, position/duration
 settings, honours "Animation effects"); tray tooltip/glyph shows the last run's failure.

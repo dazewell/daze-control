@@ -47,11 +47,15 @@ public sealed class Scheduler
     private readonly IReadOnlySet<string> _fallbacks;
     private readonly IReadOnlySet<string> _withFallback;
     private readonly HashSet<string> _excused = []; // skipped only because a handled failure didn't fire success
+    private readonly HashSet<string> _notRun = [];
 
     /// <param name="flow">A flow that passed <c>ConfigValidator</c>.</param>
-    public Scheduler(Flow flow)
+    /// <param name="startAt">"Run from this step" (T27.4): the step (or card) to start at. Its unit and everything after it run;
+    /// every other unit counts as done (Succeeded, <see cref="NotRun"/>) without running. Null = the whole flow.</param>
+    public Scheduler(Flow flow, string? startAt = null)
     {
         Flow = flow;
+        StartAt = startAt;
         _fallbacks = FlowShape.Fallbacks(flow);
         _withFallback = FlowShape.WithFallback(flow);
         foreach (var node in flow.Nodes)
@@ -72,6 +76,12 @@ public sealed class Scheduler
     }
 
     public Flow Flow { get; }
+
+    /// <summary>The step a partial run starts at (T27.4); null = the whole flow.</summary>
+    public string? StartAt { get; }
+
+    /// <summary>Nodes (units and members) a partial run counts as done without running them (T27.4). Their outcome is Succeeded.</summary>
+    public IReadOnlySet<string> NotRun => _notRun;
 
     /// <summary>A node failed with policy stop and no failure edge: the runner cancels what is still running.</summary>
     public bool IsStopped { get; private set; }
@@ -103,8 +113,60 @@ public sealed class Scheduler
     /// <summary>The steps to start first: units with no incoming edges (cards expanded to their members).</summary>
     public IReadOnlyList<string> Start()
     {
+        if (StartAt is { } at)
+            return StartFrom(at);
         foreach (var node in Flow.Nodes.Where(n => n.After.Count == 0 && !_cardOf.ContainsKey(n.Id)))
             StartUnit(node);
+        return TakeReady();
+    }
+
+    /// <summary>
+    /// A partial run (T27.4, D-148): the start unit runs whatever its incoming edges say; units after it run as they would after
+    /// it; every other unit counts as Succeeded without running, so its edges fire as a success would: a failure link from it
+    /// never fires and what only follows that link is skipped (a fallback: not needed). Steps on other branches don't run.
+    /// </summary>
+    private List<string> StartFrom(string at)
+    {
+        if (!_nodes.TryGetValue(at, out var named))
+            throw new ArgumentException($"Step \"{at}\" isn't in the flow.", nameof(at));
+        var first = _cardOf.TryGetValue(at, out var card) ? card : named;
+        var kept = new HashSet<string> { first.Id };
+        var queue = new Queue<string>([first.Id]);
+        while (queue.Count > 0)
+        {
+            foreach (var (target, _) in _outgoing[queue.Dequeue()])
+            {
+                if (kept.Add(target.Id))
+                    queue.Enqueue(target.Id);
+            }
+        }
+        var units = Flow.Nodes.Where(n => !_cardOf.ContainsKey(n.Id)).ToList();
+        var before = units.Where(u => !kept.Contains(u.Id)).ToList();
+        foreach (var unit in before)
+        {
+            _outcomes[unit.Id] = NodeOutcome.Succeeded;
+            _notRun.Add(unit.Id);
+            if (unit is GroupNode members)
+            {
+                foreach (var member in members.Members)
+                {
+                    _outcomes[member] = NodeOutcome.Succeeded;
+                    _notRun.Add(member);
+                }
+            }
+        }
+        StartUnit(first);
+        // Edges from the steps before fire now; the start unit's own incoming edges are ignored (it was asked for).
+        foreach (var unit in before)
+        {
+            foreach (var (target, index) in _outgoing[unit.Id])
+            {
+                if (target.Id == first.Id)
+                    continue;
+                _fired[(target.Id, index)] = Fires(NodeOutcome.Succeeded, target.After[index].When);
+                Evaluate(target);
+            }
+        }
         return TakeReady();
     }
 

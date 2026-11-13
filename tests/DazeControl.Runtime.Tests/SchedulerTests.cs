@@ -454,4 +454,79 @@ public class SchedulerTests
         Assert.True(scheduler.IsFinished);
         Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
     }
+
+    // ---- "Run from this step" (T27.4, D-148) ----
+
+    [Fact]
+    public void StartAtRunsThatStepAndWhatFollowsAndCountsTheRestAsDone()
+    {
+        var scheduler = new Scheduler(Flow(Step("a"), Step("b", "after: [a]"), Step("c", "after: [b]")), startAt: "b");
+
+        Assert.Equal([["b"], ["c"]], Run(scheduler));
+        Assert.Equal(["a"], scheduler.NotRun);
+        AssertOutcomes(scheduler, ("a", NodeOutcome.Succeeded), ("b", NodeOutcome.Succeeded), ("c", NodeOutcome.Succeeded));
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
+    }
+
+    [Fact]
+    public void ParallelBranchesBeforeTheStartDontRunAndTheJoinStillRuns()
+    {
+        // p runs beside a in a whole run; started at b, neither runs, and j (after b and p) counts p as done.
+        var scheduler = new Scheduler(Flow(Step("a"), Step("p"), Step("q", "after: [p]"), Step("b", "after: [a]"),
+            Step("j", "after: [b, q]")), startAt: "b");
+
+        Assert.Equal([["b"], ["j"]], Run(scheduler));
+        Assert.Equal(["a", "p", "q"], scheduler.NotRun.Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void AFailureLinkWhoseSourceDidntRunNeverFires()
+    {
+        // x counts as done (it worked), so its fallback isn't needed at once and what waits on the fallback goes ahead, as in a
+        // whole run where x worked.
+        var scheduler = new Scheduler(Flow(Step("x"), Step("s", "after: [x]"), Step("fix", "after: [{ id: x, when: failure }, s]"),
+            Step("end", "after: [{ id: fix, when: always }]")), startAt: "s");
+
+        Assert.Equal([["s", "end"]], Run(scheduler));
+        AssertOutcomes(scheduler, ("x", NodeOutcome.Succeeded), ("s", NodeOutcome.Succeeded), ("fix", NodeOutcome.NotNeeded),
+            ("end", NodeOutcome.Succeeded));
+        Assert.Equal(FlowOutcome.Succeeded, scheduler.Result);
+    }
+
+    [Fact]
+    public void StartingAtAFallbackRunsIt()
+    {
+        // Asked for by name: its own failure link from a step that didn't run doesn't stop it.
+        var scheduler = new Scheduler(Flow(Step("hp"), Step("buds", "after: [{ id: hp, when: failure }]"), Step("eq", "after: [hp]"),
+            Step("next", "after: [buds]")), startAt: "buds");
+
+        Assert.Equal([["buds"], ["next"]], Run(scheduler));
+        Assert.DoesNotContain("eq", scheduler.Outcomes.Where(o => !scheduler.NotRun.Contains(o.Key)).Select(o => o.Key));
+    }
+
+    [Fact]
+    public void StartingAtACardMemberStartsTheWholeCard()
+    {
+        var scheduler = new Scheduler(Flow(Step("z"), Step("a"), Step("b"), "{ id: g, group: [a, b], after: [z] }", Step("next", "after: [g]")),
+            startAt: "a");
+
+        Assert.Equal([["a", "b"], ["next"]], Run(scheduler));
+        Assert.Equal(["z"], scheduler.NotRun);
+    }
+
+    [Fact]
+    public void AFailureAfterTheStartStillStopsTheRun()
+    {
+        var scheduler = new Scheduler(Flow(Step("a"), Step("b", "after: [a]"), Step("c", "after: [b]")), startAt: "b");
+
+        Run(scheduler, ("b", StepResult.Failed));
+
+        Assert.True(scheduler.IsStopped);
+        Assert.Equal(NodeOutcome.Cancelled, scheduler.Outcomes["c"]);
+        Assert.Equal(FlowOutcome.Failed, scheduler.Result);
+    }
+
+    [Fact]
+    public void AnUnknownStartIsRefused() =>
+        Assert.Throws<ArgumentException>(() => new Scheduler(Flow(Step("a")), startAt: "nope").Start());
 }
