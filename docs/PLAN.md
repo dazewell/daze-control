@@ -816,7 +816,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   `Editor.ViewModels/Canvas/CanvasNodeViewModel.cs` (area → Flow group), FEATURES F3 + F10.
   Done when: Providers tests per comparison incl. a non-number in a number comparison (fails with a sentence) and a missing value
   (fallback rules as today); a sample flow in `samples/dev-showcase.yaml` branches on an Ask answer; D-082 untouched (no new edge kind).
-- [ ] T24.4 Screen and away events (built, PR #242; footprint row pending: needs measure.ps1, run by the coordinator) (Sonnet, S; parallel-safe with the step tasks). `display.off`, `display.on`, `session.away`,
+- [x] T24.4 Screen and away events (built, PR #242; footprint: 0 ms CPU over 10 idle min on the second run, 31 ms once on the first, see the ARCHITECTURE footprint table) (Sonnet, S; parallel-safe with the step tasks). `display.off`, `display.on`, `session.away`,
   `session.back`. Files: `Core/Model/Triggers.cs` (`Events`, `EventLabel`), `Engine/Triggers/PowerSource.cs`, the event picker in
   `WhenThisRuns.cs`. Done when: only a change raises (the value Windows reports on registration is swallowed); Runtime tests with a
   fake source; a footprint row (0 ms CPU idle with all four subscribed); the PR lists the live check (screen-off time 1 min).
@@ -842,7 +842,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   `Ipc/Protocol.cs` (+ `PipeClient` copy, `PipeTests.EveryRequestFieldReachesTheServer`), `Runtime/Control/EngineController.cs`,
   `Runtime/Lifecycle/EngineArguments.cs`, `Cli/Program.cs` usage. Done when: CLI tests (device and text inputs, unknown name → exit 2
   with the flow's input names); ARCHITECTURE IPC + FEATURES F8.
-- [ ] T24.10 Gate (docs and samples built in PR; footprint rows and T24.4's footprint part pending: coordinator) (Sonnet, S; after the rest). The five flows: guard and answer in `samples/dev-showcase.yaml` (read-only by test); screens-off event (13e), Open and wake + wait (LIVE-RISK 24, 25) in `samples/acceptance/config.yaml`, because dev samples may not change the PC or hold triggers. FEATURES / UX / ARCHITECTURE as built, footprint rows, five flows in
+- [x] T24.10 Gate (docs, samples and footprint rows done) (Sonnet, S; after the rest). The five flows: guard and answer in `samples/dev-showcase.yaml` (read-only by test); screens-off event (13e), Open and wake + wait (LIVE-RISK 24, 25) in `samples/acceptance/config.yaml`, because dev samples may not change the PC or hold triggers. FEATURES / UX / ARCHITECTURE as built, footprint rows, five flows in
   `samples/dev-showcase.yaml` (guard with Stop flow; Open; Check value on an answer; screens-off event; wake + wait until it answers),
   a "Call a flow from a Stream Deck key" recipe in FEATURES F8 (`dctl.exe run <flow> name=value`), UX §5.9 rows for the user.
 

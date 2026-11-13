@@ -613,7 +613,8 @@ Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 i
 
 | Date | Build | What ran | Private MB | Working set MB | CPU ms (window) |
 |---|---|---|---|---|---|
-| M24 | <sha> | | | | pending (coordinator) |
+| 2026-11-13 | de73491 (after T24.1-T24.9) | 10 idle minutes, spike config, run 1 (first run after a fresh AOT publish) | 11.1 | 34.3 | 31 (600 s), over budget once |
+| 2026-11-13 | same build, run 2 | same, second 10-minute window | 11.2 | 34.4 | 0 (600 s), within budget |
 
 M24 (T24.1 to T24.9) steps, as built (no resident object, timer or thread added; AOT publish 0 warnings per PR): `flow.stop` (a stop exception in `FlowRunner`; quiet = done for a caller, failed = fails the caller's step, D-133), `process.open` (`ProcessOpenProvider`: one target to the shell behind a seam, never a command line, D-134), `value.check` (`Providers/Basic`, listed in `ProviderCatalog.Checks`, D-137), `audio.media` (`MediaProvider`: `IMediaCommands` sends app commands to the taskbar, no key simulation, D-138), `network.wake` (`Providers/Network`: one UDP magic packet per connected IPv4 network, short-lived sockets, D-139), `network.reach` (`NetworkReachProvider`: one TCP connect, web request or ping chosen by the form of the address, in `Checks`, D-140). Events and `{@event}` are under Event triggers; run inputs under Run inputs (T24.9).
 
