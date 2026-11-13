@@ -39,7 +39,9 @@ lives in [DECISIONS.md](DECISIONS.md).
 - **Roadmap from a gap analysis** (user, 2026-11-12): compare with what users of automation tools expect (AutoHotkey, Power
   Automate Desktop, PowerToys, Home Assistant, Stream Deck…), rank the missing features, then build as far as limits allow.
   Done: [roadmap/GAPS.md](roadmap/GAPS.md), PLAN M24 to M28, D-135 (proposed). M28's rows each need the user's yes first.
-- Working name **Daze Control** (namespace `DazeControl`, exe `DazeControl.exe`, CLI `dctl.exe`); the user may rename it.
+- Working name **Daze Control** (namespace `DazeControl`, exe `DazeControl.exe`, CLI `dctl.exe`) until the rename is built.
+- **Rename to Ctrl Alt Daze** (user, 2026-11-13; D-152): everything, down to folders, installer id and the GitHub repo; CLI `cad`.
+  Planned in PLAN M29, not started: the user starts the work separately.
 
 ## Must keep from scd
 
