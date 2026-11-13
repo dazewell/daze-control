@@ -131,6 +131,26 @@ public sealed class TriggerServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ScreenAndAwayEventsStartFlowsAndLoadTheirSourceOnlyWhileSubscribed()
+    {
+        var screen = new FakeSource("display.off", "display.on", "session.away", "session.back");
+        using var service = new TriggerService([_session, screen], _launcher, new FakeFlows(this), _time, () => _paused, [_onBattery], _log.Add);
+
+        service.Apply([On("f", "display.off")]);
+        Assert.True(screen.Loaded);
+        var done = new TaskCompletionSource();
+        _launcher.RunCompleted += _ => done.TrySetResult();
+        screen.Raise("display.off");
+        await done.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        screen.Raise("display.on"); // nobody subscribed to it
+        await SettleAsync(service);
+        Assert.Equal("Event · screens turned off", Assert.Single(_history.Recent).Trigger);
+
+        service.Apply([]);
+        Assert.False(screen.Loaded);
+    }
+
+    [Fact]
     public void ABrokenSourceDisablesOnlyItself()
     {
         _session.Throws = true;
@@ -345,18 +365,19 @@ public sealed class TriggerServiceTests : IDisposable
         using var service = Service();
         service.Apply([On("any", "network.connected")]);
         var started = 0;
-        _launcher.RunCompleted += _ => Interlocked.Increment(ref started);
+        using var completed = new SemaphoreSlim(0);
+        _launcher.RunCompleted += _ => { Interlocked.Increment(ref started); completed.Release(); };
 
         _network.Raise("network.connected", detail: "Home", kind: "wifi");
-        await SettleAsync(service);
+        await completed.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         _time.Advance(TimeSpan.FromSeconds(3)); // past the debounce, inside the cooldown
         _network.Raise("network.connected", detail: "Home", kind: "wifi"); // the same connection again: held back
         await SettleAsync(service);
         _network.Raise("network.connected", detail: "Ethernet 4", kind: "cable"); // another one: starts
-        await SettleAsync(service);
+        await completed.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         _time.Advance(TimeSpan.FromSeconds(3));
         _network.Raise("network.connected", detail: "Home", kind: "cable"); // an adapter named like the Wi-Fi is still another one
-        await SettleAsync(service);
+        await completed.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         Assert.Equal(3, Volatile.Read(ref started));
     }

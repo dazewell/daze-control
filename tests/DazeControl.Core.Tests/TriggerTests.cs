@@ -169,7 +169,7 @@ public class TriggerTests
     [Fact]
     public void EventNamesAreTheV1List()
     {
-        Assert.Equal(13, TriggerText.Events.Count);
+        Assert.Equal(17,TriggerText.Events.Count);
         Assert.All(TriggerText.Events, e => Assert.True(TriggerText.IsEvent(e)));
         Assert.False(TriggerText.IsEvent("window.opened"));
     }

@@ -107,6 +107,86 @@ internal sealed unsafe partial class PowerSource : ITriggerSource
 }
 
 /// <summary>
+/// <c>display.off/on</c> (console display state) and <c>session.away/back</c> (user presence), T24.4: two power-setting
+/// notifications on the engine's window, registered only between Load and Unload. Windows reports the current value on
+/// registration (the baseline, swallowed by <see cref="ScreenAwayDetector"/>); "away" follows the screen-off time, so
+/// there is no timer here. Our own "Turn screens off" step raises <c>display.off</c> like any other cause. No thread, no admin.
+/// </summary>
+internal sealed unsafe partial class ScreenSource : ITriggerSource
+{
+    private const uint WM_POWERBROADCAST = 0x0218;
+    private const int PBT_POWERSETTINGCHANGE = 0x8013;
+    private static readonly Guid ConsoleDisplayState = new("6fe69556-704a-47a0-8f24-c28d936fda47");
+    private static readonly Guid UserPresence = new("3c0f4548-c03f-4c4d-b9f2-237ede686376");
+
+    private readonly MessageWindow _window;
+    private readonly ScreenAwayDetector _detector = new();
+    private nint _display, _presence;
+    private volatile bool _started;
+
+    public ScreenSource(MessageWindow window)
+    {
+        _window = window;
+        _window.Add(OnMessage);
+    }
+
+    public IReadOnlyList<string> Events { get; } = ["display.off", "display.on", "session.away", "session.back"];
+
+    public event Action<TriggerEvent>? Raised;
+
+    public void Load()
+    {
+        if (_started)
+            return;
+        _detector.Reset();
+        var display = ConsoleDisplayState;
+        var presence = UserPresence;
+        _display = RegisterPowerSettingNotification(_window.Handle, &display, 0 /* DEVICE_NOTIFY_WINDOW_HANDLE */);
+        _presence = RegisterPowerSettingNotification(_window.Handle, &presence, 0);
+        if (_display == 0 && _presence == 0)
+            throw new InvalidOperationException($"RegisterPowerSettingNotification failed: {Marshal.GetLastPInvokeError()}");
+        _started = true; // one of the two missing only silences its own events
+    }
+
+    public void Unload()
+    {
+        if (!_started)
+            return;
+        _started = false;
+        if (_display != 0)
+            _ = UnregisterPowerSettingNotification(_display);
+        if (_presence != 0)
+            _ = UnregisterPowerSettingNotification(_presence);
+        _display = _presence = 0;
+    }
+
+    public void Dispose() => Unload();
+
+    private bool OnMessage(uint message, Windows.Win32.Foundation.WPARAM wParam, Windows.Win32.Foundation.LPARAM lParam)
+    {
+        if (message != WM_POWERBROADCAST || !_started || (int)wParam.Value != PBT_POWERSETTINGCHANGE || lParam.Value == 0)
+            return false;
+        // POWERBROADCAST_SETTING: GUID, DWORD DataLength, then the data (a DWORD for both).
+        var setting = (byte*)lParam.Value;
+        if (*(uint*)(setting + 16) < 4)
+            return false;
+        var guid = *(Guid*)setting;
+        var value = *(int*)(setting + 20);
+        var name = guid == ConsoleDisplayState ? _detector.Display(value) : guid == UserPresence ? _detector.Presence(value) : null;
+        if (name is not null)
+            Raised?.Invoke(new TriggerEvent(name));
+        return false;
+    }
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    private static partial nint RegisterPowerSettingNotification(nint recipient, Guid* powerSetting, uint flags);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool UnregisterPowerSettingNotification(nint handle);
+}
+
+/// <summary>
 /// The "PC woke up" signal for <c>power.resume</c> and the schedules' missed-run re-arm. Registered once for the
 /// engine's life (a notification, no thread or timer): the console display state (the only wake signal Modern Standby
 /// gives apps; Kernel-Power 506/507) and WM_POWERBROADCAST resume (classic S3). Decisions are in <see cref="ResumeDetector"/>.

@@ -816,7 +816,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   `Editor.ViewModels/Canvas/CanvasNodeViewModel.cs` (area → Flow group), FEATURES F3 + F10.
   Done when: Providers tests per comparison incl. a non-number in a number comparison (fails with a sentence) and a missing value
   (fallback rules as today); a sample flow in `samples/dev-showcase.yaml` branches on an Ask answer; D-082 untouched (no new edge kind).
-- [ ] T24.4 Screen and away events (Sonnet, S; parallel-safe with the step tasks). `display.off`, `display.on`, `session.away`,
+- [ ] T24.4 Screen and away events (built, PR #242; footprint row pending: needs measure.ps1, run by the coordinator) (Sonnet, S; parallel-safe with the step tasks). `display.off`, `display.on`, `session.away`,
   `session.back`. Files: `Core/Model/Triggers.cs` (`Events`, `EventLabel`), `Engine/Triggers/PowerSource.cs`, the event picker in
   `WhenThisRuns.cs`. Done when: only a change raises (the value Windows reports on registration is swallowed); Runtime tests with a
   fake source; a footprint row (0 ms CPU idle with all four subscribed); the PR lists the live check (screen-off time 1 min).
