@@ -82,11 +82,16 @@ public sealed class FlowRunner
     /// a trigger by a person, which starts a fresh chain (D-063).</param>
     /// <param name="cancellationToken">Cancels the run.</param>
     /// <param name="trigger">What started the run ("Schedule · 22:30"): prompts there default to stopping (D-107).</param>
-    public Task<RunResult> RunAsync(Flow flow, Library library, IReadOnlyList<string> chain, CancellationToken cancellationToken, string trigger = "")
+    /// <param name="inputs">Values from outside (the command line, T24.9), checked by the caller; null = the defaults.</param>
+    public Task<RunResult> RunAsync(Flow flow, Library library, IReadOnlyList<string> chain, CancellationToken cancellationToken, string trigger = "",
+        IReadOnlyDictionary<string, string>? inputs = null)
     {
         ArgumentNullException.ThrowIfNull(flow);
         ArgumentNullException.ThrowIfNull(chain);
-        return RunCoreAsync(flow, library, NoInputs, [.. chain, flow.Id], null, null, cancellationToken, trigger);
+        // Text given from outside may be a secret (D-014): masked in errors, summaries and history like a Sensitive value.
+        HashSet<string>? external = inputs is null ? null
+            : [.. inputs.Where(e => e.Value.Length > 0 && flow.Inputs.TryGetValue(e.Key, out var i) && i.IsText).Select(e => e.Key)];
+        return RunCoreAsync(flow, library, inputs ?? NoInputs, [.. chain, flow.Id], null, null, cancellationToken, trigger, external);
     }
 
     /// <summary>

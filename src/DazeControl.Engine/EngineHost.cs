@@ -152,12 +152,13 @@ internal sealed class EngineHost : IDisposable
 
     /// <summary>Runs the message loop until Exit (tray or WM_CLOSE), then winds the runs down.</summary>
     /// <param name="runFlowId">A desktop shortcut's flow (<c>--run</c>, D-049): it runs now that the config is loaded.</param>
-    public void Run(string? runFlowId = null)
+    /// <param name="runInputs">The flow's inputs given after <c>--run</c> (T24.9).</param>
+    public void Run(string? runFlowId = null, IReadOnlyDictionary<string, string>? runInputs = null)
     {
         Log.Info("engine: ready");
         _ = RepairShortcutIconsAsync();
         if (runFlowId is not null)
-            _ = RunFromDesktopAsync(runFlowId);
+            _ = RunFromDesktopAsync(runFlowId, runInputs);
         MessageWindow.RunMessageLoop();
         Log.Info("engine: exiting");
         _hotkeyTable.Clear();
@@ -362,11 +363,11 @@ internal sealed class EngineHost : IDisposable
     }
 
     /// <summary>A shortcut that started this engine: the same request a second engine forwards over the pipe.</summary>
-    private async Task RunFromDesktopAsync(string flowId)
+    private async Task RunFromDesktopAsync(string flowId, IReadOnlyDictionary<string, string>? inputs)
     {
         try
         {
-            await _controller.HandleAsync(DesktopRun(flowId), CancellationToken.None).ConfigureAwait(false);
+            await _controller.HandleAsync(DesktopRun(flowId, inputs: inputs), CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
@@ -376,8 +377,13 @@ internal sealed class EngineHost : IDisposable
 
     /// <summary>Id only, never a name (D-049); no wait: the pop-up and history tell the rest.</summary>
     /// <param name="configPath">The shortcut's config (full path), when forwarded to an engine that may run another.</param>
-    public static PipeRequest DesktopRun(string flowId, string? configPath = null) =>
-        new() { Op = Ops.Run, Flow = flowId, ExactId = true, Trigger = EngineController.DesktopTrigger, ConfigPath = configPath };
+    /// <param name="inputs">Given after <c>--run</c> (T24.9); checked by the controller, a bad one is the pop-up.</param>
+    public static PipeRequest DesktopRun(string flowId, string? configPath = null, IReadOnlyDictionary<string, string>? inputs = null) =>
+        new()
+        {
+            Op = Ops.Run, Flow = flowId, ExactId = true, Trigger = EngineController.DesktopTrigger, ConfigPath = configPath,
+            Inputs = inputs is { Count: > 0 } ? new Dictionary<string, string>(inputs, StringComparer.Ordinal) : null,
+        };
 
     /// <summary>On the message thread.</summary>
     private void ShowRefusal(RunRefusal refusal)
