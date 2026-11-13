@@ -253,6 +253,54 @@ public sealed class EngineControllerTests : IDisposable
         Assert.Equal(["slow"], (await Send(Ops.Status)).Status!.Running!);
     }
 
+    private const string TwoYaml = """
+        flows:
+          two:
+            name: Two steps
+            nodes:
+              - { id: first, step: notify, with: { text: x } }
+              - { id: second, step: notify, with: { text: y }, after: [first] }
+        """;
+
+    [Fact]
+    public async Task RunFromAStepRunsTheSavedFlowFromThereAndRecordsIt()
+    {
+        _snapshot = ConfigHost.Apply(ConfigSnapshot.Empty, ConfigYaml.Load(TwoYaml));
+        // T27.4, D-149: a live run through the launcher; the first step counts as done without running.
+        var answer = await _controller.HandleAsync(
+            new PipeRequest { Id = 7, Op = Ops.Run, Flow = "two", Node = "second", Wait = true, Trigger = "Editor" }, CancellationToken.None);
+
+        Assert.True(answer.Ok, answer.Error);
+        Assert.Equal(["second"], _provider.Attempts.Select(a => a.Step));
+        var record = Assert.Single(_history.Recent);
+        Assert.Equal("Editor (from Show message)", record.Trigger);
+        Assert.Equal(FlowOutcome.Succeeded, record.Outcome);
+        var first = record.Nodes.Single(n => n.NodeId == "first");
+        Assert.Equal((0, "this run started at Show message"), (first.Attempts, first.SkippedBecause));
+    }
+
+    [Fact]
+    public async Task StopCancelsARunFromAStep()
+    {
+        var run = _controller.HandleAsync(new PipeRequest { Id = 7, Op = Ops.Run, Flow = "slow", Node = "a", Wait = true }, CancellationToken.None);
+        await _provider.Started("a");
+
+        Assert.True((await Send(Ops.Cancel, "slow")).Ok);
+
+        Assert.Equal(FlowOutcome.Cancelled, (await run).Run!.Outcome);
+    }
+
+    [Fact]
+    public async Task RunFromAStepOnlyInTheDraftIsRefused()
+    {
+        _snapshot = ConfigHost.Apply(ConfigSnapshot.Empty, ConfigYaml.Load(TwoYaml));
+        var answer = await _controller.HandleAsync(new PipeRequest { Id = 7, Op = Ops.Run, Flow = "two", Node = "draft" }, CancellationToken.None);
+
+        Assert.False(answer.Ok);
+        Assert.Equal("That step isn't in the saved Two steps. Save the flow, then try again.", answer.Error);
+        Assert.Empty(_history.Recent);
+    }
+
     [Fact]
     public async Task CancelStopsARunningFlow()
     {
@@ -633,6 +681,32 @@ public sealed class EngineControllerTests : IDisposable
         Assert.Equal(NodeOutcome.Skipped, nodes["after"].Outcome);
         Assert.Equal("Editor (dry run)", answer.Run.Trigger);
         Assert.Empty(_history.Recent);
+    }
+
+    [Fact]
+    public async Task DryRunFromAStepWalksOnlyThatStepAndWhatFollows()
+    {
+        var answer = await _controller.HandleAsync(
+            new PipeRequest { Id = 3, Op = Ops.Run, Flow = "tv", DryRun = true, Config = DryYaml, Trigger = "Editor", Node = "after" }, CancellationToken.None);
+
+        Assert.True(answer.Ok, answer.Error);
+        var nodes = answer.Run!.Nodes.ToDictionary(n => n.NodeId);
+        Assert.Equal(0, nodes["here"].Order);
+        Assert.Equal(0, nodes["gone"].Order);
+        Assert.NotNull(nodes["gone"].SkippedBecause);
+        Assert.Equal(NodeOutcome.Succeeded, nodes["after"].Outcome);
+        Assert.Equal(1, nodes["after"].Order);
+        Assert.Equal("Editor (from Show message) (dry run)", answer.Run.Trigger);
+    }
+
+    [Fact]
+    public async Task RunFromAStepTheFlowDoesntHaveIsRefused()
+    {
+        var answer = await _controller.HandleAsync(
+            new PipeRequest { Id = 3, Op = Ops.Run, Flow = "tv", DryRun = true, Config = DryYaml, Node = "nope" }, CancellationToken.None);
+
+        Assert.False(answer.Ok);
+        Assert.Equal("That step isn't in the flow.", answer.Error);
     }
 
     [Fact]

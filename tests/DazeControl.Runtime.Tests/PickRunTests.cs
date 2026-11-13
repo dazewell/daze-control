@@ -148,4 +148,21 @@ public sealed class PickRunTests : IDisposable
         Assert.Equal("Would ask \"Pick an audio device\", assuming sony", Node(run, "pick").Summary);
         Assert.Empty(_presenter.Shown);
     }
+
+    [Fact]
+    public async Task StartedAfterThePickTheDeviceStepFailsClearly()
+    {
+        // T27.4, D-149: the Pick counts as done but gave nothing; a device setting never falls back (D-117).
+        var loaded = PickThenUse();
+        var result = await Bound(Runner().RunAsync(loaded.Flow, loaded.Library, [], TestContext.Current.CancellationToken, "Editor", startAt: "use"));
+
+        Assert.Empty(_presenter.Shown);
+        Assert.Empty(_devices);
+        Assert.Equal(NodeOutcome.Succeeded, Node(result, "pick").Outcome);
+        Assert.Equal(0, Node(result, "pick").Attempts);
+        Assert.Equal("this run started at Set default device", Node(result, "pick").SkippedBecause);
+        Assert.Equal(NodeOutcome.Failed, Node(result, "use").Outcome);
+        Assert.Equal("\"Pick device\" didn't run: this run started after it.", Node(result, "use").Error);
+        Assert.Equal(FlowOutcome.Failed, result.Outcome);
+    }
 }

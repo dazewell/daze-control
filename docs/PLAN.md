@@ -908,7 +908,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   `Core/Backup` (`RestoreCompare`, `SecretScan`). Done when: round-trip, id-clash, missing-Library-item and tampered-file tests.
 - [ ] T27.3 Notes (Sonnet, S; parallel-safe). `note:` on flows and steps, inspector box, pill tooltip, list search. Done when: round-trip
   tests, samples byte-identical, view-model test.
-- [ ] T27.4 Run from this step (Opus, M). Editor command; earlier steps count as done, their values are missing (fallbacks; a device
+- [x] T27.4 Run from this step (Opus, M). D-149, branch feat/m27-run-from-step. Editor command; earlier steps count as done, their values are missing (fallbacks; a device
   value asks once). Files: `EngineController` (as `test-step`), `FlowRunner`, canvas menu. Done when: Runtime tests (parallel
   branches before the start point, a failure link whose source was not run).
 - [ ] T27.5 Mistyped settings become warnings (Sonnet, S-M; parallel-safe). Unknown YAML keys → Problems, with the nearest known name.

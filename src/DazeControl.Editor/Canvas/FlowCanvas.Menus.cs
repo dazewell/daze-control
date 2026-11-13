@@ -25,6 +25,12 @@ public sealed partial class FlowCanvas
 {
     // ---- Context menus (right-click, long-press) ----
 
+    /// <summary>"Run from this step" (T27.4): set by the window, which owns the run overlay; null hides the command.</summary>
+    public Action<string>? RunFrom { get; set; }
+
+    /// <summary>Whether a run can start now (the engine runs, no run or request is out).</summary>
+    public Func<bool>? CanRunFrom { get; set; }
+
     private void OnRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
         if (_rightPan is { } pan && !pan.TakeMenu())
@@ -100,6 +106,8 @@ public sealed partial class FlowCanvas
         }
         if (vm.OffState is { } off) // D-148: one item; it says what it will do to the whole selection
             menu.Items.Add(Item(off ? "Turn on" : "Turn off", off ? "" : "", vm.ToggleOff, "Ctrl+/", editable));
+        if (selected.Count == 1 && anchor is not null && RunFrom is { } runFrom)
+            menu.Items.Add(Item("Run from this step", "", () => runFrom(anchor.Id), enabled: CanRunFrom?.Invoke() == true));
         if (vm.SelectedStepType is { } stepType)
             menu.Items.Add(Item($"Select all {ProviderCatalog.Find(stepType)?.Title ?? stepType} steps", "", () => vm.SelectAllOfType(stepType)));
         menu.Items.Add(Item("Delete", "", vm.DeleteSelection, "Del", editable));
