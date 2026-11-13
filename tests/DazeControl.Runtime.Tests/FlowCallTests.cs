@@ -449,4 +449,107 @@ public sealed class FlowCallTests : IDisposable
 
         public Task ExecuteAsync(StepContext context, CancellationToken cancellationToken) => inner.ExecuteAsync(context, cancellationToken);
     }
+
+    // ---- Repeat (T27.6, D-150) ----
+
+    private int Rounds => _provider.Attempts.Count(a => a.Step == "set");
+
+    [Fact]
+    public async Task RepeatUntilItWorksStopsAtTheFirstRoundThatWorks()
+    {
+        var tries = 0;
+        _provider.On("set", (_, _) => Interlocked.Increment(ref tries) < 3 ? FakeProvider.Fail("not yet") : Task.CompletedTask);
+        Define(FlowYaml("top", "Top", Call("call", "mk", with: ", repeat: 5")) + FlowYaml("mk", "Make it", Notify("set")));
+
+        var result = await Run("top");
+
+        var call = NodeOf(result, "call");
+        Assert.Equal((NodeOutcome.Succeeded, "Worked on round 3 of 5", 3), (call.Outcome, call.Summary, Rounds));
+        Assert.Equal(FlowOutcome.Succeeded, call.Called!.Outcome); // the last round's run
+        Assert.Equal(FlowOutcome.Succeeded, result.Outcome);
+    }
+
+    [Fact]
+    public async Task RepeatUntilItWorksFailsWhenNoRoundWorked()
+    {
+        _provider.On("set", (_, _) => FakeProvider.Fail("no"));
+        DefineCaller(Notify("set"));
+        _flows["top"] = _flows["top"] with
+        {
+            Nodes = [.. _flows["top"].Nodes.Select(n => n is StepNode { Id: "call" } s ? s with { With = new(s.With.Append(KeyValuePair.Create("repeat", (ParamValue)new ScalarParam("3")))) } : n)],
+        };
+
+        var result = await Run("top");
+
+        var call = NodeOf(result, "call");
+        Assert.Equal((NodeOutcome.Failed, "Didn't work in 3 rounds", 3), (call.Outcome, call.Summary, Rounds));
+        Assert.Equal("Make it the default didn't finish: no", call.Error);
+        Assert.Equal(NodeOutcome.Succeeded, NodeOf(result, "fix").Outcome);
+    }
+
+    [Fact]
+    public async Task RepeatUntilItFailsStopsAtTheFirstFailure()
+    {
+        var tries = 0;
+        _provider.On("set", (_, _) => Interlocked.Increment(ref tries) == 2 ? FakeProvider.Fail("gone") : Task.CompletedTask);
+        Define(FlowYaml("top", "Top", Call("call", "mk", "onFailure: skip", ", repeat: 4, until: fails")) + FlowYaml("mk", "Make it", Notify("set")));
+
+        var result = await Run("top");
+
+        var call = NodeOf(result, "call");
+        Assert.Equal((NodeOutcome.Failed, "Stopped at round 2 of 4: it didn't work", 2), (call.Outcome, call.Summary, Rounds));
+    }
+
+    [Fact]
+    public async Task RepeatUntilItFailsRunsEveryRoundWhenAllWork()
+    {
+        Define(FlowYaml("top", "Top", Call("call", "mk", with: ", repeat: 3, until: fails")) + FlowYaml("mk", "Make it", Notify("set")));
+
+        var result = await Run("top");
+
+        Assert.Equal((NodeOutcome.Succeeded, "Ran 3 times", 3), (NodeOf(result, "call").Outcome, NodeOf(result, "call").Summary, Rounds));
+    }
+
+    [Fact]
+    public async Task CancelBetweenRoundsStartsNoFurtherRound()
+    {
+        _provider.On("set", (_, _) => FakeProvider.Fail("no"));
+        Define(FlowYaml("top", "Top", Call("call", "mk", with: ", repeat: 5, pause: 1m")) + FlowYaml("mk", "Make it", Notify("set")));
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+
+        var run = Run("top", cancel.Token);
+        await _provider.Started("set");
+        await cancel.CancelAsync(); // the pause runs on ManualTime, which never advances: the cancel is what ends it
+
+        var result = await run;
+        Assert.Equal((NodeOutcome.Cancelled, 1), (NodeOf(result, "call").Outcome, Rounds));
+        Assert.Equal("Stopped after round 1 of 5", NodeOf(result, "call").Summary); // during the pause or inside the round
+
+        Assert.Equal(FlowOutcome.Cancelled, result.Outcome);
+    }
+
+    [Fact]
+    public async Task ARepeatedCallIsOneHistoryRecordWithItsRoundCount()
+    {
+        var tries = 0;
+        _provider.On("set", (_, _) => Interlocked.Increment(ref tries) < 2 ? FakeProvider.Fail("not yet") : Task.CompletedTask);
+        Define(FlowYaml("top", "Top", Call("call", "mk", with: ", repeat: 3")) + FlowYaml("mk", "Make it", Notify("set")));
+        var history = new RunHistory(null);
+        var launcher = new FlowLauncher(_runner, history);
+
+        await Bound(launcher.TriggerAsync(_flows["top"], Library.Empty, "Tray"));
+
+        var record = Assert.Single(history.Recent);
+        Assert.Equal("Worked on round 2 of 3", record.Nodes.Single(n => n.NodeId == "call").Summary);
+    }
+
+    [Fact]
+    public async Task AnUnusableRepeatFailsTheStepBeforeAnyRound()
+    {
+        Define(FlowYaml("top", "Top", Call("call", "mk", with: ", repeat: 80")) + FlowYaml("mk", "Make it", Notify("set")));
+
+        var result = await Run("top");
+
+        Assert.Equal((NodeOutcome.Failed, "Repeat must be 1 to 50 times.", 0), (NodeOf(result, "call").Outcome, NodeOf(result, "call").Error, Rounds));
+    }
 }

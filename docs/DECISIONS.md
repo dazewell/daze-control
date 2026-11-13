@@ -802,7 +802,7 @@ Status: accepted, built (T13.8; user, 2026-11-03: "no infinite loops")
 - Why not runtime only: the user would meet the loop as a failed run instead of a problem in the editor. Why not
   validation only: the D-021 mix above. Why not counting menu picks: a person picks every time, and "Back" items are
   loops by design (D-054); a chain through picks would stop Back working after 8 hops.
-- Revisit if: someone needs recursion on purpose (retry-until loops); then a bounded "repeat" step, not calls.
+- Revisit if: someone needs recursion on purpose (retry-until loops); then a bounded "repeat" step, not calls. (Done: D-150.)
 
 ## D-064 · 2026-11-03 · Flow inputs are Library devices with defaults; steps use `$name`; calls pass `inputs:`
 Status: accepted (M13 design; user, 2026-11-03: inputs ship inside P6); amended by D-129 (values in text settings) and D-131 (text inputs)
@@ -1978,3 +1978,20 @@ Status: accepted, built
   names the step to start from instead. Why not running the on-screen draft (as Test this step): Run runs the saved flow,
   and a live run locks the canvas to it.
 - Not verified live: the menu item in the running editor, a real partial run on this PC.
+
+## D-150 · 2026-11-13 · Repeat: a waiting `flow.run` runs up to 50 rounds; the last round decides the step (T27.6)
+Status: accepted, built (D-063's revisit note: a bounded repeat, not calls)
+- Decision: `flow.run` gains `repeat` (WholeNumber 1 to 50, default 1, may hold a value per D-146), `until` (`works` default: stop at
+  the first round that works; `fails`: stop at the first that fails) and `pause` (0 to 10m before each round after the first). Rounds
+  run inside the step: each is one nested call with the step's own time limit, the last round's result and outputs stand (values
+  cleared between rounds), retries wrap the whole loop. The step's Summary says "Worked on round 3 of 5", "Didn't work in 5 rounds",
+  "Ran 5 times", "Stopped at round 2 of 5: it didn't work" or, after Stop, "Stopped after round 2 of 5"; nested runs add no history records, so the run stays one record.
+  The pause is `Task.Delay` on the run's TimeProvider with the run's token: Stop ends it and no round starts after; nothing waits
+  while idle. `FlowRepeat.Read` (Core) is the one reader for the validator and the runner; its sentences never echo the text.
+  Validator: Repeat over 1 (or a value) with `wait: false` is an error; the number, choice and duration form are checked as any setting,
+  then `FlowRepeat.Read` itself (pause bound and the rest) unless a setting holds a value or the generic check already refused it.
+- Why: retry-until-it-works (Bluetooth that needs three tries) and "do it N times" without a script or a call loop (G-61).
+- Why not a new graph node or a loop edge: the DAG and D-063 stay; a called flow is already the unit of "a few steps".
+  Why not a time limit over all rounds: each round has the step's limit and rounds are bounded, so the total is bounded too.
+  Why not "until fails" ending as a success: a failure link would then never see a real error; the last round decides, always.
+- Not verified live: the inspector fields in the running editor, a real repeated call on this PC.

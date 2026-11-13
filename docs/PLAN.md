@@ -917,7 +917,7 @@ Self-contained: nothing resident is added, no scheduler semantics change, every 
   branches before the start point, a failure link whose source was not run).
 - [ ] T27.5 Mistyped settings become warnings (Sonnet, S-M; parallel-safe). Unknown YAML keys → Problems, with the nearest known name.
   Files: `Core/Yaml`. Done when: tests per level (flow, step, trigger, library, settings); the ARCHITECTURE open question is deleted.
-- [ ] T27.6 Repeat (Opus, M). `flow.run`: `repeat` 1 to 50, `until: works|fails`, `pause`. Done when: Runtime tests (stops early,
+- [x] T27.6 Repeat (Opus, M). D-150, branch feat/m27-repeat. `flow.run`: `repeat` 1 to 50, `until: works|fails`, `pause`. Done when: Runtime tests (stops early,
   cancel between rounds, one history record with the round count), D-entry (D-063's revisit note).
 - [ ] T27.7 Report (Sonnet, S; parallel-safe). `dctl doctor [file]` and About › "Save a report". Done when: a test proves no credential
   value, header value or Sensitive value is in the zip.
