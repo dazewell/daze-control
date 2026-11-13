@@ -290,6 +290,52 @@ public sealed class EngineControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task FlagReadsAndSetsByNameAndPauseGoesThroughTheHost()
+    {
+        var flags = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var paused = false;
+        _controller.FlagAccess = (name, value) =>
+        {
+            if (value is { } set)
+                flags[name] = set;
+            return flags.GetValueOrDefault(name);
+        };
+        _controller.PauseAccess = value =>
+        {
+            paused = value ?? paused;
+            return Task.FromResult(paused);
+        };
+        Task<PipeMessage> Flag(string? name, bool? enable) =>
+            _controller.HandleAsync(new PipeRequest { Id = 1, Op = Ops.Flag, Key = name, Enable = enable }, CancellationToken.None);
+        Task<PipeMessage> Pause(bool? enable) =>
+            _controller.HandleAsync(new PipeRequest { Id = 1, Op = Ops.Pause, Enable = enable }, CancellationToken.None);
+
+        Assert.False((await Flag(" gaming ", null)).State);
+        Assert.True((await Flag(" gaming ", true)).State);
+        Assert.True((await Flag("GAMING", null)).State); // names ignore case, trimmed
+        Assert.False((await Flag("gaming", false)).State);
+        var noName = await Flag(" ", true);
+        Assert.False(noName.Ok);
+        Assert.True(noName.Usage);
+        Assert.True((await Flag(new string('x', EngineController.MaxFlagName + 1), true)).Usage);
+
+        Assert.False((await Pause(null)).State);
+        Assert.True((await Pause(true)).State);
+        Assert.True((await Pause(null)).State);
+        Assert.False((await Pause(false)).State);
+    }
+
+    [Fact]
+    public async Task FlagAndPauseSayWhenTheHostGaveNoAccess()
+    {
+        var flag = await _controller.HandleAsync(new PipeRequest { Id = 1, Op = Ops.Flag, Key = "a" }, CancellationToken.None);
+        var pause = await _controller.HandleAsync(new PipeRequest { Id = 1, Op = Ops.Pause }, CancellationToken.None);
+
+        Assert.False(flag.Ok);
+        Assert.False(pause.Ok);
+    }
+
+    [Fact]
     public async Task StatusCarriesTheShellState()
     {
         _controller.Shell = new ShellStatus(true, ["Alt+T: taken"]);

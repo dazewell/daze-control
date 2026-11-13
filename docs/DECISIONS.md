@@ -1884,7 +1884,7 @@ Status: accepted, built
 - Why: G-29, "wake the NAS, wait until it answers" with D-139 and Try again. Why not follow redirects: the first answer is the answer, and a login redirect must not hide a down service (set `status` to count 3xx). Why not reuse `http.request`'s client: it is resident by design and sends auth; a check needs neither.
 - Not verified live: a real ping or web request over the network (tests use a fake probe, a loopback listener and a fake HTTP handler).
 
-## D-142 · 2026-11-13 · Flow events: `flow.finished` / `flow.failed`, an in-process source, one chain guard (T26.3)
+## D-143 · 2026-11-13 · Flow events: `flow.finished` / `flow.failed`, an in-process source, one chain guard (T26.3)
 Status: accepted, built (extends D-107, D-135; same pattern as D-136)
 - Decision: two events on the one list in Core, raised by `FlowEventSource` when a run started through the launcher ends. Finished = ran to its end (Succeeded or PartiallySucceeded), failed = Failed (also `flow.stop` "As failed", D-133). A stopped or cancelled run raises nothing, and a nested waiting `flow.run` never goes through the launcher, so it raises nothing. Optional `flow: <id>` (only on these events), matched by id after trimming, empty = any flow; `{@event}` = the ended flow's name (Kind carries the id, Detail the name).
 - Loops: the event's chain is the ended run's chain plus the flow itself, so `FlowCalls.Guard` refuses a flow that is already in it (itself, a ring A to B to A) and any chain 8 deep; the refusal is written into Runs as a stopped run with a plain note (`FlowLauncher.RecordNotStarted`), not only the log. The 2 s debounce and 10 s cooldown per flow still apply, so a busy flow can't flood a handler either.
@@ -1892,3 +1892,9 @@ Status: accepted, built (extends D-107, D-135; same pattern as D-136)
 - Idle = zero: the source hooks `RunCompleted` only while some flow subscribes; no timer, thread or handle (D-009).
 - Why not count a stopped run as finished: a person stopping a flow is not an outcome to react to, and "tell me when any flow fails" must stay quiet then.
 - Not verified live by the agent: a real flow failing in the running engine and the handler's pop-up.
+
+## D-142 · 2026-11-13 · `dctl --json`, `dctl flag`, `dctl pause`: hand-written JSON, protocol 3 (T27.8)
+Status: accepted, built
+- Decision: `--json` on list, status, history, devices, check (also flag, pause): one compact JSON line on stdout, written by `ScriptJson` with `Utf8JsonWriter` (no reflection, AOT-clean), golden-tested; fields are only added. It holds only what the sentences already print: no run nodes, inputs, step values, header values, device ids (D-014). Errors stay on stderr with the existing exit codes; `check` keeps 0 yes / 1 no and still prints its document on "no". `list` offline reads config.yaml and says `engineRunning:false`. `dctl flag <name> [on|off]` (name ≤ 200, no control characters, trimmed, case ignored) goes to `FlagStore` (D-029: in memory, off until set); `dctl pause [on|off]` is the tray's "Pause shortcuts" (D-107: hotkeys, schedules, event triggers), applied on the message thread; no argument = tell. Both are pipe ops stamped protocol 3 (`Protocol.WithControl`; the server speaks 1 to `Latest`), so an older engine refuses with "speaks protocol 2, not 3" and dctl says to restart the engine (as D-064's inputs, T24.9) instead of a bare op being misread.
+- Why: scripts need a stable shape; a human sentence is not one. Why not source-generated serializer over the pipe types: those types grow for the editor and would leak fields into a script contract. Why not `--json` on run/validate/backup: not in the row; `run --wait` has its exit code.
+- Not verified live: against a real engine (tests use fakes).

@@ -134,6 +134,14 @@ internal sealed class EngineHost : IDisposable
             // Step tests share the providers and locks but raise no run events: no pop-up, no history.
             new FlowRunner(stepProviders, TimeProvider.System, locks, probes: probes) { Flows = calls },
             _shortcuts, _gamepads);
+        if (flagStore is not null)
+            _controller.FlagAccess = (name, value) =>
+            {
+                if (value is { } set)
+                    flagStore.Set(name, set);
+                return flagStore.Get(name);
+            };
+        _controller.PauseAccess = SetPausedAsync;
         _controller.RunRefused += refusal => _window.Post(() => ShowRefusal(refusal));
         _controller.HotkeyRecordingChanged += on => _window.Post(() => OnHotkeyRecording(on));
         // Schedules (M20, D-107): one due-time timer; a power resume or a clock change re-arms it and runs what came due.
@@ -257,18 +265,47 @@ internal sealed class EngineHost : IDisposable
                 _window.Close();
                 break;
             case TrayCommand.PauseShortcuts:
-                if (_hotkeyTable.Paused)
-                    _hotkeyTable.Resume();
-                else
-                    _hotkeyTable.Pause();
+                ApplyPause(!_hotkeyTable.Paused);
                 Log.Info($"hotkey: shortcuts {(_hotkeyTable.Paused ? "paused" : "resumed")}");
-                PublishShell();
-                UpdateTray();
                 break;
             case TrayCommand.OpenEditor:
                 OpenEditor();
                 break;
         }
+    }
+
+    /// <summary>On the message thread: pauses or resumes the shortcuts and shows it in the tray and in <c>status</c>.</summary>
+    private void ApplyPause(bool paused)
+    {
+        if (paused != _hotkeyTable.Paused)
+        {
+            if (paused)
+                _hotkeyTable.Pause();
+            else
+                _hotkeyTable.Resume();
+        }
+        PublishShell();
+        UpdateTray();
+    }
+
+    /// <summary><c>dctl pause</c>: the same as the tray item, run on the message thread; null just tells.</summary>
+    private Task<bool> SetPausedAsync(bool? paused)
+    {
+        var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _window.Post(() =>
+        {
+            try
+            {
+                if (paused is { } want)
+                    ApplyPause(want);
+                done.SetResult(_hotkeyTable.Paused);
+            }
+            catch (Exception e)
+            {
+                done.SetException(e);
+            }
+        });
+        return done.Task;
     }
 
     /// <summary>The editor brings its own window to the front (single instance, T6.1).</summary>

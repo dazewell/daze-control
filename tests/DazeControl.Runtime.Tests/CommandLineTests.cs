@@ -42,6 +42,44 @@ public class CommandLineTests
     public void BadLimitIsAUsageError(params string[] args) =>
         Assert.Throws<CommandLineException>(() => Parse(args));
 
+    [Theory]
+    [InlineData("list")]
+    [InlineData("status")]
+    [InlineData("history", "tv", "--limit", "2")]
+    [InlineData("devices", "audio")]
+    [InlineData("check", "network.wifi", "network=Home")]
+    [InlineData("flag", "gaming")]
+    [InlineData("flag", "gaming", "on")]
+    [InlineData("pause")]
+    [InlineData("pause", "off")]
+    public void JsonIsReadByTheCommandsThatHaveIt(params string[] args)
+    {
+        Assert.False(Parse(args).Json);
+        Assert.True(Parse([.. args, "--json"]).Json);
+        Assert.True(Parse([args[0], "--json", .. args[1..]]).Json);
+    }
+
+    [Theory]
+    [InlineData("run", "tv", "--json")]
+    [InlineData("validate", "--json")]
+    [InlineData("autostart", "--json")]
+    [InlineData("backup", "--json")]
+    [InlineData("flag", "--json")]
+    [InlineData("flag", "a", "on", "off")]
+    [InlineData("pause", "on", "off")]
+    [InlineData("flag", "a", "--wait")]
+    public void JsonAndWordsAreCheckedStrictly(params string[] args) =>
+        Assert.Throws<CommandLineException>(() => Parse(args));
+
+    [Fact]
+    public void FlagTakesANameWithSpacesAndAValueThatLooksLikeNameEqualsValue()
+    {
+        var line = Parse("flag", "my mode=on");
+
+        Assert.Equal("my mode=on", line.Word);
+        Assert.Null(line.Inputs);
+    }
+
     [Fact]
     public void RunReadsItsFlags()
     {
