@@ -135,3 +135,6 @@ replaced; a choice stored outside `Choices` had no row either. Rule: every picke
 (appended as "Not available right now" / "(not available)"), selection bound to a view-model property that is re-read after each
 rebuild, and opening never rewrites the file. `InspectorRoundTripTests` covers every step in `ProviderCatalog` (stored value not
 offered, padded value, late lists). Also in the UX §5.9 acceptance list.
+
+## X-015 · 2026-11-13 · `vpk download` that finds nothing, in a step marked `continue-on-error`
+v0.54.0-rc.11 had no `-delta.nupkg` (rc.1–rc.10 did). The run log: `No releases found at 'https://github.com/dazewell/daze-control'` and "Aborting", exit 0, while rc.10 an hour earlier found the 0.53.0 packages; nothing in the repo had changed. A transient GitHub API answer, invisible because the run stayed green. Installed apps follow stable only and a full package always updates, so nothing broke; the stable after an RC would simply have been full-size. Fix: the step retries (4 tries, 15/30/45 s) until a `-full.nupkg` is on disk and warns when none arrives; `cut-release.ps1` reports a missing delta as a note, not MISSING.

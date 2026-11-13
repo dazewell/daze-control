@@ -217,9 +217,9 @@ One PR per task (D-079). T20.2 amends D-009 (done in D-107). `ifMissed` is set p
 - [x] T20.8 Editor: "Add events…" flyout, grouped checkboxes, one trigger row per ticked event (user, 2026-11-09; #147). The picker's screenshots (light/dark/high contrast/225 %) are still to take.
 - [x] T20.9 Fixes from the user's first real test (#148): `power.resume` also on Modern Standby (display/session back; classic resume kept; the schedule's missed-run re-arm uses the same signal); `NetworkSource` used a function that doesn't exist in iphlpapi, now `NotifyIpInterfaceChange`.
 - [x] T20.10 Post-merge Copilot review (#140–#143, #147, #148 merged without one): reviewed through review-only PRs #149–#151 (closed), valid findings fixed in #152 (duplicate schedules, backward clock jump, `only` on schedules, cooldown/debounce order, failed source load never retried, `ask` input saved without `onTimeout`, WLAN query, audio roles…).
-- [ ] T20.12 Network events per connection: a cable plugged in or out while Wi-Fi stays up fires (`via: wifi|cable`, `ssid:` on both events, editor Connection picker). (fix/network-per-connection) Live check: plug a cable with Wi-Fi up via `scripts/dev-run.ps1`.
+- [x] T20.12 Network events per connection: a cable plugged in or out while Wi-Fi stays up fires (`via: wifi|cable`, `ssid:` on both events, editor Connection picker). (fix/network-per-connection, #156; `Triggers.cs` `via`/`ssid`, Connection picker in `WhenThisRuns.cs`.) Live check stays in T20.11.
 - [x] T20.13 Release candidate v0.52.0-rc.1 cut 2026-11-09 (user): `cut-release.ps1 -Rc` tags v0.52.0-rc.1 (release.yml accepts `-rc.N` and marks it pre-release; installed apps follow stable only, so the RC is installed by hand from its Setup.exe). Feature-complete means T20.1–T20.12 on main; the stable v0.52.0 follows only after the T20.11 live checks pass or their fixes are released as rc.2…
-- [ ] T20.14 Update channel selector: Stable / Release candidates in About › Updates and `dctl update --channel stable|rc`, per-user `update-channel.txt`, no automatic downgrade (D-108). (feat/update-channel, #158)
+- [x] T20.14 Update channel selector: Stable / Release candidates in About › Updates and `dctl update --channel stable|rc`, per-user `update-channel.txt`, no automatic downgrade (D-108). (feat/update-channel, #158 merged: `UpdateChannel.cs`, `dctl update --channel`, About › Updates picker in `ShellWindow.xaml`.)
 - [ ] T20.11 The user's live check on real hardware with `scripts/dev-run.ps1` (#153; dev config `%LOCALAPPDATA%\DazeControl\dev\config.yaml`): wake from Modern Standby runs the flow, Wi-Fi/network events, USB/audio/display events, a schedule after sleep (`ifMissed`), a prompt over a game or app without taking focus, the "When this runs" card and multi-event picker. Anything wrong becomes a `fix/` PR.
 - [x] T20.15 Pick device step: pick a Library item mid-run, later steps use "Result of: <Pick step>" in device settings (user, 2026-11-11; D-117). (feat/pick-step) Not seen live in the editor or on screen yet.
 - [x] T20.17 PC-state checks (D-118): Wi-Fi, cable, internet, metered, VPN, power, battery, idle, locked, screen count, free space, time; `dctl check`. (feat/system-checks)
@@ -745,16 +745,16 @@ built from DESIGN.md into ARCHITECTURE/UX (D-053).
 - [~] T22.1 Canvas camera and drop correctness (F-001, F-006, F-030, F-015 refit; Opus; D-126). Code + unit tests
   done; live check open: drag to the right edge 2 s (pans ≤ 1200 DIP, stops past the last step), drag above the first
   row, Fit on Probe 100, Arrange refits.
-- [ ] T22.2 Destructive actions and selection (F-002, F-003, F-016, F-017)
-- [ ] T22.3 Window and list responsiveness (F-005, F-014, F-023)
-- [ ] T22.4 Accessibility and keyboard (F-004, F-020, F-021, F-022)
+- [x] T22.2 Destructive actions and selection (F-002, F-003, F-016, F-017; PR 201; the F-002 hint itself shown by F-032 in PR 210)
+- [x] T22.3 Window and list responsiveness (F-005, F-014, F-023; PR 202; F-005 at the minimum width continues in F-039)
+- [x] T22.4 Accessibility and keyboard (F-004, F-020, F-021, F-022; PR 206). Left: F-022 "Rename" in the flow card menu (needs a design decision: no rename API outside the open-flow session); F-021 "Run Run others" kept (flow name, not a bug)
 - [x] T22.5 Library consistency (F-007, F-010, F-011; audio rename + Programs add-by-hand skipped: need a model change)
-- [ ] T22.6 Inputs and Pick device (F-008, F-009, F-029; F-029 done: Default picker, D-128)
-- [ ] T22.7 Light theme and Settings links (F-024, F-025)
-- [ ] T22.8 Runs, counters, messages, Outline (F-012 Opus left for the user; F-013, F-018, F-019 done in PR; F-028 by design: the highlighted answer is the step's `default`, `no` in the samples)
+- [x] T22.6 Inputs and Pick device (F-008, F-009, F-029; PRs 203, 214, 215; F-029 done: Default picker, D-128)
+- [x] T22.7 Light theme and Settings links (F-024, F-025; PR 207)
+- [x] T22.8 Runs, counters, messages, Outline (PR 205; F-012 done in T22.13; F-013, F-018, F-019 done in PR; F-028 by design: the highlighted answer is the step's `default`, `no` in the samples)
 - [x] T22.9 Second live round (Round 2 in the findings doc: regression table, F-032..F-043, batches 10-14); F-026 fixed in PR 208, F-027 needs a product change (F-037), F-031 baseline in the doc
-- [ ] T22.10 Shell and inspector polish (F-032, F-034, F-035, F-038, F-039, F-041)
-- [ ] T22.11 Silent notices and the flaky trigger test (F-037, F-042)
+- [x] T22.10 Shell and inspector polish (F-032, F-034, F-035, F-038, F-039, F-041; PR 210). Left: F-039 only narrowed (inspector 240 at the minimum width, card caption trims at 150), live check by the user
+- [x] T22.11 Silent notices and the flaky trigger test (F-037, F-042; PR 211: `notify` gets `sound`, default on)
 - [x] T22.12 Canvas input, routing, automation (F-033 by reasoning: Space by key state, leftover gestures give way; F-040 8-DIP clearance + spread lanes; F-043 UIA rects through the camera; branch feat/m22-canvas-input). Live check left: real mouse/touchpad pan, lanes on screen, UIA dump
 - [x] T22.13 Editor memory and run counters (F-036: pills measured in one pass re-lay out once, `scripts/editor-memory.ps1`; F-012: one `RunProgress`, D-127; Opus)
 
