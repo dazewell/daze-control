@@ -42,7 +42,7 @@ public static class ProviderCatalog
         "audio.check", "bluetooth.check", "process.check", "service.check", "file.check", "file.space", "display.count",
         "android.check", "display.check", "flag.check",
         "network.wifi", "network.cable", "network.internet", "network.metered", "network.vpn",
-        "power.source", "power.battery", "pc.idle", "pc.locked", "time.check",
+        "power.source", "power.battery", "pc.idle", "pc.locked", "time.check", "value.check",
     };
 
     private static readonly ValueSpec Result = new("result", ValueKind.Text, "Result")
@@ -452,6 +452,26 @@ public static class ProviderCatalog
             Keywords = "compose join combine value string",
             Values = [new ValueSpec(StepValues.MakeTextParam, ValueKind.Text, "Text") { Help = "The text it made" }],
         },
+        // T24.3 (D-137): compares two texts that take values; fails when it doesn't hold, so the failure link is the "else".
+        new(ValueCheckId, "Check value", TextGlyph, Short,
+        [
+            new("value", ParamKind.Text, "Value")
+            {
+                TakesValues = true,
+                Help = "What to check, usually a value from an earlier step. Spaces at the ends don't count.",
+                Examples = [new("An answer", "{ask.answer}"), new("A web status", "{web.status}")],
+            },
+            new("is", ParamKind.Choice, "Is")
+            {
+                Choices = ["is", "isNot", "contains", "doesNotContain", "startsWith", "endsWith", "isEmpty", "isNotEmpty", "atLeast", "below"],
+                Captions = ["Is", "Isn't", "Contains", "Doesn't contain", "Starts with", "Ends with", "Is empty", "Isn't empty", "Is at least (numbers)", "Is below (numbers)"],
+                Default = "is",
+                Help = "Fails when it isn't, so a link for \"if it fails\" is the else. Numbers compare as numbers (5 is 5.0); at least and below need numbers.",
+            },
+            new("to", ParamKind.Text, "To") { TakesValues = true, Help = "What to compare with. Not used by Is empty and Isn't empty." },
+            new("ignoreCase", ParamKind.Boolean, "Ignore upper and lower case") { Default = "true" },
+        ])
+        { Keywords = "if compare equal condition branch text number answer status contains" },
         new("flag.set", "Set flag", Flag, Short,
         [
             new("name", ParamKind.Text, "Flag") { Required = true, Suggest = ParamSuggest.Config(ParamSuggest.Flags) },
@@ -614,6 +634,8 @@ public static class ProviderCatalog
     /// <summary>Make text (T23.7): gives its filled <c>text</c> setting as the value <c>text</c>.</summary>
     public const string MakeTextId = "text.make";
 
+    public const string ValueCheckId = "value.check";
+
     /// <summary>
     /// The read-only check steps (D-081, D-118): they change nothing and fail when the fact isn't what was chosen.
     /// <c>dctl check</c> runs only these.
@@ -622,7 +644,7 @@ public static class ProviderCatalog
     {
         "audio.check", "bluetooth.check", "display.check", "display.count", "process.check", "android.check", "service.check",
         "file.check", "file.space", "flag.check", "network.wifi", "network.cable", "network.internet", "network.metered",
-        "network.vpn", "power.source", "power.battery", "pc.idle", "pc.locked", "time.check",
+        "network.vpn", "power.source", "power.battery", "pc.idle", "pc.locked", "time.check", "value.check",
     };
 
     public static ProviderDescriptor? Find(string id) => All.FirstOrDefault(d => d.Id == id);

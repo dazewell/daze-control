@@ -49,6 +49,7 @@ public static partial class ConfigValidator
         CheckWaits(config.Flows, config.Settings.StepDefaults, problems);
         CheckStops(config.Flows, problems);
         CheckOpens(config.Flows, problems);
+        CheckValues(config.Flows, problems);
         CheckCalls(config.Flows, problems);
         CheckPassedInputs(config.Flows, config.Library, badLibraryItems, catalog, config.Settings.StepDefaults, problems);
         // Second pass, so a flow that is rejected anyway (or turned off) can't take a hotkey from a healthy one.
@@ -218,6 +219,31 @@ public static partial class ConfigValidator
                     problems.Add(new(Severity.Error, path, $"Add what to open after \"{scheme}:\".", flow.Id));
                 else if (!written.Contains('{', StringComparison.Ordinal) && text.Any(c => char.IsControl(c) || c == '"'))
                     problems.Add(new(Severity.Error, path, "What to open can't hold quotes or line breaks. It is one file, folder or address, not a command.", flow.Id));
+            }
+        }
+    }
+
+    /// <summary>A written comparison <c>value.check</c> would always refuse is an error now, not a failed step later (D-137). Text with a reference is unknown until the run.</summary>
+    private static void CheckValues(IReadOnlyList<Flow> flows, List<Problem> problems)
+    {
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.Nodes.OfType<StepNode>().Where(s => s.Step == ProviderCatalog.ValueCheckId))
+            {
+                var op = step.With.TryGetValue("is", out var o) && o is ScalarParam { Text: var chosen } ? chosen.Trim() : "is";
+                string? Written(string name) => step.With.TryGetValue(name, out var p) && p is ScalarParam { Text: var t } ? t.Trim() : "";
+                var path = $"flows.{flow.Id}.nodes.{step.Id}.with";
+                if (op is "contains" or "doesNotContain" or "startsWith" or "endsWith" && Written("to")!.Length == 0)
+                    problems.Add(new(Severity.Error, $"{path}.to", "Fill in what to compare with: this comparison needs something to look for.", flow.Id));
+                else if (op is "atLeast" or "below")
+                {
+                    foreach (var side in StepValues.CheckedSides)
+                    {
+                        var text = Written(side)!;
+                        if (StepValues.Parse(text).Count == 0 && !StepValues.TryNumber(text, out _))
+                            problems.Add(new(Severity.Error, $"{path}.{side}", $"\"{text}\" isn't a number. At least and below compare numbers, like 3 or 2.5.", flow.Id));
+                    }
+                }
             }
         }
     }
