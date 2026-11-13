@@ -1359,7 +1359,7 @@ Status: accepted (user, 2026-11-06: all 12 open choices of docs/steps-review/REV
 - Why not rename ids to a perfect `area.verb`: needs an alias table kept forever (old backups) for no user-visible gain.
 - Revisit if: a new step cannot follow `area.verb`, or the user hand-edits YAML a lot.
 
-## D-104 · 2026-11-07 · No layout jumps: reserved slots, overlays, animated slides
+## D-141 · 2026-11-07 · No layout jumps: reserved slots, overlays, animated slides
 Status: accepted (user, 2026-11-07: "I don't want UI to jump without a strong reason, in any sense, in any place")
 - Decision: the flow editor's "Not saved" text is a dot in a fixed 12 px slot (opacity fade, `OpacityTransition` with the D-097 fade token, tooltip + accessible name "Unsaved changes"; Save's tooltip and enabled state say it too). Status that toggles gets a reserved slot (Restart now, Make this my order: disabled and transparent/disabled instead of collapsed) or overlays free space (the run result bar over the canvas). The Flows page panel uses `Motion.Animate`, so bars above the list slide it instead of snapping. Exceptions are listed in UX.md "No layout jumps".
 - Save's enabled/accent state, the dot and the tooltips come from one value: the session draft (`HasChanges`) or an inspector box whose text differs from its text on entry. Before, "a text box has focus" alone kept Save on (blue on a mere click into Program/Arguments; stuck blue after Save when the focus event raced the save). Focus is never a reason.

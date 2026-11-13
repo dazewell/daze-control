@@ -252,6 +252,22 @@ flows:
     nodes:
       - { id: n, step: notify, with: { text: "13d unlocked at {@time}", sound: false } }
 
+  a13e-screens:
+    name: "13e On screens off or you away (off)"
+    enabled: false
+    triggers:
+      - { on: display.off }
+      - { on: session.away }
+    nodes:
+      - { id: n, step: notify, with: { text: "13e {@trigger} at {@time}", sound: false } }
+  a13f-device:
+    name: "13f On a USB device (off)"
+    enabled: false
+    triggers:
+      - { on: device.added }
+    nodes:
+      - { id: n, step: notify, with: { text: "13f plugged in: {@event|something}", sound: false } }
+
   a14-morning:
     name: "14 Arrange and shapes: Morning check"
     nodes:
@@ -283,3 +299,16 @@ flows:
       - { id: set, step: audio.setDefault, with: { device: accept-b }, onFailure: skip }
       - { id: told, step: notify, with: { text: "Was {set.previous|unknown}; going back", sound: false }, after: [set] }
       - { id: back, step: audio.setDefault, with: { device: "$result:set.previous" }, after: [told] }
+
+  a24-live-open:
+    name: "LIVE-RISK 24 Open a folder"
+    nodes:
+      - { id: open, step: process.open, with: { target: "%WINDIR%" } }
+
+  a25-live-wake:
+    name: "LIVE-RISK 25 Wake a PC and wait until it answers"
+    nodes:
+      - { id: wake, step: network.wake, with: { mac: "02:00:00:00:00:01" } }
+      - { id: up, step: network.reach, with: { address: "192.168.1.50:445" }, after: [wake], retry: { count: 10, delay: 6s }, onFailure: ignore }
+      - { id: said, step: notify, with: { text: "It answered in {up.ms|?} ms", sound: false }, after: [up] }
+      - { id: nope, step: notify, with: { text: "No answer yet", sound: false }, after: [{ id: up, when: failure }] }

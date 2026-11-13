@@ -275,7 +275,7 @@
                                 </DropDownButton>
                                 <TextBlock Text="{x:Bind Error, Mode=OneWay}" Visibility="{x:Bind HasError, Mode=OneWay}" Style="{StaticResource FieldError}" />
                                 <TextBlock Text="{x:Bind Help}" Visibility="{x:Bind ShowsPlainHelp, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" Margin="0,4,0,0" />
-                                <!-- D-129 / D-104: the row under a setting that takes values always holds its slot: pills, else the help, else nothing. -->
+                                <!-- D-129 / D-141: the row under a setting that takes values always holds its slot: pills, else the help, else nothing. -->
                                 <Grid Visibility="{x:Bind TakesValues, Mode=OneWay}" MinHeight="28" Margin="0,4,0,0">
                                     <TextBlock Text="{x:Bind Help}" Visibility="{x:Bind ShowsHelp, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
                                                VerticalAlignment="Center" TextWrapping="Wrap" />
