@@ -439,8 +439,8 @@ public static class ProviderCatalog
             Keywords = "ping reachable online up server nas port tcp connect website host answer",
             Values =
             [
-                new ValueSpec("ms", ValueKind.Number, "Answer time (ms)") { Help = "How long the answer took, in milliseconds" },
-                new ValueSpec("status", ValueKind.Number, "Status code") { Help = "The number a web address answered with (200 = fine)" },
+                new ValueSpec("ms", ValueKind.Number, "Answer time (ms)") { OnFailure = true, Help = "How long the answer took, in milliseconds" },
+                new ValueSpec("status", ValueKind.Number, "Status code") { OnFailure = true, Help = "The number a web address answered with (200 = fine)" },
             ],
         },
         new("power.source", "Check power", Power, Short,
