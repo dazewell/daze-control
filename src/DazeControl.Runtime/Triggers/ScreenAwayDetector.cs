@@ -31,7 +31,7 @@ public sealed class ScreenAwayDetector
         }
     }
 
-    /// <summary>GUID_SESSION_USER_PRESENCE (0 present, 2 not present, 3 inactive). Returns the event to raise, or null.</summary>
+    /// <summary>GUID_SESSION_USER_PRESENCE (0 present, 1 not present, 2 inactive). Returns the event to raise, or null.</summary>
     public string? Presence(int state)
     {
         var away = state == 0 ? 0 : 1;

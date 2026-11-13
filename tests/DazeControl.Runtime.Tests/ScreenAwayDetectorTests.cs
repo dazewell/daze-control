@@ -11,7 +11,7 @@ public sealed class ScreenAwayDetectorTests
     public void TheFirstReadingsAreBaselines()
     {
         Assert.Null(_detector.Display(0));
-        Assert.Null(_detector.Presence(2));
+        Assert.Null(_detector.Presence(1));
     }
 
     [Fact]
@@ -38,8 +38,8 @@ public sealed class ScreenAwayDetectorTests
     public void OnlyAChangeRaisesPresenceEvents()
     {
         Assert.Null(_detector.Presence(0));
-        Assert.Equal("session.away", _detector.Presence(2));
-        Assert.Null(_detector.Presence(3)); // not present -> inactive is still away
+        Assert.Equal("session.away", _detector.Presence(1));
+        Assert.Null(_detector.Presence(2)); // not present -> inactive is still away
         Assert.Equal("session.back", _detector.Presence(0));
         Assert.Null(_detector.Presence(0));
     }
@@ -51,7 +51,7 @@ public sealed class ScreenAwayDetectorTests
         _detector.Presence(0);
         _detector.Reset();
         Assert.Null(_detector.Display(0));
-        Assert.Null(_detector.Presence(2));
+        Assert.Null(_detector.Presence(1));
         Assert.Equal("display.on", _detector.Display(1));
     }
 }
