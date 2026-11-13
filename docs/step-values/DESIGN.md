@@ -12,8 +12,6 @@ This file keeps only what is **not built or not yet checked live**.
   references become their fallback text silently.
 - **Insert value for list settings**: `process.run` arguments take values (`Fill: Argument`) but the Insert flyout does not list them there:
   write `{p.output}` by hand. Pills are also missing for flow outputs and a call's text inputs (plain boxes; Make text gives pills).
-- **A whole value in a number setting** (old §4.3: `{batt.percent}` in a number setting, range checked at run time): still an error in
-  the validator; only text settings take values.
 - **Asking for text when a flow starts**: needs a typing prompt, which needs focus (D-107 "text later"); `ask: true` on a text input is an error.
 - **Renaming a flow output** in the editor changes only the open flow; callers show their fallback with a warning (D-131).
   `FlowOutputs.Rename` is there for a config-level rename.

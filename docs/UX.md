@@ -255,6 +255,11 @@ changing anyway). The slot rule above is for standalone status and buttons, not 
 
 **Motion (D-097).** Changes in the configuration pages animate instead of jumping: new rows fade in (120 ms) and their neighbours slide (WinUI's reposition timing); selecting another step fades the pane from 0.4 to full. Only opacity and position move, never size of text, and the control being used never moves under the pointer. Put `motion:Motion.Animate="True"` on a panel (or `AnimateItems` on an ItemsControl) in a new page. With Windows "Animation effects" off nothing animates.
 
+- **Use a value in a number setting** (T25.3, D-145). A whole-number box (volume, steps, screens, free space, charge) has a "Use a value" button after it
+  (tooltip "Use a value from an earlier step instead of a number", Narrator "Use a value for Volume (%)"); its flyout is Insert value's list without devices.
+  A row replaces the box with the grey label "Uses a value" (same height, so nothing below moves) and the "Shows:" pill row below it; the pill menu changes
+  it, sets the number to use when it has no value, or removes it, which brings the box back. A text value warns "fails when it runs if it isn't a whole
+  number from 0 to 100". Off with several steps selected.
 - **Values** (M23, D-129..D-131; as built). A text setting that takes values (a message, a question, a menu title, Make text, a web or Android address,
   program arguments) has an icon button after the box, "Insert value" (tooltip "Insert a value from an earlier step", Narrator "Insert a value into
   Message"). Its flyout lists **From earlier steps** (a header per step it waits for, rows = title and help), **This flow's inputs** and **About this
