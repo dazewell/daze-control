@@ -47,10 +47,11 @@ public sealed class PipeClient : IAsyncDisposable
         var id = ++_nextId;
         var line = JsonSerializer.Serialize(new PipeRequest
         {
-            Protocol = Protocol.Version, Id = id, Op = request.Op, Flow = request.Flow, Wait = request.Wait,
+            Protocol = Protocol.VersionFor(request), Id = id, Op = request.Op, Flow = request.Flow, Wait = request.Wait,
             DryRun = request.DryRun, Enable = request.Enable, On = request.On, Limit = request.Limit, Trigger = request.Trigger,
             Kind = request.Kind, Key = request.Key, Node = request.Node, Config = request.Config,
             ExactId = request.ExactId, ConfigPath = request.ConfigPath, Address = request.Address, Adb = request.Adb, Refresh = request.Refresh,
+            Inputs = request.Inputs,
         }, IpcJson.Default.PipeRequest);
         await _pipe.WriteAsync(Encoding.UTF8.GetBytes(line + "\n"), cancellationToken).ConfigureAwait(false);
         await _pipe.FlushAsync(cancellationToken).ConfigureAwait(false);

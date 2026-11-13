@@ -26,7 +26,7 @@ public static class Program
         if (instance is null)
         {
             if (arguments.RunFlowId is { } flowId)
-                ForwardRun(flowId, ConfigPathOf(arguments) ?? EnginePaths.DefaultConfig);
+                ForwardRun(flowId, ConfigPathOf(arguments) ?? EnginePaths.DefaultConfig, arguments.RunInputs);
             return 0;
         }
         Log.Initialize(Log.DefaultDirectory);
@@ -63,7 +63,7 @@ public static class Program
         using var updates = installed
             ? new UpdateCheck(Path.Combine(AppContext.BaseDirectory, "dctl.exe"), TimeProvider.System)
             : null;
-        host.Run(arguments.RunFlowId);
+        host.Run(arguments.RunFlowId, arguments.RunInputs);
         Log.Info("engine: exit");
         return 0;
     }
@@ -78,7 +78,7 @@ public static class Program
     private static string? ConfigPathOf(EngineArguments arguments) =>
         arguments.Config is { } config ? Path.GetFullPath(config) : null;
 
-    private static void ForwardRun(string flowId, string configPath)
+    private static void ForwardRun(string flowId, string configPath, IReadOnlyDictionary<string, string>? inputs)
     {
         try
         {
@@ -89,7 +89,7 @@ public static class Program
                 if (client is null)
                     return;
                 await using (client.ConfigureAwait(false))
-                    await client.SendAsync(EngineHost.DesktopRun(flowId, configPath), cancel.Token).ConfigureAwait(false);
+                    await client.SendAsync(EngineHost.DesktopRun(flowId, configPath, inputs), cancel.Token).ConfigureAwait(false);
             }).Wait();
         }
         catch (AggregateException)

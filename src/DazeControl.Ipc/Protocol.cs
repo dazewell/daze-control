@@ -15,6 +15,19 @@ public static class Protocol
 {
     public const int Version = 1;
 
+    /// <summary>
+    /// What a request that carries <see cref="PipeRequest.Inputs"/> says (T24.9). An engine that doesn't know the field would
+    /// ignore it and run the flow on its defaults, so such a request is stamped 2 and an older engine refuses it by version
+    /// ("speaks protocol 1, not 2"); every other request stays 1 and works against any engine.
+    /// </summary>
+    public const int WithInputs = 2;
+
+    /// <summary>What <see cref="PipeServer"/> says when the version is not one it speaks.</summary>
+    public const string MismatchStart = "The engine speaks protocol ";
+
+    /// <summary>The version a client stamps on <paramref name="request"/>.</summary>
+    public static int VersionFor(PipeRequest request) => request.Inputs is { Count: > 0 } ? WithInputs : Version;
+
     /// <summary>Pipe name for a user; the SID keeps sessions of different users apart.</summary>
     public static string PipeName(string userSid) => $"DazeControl-{userSid}";
 
@@ -73,6 +86,10 @@ public sealed class PipeRequest
 
     /// <summary>run: walk the flow with steps that do nothing (no history, no locks).</summary>
     public bool DryRun { get; init; }
+
+    /// <summary>run: the flow's inputs given from outside (T24.9), name → Library key (device inputs) or text. Data only:
+    /// checked against the flow's inputs by the engine, never read as a command or a reference.</summary>
+    public Dictionary<string, string>? Inputs { get; init; }
 
     /// <summary>autostart: true = on, false = off, null = just tell.</summary>
     public bool? Enable { get; init; }
@@ -140,7 +157,13 @@ public sealed class PipeMessage
     /// <summary>shortcuts: all of ours on the desktop; create-shortcut: the one written; remove-shortcut: those removed.</summary>
     public ShortcutInfo[]? Shortcuts { get; init; }
 
+    /// <summary>With <see cref="Ok"/> false: the request itself was wrong (an input the flow doesn't have), so a script
+    /// gets the usage exit code instead of "the run failed".</summary>
+    public bool Usage { get; init; }
+
     public static PipeMessage Fail(int id, string error) => new() { Id = id, Error = error };
+
+    public static PipeMessage BadUsage(int id, string error) => new() { Id = id, Error = error, Usage = true };
 }
 
 public sealed class FlowInfo

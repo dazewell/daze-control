@@ -65,6 +65,7 @@ public sealed class PipeTests : IAsyncDisposable
                 var t when t == typeof(string) => property.Name == "Op" ? "echo" : property.Name,
                 var t when t == typeof(bool) || t == typeof(bool?) => true,
                 var t when t == typeof(int?) => 3,
+                var t when t == typeof(Dictionary<string, string>) => new Dictionary<string, string> { ["audio"] = "sony", ["text"] = "a=b" },
                 var t => throw new InvalidOperationException($"Give {property.Name} ({t}) a test value."),
             };
             property.SetValue(sent, value);
@@ -75,6 +76,20 @@ public sealed class PipeTests : IAsyncDisposable
 
         foreach (var property in typeof(PipeRequest).GetProperties().Where(p => p.Name is not ("Protocol" or "Id")))
             Assert.Equal(property.GetValue(sent), property.GetValue(echoed));
+    }
+
+    [Fact]
+    public async Task OnlyARequestWithInputsAsksForTheNewerProtocol()
+    {
+        // An older engine would ignore Inputs and run on defaults: those requests say version 2, so it refuses them (T24.9).
+        await using var client = await Connect();
+
+        async Task<int> Stamped(PipeRequest request) =>
+            JsonSerializer.Deserialize((await client.SendAsync(request, Ct)).Error!, IpcJson.Default.PipeRequest)!.Protocol;
+
+        Assert.Equal(Protocol.Version, await Stamped(new PipeRequest { Op = "echo" }));
+        Assert.Equal(Protocol.Version, await Stamped(new PipeRequest { Op = "echo", Inputs = [] }));
+        Assert.Equal(Protocol.WithInputs, await Stamped(new PipeRequest { Op = "echo", Inputs = new() { ["a"] = "b" } }));
     }
 
     [Fact]
@@ -118,7 +133,7 @@ public sealed class PipeTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("{\"protocol\":99,\"id\":3,\"op\":\"list\"}", 3, "protocol 1, not 99")]
+    [InlineData("{\"protocol\":99,\"id\":3,\"op\":\"list\"}", 3, "protocol 2, not 99")]
     [InlineData("not json", 0, "Not a valid request")]
     public async Task BadLinesGetAnError(string line, int id, string error)
     {
