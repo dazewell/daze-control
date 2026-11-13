@@ -61,4 +61,8 @@ if (-not $KeepEdits -or -not (Test-Path -LiteralPath $config)) {
 $devArgs = @()
 if ($NoEditor) { $devArgs += '-NoEditor' }
 & $devRun @devArgs
+Write-Host ''
+Write-Host 'accept-run: the kit is running. Flows (open them in the editor):' -ForegroundColor Cyan
+Select-String -LiteralPath $kit -Pattern '^\s{4}name: "(.+)"' | ForEach-Object { Write-Host ('  ' + $_.Matches[0].Groups[1].Value) }
+Write-Host 'accept-run: hotkeys Ctrl+Alt+F9 (flow 9), Ctrl+Alt+F10 (flow 10). Flows 13a-13d start off. Guide: docs/ACCEPTANCE.md' -ForegroundColor Cyan
 Write-Host 'accept-run: when you are done: pwsh scripts/accept-run.ps1 -Restore' -ForegroundColor Cyan
