@@ -66,13 +66,13 @@ Computer use cannot see the engine's pop-ups, the tray menu, dropdown lists or W
 
 **5 Text input and flow output** (flows "5 Text input and flow output" and "5b Text callee")
 - Do: run flow 5.
-- Pass: two pop-ups: "Callee got: Hello from flow 5", then "Callee said: Hello from flow 5 (received) | <date time>".
+- Pass: two pop-ups, 5 s apart (D-132): "Callee got: Hello from flow 5", then "Callee said: Hello from flow 5 (received) | <date time>".
 - Fail: the exact text of the second pop-up.
 - Blame: `Core/Model/FlowOutputs`, `StepValues`; `Runtime/FlowRunner.cs` (D-131, T23.7).
 
 **6 Make text** (flow "6 Make text")
 - Do: run it.
-- Pass: two pop-ups "One: Kit run …" and "Two: Kit run …" show the same date, time and flow name.
+- Pass: two pop-ups, 5 s apart, "One: Kit run …" and "Two: Kit run …" show the same date, time and flow name.
 - Fail: the two texts.
 - Blame: `Core/Model/StepValues`; `Runtime/FlowRunner.cs` (T23.7).
 

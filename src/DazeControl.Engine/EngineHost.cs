@@ -49,6 +49,7 @@ internal sealed class EngineHost : IDisposable
 
     private readonly MessageWindow _window;
     private readonly TrayIcon _tray;
+    private readonly TrayNotifier _notices;
     private readonly GlobalHotkey _hotkeys;
     private readonly RunPopup _popup = new();
     private readonly FlowMenu _menu;
@@ -96,7 +97,7 @@ internal sealed class EngineHost : IDisposable
         if (_history.LoadError is { } loadError)
             Log.Error($"history: {paths.History} not loaded", loadError);
         _history.WriteFailed += e => Log.Error("history: write failed", e);
-        var stepProviders = providers(new TrayNotifier(_window, _tray)).ToList();
+        var stepProviders = providers(_notices = new TrayNotifier(_window, _tray)).ToList();
         var locks = new ResourceLocks();
         // flow.run (D-062): nested runs resolve flows in the current config; start mode goes through the launcher.
         var calls = new FlowCalls(() => _config!.Current);
@@ -452,6 +453,7 @@ internal sealed class EngineHost : IDisposable
         _hotkeys.Dispose();
         _menu.Dispose();
         _popup.Dispose();
+        _notices.Dispose();
         _tray.Dispose();
         _window.Dispose();
     }

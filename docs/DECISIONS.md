@@ -1801,3 +1801,15 @@ Status: accepted, built (M23 T23.7, PR 230). Amends D-064 (text inputs)
 - Why rename in the editor touches only the open flow: callers live in other files' flows (a draft is saved alone, D-047);
   `FlowOutputs.Rename` rewrites callers for a config-level change, the inspector tip names who now shows a fallback.
 - Revisit if: users want asking for text at start (needs a no-focus typing prompt), or Make text in a separate palette group.
+
+## D-132 · 2026-11-12 · `notify` shows one notice at a time, each alone for 5 s (fix for live check 5 and 6)
+Status: accepted, built. Amends D-029
+- Decision: the engine's `notify` goes through `NoticeSpacer`: the first text shows at once, each next one waits 5 s after
+  the previous (≤ 20 waiting, oldest dropped); the timer exists only while something waits.
+- Why: live acceptance showed a second Show message missing (flows 5 and 6). Not a value bug (Runtime tests cover two
+  messages after one Make text, and a callee's output); `notify` is a tray balloon and Windows keeps one per icon, so a
+  second posted milliseconds later replaces the first (in flow 5 the callee's message was replaced by the caller's).
+- Why not: one balloon per flow (still replaced across flows); a real pop-up window for notices (M5 pop-up is run
+  progress, new window code, focus rules); a longer gap (the user waits for text already read).
+- Revisit if: notices become their own stack in the run pop-up.
+

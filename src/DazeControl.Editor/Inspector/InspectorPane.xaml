@@ -279,40 +279,43 @@
                                 <Grid Visibility="{x:Bind TakesValues, Mode=OneWay}" MinHeight="28" Margin="0,4,0,0">
                                     <TextBlock Text="{x:Bind Help}" Visibility="{x:Bind ShowsHelp, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
                                                VerticalAlignment="Center" TextWrapping="Wrap" />
-                                    <ScrollViewer Visibility="{x:Bind ShowsRow, Mode=OneWay}" HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Hidden"
-                                                  VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" IsTabStop="False">
-                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                            <TextBlock Text="Shows:" Visibility="{x:Bind HasPills, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Center"
-                                                       AutomationProperties.AccessibilityView="Raw" />
-                                            <ItemsControl ItemsSource="{x:Bind Pills, Mode=OneWay}" IsTabStop="False" AutomationProperties.Name="{x:Bind PillsName, Mode=OneWay}">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <StackPanel Orientation="Horizontal" Spacing="2" />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
+                                    <!-- Wraps over as many lines as the text needs (D-132); the row's MinHeight keeps its slot when it is empty. -->
+                                    <StackPanel Visibility="{x:Bind ShowsRow, Mode=OneWay}" Orientation="Vertical" VerticalAlignment="Center">
+                                        <Grid ColumnSpacing="4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Shows:" Visibility="{x:Bind HasPills, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" VerticalAlignment="Top"
+                                                       Margin="0,2,0,0" AutomationProperties.AccessibilityView="Raw" />
+                                            <ItemsRepeater Grid.Column="1" ItemsSource="{x:Bind Pills, Mode=OneWay}" AutomationProperties.Name="{x:Bind PillsName, Mode=OneWay}">
+                                                <ItemsRepeater.Layout>
+                                                    <local:WrapLayout HorizontalSpacing="2" VerticalSpacing="2" />
+                                                </ItemsRepeater.Layout>
+                                                <ItemsRepeater.ItemTemplate>
                                                     <DataTemplate x:DataType="vmi:PillSegment">
                                                         <Grid>
-                                                            <TextBlock Text="{x:Bind Text}" Visibility="{x:Bind IsPlain}" VerticalAlignment="Center" Style="{StaticResource SettingsCardDescription}"
-                                                                       AutomationProperties.AccessibilityView="Raw" />
+                                                            <TextBlock Text="{x:Bind Text}" Visibility="{x:Bind IsPlain}" VerticalAlignment="Center" TextWrapping="Wrap"
+                                                                       Style="{StaticResource SettingsCardDescription}" AutomationProperties.AccessibilityView="Raw" />
                                                             <Button Visibility="{x:Bind IsPill}" Tag="{x:Bind}" Click="OnPillClick" KeyDown="OnPillKeyDown"
                                                                     Style="{StaticResource ValuePillButton}" VerticalAlignment="Center"
                                                                     AutomationProperties.Name="{x:Bind AutomationName}" ToolTipService.ToolTip="{x:Bind Warning}">
                                                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                                                     <FontIcon Glyph="&#xE7BA;" FontSize="11" Visibility="{x:Bind HasWarning}"
                                                                               Foreground="{ThemeResource SystemFillColorCautionBrush}" />
-                                                                    <TextBlock Text="{x:Bind Text}" FontSize="12" VerticalAlignment="Center" />
+                                                                    <TextBlock Text="{x:Bind Text}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Text}" />
                                                                 </StackPanel>
                                                             </Button>
                                                         </Grid>
                                                     </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                            <!-- Beside the pills, never under them: a field can hold both. -->
-                                            <TextBlock Text="Not a value from this flow" Visibility="{x:Bind HasUnknownValue, Mode=OneWay}" Style="{StaticResource FieldError}"
-                                                       VerticalAlignment="Center" Margin="0" TextWrapping="NoWrap" />
-                                        </StackPanel>
-                                    </ScrollViewer>
+                                                </ItemsRepeater.ItemTemplate>
+                                            </ItemsRepeater>
+                                            <!-- Beside the pills, never under them: a field can hold both and nothing below may jump. -->
+                                            <TextBlock Grid.Column="2" Text="Not a value from this flow" Visibility="{x:Bind HasUnknownValue, Mode=OneWay}"
+                                                       Style="{StaticResource FieldError}" Margin="0,2,0,0" TextWrapping="NoWrap" VerticalAlignment="Top" />
+                                        </Grid>
+                                    </StackPanel>
                                 </Grid>
                             </StackPanel>
                         </DataTemplate>
@@ -818,6 +821,7 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <NumberBox Value="{x:Bind IntervalCount, Mode=TwoWay}" Minimum="1" Maximum="{x:Bind IntervalMax, Mode=OneWay}" SpinButtonPlacementMode="Compact"
                                                        Header="Every" AutomationProperties.Name="Interval" />
