@@ -51,6 +51,43 @@ public class AudioProviderTests
     private static Task Run(IStepProvider provider, params (string, string)[] with) =>
         provider.ExecuteAsync(WithLibrary(Steps.Context(provider.Id, with)), TestContext.Current.CancellationToken);
 
+    private static readonly Library WithSony = new()
+    {
+        Audio = [new AudioDevice("technics", "Technics"), new AudioDevice("sony", "Sony"), new AudioDevice("sony-wh", "Sony WH"),
+            new AudioDevice("mic", "Sony WH", AudioFlow.Input)],
+    };
+
+    private static async Task<StepContext> SetDefault(AudioEndpoint? before, Func<string, bool>? wants = null)
+    {
+        var context = Steps.Context("audio.setDefault", ("device", "technics")) with { Library = WithSony, WantsValue = wants };
+        await new AudioSetDefaultProvider(new FakeAudio { Default = before }).ExecuteAsync(context, TestContext.Current.CancellationToken);
+        return context;
+    }
+
+    [Fact]
+    public async Task SetDefaultGivesThePreviousDefaultsLibraryKey()
+    {
+        // D-130: the longest Library match of the same direction wins ("Sony WH" over "Sony"; the input "Sony WH" doesn't count).
+        var context = await SetDefault(new("{sony}", "Headphones (Sony WH-1000XM4)"));
+
+        Assert.Equal(new StepValue(Core.Catalog.ValueKind.Device, "sony-wh", LibraryKind.Audio), context.Values["previous"]);
+        Assert.Equal("technics", context.Values["device"].Text);
+    }
+
+    [Fact]
+    public async Task APreviousDefaultOutsideTheLibraryGivesNothing()
+    {
+        Assert.False((await SetDefault(new("{x}", "Speakers (Realtek)"))).Values.ContainsKey("previous"));
+        Assert.False((await SetDefault(null)).Values.ContainsKey("previous"));
+    }
+
+    [Fact]
+    public async Task ThePreviousDefaultIsReadOnlyWhenALaterStepUsesIt()
+    {
+        var context = await SetDefault(new("{sony}", "Sony"), wants: name => name != "previous");
+        Assert.False(context.Values.ContainsKey("previous"));
+    }
+
     [Fact]
     public async Task SetDefaultGivesTheDeviceAsAValue()
     {

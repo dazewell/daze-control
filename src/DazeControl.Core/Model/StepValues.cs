@@ -515,13 +515,54 @@ public static class StepValues
         if (Find(flow, producer, descriptor, valueName, null, catalog) is not { } value)
             return GivesNo(flow, producer, descriptor, name, valueName, null, catalog);
         if (value.Kind != ValueKind.Device)
-            return $"{value.Title} of \"{name}\" is text; this setting needs {Article(setting)}.";
+            return $"{value.Title} of \"{name}\" isn't a device; this setting needs {Article(setting)}.";
         var kind = value.Library ?? (PickResults.IsPick(producer) ? PickResults.KindOf(producer) : null);
         if (kind is { } given && !PickResults.Fits(given, setting))
             return $"{value.Title} of \"{name}\" is {Article(given)}; this setting needs {Article(setting)}.";
         if (Before(flow, stepId).All(s => s.Id != producerId))
             return $"\"{name}\" must run before this step: connect it so this step comes after.";
         return null;
+    }
+
+    /// <summary>
+    /// The Device values that can fill <paramref name="nodeId"/>'s setting needing <paramref name="kind"/> (D-130): those of the
+    /// steps that always finish before it (<see cref="Before"/>), whose kind <see cref="PickResults.Fits"/> (a Pick's is its
+    /// <c>kind</c> setting). In flow order, each step's values as declared. The device pickers' "From earlier steps".
+    /// </summary>
+    public static IReadOnlyList<(StepNode Step, ValueSpec Value)> DevicesBefore(Flow flow, string nodeId, LibraryKind kind,
+        IReadOnlyList<ProviderDescriptor>? catalog = null)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        catalog ??= ProviderCatalog.All;
+        var found = new List<(StepNode, ValueSpec)>();
+        foreach (var step in Before(flow, nodeId))
+        {
+            if (Descriptor(catalog, step) is not { } descriptor)
+                continue;
+            foreach (var value in Of(descriptor).Where(v => v.Kind == ValueKind.Device))
+            {
+                if ((value.Library ?? (PickResults.IsPick(step) ? PickResults.KindOf(step) : null)) is { } given && PickResults.Fits(given, kind))
+                    found.Add((step, value));
+            }
+        }
+        return found;
+    }
+
+    /// <summary>
+    /// A warning for a device setting holding <c>$result:id.value</c> of a step that isn't a Pick (D-130), when that value can
+    /// be missing as <see cref="MayBeMissing"/> says: the step then fails (a device setting never falls back). Null when the
+    /// value is sure, the reference is broken (its own error), or it is a Pick's result (D-117's flows stay as they were).
+    /// </summary>
+    public static string? DeviceMissingWhy(Flow flow, string stepId, string text, IReadOnlyList<ProviderDescriptor>? catalog = null,
+        ValueDictionary<StepDefault>? defaults = null)
+    {
+        ArgumentNullException.ThrowIfNull(flow);
+        catalog ??= ProviderCatalog.All;
+        if (PickResults.RefIn(text) is not { } named || flow.FindNode(named.Step) is not StepNode producer || PickResults.IsPick(producer)
+            || Descriptor(catalog, producer) is not { } descriptor || Find(descriptor, named.Value) is not { Kind: ValueKind.Device } value
+            || Before(flow, stepId).All(s => s.Id != producer.Id))
+            return null;
+        return MissingWhy(flow, stepId, producer.Id, value, defaults) is { } why ? why + ". This step fails when it has none." : null;
     }
 
     // ---- Editing a flow (DESIGN §5.6) ----
@@ -642,7 +683,7 @@ public static class StepValues
 
     /// <summary>
     /// The values some setting of the flow references: <c>{step.value}</c> in settings that take values and
-    /// <c>$result:&lt;id&gt;</c> (= the step's <c>device</c>) anywhere. The runner keeps only these.
+    /// <c>$result:&lt;id&gt;[.&lt;value&gt;]</c> (no value = the step's <c>device</c>) anywhere. The runner keeps only these.
     /// </summary>
     /// <param name="flows">Finds a called flow, so a script can read a call's outputs (T23.7).</param>
     public static IReadOnlySet<(string Step, string Value)> Wanted(Flow flow, IReadOnlyList<ProviderDescriptor>? catalog = null,
@@ -659,8 +700,8 @@ public static class StepValues
                 var values = setting is MapParam map ? map.Entries.Values : [setting];
                 foreach (var v in values)
                 {
-                    if (PickResults.StepIn(v) is { } pick)
-                        wanted.Add((pick, DeviceName));
+                    if (PickResults.RefIn(v) is { } result)
+                        wanted.Add(result);
                 }
                 if (descriptor?.FindParam(name) is not { } spec)
                     continue;
@@ -802,7 +843,7 @@ public static class StepValues
                 With = new(step.With.Select(e => KeyValuePair.Create(e.Key, descriptor.FindParam(e.Key) is { } spec ? FillParam(flow, e.Value, spec, values, library) : e.Value))),
             };
         }
-        return PickResults.Resolve(filled, values.Picked(), out missing, descriptor);
+        return PickResults.Resolve(filled, values.Device, out missing, descriptor);
     }
 
     private static ParamValue FillParam(Flow flow, ParamValue setting, ParamSpec spec, RunValues values, Library library) => setting switch

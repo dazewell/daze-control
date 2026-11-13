@@ -434,8 +434,8 @@ public static partial class ConfigValidator
                                 problems.Add(new(problem.Severity, path, problem.Message, flow.Id));
                         }
                     }
-                    else if (PickResults.StepIn(value) is { } pick)
-                        message = PickResults.Problem(flow, step.Id, pick, kind);
+                    else if (PickResults.StepIn(value) is not null)
+                        message = PickResults.ResultProblem(flow, step.Id, value, kind);
                     else if (FlowInputs.NameIn(value) is { } own)
                         message = !flow.Inputs.TryGetValue(own, out var mine) ? $"This flow has no input called \"{own}\"."
                             : mine.Kind is not { } myKind ? $"{mine.Label} is text; {input.Label} needs {WithArticle(kind)}."
@@ -694,9 +694,11 @@ public static partial class ConfigValidator
         /// <param name="passThrough"><c>flow.run</c>'s <c>inputs</c>: its values may be this flow's <c>$name</c> (checked by CheckPassedInputs).</param>
         private void CheckParam(ParamSpec spec, ParamValue value, string path, bool passThrough = false)
         {
-            if (spec.Kind == ParamKind.LibraryRef && PickResults.StepIn(value) is { } pick)
+            if (spec.Kind == ParamKind.LibraryRef && value is ScalarParam { Text: var result } && PickResults.StepIn(result) is not null)
             {
-                if (PickResults.Problem(flow, _step, pick, spec.Library!.Value) is { } problem)
+                if (StepValues.DeviceMissingWhy(flow, _step, result, catalog, defaults) is { } maybe)
+                    Add(Severity.Warning, path, maybe);
+                if (PickResults.ResultProblem(flow, _step, result, spec.Library!.Value, catalog) is { } problem)
                     Error(path, problem);
                 return;
             }

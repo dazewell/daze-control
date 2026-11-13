@@ -351,7 +351,7 @@ public class StepValuesTests
         Assert.Equal("Device of \"Connect\" is a Bluetooth device; this setting needs an audio device.",
             StepValues.DeviceProblem(flow, "x", "bt", "device", LibraryKind.Audio, Catalog));
         Assert.Null(StepValues.DeviceProblem(flow, "x", "bound", "device", LibraryKind.Audio, Catalog));
-        Assert.Equal("Battery (%) of \"Check battery\" is text; this setting needs an audio device.",
+        Assert.Equal("Battery (%) of \"Check battery\" isn't a device; this setting needs an audio device.",
             StepValues.DeviceProblem(flow, "x", "batt", "percent", LibraryKind.Audio, Catalog));
         Assert.Equal("\"Pick device\" must run before this step: connect it so this step comes after.",
             StepValues.DeviceProblem(flow, "bt", "bound", "device", LibraryKind.Bluetooth, Catalog));
