@@ -847,6 +847,10 @@
                                                   Visibility="{x:Bind IsNetwork}" HorizontalAlignment="Stretch" Header="Connection" AutomationProperties.Name="Connection" />
                                         <TextBox Text="{x:Bind NetworkName, Mode=TwoWay}" Visibility="{x:Bind ShowNetworkName, Mode=OneWay}"
                                                  Header="Wi-Fi network name" PlaceholderText="Any Wi-Fi network" AutomationProperties.Name="Wi-Fi network name" />
+                                        <TextBox Text="{x:Bind DeviceText, Mode=TwoWay}" Visibility="{x:Bind IsDeviceEvent}"
+                                                 Header="Device name contains" PlaceholderText="Any device" AutomationProperties.Name="Device name contains" />
+                                        <ComboBox ItemsSource="{x:Bind SoundDevices}" SelectedIndex="{x:Bind SoundDevice, Mode=TwoWay}"
+                                                  Visibility="{x:Bind IsSoundEvent}" HorizontalAlignment="Stretch" Header="Sound device" AutomationProperties.Name="Sound device" />
                                         <ComboBox ItemsSource="{x:Bind vmi:TriggerRowViewModel.OnlyNames}" SelectedIndex="{x:Bind OnlyIndex, Mode=TwoWay}"
                                                   HorizontalAlignment="Stretch" Header="Run it" AutomationProperties.Name="Run it" />
                                     </StackPanel>

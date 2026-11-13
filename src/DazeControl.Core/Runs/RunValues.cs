@@ -39,6 +39,9 @@ public sealed class RunValues
     /// <summary><c>@trigger</c>: what started the run ("Alt+Z", "Schedule · 22:30").</summary>
     public string Trigger { get; init; } = "";
 
+    /// <summary><c>@event</c>: the device, Wi-Fi or cable name that started the run; empty when something else did (T24.6).</summary>
+    public string Event { get; init; } = "";
+
     public TimeProvider Time { get; }
 
     /// <summary>Whether a setting references this value (so a provider can skip costly work, e.g. reading stdout).</summary>
@@ -151,6 +154,7 @@ public sealed class RunValues
         {
             StepValues.RunFlow => FlowName,
             StepValues.RunTrigger => Trigger,
+            StepValues.RunEvent => Event,
             StepValues.RunTime => now.ToString("HH:mm", CultureInfo.InvariantCulture),
             StepValues.RunDate => now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             _ => null,

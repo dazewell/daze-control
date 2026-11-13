@@ -64,6 +64,44 @@ public class TriggerTests
     }
 
     [Fact]
+    public void ADeviceFilterRoundTripsOnDeviceAndSoundEvents()
+    {
+        var yaml = "version: 1\nlibrary:\n  audio: { headphones: { match: Headphones } }\nflows:\n  lights:\n    nodes: []\n    triggers:\n"
+            + "      - { on: device.added, device: Xbox }\n      - { on: device.removed }\n      - { on: audio.default-changed, device: headphones }\n";
+        var load = ConfigYaml.Load(yaml);
+        Assert.Empty(load.Problems);
+        Assert.Equal([
+            new EventTrigger("device.added") { Device = "Xbox" },
+            new EventTrigger("device.removed"),
+            new EventTrigger("audio.default-changed") { Device = "headphones" },
+        ], load.Config!.Flows[0].Triggers);
+        var saved = ConfigYaml.Save(load.Config);
+        Assert.Contains("device: Xbox", saved, StringComparison.Ordinal);
+        Assert.Equal(load.Config, ConfigYaml.Load(saved).Config);
+        Assert.DoesNotContain(ConfigValidator.Validate(load.Config), p => p.Path.Contains("triggers", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ADeviceOnAnotherEventIsAProblemOnThatTriggerOnly()
+    {
+        var load = Load("      - { on: session.unlock, device: Xbox }\n      - { on: device.added }\n");
+
+        Assert.Contains(load.Problems, p => p.Message.Contains("device only goes", StringComparison.Ordinal));
+        Assert.Equal([new EventTrigger("device.added")], load.Config!.Flows[0].Triggers);
+    }
+
+    [Fact]
+    public void TheValidatorWarnsWhenASoundEventsDeviceIsNotInTheLibrary()
+    {
+        var config = Load("      - { on: session.unlock }\n").Config!;
+        var flow = config.Flows[0] with { Triggers = [new EventTrigger("audio.default-changed") { Device = "gone" }, new EventTrigger("device.added") { Device = "gone" }] };
+        var problems = ConfigValidator.Validate(config with { Flows = [flow] });
+
+        Assert.Contains(problems, p => p.Path.EndsWith("triggers[0]", StringComparison.Ordinal) && p.Message.Contains("gone", StringComparison.Ordinal) && p.Severity == Severity.Warning);
+        Assert.DoesNotContain(problems, p => p.Path.EndsWith("triggers[1]", StringComparison.Ordinal)); // a name part needs no Library item
+    }
+
+    [Fact]
     public void EveryKindRoundTrips()
     {
         var load = Load(string.Join('\n',

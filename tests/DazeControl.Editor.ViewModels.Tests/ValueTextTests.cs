@@ -193,8 +193,8 @@ public sealed class ValueTextTests
         Assert.Equal("{Connect Technics: Device}", groups[0].Rows[0].Display);
         Assert.Equal("Device. The device it connected", groups[0].Rows[0].AutomationName);
         Assert.Equal(["{$output}"], groups[2].Rows.Select(r => r.Stored));
-        Assert.Equal(["Flow name", "What started it", "Time", "Date"], groups[3].Rows.Select(r => r.Title));
-        Assert.Equal(["{@flow}", "{@trigger}", "{@time}", "{@date}"], groups[3].Rows.Select(r => r.Stored));
+        Assert.Equal(["Flow name", "What started it", "Device or network", "Time", "Date"], groups[3].Rows.Select(r => r.Title));
+        Assert.Equal(["{@flow}", "{@trigger}", "{@event}", "{@time}", "{@date}"], groups[3].Rows.Select(r => r.Stored));
     }
 
     [Fact]

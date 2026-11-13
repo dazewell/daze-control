@@ -537,6 +537,9 @@ public static partial class ConfigValidator
                 {
                     EventTrigger e when !TriggerText.IsEvent(e.Name) => $"\"{e.Name}\" isn't an event I know.",
                     EventTrigger e when TriggerText.NetworkFilterProblem(e.Name, e.Via, e.Ssid) is { } filter => filter,
+                    EventTrigger e when TriggerText.DeviceFilterProblem(e.Name, e.Device) is { } deviceProblem => deviceProblem,
+                    EventTrigger { Device: { } sound } e when TriggerText.IsAudioEvent(e.Name) && !library.Contains(LibraryKind.Audio, sound) =>
+                        Library.Missing(LibraryKind.Audio, sound),
                     EventTrigger { Via: { } via } when !Enum.IsDefined(via) => "via is wifi or cable.",
                     AtTrigger a when a.Days == Days.None => "Pick at least one day.",
                     EveryTrigger e when e.Interval < EveryTrigger.MinInterval || e.Interval > EveryTrigger.MaxInterval => "An interval is from a minute to 24 hours.",

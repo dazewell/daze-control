@@ -17,6 +17,9 @@ public sealed partial class InspectorViewModel
 
     private int _openTrigger = -1;
 
+    /// <summary>The Library's audio device keys: what an audio event's device picker offers (T24.6).</summary>
+    internal IEnumerable<string> LibraryAudioKeys => _session.Current.Library.Audio.Select(d => d.Key);
+
     /// <summary>The "Add events" flyout: every event of the one list in Core, grouped, ticked when a row of the flow has it.</summary>
     public IReadOnlyList<EventGroupViewModel> EventGroups => _eventGroups ??= BuildEventGroups();
 
@@ -146,6 +149,9 @@ public sealed partial class TriggerRowViewModel : ObservableObject
         IsOpen = open;
         _loading = true;
         Trigger = trigger;
+        // A key the Library no longer has stays in the list, so the row still shows what the file says.
+        var missing = trigger is EventTrigger { Device: { } own } audio && TriggerText.IsAudioEvent(audio.Name) ? [own] : Array.Empty<string>();
+        SoundDevices = ["Any sound device", .. owner.LibraryAudioKeys.Concat(missing).Distinct()];
         Sentence = WhenThisRuns.Sentence(trigger);
         KindIndex = WhenThisRuns.KindOf(trigger);
         OnlyIndex = WhenThisRuns.OnlyIndex(trigger);
@@ -172,6 +178,8 @@ public sealed partial class TriggerRowViewModel : ObservableObject
                 EventIndex = Math.Max(0, IndexOfEvent(e.Name));
                 ConnectionIndex = WhenThisRuns.ConnectionIndex(e);
                 NetworkName = e.Ssid ?? "";
+                DeviceText = TriggerText.IsDeviceEvent(e.Name) ? e.Device ?? "" : "";
+                SoundDevice = TriggerText.IsAudioEvent(e.Name) ? Math.Max(0, SoundDevices.ToList().IndexOf(e.Device ?? "") ) : 0;
                 break;
             case EngineStartTrigger:
                 EventIndex = 0;
@@ -223,6 +231,14 @@ public sealed partial class TriggerRowViewModel : ObservableObject
 
     /// <summary>Wi-Fi picked: the network name box shows.</summary>
     public bool ShowNetworkName => IsNetwork && ConnectionIndex == WhenThisRuns.WiFiConnection;
+
+    /// <summary>A connect/disconnect device event: the name box shows ("name contains").</summary>
+    public bool IsDeviceEvent => Trigger is EventTrigger e && TriggerText.IsDeviceEvent(e.Name);
+
+    /// <summary>The default-sound-device event: the Library audio device picker shows.</summary>
+    public bool IsSoundEvent => Trigger is EventTrigger e && TriggerText.IsAudioEvent(e.Name);
+
+    public IReadOnlyList<string> SoundDevices { get; }
 
     /// <summary>Time of day for "At a time" and "Once".</summary>
     public bool HasTime => Trigger is AtTrigger or OnceTrigger;
@@ -294,6 +310,14 @@ public sealed partial class TriggerRowViewModel : ObservableObject
     [ObservableProperty]
     public partial string NetworkName { get; set; } = "";
 
+    /// <summary>Part of a device's name (any case); empty = any device.</summary>
+    [ObservableProperty]
+    public partial string DeviceText { get; set; } = "";
+
+    /// <summary>The picked Library audio device (0 = any).</summary>
+    [ObservableProperty]
+    public partial int SoundDevice { get; set; }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGrace))]
     public partial int IfMissedIndex { get; set; }
@@ -338,6 +362,10 @@ public sealed partial class TriggerRowViewModel : ObservableObject
     partial void OnConnectionIndexChanged(int value) => Edit(t => WhenThisRuns.WithConnection(t, value));
 
     partial void OnNetworkNameChanged(string value) => Edit(t => WhenThisRuns.WithNetworkName(t, value));
+
+    partial void OnDeviceTextChanged(string value) => Edit(t => WhenThisRuns.WithDevice(t, value));
+
+    partial void OnSoundDeviceChanged(int value) => Edit(t => WhenThisRuns.WithDevice(t, value > 0 && value < SoundDevices.Count ? SoundDevices[value] : null));
 
     partial void OnIfMissedIndexChanged(int value) => Edit(t => WhenThisRuns.WithIfMissed(t, value == 1 ? IfMissed.Skip : IfMissed.Run));
 

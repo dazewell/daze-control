@@ -59,7 +59,7 @@ public static class StepValues
     /// <summary>A Pick's value, and what <c>$result:&lt;id&gt;</c> means.</summary>
     public const string DeviceName = "device";
 
-    public const string RunFlow = "flow", RunTrigger = "trigger", RunTime = "time", RunDate = "date";
+    public const string RunFlow = "flow", RunTrigger = "trigger", RunTime = "time", RunDate = "date", RunEvent = "event";
 
     /// <summary>A filled setting is cut here, with "…" (DESIGN §4.4).</summary>
     public const int MaxFilledLength = 4000;
@@ -72,13 +72,14 @@ public static class StepValues
     };
 
     /// <summary>The run values in the order the editor lists them.</summary>
-    public static readonly IReadOnlyList<string> RunNames = [RunFlow, RunTrigger, RunTime, RunDate];
+    public static readonly IReadOnlyList<string> RunNames = [RunFlow, RunTrigger, RunEvent, RunTime, RunDate];
 
     /// <summary>"Flow name" for <c>@flow</c>; null for an unknown name.</summary>
     public static string? RunTitle(string name) => name switch
     {
         RunFlow => "Flow name",
         RunTrigger => "What started it",
+        RunEvent => "Device or network",
         RunTime => "Time",
         RunDate => "Date",
         _ => null,

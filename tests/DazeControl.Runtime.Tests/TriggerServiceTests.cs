@@ -16,6 +16,8 @@ public sealed class TriggerServiceTests : IDisposable
     private readonly FakeSource _session = new("session.lock", "session.unlock");
     private readonly FakeSource _power = new("power.ac", "power.battery");
     private readonly FakeSource _network = new("network.connected", "network.disconnected");
+    private readonly FakeSource _devices = new("device.added", "device.removed", "audio.default-changed");
+    private Library _library = Library.Empty;
     private readonly Dictionary<string, Flow> _known = [];
     private readonly List<string> _log = [];
     private readonly FakeCondition _onBattery = new("onBattery");
@@ -74,7 +76,7 @@ public sealed class TriggerServiceTests : IDisposable
     private sealed class FakeFlows(TriggerServiceTests owner) : IFlowStarter
     {
         public CalledFlow Resolve(string flowId) => owner._known.TryGetValue(flowId, out var flow)
-            ? new(flow, Library.Empty, flow.Name ?? flowId, null)
+            ? new(flow, owner._library, flow.Name ?? flowId, null)
             : new(null, Library.Empty, flowId, "gone", CalledWhy.Missing);
 
         public bool IsRunning(string flowId) => owner._launcher.IsRunning(flowId);
@@ -84,15 +86,15 @@ public sealed class TriggerServiceTests : IDisposable
     }
 
     private TriggerService Service(TriggerOptions? options = null) =>
-        new([_session, _power, _network], _launcher, new FakeFlows(this), _time, () => _paused, [_onBattery], _log.Add, options);
+        new([_session, _power, _network, _devices], _launcher, new FakeFlows(this), _time, () => _paused, [_onBattery], _log.Add, options);
 
-    private Flow On(string id, string eventName, string? only = null, WhenRunning whenRunning = WhenRunning.Ignore, string? ssid = null, NetworkVia? via = null)
+    private Flow On(string id, string eventName, string? only = null, WhenRunning whenRunning = WhenRunning.Ignore, string? ssid = null, NetworkVia? via = null, string? device = null)
     {
         var flow = Flow(Step("a")) with
         {
             Id = id,
             WhenRunning = whenRunning,
-            Triggers = [new EventTrigger(eventName) { Only = only, Ssid = ssid, Via = via }],
+            Triggers = [new EventTrigger(eventName) { Only = only, Ssid = ssid, Via = via, Device = device }],
         };
         _known[id] = flow;
         return flow;
@@ -490,6 +492,102 @@ public sealed class TriggerServiceTests : IDisposable
         gate.SetResult();
 
         Assert.Single(_provider.Attempts);
+    }
+
+    /// <summary>Everything started so far has run to its end: no fixed delay, so "did not start" is exact (history is written before a run ends).</summary>
+    private async Task<List<string>> StartedAsync(TriggerService service)
+    {
+        await service.IdleAsync();
+        var give = System.Diagnostics.Stopwatch.StartNew();
+        while (_known.Keys.Any(_launcher.IsRunning))
+        {
+            Assert.True(give.Elapsed < TimeSpan.FromSeconds(10), "a run never finished");
+            await Task.Yield();
+        }
+        return [.. _history.Recent.Select(r => r.FlowId)];
+    }
+
+    [Fact]
+    public async Task ADeviceFilterWantsItsTextInTheNameAnyCase()
+    {
+        using var service = Service();
+        service.Apply([On("xbox", "device.added", device: "xbox"), On("any", "device.added")]);
+
+        _devices.Raise("device.added", detail: "USB Keyboard");
+        Assert.Equal(["any"], await StartedAsync(service));
+
+        _time.Advance(TimeSpan.FromMinutes(1));
+        _devices.Raise("device.added"); // a name that couldn't be read matches no filter
+        await StartedAsync(service); // the flow ignores a start while it runs (whenRunning), so each event waits for the last run
+        _time.Advance(TimeSpan.FromMinutes(1));
+        _devices.Raise("device.added", detail: "Xbox Wireless Controller");
+        var started = await StartedAsync(service);
+
+        Assert.Equal(1, started.Count(id => id == "xbox"));
+        Assert.Equal(3, started.Count(id => id == "any"));
+    }
+
+    [Fact]
+    public async Task SeveralArrivalsOfOneDeviceFoldIntoOneStartButAnotherDeviceStarts()
+    {
+        using var service = Service();
+        service.Apply([On("f", "device.added")]);
+
+        _devices.Raise("device.added", detail: "Xbox Wireless Controller");
+        _devices.Raise("device.added", detail: "Xbox Wireless Controller");
+        _devices.Raise("device.added", detail: "Xbox Wireless Controller");
+        Assert.Single(await StartedAsync(service));
+
+        _devices.Raise("device.added", detail: "USB Keyboard");
+        Assert.Equal(2, (await StartedAsync(service)).Count);
+    }
+
+    [Fact]
+    public async Task ARemovalFilterAndTheEventsDetailReachTheRun()
+    {
+        using var service = Service();
+        service.Apply([On("f", "device.removed", device: "xbox")]);
+
+        _devices.Raise("device.added", detail: "Xbox Wireless Controller"); // the other event: not subscribed
+        _devices.Raise("device.removed", detail: "Xbox Wireless Controller");
+
+        Assert.Equal(["f"], await StartedAsync(service));
+    }
+
+    [Fact]
+    public async Task TheDefaultSoundDeviceEventWantsTheLibraryItemsDeviceAndFlow()
+    {
+        _library = Library.Empty with { Audio = [new AudioDevice("headphones", "Headphones"), new AudioDevice("mic", "Headphones", AudioFlow.Input)] };
+        using var service = Service();
+        service.Apply([On("hp", "audio.default-changed", device: "headphones"), On("any", "audio.default-changed")]);
+
+        _devices.Raise("audio.default-changed", detail: "Speakers (Realtek)", kind: "output");
+        Assert.Equal(["any"], await StartedAsync(service));
+
+        _time.Advance(TimeSpan.FromMinutes(1));
+        _devices.Raise("audio.default-changed", detail: "Headphones (WH-1000XM5)", kind: "input"); // the microphone isn't the output
+        await StartedAsync(service);
+        _time.Advance(TimeSpan.FromMinutes(1));
+        _devices.Raise("audio.default-changed", detail: "Headphones (WH-1000XM5)", kind: "output");
+        var started = await StartedAsync(service);
+
+        Assert.Equal(1, started.Count(id => id == "hp"));
+        Assert.Equal(3, started.Count(id => id == "any"));
+    }
+
+    [Fact]
+    public async Task ADeviceFilterWithoutAKnownNameStartsNothingAndKeepsTheCooldown()
+    {
+        _library = Library.Empty with { Audio = [new AudioDevice("headphones", "Headphones")] };
+        using var service = Service();
+        service.Apply([On("hp", "audio.default-changed", device: "headphones")]);
+
+        _devices.Raise("audio.default-changed", kind: "output");
+        Assert.Empty(await StartedAsync(service));
+
+        _time.Advance(TimeSpan.FromMinutes(1));
+        _devices.Raise("audio.default-changed", detail: "Headphones", kind: "output");
+        Assert.Equal(["hp"], await StartedAsync(service));
     }
 
     [Fact]

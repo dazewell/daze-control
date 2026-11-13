@@ -76,6 +76,12 @@ public sealed record EventTrigger(string Name) : Trigger
 
     /// <summary><c>via: wifi|cable</c> on a network event: only connections of that kind (null = any connection).</summary>
     public NetworkVia? Via { get; init; }
+
+    /// <summary>
+    /// <c>device:</c> (T24.6): on <c>device.added</c>/<c>device.removed</c> only a device whose name contains this text (any case);
+    /// on <c>audio.default-changed</c> only when the new default is this Library audio device (its key). Null = any device.
+    /// </summary>
+    public string? Device { get; init; }
 }
 
 /// <summary>The kind of connection a network event is about (<c>via:</c>); each connection raises its own event.</summary>
@@ -126,6 +132,17 @@ public static class TriggerText
 
     /// <summary><c>network.connected</c> and <c>network.disconnected</c>: the events <c>via</c> and <c>ssid</c> narrow.</summary>
     public static bool IsNetworkEvent(string? name) => name is "network.connected" or "network.disconnected";
+
+    /// <summary><c>device.added</c> and <c>device.removed</c>: the events whose <c>device</c> is a part of a name.</summary>
+    public static bool IsDeviceEvent(string? name) => name is "device.added" or "device.removed";
+
+    /// <summary><c>audio.default-changed</c>: the event whose <c>device</c> is a Library audio device.</summary>
+    public static bool IsAudioEvent(string? name) => name == "audio.default-changed";
+
+    /// <summary>Why <c>device</c> can't stand on this event, or null.</summary>
+    public static string? DeviceFilterProblem(string name, string? device) =>
+        device is not null && !IsDeviceEvent(name) && !IsAudioEvent(name)
+            ? "device only goes with device.added, device.removed or audio.default-changed." : null;
 
     /// <summary>The YAML and event word of a connection kind: "wifi", "cable".</summary>
     public static string ViaText(NetworkVia via) => via == NetworkVia.WiFi ? "wifi" : "cable";
