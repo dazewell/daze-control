@@ -319,3 +319,97 @@ flows:
       - { id: up, step: network.reach, with: { address: "192.168.1.50:445" }, after: [wake], retry: { count: 10, delay: 6s }, onFailure: ignore }
       - { id: said, step: notify, with: { text: "It answered in {up.ms|?} ms", sound: false }, after: [up] }
       - { id: nope, step: notify, with: { text: "No answer yet", sound: false }, after: [{ id: up, when: failure }] }
+
+  # --- Since v0.54.0 (walkthrough 30-40): values, events, only-run-if, turn off, repeat, open, dctl. All harmless. ---
+  a30-get-text:
+    name: "30 Values and Get from text"
+    nodes:
+      - { id: num, step: text.extract, with: { text: "Order 42 shipped", by: pattern, find: '(\d+)' } }
+      - { id: mid, step: text.extract, with: { text: "<b>Hello</b>", by: between, find: "<b>", until: "</b>" }, after: [num] }
+      - { id: told, step: notify, with: { text: "30 number {num.number|?} and word {mid.text|?} (want 42 and Hello)", sound: false }, after: [mid] }
+
+  a31-number-value:
+    name: "31 Use a value in a number setting"
+    nodes:
+      - { id: get, step: text.extract, with: { text: "Need 1 GB", by: pattern, find: '(\d+)' } }
+      - { id: space, step: file.space, with: { gb: "{get.number}" }, after: [get], onFailure: ignore }
+      - { id: told, step: notify, with: { text: "31 free-space check used {get.number|?} GB: {space.result|failed}", sound: false }, after: [{ id: space, when: always }] }
+
+  a32-stop-check:
+    name: "32 Stop flow and Check value"
+    nodes:
+      - { id: ok, step: value.check, with: { value: "5", is: atLeast, to: "3" } }
+      - { id: said, step: notify, with: { text: "32 first check passed (5 is at least 3)", sound: false }, after: [ok] }
+      - { id: low, step: value.check, with: { value: "2", is: atLeast, to: "3" }, after: [said], onFailure: skip }
+      - { id: stop, step: flow.stop, with: { mode: quiet }, after: [{ id: low, when: failure }] }
+      - { id: bad, step: notify, with: { text: "32 WRONG: this must never show", sound: false }, after: [low] }
+
+  a33-flow-events:
+    name: "33 Flow events (off)"
+    enabled: false
+    triggers:
+      - { on: flow.finished, flow: a30-get-text }
+    nodes:
+      - { id: n, step: notify, with: { text: "33 flow finished: {@event|?}", sound: false } }
+
+  a34-file-events:
+    name: "34 File events on the temp folder (off)"
+    enabled: false
+    triggers:
+      - { on: file.created, path: '%TEMP%', filter: "daze-accept-*.txt" }
+    nodes:
+      - { id: n, step: notify, with: { text: "34 new file: {@event|?}", sound: false } }
+
+  a35-only-run-if:
+    name: "35 Only run if (never true)"
+    onlyIf:
+      - { step: pc.locked, with: { is: locked } }
+    onlyIfByHand: true
+    nodes:
+      - { id: n, step: notify, with: { text: "35 WRONG: the PC is not locked, this must be held back", sound: false } }
+
+  a35b-only-run-if-true:
+    name: "35b Only run if (true)"
+    onlyIf:
+      - { step: pc.locked, with: { is: unlocked } }
+    onlyIfByHand: true
+    nodes:
+      - { id: n, step: notify, with: { text: "35b the PC is unlocked, so this runs", sound: false } }
+
+  a36-step-off:
+    name: "36 Turn a step off"
+    nodes:
+      - { id: one, step: notify, with: { text: "36 first", sound: false } }
+      - { id: two, step: notify, with: { text: "36 WRONG: this step is turned off", sound: false }, enabled: false, after: [one] }
+      - { id: three, step: notify, with: { text: "36 third (the turned-off step was skipped)", sound: false }, after: [two] }
+
+  a37-run-from:
+    name: "37 Run from this step"
+    nodes:
+      - { id: a, step: notify, with: { text: "37 step A", sound: false } }
+      - { id: b, step: notify, with: { text: "37 step B", sound: false }, after: [a] }
+      - { id: c, step: notify, with: { text: "37 step C", sound: false }, after: [b] }
+
+  a38-repeat:
+    name: "38 Repeat"
+    nodes:
+      - { id: call, step: flow.run, with: { flow: a38b-repeat-callee, wait: true, repeat: "3", until: fails, pause: 1s } }
+      - { id: told, step: notify, with: { text: "38 done repeating", sound: false }, after: [call] }
+
+  a38b-repeat-callee:
+    name: "38b Repeat callee (called by 38)"
+    tray: { show: false }
+    nodes:
+      - { id: n, step: notify, with: { text: "38 round ran", sound: false } }
+
+  a39-open:
+    name: "39 Open file or address (kit folder only)"
+    nodes:
+      - { id: open, step: process.open, with: { target: '%LOCALAPPDATA%\DazeControl\dev' } }
+
+  a40-dctl-input:
+    name: "40 dctl run name=value and --json"
+    inputs:
+      who: { kind: text, name: Who, default: nobody }
+    nodes:
+      - { id: n, step: notify, with: { text: "40 hello {$who}", sound: false } }
