@@ -94,12 +94,39 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
     public static FlowRunner CreateDryRunner(TimeProvider time) =>
         new(ProviderCatalog.All.Select(d => new DryProvider(d.Id)), time) { DryRun = true };
 
-    /// <summary>Starts a runnable flow (hotkey, tray, pipe); null when it can't run or the trigger was ignored.</summary>
-    public Task<RunResult?> TriggerAsync(string flowId, string trigger) =>
-        TriggerAsync(config().Flows.FirstOrDefault(f => f.FlowId == flowId), flowId, trigger);
+    /// <summary>"Only run if" (T25.1, D-148); null = flows start unguarded (tests, an engine without a test-step runner).</summary>
+    public FlowGuard? Guard { get; set; }
+
+    /// <summary>Starts a runnable flow by hand (hotkey, tray, pipe); null when it can't run, was held back or the trigger was ignored.</summary>
+    public Task<RunResult?> TriggerAsync(string flowId, string trigger) => GuardedAsync(flowId, trigger, byHand: true);
+
+    /// <summary>A schedule's start (M20): "Only run if" always applies.</summary>
+    public Task<RunResult?> TriggerScheduledAsync(string flowId, string trigger) => GuardedAsync(flowId, trigger, byHand: false);
 
     /// <summary>Starts this version of the flow (the one the caller checked), not whatever the config holds now.</summary>
     public Task<RunResult?> TriggerAsync(FlowState state, string trigger) => TriggerAsync(state, state.FlowId, trigger, null);
+
+    /// <summary>
+    /// Reads "Only run if" first when it applies, then starts the version the config holds once the checks are done (they take
+    /// time; a reload meanwhile wins). Held back = null, with the guard's log line and note.
+    /// </summary>
+    private async Task<RunResult?> GuardedAsync(string flowId, string trigger, bool byHand)
+    {
+        var state = config().Flows.FirstOrDefault(f => f.FlowId == flowId);
+        if (await HeldBackAsync(state, trigger, byHand, CancellationToken.None).ConfigureAwait(false) is not null)
+            return null;
+        if (state?.Running is { OnlyIf.Count: > 0 })
+            state = config().Flows.FirstOrDefault(f => f.FlowId == flowId);
+        return await TriggerAsync(state, flowId, trigger).ConfigureAwait(false);
+    }
+
+    /// <summary>The guard's answer for this start, null = start (no guard, nothing to read, or the checks hold).</summary>
+    private async Task<string?> HeldBackAsync(FlowState? state, string trigger, bool byHand, CancellationToken cancellationToken)
+    {
+        if (Guard is not { } guard || state?.Running is not { Enabled: true } flow || !FlowGuard.Applies(flow, byHand))
+            return null;
+        return await guard.HeldBackAsync(StepDefaults.Apply(flow, state.Defaults), state.Library, trigger, cancellationToken).ConfigureAwait(false);
+    }
 
     private Task<RunResult?> TriggerAsync(FlowState? state, string flowId, string trigger, IReadOnlyDictionary<string, string>? inputs = null)
     {
@@ -357,6 +384,9 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             return new PipeMessage { Id = id, Ok = true, Run = Record(dry, flow.Id, flow.Name, trigger + " (dry run)") };
         }
 
+        // "Only run if" with "also when I start it" (T25.1): read before the start, so dctl can say why nothing ran.
+        if (await HeldBackAsync(state, trigger, byHand: true, cancellationToken).ConfigureAwait(false) is { } held)
+            return PipeMessage.Fail(id, held);
         var run = TriggerAsync(state, state.FlowId, trigger, inputs);
         if (!request.Wait)
         {
@@ -629,7 +659,17 @@ public sealed class EngineController(Func<ConfigSnapshot> config, FlowLauncher l
             Running = launcher.IsRunning(state.FlowId),
             Hotkeys = flow is null ? [] : [.. flow.Hotkeys],
             Errors = state.Problems.Count(p => p.Severity == Severity.Error),
+            HeldBack = HeldBackSinceLastRun(state.FlowId),
         };
+    }
+
+    /// <summary>The guard's latest note for the flow, unless a run started after it (then it is old news).</summary>
+    private string? HeldBackSinceLastRun(string flowId)
+    {
+        if (Guard?.LastHeldBack(flowId) is not { } note)
+            return null;
+        var lastRun = history?.Recent.Where(r => r.FlowId == flowId).Select(r => (DateTimeOffset?)r.Started).Max();
+        return lastRun is { } started && started >= note.At ? null : note.Sentence;
     }
 
     private static ProblemInfo Describe(Problem problem) => new()

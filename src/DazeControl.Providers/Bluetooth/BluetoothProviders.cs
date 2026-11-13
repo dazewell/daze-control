@@ -110,6 +110,6 @@ public sealed class BluetoothCheckProvider(IFactProbe probe) : IStepProvider
         var reading = await probe.ReadAsync(context, cancellationToken).ConfigureAwait(false);
         context.SetValue("result", reading.Text);
         if (reading.Value != expected)
-            throw new StepFailedException(reading.Text + ".");
+            throw new CheckNotMetException(reading.Text + ".");
     }
 }

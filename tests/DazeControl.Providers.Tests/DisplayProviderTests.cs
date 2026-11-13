@@ -52,7 +52,7 @@ public class DisplayProviderTests
     public async Task CheckFailsWithTheDifference()
     {
         var displays = new FakeDisplays { Difference = "Windows set up the screens differently: LG is still off" };
-        var failure = await Assert.ThrowsAsync<StepFailedException>(() =>
+        var failure = await Assert.ThrowsAsync<CheckNotMetException>(() =>
             new DisplayCheckProvider(displays).ExecuteAsync(WithLayout(("layout", "desk")), TestContext.Current.CancellationToken));
         Assert.Contains("LG is still off", failure.Message);
         await new DisplayCheckProvider(displays).ExecuteAsync(WithLayout(("layout", "desk"), ("is", "differs")), TestContext.Current.CancellationToken);
@@ -62,7 +62,7 @@ public class DisplayProviderTests
     public async Task CheckDiffersFailsWhenTheyMatchAndUnknownLayoutFails()
     {
         var displays = new FakeDisplays();
-        await Assert.ThrowsAsync<StepFailedException>(() =>
+        await Assert.ThrowsAsync<CheckNotMetException>(() =>
             new DisplayCheckProvider(displays).ExecuteAsync(WithLayout(("layout", "desk"), ("is", "differs")), TestContext.Current.CancellationToken));
         await Assert.ThrowsAsync<StepFailedException>(() =>
             new DisplayCheckProvider(displays).ExecuteAsync(WithLayout(("layout", "nope")), TestContext.Current.CancellationToken));

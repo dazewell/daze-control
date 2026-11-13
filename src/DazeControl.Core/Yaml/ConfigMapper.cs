@@ -86,6 +86,8 @@ public static class ConfigMapper
         },
         Hotkeys = flow.Hotkeys.Count == 0 ? null : [.. flow.Hotkeys],
         Triggers = flow.Triggers.Count == 0 ? null : [.. flow.Triggers.Select(TriggerMapper.ToDocument)],
+        OnlyIf = flow.OnlyIf.Count == 0 ? null : [.. flow.OnlyIf.Select((c, i) => OnlyIfToDocument(c, i))],
+        OnlyIfByHand = flow.OnlyIfByHand && flow.OnlyIf.Count > 0 ? "true" : null,
         WhenRunning = flow.WhenRunning == WhenRunning.Ignore ? null : EnumText(flow.WhenRunning),
         Popup = flow.Popup ? null : "false",
         Enabled = flow.Enabled ? null : "false",
@@ -130,6 +132,18 @@ public static class ConfigMapper
         }
         return document;
     }
+
+    /// <summary>An "Only run if" check: a step without edges; its id is left out while it is the one reading would give it.</summary>
+    private static NodeDocument OnlyIfToDocument(StepNode check, int index)
+    {
+        var document = ToDocument(check);
+        if (check.Id == OnlyIfId(index))
+            document.Id = null;
+        return document;
+    }
+
+    /// <summary>The id an "Only run if" check without one gets (T25.1): its place in the list.</summary>
+    public static string OnlyIfId(int index) => $"if{index + 1}";
 
     private static RetryDocument? RetryToDocument(int? count, TimeSpan? delay) =>
         count is null && delay is null ? null : new RetryDocument
@@ -360,6 +374,8 @@ public static class ConfigMapper
                 Tray = tray,
                 Hotkeys = new(document.Hotkeys ?? []),
                 Triggers = TriggerMapper.Read(document.Triggers, path + ".triggers", id, problems),
+                OnlyIf = ReadOnlyIf(document.OnlyIf, path + ".onlyIf"),
+                OnlyIfByHand = Bool(document.OnlyIfByHand, path + ".onlyIfByHand", false),
                 WhenRunning = Enum(document.WhenRunning, path + ".whenRunning", WhenRunning.Ignore),
                 Popup = Bool(document.Popup, path + ".popup", true),
                 Enabled = Bool(document.Enabled, path + ".enabled", true),
@@ -370,6 +386,36 @@ public static class ConfigMapper
                 problems.Add(new Problem(Severity.Warning, path + ".gamepad", "Controller chords were removed (a controller now drives the menu step only): this setting is ignored and dropped on the next save.", id));
             _flowId = null;
             return flow;
+        }
+
+        /// <summary>
+        /// "Only run if" checks (T25.1): each a step without edges or a policy; an id is optional (<see cref="OnlyIfId"/>).
+        /// A bad entry is reported and dropped (fail-soft: the flow keeps the rest); the validator checks they are checks.
+        /// </summary>
+        private ValueList<StepNode> ReadOnlyIf(List<NodeDocument>? documents, string path)
+        {
+            List<StepNode> checks = [];
+            for (var i = 0; i < (documents?.Count ?? 0); i++)
+            {
+                var document = documents![i];
+                if (document is null)
+                    continue;
+                var id = string.IsNullOrWhiteSpace(document.Id) ? OnlyIfId(i) : document.Id.Trim();
+                if (document.Group is not null || document.After is { Count: > 0 } || document.OnFailure is not null || document.Only is not null)
+                {
+                    Error($"{path}.{id}", "An \"Only run if\" entry is one check with its settings: no after, onFailure, only or card.");
+                    continue;
+                }
+                if (checks.Exists(c => c.Id == id))
+                {
+                    Error($"{path}.{id}", $"Two \"Only run if\" checks have the id \"{id}\".");
+                    continue;
+                }
+                document.Id = id;
+                if (ReadNode(document, path, i) is StepNode step)
+                    checks.Add(step);
+            }
+            return new(checks);
         }
 
         /// <summary>An input without a known kind is dropped (its <c>$name</c> uses then fail validation); the rest is checked there.</summary>

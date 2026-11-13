@@ -151,7 +151,7 @@ public sealed class NetworkReachProvider(IReachProbe probe) : IStepProvider
             context.SetNumber("ms", found.Ms);
         context.SetValue("result", sentence); // given even when it fails: a failure link can say why
         if (reachable != wantReachable)
-            throw new StepFailedException(wantReachable ? sentence : $"{name} is reachable.");
+            throw new CheckNotMetException(wantReachable ? sentence : $"{name} is reachable.");
         context.SetSummary(sentence);
     }
 

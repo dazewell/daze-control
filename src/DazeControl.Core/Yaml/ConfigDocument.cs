@@ -124,6 +124,11 @@ public sealed class FlowDocument
 
     public List<TriggerDocument>? Triggers { get; set; }
 
+    /// <summary>T25.1: check steps that must hold before an automatic start (no after, no group).</summary>
+    public List<NodeDocument>? OnlyIf { get; set; }
+
+    public string? OnlyIfByHand { get; set; }
+
     /// <summary>Read only so an old file still loads (D-086); never written.</summary>
     public List<string>? Gamepad { get; set; }
 

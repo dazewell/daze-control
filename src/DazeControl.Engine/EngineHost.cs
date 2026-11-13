@@ -128,12 +128,16 @@ internal sealed class EngineHost : IDisposable
         var exe = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "DazeControl.exe");
         _shortcuts = FlowShortcuts.Create(paths.ConfigArgument, EnginePaths.DefaultConfig, Log.Info);
         var version = typeof(EngineHost).Assembly.GetName().Version?.ToString(3) ?? "?";
+        // Step tests and "Only run if" share the providers and locks but raise no run events: no pop-up, no history.
+        var quietRunner = new FlowRunner(stepProviders, TimeProvider.System, locks, probes: probes) { Flows = calls };
         _controller = new EngineController(() => _config.Current, _launcher, _history,
             EngineController.CreateDryRunner(TimeProvider.System), new Autostart(),
             new EngineInfo(version, Environment.ProcessId, exe, paths.Config, paths.ConfigArgument), Log.Info, devices,
-            // Step tests share the providers and locks but raise no run events: no pop-up, no history.
-            new FlowRunner(stepProviders, TimeProvider.System, locks, probes: probes) { Flows = calls },
-            _shortcuts, _gamepads);
+            quietRunner, _shortcuts, _gamepads);
+        // "Only run if" (T25.1, D-148): read only at a start, never while idle.
+        var guard = new FlowGuard(quietRunner, Log.Info);
+        _controller.Guard = guard;
+        _triggers.Guard = guard;
         if (flagStore is not null)
             _controller.FlagAccess = (name, value) =>
             {
@@ -145,7 +149,7 @@ internal sealed class EngineHost : IDisposable
         _controller.RunRefused += refusal => _window.Post(() => ShowRefusal(refusal));
         _controller.HotkeyRecordingChanged += on => _window.Post(() => OnHotkeyRecording(on));
         // Schedules (M20, D-107): one due-time timer; a power resume or a clock change re-arms it and runs what came due.
-        _schedules = new ScheduleSource(TimeProvider.System, (flowId, text) => _ = _controller.TriggerAsync(flowId, text), () => _hotkeyTable.Paused, Log.Info);
+        _schedules = new ScheduleSource(TimeProvider.System, (flowId, text) => _ = _controller.TriggerScheduledAsync(flowId, text), () => _hotkeyTable.Paused, Log.Info);
         resume.Resumed += _schedules.Rearm; // the same wake-up signal as power.resume (Modern Standby included)
         _window.Add((message, _, _) =>
         {

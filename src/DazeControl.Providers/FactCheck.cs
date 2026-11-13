@@ -18,7 +18,7 @@ public sealed class FactCheckProvider(string id, IFactProbe probe, string positi
         var reading = await probe.ReadAsync(context, cancellationToken).ConfigureAwait(false);
         context.SetValue("result", reading.Text); // given even when the check fails: a failure edge can say why
         if (reading.Value != wanted)
-            throw new StepFailedException(reading.Text);
+            throw new CheckNotMetException(reading.Text);
         context.SetSummary(reading.Text);
     }
 }

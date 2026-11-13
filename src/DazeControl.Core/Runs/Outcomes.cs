@@ -51,6 +51,13 @@ public sealed record NodeResult(string NodeId, NodeOutcome Outcome, int Attempts
     /// connected"). The outcome is Succeeded; readers prefix "Skipped: ". Null otherwise and in runs recorded before 0.41.</summary>
     public string? SkippedBecause { get; init; }
 
+    /// <summary>
+    /// A check step failed because it read its fact and the fact isn't as asked (T25.1), not because it couldn't read it.
+    /// In-process only (the "Only run if" guard): never written to history or sent over the pipe.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool NotMet { get; init; }
+
     /// <summary>The values the step gave that a later setting uses (T25.5, D-145): masked, cut, Sensitive ones hidden. Null
     /// when none, in a dry run, and in runs recorded before this was added.</summary>
     public ShownValue[]? Values { get; init; }

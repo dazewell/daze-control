@@ -51,6 +51,16 @@ public sealed record Flow(string Id, string Name, ValueList<Node> Nodes)
     /// <summary>Ways the flow starts by itself (M20): schedules and system events. Bad ones are dropped on load with a warning.</summary>
     public ValueList<Trigger> Triggers { get; init; } = [];
 
+    /// <summary>
+    /// "Only run if" (T25.1, D-148): check steps (<see cref="Catalog.ProviderCatalog.Checks"/>) that must all hold before a
+    /// schedule or event starts the flow; unmet = held back (no run, no pop-up, no history row). They carry their own
+    /// settings, timeout and retries; no edges. A check that can't answer lets the run start (D-081).
+    /// </summary>
+    public ValueList<StepNode> OnlyIf { get; init; } = [];
+
+    /// <summary>The <see cref="OnlyIf"/> list also holds back starts by a person (shortcut, tray, <c>dctl run</c>, the editor's Run).</summary>
+    public bool OnlyIfByHand { get; init; }
+
     public WhenRunning WhenRunning { get; init; } = WhenRunning.Ignore;
 
     public bool Popup { get; init; } = true;

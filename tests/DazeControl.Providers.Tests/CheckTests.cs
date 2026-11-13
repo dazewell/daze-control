@@ -80,7 +80,7 @@ public class CheckTests
     public async Task AudioCheckFailsWithTheProbesSentence()
     {
         var check = new FactCheckProvider("audio.check", new AudioDefaultProbe(new FakeAudio("Speakers")), "default");
-        var failure = await Assert.ThrowsAsync<StepFailedException>(() => check.ExecuteAsync(WithAudio(Steps.Context("audio.check", ("device", "tv"))), Token));
+        var failure = await Assert.ThrowsAsync<CheckNotMetException>(() => check.ExecuteAsync(WithAudio(Steps.Context("audio.check", ("device", "tv"))), Token));
         Assert.Equal("tv isn't the default output", failure.Message);
         await check.ExecuteAsync(WithAudio(Steps.Context("audio.check", ("device", "tv"), ("is", "notDefault"))), Token);
     }
@@ -113,7 +113,7 @@ public class CheckTests
     public async Task ProcessCheckFailsWhenNotRunningAndNotRunningIsAskedFor()
     {
         var check = new FactCheckProvider("process.check", new ProcessRunningProbe(new FakeProcesses()), "running");
-        await Assert.ThrowsAsync<StepFailedException>(() => check.ExecuteAsync(Steps.Context("process.check", ("program", "x")), Token));
+        await Assert.ThrowsAsync<CheckNotMetException>(() => check.ExecuteAsync(Steps.Context("process.check", ("program", "x")), Token));
         await check.ExecuteAsync(Steps.Context("process.check", ("program", "x"), ("is", "notRunning")), Token);
     }
 
@@ -140,7 +140,7 @@ public class CheckTests
     public async Task ServiceCheckStoppedPassesOnAStoppedService()
     {
         var check = new FactCheckProvider("service.check", new ServiceRunningProbe(new FakeServices(ServiceState.Stopped)), "running");
-        await Assert.ThrowsAsync<StepFailedException>(() => check.ExecuteAsync(Steps.Context("service.check", ("name", "x")), Token));
+        await Assert.ThrowsAsync<CheckNotMetException>(() => check.ExecuteAsync(Steps.Context("service.check", ("name", "x")), Token));
         await check.ExecuteAsync(Steps.Context("service.check", ("name", "x"), ("is", "stopped")), Token);
     }
 
@@ -149,7 +149,7 @@ public class CheckTests
     {
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".txt");
         var check = new FactCheckProvider("file.check", new FileExistsProbe(), "exists");
-        var failure = await Assert.ThrowsAsync<StepFailedException>(() => check.ExecuteAsync(Steps.Context("file.check", ("path", path)), Token));
+        var failure = await Assert.ThrowsAsync<CheckNotMetException>(() => check.ExecuteAsync(Steps.Context("file.check", ("path", path)), Token));
         Assert.EndsWith("doesn't exist", failure.Message);
         await check.ExecuteAsync(Steps.Context("file.check", ("path", path), ("is", "missing")), Token);
 
@@ -157,7 +157,7 @@ public class CheckTests
         try
         {
             await check.ExecuteAsync(Steps.Context("file.check", ("path", path)), Token);
-            await Assert.ThrowsAsync<StepFailedException>(() => check.ExecuteAsync(Steps.Context("file.check", ("path", path), ("is", "missing")), Token));
+            await Assert.ThrowsAsync<CheckNotMetException>(() => check.ExecuteAsync(Steps.Context("file.check", ("path", path), ("is", "missing")), Token));
         }
         finally
         {

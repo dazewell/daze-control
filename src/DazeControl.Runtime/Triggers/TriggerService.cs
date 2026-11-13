@@ -64,6 +64,9 @@ public sealed class TriggerService : IDisposable
             source.Raised += OnRaised;
     }
 
+    /// <summary>"Only run if" (T25.1): read after the other guards, right before the start; null = flows start unguarded (tests).</summary>
+    public FlowGuard? Guard { get; set; }
+
     /// <summary>Sources started now (tests, status).</summary>
     public int RunningSources
     {
@@ -284,6 +287,22 @@ public sealed class TriggerService : IDisposable
                     _launcher.RecordNotStarted(flow, TriggerText.Describe(subscription.Trigger), loop); // a flow chain is invisible otherwise: say it in Runs
                 return;
             }
+            if (Guard is { } guard && FlowGuard.Applies(flow, byHand: false))
+            {
+                // Only now, once per admitted event: nothing is read while idle (D-009). A held-back start leaves the cooldown free.
+                if (await guard.HeldBackAsync(flow, called.Library, TriggerText.Describe(subscription.Trigger), _closed.Token).ConfigureAwait(false) is not null)
+                    return;
+                // The checks took time: the config may have changed or the service closed meanwhile. Start the version there now.
+                if (_closed.IsCancellationRequested)
+                    return;
+                called = _flows.Resolve(flowId);
+                if (called.Flow is not { } latest)
+                {
+                    _log($"trigger: {flowId}: {e.Name} not started: {called.Refusal}");
+                    return;
+                }
+                flow = latest;
+            }
             // Admitted: reserve the cooldown now (atomically: a concurrent event for the same trigger loses), not before the
             // condition, flow and chain checks, so an event that started nothing doesn't eat the cooldown.
             var tooBusy = false;
@@ -327,6 +346,10 @@ public sealed class TriggerService : IDisposable
             var run = _launcher.TriggerAsync(flow, called.Library, text, chain, eventDetail: e.Detail ?? "");
             _ = run.ContinueWith(t => _log($"trigger: {flowId}: run failed: {t.Exception?.GetBaseException().Message}"),
                 CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        }
+        catch (OperationCanceledException) when (_closed.IsCancellationRequested)
+        {
+            // closing: the start is dropped
         }
         catch (Exception failure) when (failure is not OutOfMemoryException)
         {

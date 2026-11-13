@@ -142,7 +142,7 @@ public sealed class StepValueFieldsTests
     public async Task ACheckGivesItsSentenceEvenWhenItFails()
     {
         var context = Steps.Context("file.check", ("path", Path.Combine(Path.GetTempPath(), "daze-not-there-" + Guid.NewGuid().ToString("N"))), ("is", "exists"));
-        await Assert.ThrowsAsync<StepFailedException>(() => new FactCheckProvider("file.check", new FileExistsProbe(), "exists").ExecuteAsync(context, Token));
+        await Assert.ThrowsAsync<CheckNotMetException>(() => new FactCheckProvider("file.check", new FileExistsProbe(), "exists").ExecuteAsync(context, Token));
 
         Assert.EndsWith("doesn't exist", context.Values["result"].Text, StringComparison.Ordinal);
     }
@@ -181,7 +181,7 @@ public sealed class StepValueFieldsTests
         var flags = new FlagStore();
         flags.Set("away", false);
         var context = Steps.Context("flag.check", ("name", "away"), ("value", "true"));
-        await Assert.ThrowsAsync<StepFailedException>(() => new FlagCheckProvider(flags).ExecuteAsync(context, Token));
+        await Assert.ThrowsAsync<CheckNotMetException>(() => new FlagCheckProvider(flags).ExecuteAsync(context, Token));
 
         Assert.Equal("Flag \"away\" is off", context.Values["result"].Text);
     }

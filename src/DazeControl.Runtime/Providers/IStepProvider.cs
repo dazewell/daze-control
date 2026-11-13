@@ -104,6 +104,12 @@ public interface IStepProvider
 }
 
 /// <summary>An expected failure with a message fit for the pop-up ("Technics didn't connect").</summary>
+/// <summary>
+/// A check step read its fact and it isn't what was asked ("Wi-Fi isn't Home"), T25.1: fails the step like
+/// <see cref="StepFailedException"/>, and tells the "Only run if" guard this is a real "no", not "couldn't tell".
+/// </summary>
+public sealed class CheckNotMetException(string message) : Exception(message);
+
 public sealed class StepFailedException : Exception
 {
     public StepFailedException()

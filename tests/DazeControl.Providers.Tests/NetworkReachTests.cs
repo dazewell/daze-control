@@ -44,7 +44,7 @@ public class NetworkReachTests
 
     private static readonly ProbeResult Up = new(true, 12);
 
-    private static async Task<(StepContext Context, StepFailedException? Failure)> Run(IReachProbe probe, params (string, string)[] with)
+    private static async Task<(StepContext Context, Exception? Failure)> Run(IReachProbe probe, params (string, string)[] with)
     {
         var context = Steps.Context("network.reach", with);
         try
@@ -52,7 +52,7 @@ public class NetworkReachTests
             await new NetworkReachProvider(probe).ExecuteAsync(context, TestContext.Current.CancellationToken);
             return (context, null);
         }
-        catch (StepFailedException e)
+        catch (Exception e) when (e is StepFailedException or CheckNotMetException)
         {
             return (context, e);
         }

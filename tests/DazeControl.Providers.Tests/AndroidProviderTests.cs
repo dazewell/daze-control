@@ -205,7 +205,7 @@ public class AndroidProviderTests
         if (passes)
             await Run(check, context);
         else
-            await Assert.ThrowsAsync<StepFailedException>(() => Run(check, context));
+            await Assert.ThrowsAsync<CheckNotMetException>(() => Run(check, context));
     }
 
     [Fact]
