@@ -231,4 +231,34 @@ public sealed class StepValueRunTests : IDisposable
 
         public Task<FactReading> ReadAsync(StepContext context, CancellationToken cancellationToken) => Task.FromResult(read(context));
     }
+    [Fact]
+    public async Task AStepTurnedOffNeverRunsGivesNoValuesAndCountsAsDone()
+    {
+        // T25.4, D-148: the provider is never called, its value takes the written fallback, the run succeeds.
+        var connects = 0;
+        var events = new List<RunEvent>();
+        var runner = new FlowRunner(
+        [
+            new Recorder("bluetooth.connect", _ => Interlocked.Increment(ref connects)),
+            new Recorder("notify", c => { lock (_said) _said.Add(((ScalarParam)c.Node.With["text"]).Text); }),
+        ], _time, events: e => { lock (events) events.Add(e); }) { DryRun = false };
+        var loaded = Load("", Connect("bt", "technics")[..^2] + ", enabled: false }", Say("Now on {bt.device|nothing}", "[bt]"));
+
+        var result = await Run(runner, loaded);
+
+        Assert.Equal(FlowOutcome.Succeeded, result.Outcome);
+        Assert.Equal(0, connects);
+        Assert.Equal(["Now on nothing"], _said);
+        var off = Assert.Single(result.Nodes, n => n.NodeId == "bt");
+        Assert.Equal((NodeOutcome.Succeeded, 0, true), (off.Outcome, off.Attempts, off.TurnedOff));
+        Assert.Null(Assert.Single(result.Nodes, n => n.NodeId == "note").TurnedOff);
+        lock (events)
+        {
+            Assert.DoesNotContain(events.OfType<NodeStarted>(), e => e.NodeId == "bt");
+            Assert.Contains(events.OfType<NodeFinished>(), e => e.Result.NodeId == "bt");
+        }
+        var progress = new RunProgress(loaded.Flow);
+        Assert.Equal("0 of 1", progress.Text);
+        Assert.False(progress.Finish("bt"));
+    }
 }

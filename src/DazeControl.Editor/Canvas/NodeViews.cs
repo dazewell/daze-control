@@ -100,8 +100,9 @@ internal abstract class NodeView : Grid
         Opacity = RestOpacity;
     }
 
-    /// <summary>The opacity when nothing fades it in: faded while the inspector previews a failure policy (UX §5.4).</summary>
-    public double RestOpacity => Node.IsDimmed ? 0.35 : 1;
+    /// <summary>The opacity when nothing fades it in: faded while the inspector previews a failure policy (UX §5.4),
+    /// dimmer when the step is turned off (D-148).</summary>
+    public double RestOpacity => Node.IsDimmed ? 0.35 : Node.IsOff ? 0.6 : 1;
 }
 
 /// <summary>
@@ -155,7 +156,7 @@ internal sealed class PillView : NodeView
         _title.Text = Node.Title;
         _summary.Text = Node.ShownSummary;
         _summary.Visibility = Node.ShownSummary.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-        var skipped = Node.RunState == NodeRunState.Skipped;
+        var skipped = Node.RunState == NodeRunState.Skipped || Node.IsOff;
         _title.Foreground = Theme.Brush(skipped ? "TextFillColorDisabledBrush" : "TextFillColorPrimaryBrush");
         _summary.Foreground = Theme.Brush(skipped ? "TextFillColorDisabledBrush" : "TextFillColorSecondaryBrush");
         ShowRunState();

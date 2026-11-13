@@ -25,7 +25,7 @@ public class SchedulerTests
     /// Runs the scheduler to the end: steps complete in start order with the given results (default success),
     /// each "wave" being what was ready at once. Returns the waves.
     /// </summary>
-    private static List<string[]> Run(Scheduler scheduler, params (string Step, StepResult Result)[] results)
+    internal static List<string[]> Run(Scheduler scheduler, params (string Step, StepResult Result)[] results)
     {
         var lookup = results.ToDictionary(r => r.Step, r => r.Result);
         var waves = new List<string[]>();
@@ -50,7 +50,7 @@ public class SchedulerTests
         return waves;
     }
 
-    private static void AssertOutcomes(Scheduler scheduler, params (string Id, NodeOutcome Outcome)[] expected) =>
+    internal static void AssertOutcomes(Scheduler scheduler, params (string Id, NodeOutcome Outcome)[] expected) =>
         Assert.Equal(expected.OrderBy(e => e.Id), scheduler.Outcomes.Select(o => (o.Key, o.Value)).OrderBy(e => e.Key));
 
     [Fact]

@@ -98,6 +98,8 @@ public sealed partial class FlowCanvas
             menu.Items.Add(Item("Move up", "", () => vm.MoveInColumn(anchor.Id, -1), "Alt+Up", editable));
             menu.Items.Add(Item("Move down", "", () => vm.MoveInColumn(anchor.Id, 1), "Alt+Down", editable));
         }
+        if (vm.OffState is { } off) // D-148: one item; it says what it will do to the whole selection
+            menu.Items.Add(Item(off ? "Turn on" : "Turn off", off ? "" : "", vm.ToggleOff, "Ctrl+/", editable));
         if (vm.SelectedStepType is { } stepType)
             menu.Items.Add(Item($"Select all {ProviderCatalog.Find(stepType)?.Title ?? stepType} steps", "", () => vm.SelectAllOfType(stepType)));
         menu.Items.Add(Item("Delete", "", vm.DeleteSelection, "Del", editable));

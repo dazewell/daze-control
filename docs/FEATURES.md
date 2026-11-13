@@ -56,6 +56,11 @@ locks, idempotency check ("already in state → no-op"), and an optional enumera
 
 **Wait until:** a check step with "Try again" and "Wait between tries" waits for a fact (a program running, a file, a connection) before the next step; no separate step (D-081). The PowerShell step's examples also cover sleep, power plan and dark mode.
 
+**Turn a step off (T25.4, D-148):** `enabled: false` on a step (menu "Turn off", Ctrl+/, or the inspector's "Run this
+step"): it does nothing and counts as done, the steps after it run, its failure links never fire, its values are empty
+(a written fallback shows; the editor warns otherwise). Dimmed on the canvas, "Turned off" in Runs and the dry run, left
+out of "n of m".
+
 **M14 (designed, D-080..D-082):** per-step-type defaults for Try again / Wait between tries / Give up after / If it fails
 (`settings.stepDefaults`, set in Settings or "Use these for all <type> steps"); per-step **Only if…** (skips a step that has
 nothing to do, e.g. Connect when already connected; the flow carries on) and **Check** steps (Bluetooth, audio, screen layout, Android connection, program,

@@ -131,6 +131,10 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsDimmed { get; internal set; }
 
+    /// <summary>A step turned off (<c>enabled: false</c>, D-148): drawn dimmed, says "Turned off".</summary>
+    [ObservableProperty]
+    public partial bool IsOff { get; private set; }
+
     /// <summary>Its state in the run on the canvas (<see cref="NodeRunState.None"/> while editing).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsInRun))]
@@ -218,7 +222,10 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         var policy = effective?.OnFailure ?? node.OnFailure;
         var policyInherited = node.OnFailure is null;
         MayFail = policy == FailurePolicy.Ignore;
+        IsOff = node is StepNode { Enabled: false };
         var badges = new List<Badge>();
+        if (IsOff)
+            badges.Add(new Badge("", "Turned off"));
         if (MayFail)
             badges.Add(new Badge("", "Failure ignored", policyInherited));
         else if (policy == FailurePolicy.Skip)
@@ -265,6 +272,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         if (node is GroupNode)
             head.Add($"Runs together, {Count}");
         var tail = new List<string>();
+        if (IsOff)
+            tail.Add("Turned off");
         if (node is StepNode onlyStep && effective?.Only is { } cond && cond != StepNode.OnlyAlways)
             tail.Add($"Only if {OnlyLabel(onlyStep.Step, cond)}");
         if (MayFail)
