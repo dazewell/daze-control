@@ -974,7 +974,7 @@ Rules: start T29.1 only with zero open PRs and paused child sessions (every open
 - [x] T29.4 GitHub repository (S; changes something outside the repo: ask the user at that moment). `gh repo rename ctrl-alt-daze`,
   then `UpdateClient.RepoUrl`, `cut-release.ps1`, `wait-pr.ps1`, README links, `git remote set-url origin …` (one shared config
   for all worktrees). GitHub redirects the old URL. Old installed copies stop seeing updates (other package id): intended.
-- [ ] T29.5 Release and live check (the user): cut a release on request, install `CtrlAltDazeApp-win-Setup.exe`, then check:
+- [ ] T29.5 Release and live check (the user): cut a release on request, install `CtrlAltDazeApp-x64-Setup.exe`, then check:
   flows and Library are there, Alt+Z connects the Technics, a step with a credential works, desktop shortcuts start their flows,
   Start with Windows is on, one engine in Task Manager, the old app is gone from Installed apps, `cad list` answers.
 Open (the user): the order against the M20 release candidate (T20.13); `.dcflow` in T27.2 → `.cadflow`?

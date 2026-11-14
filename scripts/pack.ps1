@@ -36,7 +36,7 @@ foreach ($exe in 'CtrlAltDaze.exe', 'CtrlAltDaze.Editor.exe', 'cad.exe') {
 # Debug symbols stay out of the package (the AOT .pdb files are tens of MB).
 Get-ChildItem $publish -Filter '*.pdb' | Remove-Item
 
-dotnet vpk pack --packId $packId --packVersion $version --packDir $publish --mainExe CtrlAltDaze.exe `
+dotnet vpk pack --packId $packId --packVersion $version --packDir $publish --mainExe CtrlAltDaze.exe --channel x64 `
     --packTitle 'Ctrl Alt Daze' --packAuthors dazewell --icon (Join-Path $root 'assets/app.ico') --shortcuts StartMenuRoot --outputDir $Output
 if ($LASTEXITCODE -ne 0) { throw "vpk pack failed ($LASTEXITCODE)." }
 Write-Host "Packed $version into $Output"
