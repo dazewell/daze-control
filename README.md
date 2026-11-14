@@ -19,7 +19,7 @@ Per-user install, no admin rights. Windows 11 24H2 or later, x64.
 
 ## Install
 
-Download `CtrlAltDazeApp-win-Setup.exe` from [Releases](https://github.com/dazewell/daze-control/releases) and run
+Download `CtrlAltDazeApp-win-Setup.exe` from [Releases](https://github.com/dazewell/ctrl-alt-daze/releases) and run
 it. It installs to `%LOCALAPPDATA%\CtrlAltDazeApp`, adds Ctrl Alt Daze to the Start menu and starts it. The builds
 aren't signed yet, so SmartScreen may ask first ("More info" › "Run anyway").
 

@@ -36,7 +36,7 @@ public interface IUpdateClient
 /// </summary>
 public sealed class VelopackUpdateClient : IUpdateClient
 {
-    public const string RepoUrl = "https://github.com/dazewell/daze-control";
+    public const string RepoUrl = "https://github.com/dazewell/ctrl-alt-daze";
 
     /// <summary>A local feed folder (vpk pack output) in place of GitHub, for testing updates (build skill).</summary>
     public const string SourceOverrideVariable = "CTRLALTDAZE_UPDATE_SOURCE";

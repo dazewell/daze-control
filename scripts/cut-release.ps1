@@ -10,7 +10,7 @@ Exit: 0 ok | 2 PR closed/not merged | 3 CI red | 4 release run red | 5 preflight
 [CmdletBinding()]
 param([string]$Notes, [int[]]$Prs = @(), [string]$Version, [switch]$Rc, [int]$TimeoutMinutes = 90, [switch]$DryRun, [switch]$SelfTest)
 $ErrorActionPreference = 'Stop'
-$Repo = 'dazewell/daze-control'
+$Repo = 'dazewell/ctrl-alt-daze'
 
 function Get-NextVersion([string[]]$Tags) {
   $best = $null
