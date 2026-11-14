@@ -110,8 +110,28 @@ public sealed partial class InspectorPane : UserControl
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
     private void OnRadioButtonsLoaded(object sender, RoutedEventArgs e)
     {
-        if (sender is DependencyObject buttons && FindRepeater(buttons) is { } repeater && repeater.Layout is not StackLayout)
+        if (sender is not Control buttons)
+            return;
+        // Loaded comes while the step section is still collapsed, before any template: apply it now, and try again
+        // when it is first laid out.
+        buttons.ApplyTemplate();
+        if (!StackItems(buttons))
+            buttons.SizeChanged += OnRadioButtonsSized;
+    }
+
+    private void OnRadioButtonsSized(object sender, SizeChangedEventArgs e)
+    {
+        if (StackItems((DependencyObject)sender))
+            ((FrameworkElement)sender).SizeChanged -= OnRadioButtonsSized;
+    }
+
+    private static bool StackItems(DependencyObject buttons)
+    {
+        if (FindRepeater(buttons) is not { } repeater)
+            return false;
+        if (repeater.Layout is not StackLayout)
             repeater.Layout = new StackLayout();
+        return true;
     }
 
     private static ItemsRepeater? FindRepeater(DependencyObject parent)
