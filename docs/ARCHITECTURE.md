@@ -296,8 +296,8 @@ D-043. `scripts/pack.ps1` → one folder (editor self-contained + AOT `CtrlAltDa
   throws). The editor and `cad` call the copy first too (not with `--config`). `WindowsCredentials` reads
   `CtrlAltDaze:<name>`, then `DazeControl:<name>`, and lists both. Installed copy only: `Autostart.CarryFrom` removes
   the old Run value (inside `DazeControlApp` only) and turns ours on if it was on; `ShortcutPlaces.OldTargets` makes
-  the start's icon repair re-point the old app's desktop shortcuts at our stub. `install.ps1` then uninstalls the old
-  app once no desktop shortcut starts it.
+  the start's icon repair re-point the old app's desktop shortcuts at our stub; after a repair without error the
+  engine starts the old `DazeControlApp\Update.exe uninstall --silent` (not awaited; again next start while it exists).
 - `cad update [--channel stable|rc]`: sets (when given) and prints the channel, then find + download, never apply; exit 0 / 1. Editor: `UpdatesViewModel` (About › Updates card: "Updates to follow" drop-down + status + Check).
 - Update channel (D-108): `Core/Updates/UpdateChannelStore`, `%LOCALAPPDATA%\CtrlAltDaze\update-channel.txt` (`channel=stable|rc`, default and any unreadable content = Stable; per user, not in config.yaml or a backup). The engine's daily `cad update`, `cad update` and the editor all read it; the editor re-reads nothing: its drop-down writes it at once and sets `IUpdateClient.Channel`. Velopack orders by semver (`0.52.0-rc.1` < `0.52.0`) and `AllowVersionDowngrade` stays off, so going RC → Stable keeps the installed RC until a newer stable ships (`UpdateChannelTests` runs the real `UpdateManager` over a fake feed). A download already waiting still installs after a switch.
 

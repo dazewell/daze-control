@@ -2007,6 +2007,8 @@ Status: accepted, built (T29.1 names; T29.2 carry-over, live check T29.5 pending
   keeping `dctl` (offered as the cheap options; the user chose "Everything" and `cad`).
 - Old engine: WM_CLOSE to its tray window (the updater's path, Installer) and a wait on its mutex, not a pipe
   request as planned: no dependency on the old protocol, and no polling.
+- Old install: the engine removes it itself, no prompt, right after re-pointing the shortcuts (the user: "whichever is
+  simpler", 2026-11-13); its uninstall would delete shortcuts still pointing at it.
 - Revisit if: an exact-name product shows up before T29.1 starts (trademark registers and the Microsoft Store were not checked).
 
 ## D-153 · 2026-11-13 · Icon and banner: the flow mark on an orange keycap

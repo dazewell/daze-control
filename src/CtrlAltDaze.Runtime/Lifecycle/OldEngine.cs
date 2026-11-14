@@ -8,6 +8,20 @@ public static class OldEngine
 {
     public static readonly TimeSpan ExitWait = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// The old app's own uninstaller, started and not waited for (T29.2 e: the app removes the old install itself, no
+    /// prompt). Null when it is already gone; the next start tries again if it didn't finish.
+    /// </summary>
+    /// <param name="start">Starts an exe with arguments, hidden.</param>
+    public static string? RemoveInstall(string updateExe, Action<string, string> start)
+    {
+        ArgumentNullException.ThrowIfNull(start);
+        if (!File.Exists(updateExe))
+            return null;
+        start(updateExe, "uninstall --silent");
+        return "setup: removing the old app";
+    }
+
     /// <summary>A line for the log, or null when no old engine was running.</summary>
     /// <param name="requestExit">Asks it to exit (the engine posts WM_CLOSE to its tray window, tray Exit's path).</param>
     public static string? Stop(string mutexName, Action requestExit, TimeSpan wait)

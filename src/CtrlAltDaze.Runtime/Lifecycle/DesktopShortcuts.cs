@@ -69,6 +69,9 @@ public sealed partial class DesktopShortcuts(ShortcutPlaces places, IShellLinkSt
     /// <summary>Pipe requests run concurrently: scan, pick a name, write and delete happen as one step.</summary>
     private readonly Lock _gate = new();
 
+    /// <summary>True when the old app's shortcuts are re-pointed here (<see cref="ShortcutPlaces.OldTargets"/>): the installed copy.</summary>
+    public bool CarriesOldApp => places.OldTargets.Count > 0;
+
     /// <summary>Our shortcuts for this engine's config, in file-name order.</summary>
     public IReadOnlyList<DesktopShortcut> List()
     {
