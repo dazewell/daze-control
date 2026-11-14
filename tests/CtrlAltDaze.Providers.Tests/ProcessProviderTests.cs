@@ -1,0 +1,125 @@
+using System.Diagnostics;
+using CtrlAltDaze.Providers.Process;
+using CtrlAltDaze.Runtime.Providers;
+
+namespace CtrlAltDaze.Providers.Tests;
+
+public class ProcessProviderTests
+{
+    private static readonly string Cmd = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+
+    [Theory]
+    [InlineData("0", true)]
+    [InlineData("3", false)]
+    public async Task TheExitCodeIsAValueEvenWhenTheStepFails(string code, bool succeeds)
+    {
+        var context = Steps.Context("process.run", ("path", Cmd), ("args", "/c exit " + code)).WithList("args", "/c", "exit " + code);
+        var run = new ProcessRunProvider().ExecuteAsync(context, TestContext.Current.CancellationToken);
+
+        if (succeeds)
+            await run;
+        else
+            await Assert.ThrowsAsync<StepFailedException>(() => run);
+        Assert.Equal(code, context.Values["exitCode"].Text);
+    }
+
+    [Fact]
+    public async Task PowerShellGivesItsExitCode()
+    {
+        var context = Steps.Context("script.powershell", ("script", "exit 4"));
+        await Assert.ThrowsAsync<StepFailedException>(() => new PowerShellProvider().ExecuteAsync(context, TestContext.Current.CancellationToken));
+
+        Assert.Equal("4", context.Values["exitCode"].Text);
+    }
+
+    [Fact]
+    public async Task ZeroExitSucceeds() =>
+        await new ProcessRunProvider().RunAsync(("path", Cmd), ("args", "/c exit 0"));
+
+    [Fact]
+    public async Task OtherExitFailsWithTheLastErrorLine()
+    {
+        var failure = await Assert.ThrowsAsync<StepFailedException>(
+            () => new ProcessRunProvider().RunAsync(("path", Cmd), ("args", "/c echo boom 1>&2 & exit 3")));
+        Assert.Equal("cmd.exe ended with exit code 3: boom", failure.Message);
+    }
+
+    [Fact]
+    public async Task ListedExitCodesSucceed() =>
+        await new ProcessRunProvider().RunAsync(("path", Cmd), ("args", "/c exit 3"), ("exitCodes", "3"));
+
+    [Fact]
+    public async Task MissingProgramFailsPlainly()
+    {
+        var failure = await Assert.ThrowsAsync<StepFailedException>(
+            () => new ProcessRunProvider().RunAsync(("path", @"C:\nope\missing.exe")));
+        Assert.StartsWith(@"Couldn't start C:\nope\missing.exe", failure.Message);
+    }
+
+    [Fact]
+    public async Task CancelKillsTheProcess()
+    {
+        using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+        var watch = Stopwatch.StartNew();
+        var context = Steps.Context("process.run", ("path", Cmd), ("args", "/c ping -n 30 127.0.0.1 >nul"));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new ProcessRunProvider().ExecuteAsync(context, cancel.Token));
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    public async Task PowerShellSucceeds() =>
+        await new PowerShellProvider().RunAsync(("script", "$x = 1 + 1\nif ($x -ne 2) { exit 1 }"));
+
+    [Fact]
+    public async Task PowerShellErrorFailsTheStep()
+    {
+        var failure = await Assert.ThrowsAsync<StepFailedException>(
+            () => new PowerShellProvider().RunAsync(("script", "throw 'no headphones'")));
+        Assert.Contains("no headphones", failure.Message);
+    }
+
+    [Fact]
+    public async Task PowerShellStopsAtTheFirstError()
+    {
+        var marker = Path.Combine(Path.GetTempPath(), $"ctrlaltdaze-{Guid.NewGuid():N}.txt");
+        await Assert.ThrowsAsync<StepFailedException>(() => new PowerShellProvider().RunAsync(
+            ("script", $"throw 'first'\nSet-Content -LiteralPath '{marker}' -Value x")));
+        Assert.False(File.Exists(marker));
+    }
+
+    [Fact]
+    public async Task ExitDoesNotWaitForADescendantHoldingThePipes()
+    {
+        // cmd exits at once; its detached ping child keeps the inherited stdout open for ~20 s.
+        var watch = Stopwatch.StartNew();
+        await new ProcessRunProvider().RunAsync(("path", Cmd), ("args", "/c start /b ping -n 20 127.0.0.1 & exit 0"));
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), $"{watch.Elapsed}");
+    }
+
+    [Fact]
+    public async Task OutputWithoutNewlinesIsDrained()
+    {
+        // 8 MB on one line: must be read in chunks and thrown away, not buffered as a line.
+        await new PowerShellProvider().RunAsync(("script", "[Console]::Out.Write('x' * 8MB)"));
+    }
+
+    [Fact]
+    public async Task ListArgumentsKeepSpacesAndEmptiesAndListedExitCodes()
+    {
+        // A script that exits 7 only when it got exactly "a b" and "" as two arguments.
+        var script = Path.Combine(Path.GetTempPath(), $"ctrlaltdaze-{Guid.NewGuid():N}.ps1");
+        File.WriteAllText(script, "if ($args.Count -eq 2 -and $args[0] -eq 'a b' -and $args[1] -eq '') { exit 7 } else { exit 1 }");
+        try
+        {
+            var ps = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
+            var context = Steps.Context("process.run", ("path", ps))
+                .WithList("args", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "a b", "")
+                .WithList("exitCodes", "0", "7");
+            await new ProcessRunProvider().ExecuteAsync(context, TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            File.Delete(script);
+        }
+    }
+}

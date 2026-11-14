@@ -1,5 +1,5 @@
 # Acceptance kit (docs/ACCEPTANCE.md): one dev config with a flow for every live check the user still owes.
-# Started by scripts/accept-run.ps1 on the DEV config only (%LOCALAPPDATA%\DazeControl\dev\config.yaml, backed up first).
+# Started by scripts/accept-run.ps1 on the DEV config only (%LOCALAPPDATA%\CtrlAltDaze\dev\config.yaml, backed up first).
 # SAFE by default: flows only show messages, wait, check or ask. Nothing touches audio, Bluetooth or screens.
 # Flows named "LIVE-RISK ..." act on real devices: they use the Library items accept-a / accept-b / accept-bt, which
 # are fakes until YOU edit them in the Library (Audio / Bluetooth) to your own devices. Run them only on purpose.
@@ -320,7 +320,7 @@ flows:
       - { id: said, step: notify, with: { text: "It answered in {up.ms|?} ms", sound: false }, after: [up] }
       - { id: nope, step: notify, with: { text: "No answer yet", sound: false }, after: [{ id: up, when: failure }] }
 
-  # --- Since v0.54.0 (walkthrough 30-40): values, events, only-run-if, turn off, repeat, open, dctl. All harmless. ---
+  # --- Since v0.54.0 (walkthrough 30-40): values, events, only-run-if, turn off, repeat, open, cad. All harmless. ---
   a30-get-text:
     name: "30 Values and Get from text"
     nodes:
@@ -405,10 +405,10 @@ flows:
   a39-open:
     name: "39 Open file or address (kit folder only)"
     nodes:
-      - { id: open, step: process.open, with: { target: '%LOCALAPPDATA%\DazeControl\dev' } }
+      - { id: open, step: process.open, with: { target: '%LOCALAPPDATA%\CtrlAltDaze\dev' } }
 
-  a40-dctl-input:
-    name: "40 dctl run name=value and --json"
+  a40-cad-input:
+    name: "40 cad run name=value and --json"
     inputs:
       who: { kind: text, name: Who, default: nobody }
     nodes:

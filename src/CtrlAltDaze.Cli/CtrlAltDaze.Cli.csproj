@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>cad</AssemblyName>
+    <RootNamespace>CtrlAltDaze.Cli</RootNamespace>
+    <AssemblyTitle>Ctrl Alt Daze command line</AssemblyTitle>
+    <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\assets\app.ico</ApplicationIcon>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CtrlAltDaze.Core\CtrlAltDaze.Core.csproj" />
+    <ProjectReference Include="..\CtrlAltDaze.Ipc\CtrlAltDaze.Ipc.csproj" />
+  </ItemGroup>
+
+</Project>

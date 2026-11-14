@@ -20,10 +20,10 @@ jobs:
         shell: pwsh
         run: ./scripts/tests/pr-lib.tests.ps1
       - name: Build
-        run: dotnet build DazeControl.slnx -c Release -nologo
+        run: dotnet build CtrlAltDaze.slnx -c Release -nologo
       - name: Test
-        run: dotnet test --solution DazeControl.slnx -c Release --no-build
-      # Publishes the engine and dctl with Native AOT (the only check that catches AOT/trim warnings, errors here,
+        run: dotnet test --solution CtrlAltDaze.slnx -c Release --no-build
+      # Publishes the engine and cad with Native AOT (the only check that catches AOT/trim warnings, errors here,
       # D-001) and the editor, then packs them as release.yml does (D-043), so a release never meets a new failure.
       - name: Pack (Velopack)
         shell: pwsh

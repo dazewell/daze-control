@@ -1,7 +1,7 @@
-# Daze Control
+# Ctrl Alt Daze
 
 Windows 11 tray engine that runs the user's flows (Bluetooth, audio, displays, Android devices, programs…) from
-hotkeys, the tray menu or the `dctl` CLI, plus an on-demand visual flow editor. Successor to `scd`.
+hotkeys, the tray menu or the `cad` CLI, plus an on-demand visual flow editor. Successor to `scd`.
 C# / .NET 10: Native AOT headless engine, WinUI 3 editor (D-001). Written entirely by AI agents.
 
 ## Start here: resume

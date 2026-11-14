@@ -11,10 +11,10 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 if (-not $NoBuild) {
-    dotnet build (Join-Path $repo 'src/DazeControl.Editor') -c $Configuration --nologo -v q | Out-Host
+    dotnet build (Join-Path $repo 'src/CtrlAltDaze.Editor') -c $Configuration --nologo -v q | Out-Host
     if ($LASTEXITCODE) { throw "editor build failed ($LASTEXITCODE)" }
 }
-$exe = Join-Path $repo "src\DazeControl.Editor\bin\$Configuration\net10.0-windows10.0.26100.0\win-x64\DazeControl.Editor.exe"
+$exe = Join-Path $repo "src\CtrlAltDaze.Editor\bin\$Configuration\net10.0-windows10.0.26100.0\win-x64\CtrlAltDaze.Editor.exe"
 $work = Join-Path ([IO.Path]::GetTempPath()) ('dc-memprobe-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory $work | Out-Null
 Copy-Item (Join-Path $repo 'samples\dev-big.yaml') (Join-Path $work 'config.yaml')

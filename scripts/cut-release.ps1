@@ -1,5 +1,5 @@
 <#
-Cuts a Daze Control release end to end with terse output (one line per phase). Run ONLY when the user asked for a release (D-043).
+Cuts a Ctrl Alt Daze release end to end with terse output (one line per phase). Run ONLY when the user asked for a release (D-043).
 Blocks until done, so run it with run_in_background: waiting costs no model calls.
   pwsh scripts/cut-release.ps1 -Notes notes.md [-Prs 130,131] [-Version v0.51.0] [-Rc] [-TimeoutMinutes 90] [-DryRun] [-SelfTest]
   -Rc cuts a release candidate: the next minor version plus -rc.<n> (n = 1 + the highest existing rc of it), e.g. v0.52.0-rc.1.

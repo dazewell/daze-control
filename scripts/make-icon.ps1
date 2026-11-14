@@ -1,14 +1,15 @@
 # Regenerates assets/app.ico (exe icons, editor window, installer) + app.png (About) from one mark: a flow, one step fanning out to two
-# that run together, joined by the canvas's horizontal Béziers (UX §5.3). Colour tile = the OSD's violet→blue
-# gradient (family look, OSD scripts/make-icon.ps1), white steps, the second parallel step amber.
+# that run together, joined by the canvas's horizontal Béziers (UX §5.3), on an orange keycap (Ctrl Alt Daze, D-153):
+# a top face over a darker lip, white steps, the last step charcoal. Keep the colours in step with TrayGlyph.cs.
 # Geometry is on a 16-unit grid, scaled per frame. -PreviewDir writes every frame at 4x on dark and light grounds.
 param([string]$OutDir = "$PSScriptRoot/../assets", [string]$PreviewDir)
 
 Add-Type -AssemblyName System.Drawing
 $sizes = 16, 20, 24, 28, 32, 40, 48, 64, 256
-$top = [System.Drawing.Color]::FromArgb(255, 0x8B, 0x5C, 0xF6)    # violet
-$bottom = [System.Drawing.Color]::FromArgb(255, 0x25, 0x63, 0xEB) # blue
-$warm = [System.Drawing.Color]::FromArgb(255, 0xFC, 0xD3, 0x4D)   # amber
+$top = [System.Drawing.Color]::FromArgb(255, 0xFF, 0x8A, 0x3D)    # orange, top face
+$bottom = [System.Drawing.Color]::FromArgb(255, 0xF2, 0x5C, 0x24) # deeper orange
+$lip = [System.Drawing.Color]::FromArgb(255, 0xB8, 0x3A, 0x0E)    # the keycap's side
+$done = [System.Drawing.Color]::FromArgb(255, 0x24, 0x29, 0x2F)   # charcoal
 $white = [System.Drawing.Color]::White
 
 function New-RoundRect([double]$x, [double]$y, [double]$w, [double]$h, [double]$r) {
@@ -29,22 +30,30 @@ function New-Bitmap([int]$size) {
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::Half
 
-    $tile = New-RoundRect 0 0 $size $size ([Math]::Max(3, 3.5 * $k))
+    # Keycap: the whole tile in the lip colour, the top face over it, shorter by the lip (none at 16 px: too small).
+    $radius = [Math]::Max(3, 3.5 * $k)
+    $lipH = if ($size -le 16) { 0 } else { [Math]::Max(1, [Math]::Round(1.1 * $k)) }
+    $tile = New-RoundRect 0 0 $size $size $radius
+    $side = [System.Drawing.SolidBrush]::new($lip)
+    $g.FillPath($side, $tile)
+    $side.Dispose(); $tile.Dispose()
+    $face = New-RoundRect 0 0 $size ($size - $lipH) $radius
     $brush = [System.Drawing.Drawing2D.LinearGradientBrush]::new([System.Drawing.RectangleF]::new(0, 0, $size, $size), $top, $bottom, 60)
-    $g.FillPath($brush, $tile)
-    $brush.Dispose(); $tile.Dispose()
+    $g.FillPath($brush, $face)
+    $brush.Dispose(); $face.Dispose()
+    $g.TranslateTransform(0, -$lipH / 2)
 
     # Steps (centre x, centre y) in grid units: start → two together → done (amber). Edges run centre to centre
     # under the steps, so their ends hide inside the dots.
-    $r = 1.7; $start = 3.2, 8; $upper = 8, 4.3; $lower = 8, 11.7; $done = 12.8, 8
+    $r = 1.7; $start = 3.2, 8; $upper = 8, 4.3; $lower = 8, 11.7; $doneAt = 12.8, 8
     $pen = [System.Drawing.Pen]::new($white, [Math]::Max(1, 1.2 * $k))
-    foreach ($e in @(($start, $upper), ($start, $lower), ($upper, $done), ($lower, $done))) {
+    foreach ($e in @(($start, $upper), ($start, $lower), ($upper, $doneAt), ($lower, $doneAt))) {
         $x0 = $e[0][0] * $k; $y0 = $e[0][1] * $k; $x1 = $e[1][0] * $k; $y1 = $e[1][1] * $k
         $mid = ($x0 + $x1) / 2
         $g.DrawBezier($pen, $x0, $y0, $mid, $y0, $mid, $y1, $x1, $y1)
     }
     $pen.Dispose()
-    $steps = @(@{ C = $start; Ink = $white }, @{ C = $upper; Ink = $white }, @{ C = $lower; Ink = $white }, @{ C = $done; Ink = $warm })
+    $steps = @(@{ C = $start; Ink = $white }, @{ C = $upper; Ink = $white }, @{ C = $lower; Ink = $white }, @{ C = $doneAt; Ink = $done })
     foreach ($s in $steps) {
         $fill = [System.Drawing.SolidBrush]::new($s.Ink)
         $g.FillEllipse($fill, ($s.C[0] - $r) * $k, ($s.C[1] - $r) * $k, 2 * $r * $k, 2 * $r * $k)

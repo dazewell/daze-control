@@ -39,7 +39,7 @@ lives in [DECISIONS.md](DECISIONS.md).
 - **Roadmap from a gap analysis** (user, 2026-11-12): compare with what users of automation tools expect (AutoHotkey, Power
   Automate Desktop, PowerToys, Home Assistant, Stream Deck…), rank the missing features, then build as far as limits allow.
   Done: [roadmap/GAPS.md](roadmap/GAPS.md), PLAN M24 to M28, D-135 (proposed). M28's rows each need the user's yes first.
-- Working name **Daze Control** (namespace `DazeControl`, exe `DazeControl.exe`, CLI `dctl.exe`) until the rename is built.
+- Name **Ctrl Alt Daze** (namespace `CtrlAltDaze`, exe `CtrlAltDaze.exe`, CLI `cad.exe`); renamed from Daze Control / `dctl` in M29 (D-152).
 - **Rename to Ctrl Alt Daze** (user, 2026-11-13; D-152): everything, down to folders, installer id and the GitHub repo; CLI `cad`.
   Planned in PLAN M29, not started: the user starts the work separately.
 
@@ -67,7 +67,7 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
   with a reason when in use); canvas pills follow the re-layout after same-column links and deletes (X-004); edges can be hovered, clicked,
   marquee-selected, deleted and right-clicked (UX §5.8 #2), with "+"/"×" above the midpoint.
 - [ ] M11 Desktop shortcuts, pickers and examples, Bluetooth list (designed 2026-11-02, D-049..D-052; PLAN → M11).
-  Desktop shortcuts done (T11.4/T11.5, 0.21.0): Flow settings › Desktop shortcut, the Flows card's menu, `dctl shortcut`.
+  Desktop shortcuts done (T11.4/T11.5, 0.21.0): Flow settings › Desktop shortcut, the Flows card's menu, `cad shortcut`.
 - [x] Canvas: long simple chains wrap onto rows of 5 like text; forks, joins and parallel branches keep their
   columns (user, 2026-11-03; D-060; 0.23.0).
 - [ ] M13 Editor and flow updates P1–P9 (designed 2026-11-03, D-061..D-070; PLAN → M13), before everything else.
@@ -77,7 +77,7 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
   default Try again / Wait / Give up after / If it fails per step type; "Only if…" on steps (Connect skips when already
   connected, "always" forces it) and Check steps (is it connected? …). Small scope: no general if/else.
 - [ ] M24 to M27 from the gap analysis (D-135; PLAN → Roadmap): M24 quick wins (Stop flow, Open, Check value, screen and away
-  events, media keys, which device on events, Wake over network, Check address, inputs on `dctl run`), M25 "Only run if" and
+  events, media keys, which device on events, Wake over network, Check address, inputs on `cad run`), M25 "Only run if" and
   values in Runs, M26 app / flow / file events and links, M27 recipes and sharing. M28 = questions for the user (power, mute
   toggle, clipboard, keys, windows, ask for text, MQTT, signing).
 
@@ -85,8 +85,8 @@ Milestones and tasks live in [PLAN.md](PLAN.md). Summary:
 
 v0.22.0 is released (GitHub Releases; installed copies update themselves). What's left is yours:
 
-1. **24 h daily-driver soak:** install, copy `samples/user-config.yaml` to `%APPDATA%\DazeControl\config.yaml`, turn
-   on Start with Windows (editor › Settings), and use it for a day. Check `%LOCALAPPDATA%\DazeControl\logs`
+1. **24 h daily-driver soak:** install, copy `samples/user-config.yaml` to `%APPDATA%\CtrlAltDaze\config.yaml`, turn
+   on Start with Windows (editor › Settings), and use it for a day. Check `%LOCALAPPDATA%\CtrlAltDaze\logs`
    afterwards. The idle footprint gate already passed (5.4 MB private, 0 ms CPU over 10 min).
 2. **Retire scd** once Alt+Z works for a day (T4.4 check below): turn off scd's scheduled task and stop scd.
 3. **UX checks that change system-wide settings** (not done by agents on your PC): Settings › Display › Scale at
@@ -101,15 +101,15 @@ v0.22.0 is released (GitHub Releases; installed copies update themselves). What'
 ## Waiting on the user
 
 - **T4.4 gate, live check (needs your Technics headphones):** copy `samples/user-config.yaml` to
-  `%APPDATA%\DazeControl\config.yaml`, start the engine (`artifacts\engine\DazeControl.exe`), turn the
+  `%APPDATA%\CtrlAltDaze\config.yaml`, start the engine (`artifacts\engine\CtrlAltDaze.exe`), turn the
   headphones on but leave them disconnected, press **Alt+Z**. Expected: they connect and become the default output.
-  Unit tests and `dctl run connect-technics --dry-run` pass; the live run wasn't possible without the headphones.
+  Unit tests and `cad run connect-technics --dry-run` pass; the live run wasn't possible without the headphones.
   If the connect works but the output switch fails, the endpoint name may not contain "Technics EAH-AZ80"
   (offload endpoints are named "Headphones"/"Technics"): change `library.audio.technics.match`.
   When it works, scd can be stopped.
 - **Android (Fire TV), Sunshine, services (optional, untested live):** `android.*` steps are tested only with fakes and a
   dry run. To try them, add your TV under `library.android` (address, inputs as up/down moves, D-032). A
-  `credential:` is a Credential Manager entry named `DazeControl:<name>` (D-031). Most services can only be
+  `credential:` is a Credential Manager entry named `CtrlAltDaze:<name>` (D-031). Most services can only be
   started or stopped by an admin, so `service.*` fails with a message for those (D-033).
 
 ## Next step

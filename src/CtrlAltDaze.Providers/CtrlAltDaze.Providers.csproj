@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Referenced by the Native AOT engine (D-001): the analyzers flag trim/AOT problems at build time. -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.CsWin32" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CtrlAltDaze.Core\CtrlAltDaze.Core.csproj" />
+    <ProjectReference Include="..\CtrlAltDaze.Runtime\CtrlAltDaze.Runtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="CtrlAltDaze.Providers.Tests" />
+  </ItemGroup>
+
+</Project>

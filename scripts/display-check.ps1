@@ -13,11 +13,11 @@ $ErrorActionPreference = 'Stop' # until the snapshot is saved; 'Continue' while 
 $Flows = @($Flows | ForEach-Object { $_ -split ',' } | Where-Object { $_ })  # pwsh -File passes "a,b" as one string
 $root = Split-Path $PSScriptRoot -Parent
 $bin = "net10.0-windows10.0.26100.0\win-x64"
-$engine = "$root\src\DazeControl.Engine\bin\Debug\$bin\DazeControl.exe"
-$dctl = "$root\src\DazeControl.Cli\bin\Debug\$bin\dctl.exe"
-$installed = "$env:LOCALAPPDATA\DazeControlApp\current\DazeControl.exe"
+$engine = "$root\src\CtrlAltDaze.Engine\bin\Debug\$bin\CtrlAltDaze.exe"
+$cad = "$root\src\CtrlAltDaze.Cli\bin\Debug\$bin\cad.exe"
+$installed = "$env:LOCALAPPDATA\CtrlAltDazeApp\current\CtrlAltDaze.exe"
 
-Add-Type -Namespace DazeControl -Name Ccd -MemberDefinition @'
+Add-Type -Namespace CtrlAltDaze -Name Ccd -MemberDefinition @'
 [DllImport("user32.dll")] public static extern int GetDisplayConfigBufferSizes(uint f, out uint p, out uint m);
 [DllImport("user32.dll")] public static extern int QueryDisplayConfig(uint f, ref uint pc, [Out] byte[] p, ref uint mc, [Out] byte[] m, out int t);
 [DllImport("user32.dll")] public static extern int QueryDisplayConfig(uint f, ref uint pc, [Out] byte[] p, ref uint mc, [Out] byte[] m, IntPtr t);
@@ -29,11 +29,11 @@ Add-Type -Namespace DazeControl -Name Ccd -MemberDefinition @'
 function Query-Ccd([uint32]$which, [ref]$topology) {
     for ($attempt = 0; $attempt -lt 3; $attempt++) {
         $pc = 0; $mc = 0
-        $e = [DazeControl.Ccd]::GetDisplayConfigBufferSizes($which, [ref]$pc, [ref]$mc)
+        $e = [CtrlAltDaze.Ccd]::GetDisplayConfigBufferSizes($which, [ref]$pc, [ref]$mc)
         if ($e -ne 0) { throw "GetDisplayConfigBufferSizes failed ($e)" }
         $p = New-Object byte[] ($pc * 72); $m = New-Object byte[] ($mc * 64); $t = 0
-        $e = if ($which -eq 4) { [DazeControl.Ccd]::QueryDisplayConfig($which, [ref]$pc, $p, [ref]$mc, $m, [ref]$t) }
-             else { [DazeControl.Ccd]::QueryDisplayConfig($which, [ref]$pc, $p, [ref]$mc, $m, [IntPtr]::Zero) }
+        $e = if ($which -eq 4) { [CtrlAltDaze.Ccd]::QueryDisplayConfig($which, [ref]$pc, $p, [ref]$mc, $m, [ref]$t) }
+             else { [CtrlAltDaze.Ccd]::QueryDisplayConfig($which, [ref]$pc, $p, [ref]$mc, $m, [IntPtr]::Zero) }
         if ($e -eq 0) { if ($topology) { $topology.Value = $t }; return [pscustomobject]@{ Paths = $pc; Modes = $mc; P = $p; M = $m } }
         if ($e -ne 122) { throw "QueryDisplayConfig failed ($e)" } # 122 = ERROR_INSUFFICIENT_BUFFER: size again
     }
@@ -66,13 +66,13 @@ function Restore-Raw([byte[]]$b) {
     $pc = [BitConverter]::ToInt32($b, 0); $mc = [BitConverter]::ToInt32($b, 4)
     $p = $b[8..(8 + $pc * 72 - 1)]; $m = $b[(8 + $pc * 72)..($b.Length - 1)]
     # SDC_APPLY 0x80 | USE_SUPPLIED 0x20 | SAVE_TO_DATABASE 0x200 | ALLOW_CHANGES 0x400
-    [DazeControl.Ccd]::SetDisplayConfig($pc, $p, $mc, $m, 0x80 -bor 0x20 -bor 0x200 -bor 0x400)
+    [CtrlAltDaze.Ccd]::SetDisplayConfig($pc, $p, $mc, $m, 0x80 -bor 0x20 -bor 0x200 -bor 0x400)
 }
 
 $start = Get-State
 "{0,-12} {1}" -f 'now', $start
 if (-not $Go) { 'read-only (pass -Config, -Flows and -Go, with the user''s OK, to run the matrix)'; return }
-if (-not (Test-Path $Config) -or -not (Test-Path $engine) -or -not (Test-Path $dctl)) { "missing config or Debug build"; exit 1 }
+if (-not (Test-Path $Config) -or -not (Test-Path $engine) -or -not (Test-Path $cad)) { "missing config or Debug build"; exit 1 }
 
 New-Item -ItemType Directory -Force $Out | Out-Null
 $before = Get-Raw
@@ -87,7 +87,7 @@ try {
     $dev = Start-Process $engine -ArgumentList "`"$Config`"" -PassThru
     Start-Sleep 4
     foreach ($f in $Flows) {
-        $result = & $dctl run $f --wait 2>&1 | Select-Object -Last 1
+        $result = & $cad run $f --wait 2>&1 | Select-Object -Last 1
         Start-Sleep 3
         "{0,-12} {1}" -f $f, (Get-State)
         "             -> $result"
@@ -105,6 +105,6 @@ finally {
     if (-not $restored) { Write-Host "SCREENS NOT RESTORED. Saved: $Out\before.bin / before.txt" -ForegroundColor Red }
     if ($dev) { Stop-Process -Id $dev.Id -Force -ErrorAction SilentlyContinue }
     if (Test-Path $installed) { Start-Process $installed | Out-Null; Start-Sleep 2 }
-    "engines: " + ((Get-CimInstance Win32_Process -Filter "Name='DazeControl.exe'").ExecutablePath -join ', ')
+    "engines: " + ((Get-CimInstance Win32_Process -Filter "Name='CtrlAltDaze.exe'").ExecutablePath -join ', ')
 }
 if (-not $restored) { exit 2 }

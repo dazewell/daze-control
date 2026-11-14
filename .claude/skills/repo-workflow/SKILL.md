@@ -1,6 +1,6 @@
 ---
 name: repo-workflow
-description: How to start, carry out and finish any piece of work in the Daze Control repo — orienting from the Resume block and docs, branching, checkpoint commits, opening PRs, and the definition of done. Use this at the start of every coding, refactoring, bug-fix or docs task in this repo, whenever the user asks "what's next", "where are we", "continue", or to commit/push/open a PR, and before ending a task, even if the request looks small.
+description: How to start, carry out and finish any piece of work in the Ctrl Alt Daze repo — orienting from the Resume block and docs, branching, checkpoint commits, opening PRs, and the definition of done. Use this at the start of every coding, refactoring, bug-fix or docs task in this repo, whenever the user asks "what's next", "where are we", "continue", or to commit/push/open a PR, and before ending a task, even if the request looks small.
 ---
 
 # Repo workflow

@@ -1,0 +1,1083 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="CtrlAltDaze.Editor.ShellWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:CtrlAltDaze.Editor.ViewModels"
+    xmlns:canvas="using:CtrlAltDaze.Editor.Canvas"
+    xmlns:inspector="using:CtrlAltDaze.Editor.Inspector"
+    xmlns:library="using:CtrlAltDaze.Editor.Library"
+    xmlns:runs="using:CtrlAltDaze.Editor.Runs"
+    xmlns:backup="using:CtrlAltDaze.Editor.BackupCard"
+    xmlns:local="using:CtrlAltDaze.Editor"
+    xmlns:motion="using:CtrlAltDaze.Editor"
+    xmlns:vmc="using:CtrlAltDaze.Editor.ViewModels.Canvas"
+    Title="Ctrl Alt Daze">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TitleBar x:Name="AppTitleBar" IsTabStop="False" Title="Ctrl Alt Daze" Subtitle="{x:Bind ViewModel.Subtitle, Mode=OneWay}" />
+
+        <NavigationView x:Name="Navigation" Grid.Row="1"
+                        PaneDisplayMode="Left" IsSettingsVisible="False" IsBackButtonVisible="Collapsed"
+                        IsPaneToggleButtonVisible="False" OpenPaneLength="200" CompactPaneLength="48"
+                        IsPaneOpen="{x:Bind ViewModel.IsNavPaneOpen, Mode=TwoWay}"
+                        SelectionChanged="OnNavigationSelectionChanged"
+                        ItemInvoked="OnNavigationItemInvoked">
+            <NavigationView.MenuItems>
+                <!-- The pane toggle, as the first rail item (D-113): same size, hover and focus as the pages below; it never selects. -->
+                <NavigationViewItem x:Name="MenuToggleItem" Content="Menu" SelectsOnInvoked="False"
+                                    AutomationProperties.Name="Toggle navigation menu" ToolTipService.ToolTip="Menu">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE700;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="FlowsItem" Content="Flows" Tag="Flows" IsSelected="True">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE945;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="LibraryNavItem" Content="Library" Tag="Library">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8F1;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="RunsItem" Content="Runs" Tag="Runs">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE81C;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+            <NavigationView.FooterMenuItems>
+                <NavigationViewItem Content="Settings" Tag="Settings">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE713;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="About" Tag="About">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE946;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.FooterMenuItems>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- On top of every page (UX §5.1). -->
+                <StackPanel Spacing="8" Margin="36,8,36,8" MaxWidth="1000">
+                    <InfoBar Severity="Error" Title="Can't edit config.yaml" IsClosable="False"
+                             IsOpen="{x:Bind ViewModel.Session.HasLoadError, Mode=OneWay}"
+                             Message="{x:Bind ViewModel.Session.LoadError, Mode=OneWay}" />
+                    <InfoBar Severity="Error" Title="Couldn't save" IsClosable="False"
+                             IsOpen="{x:Bind ViewModel.Session.HasSaveError, Mode=OneWay}"
+                             Message="{x:Bind ViewModel.Session.SaveError, Mode=OneWay}" />
+                    <InfoBar x:Name="ConflictBar" Severity="Warning" IsClosable="False"
+                             Title="The file changed outside the editor"
+                             Message="Your recent edits here aren't saved. Keep yours or take the file's version.">
+                        <InfoBar.ActionButton>
+                            <Button Content="Keep mine" Command="{x:Bind ViewModel.Session.KeepMineCommand}" />
+                        </InfoBar.ActionButton>
+                        <InfoBar.Content>
+                            <Button Content="Reload the file" Margin="0,0,0,12"
+                                    Command="{x:Bind ViewModel.Session.ReloadCommand}" />
+                        </InfoBar.Content>
+                    </InfoBar>
+                    <InfoBar x:Name="ReloadedBar" Severity="Informational"
+                             Message="The editor now shows the file's version."
+                             CloseButtonCommand="{x:Bind ViewModel.Session.DismissOutsideChangeCommand}" />
+                    <InfoBar Severity="Informational" Title="Ctrl Alt Daze isn't running" IsClosable="False"
+                             IsOpen="{x:Bind ViewModel.EngineMissing, Mode=OneWay}"
+                             Message="You can still edit. Shortcuts, the tray and runs need it.">
+                        <InfoBar.ActionButton>
+                            <Button x:Name="StartEngineButton" Content="Start it" Click="OnStartEngine" />
+                        </InfoBar.ActionButton>
+                    </InfoBar>
+                </StackPanel>
+
+                <!-- Pages fill the width up to 1000 and center beyond it, like the bars above. The capped grid needs a plain
+                     stretching parent: as the scroller's direct content it was arranged past the right edge when maximized (X-003). -->
+                <ScrollViewer x:Name="PagesScroller" Grid.Row="1" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+                    <Grid>
+                        <Grid x:Name="PageGrid" Padding="36,0,36,36" MaxWidth="1072">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Flows -->
+                            <StackPanel x:Name="FlowsPage" Grid.Row="1" Spacing="4" motion:Motion.Animate="True">
+                                <Grid Margin="0,0,0,12">
+                                    <TextBlock Text="Flows" Style="{StaticResource TitleTextBlockStyle}" />
+                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                    <!-- Undo of the last list change (move, group, ungroup, rename, delete…), 20 deep; Ctrl+Z (DESIGN B4). -->
+                                    <Button Command="{x:Bind ViewModel.Flows.UndoCommand}" AutomationProperties.Name="Undo" ToolTipService.ToolTip="Undo (Ctrl+Z)">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE7A7;" FontSize="14" />
+                                            <TextBlock Text="Undo" />
+                                        </StackPanel>
+                                        <Button.KeyboardAccelerators>
+                                            <KeyboardAccelerator Key="Z" Modifiers="Control" />
+                                        </Button.KeyboardAccelerators>
+                                    </Button>
+                                    <SplitButton
+                                            IsEnabled="{x:Bind ViewModel.Flows.CanEdit, Mode=OneWay}" AutomationProperties.Name="New flow"
+                                            Command="{x:Bind ViewModel.Flows.NewFlowCommand}">
+                                        <!-- Accent in every state, arrow and divider included (#98). No local Background/Foreground: they beat the template's state brushes, so the button lost its colour on press. -->
+                                        <SplitButton.Resources>
+                                            <ResourceDictionary>
+                                                <ResourceDictionary.ThemeDictionaries>
+                                                    <ResourceDictionary x:Key="Default">
+                                                        <StaticResource x:Key="SplitButtonBackground" ResourceKey="AccentFillColorDefaultBrush" />
+                                                        <StaticResource x:Key="SplitButtonBackgroundPointerOver" ResourceKey="AccentFillColorSecondaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonBackgroundPressed" ResourceKey="AccentFillColorTertiaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonBackgroundDisabled" ResourceKey="AccentFillColorDisabledBrush" />
+                                                        <StaticResource x:Key="SplitButtonForeground" ResourceKey="TextOnAccentFillColorPrimaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonForegroundPointerOver" ResourceKey="TextOnAccentFillColorPrimaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonForegroundPressed" ResourceKey="TextOnAccentFillColorSecondaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonForegroundDisabled" ResourceKey="TextOnAccentFillColorDisabledBrush" />
+                                                        <StaticResource x:Key="SplitButtonForegroundSecondary" ResourceKey="TextOnAccentFillColorPrimaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonForegroundSecondaryPressed" ResourceKey="TextOnAccentFillColorSecondaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonBorderBrush" ResourceKey="AccentControlElevationBorderBrush" />
+                                                        <StaticResource x:Key="SplitButtonBorderBrushPointerOver" ResourceKey="AccentControlElevationBorderBrush" />
+                                                        <StaticResource x:Key="SplitButtonBorderBrushPressed" ResourceKey="ControlFillColorTransparentBrush" />
+                                                        <StaticResource x:Key="SplitButtonBorderBrushDisabled" ResourceKey="ControlFillColorTransparentBrush" />
+                                                        <StaticResource x:Key="SplitButtonBorderBrushDivider" ResourceKey="TextOnAccentFillColorSecondaryBrush" />
+                                                        <StaticResource x:Key="SplitButtonBorderBrushCheckedDivider" ResourceKey="TextOnAccentFillColorSecondaryBrush" />
+                                                    </ResourceDictionary>
+                                                    <ResourceDictionary x:Key="HighContrast">
+                                                        <SolidColorBrush x:Key="SplitButtonBackground" Color="{ThemeResource SystemColorHighlightColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBackgroundPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBackgroundPressed" Color="{ThemeResource SystemColorHighlightColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBackgroundDisabled" Color="{ThemeResource SystemColorButtonFaceColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBackgroundChecked" Color="{ThemeResource SystemColorHighlightColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBackgroundCheckedPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBackgroundCheckedPressed" Color="{ThemeResource SystemColorHighlightColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForeground" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundDisabled" Color="{ThemeResource SystemColorGrayTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundChecked" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundCheckedPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundCheckedPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundSecondary" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonForegroundSecondaryPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushDisabled" Color="{ThemeResource SystemColorGrayTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushChecked" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushCheckedPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushCheckedPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushDivider" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                        <SolidColorBrush x:Key="SplitButtonBorderBrushCheckedDivider" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                                    </ResourceDictionary>
+                                                </ResourceDictionary.ThemeDictionaries>
+                                            </ResourceDictionary>
+                                        </SplitButton.Resources>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE710;" FontSize="14" />
+                                            <TextBlock Text="New flow" />
+                                        </StackPanel>
+                                        <SplitButton.Flyout>
+                                            <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                                <MenuFlyoutItem Text="Controller menu" Command="{x:Bind ViewModel.Flows.NewControllerMenuCommand}">
+                                                    <MenuFlyoutItem.Icon>
+                                                        <FontIcon Glyph="&#xE7FC;" />
+                                                    </MenuFlyoutItem.Icon>
+                                                </MenuFlyoutItem>
+                                            </MenuFlyout>
+                                        </SplitButton.Flyout>
+                                    </SplitButton>
+                                    </StackPanel>
+                                </Grid>
+                                <!-- Command bar (DESIGN Part E): sort, search (Ctrl+F), show. View-only; drag is off while any is on (D-088). -->
+                                <Grid ColumnSpacing="8" RowSpacing="8" Margin="0,0,0,8" x:Name="FlowCommandBar">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="FlowSearchBox" PlaceholderText="Search flows (Ctrl+F)" AutomationProperties.Name="Search flows"
+                                             Text="{x:Bind ViewModel.Flows.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyDown="OnFlowSearchKeyDown">
+                                        <TextBox.KeyboardAccelerators>
+                                            <KeyboardAccelerator Key="F" Modifiers="Control" Invoked="OnFlowSearchAccelerator" />
+                                        </TextBox.KeyboardAccelerators>
+                                    </TextBox>
+                                    <ComboBox x:Name="FlowSortBox" Grid.Column="1" MinWidth="150" Header="" AutomationProperties.Name="Sort by" ToolTipService.ToolTip="Sort by"
+                                              SelectedIndex="{x:Bind ViewModel.Flows.SortIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="Sort: Your order" />
+                                        <ComboBoxItem Content="Sort: Name" />
+                                        <ComboBoxItem Content="Sort: Last run" />
+                                    </ComboBox>
+                                    <ComboBox x:Name="FlowShowBox" Grid.Column="2" MinWidth="150" AutomationProperties.Name="Show" ToolTipService.ToolTip="Show"
+                                              SelectedIndex="{x:Bind ViewModel.Flows.FilterIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="Show: All" />
+                                        <ComboBoxItem Content="Show: On" />
+                                        <ComboBoxItem Content="Show: Off" />
+                                        <ComboBoxItem Content="Show: Needs fixing" />
+                                        <ComboBoxItem Content="Show: Not in tray" />
+                                    </ComboBox>
+                                    <Button x:Name="FlowOrderButton" Grid.Column="3" Content="Make this my order" Command="{x:Bind ViewModel.Flows.MakeOrderCommand}"
+                                            ToolTipService.ToolTip="Write the order shown here as the list and tray order" />
+                                    <!-- Select (D-090): a checkbox on every card; a click toggles it. Ctrl/Shift+click and Ctrl+Space work without it. -->
+                                    <ToggleButton x:Name="FlowSelectToggle" Grid.Column="4" Content="Select" IsChecked="{x:Bind ViewModel.Flows.SelectMode, Mode=TwoWay}"
+                                                  IsEnabled="{x:Bind ViewModel.Flows.CanEdit, Mode=OneWay}"
+                                                  ToolTipService.ToolTip="Pick several flows to group, turn on or off, or delete them together" />
+                                </Grid>
+                                <!-- With a selection (DESIGN Part F): "3 selected" and the bulk actions. -->
+                                <!-- MinHeight fits the two-line text (count + why Delete is off), so the bar never changes height while selecting. -->
+                                <Grid x:Name="FlowSelectionBar" ColumnSpacing="8" Margin="0,0,0,8" MinHeight="44" Visibility="{x:Bind ViewModel.Flows.ShowSelectionBar, Mode=OneWay}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind ViewModel.Flows.SelectionText, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                        <TextBlock Text="{x:Bind ViewModel.Flows.BulkDeleteOffReason, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
+                                                   Visibility="{x:Bind ViewModel.Flows.HasBulkDeleteOffReason, Mode=OneWay}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Group…" Click="OnBulkGroupClick" IsEnabled="{x:Bind ViewModel.Flows.CanBulkMove, Mode=OneWay}" />
+                                    <Button Grid.Column="2" Content="Move to" IsEnabled="{x:Bind ViewModel.Flows.CanBulkMove, Mode=OneWay}">
+                                        <Button.Flyout>
+                                            <MenuFlyout x:Name="BulkMoveFlyout" Opening="OnBulkMoveOpening" />
+                                        </Button.Flyout>
+                                    </Button>
+                                    <Button Grid.Column="3" Content="Turn on" Click="OnBulkOnClick" IsEnabled="{x:Bind ViewModel.Flows.CanBulkEdit, Mode=OneWay}" />
+                                    <Button Grid.Column="4" Content="Turn off" Click="OnBulkOffClick" IsEnabled="{x:Bind ViewModel.Flows.CanBulkEdit, Mode=OneWay}" />
+                                    <Button Grid.Column="5" Content="Delete" Click="OnBulkDeleteClick" IsEnabled="{x:Bind ViewModel.Flows.CanBulkDelete, Mode=OneWay}" />
+                                    <Button Grid.Column="6" Content="Clear" Command="{x:Bind ViewModel.Flows.ClearSelectionCommand}" ToolTipService.ToolTip="Clear the selection (Esc)" />
+                                </Grid>
+                                <StackPanel Visibility="{x:Bind ViewModel.Flows.NoMatches, Mode=OneWay}" Spacing="8" Margin="0,32,0,0" HorizontalAlignment="Center">
+                                    <TextBlock Text="No flows match." HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" AutomationProperties.LiveSetting="Polite" />
+                                    <Button Content="Clear" Command="{x:Bind ViewModel.Flows.ClearFilterCommand}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Visibility="{x:Bind ViewModel.Flows.IsEmpty, Mode=OneWay}" Spacing="8" Margin="0,48,0,0"
+                                            HorizontalAlignment="Center">
+                                    <FontIcon Glyph="&#xE945;" FontSize="40" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Text="No flows yet" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
+                                    <TextBlock Text="A flow is a set of steps you start with a shortcut or from the tray."
+                                               HorizontalAlignment="Center" Style="{StaticResource SettingsCardDescription}" />
+                                </StackPanel>
+                                <InfoBar Severity="Error" Title="Desktop shortcut" Message="{x:Bind ViewModel.Flows.DesktopError, Mode=OneWay}"
+                                         IsOpen="{x:Bind ViewModel.Flows.HasDesktopError, Mode=OneWay}" IsClosable="False" />
+                                <InfoBar Severity="Error" Title="Couldn't run it" Message="{x:Bind ViewModel.Flows.RunError, Mode=OneWay}"
+                                         IsOpen="{x:Bind ViewModel.Flows.HasRunError, Mode=OneWay}" IsClosable="False" />
+                                <!-- #67 (D-076): open until another Delete, New flow, opening a flow, leaving the page or closing. -->
+                                <InfoBar x:Name="DeletedBar" Severity="Informational" Message="{x:Bind ViewModel.Flows.DeletedText, Mode=OneWay}"
+                                         IsOpen="{x:Bind ViewModel.Flows.CanUndoDelete, Mode=OneWay}" IsClosable="False">
+                                    <InfoBar.ActionButton>
+                                        <Button Content="Undo" Command="{x:Bind ViewModel.Flows.UndoDeleteCommand}" />
+                                    </InfoBar.ActionButton>
+                                </InfoBar>
+                                <!-- Local: every card is a Tab stop (a repeater is one stop by default). -->
+                                <Grid x:Name="FlowDropHost" AllowDrop="True" Background="Transparent" DragOver="OnFlowListDragOver" DragLeave="OnFlowListDragLeave" Drop="OnFlowListDrop">
+                                <ItemsRepeater x:Name="FlowRepeater" ItemsSource="{x:Bind ViewModel.Flows.Rows}" TabFocusNavigation="Local">
+                                    <ItemsRepeater.Layout>
+                                        <StackLayout Spacing="4" />
+                                    </ItemsRepeater.Layout>
+                                    <ItemsRepeater.ItemTemplate>
+                                      <local:FlowRowTemplateSelector>
+                                        <local:FlowRowTemplateSelector.GroupTemplate>
+                                            <DataTemplate x:DataType="vm:GroupItemViewModel">
+                                                <!-- Group header (D-087): a tray folder. The chevron and a click on the row expand or collapse it. -->
+                                                <Grid Style="{StaticResource SettingsCard}" Margin="0,8,0,0" Tag="{x:Bind Name, Mode=OneWay}" Tapped="OnGroupHeaderTapped" ContextRequested="OnGroupContextRequested"
+                                                      BorderBrush="{x:Bind local:RowFormat.SelectBorder(IsSelected), Mode=OneWay}"
+                                                      CanDrag="{x:Bind CanReorder, Mode=OneWay}" DragStarting="OnGroupDragStarting" DropCompleted="OnDragCompleted"
+                                                      AutomationProperties.Name="{x:Bind Summary, Mode=OneWay}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Button Command="{x:Bind ToggleCommand}"
+                                                            AutomationProperties.Name="{x:Bind ToggleName, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind ToggleName, Mode=OneWay}" Style="{StaticResource SubtleIconButton}">
+                                                        <FontIcon Glyph="{x:Bind ChevronGlyph, Mode=OneWay}" FontSize="14" />
+                                                    </Button>
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="4,0,12,0" Spacing="8">
+                                                        <CheckBox IsChecked="{x:Bind IsSelected, Mode=OneWay}" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupCheckClick" MinWidth="0" Padding="0"
+                                                                  Visibility="{x:Bind ShowCheck, Mode=OneWay}" AutomationProperties.Name="Select all in this group" />
+                                                        <FontIcon Glyph="&#xE8B7;" Style="{StaticResource SettingsCardIcon}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                        <TextBlock Text="{x:Bind Name, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                        <TextBlock Text="{x:Bind Caption, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,8,0"
+                                                                Visibility="{x:Bind HasProblems, Mode=OneWay}">
+                                                        <FontIcon Glyph="&#xEA39;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                                        <TextBlock Text="{x:Bind Problems, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" />
+                                                    </StackPanel>
+                                                    <Button Grid.Column="4" Content="&#xE712;" FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                                            AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" ToolTipService.ToolTip="Group menu" Style="{StaticResource SubtleIconButton}">
+                                                        <Button.Flyout>
+                                                            <MenuFlyout>
+                                                                <MenuFlyoutItem Text="Rename…" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupRenameClick" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" />
+                                                                <MenuFlyoutItem Text="Ungroup" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupUngroupClick" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" />
+                                                                <MenuFlyoutSeparator />
+                                                                <MenuFlyoutItem Text="Turn all on" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupAllOnClick" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" />
+                                                                <MenuFlyoutItem Text="Turn all off" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupAllOffClick" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" />
+                                                                <MenuFlyoutSeparator />
+                                                                <MenuFlyoutItem Text="Move up" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupUpClick" IsEnabled="{x:Bind CanMoveUp, Mode=OneWay}" />
+                                                                <MenuFlyoutItem Text="Move down" Tag="{x:Bind Name, Mode=OneWay}" Click="OnGroupDownClick" IsEnabled="{x:Bind CanMoveDown, Mode=OneWay}" />
+                                                            </MenuFlyout>
+                                                        </Button.Flyout>
+                                                    </Button>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </local:FlowRowTemplateSelector.GroupTemplate>
+                                        <local:FlowRowTemplateSelector.FlowTemplate>
+                                        <DataTemplate x:DataType="vm:FlowItemViewModel">
+                                          <!-- Members of a group sit 24 DIP in, on a thin rail. -->
+                                          <Border Margin="{x:Bind local:RowFormat.Indent(InGroup), Mode=OneWay}" Padding="{x:Bind local:RowFormat.RailPadding(InGroup), Mode=OneWay}"
+                                                  BorderThickness="{x:Bind local:RowFormat.Rail(InGroup), Mode=OneWay}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
+                                            <!-- A click anywhere but the switch and Run opens the flow; so do Enter and Space on the card (D-070). -->
+                                            <local:FlowCard Tag="{x:Bind Id}" CanDrag="{x:Bind CanReorder, Mode=OneWay}" DragStarting="OnFlowDragStarting" DropCompleted="OnDragCompleted"
+                                                            SelectKey="OnFlowCardSelectKey" MoveRequested="OnFlowCardMoveRequested" TakeOutRequested="OnFlowCardTakeOutRequested" Invoked="OnFlowCardInvoked" DeleteRequested="OnFlowCardDeleteRequested" CornerRadius="{ThemeResource OverlayCornerRadius}"
+                                                                AutomationProperties.Name="{x:Bind Summary, Mode=OneWay}">
+                                                    <local:FlowCard.ContextFlyout>
+                                                        <MenuFlyout Opening="OnFlowMenuOpening">
+                                                            <MenuFlyoutItem Text="Open" AutomationProperties.AutomationId="OneFlowOnly" Tag="{x:Bind Id}" Click="OnFlowOpenClick">
+                                                                <MenuFlyoutItem.Icon>
+                                                                    <FontIcon Glyph="&#xE70F;" />
+                                                                </MenuFlyoutItem.Icon>
+                                                            </MenuFlyoutItem>
+                                                            <MenuFlyoutItem AutomationProperties.AutomationId="OneFlowOnly" Text="{x:Bind RunText, Mode=OneWay}" Command="{x:Bind RunCommand}">
+                                                                <MenuFlyoutItem.Icon>
+                                                                    <FontIcon Glyph="&#xE768;" />
+                                                                </MenuFlyoutItem.Icon>
+                                                            </MenuFlyoutItem>
+                                                            <MenuFlyoutSeparator />
+                                                            <MenuFlyoutItem Text="Move up" AutomationProperties.AutomationId="OneFlowOnly" Tag="{x:Bind Id}" Click="OnFlowMoveUpClick" IsEnabled="{x:Bind CanReorder, Mode=OneWay}" KeyboardAcceleratorTextOverride="Alt+Up">
+                                                                <MenuFlyoutItem.Icon>
+                                                                    <FontIcon Glyph="&#xE74A;" />
+                                                                </MenuFlyoutItem.Icon>
+                                                            </MenuFlyoutItem>
+                                                            <MenuFlyoutItem Text="Move down" AutomationProperties.AutomationId="OneFlowOnly" Tag="{x:Bind Id}" Click="OnFlowMoveDownClick" IsEnabled="{x:Bind CanReorder, Mode=OneWay}" KeyboardAcceleratorTextOverride="Alt+Down">
+                                                                <MenuFlyoutItem.Icon>
+                                                                    <FontIcon Glyph="&#xE74B;" />
+                                                                </MenuFlyoutItem.Icon>
+                                                            </MenuFlyoutItem>
+                                                            <!-- "Move to ›" is filled when the menu opens (the groups change). -->
+                                                            <MenuFlyoutSubItem Text="Move to" IsEnabled="{x:Bind CanReorder, Mode=OneWay}">
+                                                                <MenuFlyoutSubItem.Icon>
+                                                                    <FontIcon Glyph="&#xE8B7;" />
+                                                                </MenuFlyoutSubItem.Icon>
+                                                            </MenuFlyoutSubItem>
+                                                            <MenuFlyoutItem Text="Duplicate" AutomationProperties.AutomationId="FlowDuplicate" Tag="{x:Bind Id}" Click="OnFlowDuplicateClick"
+                                                                            IsEnabled="{x:Bind CanDelete, Mode=OneWay}">
+                                                                <MenuFlyoutItem.Icon>
+                                                                    <FontIcon Glyph="&#xE8C8;" />
+                                                                </MenuFlyoutItem.Icon>
+                                                            </MenuFlyoutItem>
+                                                            <ToggleMenuFlyoutItem Text="Show in tray menu" AutomationProperties.AutomationId="FlowTrayShow" Tag="{x:Bind Id}" Click="OnFlowTrayShowClick" />
+                                                            <ToggleMenuFlyoutItem Text="Line above in tray" AutomationProperties.AutomationId="FlowTrayLine" Tag="{x:Bind Id}" Click="OnFlowTrayLineClick" />
+                                                            <MenuFlyoutSeparator />
+                                                            <MenuFlyoutItem AutomationProperties.AutomationId="OneFlowOnly" Text="{x:Bind DesktopMenuText, Mode=OneWay}" Tag="{x:Bind Id}" Click="OnFlowDesktopClick"
+                                                                            IsEnabled="{x:Bind CanChangeDesktop, Mode=OneWay}">
+                                                                <MenuFlyoutItem.Icon>
+                                                                    <FontIcon Glyph="&#xE8A7;" />
+                                                                </MenuFlyoutItem.Icon>
+                                                            </MenuFlyoutItem>
+                                                            <MenuFlyoutSeparator />
+                                                            <MenuFlyoutItem Text="Delete" AutomationProperties.AutomationId="FlowDelete" Tag="{x:Bind Id}" Click="OnFlowDeleteClick"
+                                                                            IsEnabled="{x:Bind CanDelete, Mode=OneWay}">
+                                                                <MenuFlyoutItem.Icon>
+                                                                    <FontIcon Glyph="&#xE74D;" />
+                                                                </MenuFlyoutItem.Icon>
+                                                            </MenuFlyoutItem>
+                                                            <!-- #68: why Delete is off, as a greyed line under it. -->
+                                                            <MenuFlyoutItem AutomationProperties.AutomationId="FlowDeleteReason" Text="{x:Bind DeleteOffReason, Mode=OneWay}" IsEnabled="False"
+                                                                            Visibility="{x:Bind HasDeleteOffReason, Mode=OneWay}" />
+                                                        </MenuFlyout>
+                                                    </local:FlowCard.ContextFlyout>
+                                                <!-- Layout (spacing scale 4/8/12/16): grip | icon tile | name + status | problems | tray/desktop/used-by slots | On | Run.
+                                                     The slots, the switch and Run have fixed widths, so every row lines up; the grip and the
+                                                     slot icons are always laid out and only fade (opacity), so nothing moves on hover. -->
+                                                <Grid Style="{StaticResource SettingsCard}" Tag="{x:Bind Id}" Tapped="OnFlowCardTapped" ColumnSpacing="12" Padding="8,12,16,12"
+                                                      BorderBrush="{x:Bind local:RowFormat.SelectBorder(IsSelected), Mode=OneWay}"
+                                                      Loaded="OnFlowRowLoaded" PointerEntered="OnFlowCardPointerEntered" PointerExited="OnFlowCardPointerExited">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="16" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="96" />
+                                                        <ColumnDefinition Width="80" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <!-- Drag grip: shows on hover for rows that can be dragged; its tooltip says why not otherwise. -->
+                                                    <FontIcon x:Name="Grip" Glyph="&#xE784;" FontSize="12" Opacity="{x:Bind local:RowFormat.Grip(IsHovered, CanReorder), Mode=OneWay}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AccessibilityView="Raw"
+                                                              ToolTipService.ToolTip="{x:Bind DragTip, Mode=OneWay}">
+                                                    </FontIcon>
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                                        <CheckBox IsChecked="{x:Bind IsSelected, Mode=OneWay}" Tag="{x:Bind Id}" Click="OnFlowCheckClick" MinWidth="0" Padding="0"
+                                                                  Visibility="{x:Bind ShowCheck, Mode=OneWay}" IsTabStop="False" AutomationProperties.Name="{x:Bind Name, Mode=OneWay}" />
+                                                        <Border Width="40" Height="40" CornerRadius="8" Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
+                                                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
+                                                            <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}" Style="{StaticResource SettingsCardIcon}" FontSize="18"
+                                                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Opacity="{x:Bind local:RowFormat.Dim(IsEnabled), Mode=OneWay}" />
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                                                        <TextBlock Text="{x:Bind Name, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                                                   Opacity="{x:Bind local:RowFormat.Dim(IsEnabled), Mode=OneWay}" />
+                                                        <!-- A grid, not a stack: the last-run text gets the room that is left and trims with an ellipsis (F-014). -->
+                                                        <Grid ColumnSpacing="6">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{x:Bind CaptionLead, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxWidth="150"
+                                                                       ToolTipService.ToolTip="{x:Bind ShortcutTip, Mode=OneWay}" />
+                                                            <!-- Status dot: one ellipse per state, faded in or out, so the colours follow the theme and high contrast. -->
+                                                            <Grid Grid.Column="1" Width="8" Height="8" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw" Visibility="{x:Bind HasDot, Mode=OneWay}">
+                                                                <Ellipse Fill="{ThemeResource SystemFillColorSuccessBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 2), Mode=OneWay}" />
+                                                                <Ellipse Fill="{ThemeResource SystemFillColorCautionBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 3), Mode=OneWay}" />
+                                                                <Ellipse Fill="{ThemeResource SystemFillColorCriticalBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 4), Mode=OneWay}" />
+                                                                <Ellipse Fill="{ThemeResource AccentFillColorDefaultBrush}" Opacity="{x:Bind local:RowFormat.Dot(State, 1), Mode=OneWay}" />
+                                                            </Grid>
+                                                            <TextBlock Grid.Column="2" Text="{x:Bind CaptionRun, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                                                        </Grid>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                                                Visibility="{x:Bind HasProblems, Mode=OneWay}">
+                                                        <FontIcon Glyph="&#xEA39;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                                        <TextBlock Text="{x:Bind Problems, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" />
+                                                    </StackPanel>
+                                                    <!-- Five fixed 28-DIP slots (DESIGN Part D, M20): on a schedule, on an event, not in the tray menu, on the desktop, used by other flows.
+                                                         An empty slot stays empty, so the same column always means the same thing. -->
+                                                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+<Grid Width="28" Height="28" IsHitTestVisible="{x:Bind HasScheduleChip, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind TriggersTip, Mode=OneWay}"
+                                                              AutomationProperties.Name="{x:Bind TriggersTip, Mode=OneWay}" AutomationProperties.AccessibilityView="{x:Bind local:RowFormat.View(HasScheduleChip), Mode=OneWay}">
+                                                            <FontIcon Glyph="&#xE121;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                      Opacity="{x:Bind local:RowFormat.Show(HasScheduleChip), Mode=OneWay}" />
+                                                        </Grid>
+                                                        <Grid Width="28" Height="28" IsHitTestVisible="{x:Bind HasEventChip, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind TriggersTip, Mode=OneWay}"
+                                                              AutomationProperties.Name="{x:Bind TriggersTip, Mode=OneWay}" AutomationProperties.AccessibilityView="{x:Bind local:RowFormat.View(HasEventChip), Mode=OneWay}">
+                                                            <FontIcon Glyph="&#xE945;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                      Opacity="{x:Bind local:RowFormat.Show(HasEventChip), Mode=OneWay}" />
+                                                        </Grid>
+                                                        <StackPanel Orientation="Horizontal" AutomationProperties.AccessibilityView="Raw">
+                                                        <Grid Width="28" Height="28" IsHitTestVisible="{x:Bind NotInTray, Mode=OneWay}" ToolTipService.ToolTip="Not in the tray menu">
+                                                            <FontIcon Glyph="&#xE7B3;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                      Opacity="{x:Bind local:RowFormat.Show(NotInTray), Mode=OneWay}" />
+                                                        </Grid>
+                                                        <Grid Width="28" Height="28" IsHitTestVisible="{x:Bind HasDesktopShortcut, Mode=OneWay}" ToolTipService.ToolTip="On your desktop">
+                                                            <FontIcon Glyph="&#xE8A7;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                      Opacity="{x:Bind local:RowFormat.Show(HasDesktopShortcut), Mode=OneWay}" />
+                                                        </Grid>
+                                                        <Grid Width="28" Height="28" IsHitTestVisible="{x:Bind HasUsedBy, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind UsedBy, Mode=OneWay}"
+                                                              AutomationProperties.Name="{x:Bind UsedBy, Mode=OneWay}" AutomationProperties.AccessibilityView="{x:Bind local:RowFormat.View(HasUsedBy), Mode=OneWay}">
+                                                            <FontIcon Glyph="&#xE71B;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                      Opacity="{x:Bind local:RowFormat.Show(HasUsedBy), Mode=OneWay}" />
+                                                        </Grid>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    <ToggleSwitch Grid.Column="5" IsOn="{x:Bind IsEnabled, Mode=TwoWay}" IsEnabled="{x:Bind CanEdit, Mode=OneWay}" MinWidth="0" HorizontalAlignment="Left"
+                                                                  OnContent="On" OffContent="Off" AutomationProperties.Name="{x:Bind ToggleName, Mode=OneWay}" />
+                                                    <!-- The host carries the tooltip, so the reason shows while Run is off (#62), and keeps a
+                                                         click on the off button from opening the flow. -->
+                                                    <Border Grid.Column="6" Background="Transparent" VerticalAlignment="Center" Tapped="OnRunHostTapped"
+                                                            ToolTipService.ToolTip="{x:Bind RunTip, Mode=OneWay}">
+                                                        <Button Command="{x:Bind RunCommand}" Content="{x:Bind RunText, Mode=OneWay}" HorizontalAlignment="Stretch"
+                                                                AutomationProperties.Name="{x:Bind RunName, Mode=OneWay}"
+                                                                AutomationProperties.HelpText="{x:Bind RunTip, Mode=OneWay}" />
+                                                    </Border>
+                                                </Grid>
+                                            </local:FlowCard>
+                                          </Border>
+                                        </DataTemplate>
+                                        </local:FlowRowTemplateSelector.FlowTemplate>
+                                      </local:FlowRowTemplateSelector>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                                <!-- Drop cues (DESIGN B2): a 2-px insertion line, or an outline round the header that takes the drop. -->
+                                <Border x:Name="DropLine" Height="2" VerticalAlignment="Top" HorizontalAlignment="Stretch" Visibility="Collapsed" IsHitTestVisible="False"
+                                        Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="1" />
+                                <Border x:Name="DropBox" VerticalAlignment="Top" HorizontalAlignment="Stretch" Visibility="Collapsed" IsHitTestVisible="False"
+                                        BorderThickness="2" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="{ThemeResource OverlayCornerRadius}" />
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Library (UX §5.1) -->
+                            <StackPanel x:Name="LibraryPage" Grid.Row="1" Spacing="4" Visibility="Collapsed">
+                                <TextBlock Text="Library" Style="{StaticResource PageTitle}" />
+                                <TextBlock Text="Your devices, screen layouts and programs, named once and used by any flow."
+                                           Style="{StaticResource SettingsCardDescription}" />
+                                <library:LibraryView x:Name="LibraryViewControl" />
+                            </StackPanel>
+
+                            <!-- Settings -->
+                            <StackPanel x:Name="SettingsPage" Grid.Row="1" Spacing="4" Visibility="Collapsed" motion:Motion.Animate="True">
+                                <TextBlock Text="Settings" Style="{StaticResource PageTitle}" />
+
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE7E8;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Start with Windows" />
+                                        <TextBlock Text="{x:Bind ViewModel.Settings.StartWithWindowsNote, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="2" MinWidth="0" AutomationProperties.Name="Start with Windows"
+                                                  IsEnabled="{x:Bind ViewModel.Settings.CanChangeStartWithWindows, Mode=OneWay}"
+                                                  IsOn="{x:Bind ViewModel.Settings.StartWithWindows, Mode=TwoWay}" />
+                                </Grid>
+
+                                <TextBlock Text="Pop-up" Style="{StaticResource SettingsSection}" />
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE7F4;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Position" />
+                                        <TextBlock Text="Where a run's pop-up shows on your main display" Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <ComboBox Grid.Column="2" MinWidth="160" AutomationProperties.Name="Pop-up position"
+                                              IsEnabled="{x:Bind ViewModel.Settings.CanEdit, Mode=OneWay}"
+                                              SelectedIndex="{x:Bind ViewModel.Settings.PopupPositionIndex, Mode=TwoWay}">
+                                        <!-- PopupPosition's order -->
+                                        <x:String>Bottom centre</x:String>
+                                        <x:String>Top centre</x:String>
+                                        <x:String>Top left</x:String>
+                                        <x:String>Top right</x:String>
+                                        <x:String>Bottom left</x:String>
+                                        <x:String>Bottom right</x:String>
+                                    </ComboBox>
+                                </Grid>
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE916;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Hide after" />
+                                        <TextBlock Text="Seconds it stays after a run ends. Failures stay until you close them." Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <NumberBox x:Name="SecondsBox" Grid.Column="2" MinWidth="120" SpinButtonPlacementMode="Inline"
+                                               AutomationProperties.Name="Hide the pop-up after, seconds"
+                                               IsEnabled="{x:Bind ViewModel.Settings.CanEdit, Mode=OneWay}"
+                                               Value="{x:Bind ViewModel.Settings.PopupSeconds, Mode=TwoWay}" />
+                                </Grid>
+
+                                <TextBlock Text="Step defaults" Style="{StaticResource SettingsSection}" />
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE713;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="How long and how often steps try" />
+                                        <TextBlock Style="{StaticResource SettingsCardDescription}"
+                                                   Text="A step that sets its own value keeps it." />
+                                    </StackPanel>
+                                    <DropDownButton Grid.Column="2" Content="Add a step type…"
+                                                    AutomationProperties.Name="Add defaults for a step type"
+                                                    IsEnabled="{x:Bind ViewModel.Settings.CanEdit, Mode=OneWay}">
+                                        <DropDownButton.Flyout>
+                                            <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="OnAddDefaultOpening" />
+                                        </DropDownButton.Flyout>
+                                    </DropDownButton>
+                                </Grid>
+                                <TextBlock x:Name="StepDefaultsEmpty" Style="{StaticResource SettingsCardDescription}" Margin="16,4,0,4"
+                                           Text="Set how long and how often steps try, once for every step of a type." />
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Settings.StepDefaults.Rows}" TabFocusNavigation="Local">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="4" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:StepDefaultRow">
+                                            <Grid Style="{StaticResource SettingsCard}" AutomationProperties.Name="{x:Bind Title}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <FontIcon Glyph="{x:Bind Glyph}" Style="{StaticResource SettingsCardIcon}" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind Title}" />
+                                                    <TextBlock Text="{x:Bind Summary, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
+                                                    <TextBlock Text="{x:Bind UsedBy, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}" />
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Content="Edit" VerticalAlignment="Center"
+                                                        AutomationProperties.Name="{x:Bind EditName}"
+                                                        IsEnabled="{x:Bind CanEdit, Mode=OneWay}">
+                                                    <Button.Flyout>
+                                                        <Flyout Placement="BottomEdgeAlignedRight">
+                                                            <StackPanel Width="340" Spacing="12">
+                                                                <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                                <Grid ColumnSpacing="8">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <NumberBox Header="Give up after (seconds)" PlaceholderText="Built-in" Minimum="0.1" Maximum="86400"
+                                                                               SpinButtonPlacementMode="Inline" SmallChange="1" LargeChange="10"
+                                                                               AutomationProperties.Name="Give up after, seconds"
+                                                                               Value="{x:Bind TimeoutSeconds, Mode=TwoWay}" />
+                                                                    <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Reset" Tag="{x:Bind}" Click="OnResetTimeout"
+                                                                            AutomationProperties.Name="Reset give up after to the built-in value" />
+                                                                </Grid>
+                                                                <Grid ColumnSpacing="8">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <NumberBox Header="Try again (times)" PlaceholderText="0" Minimum="0" Maximum="10"
+                                                                               SpinButtonPlacementMode="Inline"
+                                                                               AutomationProperties.Name="Try again, times"
+                                                                               Value="{x:Bind RetryCount, Mode=TwoWay}" />
+                                                                    <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Reset" Tag="{x:Bind}" Click="OnResetRetryCount"
+                                                                            AutomationProperties.Name="Reset try again to the built-in value" />
+                                                                </Grid>
+                                                                <Grid ColumnSpacing="8">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <NumberBox Header="Wait between tries (seconds)" PlaceholderText="Built-in" Minimum="0" Maximum="3600"
+                                                                               SpinButtonPlacementMode="Inline" SmallChange="1"
+                                                                               AutomationProperties.Name="Wait between tries, seconds"
+                                                                               Value="{x:Bind RetryDelaySeconds, Mode=TwoWay}" />
+                                                                    <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Reset" Tag="{x:Bind}" Click="OnResetRetryDelay"
+                                                                            AutomationProperties.Name="Reset wait between tries to the built-in value" />
+                                                                </Grid>
+                                                                <Grid ColumnSpacing="8">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <ComboBox Header="If it fails" HorizontalAlignment="Stretch" PlaceholderText="Stop the flow"
+                                                                              AutomationProperties.Name="If it fails"
+                                                                              SelectedIndex="{x:Bind PolicyIndex, Mode=TwoWay}">
+                                                                        <!-- FailurePolicy's order -->
+                                                                        <x:String>Stop the flow</x:String>
+                                                                        <x:String>Skip what follows</x:String>
+                                                                        <x:String>Run the next steps anyway</x:String>
+                                                                    </ComboBox>
+                                                                    <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Reset" Tag="{x:Bind}" Click="OnResetPolicy"
+                                                                            AutomationProperties.Name="Reset if it fails to the built-in value" />
+                                                                </Grid>
+                                                                <Grid ColumnSpacing="8" Visibility="{x:Bind HasOnly}">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <ComboBox Header="Only if" HorizontalAlignment="Stretch" PlaceholderText="Always"
+                                                                              AutomationProperties.Name="Only if" ItemsSource="{x:Bind OnlyOptions}"
+                                                                              SelectedIndex="{x:Bind OnlyIndex, Mode=TwoWay}" />
+                                                                    <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Reset" Tag="{x:Bind}" Click="OnResetOnly"
+                                                                            AutomationProperties.Name="Reset only if to the built-in value" />
+                                                                </Grid>
+                                                            </StackPanel>
+                                                        </Flyout>
+                                                    </Button.Flyout>
+                                                </Button>
+                                                <Button Grid.Column="3" Tag="{x:Bind}" Click="OnRemoveDefault"
+                                                        AutomationProperties.Name="{x:Bind RemoveName}"
+                                                        ToolTipService.ToolTip="Remove these defaults"
+                                                        IsEnabled="{x:Bind CanEdit, Mode=OneWay}" Style="{StaticResource IconButton}">
+                                                    <FontIcon Glyph="&#xE74D;" FontSize="14" />
+                                                </Button>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <TextBlock Text="Appearance" Style="{StaticResource SettingsSection}" />
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE790;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Theme" />
+                                        <TextBlock Text="Light or dark follows Windows." Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <HyperlinkButton Grid.Column="2" Content="Change in Windows settings" Tag="ms-settings:colors" Click="OnOpenWindowsSettings"
+                                                     AutomationProperties.Name="Change the theme in Windows settings" />
+                                </Grid>
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE8E9;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Text size" />
+                                        <TextBlock Text="Text follows the Windows text size." Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <HyperlinkButton Grid.Column="2" Content="Change in Windows settings" Tag="ms-settings:easeofaccess-display" Click="OnOpenWindowsSettings"
+                                                     AutomationProperties.Name="Change the text size in Windows settings" />
+                                </Grid>
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE7B3;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Animation effects" />
+                                        <TextBlock Text="Motion is off when Windows animation effects are off." Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <HyperlinkButton Grid.Column="2" Content="Change in Windows settings" Tag="ms-settings:easeofaccess-visualeffects" Click="OnOpenWindowsSettings"
+                                                     AutomationProperties.Name="Change animation effects in Windows settings" />
+                                </Grid>
+
+                                <backup:BackupCardView ViewModel="{x:Bind ViewModel.Backup}" />
+                            </StackPanel>
+
+                            <!-- About -->
+                            <StackPanel x:Name="AboutPage" Grid.Row="1" Spacing="4" Visibility="Collapsed" motion:Motion.Animate="True">
+                                <TextBlock Text="About" Style="{StaticResource PageTitle}" />
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Image Source="ms-appx:///Assets/app.png" Width="40" Height="40" Margin="0,0,16,0" VerticalAlignment="Center"
+                                           AutomationProperties.AccessibilityView="Raw" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Ctrl Alt Daze" />
+                                        <TextBlock x:Name="VersionText" Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="Copy details" Click="OnCopyDetails" />
+                                </Grid>
+
+                                <TextBlock Text="Updates" Style="{StaticResource SettingsSection}" />
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE9F5;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Updates to follow" />
+                                        <TextBlock Text="{x:Bind ViewModel.Updates.ChannelNote}" Style="{StaticResource SettingsCardDescription}" />
+                                    </StackPanel>
+                                    <ComboBox Grid.Column="2" MinWidth="180" AutomationProperties.Name="Updates to follow"
+                                              SelectedIndex="{x:Bind ViewModel.Updates.ChannelIndex, Mode=TwoWay}">
+                                        <!-- UpdateChannel's order -->
+                                        <x:String>Stable</x:String>
+                                        <x:String>Release candidates</x:String>
+                                    </ComboBox>
+                                </Grid>
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE895;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Automatic updates" />
+                                        <TextBlock Text="{x:Bind ViewModel.Updates.Status, Mode=OneWay}" Style="{StaticResource SettingsCardDescription}"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </StackPanel>
+                                    <!-- One fixed slot: Check for updates and Install sit side by side; Install is only enabled once something can be installed. -->
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <Button Content="Check for updates" Click="OnCheckForUpdates"
+                                                IsEnabled="{x:Bind ViewModel.Updates.CanCheck, Mode=OneWay}" />
+                                        <Button Content="Install" Click="OnRestartForUpdate" Style="{StaticResource PrimaryButton}"
+                                                IsEnabled="{x:Bind ViewModel.Updates.CanRestart, Mode=OneWay}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <TextBlock Text="Files" Style="{StaticResource SettingsSection}" />
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE8A5;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Configuration" />
+                                        <TextBlock Text="{x:Bind ViewModel.Settings.ConfigPath}" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="Open file" Click="OnOpenConfigFile"
+                                            ToolTipService.ToolTip="Open the configuration file in its default app" />
+                                </Grid>
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE9D9;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Logs" />
+                                        <TextBlock Text="{x:Bind ViewModel.Settings.LogsFolder}" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="Open folder" Click="OnOpenLogsFolder" />
+                                </Grid>
+                                <Grid Style="{StaticResource SettingsCard}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xE8B7;" Style="{StaticResource SettingsCardIcon}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="App folder" />
+                                        <TextBlock x:Name="AppFolderText" Style="{StaticResource SettingsCardDescription}" IsTextSelectionEnabled="True" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="Open folder" Click="OnOpenAppFolder" />
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </ScrollViewer>
+
+                <!-- Runs (UX §5.5): its own list and detail scroll, so it sits outside the pages' scroller. -->
+                <Grid x:Name="RunsPage" Grid.Row="1" Padding="36,0,36,16" RowSpacing="8" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Runs" Style="{StaticResource PageTitle}" />
+                    <runs:RunsView x:Name="RunsViewControl" Grid.Row="1" />
+                </Grid>
+
+                <!-- Flow editor (UX §5.1): Flows › name, commands, palette, canvas or outline. The inspector comes with M8. -->
+                <!-- Hidden: with Auto, WinUI shows the accelerator's keys as a tooltip of the whole page (X-008). -->
+                <Grid x:Name="FlowEditorPage" Grid.Row="1" Visibility="Collapsed" KeyboardAcceleratorPlacementMode="Hidden">
+                    <Grid.KeyboardAccelerators>
+                        <!-- Here, not on the Save button: it must also work while Save is still off (a text box not committed yet). -->
+                        <KeyboardAccelerator Modifiers="Control" Key="S" Invoked="OnSaveAccelerator" />
+                    </Grid.KeyboardAccelerators>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid Margin="36,0,16,4" ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <BreadcrumbBar x:Name="FlowBreadcrumb" VerticalAlignment="Center" ItemClicked="OnBreadcrumbClicked" />
+                        <!-- Save / Cancel (D-047): flow edits are a draft until Save. -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <!-- Unsaved edits: a dot in a slot that is always there (no text, nothing moves, D-141); Save turns enabled as well. -->
+                            <Grid x:Name="DraftSlot" Width="12" Height="12" VerticalAlignment="Center" Background="Transparent">
+                                <Ellipse x:Name="DraftDot" Width="8" Height="8" Opacity="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+                            </Grid>
+                            <Button x:Name="SaveButton" Content="Save" Style="{StaticResource PrimaryButton}" IsEnabled="False" Click="OnSaveFlow"
+                                    ToolTipService.ToolTip="Save your changes to this flow (Ctrl+S)" AutomationProperties.AcceleratorKey="Control+S" />
+                            <Button x:Name="CancelButton" Content="Cancel" IsEnabled="False" Click="OnCancelFlow"
+                                    ToolTipService.ToolTip="Throw away your changes since the last save. Layout and view choices stay." />
+                        </StackPanel>
+                        <CommandBar Grid.Column="2" HorizontalAlignment="Right" DefaultLabelPosition="Right" Background="Transparent" IsDynamicOverflowEnabled="True">
+                            <!-- Runs (UX §5.5): Run / Dry run, or "Running · 2 of 4" + Stop while it runs. -->
+                            <AppBarButton x:Name="RunButton" Label="Run" ToolTipService.ToolTip="Run this flow now" Click="OnRun">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE768;" /></AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarButton x:Name="DryRunButton" Label="Dry run" ToolTipService.ToolTip="Show the order steps would start in, without doing them" Click="OnDryRun">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE7B3;" /></AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarElementContainer x:Name="RunStatusItem" Visibility="Collapsed" VerticalContentAlignment="Center">
+                                <TextBlock x:Name="RunStatusText" Margin="8,0" VerticalAlignment="Center" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            </AppBarElementContainer>
+                            <AppBarButton x:Name="StopButton" Label="Stop" Visibility="Collapsed" ToolTipService.ToolTip="Stop this run" Click="OnStopRun">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE71A;" /></AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarSeparator />
+                            <AppBarButton x:Name="UndoButton" Label="Undo" LabelPosition="Collapsed" ToolTipService.ToolTip="Undo (Ctrl+Z)" Click="OnUndo" IsEnabled="False">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE7A7;" /></AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarButton x:Name="RedoButton" Label="Redo" LabelPosition="Collapsed" ToolTipService.ToolTip="Redo (Ctrl+Y)" Click="OnRedo" IsEnabled="False">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE7A6;" /></AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarSeparator />
+                            <AppBarToggleButton x:Name="PaletteToggle" Label="Steps" ToolTipService.ToolTip="Show or hide the list of steps" IsChecked="True" Click="OnTogglePalette">
+                                <AppBarToggleButton.Icon><FontIcon Glyph="&#xE8A0;" /></AppBarToggleButton.Icon>
+                            </AppBarToggleButton>
+                            <AppBarToggleButton x:Name="CanvasViewButton" Label="Canvas" IsChecked="True" Click="OnShowCanvas">
+                                <AppBarToggleButton.Icon><FontIcon Glyph="&#xE8FD;" /></AppBarToggleButton.Icon>
+                            </AppBarToggleButton>
+                            <AppBarToggleButton x:Name="OutlineViewButton" Label="Outline" ToolTipService.ToolTip="Steps as a list, in run order" Click="OnShowOutline">
+                                <AppBarToggleButton.Icon><FontIcon Glyph="&#xE8A4;" /></AppBarToggleButton.Icon>
+                            </AppBarToggleButton>
+                            <AppBarSeparator />
+                            <!-- Layout (D-067, UX #63): per flow on this PC; the items are built when it opens. -->
+                            <AppBarButton x:Name="LayoutButton" Label="Layout" ToolTipService.ToolTip="How this flow is laid out">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE8CB;" /></AppBarButton.Icon>
+                                <AppBarButton.Flyout>
+                                    <MenuFlyout x:Name="LayoutMenu" Placement="BottomEdgeAlignedLeft" Opening="OnLayoutMenuOpening" Closed="OnLayoutMenuClosed" />
+                                </AppBarButton.Flyout>
+                            </AppBarButton>
+                            <AppBarSeparator />
+                            <!-- Problems (n) (UX §5.1): pick one to select its step; the inspector shows what to fix. -->
+                            <AppBarButton x:Name="ProblemsButton" Label="Problems (0)" ToolTipService.ToolTip="What needs fixing in this flow">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE7BA;" /></AppBarButton.Icon>
+                                <AppBarButton.Flyout>
+                                    <Flyout x:Name="ProblemsFlyout" Placement="BottomEdgeAlignedRight">
+                                        <Grid MinWidth="320" MaxWidth="440">
+                                            <TextBlock x:Name="NoProblemsText" Text="Nothing to fix in this flow." Margin="4,8"
+                                                       Style="{StaticResource SettingsCardDescription}" />
+                                            <ListView x:Name="ProblemsList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnProblemClick"
+                                                      AutomationProperties.Name="Problems" MaxHeight="400">
+                                                <ListView.ItemTemplate>
+                                                    <DataTemplate x:DataType="vmc:ProblemItem">
+                                                        <Grid ColumnSpacing="12" Padding="0,8" AutomationProperties.Name="{x:Bind AutomationName}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" VerticalAlignment="Top" Margin="0,2,0,0"
+                                                                      Foreground="{x:Bind local:ShellWindow.ProblemBrush(IsError)}" />
+                                                            <StackPanel Grid.Column="1">
+                                                                <TextBlock Text="{x:Bind Where}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                                <TextBlock Text="{x:Bind Message}" TextWrapping="Wrap" Style="{StaticResource SettingsCardDescription}" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListView.ItemTemplate>
+                                            </ListView>
+                                        </Grid>
+                                    </Flyout>
+                                </AppBarButton.Flyout>
+                            </AppBarButton>
+                            <AppBarSeparator />
+                            <AppBarButton Label="Fit" ToolTipService.ToolTip="Fit to window (Ctrl+0)" Click="OnFit">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE9A6;" /></AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarButton Label="Zoom out" LabelPosition="Collapsed" ToolTipService.ToolTip="Zoom out (Ctrl+wheel)" Click="OnZoomOut">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE71F;" /></AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarButton x:Name="ZoomButton" Label="100 %" ToolTipService.ToolTip="Actual size (Ctrl+1)" Click="OnActualSize">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE71E;" /></AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarButton Label="Zoom in" LabelPosition="Collapsed" ToolTipService.ToolTip="Zoom in (Ctrl+wheel)" Click="OnZoomIn">
+                                <AppBarButton.Icon><FontIcon Glyph="&#xE8A3;" /></AppBarButton.Icon>
+                            </AppBarButton>
+                        </CommandBar>
+                    </Grid>
+                    <!-- A run on the canvas: "You can edit again when this run finishes" (§5.7 #22), then how it went. -->
+                    <!-- Overlay over the canvas column only (palette 240 left, inspector 320 right), so it never covers the
+                         search box or inspector. InfoBar fills are translucent by design, hence the opaque host with a border. -->
+                    <Border x:Name="RunInfoHost" Grid.Row="2" VerticalAlignment="Top" HorizontalAlignment="Stretch" Canvas.ZIndex="10"
+                            Margin="252,8,332,0" Visibility="Collapsed" CornerRadius="{StaticResource ControlCornerRadius}"
+                            Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                        <InfoBar x:Name="RunInfo" Closed="OnRunInfoClosed" />
+                    </Border>
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <!-- Inspector (UX §5.4): 320 wide right of the canvas. -->
+                        <inspector:InspectorPane x:Name="InspectorPaneControl" Grid.Column="2" Width="320" TabIndex="3"
+                                                 GotFocus="OnInspectorGotFocus" LostFocus="OnInspectorLostFocus" />
+
+                        <!-- Palette (UX §5.1): 240 wide, search, step types by area; click or drag onto the canvas. -->
+                        <Grid x:Name="PalettePane" TabIndex="1" Width="240" Padding="12,4,12,0" RowSpacing="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <AutoSuggestBox x:Name="PaletteSearch" PlaceholderText="Search steps" QueryIcon="Find"
+                                            AutomationProperties.Name="Search steps" TextChanged="OnPaletteSearchChanged" />
+                            <ListView x:Name="PaletteList" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True" CanDragItems="True"
+                                      AutomationProperties.Name="Steps" ItemClick="OnPaletteItemClick" DragItemsStarting="OnPaletteDragStarting">
+                                <ListView.GroupStyle>
+                                    <GroupStyle>
+                                        <GroupStyle.HeaderTemplate>
+                                            <DataTemplate x:DataType="vmc:PaletteGroup">
+                                                <TextBlock Text="{x:Bind Area}" Style="{StaticResource BodyStrongTextBlockStyle}" AutomationProperties.Name="{x:Bind Area}" />
+                                            </DataTemplate>
+                                        </GroupStyle.HeaderTemplate>
+                                    </GroupStyle>
+                                </ListView.GroupStyle>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="vmc:PaletteItem">
+                                        <StackPanel Orientation="Horizontal" Spacing="12" AutomationProperties.Name="{x:Bind Name}"
+                                                    ToolTipService.ToolTip="Click to add after the selected step, or drag onto the canvas">
+                                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" />
+                                            <TextBlock Text="{x:Bind Title}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <TextBlock x:Name="PaletteEmpty" Grid.Row="1" Visibility="Collapsed" Text="No steps match." Margin="4,8"
+                                       Style="{StaticResource SettingsCardDescription}" />
+                        </Grid>
+                        <Border Grid.Column="1" TabIndex="2" BorderThickness="1,1,0,0" CornerRadius="8,0,0,0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                            <Grid>
+                                <canvas:FlowCanvas x:Name="FlowCanvasControl" />
+                                <!-- Outline (UX §5.2): the keyboard and screen-reader equivalent of the canvas. -->
+                                <TreeView x:Name="OutlineTree" Visibility="Collapsed" Padding="16,8" SelectionMode="Single" CanDragItems="False"
+                                          AllowDrop="False" CanReorderItems="False" AutomationProperties.Name="Steps in run order"
+                                          SelectionChanged="OnOutlineSelectionChanged"
+                                          PreviewKeyDown="OnOutlineKeyDown" ContextRequested="OnOutlineContextRequested">
+                                    <TreeView.ItemTemplate>
+                                        <DataTemplate x:DataType="vmc:OutlineItem">
+                                            <TreeViewItem ItemsSource="{x:Bind Children}" IsExpanded="True" AutomationProperties.Name="{x:Bind AutomationName}">
+                                                <StackPanel Padding="0,6">
+                                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                                        <FontIcon Glyph="{x:Bind Glyph}" FontSize="16" />
+                                                        <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                        <TextBlock Text="{x:Bind Summary}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="{x:Bind Detail}" Margin="28,2,0,0" Style="{StaticResource SettingsCardDescription}" />
+                                                </StackPanel>
+                                            </TreeViewItem>
+                                        </DataTemplate>
+                                    </TreeView.ItemTemplate>
+                                </TreeView>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </NavigationView>
+    </Grid>
+</Window>

@@ -1,9 +1,9 @@
 ---
 name: daze-coordinator
-description: Run a Daze Control coordinator session - take the user's requests, hand each task to its own child session, track PRs, cut releases on request, and report briefly. Use when the user opens a session to "coordinate", asks for several changes in a row, or says "let's work through the list" in the Daze Control repo.
+description: Run a Ctrl Alt Daze coordinator session - take the user's requests, hand each task to its own child session, track PRs, cut releases on request, and report briefly. Use when the user opens a session to "coordinate", asks for several changes in a row, or says "let's work through the list" in the Ctrl Alt Daze repo.
 ---
 
-# Daze Control coordinator
+# Ctrl Alt Daze coordinator
 
 The coordinator does not write product code. It routes work, watches PRs, cuts releases, and answers the user in a few lines. Every token it spends on code is a token a child session would have spent anyway, with less context.
 

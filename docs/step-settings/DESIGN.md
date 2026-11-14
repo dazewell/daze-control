@@ -87,7 +87,7 @@ step of a type." Autosave 300 ms like the rest of Settings.
   user's `samples/user-config.yaml` and diffs them). Hand-written `onFailure: stop` stays as explicit.
 - A step type removed from the product leaves its entry as a Problem + dropped (a newer file opened by an older
   engine loses the entry on save; accepted).
-- `dctl validate` and the Problems list report settings problems under "Settings".
+- `cad validate` and the Problems list report settings problems under "Settings".
 - `flow.run`/`menu.show`: defaults apply to the calling step only; the called flow's steps resolve their own.
 
 **Not done:** defaults per area/flow, conditional defaults, defaults for params, a CLI to edit them (edit YAML).

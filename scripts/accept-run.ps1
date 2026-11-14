@@ -5,7 +5,7 @@
 #                                           start the installed app again (dev-run.ps1 -Restore)
 #   -NoEditor / -KeepEdits                  engine only / don't overwrite the dev config with a fresh kit (keep what
 #                                           you edited during the sitting)
-# Only %LOCALAPPDATA%\DazeControl\dev\config.yaml is touched (backup: config.yaml.accept-backup next to it). A second
+# Only %LOCALAPPDATA%\CtrlAltDaze\dev\config.yaml is touched (backup: config.yaml.accept-backup next to it). A second
 # run keeps the first backup, so your original dev config survives repeated runs. The installed config is never read or written.
 param(
     [switch]$Restore,
@@ -14,7 +14,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
-$devFolder = Join-Path $env:LOCALAPPDATA 'DazeControl\dev'
+$devFolder = Join-Path $env:LOCALAPPDATA 'CtrlAltDaze\dev'
 $config = Join-Path $devFolder 'config.yaml'
 $backup = Join-Path $devFolder 'config.yaml.accept-backup'
 $noPrevious = Join-Path $devFolder 'config.yaml.accept-none'   # marker: there was no dev config before the kit
@@ -40,7 +40,7 @@ if ($Restore) {
 if (-not (Test-Path -LiteralPath $kit)) { throw "accept-run: kit not found at $kit" }
 New-Item -ItemType Directory -Force $devFolder | Out-Null
 # A dev editor that is still open may hold unsaved edits: close it through its window first so it flushes them, then back up.
-foreach ($ed in @(Get-CimInstance Win32_Process -Filter "Name = 'DazeControl.Editor.exe'" |
+foreach ($ed in @(Get-CimInstance Win32_Process -Filter "Name = 'CtrlAltDaze.Editor.exe'" |
         Where-Object { $_.CommandLine -and $_.CommandLine.Contains($devFolder, [StringComparison]::OrdinalIgnoreCase) })) {
     $p = Get-Process -Id $ed.ProcessId -ErrorAction SilentlyContinue
     if ($p) { [void]$p.CloseMainWindow(); if (-not $p.WaitForExit(8000)) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }

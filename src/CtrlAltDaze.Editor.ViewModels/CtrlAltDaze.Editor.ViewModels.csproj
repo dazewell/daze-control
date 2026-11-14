@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- No WinUI references: view models stay unit-testable (D-017). -->
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CtrlAltDaze.Core\CtrlAltDaze.Core.csproj" />
+    <ProjectReference Include="..\CtrlAltDaze.Ipc\CtrlAltDaze.Ipc.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="CtrlAltDaze.Editor.ViewModels.Tests" />
+  </ItemGroup>
+
+</Project>

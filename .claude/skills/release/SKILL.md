@@ -1,6 +1,6 @@
 ---
 name: release
-description: Cut a Daze Control release (tag, CI wait, Release workflow, notes, asset check) with one script. Use ONLY when the user explicitly asks for a release in chat ("cut a release", "release it", "ship v0.x"); never on your own initiative.
+description: Cut a Ctrl Alt Daze release (tag, CI wait, Release workflow, notes, asset check) with one script. Use ONLY when the user explicitly asks for a release in chat ("cut a release", "release it", "ship v0.x"); never on your own initiative.
 ---
 
 # Release

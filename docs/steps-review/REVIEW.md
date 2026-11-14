@@ -151,10 +151,10 @@ Possible new dependency: none (HDR, screen-off, WoL, process close, adb are Win3
 ## 5. Notes for the backup/restore task (not started)
 
 What holds user state, from the code and ARCHITECTURE:
-- `%APPDATA%\DazeControl\config.yaml` — everything the engine needs: `settings` (popup, `stepDefaults`), `library` (audio match text, Bluetooth
+- `%APPDATA%\CtrlAltDaze\config.yaml` — everything the engine needs: `settings` (popup, `stepDefaults`), `library` (audio match text, Bluetooth
   addresses, display layouts as base64 CCD data, Android devices with inputs and adb path) and `flows` (ids are YAML keys; `inputs`, `after`, `with`).
   `backups\` beside it holds one `.bak` per editor session (newest 10), the only backup that exists today. `--config` redirects both.
-- `%LOCALAPPDATA%\DazeControl\editor.json` — this PC's view state (window place, nav pane, per-flow layout, flow-list sort/collapsed groups).
+- `%LOCALAPPDATA%\CtrlAltDaze\editor.json` — this PC's view state (window place, nav pane, per-flow layout, flow-list sort/collapsed groups).
   Optional to restore. `history.jsonl`, `logs\`, `android-apps\` cache are regenerable.
 - **Not in the files:** saved web credentials (Windows Credential Manager; YAML has only their name, D-014, so a restore must say which names to
   re-save); flags (memory only, D-029); desktop `.lnk` shortcuts (D-049, rebuildable from flow ids); autostart (HKCU Run).

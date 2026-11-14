@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Handle a Daze Control PR's Copilot review, review threads, CI wait/rerun, readiness check and merge with the deterministic scripts/pr-*.ps1 scripts (cheap, short output). Use whenever you open, review-wait, fix review comments on, check, or merge a PR here, or when a brief says "follow the pr-review skill". Never hand-roll gh/graphql for these.
+description: Handle a Ctrl Alt Daze PR's Copilot review, review threads, CI wait/rerun, readiness check and merge with the deterministic scripts/pr-*.ps1 scripts (cheap, short output). Use whenever you open, review-wait, fix review comments on, check, or merge a PR here, or when a brief says "follow the pr-review skill". Never hand-roll gh/graphql for these.
 ---
 
 # PR review and merge (D-122)

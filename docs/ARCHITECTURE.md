@@ -1,16 +1,16 @@
 # Architecture
 
-How Daze Control is built now. Current state only; the why lives in [DECISIONS.md](DECISIONS.md).
+How Ctrl Alt Daze is built now. Current state only; the why lives in [DECISIONS.md](DECISIONS.md).
 Rewrite sections when things change (`knowledge-log` skill).
 
 ## Overview
 
 ```
- dctl.exe (CLI, AOT console) ──pipe──┐
- DazeControl.Editor.exe (WinUI 3, on demand) ──pipe (devices, test, run, live events)──┐
+ cad.exe (CLI, AOT console) ──pipe──┐
+ CtrlAltDaze.Editor.exe (WinUI 3, on demand) ──pipe (devices, test, run, live events)──┐
         └─ reads/writes config.yaml (atomic, .bak) ─────────┐                          │
                                                             ▼                          ▼
- DazeControl.exe  (engine, Native AOT, resident, no UI framework)
+ CtrlAltDaze.exe  (engine, Native AOT, resident, no UI framework)
    message thread: TrayIcon · GlobalHotkey · RunPopup + FlowMenu (AcrylicSurface: Win32 + DWM backdrop + D2D/DirectWrite)
    ConfigHost: FileSystemWatcher (debounced) → YAML → validate → compile → atomic swap (last-good kept)
    FlowRunner (DAG scheduler) ─► ResourceLocks ─► IStepProvider implementations (lazy COM workers)
@@ -21,23 +21,23 @@ Rewrite sections when things change (`knowledge-log` skill).
 
 Props conventions copied from the OSD.
 ```
-DazeControl.slnx · global.json · Directory.Build.props (TFM net10.0-windows10.0.26100.0, nullable,
+CtrlAltDaze.slnx · global.json · Directory.Build.props (TFM net10.0-windows10.0.26100.0, nullable,
 warnings as errors, <Version>) · Directory.Packages.props · dotnet-tools.json (vpk)
-src/DazeControl.Core/        pure, AOT/trim-safe, no interop: Model/ (Flow, Node, StepNode, GroupNode, Edge,
+src/CtrlAltDaze.Core/        pure, AOT/trim-safe, no interop: Model/ (Flow, Node, StepNode, GroupNode, Edge,
                              EdgeWhen, FailurePolicy, RetryPolicy, Library*), Yaml/ (DTOs, static context,
                              mapper), Validation/, Catalog/ (provider descriptors + ParamSpec), Layout/
                              (layered auto-arrange), Runs/ (outcome + event records)
-src/DazeControl.Runtime/     FlowRunner, Scheduler, ResourceLocks, RunHistory, ConfigHost, TriggerRouter,
+src/CtrlAltDaze.Runtime/     FlowRunner, Scheduler, ResourceLocks, RunHistory, ConfigHost, TriggerRouter,
                              IStepProvider/StepContext contracts; TimeProvider everywhere
-src/DazeControl.Providers/   Windows implementations (CsWin32 NativeMethods.txt, [LibraryImport] for
+src/CtrlAltDaze.Providers/   Windows implementations (CsWin32 NativeMethods.txt, [LibraryImport] for
                              undocumented): Audio, Bluetooth, Display, Process, Script, Http, Android,
                              Service, Wait, Notify, Flag, Credentials
-src/DazeControl.Ipc/         protocol records (source-gen JSON), PipeServer, PipeClient
-src/DazeControl.Engine/      AOT WinExe: Program, Shell/ (TrayIcon, GlobalHotkey, AcrylicSurface, RunPopup, FlowMenu), Lifecycle/
+src/CtrlAltDaze.Ipc/         protocol records (source-gen JSON), PipeServer, PipeClient
+src/CtrlAltDaze.Engine/      AOT WinExe: Program, Shell/ (TrayIcon, GlobalHotkey, AcrylicSurface, RunPopup, FlowMenu), Lifecycle/
                              (SingleInstance, Autostart), Diagnostics/Log, composition root (hand-written)
-src/DazeControl.Cli/         AOT console exe dctl.exe (pipe client; offline `validate`/`list`)
-src/DazeControl.Editor.ViewModels/  CommunityToolkit.Mvvm VMs, canvas model, undo stack — no WinUI refs
-src/DazeControl.Editor/      WinUI 3 exe: ShellWindow, pages, FlowCanvas control, Inspector, styles
+src/CtrlAltDaze.Cli/         AOT console exe cad.exe (pipe client; offline `validate`/`list`)
+src/CtrlAltDaze.Editor.ViewModels/  CommunityToolkit.Mvvm VMs, canvas model, undo stack — no WinUI refs
+src/CtrlAltDaze.Editor/      WinUI 3 exe: ShellWindow, pages, FlowCanvas control, Inspector, styles
 tests/ Core.Tests · Runtime.Tests · Providers.Tests (pure parts) · Editor.ViewModels.Tests
 spikes/ (throwaway probes) · scripts/ (run, stop, measure, pack, install) · docs/ · .claude/skills/
 ```
@@ -72,13 +72,13 @@ KS one-shot Bluetooth reconnect (D-023, X-005), `Core/Windowing/OverlayWindow.cs
 
 ## Threading
 
-Engine shell (M3): one hidden top-level window `DazeControl.Tray` (`Engine/Shell/MessageWindow`) on the
+Engine shell (M3): one hidden top-level window `CtrlAltDaze.Tray` (`Engine/Shell/MessageWindow`) on the
 main STA thread; `TrayIcon` and `GlobalHotkey` add message handlers to it; static `[UnmanagedCallersOnly]`
 WndProc (D-022). Other threads reach it only through `MessageWindow.Post(Action)` (queue + `WM_APP+100`):
 config reloads and RunStarted/RunFinished are posted there; the tray and `HotkeyTable` are touched nowhere else.
 Run pop-up (M5): node and run events are posted to the message thread in order and fed to the pure
 `Runtime/Popup/RunPopupModel` (wording, tone, duration; the run that changed last wins), which `Shell/RunPopup`
-draws (D-034). Its window class `DazeControl.Popup` is made on the first run; D2D/DirectWrite exist only while it
+draws (D-034). Its window class `CtrlAltDaze.Popup` is made on the first run; D2D/DirectWrite exist only while it
 shows. Selecting a failure opens the editor (the run page comes with M9).
 
 engine: one STA message thread (tray, hotkeys, pop-up); FlowRunner on the thread pool;
@@ -87,7 +87,7 @@ each COM provider owns one lazy MTA worker (OSD pattern); pipe server async on t
 
 ## Config
 
-`%APPDATA%\DazeControl\config.yaml`, schema `version: 1`; editor owns the file
+`%APPDATA%\CtrlAltDaze\config.yaml`, schema `version: 1`; editor owns the file
 (comments not preserved on editor save — accepted, user hand-edits still load); engine hot-reloads.
 ```yaml
 version: 1
@@ -115,7 +115,7 @@ handled its failure: its `onFailure` policy is not applied, the fallback runs, i
 skipped, and if nothing else went wrong the flow ends Succeeded (D-024, D-065). `Model/FlowShape`: `Fallbacks`
 (units with an incoming failure edge, or a success edge from a fallback; members follow their card),
 `WithFallback` (units with an outgoing failure edge), `UnitOf`. Durations "500ms", "20s", "1m30s" (`Model/Duration`). Enums read
-case-insensitively, written camelCase. Full example: `tests/DazeControl.Core.Tests/Fixtures/full.yaml`.
+case-insensitively, written camelCase. Full example: `tests/CtrlAltDaze.Core.Tests/Fixtures/full.yaml`.
 
 Pipeline (Core): `ConfigYaml.Load` → static-context DTOs (`Yaml/ConfigDocument`, all scalars strings, D-023;
 `ParamValueConverter`/`AfterConverter` for the polymorphic bits) → `ConfigMapper` → `Model` records
@@ -127,12 +127,12 @@ themselves: a bad library entry is dropped (mapper) or marked broken (validator)
 fails its own flow instead. Hotkeys go only to enabled flows without errors; the later of two clashing flows fails.
 
 `Core/Backup` (M19, D-103, D-104): `BackupService(IBackupFiles, TimeProvider, appVersion, machine)` writes
-`.dcbackup` zips with `CreateIn(folder, …)` (sortable `DazeControl-backup-yyyy-MM-dd-HHmm[-n].dcbackup`, never overwrites) or `CreateAt(path, …)`, opens them
+`.dcbackup` zips with `CreateIn(folder, …)` (sortable `CtrlAltDaze-backup-yyyy-MM-dd-HHmm[-n].dcbackup`, never overwrites) or `CreateAt(path, …)`, opens them
 with `Open(path)` (full SHA-256 + format check, throws `BackupException` with `Kind` NotABackup/Damaged/TooNew), lists them newest first by file name
 (`List`) and `Prune(folder, keep)`. `BackupFormat` is the layout: `manifest.yaml` first (hand-written flat YAML, no static context), `config.yaml` byte for byte,
 optional `editor.json`/`history.jsonl`. Zip-slip guard: entries are only ever read into memory by the four known names; any entry the manifest does not list
 (`../x`, absolute, nested) makes the file Damaged. `SecretScan` returns warnings for secret-looking literals (the file is still written). Used by the editor,
-`dctl` and the update step; the engine does not reference it (AOT image +512 B, T19.1), so idle stays 0.
+`cad` and the update step; the engine does not reference it (AOT image +512 B, T19.1), so idle stays 0.
 
 Restore (T19.2, `BackupService.Restore.cs`, `RestoreCompare`): `Preview(archive, RestoreTarget, PreviewEnvironment?)` loads both configs with the normal loader/validator and
 returns `RestorePreview` (flow and library `ItemChange`s New/Changed/Same/OnlyHere, `CanReplace`/`CanAddMissing`, `NeedsAttention`, secret `Warnings`); an unreadable backup config
@@ -140,14 +140,14 @@ sets `Unreadable` and disables both. `Restore(archive, RestoreMode.Replace|AddMi
 `target.SafetyFolder` (skipped if there is no config; failure stops the restore), then one `IBackupFiles.ReplaceAtomic` of config.yaml (Replace = the backup's bytes; AddMissing =
 current + new items, re-serialised (comments and keys this build doesn't map are lost, said in `Notes`; refused when the current config has any load error), validated to load, current wins on a clash and is listed in `KeptCurrent`), then editor.json without its `window`. `Undo(outcome, target)`
 puts the safety copy back without a new one. Needs-attention covers failing flows, Bluetooth/screen layouts when the backup's machine differs, missing credential names
-(caller passes the engine's list), adb and fixed step paths that don't exist (checked once). Errors are `RestoreException` (Kind + the DESIGN §10 sentence). The caller (editor/`dctl`)
+(caller passes the engine's list), adb and fixed step paths that don't exist (checked once). Errors are `RestoreException` (Kind + the DESIGN §10 sentence). The caller (editor/`cad`)
 refuses while a flow draft is open and keeps the outcome for Undo. Retention pruning is name-based.
 
-Backup surfaces (T19.3–T19.5): the zip work runs only in the editor and `dctl`; the engine has no backup code path, timer or resident object (idle and the +2 MB gate untouched).
+Backup surfaces (T19.3–T19.5): the zip work runs only in the editor and `cad`; the engine has no backup code path, timer or resident object (idle and the +2 MB gate untouched).
 Editor: Settings › "Backup and restore" card (`Editor/BackupCard`, `BackupCardViewModel`): Back up now (Save dialog), Restore from file (Open dialog or a dropped file) → preview dialog
 (Replace everything / Add what's missing), Undo restore until the editor closes, automatic on/off + Keep (3–50), "Recent backups" (auto, before-restore) and "Earlier saves" (the per-session `.bak` files,
 config only) with Restore/Delete per row. Restore is refused while a flow draft is open. The running engine is not restarted: its hot reload judges each flow (D-021).
-`Core/Backup/AutoBackup` (D-104): setting in `%LOCALAPPDATA%\DazeControl\backups\auto-backup.txt` (`enabled=`, `keep=`; default on, 10), folder `backups\auto`; taken by `dctl update` before a download
+`Core/Backup/AutoBackup` (D-104): setting in `%LOCALAPPDATA%\CtrlAltDaze\backups\auto-backup.txt` (`enabled=`, `keep=`; default on, 10), folder `backups\auto`; taken by `cad update` before a download
 and by the editor after a save when the newest auto backup (by file name) is over 24 h old; never throws. A backup holds config.yaml byte for byte; editor.json and history are opt-in; no credentials,
 shortcuts or autostart. Not built: restoring editor.json from the card ("Editor layout" tick; `EditorSettingsStore` can't reload it) and a per-flow restore.
 
@@ -238,9 +238,9 @@ a scratch config: Providers.Tests `FlowCallScenarioTests`.
 ## Engine shell
 
 `Engine/Program`: rolling log (`engine.log`, `Runtime/Diagnostics/LogRotation`, 7 days), handlers for unhandled
-and unobserved exceptions (log only), `Lifecycle/SingleInstance` (mutex `Global\DazeControl.Engine-<user SID>`, taken
+and unobserved exceptions (log only), `Lifecycle/SingleInstance` (mutex `Global\CtrlAltDaze.Engine-<user SID>`, taken
 before the log: a second engine of the same user, in any session, exits 0 without writing anything, D-028), then `EngineHost`, the hand-written composition root: ConfigHost
-(`%APPDATA%\DazeControl\config.yaml`, or argv[0]) · RunHistory (`%LOCALAPPDATA%\DazeControl\history.jsonl`) ·
+(`%APPDATA%\CtrlAltDaze\config.yaml`, or argv[0]) · RunHistory (`%LOCALAPPDATA%\CtrlAltDaze\history.jsonl`) ·
 one FlowRunner + ResourceLocks + FlowLauncher · `Runtime/Control/EngineController` (D-026) · PipeServer · tray ·
 hotkeys. Exit (tray or WM_CLOSE): unregister hotkeys, pipe stops accepting (no new clients or requests), cancel
 all runs, drain the pipe (waiting `run --wait` clients get their answers), close it; ≤ 5 s grace in all.
@@ -261,7 +261,7 @@ given on the command line as the Run value's argument.
   (left or right click), dark/light like the taskbar (uxtheme #135/#136). Icon drawn in code by
   `Shell/TrayGlyph` (idle / busy / paused, D-027); tooltip = running flows, else paused, else the last run's
   problem. Not yet: per-flow glyph bitmaps in the menu (need M5's glyph-font rendering).
-- `Runtime/Lifecycle/Autostart`: HKCU Run value `DazeControl` → engine exe (OSD port), set through the pipe op.
+- `Runtime/Lifecycle/Autostart`: HKCU Run value `CtrlAltDaze` → engine exe (OSD port), set through the pipe op.
 - Desktop shortcuts (M11, D-049): `Runtime/Lifecycle/EngineArguments` parses `[--run <flow id>] [config]` before the
   single-instance check; a second engine sends `run` (`exactId`, trigger "Desktop shortcut") through `PipeClient`
   and exits without logging; the first runs it right after the constructor's (synchronous) first config load. The
@@ -269,32 +269,41 @@ given on the command line as the Run value's argument.
   `ShortcutNames`; `IconFile` writes the .ico) behind two seams that `Engine/Shell/FlowShortcuts` fills: `ShellLinkStore`
   (IShellLinkW + IPersistFile, each call on a fresh MTA thread) and `FlowIconRenderer` (glyph coverage from a software
   D2D DC target over `TrayGlyph.PaintTile`; d2d1/DWrite loaded and freed per call). Target = the Velopack stub when
-  `current\..\Update.exe` and `Daze Control.exe` exist, else this exe. `EngineController.RunRefused` → "Didn't start"
+  `current\..\Update.exe` and `Ctrl Alt Daze.exe` exist, else this exe. `EngineController.RunRefused` → "Didn't start"
   pop-up (#24 for a gone flow). The uninstall hook calls `RemoveAll` (any config, plus the icon folder). Editor:
   `Engine/DesktopShortcutStore`, shared by the Flows card menu and the flow settings row.
 
 Controller input (T12.6, D-056, D-086): `Runtime/Triggers/GamepadService` ref-counts listeners (only an open menu, via `GamepadMenuFeed`) and starts the `IPadBackend` on the first, halts it on the last; none → `xinput1_4` is never loaded and no thread exists. `Engine/Input/GamepadSource` is the backend: one thread running the pure `PadPoller` at 60 Hz (scan once, poll only connected slots, merge pads, LT/RT hysteresis; no pad → `Step` returns null and the thread waits on an event), `DeviceArrival` (CM_Register_Notification for XUSB and `IG_` HID nodes, registered only while the source runs) wakes it for a rescan. Readings go to `MenuModel`; the menu's "released since open" rule is in the model. `devices gamepads` enumerates once ("Controller N", battery) and never starts the reader. No chord trigger, no suspend/resume wiring (D-086).
 
 Schedules (T20.2, D-107): `Runtime/Triggers/ScheduleSource` keeps one `TimeProvider` timer armed to the next due time of all flows' schedule triggers (pure `ScheduleTable.Next`); nothing runs between due times. `Apply` (each reload) diffs rules keyed by flow + record, so unchanged rules keep their cursor; `Rearm` (WM_TIMECHANGE, power resume) runs what came due meanwhile once per rule: `ifMissed: run` inside grace (default 10 min), else logs "Skipped: the PC was asleep"; Pause skips. No persisted last-run, so a due time while the engine was closed is not replayed.
-Android apps (M17, D-092..D-094): `android.start` runs `am start -a MAIN -c LAUNCHER -p <pkg>` then the `LEANBACK_LAUNCHER` category (`AndroidRemote.StartAppAsync`; `am` exits 0 on failure, so its "Error" text decides; package = `[A-Za-z0-9_.]+`). The inspector's app box asks the pipe op `android-apps` (`PipeRequest.Address/Adb/Refresh` → `IDeviceQueries.AndroidAppsAsync` → `AndroidAppLister`): without `Refresh` it answers from `%LOCALAPPDATA%\DazeControl\android-apps\<serial>.txt` and never runs adb; with it, connect + one `adb shell` of `cmd package query-activities` for both launcher categories, `grep`-cut on the device (adb gives labels only as `labelRes` resource ids except a literal `nonLocalizedLabel`; checked on Android 14, `dumpsys` has none), and the cache is rewritten. Names: literal label → `AndroidAppList` known-name table → package id in words; the list is sorted by name and the editor filters it (`AppChoices`) in an AutoSuggestBox. The editor refreshes once per step selection, when the box is focused. `AdbProcess` keeps 64 KB of stdout (other callers 4 KB). Not verified live: launching (it changes the user's TV); the listing was read-only on an Android 14 TV box.
+Android apps (M17, D-092..D-094): `android.start` runs `am start -a MAIN -c LAUNCHER -p <pkg>` then the `LEANBACK_LAUNCHER` category (`AndroidRemote.StartAppAsync`; `am` exits 0 on failure, so its "Error" text decides; package = `[A-Za-z0-9_.]+`). The inspector's app box asks the pipe op `android-apps` (`PipeRequest.Address/Adb/Refresh` → `IDeviceQueries.AndroidAppsAsync` → `AndroidAppLister`): without `Refresh` it answers from `%LOCALAPPDATA%\CtrlAltDaze\android-apps\<serial>.txt` and never runs adb; with it, connect + one `adb shell` of `cmd package query-activities` for both launcher categories, `grep`-cut on the device (adb gives labels only as `labelRes` resource ids except a literal `nonLocalizedLabel`; checked on Android 14, `dumpsys` has none), and the cache is rewritten. Names: literal label → `AndroidAppList` known-name table → package id in words; the list is sorted by name and the editor filters it (`AppChoices`) in an AutoSuggestBox. The editor refreshes once per step selection, when the box is focused. `AdbProcess` keeps 64 KB of stdout (other callers 4 KB). Not verified live: launching (it changes the user's TV); the listing was read-only on an Android 14 TV box.
 
 ## Install and updates
 
-D-043. `scripts/pack.ps1` → one folder (editor self-contained + AOT `DazeControl.exe` + AOT `dctl.exe`, no .pdb) →
-`vpk pack` (packId `DazeControlApp`, installs to `%LOCALAPPDATA%\DazeControlApp\current`, Start-menu shortcut).
+D-043. `scripts/pack.ps1` → one folder (editor self-contained + AOT `CtrlAltDaze.exe` + AOT `cad.exe`, no .pdb) →
+`vpk pack` (packId `CtrlAltDazeApp`, installs to `%LOCALAPPDATA%\CtrlAltDazeApp\current`, Start-menu shortcut).
 `scripts/install.ps1` packs and installs this checkout the same way; `release.yml` publishes on a `v<Version>` tag.
-- `Core/Updates/VelopackUpdateClient` (GitHub Releases, no token; `DAZECONTROL_UPDATE_SOURCE` = local feed; `Channel` Stable = no pre-releases, ReleaseCandidates = `prerelease: true`, D-108):
-  shared by the three exes; sets Velopack's locator itself in the editor and dctl (only the engine runs the hooks).
+- `Core/Updates/VelopackUpdateClient` (GitHub Releases, no token; `CTRLALTDAZE_UPDATE_SOURCE` = local feed; `Channel` Stable = no pre-releases, ReleaseCandidates = `prerelease: true`, D-108):
+  shared by the three exes; sets Velopack's locator itself in the editor and cad (only the engine runs the hooks).
 - `Engine/Lifecycle/Installer`: Velopack hooks before the single-instance check and the log (a hook runs while the
   real engine runs). `Program` then applies a downloaded update (exit; the updater restarts the engine with the same
-  args). `Engine/Lifecycle/UpdateCheck`: installed copies only, runs `dctl update` hidden at +1 min and daily, logs
+  args). `Engine/Lifecycle/UpdateCheck`: installed copies only, runs `cad update` hidden at +1 min and daily, logs
   its output.
-- `dctl update [--channel stable|rc]`: sets (when given) and prints the channel, then find + download, never apply; exit 0 / 1. Editor: `UpdatesViewModel` (About › Updates card: "Updates to follow" drop-down + status + Check).
-- Update channel (D-108): `Core/Updates/UpdateChannelStore`, `%LOCALAPPDATA%\DazeControl\update-channel.txt` (`channel=stable|rc`, default and any unreadable content = Stable; per user, not in config.yaml or a backup). The engine's daily `dctl update`, `dctl update` and the editor all read it; the editor re-reads nothing: its drop-down writes it at once and sets `IUpdateClient.Channel`. Velopack orders by semver (`0.52.0-rc.1` < `0.52.0`) and `AllowVersionDowngrade` stays off, so going RC → Stable keeps the installed RC until a newer stable ships (`UpdateChannelTests` runs the real `UpdateManager` over a fake feed). A download already waiting still installs after a switch.
+- Carry-over from the old name (T29.2, D-152; old names only in `Core/OldName`): the engine (default config only), after taking its own
+  mutex and before the log and hotkeys, stops a running old engine (`Runtime/Lifecycle/OldEngine`: WM_CLOSE to
+  `DazeControl.Tray`, wait on its mutex ≤ 10 s), then `Core/OldSetup.CopyFolders` copies `%APPDATA%` and
+  `%LOCALAPPDATA%\DazeControl` (only while the new config.yaml is absent; existing files stay; config last, via a temp file; never
+  throws). The editor and `cad` call the copy first too (not with `--config`). `WindowsCredentials` reads
+  `CtrlAltDaze:<name>`, then `DazeControl:<name>`, and lists both. Installed copy only: `Autostart.CarryFrom` removes
+  the old Run value (inside `DazeControlApp` only) and turns ours on if it was on; `ShortcutPlaces.OldTargets` makes
+  the start's icon repair re-point the old app's desktop shortcuts at our stub. `install.ps1` then uninstalls the old
+  app once no desktop shortcut starts it.
+- `cad update [--channel stable|rc]`: sets (when given) and prints the channel, then find + download, never apply; exit 0 / 1. Editor: `UpdatesViewModel` (About › Updates card: "Updates to follow" drop-down + status + Check).
+- Update channel (D-108): `Core/Updates/UpdateChannelStore`, `%LOCALAPPDATA%\CtrlAltDaze\update-channel.txt` (`channel=stable|rc`, default and any unreadable content = Stable; per user, not in config.yaml or a backup). The engine's daily `cad update`, `cad update` and the editor all read it; the editor re-reads nothing: its drop-down writes it at once and sets `IUpdateClient.Channel`. Velopack orders by semver (`0.52.0-rc.1` < `0.52.0`) and `AllowVersionDowngrade` stays off, so going RC → Stable keeps the installed RC until a newer stable ships (`UpdateChannelTests` runs the real `UpdateManager` over a fake feed). A download already waiting still installs after a switch.
 
 ## IPC
 
-`\\.\pipe\DazeControl-<user SID>`, `PipeOptions.CurrentUserOnly`, newline-delimited JSON (source-gen
+`\\.\pipe\CtrlAltDaze-<user SID>`, `PipeOptions.CurrentUserOnly`, newline-delimited JSON (source-gen
 `Ipc/IpcJson`, camelCase, string enums, nulls omitted), `protocol: 1`. `Ipc/PipeServer`: any number of clients;
 requests on one connection run concurrently, answers carry the request id; after `subscribe` the connection also
 gets events (`PipeMessage.Event`, id 0: runStarted, nodeStarted, nodeFinished, runFinished, configReloaded, shortcutsChanged). A
@@ -314,27 +323,27 @@ per connection, ends when the connection does: the editor sends it on the persis
 through `Runtime/Control/IDeviceQueries` (read-only; `Providers/SystemDevices` on the real PC); `test-step`
 answers "can't do that yet" until the editor. `PipeClient` copies each request to stamp its id: a new
 `PipeRequest` field goes into that copy too (`PipeTests.EveryRequestFieldReachesTheServer` fails otherwise).
-`dctl` (`src/DazeControl.Cli`): run/cancel/list/validate/status/history/autostart/devices/capture-display-layout/shortcut/backup/restore/update, parsed strictly by
+`cad` (`src/CtrlAltDaze.Cli`): run/cancel/list/validate/status/history/autostart/devices/capture-display-layout/shortcut/backup/restore/update, parsed strictly by
 `Ipc/CommandLine` (unknown flag or wrong word count → exit 2, never ignored); `validate <file>`
 and, with no engine, `list`/`validate` read the YAML themselves. Exit codes 0 ok, 1 failed, 2 usage, 3 no engine.
-Run inputs (T24.9): `dctl run <flow> name=value…` and `DazeControl.exe --run <flow> name=value…` (`EngineArguments.RunInputs`; a word is an input when its name holds no path character) send `PipeRequest.Inputs`; `EngineController.RunAsync` checks them with `FlowInputs.CheckGiven` (unknown name lists the flow's inputs, device key must be in the Library under the input's kind, text ≤ 1,000) before anything starts and answers `PipeMessage.Usage` (dctl exit 2; a desktop run shows the pop-up). Device inputs are applied with `FlowInputs.Apply(keepAsked: true)` (an answered ask isn't asked again); text inputs travel via `FlowLauncher.TriggerAsync(inputs)` → `FlowRunner.RunAsync(inputs)` and are plain text, never parsed or logged (D-014). A request carrying `Inputs` is stamped protocol 2 (`Protocol.WithInputs`, others stay 1), so an older engine refuses it instead of running the flow on defaults (dctl says to restart the engine). Externally given text is masked like a Sensitive value in errors, summaries and history. A config path shaped `name=value` goes before `--run` (`EngineArguments.Format` puts it there).
+Run inputs (T24.9): `cad run <flow> name=value…` and `CtrlAltDaze.exe --run <flow> name=value…` (`EngineArguments.RunInputs`; a word is an input when its name holds no path character) send `PipeRequest.Inputs`; `EngineController.RunAsync` checks them with `FlowInputs.CheckGiven` (unknown name lists the flow's inputs, device key must be in the Library under the input's kind, text ≤ 1,000) before anything starts and answers `PipeMessage.Usage` (cad exit 2; a desktop run shows the pop-up). Device inputs are applied with `FlowInputs.Apply(keepAsked: true)` (an answered ask isn't asked again); text inputs travel via `FlowLauncher.TriggerAsync(inputs)` → `FlowRunner.RunAsync(inputs)` and are plain text, never parsed or logged (D-014). A request carrying `Inputs` is stamped protocol 2 (`Protocol.WithInputs`, others stay 1), so an older engine refuses it instead of running the flow on defaults (cad says to restart the engine). Externally given text is masked like a Sensitive value in errors, summaries and history. A config path shaped `name=value` goes before `--run` (`EngineArguments.Format` puts it there).
 
-Scripting (T27.8, D-142): `dctl ... --json` prints `ScriptJson` (Ipc; hand-written `Utf8JsonWriter`, one compact line, golden-tested) from the same pipe answers. `flag` (`Key` = name, `Enable` null = tell) and `pause` (`Enable`) answer `PipeMessage.State`; `flag`/`pause` are stamped protocol 3 (`Protocol.WithControl`; the server speaks 1 to `Latest`, now 4: a `run` with `Node`, "Run from this step" D-149, is stamped `WithStartStep`), so an older engine refuses them by version. `EngineController.FlagAccess` (the `FlagStore`) and `PauseAccess` are set by `EngineHost`; pause runs on the message thread through the same `ApplyPause` as the tray item.
+Scripting (T27.8, D-142): `cad ... --json` prints `ScriptJson` (Ipc; hand-written `Utf8JsonWriter`, one compact line, golden-tested) from the same pipe answers. `flag` (`Key` = name, `Enable` null = tell) and `pause` (`Enable`) answer `PipeMessage.State`; `flag`/`pause` are stamped protocol 3 (`Protocol.WithControl`; the server speaks 1 to `Latest`, now 4: a `run` with `Node`, "Run from this step" D-149, is stamped `WithStartStep`), so an older engine refuses them by version. `EngineController.FlagAccess` (the `FlagStore`) and `PauseAccess` are set by `EngineHost`; pause runs on the message thread through the same `ApplyPause` as the tray item.
 `backup [file] [--editor] [--history] [--config]` / `restore <file> [--merge|--replace] [--yes] [--dry-run] [--editor] [--config]` are `Core/Backup/BackupCommands` (T19.3; no engine, files only;
 `--config` moves config, editor.json, history and the `backups/auto` safety folder next to that file). Restore always prints the preview; `--dry-run` stops there (exit 0); applying needs `--yes`, or `y` on a terminal,
-else exit 2; an open editor (its `Local\DazeControl.Editor` mutex) also exits 2, since the CLI can't see its draft. Unreadable/damaged/newer file, unreadable backup config, safety-copy or write failure: exit 1 with the DESIGN §10 sentence.
+else exit 2; an open editor (its `Local\CtrlAltDaze.Editor` mutex) also exits 2, since the CLI can't see its draft. Unreadable/damaged/newer file, unreadable backup config, safety-copy or write failure: exit 1 with the DESIGN §10 sentence.
 
 ## Editor
 
-`DazeControl.Editor.exe` (WinUI 3, unpackaged, self-contained) runs only while its window is open; closing it
+`CtrlAltDaze.Editor.exe` (WinUI 3, unpackaged, self-contained) runs only while its window is open; closing it
 ends the process. Single instance: a named mutex; a second start sets a named event and exits, and the first
 brings its window to the front. Pages (UX §5.1) are panels in one `ShellWindow` (Flows, Library, Settings,
 About), cards in the OSD's settings-card style (App.xaml). Leaving the open flow (breadcrumb, any nav item, closing)
 goes through `LeaveFlowAsync` (the D-047 prompt) then `CloseFlow`; nav Flows while a flow is open is still the
 selected item, so `ItemInvoked` handles it (`SelectionChanged` doesn't fire). All logic is in `Editor.ViewModels`:
 - `Config/ConfigStore` — config.yaml I/O: atomic write (temp + `File.Move` overwrite), one backup per editor
-  session in `%APPDATA%\DazeControl\backups` (newest 10), and the text last read/written to tell outside changes.
-- `Config/EditorSettingsStore` — this PC's view state in `%LOCALAPPDATA%\DazeControl\editor.json` (D-068; with
+  session in `%APPDATA%\CtrlAltDaze\backups` (newest 10), and the text last read/written to tell outside changes.
+- `Config/EditorSettingsStore` — this PC's view state in `%LOCALAPPDATA%\CtrlAltDaze\editor.json` (D-068; with
   `--config`, `editor.json` next to that file): STJ source-generated, read once (missing → defaults; unreadable or
   bad → defaults and a line in `logs\editor.log`), `Update(s => …)` writes it atomically 300 ms after the last change
   (`TimeProvider`) and on close; unknown keys are kept. The window's place (restored rectangle, maximized, DPI) is `window`, written on close (D-098). Holds `NavPaneOpen` (`ShellViewModel.IsNavPaneOpen`, two-way
@@ -589,7 +598,7 @@ Budget: engine idle ≤ 15 MB private, ≤ 35 MB working set, 0 ms CPU over 10 i
 | 2026-10-31 | d7f8006 (same) | same, 10-min idle; 5 threads | 3.9 | 15.5 | 0 (600 s) |
 
 | 2026-11-01 | 1fbc856 (M3 engine shell, Release AOT) | user-config, tray + pipe + ConfigHost watcher, 5 threads, exe 6.2 MB | 4.6 | 19.4 | 0 (600 s) |
-| 2026-11-01 | 1fbc856 (same) | after 5 `dctl run connect-technics --wait` (steps fail at once: no providers yet) | 5.1 (+0.5) | 20.2 | 0 (600 s) |
+| 2026-11-01 | 1fbc856 (same) | after 5 `cad run connect-technics --wait` (steps fail at once: no providers yet) | 5.1 (+0.5) | 20.2 | 0 (600 s) |
 
 | 2026-11-01 | M5 run pop-up (Release AOT, exe 9.2 MB) | spike-config idle, pop-up never shown, 3 threads | 4.9 | 20.4 | 0 (120 s) |
 | 2026-11-01 | same | after 3 runs of a 3-step flow with `popup: false` | 5.9 (+0.7) | 21.8 | 0 (60 s) |
@@ -647,7 +656,7 @@ T10.4 gate passed (2026-11-02, row above). T0.5 gate passed: no AOT/trim warning
 - Designed, not built (PLAN → M13 fixes, v0.29.0 feedback): Ctrl+S's accelerator
   tooltip hidden (X-008, F3). Flow ids are keys in: other flows'
   `flow.run` (and M12 `menu.show`), history and logs (never rewritten), desktop .lnk args and file names (D-049),
-  `dctl run`, the engine's per-id launcher slots, and the per-flow layouts in `editor.json` (T13.6).
+  `cad run`, the engine's per-id launcher slots, and the per-flow layouts in `editor.json` (T13.6).
 - Display writes (F5, D-077, X-009): `DisplayCheck` (pure, `Providers/Display`) gives each screen its own source per
   adapter (a saved clone keeps one shared) and compares the active paths with the request after every write; a
   mismatch fails the step (#70). `CcdDisplays.SwitchSet` asks `SDC_TOPOLOGY_SUPPLIED` first (the set's saved

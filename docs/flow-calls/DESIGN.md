@@ -106,7 +106,7 @@ existing `tray: { show: false }`.
 - `FlowRunner.RunNestedAsync(flow, library, inputs, parent, ct)`: a new `Scheduler` and RunId on the same runner, with
   `ParentRunId`/`ParentNodeId` and the call chain. No `FlowLauncher` slot: **`whenRunning` doesn't apply** (it is about
   a person pressing a shortcut twice; two calls of one building block with different devices are normal), and the
-  tray's running bullet, Stop and `dctl cancel` act on the top run. The same flow may run nested and top-level at
+  tray's running bullet, Stop and `cad cancel` act on the top run. The same flow may run nested and top-level at
   once; the resource locks (D-010) keep them off the same device.
 - Locks: the `flow.run` step declares none, so it holds none while waiting; each nested step takes its own per
   attempt, exactly as at top level. A step never waits on another step while holding a lock (menus release their

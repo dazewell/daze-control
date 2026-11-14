@@ -11,7 +11,7 @@ pwsh scripts/accept-run.ps1
 pwsh scripts/accept-run.ps1 -Restore
 ```
 
-`accept-run.ps1` backs up `%LOCALAPPDATA%\DazeControl\dev\config.yaml`, copies `samples/acceptance/config.yaml` over it, stops
+`accept-run.ps1` backs up `%LOCALAPPDATA%\CtrlAltDaze\dev\config.yaml`, copies `samples/acceptance/config.yaml` over it, stops
 your installed engine and starts this checkout (engine + editor) on the kit. `-Restore` closes the dev editor, puts the
 previous dev config back and starts the installed app again. Add `-KeepEdits` on a second run to keep what you changed.
 First run builds the engine (a few minutes).
@@ -137,20 +137,20 @@ Computer use cannot see the engine's pop-ups, the tray menu, dropdown lists or W
 
 Everything here was tested **with fakes only** (nothing ran against real hardware or the real shell). One line each:
 - Stop flow: showcase flows "Guard then stop" and "Decide on an answer" (answer Off): no pop-up after the stop, history "Stopped here"; the failed variant says "Needed folder is missing".
-- Check value: "Decide on an answer": Loud and Quiet take different branches; `dctl check value.check value=5 is=atLeast to=3` exits 0; a word where a number is needed says so.
+- Check value: "Decide on an answer": Loud and Quiet take different branches; `cad check value.check value=5 is=atLeast to=3` exits 0; a word where a number is needed says so.
 - Events: turn on **13e**, turn the screens off and on again: one pop-up per change, none at start; stay away until Windows says away and come back. Turn on **13f**, plug a USB device in and out: the pop-up names it. Turn on **13g**, run a flow that fails: the pop-up names that flow; stop a flow by hand: nothing.
 - Open file or address: run "LIVE-RISK 24 Open a folder" (opens `%WINDIR%` in Explorer); then try `https://` and `ms-settings:display` as the target in the inspector; a missing file fails with a sentence.
 - Control media (not in the kit): add it to a flow with music playing; Play or pause, Next and Previous act on the player, no key is pressed.
 - Wake over network: edit "LIVE-RISK 25" to your sleeping PC's hardware address and `host:port`; it wakes a real PC and the second step waits until it answers and shows the time in ms.
-- Check address: `dctl check network.reach address=nas:445` (or a web page, a host) exits 0 / 1; no secret in a failure sentence.
-- Inputs: `dctl run <flow> name=value` with a Library key (device input) and with text; a wrong name exits 2 with the flow's input names; a Stream Deck key calling `dctl.exe run ...` (FEATURES F8 recipe).
+- Check address: `cad check network.reach address=nas:445` (or a web page, a host) exits 0 / 1; no secret in a failure sentence.
+- Inputs: `cad run <flow> name=value` with a Library key (device input) and with text; a wrong name exits 2 with the flow's input names; a Stream Deck key calling `cad.exe run ...` (FEATURES F8 recipe).
 
 ## Since v0.54.0 (flows 30-40; M24-M27 features, all harmless)
 
 30 Get from text (shows 42 and Hello) · 31 a value in a number setting (free-space check used 1 GB) · 32 Stop flow + Check value (first pop-up only, history "Stopped here") ·
-33 flow events and 34 file events (off: turn on, run 30; create `%TEMP%\daze-accept-x.txt`) · 35 / 35b Only run if (`dctl run` says "Held back" exit 1 / runs) ·
+33 flow events and 34 file events (off: turn on, run 30; create `%TEMP%\daze-accept-x.txt`) · 35 / 35b Only run if (`cad run` says "Held back" exit 1 / runs) ·
 36 a turned-off step is skipped · 37 right-click step B > Run from this step (no "step A") · 38 Repeat (three "round ran", Runs "Ran 3 times") ·
-39 opens only the dev folder · 40 `dctl run "<flow>" who=Ada`, `dctl list --json`. Blame: step/validator files named in FEATURES.
+39 opens only the dev folder · 40 `cad run "<flow>" who=Ada`, `cad list --json`. Blame: step/validator files named in FEATURES.
 
 ## Canvas gate (M21)
 
