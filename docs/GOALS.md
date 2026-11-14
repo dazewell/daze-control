@@ -6,6 +6,8 @@ lives in [DECISIONS.md](DECISIONS.md).
 
 ## User intent
 
+- Repository skills must work across product renames: discover the current names from source metadata and use the tools available in the current agent environment (user, 2026-11-13).
+
 - Replace `scd` (C:\Projects\Copilot\system-control-daemon, .NET 9 WinForms + WPF tray daemon) with a new
   engine in a different stack: named flows of steps (Bluetooth, audio, displays, Android (Fire TV), Sunshine,
   programs…) fired by global hotkeys, the tray menu or a CLI (user, 2026-10-31).

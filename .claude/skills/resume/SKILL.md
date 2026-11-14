@@ -1,6 +1,6 @@
 ---
 name: resume
-description: Pick up Ctrl Alt Daze work exactly where the last (possibly cut-off) agent session stopped, and stop cleanly before a usage cap or context limit. Use at the start of every session in this repo, whenever the user says "continue", "resume", "where are we", "what's next", after a session was interrupted, and whenever you are close to a usage cap or the context is getting long — even if the task looks fresh.
+description: Pick up this repo's work exactly where the last (possibly cut-off) agent session stopped, and stop cleanly before a usage cap or context limit. Use at the start of every session in this repo, whenever the user says "continue", "resume", "where are we", "what's next", after a session was interrupted, and whenever you are close to a usage cap or the context is getting long — even if the task looks fresh.
 ---
 
 # Resume
@@ -44,16 +44,16 @@ Better a small clean stop than a big dirty one.
 
 The user wants work to pause at **97 %** of the 5-hour limit and continue after the reset.
 
-- Read the limit with `mcp__ccd_session_mgmt__get_usage` (load it with ToolSearch if deferred): the
-  `plan.windows` entry labelled "5-hour limit" has `percentUsed` and `resetsAt` (UTC).
+- If this environment exposes a usage tool, discover it and read the 5-hour usage and reset time.
+  Do not assume another agent app's tool is available; absent usage tools are not a blocker.
 - Check it at session start, after every checkpoint commit, and before starting any sub-step. At ≥ 90 %
   keep sub-steps small (one test + its code) so the next check comes soon.
 - At **≥ 97 %**: do the "Near the cap" stop above (commit, push, PR Resume section). Then end the turn with one
   line: work is paused, plus the exact `resetsAt` (UTC). Start no new work.
-- **Never create or re-arm scheduled tasks** (`daze-control-resume` stays disabled). Scheduled runs start
+- **Never create or re-arm scheduled tasks** (legacy resume automations stay disabled). Scheduled runs start
   with default permissions and stalled on their first prompt twice (2026-11-01/02). The session that
   started you reads your note and wakes you after the reset; if nobody does, the user restarts by hand.
-- `get_usage` reports `unavailable` / `not_applicable` → keep the normal checkpoint rhythm.
+- Usage tools are absent or report `unavailable` / `not_applicable` → keep the normal checkpoint rhythm.
 
 ## Resume section format (PR description; PLAN.md's block uses the same lines, shorter)
 

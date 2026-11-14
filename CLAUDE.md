@@ -10,7 +10,8 @@ Usage caps cut sessions often. **Always start with the `resume` skill**: it read
 top of [docs/PLAN.md](docs/PLAN.md) and your task's PR, and tells you exactly where the last agent stopped.
 Checkpoint rule: after every green sub-step build + test → commit → push → rewrite the PR's `## Resume` section.
 Usage is scarce and every tool call re-reads the whole conversation: batch lookups, read sections not whole
-docs, never wait on CI (auto-merge does); to wait for a merge run `scripts/wait-pr.ps1 <n>` in the background (D-079).
+docs. Let `scripts/pr-wait.ps1 <n>` wait for CI/review in a background terminal session, then merge through
+`scripts/pr-merge.ps1 <n>` (D-122). To wait for another PR's merge, use `scripts/wait-pr.ps1 <n>` (D-079).
 
 ## The repo is the memory
 
@@ -28,12 +29,14 @@ Don't re-read whole docs: GOALS + the task's files + grep DECISIONS/DEADENDS for
 
 ## Skills
 
+Skills resolve product names from the current solution, project metadata and identity source; see the build skill's "Resolve names" section. Do not duplicate the brand in skill instructions.
+
 - `resume` — session start and near-cap stop. Use first in every session.
 - `repo-workflow` — orient → branch → work → record → commit → definition of done. Use for every task.
 - `build` — prerequisites, build/run/test/publish/measure commands, troubleshooting.
 - `pr-review` — Copilot review, review threads, CI wait/rerun, ready check and merge via `scripts/pr-*.ps1` (D-122). Use for every PR.
 - `release` — cut a release with `scripts/cut-release.ps1`; only when the user asks.
-- `daze-coordinator` — run a coordinator session: route tasks to child sessions, track PRs, cut releases on request; use only in coordinator sessions.
+- `coordinator` — run a coordinator session: route tasks to child sessions, track PRs, cut releases on request; use only in coordinator sessions.
 - `knowledge-log` — what goes into which doc, entry formats, brevity rules.
 
 If a skill or this file is wrong, fix it in the same change that found the problem.

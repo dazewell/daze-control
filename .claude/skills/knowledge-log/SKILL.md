@@ -1,6 +1,6 @@
 ---
 name: knowledge-log
-description: Records the why behind the Ctrl Alt Daze code — decisions with rejected alternatives, dead ends, user intent/scope changes, and architecture updates — in docs/ with strict brevity rules. Use whenever a choice between real alternatives is made, an approach is rejected or fails, a non-obvious Windows/WinUI/AOT behaviour is discovered, the architecture changes, an open question gets answered, or the user states a preference or changes goals. Also use when finishing a task, and when asked "why is it done this way" or "did we try X".
+description: Records the why behind this repo's code — decisions with rejected alternatives, dead ends, user intent/scope changes, and architecture updates — in docs/ with strict brevity rules. Use whenever a choice between real alternatives is made, an approach is rejected or fails, a non-obvious Windows/WinUI/AOT behaviour is discovered, the architecture changes, an open question gets answered, or the user states a preference or changes goals. Also use when finishing a task, and when asked "why is it done this way" or "did we try X".
 ---
 
 # Knowledge log

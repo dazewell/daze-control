@@ -1,9 +1,9 @@
 # Plan
 
 ## Resume
-Current: M20 (scheduled and event triggers, input prompts; D-107) is merged: T20.1–T20.7 plus follow-ups T20.8–T20.10 (M20 section); not released as stable yet: the user asked for a release candidate first (T20.13). M12, M13, M14, M18, M19 are done except the live checks listed in their sections.
+Current: v1.0.0 is published (2026-11-13): Ctrl Alt Daze rebrand, setup carry-over and isolated update channel (M29, D-152, D-154), plus merged M20–M27 work. M29's install/migration checks and the feature live checks listed below remain open.
 Next action: the user's live check of M20 with `scripts/dev-run.ps1` (T20.11), then fix what it finds; run T20.2's idle `measure.ps1` gate (stop the installed engine first). Also open: the M13 gate (UX acceptance list); DESIGN §1 B live run (changes the default audio device: ask the user). Cut a release only when the user asks.
-Workflow (D-079): PRs don't bump `<Version>`, merge with `gh pr merge --auto --merge`, keep their live state in the PR's `## Resume`, and don't edit this block.
+Workflow (D-079, D-122): PRs don't bump `<Version>`; follow the `pr-review` skill and merge through `scripts/pr-merge.ps1`. Keep task state in the PR's `## Resume`; task PRs leave this overall block to the coordinator or session working directly for the user.
 Notes for next agent:
 - Never push a v-tag without the user (D-043). Live display tests: `scripts/display-check.ps1` (`-Go` changes the user's screens: ask first every time).
 - Try a checkout on the user's PC: `pwsh scripts/dev-run.ps1` (stops the engine, builds, runs on the dev config; `-Restore` brings the installed app back).
@@ -14,6 +14,8 @@ Notes for next agent:
 ---
 
 ## Workflow (usage-cap-proof, D-018)
+
+- [x] Skill maintenance: remove embedded product names, rename the coordinator skill, resolve build identities from source, and adapt tool guidance to the current agent environment (`codex/skills-name-agnostic`).
 
 - This file = the task list with status `[ ]` / `[~]` / `[x]`, branch and PR per task. Its top is the
   **Resume block**: what's next overall, kept short, rewritten only by the coordinator. A task's live state is
