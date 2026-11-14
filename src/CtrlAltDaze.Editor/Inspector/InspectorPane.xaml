@@ -444,7 +444,7 @@
 
                 <!-- If it fails (UX §5.4): hover or focus previews what wouldn't run. -->
                 <TextBlock Text="{x:Bind ViewModel.PolicySectionTitle, Mode=OneWay}" Style="{StaticResource InspectorSection}" />
-                <RadioButtons x:Name="PolicyButtons" Opacity="{x:Bind local:InspectorPane.DimStep(ViewModel.IsStep, ViewModel.PolicyIsSet), Mode=OneWay}" SelectedIndex="{x:Bind ViewModel.PolicyIndex, Mode=TwoWay}" AutomationProperties.Name="{x:Bind ViewModel.PolicySectionTitle, Mode=OneWay}"
+                <RadioButtons x:Name="PolicyButtons" Loaded="OnRadioButtonsLoaded" Opacity="{x:Bind local:InspectorPane.DimStep(ViewModel.IsStep, ViewModel.PolicyIsSet), Mode=OneWay}" SelectedIndex="{x:Bind ViewModel.PolicyIndex, Mode=TwoWay}" AutomationProperties.Name="{x:Bind ViewModel.PolicySectionTitle, Mode=OneWay}"
                               IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
                     <RadioButton Tag="0" PointerEntered="OnPolicyHover" PointerExited="OnPolicyLeave" GotFocus="OnPolicyHover" LostFocus="OnPolicyLeave"
                                  AutomationProperties.Name="Stop the flow. If this fails, the whole flow stops.">
@@ -496,7 +496,8 @@
                 <StackPanel Visibility="{x:Bind ViewModel.HasConnections, Mode=OneWay}" Spacing="8" motion:Motion.Animate="True">
                     <TextBlock Text="Connections" Style="{StaticResource InspectorSection}" />
                     <ContentControl IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}" IsTabStop="False" HorizontalContentAlignment="Stretch">
-                    <ItemsControl motion:Motion.AnimateItems="True" ItemsSource="{x:Bind ViewModel.Connections}" IsTabStop="False">
+                    <!-- No row transitions: the list is rebuilt on every load, so old rows slid out over the new ones. -->
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Connections}" IsTabStop="False">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vmi:ConnectionViewModel">
                                 <StackPanel Spacing="4" Margin="0,0,0,8">
@@ -631,7 +632,7 @@
                 </StackPanel>
 
                 <TextBlock Text="{x:Bind ViewModel.ManyPolicyTitle, Mode=OneWay}" Style="{StaticResource InspectorSection}" />
-                <RadioButtons SelectedIndex="{x:Bind ViewModel.ManyPolicyIndex, Mode=TwoWay}" Opacity="{x:Bind local:InspectorPane.DimRow(ViewModel.ManyPolicyView), Mode=OneWay}"
+                <RadioButtons Loaded="OnRadioButtonsLoaded" SelectedIndex="{x:Bind ViewModel.ManyPolicyIndex, Mode=TwoWay}" Opacity="{x:Bind local:InspectorPane.DimRow(ViewModel.ManyPolicyView), Mode=OneWay}"
                               AutomationProperties.Name="{x:Bind ViewModel.ManyPolicyView.Name, Mode=OneWay}">
                     <RadioButton AutomationProperties.Name="Stop the flow. If this fails, the whole flow stops.">
                         <StackPanel>

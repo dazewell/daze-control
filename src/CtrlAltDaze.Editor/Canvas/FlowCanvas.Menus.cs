@@ -136,7 +136,44 @@ public sealed partial class FlowCanvas
         RefusalTip.Title = title;
         RefusalTip.Subtitle = text;
         RefusalTip.Target = target;
-        RefusalTip.IsOpen = true;
+        // A tip is placed once, when it opens: a step still gliding gets it when it lands (FinishMotion), else it would
+        // point at where the step was.
+        _tipAfterMotion = target is NodeView && _viewModel?.Scene.IsMoving == true;
+        RefusalTip.IsOpen = !_tipAfterMotion;
+        // It says what was done, nothing to answer: it goes by itself even when no click lands outside it.
+        _tipTimer ??= CreateTipTimer();
+        _tipTimer.Stop();
+        _tipTimer.Start();
+    }
+
+    private bool _tipAfterMotion;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _tipTimer;
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateTipTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.Interval = TimeSpan.FromSeconds(8);
+        timer.IsRepeating = false;
+        timer.Tick += (_, _) => CloseTip();
+        return timer;
+    }
+
+    private void CloseTip()
+    {
+        _tipAfterMotion = false;
+        _tipTimer?.Stop();
+        RefusalTip.IsOpen = false;
+    }
+
+    /// <summary>A tip on a step sits where it opened: it is placed again once the layout settles.</summary>
+    private void ReanchorTip()
+    {
+        if (!_tipAfterMotion && !(RefusalTip.IsOpen && RefusalTip.Target is NodeView))
+            return;
+        _tipAfterMotion = false;
+        RefusalTip.IsOpen = false;
+        if (RefusalTip.Target is NodeView { Parent: not null })
+            RefusalTip.IsOpen = true;
     }
 
     private MenuFlyout EdgeMenu(CanvasEdgeViewModel edge, Windows.Foundation.Point at)

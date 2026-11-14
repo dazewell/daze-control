@@ -91,6 +91,7 @@ public sealed partial class FlowCanvas
         ClearLiveEdges();
         DrawEdges(); // the static set again, and a running drag's live set
         UpdateFocusRing();
+        ReanchorTip();
         if (_portsNode is not null && (InPortDot.Visibility == Visibility.Visible || OutPortDot.Visibility == Visibility.Visible))
             ShowPorts(_portsNode);
     }

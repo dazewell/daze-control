@@ -64,7 +64,17 @@ public sealed partial class FlowCanvas
     {
         if (_viewModel is not null && ViewportWidth > 0)
             camera = camera.Clamp(_viewModel.ExtentWidth, _viewModel.ExtentHeight, ViewportWidth, ViewportHeight);
+        var moved = !camera.Equals(_camera);
         _camera = camera;
+        // A pan or zoom moves the steps under a tip that stays put: the user's own goes rather than point at the wrong
+        // place; a fit after an edit places it again.
+        if (moved && RefusalTip.IsOpen && RefusalTip.Target is NodeView)
+        {
+            if (_autoFit)
+                ReanchorTip();
+            else
+                CloseTip();
+        }
         CameraTransform.ScaleX = CameraTransform.ScaleY = camera.Zoom;
         CameraTransform.TranslateX = camera.X;
         CameraTransform.TranslateY = camera.Y;

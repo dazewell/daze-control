@@ -103,6 +103,30 @@ public sealed partial class InspectorPane : UserControl
         return null;
     }
 
+    /// <summary>
+    /// RadioButtons lays its items out uniform to the largest, so a one-line choice beside a three-line one gets a
+    /// three-line row (a gap under it): its repeater stacks them at their own heights instead.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnRadioButtonsLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is DependencyObject buttons && FindRepeater(buttons) is { } repeater && repeater.Layout is not StackLayout)
+            repeater.Layout = new StackLayout();
+    }
+
+    private static ItemsRepeater? FindRepeater(DependencyObject parent)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is ItemsRepeater repeater)
+                return repeater;
+            if (FindRepeater(child) is { } found)
+                return found;
+        }
+        return null;
+    }
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
     private void OnBindDevices(object sender, RoutedEventArgs e)
     {
