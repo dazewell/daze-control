@@ -1,6 +1,6 @@
 ---
 name: repo-workflow
-description: How to start, carry out and finish any piece of work in the Ctrl Alt Daze repo — orienting from the Resume block and docs, branching, checkpoint commits, opening PRs, and the definition of done. Use this at the start of every coding, refactoring, bug-fix or docs task in this repo, whenever the user asks "what's next", "where are we", "continue", or to commit/push/open a PR, and before ending a task, even if the request looks small.
+description: How to start, carry out and finish any piece of work in this repo — orienting from the Resume block and docs, branching, checkpoint commits, opening PRs, and the definition of done. Use this at the start of every coding, refactoring, bug-fix or docs task in this repo, whenever the user asks "what's next", "where are we", "continue", or to commit/push/open a PR, and before ending a task, even if the request looks small.
 ---
 
 # Repo workflow
@@ -52,7 +52,7 @@ Commit too (`feat(...)`, `fix(...)`, `docs(...)`): the release cutter reads it t
 Never commit `bin/`, `obj/`, `artifacts/`, local settings, or anything with secrets.
 
 Version: **PRs never touch `<Version>`** (D-079). The release tag is the version: the cutter picks the next number
-from the PR titles since the last tag (any `feat` → minor, else patch); `<Version>` in `Directory.Build.props`
+with the release skill (the script defaults to next minor; pass `-Version` for a patch or requested major bump); `<Version>` in `Directory.Build.props`
 only labels local builds. To cut a release (only when the user asks): `release` skill.
 
 ## 5. Definition of done

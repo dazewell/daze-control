@@ -1,6 +1,6 @@
 ---
 name: release
-description: Cut a Ctrl Alt Daze release (tag, CI wait, Release workflow, notes, asset check) with one script. Use ONLY when the user explicitly asks for a release in chat ("cut a release", "release it", "ship v0.x"); never on your own initiative.
+description: Cut a release of this repo's app (tag, CI wait, Release workflow, notes, asset check) with one script. Use ONLY when the user explicitly asks for a release in chat ("cut a release", "release it", "ship a version"); never on your own initiative.
 ---
 
 # Release
@@ -10,12 +10,12 @@ description: Cut a Ctrl Alt Daze release (tag, CI wait, Release workflow, notes,
 Rules:
 - Never push a `v*` tag unless the user asked for a release in chat this session (D-043). A past approval does not carry over.
 - The tag is the version, PRs never bump `<Version>` (D-079). Merge commits only; never `--admin` / `--squash`.
-- Don't poll CI with model turns: the script blocks. Run it with `run_in_background`; you are re-invoked when it exits.
+- The script waits for CI and publication itself. Use the environment's background execution or persistent terminal session and wait on that session through completion; do not start a separate CI polling loop. Do not end the task while the requested release is still running.
 
 Steps:
 1. Find what merged since the last tag: `git fetch origin main --tags; git log --first-parent --format="%s%n%b" <last tag>..origin/main | Select-String '^(feat|fix)[(:]'`.
 2. Write the notes file in the scratchpad (not the repo): a short bullet list, one line each, in user terms (what the user sees; no internals, no PR numbers). From v0.39 on only.
-3. `pwsh scripts/cut-release.ps1 -DryRun` to confirm version and sha (default: latest tag, minor + 1, right when any title is a `feat`; for fixes only pass `-Version` with patch + 1; pass `-Version vX.Y.Z` for a patch or other number, `-Prs 130,131` to wait for PRs first).
+3. `pwsh scripts/cut-release.ps1 -DryRun` to confirm version and sha. The script defaults to next minor, regardless of PR titles: for fixes only pass `-Version` with patch + 1; for an explicitly requested major bump pass the next major with minor/patch zero. Pass `-Prs 130,131` to wait for PRs first. Dry-run with the same version arguments as the real release.
 4. `pwsh scripts/cut-release.ps1 -Notes <file> [-Prs …] [-Version …]` in the background.
 
 Release candidate (user asks for "RC" / "pre-release"): add `-Rc` (next minor + `-rc.<n>`, e.g. `v0.52.0-rc.1`). The release is marked

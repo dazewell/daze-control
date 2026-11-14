@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Handle a Ctrl Alt Daze PR's Copilot review, review threads, CI wait/rerun, readiness check and merge with the deterministic scripts/pr-*.ps1 scripts (cheap, short output). Use whenever you open, review-wait, fix review comments on, check, or merge a PR here, or when a brief says "follow the pr-review skill". Never hand-roll gh/graphql for these.
+description: Handle a PR's Copilot review, review threads, CI wait/rerun, readiness check and merge with the deterministic scripts/pr-*.ps1 scripts (cheap, short output). Use whenever you open, review-wait, fix review comments on, check, or merge a PR here, or when a brief says "follow the pr-review skill". Never hand-roll gh/graphql for these.
 ---
 
 # PR review and merge (D-122)
@@ -17,7 +17,7 @@ Every script takes the PR number, works from any worktree, prints one short line
 
 ## Flow
 
-1. `gh pr create`, then Auto-fix in 3 calls (MCP only, can't be scripted): `mcp__ccd_pr__get_status`; `mcp__ccd_pr__bind_pr` if it doesn't show the PR; `mcp__ccd_pr__set_monitor` with `auto_fix: true`, `address_comments: true`. If the app refuses, say so in the PR `## Resume`.
+1. `gh pr create`. If this environment exposes PR monitoring tools, discover their schema and enable Auto-fix/address-comments for this PR. If unavailable or refused, record that in `## Resume` and handle checks and comments through the scripts below; do not call tools from another agent app by name.
 2. Review needed: `scripts/pr-request-review.ps1 <pr>` (idempotent), then `scripts/pr-wait.ps1 <pr>` with `run_in_background` (blocks until the review landed and CI finished; prints review state and CI; exit 0 ok, 1 CI failed, 2 timeout, 3 closed/not requested). No review needed: `pr-wait.ps1 <pr> -NoReview` for CI only.
 3. `scripts/pr-threads.ps1 <pr>` lists unresolved threads (`id file:line @author body≤300`) plus review bodies; `-Full <id>` shows one in full, `-All` includes resolved.
 4. Fix, push, then `scripts/pr-reply.ps1 <pr> "<id>=<reply>" "<id>=<reply>"` (ids may be unique prefixes; replies the thread, resolves it, re-queries and prints `unresolved: N`). Same message for all: `-All "Fixed in <sha>"`.

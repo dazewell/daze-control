@@ -9,5 +9,5 @@ $block = for ($i = $start; $i -lt $lines.Count; $i++) {
     if ($i -gt $start -and ($lines[$i] -match '^(## |---)')) { break }
     $lines[$i]
 }
-"Ctrl Alt Daze — use the resume skill first. Resume block from docs/PLAN.md:"
+"Use the resume skill first. Resume block from docs/PLAN.md:"
 $block

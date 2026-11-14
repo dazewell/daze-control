@@ -1,4 +1,4 @@
-# Checks the local machine can build Ctrl Alt Daze. Read-only: prints problems and fixes, installs nothing.
+# Checks the local machine can build this repo. Read-only: prints problems and fixes, installs nothing.
 $ok = $true
 
 $sdks = @(dotnet --list-sdks 2>$null)
@@ -16,7 +16,7 @@ $vc = if (Test-Path $vswhere) {
     & $vswhere -products * -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
 }
 if (-not $vc) {
-    Write-Host "MISSING  MSVC C++ tools (needed only for Native AOT publish of the engine and cad)" -ForegroundColor Yellow
+    Write-Host "MISSING  MSVC C++ tools (needed only for Native AOT publish of the engine and the CLI)" -ForegroundColor Yellow
     Write-Host '         fix: winget install Microsoft.VisualStudio.2022.BuildTools --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"'
     $ok = $false
 } else {
