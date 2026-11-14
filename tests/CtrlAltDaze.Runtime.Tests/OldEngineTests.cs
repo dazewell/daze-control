@@ -17,6 +17,24 @@ public sealed class OldEngineTests
     }
 
     [Fact]
+    public void TheOldInstallIsRemovedThroughItsOwnUninstallerWhileItIsThere()
+    {
+        var update = Path.Combine(Path.GetTempPath(), "ctrlaltdaze-oldinstall-" + Guid.NewGuid().ToString("N") + ".exe");
+        var started = new List<string>();
+        Assert.Null(OldEngine.RemoveInstall(update, (exe, args) => started.Add(args)));
+        File.WriteAllText(update, "");
+        try
+        {
+            Assert.Equal("setup: removing the old app", OldEngine.RemoveInstall(update, (exe, args) => started.Add(exe + " " + args)));
+            Assert.Equal([update + " uninstall --silent"], started);
+        }
+        finally
+        {
+            File.Delete(update);
+        }
+    }
+
+    [Fact]
     public void AnOldEngineThatExitsIsWaitedFor()
     {
         using var held = new ManualResetEventSlim();

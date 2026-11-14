@@ -396,11 +396,21 @@ internal sealed class EngineHost : IDisposable
             var repaired = await Task.Run(() => _shortcuts.RepairIcons(flows)).ConfigureAwait(false);
             if (repaired > 0)
                 Log.Info($"shortcuts: {repaired} icon(s) put back");
+            // The rename (T29.2 e, D-152): only after the repair re-pointed the old app's shortcuts, since its
+            // uninstall deletes the shortcuts that still start it.
+            if (_shortcuts.CarriesOldApp
+                && OldEngine.RemoveInstall(Path.Combine(OldName.InstallFolder, "Update.exe"), StartHidden) is { } line)
+                Log.Info(line);
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
             Log.Error("shortcuts: icon repair", e);
         }
+    }
+
+    private static void StartHidden(string exe, string arguments)
+    {
+        using var _ = Process.Start(new ProcessStartInfo(exe, arguments) { UseShellExecute = false, CreateNoWindow = true });
     }
 
     /// <summary>A shortcut that started this engine: the same request a second engine forwards over the pipe.</summary>

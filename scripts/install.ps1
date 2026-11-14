@@ -25,28 +25,6 @@ if ($process.ExitCode -ne 0) { throw "Setup failed ($($process.ExitCode)); see $
 if (-not (Get-Process CtrlAltDaze -ErrorAction SilentlyContinue)) {
     Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) | Out-Null
 }
-# The rename (T29.2, D-152): the new engine stops the old one, copies its folders, takes over Start with Windows and
-# re-points the old desktop shortcuts. Only then is the old install removed: its uninstall deletes shortcuts that still
-# start it. A shortcut of a flow that no longer exists is never re-pointed: it is listed and the old app stays.
-$oldUpdate = Join-Path $env:LOCALAPPDATA 'DazeControlApp\Update.exe'
-if (Test-Path $oldUpdate) {
-    $shell = New-Object -ComObject WScript.Shell
-    $desktop = [Environment]::GetFolderPath('Desktop')
-    $deadline = (Get-Date).AddSeconds(30)
-    do {
-        $left = @(Get-ChildItem $desktop -Filter *.lnk | Where-Object { $shell.CreateShortcut($_.FullName).TargetPath -like '*\DazeControlApp\*' })
-        if ($left.Count -eq 0) { break }
-        Start-Sleep -Milliseconds 500
-    } while ((Get-Date) -lt $deadline)
-    if ($left.Count) {
-        Write-Warning "Old app kept: these desktop shortcuts still start it: $($left.Name -join ', ')"
-    } else {
-        $process = Start-Process $oldUpdate -ArgumentList 'uninstall', '--silent' -PassThru
-        $process.WaitForExit()
-        Write-Host "Removed the old Daze Control install (exit $($process.ExitCode))."
-    }
-}
-
 $run = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name CtrlAltDaze -ErrorAction SilentlyContinue).CtrlAltDaze
 Write-Host "Installed and started: $exe"
 Write-Host "Start with Windows: $(if ($run) { $run } else { 'off - turn it on in the editor''s Settings or with cad autostart on' })"

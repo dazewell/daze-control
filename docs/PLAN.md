@@ -967,7 +967,7 @@ Rules: start T29.1 only with zero open PRs and paused child sessions (every open
   to quit over the old pipe before taking hotkeys (two engines = every hotkey fires twice). (d) Desktop shortcuts with the old
   target count as ours and are rewritten to the new stub; Start with Windows is turned on under the new name when it was on.
   (e) Removing the old install (`%LOCALAPPDATA%\DazeControlApp\Update.exe uninstall --silent`) after (d): ask the user whether the
-  app does it itself or offers it once; `install.ps1` does it on the dev PC. No timers or polling for any of this (idle = zero).
+  app does it itself or offers it once (the user: either; built: the engine does it, no prompt). No timers or polling for any of this (idle = zero).
   Done when: tests for each of (a) to (d); a clean-profile start and an old-profile start both come up with the right flows.
 - [x] T29.3 Record (Sonnet, S; with T29.1 or right after). ARCHITECTURE, FEATURES, UX and ACCEPTANCE say the new names; GOALS'
   working-name line becomes the final name; D-152 → "accepted, built".
@@ -977,5 +977,5 @@ Rules: start T29.1 only with zero open PRs and paused child sessions (every open
 - [ ] T29.5 Release and live check (the user): cut a release on request, install `CtrlAltDazeApp-win-Setup.exe`, then check:
   flows and Library are there, Alt+Z connects the Technics, a step with a credential works, desktop shortcuts start their flows,
   Start with Windows is on, one engine in Task Manager, the old app is gone from Installed apps, `cad list` answers.
-Open (the user): the order against the M20 release candidate (T20.13); T29.2 (e); `.dcflow` in T27.2 → `.cadflow`?
+Open (the user): the order against the M20 release candidate (T20.13); `.dcflow` in T27.2 → `.cadflow`?
 Not checked for the name: trademark registers, Microsoft Store, NuGet (GitHub, winget, web search and ctrlaltdaze.com were clear on 2026-11-13).
