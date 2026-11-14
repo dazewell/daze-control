@@ -74,7 +74,8 @@ threads, CI wait/rerun, the ready check and the merge itself is in the **`pr-rev
 hand-roll `gh` calls. In short: merge commits only via `scripts/pr-merge.ps1` (never `--auto` for children, `--squash`
 or `--admin`); a Copilot review is required for PRs adding more than 100 lines of non-test code (max 2 per PR);
 every thread is replied to and resolved first. To wait for a PR to land (a dependency, a release):
-`pwsh scripts/wait-pr.ps1 60,61` with `run_in_background`. Never poll by hand, never ask the user "is it merged?".
+`pwsh scripts/wait-pr.ps1 60,61` in a background process or persistent terminal session. Wait on that process;
+never add a separate polling loop or ask the user "is it merged?".
 
 Stacked PRs: with merge commits, a branch that already contains its base merges cleanly once the base lands;
 just `git merge origin/main`. Never rebase or force-push.

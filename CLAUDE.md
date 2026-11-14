@@ -10,7 +10,8 @@ Usage caps cut sessions often. **Always start with the `resume` skill**: it read
 top of [docs/PLAN.md](docs/PLAN.md) and your task's PR, and tells you exactly where the last agent stopped.
 Checkpoint rule: after every green sub-step build + test → commit → push → rewrite the PR's `## Resume` section.
 Usage is scarce and every tool call re-reads the whole conversation: batch lookups, read sections not whole
-docs, never wait on CI (auto-merge does); to wait for a merge run `scripts/wait-pr.ps1 <n>` in the background (D-079).
+docs. Let `scripts/pr-wait.ps1 <n>` wait for CI/review in a background terminal session, then merge through
+`scripts/pr-merge.ps1 <n>` (D-122). To wait for another PR's merge, use `scripts/wait-pr.ps1 <n>` (D-079).
 
 ## The repo is the memory
 
