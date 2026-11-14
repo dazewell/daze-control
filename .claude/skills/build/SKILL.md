@@ -19,7 +19,7 @@ not literal shell commands. Do not derive names by uppercasing the product name 
 | `<update-source-variable>` | `SourceOverrideVariable` in `src/*.Core/Updates/UpdateClient.cs` |
 | `<tray-window-class>` | `ClassName` in `src/*.Engine/Shell/MessageWindow.cs` |
 
-Find them with `rg --files src tests -g '*.csproj' -g 'AppInfo.cs' -g 'UpdateClient.cs' -g 'MessageWindow.cs'`
+Find them with `rg --files src tests scripts -g '*.csproj' -g 'AppInfo.cs' -g 'UpdateClient.cs' -g 'MessageWindow.cs' -g 'pack.ps1'`
 and `Get-ChildItem -File *.slnx`. Match actual project files, not directories: old names can survive in ignored
 `bin/obj` folders after a rename. Confirm each role has one project; if ambiguous, use the solution's project
 entries or `git ls-files` rather than guessing. Keep product names in source files, not in these instructions.
@@ -94,7 +94,7 @@ engine with `artifacts\cli\<cli>.exe status | list | history | run <flow> --wait
 (publish `src/<App>.Cli` first). `scripts/measure.ps1 -RunFlow <id>` also samples after runs. Read it from PowerShell: the agent's Bash tool may run
 sandboxed with a stale copy of `%LOCALAPPDATA%` (seen in the OSD repo, 2026-10-22).
 
-Tray (from the OSD build skill, same Shell_NotifyIcon code): the icon window is class `<tray-window-class>`
+Tray: the icon window used by the `Shell_NotifyIcon` implementation is class `<tray-window-class>`
 (uID 1); `Shell_NotifyIconGetRect` gives its rect; right-click there for the menu. Pick items with the mouse
 (`SetCursorPos` + `mouse_event`, physical pixels after `SetProcessDpiAwarenessContext(-4)`): a posted
 `WM_CONTEXTMENU` can't take the foreground. On the user's PC the taskbar is vertical (left) and the icon sits
