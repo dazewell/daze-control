@@ -2020,3 +2020,14 @@ Status: accepted
 - Why: the user wanted no "typical AI" purple with the rename (D-152); a keycap is the Ctrl+Alt pun.
 - Why not keep the OSD family look: the user asked for the change; the OSD can follow later or not.
 - Revisit if: orange is hard to tell from a taskbar warning badge in real use.
+
+## D-154 · 2026-11-13 · Our own Velopack channel "x64", so the old app never updates into the new one
+Status: accepted
+- Decision: `pack.ps1`, `release.yml` (download, upload) and `VelopackUpdateClient` (`ExplicitChannel`) use channel
+  `x64`: the feed is `releases.x64.json`, assets `CtrlAltDazeApp-x64-Setup.exe` / `-Portable.zip`.
+- Why: the installed Daze Control checks `dazewell/daze-control`, which GitHub redirects to the renamed repo, for
+  `releases.win.json`; Velopack's `CheckForUpdatesAsync` takes the newest full package whatever its `PackageId`
+  (probed with `TestVelopackLocator("DazeControlApp", "0.54.0")` over a feed of `CtrlAltDazeApp` 0.56.0: offered).
+  It would install Ctrl Alt Daze into `DazeControlApp`, and T29.2 (e) would then uninstall the running app.
+- Why not keep "win" and rely on the user installing first: the old engine checks at +1 min and daily.
+- Revisit if: Velopack starts filtering by package id (then "win" could come back, but nothing needs it).

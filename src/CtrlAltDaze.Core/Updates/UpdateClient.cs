@@ -161,6 +161,13 @@ public sealed class VelopackUpdateClient : IUpdateClient
     public static bool RestartedByUpdater() =>
         !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VELOPACK_RESTART"));
 
+    /// <summary>
+    /// The Velopack channel we pack with (pack.ps1 <c>--channel</c>, release.yml): our feed is <c>releases.x64.json</c>.
+    /// Not Velopack's default "win": the old app (D-152) reads <c>releases.win.json</c> through GitHub's redirect and
+    /// would take a newer package of any id, installing this app into its own folder (D-154).
+    /// </summary>
+    public const string PackChannel = "x64";
+
     private static UpdateManager CreateManager(UpdateChannel channel)
     {
         // UpdateManager needs the locator VelopackApp.Run() sets; the engine ran it for its hooks, the editor and cad
@@ -168,7 +175,8 @@ public sealed class VelopackUpdateClient : IUpdateClient
         if (!VelopackLocator.IsCurrentSet)
             VelopackApp.Build().SetAutoApplyOnStartup(false).Run();
         return Environment.GetEnvironmentVariable(SourceOverrideVariable) is { Length: > 0 } feed
-            ? new UpdateManager(feed)
-            : new UpdateManager(new GithubSource(RepoUrl, accessToken: null, prerelease: channel.IncludesPreReleases()));
+            ? new UpdateManager(feed, new UpdateOptions { ExplicitChannel = PackChannel })
+            : new UpdateManager(new GithubSource(RepoUrl, accessToken: null, prerelease: channel.IncludesPreReleases()),
+                new UpdateOptions { ExplicitChannel = PackChannel });
     }
 }

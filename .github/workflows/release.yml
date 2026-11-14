@@ -45,14 +45,14 @@ jobs:
         run: dotnet tool restore
 
       # The previous release's full package lets vpk build a delta update; the first release has none. vpk reads the
-      # newest stable release's releases.win.json and, when GitHub's API answers "No releases found" (seen once, rc.11),
+      # newest stable release's releases.x64.json (our channel, D-154) and, when GitHub's API answers "No releases found" (seen once, rc.11),
       # exits 0 with nothing downloaded: the run stays green but the release has no delta. So retry until a full package
       # is on disk, and warn (not fail) when none arrives: a release without a delta still installs and updates.
       - name: Download previous release
         shell: pwsh
         run: |
           foreach ($try in 1..4) {
-              dotnet vpk download github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} -o artifacts/releases
+              dotnet vpk download github --channel x64 --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} -o artifacts/releases
               if (Get-ChildItem artifacts/releases -Filter '*-full.nupkg' -ErrorAction SilentlyContinue) { exit 0 }
               Write-Host "Attempt $try found no previous full package."
               Start-Sleep -Seconds (15 * $try)
@@ -83,6 +83,6 @@ jobs:
 
       - name: Upload to GitHub Releases
         run: >
-          dotnet vpk upload github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
+          dotnet vpk upload github --channel x64 --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
           -o artifacts/releases --tag v${{ steps.check.outputs.version }} --targetCommitish ${{ github.sha }}
           --releaseName "Ctrl Alt Daze ${{ steps.check.outputs.version }}" --publish ${{ steps.check.outputs.pre == 'true' && '--pre' || '' }}
