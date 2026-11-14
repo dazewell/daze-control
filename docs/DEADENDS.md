@@ -147,5 +147,5 @@ D-117 read `SessionFlags` at byte 12. `WTSINFOEXW` is `Level` (4) + 4 bytes padd
 
 ## X-018 · 2026-11-13 · Editor tip, radio list and Connections motion misbehaved in the inspector/canvas
 - A `TeachingTip` with a canvas step as `Target` is placed once, when it opens; the camera is a render transform and steps glide, so it pointed at empty space and light dismiss missed canvas presses. Fix: open after the glide, re-place on `FinishMotion`/auto-fit, close on the user's pan/zoom or a canvas press, and an 8 s one-shot close.
-- `RadioButtons` lays items out uniform to the largest, so a one-line choice beside a three-line one got a gap. Fix: `InspectorPane.OnRadioButtonsLoaded` swaps its inner repeater to a `StackLayout`.
+- `RadioButtons` lays items out uniform to the largest, so a one-line choice beside a three-line one got a gap. Fix: `InspectorPane.OnRadioButtonsLoaded` swaps its inner repeater to a `StackLayout`; Loaded comes while the section is collapsed and has no template yet, so it calls `ApplyTemplate()` first (else retries on first SizeChanged). All three checked live.
 - `Motion.AnimateItems` on a list that is cleared and refilled each load (Connections) slid old rows out over the new ones. Don't use it there; the pane's swap fade covers step changes.
