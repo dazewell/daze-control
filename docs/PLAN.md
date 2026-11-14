@@ -971,7 +971,7 @@ Rules: start T29.1 only with zero open PRs and paused child sessions (every open
   Done when: tests for each of (a) to (d); a clean-profile start and an old-profile start both come up with the right flows.
 - [x] T29.3 Record (Sonnet, S; with T29.1 or right after). ARCHITECTURE, FEATURES, UX and ACCEPTANCE say the new names; GOALS'
   working-name line becomes the final name; D-152 → "accepted, built".
-- [ ] T29.4 GitHub repository (S; changes something outside the repo: ask the user at that moment). `gh repo rename ctrl-alt-daze`,
+- [x] T29.4 GitHub repository (S; changes something outside the repo: ask the user at that moment). `gh repo rename ctrl-alt-daze`,
   then `UpdateClient.RepoUrl`, `cut-release.ps1`, `wait-pr.ps1`, README links, `git remote set-url origin …` (one shared config
   for all worktrees). GitHub redirects the old URL. Old installed copies stop seeing updates (other package id): intended.
 - [ ] T29.5 Release and live check (the user): cut a release on request, install `CtrlAltDazeApp-win-Setup.exe`, then check:

@@ -8,7 +8,7 @@ $end = (Get-Date).AddMinutes($TimeoutMinutes)
 $open = [System.Collections.Generic.HashSet[int]]::new([int[]]($Pr -split '[,\s]+' | Where-Object { $_ })); $bad = $false
 while ($open.Count -gt 0 -and (Get-Date) -lt $end) {
   foreach ($n in @($open)) {
-    $s = gh pr view $n --repo dazewell/daze-control --json state -q .state 2>$null
+    $s = gh pr view $n --repo dazewell/ctrl-alt-daze --json state -q .state 2>$null
     if ($s -eq 'MERGED') { "#$n merged"; [void]$open.Remove($n) }
     elseif ($s -eq 'CLOSED') { "#$n closed without merging"; [void]$open.Remove($n); $bad = $true }
   }
