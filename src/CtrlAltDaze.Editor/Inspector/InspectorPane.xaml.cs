@@ -103,6 +103,50 @@ public sealed partial class InspectorPane : UserControl
         return null;
     }
 
+    /// <summary>
+    /// RadioButtons lays its items out uniform to the largest, so a one-line choice beside a three-line one gets a
+    /// three-line row (a gap under it): its repeater stacks them at their own heights instead.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
+    private void OnRadioButtonsLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Control buttons)
+            return;
+        // Loaded comes while the step section is still collapsed, before any template: apply it now, and try again
+        // when it is first laid out.
+        buttons.ApplyTemplate();
+        if (!StackItems(buttons))
+            buttons.SizeChanged += OnRadioButtonsSized;
+    }
+
+    private void OnRadioButtonsSized(object sender, SizeChangedEventArgs e)
+    {
+        if (StackItems((DependencyObject)sender))
+            ((FrameworkElement)sender).SizeChanged -= OnRadioButtonsSized;
+    }
+
+    private static bool StackItems(DependencyObject buttons)
+    {
+        if (FindRepeater(buttons) is not { } repeater)
+            return false;
+        if (repeater.Layout is not StackLayout)
+            repeater.Layout = new StackLayout();
+        return true;
+    }
+
+    private static ItemsRepeater? FindRepeater(DependencyObject parent)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is ItemsRepeater repeater)
+                return repeater;
+            if (FindRepeater(child) is { } found)
+                return found;
+        }
+        return null;
+    }
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "XAML wires it on the instance")]
     private void OnBindDevices(object sender, RoutedEventArgs e)
     {

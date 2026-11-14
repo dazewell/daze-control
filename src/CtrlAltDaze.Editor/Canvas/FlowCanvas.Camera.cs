@@ -64,10 +64,21 @@ public sealed partial class FlowCanvas
     {
         if (_viewModel is not null && ViewportWidth > 0)
             camera = camera.Clamp(_viewModel.ExtentWidth, _viewModel.ExtentHeight, ViewportWidth, ViewportHeight);
+        var moved = !camera.Equals(_camera);
         _camera = camera;
         CameraTransform.ScaleX = CameraTransform.ScaleY = camera.Zoom;
         CameraTransform.TranslateX = camera.X;
         CameraTransform.TranslateY = camera.Y;
+        // A pan or zoom moves the steps under a tip that stays put (it is outside Host's transform): the user's own
+        // closes it, open or waiting for a glide; a fit after an edit places an open one again, on the new transform,
+        // and leaves a waiting one to FinishMotion.
+        if (moved && RefusalTip.Target is NodeView && (RefusalTip.IsOpen || _tipAfterMotion))
+        {
+            if (!_autoFit)
+                CloseTip();
+            else if (!_tipAfterMotion)
+                ReanchorTip();
+        }
         if (_viewModel is null || Math.Abs(_viewModel.Zoom - camera.Zoom) < 1e-9)
             return;
         var details = _viewModel.ShowDetails;

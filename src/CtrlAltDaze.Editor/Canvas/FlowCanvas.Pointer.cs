@@ -48,6 +48,7 @@ public sealed partial class FlowCanvas
         var point = e.GetCurrentPoint(Host);
         _rightPan = null; // a swallow no RightTapped consumed must not eat this press's menu
         _pressedSinceGlide = true;
+        CloseTip(); // light dismiss misses a press the canvas handles
         var props = point.Properties;
         Focus(FocusState.Pointer);
         UpdateFocusRing(); // the ring is for keyboard focus only
